@@ -3681,6 +3681,11 @@ Implementation order:
       use, preventing deployments from creating keys on one backend that depend
       on provider-specific decoding behavior after a configuration-only
       storage backend flip.
+1358. IMAP RFC 5258 `LIST-EXTENDED` now rejects unparenthesized `RETURN`
+      option lists before mailbox lookup, so forms such as
+      `LIST "" * RETURN CHILDREN` cannot bypass the parenthesized return-option
+      shape required for `CHILDREN`, `SPECIAL-USE`, `SUBSCRIBED`, and
+      LIST-STATUS controls.
 
 ## Deferred until backend contracts stabilize
 

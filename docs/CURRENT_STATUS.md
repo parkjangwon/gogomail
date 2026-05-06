@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after shared storage encoded-separator hardening)
+Last updated: 2026-05-07 (updated after IMAP LIST-EXTENDED return-shape hardening)
 
 ## Current phase
 
@@ -73,6 +73,11 @@ The shared storage path/prefix validator now rejects percent-encoded path
 separators such as `%2F` and `%5C`, keeping object keys portable across
 local/NFS, MinIO, AWS S3, and compatible gateways before adapter-specific
 request signing or filesystem paths are built.
+IMAP RFC 5258 `LIST-EXTENDED` return options now require the whole `RETURN`
+option list to be parenthesized before option parsing, including non-`STATUS`
+forms such as `RETURN (CHILDREN)`. Unparenthesized return options now receive a
+tagged `BAD` at the parser boundary instead of being treated as valid extended
+LIST controls.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

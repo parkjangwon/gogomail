@@ -174,6 +174,10 @@ Current state:
   including before authentication checks. LIST-STATUS now also rejects
   duplicated `STATUS` return options before mailbox lookup so later status
   return controls cannot overwrite earlier requested status data.
+- IMAP RFC 5258 `LIST-EXTENDED` now rejects unparenthesized `RETURN` option
+  lists even when no `STATUS` return option is present, keeping `CHILDREN`,
+  `SPECIAL-USE`, and `SUBSCRIBED` return controls on the same parser boundary
+  as LIST-STATUS.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
