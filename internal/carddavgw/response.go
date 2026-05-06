@@ -227,7 +227,7 @@ func addressBookHomePrivileges() []XMLName {
 }
 
 func addressBookCollectionPrivileges() []XMLName {
-	return []XMLName{PrivilegeRead, PrivilegeWriteProperties}
+	return []XMLName{PrivilegeRead, PrivilegeBind, PrivilegeUnbind, PrivilegeWriteProperties}
 }
 
 func writableObjectPrivileges() []XMLName {

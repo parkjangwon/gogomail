@@ -2462,6 +2462,10 @@ Implementation order:
       applying Depth scope, so unsupported filters still return the RFC 6352
       precondition on `Depth: 0` requests instead of being hidden by an empty
       collection-scoped response.
+1138. CardDAV address-book collection privilege discovery now advertises
+      `DAV:bind`/`DAV:unbind` after contact-object `PUT`/`DELETE` support,
+      aligning `current-user-privilege-set` with implemented child `.vcf`
+      member creation and removal semantics.
 
 ## Deferred until backend contracts stabilize
 

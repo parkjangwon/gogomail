@@ -405,10 +405,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   current-user privileges: readable resources return `DAV:read`, address-book
   homes also return `DAV:bind`/`DAV:unbind` because extended `MKCOL` can create
   child address-book collections and collection `DELETE` can remove them,
+  address-book collections also return `DAV:bind`/`DAV:unbind` because
+  contact-object `PUT`/`DELETE` can bind or unbind child `.vcf` members,
   collections also return `DAV:write-properties` because collection
   `PROPPATCH` semantics are implemented, and contact objects also return
-  `DAV:write-content` because object write semantics are implemented. Broader
-  collection and ACL write privileges remain unadvertised.
+  `DAV:write-content` because object write semantics are implemented. ACL and
+  unimplemented write privileges remain unadvertised.
   Address-book collection PROPFIND also
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
