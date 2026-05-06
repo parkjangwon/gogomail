@@ -68,8 +68,8 @@ Recent release-readiness work also includes:
   logical prefix, object sizes and content/range lengths use unsigned decimal
   grammar, `HEAD`/`Stat` rejects malformed `Last-Modified` metadata, truncated
   pages require canonical continuation state, malformed list entries fail
-  closed, and `CopyObject` success XML is accepted only from namespace-free or
-  AWS S3 `CopyObjectResult` roots.
+  closed, and `ListObjectsV2`/`CopyObject` success XML accepts only
+  namespace-free or AWS S3 namespaces for roots and core metadata elements.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB

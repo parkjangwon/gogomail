@@ -97,6 +97,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
   namespace `CopyObjectResult` roots only, rejecting unexpected namespaces
   before copy/move is reported successful.
+- S3-compatible `CopyObjectResult` core child elements now use the same
+  namespace boundary as the root, so foreign-namespace `ETag`, `LastModified`,
+  or embedded `Error` elements cannot be collapsed into a successful copy.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
   `ETag` or `LastModified` metadata and nested `Error` elements before
   provider-side copy metadata can be collapsed into a successful copy/move
@@ -104,6 +107,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` response XML now accepts namespace-free or AWS
   S3 namespace `ListBucketResult` roots only, rejecting unexpected namespaces
   before list metadata reaches pagination, cleanup, or Drive callers.
+- S3-compatible `ListObjectsV2` control and object-metadata elements now use
+  the same namespace boundary as the root, so foreign-namespace
+  `IsTruncated`, `Contents`, `Key`, `Size`, `ETag`, or `LastModified` elements
+  cannot be treated as canonical provider metadata.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

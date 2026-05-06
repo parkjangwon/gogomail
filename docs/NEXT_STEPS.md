@@ -160,6 +160,10 @@ Current state:
 - S3-compatible `CopyObject` success XML accepts namespace-free or AWS S3
   namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
   unexpected namespaces before copy/move is reported successful.
+- S3-compatible `CopyObjectResult` core child elements now use the same
+  namespace boundary as the root, preventing foreign-namespace `ETag`,
+  `LastModified`, or embedded `Error` elements from being collapsed into a
+  successful copy response.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
   `ETag` or `LastModified` metadata and nested `Error` elements, preventing
   ambiguous provider-side copy metadata from being collapsed into a successful
@@ -168,6 +172,10 @@ Current state:
   boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
   roots only before pagination, prefix filtering, cleanup, or Drive callers see
   listed object metadata.
+- S3-compatible `ListObjectsV2` control and object-metadata elements now use
+  the same namespace boundary as the root, preventing foreign-namespace
+  `IsTruncated`, `Contents`, `Key`, `Size`, `ETag`, or `LastModified` elements
+  from being treated as canonical provider metadata.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now fails
   closed when a non-empty provider value is malformed or whitespace-padded,
   while still allowing missing values for compatible providers that omit

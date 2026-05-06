@@ -356,6 +356,8 @@ cannot masquerade as successful object duplication. Success metadata is also
 kept singular for the core S3 fields: duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
+Core `CopyObjectResult` child elements must also be namespace-free or in the
+AWS S3 XML namespace, matching the accepted root namespace boundary.
 S3-compatible `Move` is intentionally documented as a copy-then-delete
 operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable
@@ -369,7 +371,11 @@ prefixes, bounded `max-keys`, opaque continuation tokens, and an exact `200 OK`
 status requirement. Successful list responses must decode as bounded
 `ListBucketResult` XML from either no XML namespace or the AWS S3 XML
 namespace, so unexpected success bodies or same-local-name foreign XML cannot
-masquerade as empty object pages. Returned keys are normalized back to
+masquerade as empty object pages. Core control and object-metadata elements
+inside the result use the same namespace boundary, so foreign-namespace
+pagination, `Contents`, key, size, ETag, or timestamp elements are rejected
+before XML unmarshalling can collapse them into provider metadata. Returned
+keys are normalized back to
 gogomail object paths under the configured storage prefix, so callers do not
 see deployment-specific bucket prefixes. The mapped gogomail path is then
 rechecked against the requested logical prefix, preserving local/NFS

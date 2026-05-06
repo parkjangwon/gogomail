@@ -1269,16 +1269,25 @@ func validateS3ListControlCardinality(data []byte) error {
 			case rootDepth == 2:
 				switch token.Name.Local {
 				case "IsTruncated":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if isTruncatedSeen {
 						return fmt.Errorf("list s3 objects: duplicate IsTruncated value")
 					}
 					isTruncatedSeen = true
 				case "NextContinuationToken":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if continuationTokenSeen {
 						return fmt.Errorf("list s3 objects: duplicate continuation token")
 					}
 					continuationTokenSeen = true
 				case "Contents":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					inContent = true
 					keySeen = false
 					sizeSeen = false
@@ -1288,21 +1297,33 @@ func validateS3ListControlCardinality(data []byte) error {
 			case inContent && rootDepth == 3:
 				switch token.Name.Local {
 				case "Key":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if keySeen {
 						return fmt.Errorf("list s3 objects: duplicate object key")
 					}
 					keySeen = true
 				case "Size":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if sizeSeen {
 						return fmt.Errorf("list s3 objects: duplicate object size")
 					}
 					sizeSeen = true
 				case "ETag":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if etagSeen {
 						return fmt.Errorf("list s3 objects: duplicate object etag")
 					}
 					etagSeen = true
 				case "LastModified":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 					if lastModifiedSeen {
 						return fmt.Errorf("list s3 objects: duplicate object last-modified")
 					}
@@ -1384,16 +1405,25 @@ func validateS3CopyResultShape(data []byte) error {
 			}
 			switch token.Name.Local {
 			case "ETag":
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return fmt.Errorf("copy s3 object: unexpected response namespace")
+				}
 				if etagSeen {
 					return fmt.Errorf("copy s3 object: duplicate etag")
 				}
 				etagSeen = true
 			case "LastModified":
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return fmt.Errorf("copy s3 object: unexpected response namespace")
+				}
 				if lastModifiedSeen {
 					return fmt.Errorf("copy s3 object: duplicate last-modified")
 				}
 				lastModifiedSeen = true
 			case "Error":
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return fmt.Errorf("copy s3 object: unexpected response namespace")
+				}
 				return fmt.Errorf("copy s3 object: embedded error")
 			}
 		case xml.EndElement:
