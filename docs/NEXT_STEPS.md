@@ -1556,7 +1556,8 @@ Current state:
 - CalDAV `.ics` validation now wraps `github.com/emersion/go-ical` so object
   writes decode RFC 5545 iCalendar bodies, derive or verify UID/component
   metadata, and reject multiple supported top-level components, missing/duplicate
-  UIDs, and excessive component/property counts.
+  UIDs, excessive component/property counts, and RFC-invalid `VEVENT`/`VTODO`
+  duration/end combinations before storage.
 - CalDAV WebDAV response groundwork now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar homes, calendar collections, and calendar objects.

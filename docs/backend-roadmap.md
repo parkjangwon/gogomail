@@ -2953,6 +2953,10 @@ Implementation order:
       `204 No Content` success responses plus idempotent `404 Not Found`,
       rejecting accepted/deferred or otherwise ambiguous non-OK 2xx statuses so
       cleanup workers cannot mark uncertain object deletes as complete.
+1207. CalDAV iCalendar object validation now rejects RFC-invalid
+      `VEVENT`/`VTODO` duration/end combinations, including `VEVENT`
+      `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and `VTODO` `DURATION`
+      without `DTSTART`, before malformed calendar objects can reach storage.
 
 ## Deferred until backend contracts stabilize
 

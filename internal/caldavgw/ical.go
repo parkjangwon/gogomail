@@ -47,6 +47,9 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 		component := strings.ToUpper(strings.TrimSpace(child.Name))
 		switch component {
 		case ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY:
+			if err := validateICalendarComponentSemantics(component, child); err != nil {
+				return ICalendarObject{}, err
+			}
 			uid, err := calendarComponentUID(child)
 			if err != nil {
 				return ICalendarObject{}, err
@@ -96,6 +99,23 @@ func validateDetachedComponents(found []calendarComponentObject) error {
 	}
 	if masters != 1 {
 		return fmt.Errorf("iCalendar recurring VEVENT object must contain exactly one master component")
+	}
+	return nil
+}
+
+func validateICalendarComponentSemantics(component string, child *ical.Component) error {
+	switch component {
+	case ComponentVEVENT:
+		if len(child.Props[ical.PropDateTimeEnd]) > 0 && len(child.Props[ical.PropDuration]) > 0 {
+			return fmt.Errorf("VEVENT must not contain both DTEND and DURATION")
+		}
+	case ComponentVTODO:
+		if len(child.Props[ical.PropDue]) > 0 && len(child.Props[ical.PropDuration]) > 0 {
+			return fmt.Errorf("VTODO must not contain both DUE and DURATION")
+		}
+		if len(child.Props[ical.PropDuration]) > 0 && len(child.Props[ical.PropDateTimeStart]) == 0 {
+			return fmt.Errorf("VTODO with DURATION must contain DTSTART")
+		}
 	}
 	return nil
 }
