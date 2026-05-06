@@ -940,6 +940,10 @@ owner/resource target without scanning unrelated audit history.
   sequence-set and `UID` search-key set syntax before authentication or
   selected-mailbox checks, so signed values such as `SEARCH +1` and
   `UID SEARCH UID +7` fail as grammar errors rather than state errors.
+- IMAP `SORT`, `UID SORT`, `THREAD`, and `UID THREAD` now reuse the same
+  syntax-only search-key validation before authentication or selected-mailbox
+  checks, so malformed embedded search criteria are reported consistently
+  across the RFC 5256/ESORT-style command family.
 - IMAP command tokenization now rejects embedded quote characters inside
   unquoted atoms while preserving escaped quotes inside proper quoted strings,
   keeping RFC 3501 atom and quoted-string handling separate.

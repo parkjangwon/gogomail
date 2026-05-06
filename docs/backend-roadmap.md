@@ -3022,6 +3022,10 @@ Implementation order:
       selected-state checks, so signed values such as `SEARCH +1` and
       `UID SEARCH UID +7` fail as RFC 3501 grammar errors instead of state
       errors.
+1225. IMAP `SORT`, `UID SORT`, `THREAD`, and `UID THREAD` now reuse the same
+      syntax-only search-key validation before authentication or selected-state
+      checks, keeping malformed embedded criteria consistent across the
+      search/sort/thread command family.
 
 ## Deferred until backend contracts stabilize
 
