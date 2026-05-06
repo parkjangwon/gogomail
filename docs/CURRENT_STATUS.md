@@ -138,6 +138,9 @@ error preview path is streaming and best-effort, so truncated provider error
 bodies still surface parsed S3 fields without falling back to raw XML snippets.
 Each parsed XML error field is independently capped before formatting, keeping
 diagnostics bounded even when compatible providers return very large messages.
+Standard S3 error XML without any safe `Code`, `Message`, `RequestId`, or
+`HostId` fields now suppresses the preview entirely rather than falling back
+to raw XML fragments.
 S3-compatible `ListObjectsV2` success responses now also reject top-level
 standard S3 `<Error>` XML bodies as embedded provider errors, preserving the
 same bounded `Code: Message`, request-id, and host-id diagnostics instead of
