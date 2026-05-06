@@ -134,9 +134,12 @@ native client cache/write behavior coherent.
 boundary. The first implementation lists objects from an authenticated calendar
 collection, returns requested WebDAV/iCalendar properties, and applies VEVENT
 time-range overlap checks through the RFC 5545 parser when a CalDAV
-`time-range` filter is supplied. Recurrence expansion and non-VEVENT
-time-range semantics remain future compatibility work before the listener is
-advertised as broadly client-ready.
+`time-range` filter is supplied. Calendar-query object listing must stay
+bounded: handlers request at most the requested/default result limit plus one
+extra object so exact-limit responses can complete while genuinely truncating
+responses fail closed until continuation semantics exist. Recurrence expansion
+and non-VEVENT time-range semantics remain future compatibility work before the
+listener is advertised as broadly client-ready.
 Unsupported CalDAV filter elements must fail closed with a
 `CALDAV:supported-filter` precondition rather than being silently ignored,
 because broadening query results under an unimplemented predicate is worse for

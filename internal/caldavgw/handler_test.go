@@ -647,6 +647,35 @@ func TestHandlerReportCalendarQueryFiltersByComponent(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryRejectsTruncatingLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	second := store.objects[0]
+	second.ID = "object-2"
+	second.ObjectName = "event-2.ics"
+	second.UID = "event-2@example.com"
+	second.ETag = `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`
+	store.objects = append(store.objects, second)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+  <C:filter><C:comp-filter name="VCALENDAR"/></C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "calendar-query limit would truncate results") {
+		t.Fatalf("truncating calendar-query response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing.T) {
 	t.Parallel()
 
@@ -2057,6 +2086,17 @@ func (s *fakeDiscoveryStore) ListCalendarObjects(_ context.Context, userID strin
 		return nil, err
 	}
 	return append([]CalendarObject(nil), s.objects...), nil
+}
+
+func (s *fakeDiscoveryStore) ListCalendarObjectsLimit(_ context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+	objects, err := s.ListCalendarObjects(context.Background(), userID, calendarID)
+	if err != nil {
+		return nil, err
+	}
+	if limit >= 0 && len(objects) > limit {
+		objects = objects[:limit]
+	}
+	return objects, nil
 }
 
 func (s *fakeDiscoveryStore) LookupCalendarObject(_ context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {

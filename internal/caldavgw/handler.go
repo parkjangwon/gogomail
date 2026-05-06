@@ -1072,9 +1072,16 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 }
 
 func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
-	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
 	if err != nil {
 		return nil, err
+	}
+	if len(objects) > limit {
+		return nil, fmt.Errorf("calendar-query limit would truncate results")
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
@@ -1166,7 +1173,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	objects, err := h.listCalendarObjectsForSync(ctx, userID, resource.CalendarID, limit+1)
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1196,7 +1203,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	return responses, calendar.SyncToken, nil
 }
 
-func (h *Handler) listCalendarObjectsForSync(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+func (h *Handler) listCalendarObjectsBounded(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
 	if limiter, ok := h.Store.(CalendarObjectLimiter); ok {
 		return limiter.ListCalendarObjectsLimit(ctx, userID, calendarID, limit)
 	}

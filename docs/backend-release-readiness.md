@@ -237,8 +237,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preconditions. Broader native-client compatibility tests remain incomplete.
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, including requested `calendar-data` bodies and VEVENT
-  time-range filtering through the RFC 5545 parser. Scheduling, recurrence
-  expansion, and broader device/client compatibility tests remain incomplete.
+  time-range filtering through the RFC 5545 parser. Calendar-query object
+  listing is bounded with `limit/nresults` and one-extra-row truncation
+  detection so large collections cannot silently return partial result sets.
+  Scheduling, recurrence expansion, and broader device/client compatibility
+  tests remain incomplete.
 - CalDAV now handles conservative RFC 6578 `REPORT sync-collection` requests:
   explicit empty-token initial sync returns active objects and the current
   collection sync token, current-token sync returns no resource responses,

@@ -2470,10 +2470,12 @@ The platform hardening sprint completed the following:
   preconditions before soft-deleting repository objects.
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, listing matching `.ics` objects through WebDAV multistatus
-  responses and applying RFC 5545-backed VEVENT overlap checks when a CalDAV
-  time-range filter is supplied. Unsupported CalDAV filter elements such as
-  `prop-filter` now fail closed with a `CALDAV:supported-filter` precondition
-  instead of being silently ignored and widening query results.
+  responses, keeping object reads behind bounded `limit/nresults` handling
+  with one-extra-row truncation detection, and applying RFC 5545-backed VEVENT
+  overlap checks when a CalDAV time-range filter is supplied. Unsupported
+  CalDAV filter elements such as `prop-filter` now fail closed with a
+  `CALDAV:supported-filter` precondition instead of being silently ignored and
+  widening query results.
 - CalDAV now handles a conservative RFC 6578 `REPORT sync-collection` path for
   authenticated calendar collections: empty sync tokens return all active
   objects plus the collection sync token, current tokens return only the
