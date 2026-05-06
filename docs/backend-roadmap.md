@@ -2611,9 +2611,9 @@ Implementation order:
       audit records without duplicating envelope conventions.
 1172. Admin audit-log listing now supports bounded `actor_id` and `target_id`
       filters in the repository, HTTP API, OpenAPI contract, and backend API
-      docs. A new partial actor/time index complements the existing target
-      index, making delegated-access forensic queries operable by acting
-      principal or owner/resource target.
+      docs. New partial actor/time and target/time indexes make
+      delegated-access forensic queries operable by acting principal or
+      owner/resource target.
 1173. `internal/accesspolicy` now exposes `DelegationAuditRecorder`, a small
       repository-backed recorder that validates and inserts the standard
       delegated-access audit log envelope. Future CalDAV/CardDAV/Drive/mailbox
