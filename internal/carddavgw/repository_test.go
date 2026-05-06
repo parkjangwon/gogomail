@@ -195,6 +195,27 @@ func TestValidateListAddressBookChangesSinceRequest(t *testing.T) {
 	}
 }
 
+func TestValidateDeleteAddressBookRequest(t *testing.T) {
+	t.Parallel()
+
+	req, err := ValidateDeleteAddressBookRequest(DeleteAddressBookRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+	})
+	if err != nil {
+		t.Fatalf("ValidateDeleteAddressBookRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" {
+		t.Fatalf("request = %+v", req)
+	}
+	if _, err := ValidateDeleteAddressBookRequest(DeleteAddressBookRequest{UserID: "user-1"}); err == nil {
+		t.Fatal("ValidateDeleteAddressBookRequest accepted missing address book id")
+	}
+	if _, err := ValidateDeleteAddressBookRequest(DeleteAddressBookRequest{UserID: "user-1", AddressBookID: "bad\nbook"}); err == nil {
+		t.Fatal("ValidateDeleteAddressBookRequest accepted unsafe address book id")
+	}
+}
+
 func TestValidateUpsertContactObjectRequest(t *testing.T) {
 	t.Parallel()
 

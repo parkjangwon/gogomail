@@ -89,11 +89,11 @@ CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 `current-user-privilege-set`: readable resources advertise `DAV:read`, and
 address-book collections now also advertise `DAV:write-properties` because
 collection `PROPPATCH` semantics exist. Contact objects advertise
-`DAV:write-content` because object `PUT`/`DELETE` semantics exist. ACL,
-unbind, and broader collection write privileges remain unadvertised until their
-exact WebDAV semantics are implemented. Address-book homes advertise
-`DAV:bind` because extended `MKCOL` can now create child address-book
-collections there.
+`DAV:write-content` because object `PUT`/`DELETE` semantics exist. ACL and
+broader collection write privileges remain unadvertised until their exact
+WebDAV semantics are implemented. Address-book homes advertise `DAV:bind`
+because extended `MKCOL` can create child address-book collections there and
+`DAV:unbind` because collection `DELETE` can remove them.
 Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable sync token used for WebDAV
 `sync-token`, improving legacy native-client change detection without adding a
@@ -117,6 +117,12 @@ bounded WebDAV creation XML for `DAV:resourcetype`, `DAV:displayname`, and
 paths, missing homes, and unsafe non-UUID path ids before body reads, creates
 the collection through the repository, refreshes sync state, and returns
 `201 Created` with `Location`.
+CardDAV now handles `DELETE` on authenticated address-book collection paths,
+soft-deleting the collection and active child contact objects in one repository
+transaction, honoring collection `If-Match`/`If-Unmodified-Since` preconditions,
+recording an `addressbook-deleted` change row, and rejecting home/object/cross-
+user targets. Address-book homes now also advertise `DAV:unbind` because child
+collection delete semantics exist.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

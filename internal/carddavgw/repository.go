@@ -71,6 +71,11 @@ type DeleteContactObjectRequest struct {
 	ObjectName    string
 }
 
+type DeleteAddressBookRequest struct {
+	UserID        string
+	AddressBookID string
+}
+
 type UpdateAddressBookRequest struct {
 	UserID        string
 	AddressBookID string
@@ -326,6 +331,60 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 	}
 	if err := tx.Commit(); err != nil {
 		return AddressBook{}, fmt.Errorf("commit CardDAV address book update: %w", err)
+	}
+	return book, nil
+}
+
+func (r *Repository) DeleteAddressBook(ctx context.Context, req DeleteAddressBookRequest) (AddressBook, error) {
+	if r == nil || r.db == nil {
+		return AddressBook{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateDeleteAddressBookRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AddressBook{}, fmt.Errorf("begin CardDAV address book delete: %w", err)
+	}
+	defer tx.Rollback()
+	const query = `
+UPDATE carddav_addressbooks
+SET status = 'deleted', deleted_at = now(), updated_at = now()
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+	var book AddressBook
+	err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID).Scan(
+		&book.ID,
+		&book.UserID,
+		&book.Name,
+		&book.Description,
+		&book.SyncToken,
+		&book.CreatedAt,
+		&book.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
+		}
+		return AddressBook{}, fmt.Errorf("delete CardDAV address book: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE carddav_contact_objects
+SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+WHERE user_id = $1::uuid
+  AND addressbook_id = $2::uuid
+  AND status = 'active'`, req.UserID, req.AddressBookID); err != nil {
+		return AddressBook{}, fmt.Errorf("delete CardDAV contact objects: %w", err)
+	}
+	syncToken := AddressBookSyncToken(req.UserID, req.AddressBookID, "addressbook-delete", time.Now().UTC().Format(time.RFC3339Nano))
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "addressbook-deleted", "", ""); err != nil {
+		return AddressBook{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AddressBook{}, fmt.Errorf("commit CardDAV address book delete: %w", err)
 	}
 	return book, nil
 }
@@ -704,6 +763,18 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, "addressbook-update", time.Now().UTC().Format(time.RFC3339Nano))
 	return UpdateAddressBookRequest{UserID: userID, AddressBookID: bookID, Name: name, Description: description}, normalizedName, syncToken, nil
+}
+
+func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddressBookRequest, error) {
+	userID, err := validateCardDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return DeleteAddressBookRequest{}, err
+	}
+	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
+	if err != nil {
+		return DeleteAddressBookRequest{}, err
+	}
+	return DeleteAddressBookRequest{UserID: userID, AddressBookID: bookID}, nil
 }
 
 func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertContactObjectRequest, string, string, error) {

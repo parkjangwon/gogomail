@@ -24,6 +24,10 @@ type AddressBookCreator interface {
 	CreateAddressBookAtPath(ctx context.Context, req CreateAddressBookAtPathRequest) (AddressBook, error)
 }
 
+type AddressBookDeleter interface {
+	DeleteAddressBook(ctx context.Context, req DeleteAddressBookRequest) (AddressBook, error)
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 type Handler struct {
@@ -341,8 +345,16 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveResourceRequest(w, r)
 	if !ok {
+		return
+	}
+	if resource.Kind == ResourceAddressBookCollection {
+		h.deleteAddressBookCollection(w, r, userID, resource)
+		return
+	}
+	if resource.Kind != ResourceContactObject {
+		http.Error(w, "DELETE requires an address-book collection or contact object path", http.StatusForbidden)
 		return
 	}
 	store, ok := h.Store.(ObjectStore)
@@ -368,6 +380,24 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if _, err := store.DeleteContactObject(r.Context(), DeleteContactObjectRequest{UserID: userID, AddressBookID: resource.AddressBookID, ObjectName: resource.ObjectName}); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) deleteAddressBookCollection(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+	store, ok := h.Store.(AddressBookDeleter)
+	if !ok {
+		http.Error(w, "carddav address-book deleter is not configured", http.StatusNotImplemented)
+		return
+	}
+	if !h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID) {
+		return
+	}
+	if _, err := store.DeleteAddressBook(r.Context(), DeleteAddressBookRequest{UserID: userID, AddressBookID: resource.AddressBookID}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}

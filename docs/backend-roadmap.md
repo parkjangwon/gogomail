@@ -2388,9 +2388,9 @@ Implementation order:
       semantics exist; contact objects additionally advertise
       `DAV:write-content` because object `PUT`/`DELETE` semantics exist today.
       Address-book homes advertise `DAV:bind` because extended `MKCOL` can
-      create child address-book collections there. ACL, unbind, and broader
-      collection write privileges remain unadvertised until their exact WebDAV
-      semantics exist.
+      create child address-book collections there and `DAV:unbind` because
+      collection `DELETE` can remove them. ACL and broader collection write
+      privileges remain unadvertised until their exact WebDAV semantics exist.
 1120. CardDAV address-book collection PROPFIND now exposes the
       CalendarServer-compatible `getctag` extension from the same durable
       collection sync token used for WebDAV `sync-token`, improving native
@@ -2418,9 +2418,14 @@ Implementation order:
       `DAV:displayname`, and `CARDDAV:addressbook-description`, then creates
       the collection through the repository with durable sync/change state and
       returns `201 Created` with `Location`.
-1126. CardDAV current-user privilege discovery now advertises `DAV:bind` on
-      address-book homes after extended `MKCOL` support, while keeping
-      `DAV:unbind` unadvertised until collection deletion semantics exist.
+1126. CardDAV current-user privilege discovery now advertises `DAV:bind` and
+      `DAV:unbind` on address-book homes after child collection `MKCOL` and
+      `DELETE` support.
+1127. CardDAV now handles `DELETE` on authenticated address-book collection
+      paths, soft-deleting the collection and active child contact objects in
+      one repository transaction, honoring collection ETag/time preconditions,
+      recording an `addressbook-deleted` change row, and rejecting home,
+      contact-object, and cross-user collection-delete targets.
 
 ## Deferred until backend contracts stabilize
 

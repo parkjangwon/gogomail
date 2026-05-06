@@ -1620,8 +1620,8 @@ Next:
   that hot path. Address-data projection failures are explicit errors rather
   than silent full-body fallbacks. PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
-  `DAV:bind` only on address-book homes where extended `MKCOL` can create
-  child collections,
+  `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`
+  can create child collections and collection `DELETE` can remove them,
   `DAV:write-properties` only on address-book collections with implemented
   `PROPPATCH`, plus `DAV:write-content` only on contact objects with
   implemented write paths.
@@ -1640,6 +1640,9 @@ Next:
   `DAV:resourcetype`, `DAV:displayname`, and `addressbook-description`, while
   rejecting existing collections, cross-user paths, missing homes, and unsafe
   path ids before body reads where possible.
+  Address-book collection `DELETE` soft-deletes the collection and active child
+  contact objects transactionally, honors collection preconditions, and records
+  an `addressbook-deleted` change row.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

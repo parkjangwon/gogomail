@@ -72,9 +72,9 @@ discovery: resources advertise `DAV:read`, and contact objects additionally
 advertise `DAV:write-content` because their object write paths are implemented.
 Address-book collections advertise `DAV:write-properties` now that collection
 `PROPPATCH` semantics exist. Address-book homes advertise `DAV:bind` after
-extended `MKCOL` support. ACL, unbind, and broader collection write privileges
-are intentionally not advertised until the gateway implements those exact
-WebDAV semantics.
+extended `MKCOL` support and `DAV:unbind` after collection `DELETE` support.
+ACL and broader collection write privileges are intentionally not advertised
+until the gateway implements those exact WebDAV semantics.
 Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable collection sync token used for
 WebDAV `sync-token`, keeping legacy client change detection tied to the
@@ -93,6 +93,9 @@ RFC 6352-style extended `MKCOL` can create authenticated address-book
 collections at UUID request-URI paths after bounded `DAV:resourcetype`,
 `DAV:displayname`, and `CARDDAV:addressbook-description` parsing. UUID-only
 request IDs keep path identity separate from future human-readable aliases.
+Collection `DELETE` soft-deletes an address book and active child contact
+objects transactionally, records an `addressbook-deleted` change row, and keeps
+per-contact object deletion on the existing object `DELETE` path.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
