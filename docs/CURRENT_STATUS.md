@@ -1891,8 +1891,10 @@ The platform hardening sprint completed the following:
   stale UIDs out of successful `FETCH` echoes and mailbox flag notifications.
 - IMAP `SELECT` and `EXAMINE` accept the RFC 4551-shaped `(CONDSTORE)`
   parameter and mark the session CONDSTORE-aware.
-- IMAP `FETCH`/`UID FETCH` can return a conservative single-part
-  `BODYSTRUCTURE` response; full MIME tree serialization remains future work.
+- IMAP `FETCH`/`UID FETCH` keep a conservative single-part `BODYSTRUCTURE`
+  fallback when only message headers are available, while metadata-only
+  structure fetches now reopen the bounded raw message stream for richer MIME
+  tree serialization.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.

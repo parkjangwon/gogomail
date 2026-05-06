@@ -1476,9 +1476,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   UIDs out of successful `FETCH` echoes and mailbox flag notifications.
 - IMAP `SELECT`/`EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
   parameter and mark the session CONDSTORE-aware.
-- IMAP `FETCH`/`UID FETCH` now return a conservative single-part
-  `BODYSTRUCTURE` response for clients that require structure metadata before
-  fetching message bodies.
+- IMAP `FETCH`/`UID FETCH` keep a conservative single-part `BODYSTRUCTURE`
+  fallback when only message headers are available, while metadata-only
+  structure fetches reopen the bounded raw message stream for richer MIME tree
+  serialization.
 - IMAP single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.
