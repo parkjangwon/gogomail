@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP partial offset grammar hardening)
+Last updated: 2026-05-07 (updated after IMAP UID/sequence leading-zero hardening)
 
 ## Current phase
 
@@ -142,6 +142,10 @@ IMAP partial fetch offsets now also follow RFC 3501 `number` grammar by
 accepting `0` or non-zero-leading digit atoms only; malformed windows such as
 `BODY.PEEK[]<00.34>` or `<012.34>` are rejected before command execution
 instead of being normalized to offset `0` or `12`.
+IMAP UID and message sequence-set numbers now also enforce RFC `nz-number`
+spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` or
+`UID FETCH 1:02 FLAGS` before sequence expansion instead of normalizing them
+to `1` or `2`.
 IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT` parsing
 now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
 `.` while still rejecting empty, space/control-bearing, colon-suffixed, or

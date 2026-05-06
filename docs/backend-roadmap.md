@@ -3778,6 +3778,10 @@ Implementation order:
       rejecting leading-zero forms such as `BODY.PEEK[]<00.34>` and
       `<012.34>` before command execution, while preserving the valid
       zero-offset `<0.count>` window used by clients.
+1379. IMAP UID and message sequence-set number parsing now enforces RFC
+      `nz-number` spelling, rejecting leading-zero values such as
+      `FETCH 01 FLAGS` and `UID FETCH 1:02 FLAGS` before set expansion instead
+      of normalizing them to `1` or `2`.
 
 ## Deferred until backend contracts stabilize
 

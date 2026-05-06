@@ -9929,9 +9929,14 @@ func TestParseIMAPSequenceSet(t *testing.T) {
 			t.Fatalf("parseIMAPSequenceSet(%q, 3) = %v true, want out-of-range rejection", value, got)
 		}
 	}
-	for _, value := range []string{"", "0", "4", "1:4", "bad", "*"} {
+	for _, value := range []string{"", "0", "01", "1:02", "4", "1:4", "bad", "*"} {
 		if got, ok := parseIMAPSequenceSet(value, 0); ok {
 			t.Fatalf("parseIMAPSequenceSet(%q, 0) = %v true, want rejection", value, got)
+		}
+	}
+	for _, value := range []string{"01", "1:02"} {
+		if got, ok := parseIMAPSequenceSet(value, 3); ok {
+			t.Fatalf("parseIMAPSequenceSet(%q, 3) = %v true, want leading-zero rejection", value, got)
 		}
 	}
 }
