@@ -1557,7 +1557,9 @@ Current state:
   writes decode RFC 5545 iCalendar bodies, derive or verify UID/component
   metadata, and reject multiple supported top-level components, missing/duplicate
   UIDs, excessive component/property counts, and RFC-invalid `VEVENT`/`VTODO`
-  duration/end combinations before storage.
+  duration/end combinations before storage. Supported calendar components now
+  also reject duplicated singleton time/status properties before malformed
+  `.ics` resources can enter repository state.
 - CalDAV WebDAV response groundwork now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar homes, calendar collections, and calendar objects.

@@ -208,7 +208,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV object writes now have RFC 5545 iCalendar decode validation through
   `github.com/emersion/go-ical`, deriving/verifying UID and component metadata
   while bounding supported component count, property count, UID size, stored
-  body bytes, and invalid `VEVENT`/`VTODO` duration/end property combinations.
+  body bytes, invalid `VEVENT`/`VTODO` duration/end property combinations, and
+  duplicated singleton time/status properties on supported calendar components.
 - CalDAV WebDAV response generation now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar collections, and calendar objects before protocol

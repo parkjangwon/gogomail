@@ -106,15 +106,60 @@ func validateDetachedComponents(found []calendarComponentObject) error {
 func validateICalendarComponentSemantics(component string, child *ical.Component) error {
 	switch component {
 	case ComponentVEVENT:
+		if err := validateICalendarSingletonProps(component, child, []string{
+			ical.PropDateTimeStamp,
+			ical.PropDateTimeStart,
+			ical.PropDateTimeEnd,
+			ical.PropDuration,
+			ical.PropStatus,
+			ical.PropTransparency,
+			ical.PropRecurrenceID,
+		}); err != nil {
+			return err
+		}
 		if len(child.Props[ical.PropDateTimeEnd]) > 0 && len(child.Props[ical.PropDuration]) > 0 {
 			return fmt.Errorf("VEVENT must not contain both DTEND and DURATION")
 		}
 	case ComponentVTODO:
+		if err := validateICalendarSingletonProps(component, child, []string{
+			ical.PropDateTimeStamp,
+			ical.PropDateTimeStart,
+			ical.PropDue,
+			ical.PropDuration,
+			ical.PropStatus,
+		}); err != nil {
+			return err
+		}
 		if len(child.Props[ical.PropDue]) > 0 && len(child.Props[ical.PropDuration]) > 0 {
 			return fmt.Errorf("VTODO must not contain both DUE and DURATION")
 		}
 		if len(child.Props[ical.PropDuration]) > 0 && len(child.Props[ical.PropDateTimeStart]) == 0 {
 			return fmt.Errorf("VTODO with DURATION must contain DTSTART")
+		}
+	case ComponentVJOURNAL:
+		if err := validateICalendarSingletonProps(component, child, []string{
+			ical.PropDateTimeStamp,
+			ical.PropDateTimeStart,
+			ical.PropStatus,
+		}); err != nil {
+			return err
+		}
+	case ComponentVFREEBUSY:
+		if err := validateICalendarSingletonProps(component, child, []string{
+			ical.PropDateTimeStamp,
+			ical.PropDateTimeStart,
+			ical.PropDateTimeEnd,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateICalendarSingletonProps(component string, child *ical.Component, names []string) error {
+	for _, name := range names {
+		if len(child.Props[name]) > 1 {
+			return fmt.Errorf("%s must not contain multiple %s properties", component, name)
 		}
 	}
 	return nil
