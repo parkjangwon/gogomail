@@ -5995,6 +5995,7 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
+	wasCondstoreAware := state.condstoreAware
 	enableCondstore := false
 	enabled := make([]string, 0, len(fields)-2)
 	for _, field := range fields[2:] {
@@ -6013,7 +6014,7 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 	} else if _, err := writer.WriteString("* ENABLED " + strings.Join(enabled, " ") + "\r\n"); err != nil {
 		return false, err
 	}
-	if enableCondstore && state.selectedMailbox != "" {
+	if enableCondstore && !wasCondstoreAware && state.selectedMailbox != "" {
 		if state.selectedHighestModSeq > 0 {
 			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", state.selectedHighestModSeq)); err != nil {
 				return false, err

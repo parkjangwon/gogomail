@@ -2070,7 +2070,10 @@ The platform hardening sprint completed the following:
   `ENABLE CONDSTORE` issued after mailbox selection now returns the selected
   mailbox's `HIGHESTMODSEQ` or `NOMODSEQ` before completion, matching RFC 7162
   first-enabling-command semantics; selected-session mod-sequence state is also
-  refreshed by known APPEND/COPY/MOVE/STORE/event mutations.
+  refreshed by known APPEND/COPY/MOVE/STORE/event mutations. Repeated
+  `ENABLE CONDSTORE` after the session is already CONDSTORE-aware now avoids
+  re-emitting the selected mailbox baseline, keeping the "first enabling
+  command" behavior precise while still returning `ENABLED CONDSTORE`.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`

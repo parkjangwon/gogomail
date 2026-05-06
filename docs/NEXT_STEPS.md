@@ -1009,7 +1009,10 @@ Current state:
 - `ENABLE CONDSTORE` issued after a mailbox is already selected now emits the
   selected mailbox's `HIGHESTMODSEQ` or `NOMODSEQ` before tagged completion,
   satisfying RFC 7162 first-enabling-command semantics and keeping MODSEQ
-  baselines visible to late-enabling clients.
+  baselines visible to late-enabling clients. Repeated `ENABLE CONDSTORE`
+  after `SELECT ... (CONDSTORE)` or after `STATUS HIGHESTMODSEQ` plus `SELECT`
+  is regression-covered so already aware sessions do not re-emit the selected
+  mailbox baseline.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and UID/sequence `[MODIFIED ...]`
