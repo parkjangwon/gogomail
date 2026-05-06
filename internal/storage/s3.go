@@ -246,6 +246,9 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return s3StatusError("copy", resp)
 	}
+	if err := validateS3CopyResponse(resp.Body); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -941,7 +944,14 @@ type s3ListObjectContent struct {
 	LastModified string `xml:"LastModified"`
 }
 
+type s3CopyResponse struct {
+	XMLName xml.Name
+	Code    string `xml:"Code"`
+	Message string `xml:"Message"`
+}
+
 const maxS3ListResponseBytes = 4 << 20
+const maxS3CopyResponseBytes = 1 << 20
 
 func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 	if body == nil {
@@ -959,6 +969,54 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 		return s3ListObjectsResult{}, fmt.Errorf("decode s3 list response: %w", err)
 	}
 	return result, nil
+}
+
+func validateS3CopyResponse(body io.Reader) error {
+	if body == nil {
+		return nil
+	}
+	data, err := io.ReadAll(io.LimitReader(body, maxS3CopyResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("read s3 copy response: %w", err)
+	}
+	if len(data) > maxS3CopyResponseBytes {
+		return fmt.Errorf("copy s3 object: response body is too large")
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return nil
+	}
+	var response s3CopyResponse
+	if err := xml.Unmarshal(data, &response); err != nil {
+		return fmt.Errorf("decode s3 copy response: %w", err)
+	}
+	switch response.XMLName.Local {
+	case "CopyObjectResult":
+		return nil
+	case "Error":
+		preview := s3ErrorPreview(response.Code, response.Message)
+		if preview == "" {
+			return fmt.Errorf("copy s3 object: embedded error")
+		}
+		return fmt.Errorf("copy s3 object: embedded error: %s", preview)
+	default:
+		return fmt.Errorf("copy s3 object: unexpected response %q", response.XMLName.Local)
+	}
+}
+
+func s3ErrorPreview(code string, message string) string {
+	parts := make([]string, 0, 2)
+	for _, value := range []string{code, message} {
+		value = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+			if r < 0x20 || r == 0x7f {
+				return ' '
+			}
+			return r
+		}, strings.ToValidUTF8(value, ""))), " ")
+		if value != "" {
+			parts = append(parts, value)
+		}
+	}
+	return strings.Join(parts, ": ")
 }
 
 const maxS3ResponseDrainBytes = 4096
