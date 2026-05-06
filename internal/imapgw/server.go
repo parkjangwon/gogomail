@@ -1356,6 +1356,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
 			return true, false, err
 		}
+		if message, ok := imapFetchDataItemsSyntaxError(fields[4:]); ok {
+			_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
+			return true, false, err
+		}
 	case "SEARCH":
 		if len(fields) < 4 {
 			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
@@ -3109,6 +3113,10 @@ func (s *Server) handleFetch(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD FETCH requires sequence set and data items\r\n")
 		return false, err
 	}
+	if message, ok := imapFetchDataItemsSyntaxError(fields[3:]); ok {
+		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
+		return false, err
+	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
@@ -3619,24 +3627,12 @@ func imapUIDSetResponse(uids []UID) string {
 }
 
 func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {
-	changedSince, requestsChangedSince, changedSinceOK := imapFetchChangedSince(items)
-	if !changedSinceOK {
-		_, err := writer.WriteString(tag + " BAD FETCH CHANGEDSINCE modifier is invalid\r\n")
-		return false, err
-	}
-	if !imapFetchDataItemParenthesesValid(items) {
-		_, err := writer.WriteString(tag + " BAD FETCH data item list is invalid\r\n")
-		return false, err
-	}
-	if !imapFetchMacroUsageValid(items) {
-		_, err := writer.WriteString(tag + " BAD FETCH macro is invalid\r\n")
+	changedSince, requestsChangedSince, _ := imapFetchChangedSince(items)
+	if message, ok := imapFetchDataItemsSyntaxError(items); ok {
+		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 		return false, err
 	}
 	items = imapExpandFetchItems(items)
-	if !imapFetchHeaderFieldListsValid(items) {
-		_, err := writer.WriteString(tag + " BAD FETCH header field list is invalid\r\n")
-		return false, err
-	}
 	requestsBody := imapFetchRequestsBody(items)
 	partial, requestsPartialBody := imapFetchPartialBody(items)
 	partialSection, requestsPartialSection := imapFetchPartialSection(items)
@@ -5116,6 +5112,22 @@ func imapFetchDataItemParenthesesValid(items []string) bool {
 		}
 	}
 	return true
+}
+
+func imapFetchDataItemsSyntaxError(items []string) (string, bool) {
+	if _, _, ok := imapFetchChangedSince(items); !ok {
+		return "FETCH CHANGEDSINCE modifier is invalid", true
+	}
+	if !imapFetchDataItemParenthesesValid(items) {
+		return "FETCH data item list is invalid", true
+	}
+	if !imapFetchMacroUsageValid(items) {
+		return "FETCH macro is invalid", true
+	}
+	if !imapFetchHeaderFieldListsValid(imapExpandFetchItems(items)) {
+		return "FETCH header field list is invalid", true
+	}
+	return "", false
 }
 
 func imapFetchNormalizedTokens(items []string) []string {
