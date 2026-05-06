@@ -85,6 +85,11 @@ than silently broadening the returned vCard body. `addressbook-query` requires
 an explicit RFC 6352 Depth header; `Depth: 1` scans child address-object
 resources, `Depth: infinity` is accepted with the same flat address-book scan
 semantics, and `Depth: 0` stays collection-scoped and returns no child objects.
+Address-book collection `PROPFIND Depth: 1` child discovery uses the same
+bounded collection-scan rule: the gateway asks storage for the default limit
+plus one contact object and fails explicitly if the multistatus response would
+be partial. This keeps native-client address-book caches from mistaking a
+truncated discovery response for a complete collection view.
 PROPFIND responses expose conservative RFC 3744 current-user privilege
 discovery: resources advertise `DAV:read`, and contact objects additionally
 advertise `DAV:write-content` because their object write paths are implemented.

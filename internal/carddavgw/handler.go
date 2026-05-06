@@ -65,6 +65,18 @@ func (e InvalidSyncTokenError) Error() string {
 	return "CardDAV sync-token is no longer valid"
 }
 
+type TruncatedResultsError struct {
+	Operation string
+}
+
+func (e TruncatedResultsError) Error() string {
+	operation := strings.TrimSpace(e.Operation)
+	if operation == "" {
+		operation = "CardDAV request"
+	}
+	return operation + " would truncate results"
+}
+
 func NewHandler(store DiscoveryStore, resolveUser UserResolver) *Handler {
 	return &Handler{Store: store, ResolveUser: resolveUser, IncludeSync: true}
 }
@@ -557,6 +569,11 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind)
 	if err != nil {
+		var truncated TruncatedResultsError
+		if errors.As(err, &truncated) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -639,9 +656,12 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		}
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
-			objects, err := h.Store.ListAddressBookObjects(ctx, userID, book.ID)
+			objects, err := h.listAddressBookObjectsBounded(ctx, userID, book.ID, MaxWebDAVReportLimit+1)
 			if err != nil {
 				return nil, err
+			}
+			if len(objects) > MaxWebDAVReportLimit {
+				return nil, TruncatedResultsError{Operation: "address-book collection PROPFIND"}
 			}
 			for _, object := range objects {
 				href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
@@ -1114,12 +1134,12 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	objects, err := h.listAddressBookObjectsForSync(ctx, userID, resource.AddressBookID, limit+1)
+	objects, err := h.listAddressBookObjectsBounded(ctx, userID, resource.AddressBookID, limit+1)
 	if err != nil {
 		return nil, "", err
 	}
 	if len(objects) > limit {
-		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
+		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
@@ -1144,7 +1164,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	return responses, book.SyncToken, nil
 }
 
-func (h *Handler) listAddressBookObjectsForSync(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error) {
+func (h *Handler) listAddressBookObjectsBounded(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error) {
 	if limiter, ok := h.Store.(AddressBookObjectLimiter); ok {
 		return limiter.ListAddressBookObjectsLimit(ctx, userID, addressBookID, limit)
 	}

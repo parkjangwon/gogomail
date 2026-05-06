@@ -2453,6 +2453,10 @@ Implementation order:
 1121. CardDAV address-book collection PROPFIND now returns RFC 6352
       `addressbook-description` from stored address-book metadata, keeping
       client-visible collection discovery aligned with the repository model.
+1121a. CardDAV address-book collection `PROPFIND Depth: 1` child-object
+       discovery now uses the bounded object limiter with the default
+       one-extra-row truncation probe, returning an explicit request error
+       rather than a partial WebDAV multistatus for oversized address books.
 1122. CardDAV now handles WebDAV `PROPPATCH` for authenticated address-book
       collections, parsing bounded namespace-aware `propertyupdate` bodies for
       `DAV:displayname` and RFC 6352 `addressbook-description`, updating the

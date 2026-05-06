@@ -162,6 +162,10 @@ second collection-version source of truth.
 It also returns RFC 6352 `addressbook-description` from the stored address-book
 metadata so client-visible collection discovery stays aligned with repository
 state.
+Address-book collection `PROPFIND Depth: 1` child-object discovery is now
+bounded with the shared one-extra-row truncation probe, rejecting partial
+contact metadata listings explicitly instead of returning incomplete
+multistatus bodies.
 CardDAV now handles WebDAV `PROPPATCH` for authenticated address-book
 collection metadata, parsing bounded namespace-aware `propertyupdate` bodies
 for `DAV:displayname` and RFC 6352 `addressbook-description`. Updates flow
