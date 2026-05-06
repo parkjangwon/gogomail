@@ -170,6 +170,9 @@ Current state:
 - IMAP `CLOSE` now clears saved SEARCHRES `$` state as part of selected-mailbox
   teardown, keeping saved results scoped to the same selection lifecycle as
   `SELECT`, `EXAMINE`, and `UNSELECT`.
+- IMAP `DELETE` of the currently selected mailbox now clears saved SEARCHRES
+  `$` state and closes the mailbox event subscription together with selected
+  metadata, keeping mailbox-removal lifecycle behavior predictable.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

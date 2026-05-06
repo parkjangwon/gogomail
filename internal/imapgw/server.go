@@ -1015,6 +1015,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		state.selectedNoModSeq = false
 		state.permanentFlags = nil
 		state.readOnly = false
+		state.savedSearch = nil
 		state.closeSubscription()
 	}
 	_, err = writer.WriteString(tag + " OK DELETE completed\r\n")
