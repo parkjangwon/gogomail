@@ -96,6 +96,35 @@ func TestDeletePrefixReportsDeleteFailureWithProgress(t *testing.T) {
 	}
 }
 
+func TestDeletePrefixReportsUnsafeListedObjectWithProgress(t *testing.T) {
+	t.Parallel()
+
+	store := &deleteFailingStore{
+		page: ObjectListPage{Objects: []ObjectInfo{
+			{Path: "drive/user-1/a.txt"},
+			{Path: "drive//user-1/b.txt"},
+			{Path: "drive/user-1/c.txt"},
+		}},
+	}
+	result, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1"})
+	var unsafeErr DeletePrefixUnsafeObjectError
+	if !errors.As(err, &unsafeErr) {
+		t.Fatalf("DeletePrefix err = %v, want DeletePrefixUnsafeObjectError", err)
+	}
+	if unsafeErr.ObjectPath != "drive//user-1/b.txt" {
+		t.Fatalf("unsafe object path = %q", unsafeErr.ObjectPath)
+	}
+	if result.Deleted != 1 {
+		t.Fatalf("Deleted = %d, want progress count before unsafe listed object", result.Deleted)
+	}
+	if got := strings.Join(store.deleted, ","); got != "drive/user-1/a.txt" {
+		t.Fatalf("deleted paths = %q, want first valid object only", got)
+	}
+	if !strings.Contains(err.Error(), "listing returned unsafe object path") {
+		t.Fatalf("error = %q, want unsafe listed object context", err)
+	}
+}
+
 func TestDeletePrefixHonorsCanceledContext(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +140,7 @@ type deleteFailingStore struct {
 	page     ObjectListPage
 	failPath string
 	err      error
+	deleted  []string
 }
 
 func (s *deleteFailingStore) Put(context.Context, string, io.Reader) error {
@@ -142,6 +172,7 @@ func (s *deleteFailingStore) List(context.Context, ListOptions) (ObjectListPage,
 }
 
 func (s *deleteFailingStore) Delete(_ context.Context, path string) error {
+	s.deleted = append(s.deleted, path)
 	if path == s.failPath {
 		return s.err
 	}

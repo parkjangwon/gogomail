@@ -637,6 +637,8 @@ owner/resource target without scanning unrelated audit history.
   validated prefix `List` pages with idempotent object deletes, giving future
   Drive folder deletion, attachment lifecycle, and reconciliation jobs a
   cursor-driven cleanup path without backend-specific recursive delete logic.
+  Unsafe object paths returned by a listing source now surface as a structured
+  partial-progress error instead of blending with ordinary delete failures.
 - Drive backend groundwork now has ADR 0009, a `drive_nodes` PostgreSQL
   metadata table, and an internal node-name/type/status validation package.
   Drive object bytes remain behind the shared storage interface while metadata,
