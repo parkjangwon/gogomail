@@ -1031,6 +1031,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   authenticated `[CAPABILITY ...]` response code, so clients can refresh
   post-auth extension state without an extra probe and without retaining
   pre-auth auth mechanisms.
+- IMAP greetings include state-aware `[CAPABILITY ...]` response codes:
+  plaintext TLS-required sessions advertise `STARTTLS`/`LOGINDISABLED`, while
+  implicit TLS sessions advertise immediate `SASL-IR`/`AUTH=PLAIN` support.
 - IMAP `LOGIN` and SASL PLAIN decoded credentials reject blank, CR/LF-bearing,
   or oversized authentication identities and oversized or CR/LF-bearing
   passwords at the protocol boundary before backend auth work.

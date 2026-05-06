@@ -113,7 +113,7 @@ func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if line != "* OK gogomail IMAP4rev1 service ready\r\n" {
+	if line != "* OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN] gogomail IMAP4rev1 service ready\r\n" {
 		t.Fatalf("greeting = %q", line)
 	}
 
@@ -792,7 +792,7 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	}()
 
 	reader := bufio.NewReader(client)
-	if line, err := reader.ReadString('\n'); err != nil || line != "* OK gogomail IMAP4rev1 service ready\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "* OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT STARTTLS LOGINDISABLED] gogomail IMAP4rev1 service ready\r\n" {
 		t.Fatalf("greeting = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a1 CAPABILITY\r\n")); err != nil {
@@ -835,6 +835,50 @@ func TestServerHandlesStartTLS(t *testing.T) {
 	}
 	_, _ = reader.ReadString('\n')
 	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerImplicitTLSGreetingAdvertisesAuthenticatedLogin(t *testing.T) {
+	t.Parallel()
+
+	serverTLS := testIMAPTLSConfig(t)
+	server, err := NewServer(ServerOptions{Addr: ":1993", Backend: fakeBackend{}, TLSConfig: serverTLS})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	tlsBackend := tls.Server(backend, serverTLS)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(tlsBackend)
+	}()
+
+	tlsClient := tls.Client(client, &tls.Config{InsecureSkipVerify: true})
+	defer tlsClient.Close()
+	reader := bufio.NewReader(tlsClient)
+	if line, err := reader.ReadString('\n'); err != nil || line != "* OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT SASL-IR AUTH=PLAIN] gogomail IMAP4rev1 service ready\r\n" {
+		t.Fatalf("implicit TLS greeting = %q err = %v", line, err)
+	}
+	if _, err := tlsClient.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write implicit tls login: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a2 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read implicit tls response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("implicit tls response = %q, want %q", line, expected)
+		}
+	}
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}

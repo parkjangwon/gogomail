@@ -2558,6 +2558,10 @@ Implementation order:
       authenticated `[CAPABILITY ...]` response code, exposing the post-auth
       capability set immediately while keeping pre-auth `SASL-IR` and
       `AUTH=PLAIN` out of authenticated capability advertisements.
+1162. IMAP connection greetings now include a state-aware `[CAPABILITY ...]`
+      response code: plaintext TLS-required sessions advertise
+      `STARTTLS`/`LOGINDISABLED`, and implicit TLS sessions advertise immediate
+      `SASL-IR`/`AUTH=PLAIN` login capability.
 
 ## Deferred until backend contracts stabilize
 
