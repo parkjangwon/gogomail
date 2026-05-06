@@ -132,9 +132,10 @@ Current state:
 - S3-compatible `200 OK` range compatibility responses with a matching
   `Content-Range` now also validate any present `Content-Length` against the
   requested window, matching the stricter `206 Partial Content` path.
-- S3-compatible `Content-Length` parsing requires unsigned decimal digits for
-  `HEAD` metadata and range-response validation, rejecting signed values such
-  as `+5` instead of normalizing them as valid sizes.
+- S3-compatible `Content-Length` parsing requires exact unsigned decimal
+  digits for `HEAD` metadata and range-response validation, rejecting signed
+  or whitespace-padded values such as `+5` or ` 5` instead of normalizing them
+  as valid sizes.
 - S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
   `Last-Modified` headers instead of silently returning zero timestamps,
   while preserving HTTP optional-whitespace compatibility around otherwise

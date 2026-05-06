@@ -65,8 +65,9 @@ Recent release-readiness work also includes:
   symlink parent rejection preserving object-root boundaries on mounted
   filesystems. The S3-compatible adapter now treats provider metadata as a
   strict contract: list pages recheck returned keys against the requested
-  logical prefix, object sizes and content/range lengths use unsigned decimal
-  grammar, `HEAD`/`Stat` rejects malformed `Last-Modified` metadata, truncated
+  logical prefix, object sizes and content/range lengths use exact unsigned
+  decimal grammar without whitespace padding, `HEAD`/`Stat` rejects malformed
+  `Last-Modified` metadata, truncated
   pages require canonical continuation state, malformed list entries fail
   closed, non-empty malformed listed ETags fail closed, and
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS

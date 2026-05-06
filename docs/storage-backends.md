@@ -318,9 +318,11 @@ object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
 bounded to safe single-line UTF-8 values before crossing the adapter boundary;
 malformed content type and ETag metadata is dropped while object identity and
-size remain available. A non-empty malformed `Last-Modified` header is rejected
-instead of being silently exposed as a zero timestamp, while missing timestamps
-and HTTP optional whitespace around otherwise valid timestamp values remain
+size remain available. `Content-Length` is treated as exact unsigned decimal
+metadata, so signed or whitespace-padded values fail closed instead of being
+normalized. A non-empty malformed `Last-Modified` header is rejected instead
+of being silently exposed as a zero timestamp, while missing timestamps and
+HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
@@ -331,6 +333,8 @@ the validated requested length. This matches local/NFS behavior even if a
 provider sends an oversized partial-content body. If a provider returns a
 matching `Content-Range` but truncates the response body before the requested
 byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
+When present, range-response `Content-Length` is parsed with the same exact
+unsigned decimal grammar and must match the requested window.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.
