@@ -799,8 +799,12 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if len(fields) > 2 {
 		listFields = fields[2:]
 	}
-	listOptions, ok := imapListCommandOptions(listFields, subscribed)
+	listOptions, listError, ok := imapListCommandOptions(listFields, subscribed)
 	if !ok || len(listOptions.fields) != 2 {
+		if listError != "" {
+			_, err := writer.WriteString(tag + " BAD " + listError + "\r\n")
+			return false, err
+		}
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
 	}
@@ -6382,35 +6386,35 @@ type imapListOptions struct {
 	statusItems    []string
 }
 
-func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, bool) {
+func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, string, bool) {
 	if subscribed {
-		return imapListOptions{fields: fields}, true
+		return imapListOptions{fields: fields}, "", true
 	}
 	options := imapListOptions{}
 	if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
 		tokens := imapFetchNormalizedTokens([]string{fields[0]})
 		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
-			return imapListOptions{}, false
+			return imapListOptions{}, "", false
 		}
 		options.specialUseOnly = true
 		fields = fields[1:]
 	}
 	if len(fields) < 2 {
-		return imapListOptions{}, false
+		return imapListOptions{}, "", false
 	}
 	options.fields = fields[:2]
 	if len(fields) == 2 {
-		return options, true
+		return options, "", true
 	}
 	if len(fields) < 4 || !strings.EqualFold(fields[2], "RETURN") {
-		return imapListOptions{}, false
+		return imapListOptions{}, "", false
 	}
 	if !imapListStatusReturnItemsParenthesized(fields[3:]) {
-		return imapListOptions{}, false
+		return imapListOptions{}, "LIST requires parenthesized status item list", false
 	}
 	tokens := imapFetchNormalizedTokens(fields[3:])
 	if len(tokens) == 0 {
-		return imapListOptions{}, false
+		return imapListOptions{}, "", false
 	}
 	for i := 0; i < len(tokens); {
 		switch strings.ToUpper(tokens[i]) {
@@ -6425,18 +6429,18 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 				i++
 			}
 			if start == i {
-				return imapListOptions{}, false
+				return imapListOptions{}, "LIST requires status data items", false
 			}
 			statusItems, ok := imapStatusItems(tokens[start:i])
 			if !ok {
-				return imapListOptions{}, false
+				return imapListOptions{}, "LIST status item is unsupported", false
 			}
 			options.statusItems = statusItems
 		default:
-			return imapListOptions{}, false
+			return imapListOptions{}, "", false
 		}
 	}
-	return options, true
+	return options, "", true
 }
 
 func imapListStatusReturnItemsParenthesized(fields []string) bool {

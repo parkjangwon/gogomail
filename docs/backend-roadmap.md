@@ -3110,6 +3110,11 @@ Implementation order:
       authentication or selected-mailbox checks, keeping the advertised
       `THREAD=ORDEREDSUBJECT` capability boundary explicit when clients probe
       unsupported algorithms such as `REFERENCES`.
+1239. IMAP LIST-STATUS parsing now preserves RFC-shaped status return
+      diagnostics for malformed advertised `LIST RETURN (STATUS ...)` requests:
+      empty status lists, unparenthesized status item lists, and unsupported or
+      duplicate status items return specific tagged `BAD` responses instead of
+      being collapsed into generic LIST arity failures.
 1239. IMAP literal parsing regression coverage now locks malformed literal
       marker placement, trailing atom data after literal payloads, and unused
       literal payloads to parser-level `BAD` responses before command handlers

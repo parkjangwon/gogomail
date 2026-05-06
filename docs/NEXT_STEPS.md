@@ -41,10 +41,11 @@ Current state:
   valid unauthenticated UID commands still return `NO authentication required`.
   Bare `UID` commands return `BAD UID requires subcommand` instead of looking
   like an unsupported implemented command family.
-- IMAP `STATUS` now rejects an empty parenthesized status data-item list as
-  `BAD STATUS requires status data items`, keeping malformed `STATUS inbox ()`
-  and `STATUS inbox ( )` requests distinct from unsupported or duplicate status
-  items.
+- IMAP `STATUS` and advertised RFC 5819 `LIST-STATUS` now reject empty
+  parenthesized status data-item lists as explicit status-data-item errors,
+  keeping malformed `STATUS inbox ()`, `STATUS inbox ( )`, and
+  `LIST "" * RETURN (STATUS ())` requests distinct from unsupported,
+  duplicate, or malformed-return status item handling.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
@@ -1795,7 +1796,9 @@ Current state:
   callers close before consuming the requested range, helping preview/cancel
   paths reuse HTTP connections.
 - IMAP `STATUS`/LIST-STATUS parsing now rejects duplicate status data items
-  before mailbox metadata lookup.
+  before mailbox metadata lookup, and LIST-STATUS now preserves specific
+  status-return diagnostics instead of collapsing malformed status return
+  options into generic LIST arity errors.
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading
   the XML request body when no active collection already exists at that path.
 - CalDAV collection `DELETE` now honors `If-Unmodified-Since` and
