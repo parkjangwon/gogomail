@@ -1145,16 +1145,17 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
+	fetchLimit := limit + 1
 	changes, err := store.ListAddressBookChangesSince(ctx, ListAddressBookChangesSinceRequest{
 		UserID:        userID,
 		AddressBookID: resource.AddressBookID,
 		SyncToken:     report.SyncToken,
-		Limit:         limit,
+		Limit:         fetchLimit,
 	})
 	if err != nil {
 		return nil, "", err
 	}
-	if report.Limit > 0 && len(changes) == report.Limit {
+	if len(changes) > limit {
 		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
 	}
 	syncToken := report.SyncToken

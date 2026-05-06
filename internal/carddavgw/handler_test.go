@@ -1156,6 +1156,51 @@ func TestHandlerReportSyncCollectionReturnsChangesSinceToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionAllowsExactChangeLimit(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-mid</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/addressbooks/user-1/personal/removed.vcf</D:href>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+		"<D:sync-token>sync-123</D:sync-token>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("exact-limit sync REPORT missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsTruncatingChangeLimit(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-old</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "limit may truncate") {
+		t.Fatalf("truncating change-limit response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportSyncCollectionReturnsDeletedCollectionToken(t *testing.T) {
 	t.Parallel()
 

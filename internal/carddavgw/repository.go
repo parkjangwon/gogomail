@@ -901,7 +901,7 @@ func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceR
 	if len(syncToken) > 128 || strings.ContainsAny(syncToken, "\r\n") {
 		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
 	}
-	return ListAddressBookChangesSinceRequest{UserID: userID, AddressBookID: bookID, SyncToken: syncToken, Limit: normalizeCardDAVLimit(req.Limit)}, nil
+	return ListAddressBookChangesSinceRequest{UserID: userID, AddressBookID: bookID, SyncToken: syncToken, Limit: normalizeCardDAVChangeLimit(req.Limit)}, nil
 }
 
 type addressBookChangeExecer interface {
@@ -1082,6 +1082,16 @@ func normalizeCardDAVLimit(limit int) int {
 	}
 	if limit > 1000 {
 		return 1000
+	}
+	return limit
+}
+
+func normalizeCardDAVChangeLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	if limit > MaxWebDAVReportLimit+1 {
+		return MaxWebDAVReportLimit + 1
 	}
 	return limit
 }

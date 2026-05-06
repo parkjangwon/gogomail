@@ -224,7 +224,7 @@ func TestValidateListAddressBookChangesSinceRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateListAddressBookChangesSinceRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.SyncToken != "sync-123" || req.Limit != 1000 {
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" || req.SyncToken != "sync-123" || req.Limit != MaxWebDAVReportLimit+1 {
 		t.Fatalf("request = %+v", req)
 	}
 	if _, err := ValidateListAddressBookChangesSinceRequest(ListAddressBookChangesSinceRequest{UserID: "user-1", AddressBookID: "book-1"}); err == nil {
