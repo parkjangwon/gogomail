@@ -3024,7 +3024,7 @@ func TestServerHandlesExpunge(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 EXPUNGE\r\na4 UID EXPUNGE 7\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 EXPUNGE\r\na4 UID EXPUNGE 7,999\r\n")); err != nil {
 		t.Fatalf("write expunge: %v", err)
 	}
 	want := []string{
