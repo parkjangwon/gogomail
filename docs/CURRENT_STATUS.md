@@ -323,7 +323,10 @@ quoted or literal control atoms such as `CHARSET " UTF-8 "`, and `THREAD`
 algorithm arguments reject padded `ORDEREDSUBJECT` values instead of trimming
 them into advertised capabilities. `SORT` criterion lists now reject leading,
 trailing, or nested parenthesized atom-list shapes such as `( DATE)`, `(DATE )`,
-and `((DATE))` before authentication or selected-mailbox checks.
+and `((DATE))` before authentication or selected-mailbox checks. `SELECT` and
+`EXAMINE` now reject whitespace-padded quoted or literal `CONDSTORE`
+select-param lists such as `" (CONDSTORE) "` instead of trimming them into
+valid RFC 4551 select parameters.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported

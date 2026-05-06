@@ -3926,6 +3926,9 @@ Implementation order:
       trailing, or nested parenthesized atom-list shapes such as `( DATE)`,
       `(DATE )`, and `((DATE))` before authentication or selected-mailbox
       state checks.
+1418. IMAP `SELECT`/`EXAMINE` `CONDSTORE` select-param parsing now rejects
+      whitespace-padded quoted or literal list values such as `" (CONDSTORE) "`
+      instead of trimming them into valid RFC 4551 select parameters.
 
 ## Deferred until backend contracts stabilize
 

@@ -334,6 +334,9 @@ Current state:
   parameters to use the RFC-shaped parenthesized select-param list, rejecting
   bare `CONDSTORE` and over-parenthesized `((CONDSTORE))` before authentication
   or backend mailbox lookup.
+- IMAP `SELECT` and `EXAMINE` now also reject whitespace-padded quoted or
+  literal `CONDSTORE` select-param lists such as `" (CONDSTORE) "` instead of
+  trimming them into valid RFC 4551 select parameters.
 - Selected-state action commands also validate malformed `FETCH`, `STORE`,
   `COPY`, and `MOVE` arity or modified UTF-7 destination mailbox names before
   authentication failures, while well-formed unauthenticated commands still
