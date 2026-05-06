@@ -4168,6 +4168,9 @@ Implementation order:
 1478. IMAP AUTHENTICATE mechanism names and SASL-IR initial responses now
       reject quoted values before unsupported-mechanism, privacy, or backend
       authentication policy checks.
+1479. IMAP parenthesized control lists now reject quoted or command-literal
+      STORE/UID STORE flag-lists, APPEND flag-lists, and STATUS item-lists
+      before authentication or mutation/status state.
 
 ## Deferred until backend contracts stabilize
 
