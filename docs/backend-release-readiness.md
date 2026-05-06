@@ -1129,9 +1129,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response cap is satisfied instead of materializing the whole address book.
   Address-data projection failures are explicit errors rather than silent
   full-body fallbacks. RFC 6352 `addressbook-query` now requires an explicit
-  `Depth` header, uses `Depth: 1` for child address-object scans, accepts
-  `Depth: infinity` with the same flat address-book scan semantics, and keeps
-  `Depth: 0` collection-scoped without returning child objects. PROPFIND
+  `Depth` header, uses `Depth: 1` for child address-object scans, keeps
+  `Depth: 0` collection-scoped without returning child objects, and rejects
+  `Depth: infinity` before XML body parsing. PROPFIND
   responses expose conservative RFC 3744-style
   current-user privileges: readable resources return `DAV:read`, address-book
   homes also return `DAV:bind`/`DAV:unbind` because extended `MKCOL` can create

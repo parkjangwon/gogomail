@@ -2568,9 +2568,10 @@ Implementation order:
       `DAV:bind`/`DAV:unbind` after contact-object `PUT`/`DELETE` support,
       aligning `current-user-privilege-set` with implemented child `.vcf`
       member creation and removal semantics.
-1139. CardDAV `addressbook-query` now accepts RFC 6352 `Depth: infinity`
-      requests, treating them with the same flat address-book scan semantics as
-      `Depth: 1` while preserving `Depth: 0` as collection-scoped.
+1139. CardDAV `addressbook-query` initially accepted RFC 6352
+      `Depth: infinity` requests with the same flat address-book scan
+      semantics as `Depth: 1`; later release gating tightened this so
+      infinity traversal probes fail before XML body parsing.
 1140. CardDAV REPORT parsing now maps unsupported requested `address-data`
       content types or versions to the RFC 6352
       `CARDDAV:supported-address-data` precondition instead of a generic
@@ -4117,6 +4118,10 @@ Implementation order:
       from `mail.go` and `drive.go` and require every `/api/v1` operation to
       pin the Mail API server at the operation level, preventing generated
       clients from inheriting `/admin/v1` for user-facing routes.
+1465. CardDAV `REPORT` now rejects `Depth: infinity` before parsing XML
+      bodies, keeping `addressbook-query` traversal bounded to explicit
+      `Depth: 0` or `Depth: 1` client semantics until native-client
+      compatibility for broader traversal is proven.
 
 ## Deferred until backend contracts stabilize
 

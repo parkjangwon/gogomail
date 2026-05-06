@@ -600,6 +600,10 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if depth == DepthInfinity {
+		http.Error(w, "Depth: infinity is not supported for CardDAV REPORT", http.StatusForbidden)
+		return
+	}
 	report, err := ParseReport(r.Body)
 	if err != nil {
 		var unsupportedAddressData UnsupportedAddressDataError
@@ -618,10 +622,6 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if depth == DepthInfinity && report.Kind != ReportAddressBookQuery {
-		http.Error(w, "Depth: infinity is only supported for addressbook-query", http.StatusForbidden)
 		return
 	}
 	var body []byte
