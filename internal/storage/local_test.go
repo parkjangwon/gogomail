@@ -336,6 +336,26 @@ func TestLocalStoreDeleteIsIdempotentForMissingObjects(t *testing.T) {
 	}
 }
 
+func TestLocalStoreDeleteRejectsDirectories(t *testing.T) {
+	t.Parallel()
+
+	store := NewLocalStore(t.TempDir())
+	objectPath := "mailstore/company/domain/message.eml"
+	if err := store.Put(context.Background(), objectPath, strings.NewReader("body")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	if err := store.Delete(context.Background(), "mailstore/company/domain"); err == nil || !strings.Contains(err.Error(), "directory") {
+		t.Fatalf("Delete directory err = %v, want directory rejection", err)
+	}
+	body, err := store.Get(context.Background(), objectPath)
+	if err != nil {
+		t.Fatalf("Get after directory delete rejection returned error: %v", err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatalf("close body: %v", err)
+	}
+}
+
 func TestLocalStoreMoveHonorsCanceledContextBeforeRename(t *testing.T) {
 	t.Parallel()
 
@@ -377,6 +397,9 @@ func TestLocalStoreRejectsSymlinkObjects(t *testing.T) {
 	}
 	if err := store.Move(context.Background(), objectPath, "mailstore/company/domain/moved.eml"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
 		t.Fatalf("Move symlink err = %v, want symbolic link rejection", err)
+	}
+	if err := store.Delete(context.Background(), objectPath); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("Delete symlink err = %v, want symbolic link rejection", err)
 	}
 	page, err := store.List(context.Background(), ListOptions{Prefix: "mailstore/company/domain", Limit: 10})
 	if err != nil {

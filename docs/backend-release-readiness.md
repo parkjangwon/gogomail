@@ -351,9 +351,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `io.ErrUnexpectedEOF` for short requested windows so storage backend flips do
   not change partial-read failure semantics.
 - Local/NFS storage now rejects filesystem symlinks for object reads, range
-  reads, metadata probes, and source moves, and omits them from list pages so
-  NFS/local deployments preserve object-store semantics even on link-capable
-  filesystems.
+  reads, metadata probes, deletes, and source moves, omits them from list
+  pages, and rejects direct directory deletes so NFS/local deployments preserve
+  object-store semantics even on link-capable filesystems.
 - S3-compatible `GET`, ranged `GET`, and `HEAD`/`Stat` now wrap
   `os.ErrNotExist` on `404 Not Found`, so Drive, attachment lifecycle, and mail
   storage callers can use the same missing-object checks across local/NFS,

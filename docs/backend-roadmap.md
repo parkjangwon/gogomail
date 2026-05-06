@@ -2695,9 +2695,10 @@ Implementation order:
       or decoded credential values, keeping the auth boundary strict without
       rewriting RFC string operands before backend verification.
 1190. Local/NFS storage now rejects filesystem symbolic links for object reads,
-      range reads, metadata probes, and source moves, and hides symlinks from
-      list pages so mounted filesystems preserve backend-neutral object-store
-      semantics instead of following host-specific links.
+      range reads, metadata probes, deletes, and source moves, hides symlinks
+      from list pages, and rejects direct directory deletes so mounted
+      filesystems preserve backend-neutral object-store semantics instead of
+      following host-specific links or treating folders as objects.
 
 ## Deferred until backend contracts stabilize
 

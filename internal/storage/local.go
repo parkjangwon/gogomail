@@ -338,6 +338,12 @@ func (s *LocalStore) Delete(ctx context.Context, path string) error {
 		return err
 	}
 
+	if _, err := localObjectInfo(fullPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("delete storage object: %w", err)
+	}
 	if err := os.Remove(fullPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil

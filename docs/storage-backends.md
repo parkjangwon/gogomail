@@ -85,7 +85,7 @@ so lifecycle workers behave consistently across storage backends.
 `Stat` reports the canonical object key, byte size, and filesystem
 last-modified time without opening the file body.
 Symbolic links under the local/NFS storage root are not treated as objects:
-reads, range reads, metadata probes, and source moves reject them, and list
+reads, range reads, metadata probes, deletes, and source moves reject them, and list
 operations hide them. This keeps mounted filesystems from escaping the
 object-store contract through host-specific link behavior.
 `GetRange` seeks to the requested byte offset and returns a closeable limited
@@ -100,9 +100,10 @@ and NFS-style file relocation efficient and avoiding caller-side copy/delete
 loops.
 `List` walks under the requested canonical prefix, returns bounded pages, and
 uses an opaque cursor so callers do not depend on filesystem traversal details.
-Prefix cleanup uses the same bounded list pages and idempotent deletes, so
-large local/NFS cleanup jobs can advance with explicit cursors instead of
-walking and deleting an unbounded tree in one operation.
+Prefix cleanup uses the same bounded list pages and idempotent object deletes,
+so large local/NFS cleanup jobs can advance with explicit cursors instead of
+walking and deleting an unbounded tree in one operation. Direct object deletes
+reject directories rather than treating filesystem folders as S3-like objects.
 
 ## Local MinIO
 
