@@ -120,6 +120,9 @@ Current state:
 - IMAP UID set response rendering now compacts contiguous ascending runs into
   RFC sequence-set ranges, reducing bulk `COPYUID`, ESEARCH, and SEARCHRES
   response size without reordering non-contiguous UID lists.
+- IMAP `COPY`/`UID COPY`/`MOVE`/`UID MOVE` now omit UIDPLUS `COPYUID` response
+  codes when destination mailbox metadata reports `UIDNotSticky`, preserving
+  RFC 4315 semantics for non-persistent UID stores.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

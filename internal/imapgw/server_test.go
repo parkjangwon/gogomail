@@ -3680,6 +3680,64 @@ func TestServerCopyAndMoveMissingDestinationReturnsTryCreate(t *testing.T) {
 	}
 }
 
+func TestServerOmitsCopyUIDForUIDNotStickyDestination(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := uidNotStickyDestinationBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 COPY 1 Archive\r\na4 UID MOVE 7 Archive\r\n")); err != nil {
+		t.Fatalf("write uidnotsticky destination commands: %v", err)
+	}
+	want := []string{
+		"a3 OK COPY completed\r\n",
+		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a4 OK UID MOVE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uidnotsticky destination response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uidnotsticky destination response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	t.Parallel()
 
@@ -10580,6 +10638,17 @@ type missingDestinationBackend struct {
 func (missingDestinationBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
 	if strings.EqualFold(strings.TrimSpace(string(mailboxID)), "missing") {
 		return Mailbox{}, ErrMailboxNotFound
+	}
+	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
+}
+
+type uidNotStickyDestinationBackend struct {
+	fakeBackend
+}
+
+func (uidNotStickyDestinationBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	if strings.EqualFold(strings.TrimSpace(string(mailboxID)), "archive") {
+		return Mailbox{ID: "archive", Name: "Archive", UIDValidity: 2, UIDNext: 3, UIDNotSticky: true}, nil
 	}
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
 }
