@@ -1045,7 +1045,8 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " NO RENAME cannot rename to INBOX\r\n")
 		return false, err
 	}
-	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, MailboxID(sourceName), MailboxID(destName)); err != nil {
+	mailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, MailboxID(sourceName))
+	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
 			return false, writeErr
@@ -1053,7 +1054,15 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
-	_, err := writer.WriteString(tag + " OK RENAME completed\r\n")
+	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, mailbox.ID, MailboxID(destName)); err != nil {
+		if errors.Is(err, ErrMailboxNotFound) {
+			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
+			return false, writeErr
+		}
+		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
+		return false, writeErr
+	}
+	_, err = writer.WriteString(tag + " OK RENAME completed\r\n")
 	return false, err
 }
 

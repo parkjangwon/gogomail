@@ -173,6 +173,9 @@ Current state:
 - IMAP `DELETE` of the currently selected mailbox now clears saved SEARCHRES
   `$` state and closes the mailbox event subscription together with selected
   metadata, keeping mailbox-removal lifecycle behavior predictable.
+- IMAP `RENAME` now resolves the source mailbox wire name to the backend's
+  canonical mailbox ID before mutation dispatch, aligning mailbox-management
+  commands with the canonical-ID boundaries used by operational commands.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

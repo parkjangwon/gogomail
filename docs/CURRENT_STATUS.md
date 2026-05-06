@@ -166,6 +166,9 @@ down selected mailbox state, keeping saved results scoped to the mailbox
 selection lifecycle just like `SELECT`, `EXAMINE`, and `UNSELECT`. Deleting
 the currently selected mailbox now follows the same selected-state teardown
 boundary, including saved SEARCHRES cleanup and event subscription closure.
+IMAP `RENAME` now also resolves the source mailbox wire name through mailbox
+lookup before calling the backend rename boundary, matching the canonical-ID
+behavior already used by `DELETE`, `APPEND`, `COPY`, and `MOVE`.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
