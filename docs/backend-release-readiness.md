@@ -404,6 +404,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT` now validates malformed Depth values and rejects
   `Depth: infinity` before XML body reads, making unsupported traversal
   semantics cheap and consistent across implemented REPORT handlers.
+- CalDAV `REPORT` and `PROPFIND` also reject repeated HTTP `Depth` headers
+  before XML body parsing, avoiding ambiguous traversal scope at the WebDAV
+  handler boundary.
 - CalDAV `REPORT sync-collection` now requires the default/explicit HTTP
   `Depth: 0` request scope before repository lookup or change-log work, keeping
   WebDAV sync traversal governed by the request-body `sync-level` and matching
@@ -638,7 +641,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   accepting default/explicit `Depth: 0` and rejecting `Depth: 1` before sync
   lookup or change-log work. `sync-collection` parsing distinguishes empty
   initial `DAV:sync-token` elements from missing token elements and rejects the
-  latter before sync lookup or snapshot work. Stale-token delta reads probe one
+  latter before sync lookup or snapshot work. `REPORT` and `PROPFIND` reject
+  repeated HTTP `Depth` headers before XML body parsing, keeping address-book
+  traversal scope deterministic. Stale-token delta reads probe one
   change-log row beyond bounded `limit/nresults`, so exact-limit responses are
   not falsely rejected while truly truncating deltas still fail closed. Initial
   snapshots use the same one-extra-object repository probe, preventing large

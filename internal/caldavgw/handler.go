@@ -698,7 +698,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID = ownerID
-	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
+	depth, err := parseDepthHeader(r.Header, DepthZero)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -795,7 +795,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID = ownerID
-	depth, err := ParseDepth(r.Header.Get("Depth"), DepthInfinity)
+	depth, err := parseDepthHeader(r.Header, DepthInfinity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -851,6 +851,17 @@ func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, us
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
+}
+
+func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {
+	values := header.Values("Depth")
+	if len(values) > 1 {
+		return "", fmt.Errorf("Depth header must not be repeated")
+	}
+	if len(values) == 0 {
+		return ParseDepth("", fallback)
+	}
+	return ParseDepth(values[0], fallback)
 }
 
 func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {

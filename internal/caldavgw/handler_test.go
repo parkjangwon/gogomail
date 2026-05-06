@@ -1180,6 +1180,28 @@ func TestHandlerReportRejectsUnsupportedDepthBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerReportRejectsRepeatedDepthBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop><C:filter><C:comp-filter name="VCALENDAR"/></C:filter></C:calendar-query>`}
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", body)
+	req.Header.Add("Depth", "0")
+	req.Header.Add("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if !strings.Contains(rec.Body.String(), "Depth header must not be repeated") {
+		t.Fatalf("response did not explain repeated Depth rejection: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerGetAndHeadCalendarObject(t *testing.T) {
 	t.Parallel()
 

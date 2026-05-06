@@ -48,6 +48,9 @@ traversal controlled by the request body's `sync-level` rather than accidentally
 mixing in a broader HTTP `Depth: 1` traversal. CalDAV `calendar-query` now also
 honors HTTP `Depth: 0` by not scanning child calendar objects unless the client
 uses `Depth: 1`, keeping query scope explicit for native client compatibility.
+CalDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers before
+request-body parsing, keeping WebDAV traversal scope deterministic across
+native clients and intermediaries.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.
@@ -154,6 +157,9 @@ returning child objects. It remains gated on broader vCard compatibility and
 native-client tests. The
 handler is deliberately experimental and does not yet make CardDAV
 public/client-ready.
+CardDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers
+before request-body parsing, preventing ambiguous address-book traversal scope
+from reaching REPORT, sync, or discovery execution.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
