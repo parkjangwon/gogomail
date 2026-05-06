@@ -377,8 +377,10 @@ copy responses must be exact `200 OK` responses with a bounded
 `Error` responses inside `200 OK` are rejected so provider-side copy failures
 cannot masquerade as successful object duplication; nested standard S3 error
 details are surfaced with the same bounded one-line `Code: Message` and
-request-id/host-id diagnostics as top-level provider errors. Success metadata
-is also kept singular for the core S3 fields: duplicate top-level `ETag` or
+request-id/host-id diagnostics as top-level provider errors. Top-level and
+nested copy error bodies use the same capped streaming XML field parser as
+status errors. Success metadata is also kept singular for the core S3 fields:
+duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
 Core `CopyObjectResult` child elements must also be namespace-free or in the
