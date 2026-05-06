@@ -90,12 +90,13 @@ type FetchMessageRequest struct {
 }
 
 type StoreFlagsRequest struct {
-	UserID         UserID
-	MailboxID      MailboxID
-	UIDs           []UID
-	Flags          MessageFlags
-	Mode           StoreFlagsMode
-	UnchangedSince uint64
+	UserID            UserID
+	MailboxID         MailboxID
+	UIDs              []UID
+	Flags             MessageFlags
+	Mode              StoreFlagsMode
+	UnchangedSince    uint64
+	UnchangedSinceSet bool
 }
 
 type AppendMessageRequest struct {

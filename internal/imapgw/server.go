@@ -3064,6 +3064,18 @@ func parseIMAPModSeqValue(value string) (uint64, bool) {
 		return 0, false
 	}
 	modseq, err := strconv.ParseUint(value, 10, 64)
+	if err != nil || modseq == 0 {
+		return 0, false
+	}
+	return modseq, true
+}
+
+func parseIMAPModSeqValzer(value string) (uint64, bool) {
+	value = strings.TrimSpace(value)
+	if !imapNumberAtomDigitsOnly(value) {
+		return 0, false
+	}
+	modseq, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
 		return 0, false
 	}
@@ -6328,7 +6340,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
 		return false, err
 	}
-	unchangedSince, storeFields, ok := imapStoreUnchangedSince(fields[4:])
+	unchangedSince, unchangedSinceSet, storeFields, ok := imapStoreUnchangedSince(fields[4:])
 	if !ok || len(storeFields) < 2 {
 		_, err := writer.WriteString(tag + " BAD UID STORE UNCHANGEDSINCE modifier is invalid\r\n")
 		return false, err
@@ -6354,7 +6366,7 @@ func (s *Server) handleUIDStore(writer *bufio.Writer, tag string, fields []strin
 		_, err := writer.WriteString(tag + " NO UID STORE flags are not permitted\r\n")
 		return false, err
 	}
-	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "UID STORE")
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, unchangedSinceSet, "UID STORE")
 }
 
 func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -6383,7 +6395,7 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
 		return false, err
 	}
-	unchangedSince, storeFields, ok := imapStoreUnchangedSince(fields[3:])
+	unchangedSince, unchangedSinceSet, storeFields, ok := imapStoreUnchangedSince(fields[3:])
 	if !ok || len(storeFields) < 2 {
 		_, err := writer.WriteString(tag + " BAD STORE UNCHANGEDSINCE modifier is invalid\r\n")
 		return false, err
@@ -6414,11 +6426,11 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, writeErr := writer.WriteString(tag + " NO STORE failed\r\n")
 		return false, writeErr
 	}
-	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "STORE")
+	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, unchangedSinceSet, "STORE")
 }
 
 func imapStoreArgumentsSyntaxError(command string, fields []string) (string, bool) {
-	_, storeFields, ok := imapStoreUnchangedSince(fields)
+	_, _, storeFields, ok := imapStoreUnchangedSince(fields)
 	if !ok || len(storeFields) < 2 {
 		return command + " UNCHANGEDSINCE modifier is invalid", true
 	}
@@ -6431,8 +6443,8 @@ func imapStoreArgumentsSyntaxError(command string, fields []string) (string, boo
 	return "", false
 }
 
-func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, unchangedSince uint64, completionCommand string) (bool, error) {
-	if unchangedSince > 0 {
+func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, unchangedSince uint64, unchangedSinceSet bool, completionCommand string) (bool, error) {
+	if unchangedSinceSet {
 		state.condstoreAware = true
 	}
 	if len(uids) == 0 || ((mode == StoreFlagsAdd || mode == StoreFlagsRemove) && imapMessageFlagsEmpty(flags)) {
@@ -6440,12 +6452,13 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 		return false, err
 	}
 	summaries, err := s.options.Backend.StoreFlags(context.Background(), StoreFlagsRequest{
-		UserID:         state.session.UserID,
-		MailboxID:      state.selectedMailbox,
-		UIDs:           uids,
-		Flags:          flags,
-		Mode:           mode,
-		UnchangedSince: unchangedSince,
+		UserID:            state.session.UserID,
+		MailboxID:         state.selectedMailbox,
+		UIDs:              uids,
+		Flags:             flags,
+		Mode:              mode,
+		UnchangedSince:    unchangedSince,
+		UnchangedSinceSet: unchangedSinceSet,
 	})
 	if err != nil {
 		var modified *StoreModifiedError
@@ -6467,7 +6480,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 		return false, writeErr
 	}
 	state.observeHighestModSeq(imapHighestSummaryModSeq(summaries))
-	if silent && unchangedSince == 0 {
+	if silent && !unchangedSinceSet {
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err
 	}
@@ -6550,27 +6563,27 @@ func (s *Server) storeModifiedSetResponse(ctx context.Context, state *imapConnSt
 	return imapUIDSetResponse(sequenceNumbers), nil
 }
 
-func imapStoreUnchangedSince(fields []string) (uint64, []string, bool) {
+func imapStoreUnchangedSince(fields []string) (uint64, bool, []string, bool) {
 	if len(fields) == 0 {
-		return 0, fields, true
+		return 0, false, fields, true
 	}
 	first := strings.ToUpper(strings.TrimSpace(fields[0]))
 	if !strings.Contains(first, "UNCHANGEDSINCE") && !strings.HasPrefix(first, "(") {
-		return 0, fields, true
+		return 0, false, fields, true
 	}
 	if first != "(UNCHANGEDSINCE" || len(fields) < 2 {
-		return 0, nil, false
+		return 0, false, nil, false
 	}
 	valueToken := strings.TrimSpace(fields[1])
 	if !strings.HasSuffix(valueToken, ")") || strings.HasSuffix(valueToken, "))") {
-		return 0, nil, false
+		return 0, false, nil, false
 	}
 	value := strings.TrimSpace(strings.TrimSuffix(valueToken, ")"))
-	threshold, ok := parseIMAPModSeqValue(value)
+	threshold, ok := parseIMAPModSeqValzer(value)
 	if !ok {
-		return 0, nil, false
+		return 0, false, nil, false
 	}
-	return threshold, fields[2:], true
+	return threshold, true, fields[2:], true
 }
 
 func imapStoreUnchangedSincePresent(fields []string) bool {

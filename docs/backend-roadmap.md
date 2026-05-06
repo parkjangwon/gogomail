@@ -3786,6 +3786,12 @@ Implementation order:
       `number` spelling for `LARGER` and `SMALLER`, rejecting leading-zero
       values such as `SEARCH LARGER 020` before command execution while
       preserving valid zero-size searches.
+1381. IMAP CONDSTORE parsing now separates positive RFC `mod-sequence-value`
+      inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
+      and `FETCH (CHANGEDSINCE 0)` are rejected, while
+      `STORE (UNCHANGEDSINCE 0)` is carried through the gateway, service, and
+      repository as a real conditional guard that returns `MODIFIED` instead
+      of mutating flags unconditionally.
 
 ## Deferred until backend contracts stabilize
 

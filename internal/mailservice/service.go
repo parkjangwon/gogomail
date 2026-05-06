@@ -694,7 +694,7 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 
 func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsRequest) ([]imapgw.MessageSummary, error) {
 	repo, ok := s.repository.(interface {
-		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode, uint64) ([]imapgw.MessageSummary, error)
+		StoreIMAPFlags(context.Context, string, string, []imapgw.UID, imapgw.MessageFlags, imapgw.StoreFlagsMode, uint64, bool) ([]imapgw.MessageSummary, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("imap flag repository is required")
@@ -710,7 +710,7 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 	if err := validateNonEmptyIMAPUIDs(req.UIDs); err != nil {
 		return nil, err
 	}
-	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince)
+	summaries, err := repo.StoreIMAPFlags(ctx, userID, mailboxID, req.UIDs, req.Flags, req.Mode, req.UnchangedSince, req.UnchangedSinceSet)
 	if err != nil {
 		var modified *imapgw.StoreModifiedError
 		if errors.As(err, &modified) {
