@@ -2614,6 +2614,11 @@ Implementation order:
       docs. A new partial actor/time index complements the existing target
       index, making delegated-access forensic queries operable by acting
       principal or owner/resource target.
+1173. `internal/accesspolicy` now exposes `DelegationAuditRecorder`, a small
+      repository-backed recorder that validates and inserts the standard
+      delegated-access audit log envelope. Future CalDAV/CardDAV/Drive/mailbox
+      adapters can record policy decisions without duplicating audit row
+      construction or bypassing the shared audit repository boundary.
 
 ## Deferred until backend contracts stabilize
 

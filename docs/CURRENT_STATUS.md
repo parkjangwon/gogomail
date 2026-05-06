@@ -207,6 +207,9 @@ instead of accumulating caller-supplied strings. It also builds the standard
 `audit.Log` envelope for delegated access checks (`access` /
 `delegation.access_checked` with fixed `allowed`/`denied` results), giving
 future CalDAV/CardDAV/Drive/mailbox adapters one auditable shape to insert.
+An `accesspolicy` recorder can now insert those delegated-access audit logs
+through the shared audit repository interface, keeping future protocol modules
+on one testable policy/audit boundary instead of open-coding audit writes.
 The admin audit-log list API now accepts bounded `actor_id` and `target_id`
 filters, backed by a partial actor/time read index and the existing target
 index, so operators can trace delegated-access checks by acting principal or

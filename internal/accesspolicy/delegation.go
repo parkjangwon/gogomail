@@ -55,8 +55,16 @@ type EffectiveDelegationChecker interface {
 	CheckEffectiveDelegation(ctx context.Context, req directory.CheckDelegationRequest) (bool, error)
 }
 
+type AuditRepository interface {
+	Insert(ctx context.Context, log audit.Log) error
+}
+
 type DelegationEvaluator struct {
 	Checker EffectiveDelegationChecker
+}
+
+type DelegationAuditRecorder struct {
+	Repository AuditRepository
 }
 
 func (e DelegationEvaluator) CheckDelegatedAccess(ctx context.Context, req DelegatedAccessRequest) (Decision, error) {
@@ -140,6 +148,17 @@ func DelegatedAccessAuditLog(req DelegatedAccessRequest, decision Decision) (aud
 		Result:     delegatedAccessAuditResult(decision),
 		Detail:     detail,
 	}, nil
+}
+
+func (r DelegationAuditRecorder) RecordDelegatedAccess(ctx context.Context, req DelegatedAccessRequest, decision Decision) error {
+	if r.Repository == nil {
+		return fmt.Errorf("audit repository is required")
+	}
+	log, err := DelegatedAccessAuditLog(req, decision)
+	if err != nil {
+		return err
+	}
+	return r.Repository.Insert(ctx, log)
 }
 
 func normalizeDelegatedAccessRequest(req DelegatedAccessRequest) (directory.CheckDelegationRequest, error) {
