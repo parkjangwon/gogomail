@@ -125,7 +125,7 @@ Recent release-readiness work also includes:
   exact SASL continuation cancellation, exact SASL PLAIN response token
   handling, SASL-IR syntax-before-policy diagnostics, empty quoted `LOGIN`
   passwords routed to backend authentication failures instead of protocol
-  `BAD`, strict
+  `BAD`, strict atom-only command and UID subcommand dispatch, strict
   SEARCH/SORT/THREAD charset and thread-algorithm atoms,
   strict SORT criterion-list framing, strict FETCH data-item framing,
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and

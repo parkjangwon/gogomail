@@ -651,6 +651,9 @@ Current state:
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
+- IMAP command and `UID` subcommand words now must be raw atom tokens, so
+  quoted command probes such as `"NOOP"` or `UID "COPY"` fail as malformed
+  commands instead of being dequoted into executable command names.
 - IMAP parenthesized `SEARCH`/`UID SEARCH` groups reject empty `()` groups
   instead of treating them as match-all, while preserving valid `(ALL)` groups.
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` numeric thresholds reject malformed
