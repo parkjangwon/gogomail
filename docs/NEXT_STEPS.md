@@ -67,6 +67,11 @@ Current state:
   collection ETag into repository mutation guards after conditional preflight,
   so stale `If-Match: *` collection races are rechecked inside the storage
   transaction before recursive delete or metadata update commits.
+- CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now evaluate collection
+  creation preconditions before reading WebDAV XML request bodies: existing
+  targets reject matching `If-None-Match`, missing targets reject `If-Match`
+  or `If-Unmodified-Since`, and `If-None-Match: *` still permits safe
+  create-only requests for absent collections.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an
