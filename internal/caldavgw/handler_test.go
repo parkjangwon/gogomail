@@ -1427,6 +1427,22 @@ func TestHandlerPutCalendarObjectRejectsUnsupportedContentTypeVersion(t *testing
 	}
 }
 
+func TestHandlerPutCalendarObjectRejectsRepeatedContentType(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
+	req.Header.Add("Content-Type", "text/calendar")
+	req.Header.Add("Content-Type", "text/calendar; version=2.0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want 415, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerPutCalendarObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 	t.Parallel()
 

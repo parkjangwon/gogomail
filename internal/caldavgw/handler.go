@@ -317,7 +317,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
 		return
 	}
-	if err := validateCalendarPutContentType(r.Header.Get("Content-Type")); err != nil {
+	if err := validateCalendarPutContentTypeHeader(r.Header); err != nil {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
@@ -646,6 +646,17 @@ func validateCalendarPutContentType(value string) error {
 		return fmt.Errorf("calendar object content type version must be 2.0")
 	}
 	return nil
+}
+
+func validateCalendarPutContentTypeHeader(header http.Header) error {
+	values := header.Values("Content-Type")
+	if len(values) > 1 {
+		return fmt.Errorf("calendar object content type must be specified at most once")
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return validateCalendarPutContentType(values[0])
 }
 
 func readBoundedCalendarBody(r io.Reader) ([]byte, error) {

@@ -139,8 +139,8 @@ Address-book collections advertise `text/vcard` 4.0 and 3.0 support, and
 returned `address-data` elements carry explicit `content-type` plus the stored
 vCard `version` attribute. Contact-object `PUT` also validates explicit
 `text/vcard` `version` media-type parameters against the stored vCard
-`VERSION`, rejecting unsupported or mismatched version contracts before write
-mutation.
+`VERSION`, rejecting repeated `Content-Type` headers plus unsupported or
+mismatched version contracts before write mutation.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so
 large address books can be queried with explicit result caps, and repository
 backends can stream contact objects through a walker interface so matching can
@@ -2706,8 +2706,8 @@ The platform hardening sprint completed the following:
   no body when clients already have the current `.ics` representation.
 - CalDAV calendar object `PUT` now validates explicit `Content-Type` headers
   before body parsing, accepting `text/calendar` with ordinary parameters while
-  rejecting incompatible media types or non-`2.0` `version` parameters with
-  HTTP 415.
+  rejecting repeated headers, incompatible media types, or non-`2.0` `version`
+  parameters with HTTP 415.
 - CalDAV calendar object `PUT` now treats `If-Match: *` as an existing-resource
   precondition, returning HTTP 412 when the target `.ics` object does not yet
   exist instead of accidentally creating it.

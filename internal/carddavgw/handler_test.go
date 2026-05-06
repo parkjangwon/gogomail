@@ -406,6 +406,18 @@ func TestHandlerPutContactObjectValidatesContentTypeVersion(t *testing.T) {
 	}
 }
 
+func TestHandlerPutContactObjectRejectsRepeatedContentType(t *testing.T) {
+	t.Parallel()
+
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"
+	rec := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body, http.Header{
+		"Content-Type": []string{"text/vcard", "text/vcard; version=4.0"},
+	})
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusUnsupportedMediaType, rec.Body.String())
+	}
+}
+
 func TestHandlerPutContactObjectRejectsDuplicateUID(t *testing.T) {
 	t.Parallel()
 

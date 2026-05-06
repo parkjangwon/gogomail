@@ -1689,9 +1689,10 @@ Current state:
 - CalDAV object `GET`/`HEAD` now support `If-None-Match` cache revalidation
   against strong object ETags, returning `304 Not Modified` without streaming
   `.ics` bodies when possible.
-- CalDAV object `PUT` now rejects explicit non-`text/calendar` media types and
-  non-`2.0` `text/calendar` version parameters before iCalendar parsing, while
-  still allowing clients that omit `Content-Type`.
+- CalDAV object `PUT` now rejects explicit non-`text/calendar` media types,
+  repeated `Content-Type` headers, and non-`2.0` `text/calendar` version
+  parameters before iCalendar parsing, while still allowing clients that omit
+  `Content-Type`.
 - CalDAV object `PUT` now enforces `If-Match: *` as an existing-resource
   precondition, preventing accidental object creation through conditional
   overwrite requests.
@@ -1913,7 +1914,8 @@ Next:
   `DELETE` semantics, and `gogomail --mode=carddav` now exposes an
   experimental Basic-auth runtime listener. The vCard parser now recognizes
   unquoted value separators, preserving quoted parameter values that contain
-  colons. It also evaluates
+  colons. Contact-object `PUT` rejects repeated `Content-Type` headers before
+  vCard media parsing. It also evaluates
   `/carddav/principals/` as the advertised principal collection, returning the
   authenticated principal at `Depth: 1` without listing unrelated users, and
   `addressbook-query` filters over parsed unfolded vCard property values,
