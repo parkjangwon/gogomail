@@ -19,6 +19,7 @@ import (
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 func TestAdminQueueHandler(t *testing.T) {
@@ -94,6 +95,44 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
 		t.Fatalf("security capabilities = %#v", got.Security)
+	}
+	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" {
+		t.Fatalf("storage capabilities = %#v", got.Storage)
+	}
+}
+
+func TestAdminConsoleCapabilitiesHandlerUsesConfiguredStorageCapabilities(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "", WithStorageCapabilities(storage.BackendCapabilities{
+		ContractVersion:     BackendContractVersion,
+		ConfiguredBackend:   "minio",
+		BackendClass:        "s3_compatible",
+		ActiveLabels:        []string{"minio", "s3"},
+		Operations:          []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
+		S3Compatible:        true,
+		PathStyleAddressing: true,
+		EndpointOrigin:      "http://localhost:19000",
+		Bucket:              "gogomail",
+		SecretsRedacted:     true,
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/console/capabilities", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body adminConsoleCapabilitiesEnvelope
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	got := body.AdminConsoleCapabilities.Storage
+	if got.ConfiguredBackend != "minio" || got.BackendClass != "s3_compatible" || !got.S3Compatible || !got.PathStyleAddressing || got.EndpointOrigin != "http://localhost:19000" || got.Bucket != "gogomail" {
+		t.Fatalf("storage capabilities = %#v", got)
 	}
 }
 

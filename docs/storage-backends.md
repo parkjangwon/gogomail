@@ -67,6 +67,12 @@ checked before an instance reports ready. `TestLocalStorePortabilityContract`
 always runs this contract for local/NFS semantics. `TestS3StoreIntegrationRoundTrip`
 reuses the same contract when `GOGOMAIL_TEST_S3_*` variables are set, giving
 MinIO and AWS S3 deployments a single smoke test before a storage backend flip.
+The Admin Console capabilities endpoint also exposes a redacted runtime storage
+profile under `admin_console_capabilities.storage`: configured backend, active
+compatibility labels, backend class, supported object primitives, S3 path-style
+status, sanitized endpoint/bucket/prefix/region fields when applicable, and
+`secrets_redacted=true`. It intentionally does not expose access keys, session
+tokens, or local filesystem root paths.
 
 ## Local filesystem or NFS
 

@@ -1697,7 +1697,10 @@ Implementation order:
      production operator consoles a stable bootstrap contract for backend
      version, available/planned modules including future Drive, list and
      cleanup/retention limits, tenant/domain/user controls, operational triage
-     surfaces, API usage/export, IMAP UID backfill, and admin auth behavior.
+     surfaces, API usage/export, IMAP UID backfill, admin auth behavior, and a
+     redacted storage backend profile that identifies the configured
+     local/NFS, MinIO, or AWS S3-compatible runtime without leaking secrets or
+     host-local filesystem roots.
 950. Mail API now exposes `GET /api/v1/mailbox/overview`, giving production
      webmail chrome a user-scoped aggregate read for total, unread, starred,
      and stored-size counters plus system-folder ID shortcuts without requiring
@@ -3188,6 +3191,12 @@ Implementation order:
       `confirm_ready`, reuse the readiness preview, fail closed when the probe
       is truncated, and record completed or failed CalDAV/CardDAV prune counts
       in the same retention run read model exposed to operators.
+1254. Admin Console capabilities now include a redacted storage backend profile
+      for local/NFS, MinIO, and AWS S3-compatible deployments. Operators can
+      inspect normalized active labels, supported object primitives,
+      local-vs-S3-compatible class, path-style addressing, and sanitized S3
+      endpoint/bucket/prefix/region fields without exposing credentials or
+      local filesystem roots.
 
 ## Deferred until backend contracts stabilize
 

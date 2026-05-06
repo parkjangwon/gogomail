@@ -305,7 +305,13 @@ surface for future production operator consoles. It returns
 available mail/admin/Drive modules, common list and
 cleanup/retention limits, tenant/domain/user control availability, operational
 triage surfaces, API usage/export support, IMAP UID backfill support, and
-admin auth/no-store behavior.
+admin auth/no-store behavior. It also includes a `storage` capability profile
+with the normalized configured backend (`local`, `s3`, or `minio`), active
+backend labels including explicit compatibility labels, backend class,
+supported object primitives, S3-compatible path-style status, sanitized
+endpoint origin/bucket/prefix/region when applicable, readiness-probe support,
+and `secrets_redacted=true`. The storage profile never exposes access key IDs,
+secret access keys, session tokens, or local filesystem root paths.
 
 Admin clients should use this endpoint to build navigation and validate local
 operator form limits instead of duplicating backend constants.

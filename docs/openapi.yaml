@@ -6202,9 +6202,78 @@ components:
       properties:
         webmail_capabilities:
           $ref: "#/components/schemas/WebmailCapabilities"
+    StorageBackendCapabilities:
+      type: object
+      required:
+        - contract_version
+        - configured_backend
+        - backend_class
+        - active_labels
+        - operations
+        - local_filesystem
+        - s3_compatible
+        - path_style_addressing
+        - compat_labels_enabled
+        - readiness_probe
+        - secrets_redacted
+        - supports_backend_switch
+        - supports_local_nfs
+        - supports_minio
+        - supports_aws_compatible
+        - requires_byte_migration
+      properties:
+        contract_version:
+          type: string
+        configured_backend:
+          type: string
+          enum: [local, s3, minio]
+        backend_class:
+          type: string
+          enum: [local, s3_compatible]
+        active_labels:
+          type: array
+          items:
+            type: string
+            enum: [local, s3, minio]
+        operations:
+          type: array
+          items:
+            type: string
+            enum: [put, get, get_range, stat, copy, move, list, delete]
+        local_filesystem:
+          type: boolean
+        s3_compatible:
+          type: boolean
+        path_style_addressing:
+          type: boolean
+        compat_labels_enabled:
+          type: boolean
+        readiness_probe:
+          type: boolean
+        endpoint_origin:
+          type: string
+          description: Sanitized S3-compatible endpoint origin without credentials.
+        bucket:
+          type: string
+        prefix:
+          type: string
+        region:
+          type: string
+        secrets_redacted:
+          type: boolean
+        supports_backend_switch:
+          type: boolean
+        supports_local_nfs:
+          type: boolean
+        supports_minio:
+          type: boolean
+        supports_aws_compatible:
+          type: boolean
+        requires_byte_migration:
+          type: boolean
     AdminConsoleCapabilities:
       type: object
-      required: [contract_version, modules, limits, tenancy, operations, security]
+      required: [contract_version, modules, limits, tenancy, operations, security, storage]
       properties:
         contract_version:
           type: string
@@ -6257,7 +6326,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_aliases, directory_delegations, directory_group_memberships, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_aliases, directory_delegations, directory_group_memberships, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, dav_sync_retention, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -6327,6 +6396,8 @@ components:
               type: boolean
             no_store_json:
               type: boolean
+        storage:
+          $ref: "#/components/schemas/StorageBackendCapabilities"
     AdminConsoleCapabilitiesEnvelope:
       type: object
       required: [admin_console_capabilities]
