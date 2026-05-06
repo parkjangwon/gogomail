@@ -4150,6 +4150,9 @@ Implementation order:
 1472. IMAP search-family numeric operands now reject quoted or literal-framed
       values for LARGER/SMALLER and MODSEQ thresholds/entry types, while
       preserving RFC string handling for MODSEQ entry names.
+1473. IMAP search-family charset and date controls now reject quoted values,
+      keeping CHARSET and date keys atom-only while preserving string-capable
+      text/header search operands.
 
 ## Deferred until backend contracts stabilize
 

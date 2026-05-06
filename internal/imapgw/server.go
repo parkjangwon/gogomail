@@ -868,14 +868,26 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 			return true, false, err
 		}
 	case "SORT":
-		if criteriaStart := imapSortSearchCriteriaStart(fields, 2); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
-			_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
-			return true, false, err
+		if criteriaStart := imapSortSearchCriteriaStart(fields, 2); criteriaStart >= 0 {
+			if !imapRawFieldIsAtom(line, criteriaStart-1) {
+				_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
+				return true, false, err
+			}
+			if imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+				_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
+				return true, false, err
+			}
 		}
 	case "THREAD":
-		if criteriaStart := imapThreadSearchCriteriaStart(fields, 2); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
-			_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
-			return true, false, err
+		if criteriaStart := imapThreadSearchCriteriaStart(fields, 2); criteriaStart >= 0 {
+			if !imapRawFieldIsAtom(line, criteriaStart-1) {
+				_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+				return true, false, err
+			}
+			if imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+				_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
+				return true, false, err
+			}
 		}
 	case "FETCH":
 		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
@@ -908,14 +920,26 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 				return true, false, err
 			}
 		case "SORT":
-			if criteriaStart := imapSortSearchCriteriaStart(fields, 3); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
-				_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
-				return true, false, err
+			if criteriaStart := imapSortSearchCriteriaStart(fields, 3); criteriaStart >= 0 {
+				if !imapRawFieldIsAtom(line, criteriaStart-1) {
+					_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
+					return true, false, err
+				}
+				if imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+					_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
+					return true, false, err
+				}
 			}
 		case "THREAD":
-			if criteriaStart := imapThreadSearchCriteriaStart(fields, 3); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
-				_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
-				return true, false, err
+			if criteriaStart := imapThreadSearchCriteriaStart(fields, 3); criteriaStart >= 0 {
+				if !imapRawFieldIsAtom(line, criteriaStart-1) {
+					_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+					return true, false, err
+				}
+				if imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+					_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
+					return true, false, err
+				}
 			}
 		case "FETCH":
 			if !imapRawFieldIsAtom(line, 3) {
@@ -991,6 +1015,12 @@ func imapSearchHasNonAtomSequenceSetArgument(line string, fields []string, crite
 		if imapSearchFieldRequiresAtomNumeric(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
 			return true
 		}
+		if imapSearchFieldRequiresAtomDate(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
+			return true
+		}
+		if imapSearchFieldRequiresAtomCharset(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
+			return true
+		}
 	}
 	return false
 }
@@ -1024,6 +1054,22 @@ func imapSearchFieldRequiresAtomNumeric(fields []string, index int, criteriaStar
 		return true
 	}
 	return false
+}
+
+func imapSearchFieldRequiresAtomDate(fields []string, index int, criteriaStart int) bool {
+	if index <= criteriaStart {
+		return false
+	}
+	switch strings.ToUpper(fields[index-1]) {
+	case "SINCE", "BEFORE", "ON", "SENTSINCE", "SENTBEFORE", "SENTON":
+		return true
+	default:
+		return false
+	}
+}
+
+func imapSearchFieldRequiresAtomCharset(fields []string, index int, criteriaStart int) bool {
+	return index > criteriaStart && strings.EqualFold(fields[index-1], "CHARSET")
 }
 
 func imapDecimalToken(value string) bool {
