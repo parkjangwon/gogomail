@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP FETCH data-item validation)
+Last updated: 2026-05-06 (updated after IMAP CONDSTORE NOMODSEQ selection reporting)
 
 ## Current phase
 
@@ -1753,6 +1753,10 @@ The platform hardening sprint completed the following:
   `EXISTS`, optional `[UNSEEN n]` first-unseen sequence hints, `UIDVALIDITY`,
   `UIDNEXT`, and optional `[HIGHESTMODSEQ ...]` metadata from durable mailbox
   UID state.
+- IMAP `SELECT`/`EXAMINE` now emit RFC 4551-shaped `[NOMODSEQ]` when a
+  CONDSTORE-aware selection has no persistent mailbox mod-sequence baseline,
+  so clients that use `SELECT ... (CONDSTORE)` or prior `ENABLE CONDSTORE`
+  receive an explicit cache-coherency signal instead of silence.
 - IMAP `SELECT`/`EXAMINE` now emit `[UIDNOTSTICKY]` when the backend marks a
   mailbox's UIDs as non-sticky, keeping UIDPLUS-adjacent client state aligned
   with the selected mailbox's persistence guarantees.

@@ -560,6 +560,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", mailboxState.HighestModSeq)); err != nil {
 				return false, err
 			}
+		} else if condstore || state.condstoreAware {
+			if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
+				return false, err
+			}
 		}
 		state.closeSubscription()
 		state.selectedMailbox = mailboxState.ID
