@@ -444,6 +444,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `GET /admin/v1/directory/delegations`, with OpenAPI and backend contract
   coverage for bounded company, owner, delegate, scope, role, active-only, and
   limit filters.
+  Directory principal search is now also available to operators through
+  `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
+  coverage for bounded company, domain, organization, kind, query, active-only,
+  and limit filters. This prepares admin console and future product
+  autocomplete flows without making scheduling or sharing public-release ready.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

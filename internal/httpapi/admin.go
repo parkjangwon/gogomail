@@ -105,6 +105,7 @@ type AdminService interface {
 	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
+	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
@@ -219,6 +220,7 @@ type adminConsoleOperationCapabilities struct {
 	Backpressure             bool `json:"backpressure"`
 	AttachmentCleanup        bool `json:"attachment_cleanup"`
 	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
+	DirectoryPrincipals      bool `json:"directory_principals"`
 	DirectoryDelegations     bool `json:"directory_delegations"`
 	DriveUploadSessions      bool `json:"drive_upload_sessions"`
 	DriveNodes               bool `json:"drive_nodes"`
@@ -275,6 +277,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			Backpressure:             true,
 			AttachmentCleanup:        true,
 			AttachmentUploadSession:  true,
+			DirectoryPrincipals:      true,
 			DirectoryDelegations:     true,
 			DriveUploadSessions:      true,
 			DriveNodes:               true,
@@ -949,6 +952,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/directory/principals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "organization_id", "kinds", "q", "active_only") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseDirectoryPrincipalSearchRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		principals, err := service.SearchDirectoryPrincipals(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_principals": principals})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -2930,6 +2953,59 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 		TargetID:   targetID,
 		Since:      since,
 	}, true
+}
+
+func parseDirectoryPrincipalSearchRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.SearchPrincipalsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	organizationID, ok := parseBoundedAdminQuery(w, r, "organization_id")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	rawKinds, ok := parseBoundedAdminQuery(w, r, "kinds")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	query, ok := parseBoundedAdminQuery(w, r, "q")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.SearchPrincipalsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.SearchPrincipalsRequest{
+		CompanyID:      companyID,
+		DomainID:       domainID,
+		OrganizationID: organizationID,
+		Kinds:          splitDirectoryPrincipalKinds(rawKinds),
+		Query:          query,
+		ActiveOnly:     activeOnly,
+		Limit:          limit,
+	}, true
+}
+
+func splitDirectoryPrincipalKinds(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+	kinds := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field = strings.TrimSpace(field); field != "" {
+			kinds = append(kinds, field)
+		}
+	}
+	return kinds
 }
 
 func parseDirectoryDelegationListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListDelegationsRequest, bool) {

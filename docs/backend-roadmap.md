@@ -2700,6 +2700,15 @@ Implementation order:
        the backend API contract. This gives the future admin console a
        contract-first diagnostics surface without making delegated CalDAV,
        Drive, Contacts/CardDAV, or shared-inbox mutation workflows public.
+1175c. The admin backend API now exposes Directory principal search at
+       `GET /admin/v1/directory/principals`, returning a
+       `directory_principals` envelope over the existing bounded
+       `SearchPrincipals` repository. Company, domain, organization,
+       comma-separated kind, query, active-only, and limit filters are
+       documented in OpenAPI and the backend API contract, giving admin
+       consoles, CalDAV attendee/resource lookup, Contacts/CardDAV
+       autocomplete, Drive sharing, and shared inbox targeting one
+       contract-first principal discovery surface.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`
