@@ -177,9 +177,10 @@ be advertised safely to clients.
 Calendar collection `DELETE` is also owned by the gateway and maps to a
 repository transaction that soft-deletes the collection and active child
 objects together. This keeps WebDAV lifecycle behavior out of product APIs and
-prepares the future sync-change-log boundary, but stale-token clients still
-need tombstone/change-log support before deletion deltas can be reported
-incrementally.
+feeds the durable sync-change-log boundary so stale-token clients can receive
+object tombstones and a final collection-deleted sync token. Long-history
+retention and continuation semantics remain compatibility gates before CalDAV
+is advertised as public/client-ready.
 
 The sync-change-log boundary is durable PostgreSQL state, not an in-memory
 gateway cache. Calendar creation and object mutation transactions append sync

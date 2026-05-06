@@ -3098,6 +3098,10 @@ Implementation order:
       through the same tagged `BAD command line is too long` plus `BYE`
       response path as ordinary commands, so long-lived clients receive a
       deterministic protocol close reason.
+1243. CalDAV roadmap/status documentation now aligns collection `DELETE`
+      wording with the implemented durable sync-change-log behavior: stale-token
+      clients can receive object tombstones and final collection-deleted sync
+      tokens, while long-history retention remains the explicit future gate.
 
 ## Deferred until backend contracts stabilize
 
