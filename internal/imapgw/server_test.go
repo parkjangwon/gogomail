@@ -7388,6 +7388,49 @@ func TestServerRejectsMalformedSortCriterionListsBeforeAuthentication(t *testing
 	}
 }
 
+func TestServerRejectsPaddedFetchDataItemsBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 FETCH 1 \" (FLAGS) \"\r\na2 FETCH 1 \" FLAGS \"\r\na3 UID FETCH 7 \" (FLAGS RFC822.SIZE) \"\r\na4 FETCH 1 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write padded fetch data items: %v", err)
+	}
+	want := []string{
+		"a1 BAD FETCH data item list is invalid\r\n",
+		"a2 BAD FETCH data item list is invalid\r\n",
+		"a3 BAD FETCH data item list is invalid\r\n",
+		"a4 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read padded fetch data item response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("padded fetch data item response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 

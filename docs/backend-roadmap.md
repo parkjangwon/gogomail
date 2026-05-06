@@ -3937,6 +3937,9 @@ Implementation order:
       the full parenthesized option list and rejects whitespace-padded quoted
       or literal list values such as `" (SPECIAL-USE) "` instead of trimming
       them into valid selection controls.
+1421. IMAP `FETCH`/`UID FETCH` data-item parsing now rejects whitespace-padded
+      quoted or literal values such as `" (FLAGS) "` or `" FLAGS "` instead
+      of trimming them into valid fetch attributes.
 
 ## Deferred until backend contracts stabilize
 

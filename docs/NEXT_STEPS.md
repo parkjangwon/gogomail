@@ -332,6 +332,9 @@ Current state:
   now reject whitespace-padded quoted or literal list values such as
   `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming them into
   valid ESEARCH/SEARCHRES controls.
+- IMAP `FETCH` and `UID FETCH` data items now reject whitespace-padded quoted
+  or literal values such as `" (FLAGS) "` or `" FLAGS "` instead of trimming
+  them into valid fetch attributes.
 - IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
   partial full-message fetches, preserve the `RFC822<offset>` response atom,
   and mark messages seen like ordinary `RFC822` fetches.
