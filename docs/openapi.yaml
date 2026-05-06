@@ -1521,6 +1521,60 @@ paths:
           $ref: "#/components/responses/AuditLog"
         default:
           $ref: "#/components/responses/Error"
+  /directory/delegations:
+    get:
+      operationId: listAdminDirectoryDelegations
+      summary: List Directory delegation relationships for admin diagnostics
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required company scope for delegation inspection.
+        - name: owner_kind
+          in: query
+          schema:
+            type: string
+            enum: [user, organization, group, resource]
+        - name: owner_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional owner principal ID. Requires owner_kind when present.
+        - name: delegate_kind
+          in: query
+          schema:
+            type: string
+            enum: [user, organization, group, resource]
+        - name: delegate_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional delegate principal ID. Requires delegate_kind when present.
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [calendar, contacts, drive, mailbox]
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [read, write, manage]
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryDelegationList"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -3586,6 +3640,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AuditLogIntegrityEnvelope"
+    DirectoryDelegationList:
+      description: Directory delegation list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryDelegationListEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -5713,7 +5773,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -5728,6 +5788,8 @@ components:
             attachment_cleanup:
               type: boolean
             attachment_upload_sessions:
+              type: boolean
+            directory_delegations:
               type: boolean
             drive_upload_sessions:
               type: boolean
@@ -6031,6 +6093,41 @@ components:
       properties:
         audit_log_integrity:
           $ref: "#/components/schemas/AuditLogIntegrity"
+    DirectoryDelegation:
+      type: object
+      required: [id, company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role, status]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        owner_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        owner_id:
+          type: string
+        delegate_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        delegate_id:
+          type: string
+        scope:
+          type: string
+          enum: [calendar, contacts, drive, mailbox]
+        role:
+          type: string
+          enum: [read, write, manage]
+        status:
+          type: string
+          enum: [active, deleted]
+    DirectoryDelegationListEnvelope:
+      type: object
+      required: [directory_delegations]
+      properties:
+        directory_delegations:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectoryDelegation"
     BackpressureState:
       type: object
       required: [level]

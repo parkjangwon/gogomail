@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/imapgw"
@@ -87,7 +88,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
+	if !got.Operations.AuditLogs || !got.Operations.DirectoryDelegations || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -432,6 +433,101 @@ func TestAdminAuditLogsHandlerRejectsUnsafeFilters(t *testing.T) {
 		}
 		if service.lastAuditLogList.Limit != 0 {
 			t.Fatalf("%s dispatched request %+v", path, service.lastAuditLogList)
+		}
+	}
+}
+
+func TestAdminDirectoryDelegationsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryDelegations: []directory.Delegation{{
+			ID:           "delegation-1",
+			CompanyID:    "company-1",
+			OwnerKind:    directory.PrincipalKindResource,
+			OwnerID:      "room-1",
+			DelegateKind: directory.PrincipalKindGroup,
+			DelegateID:   "team-1",
+			Scope:        directory.DelegationScopeCalendar,
+			Role:         directory.DelegationRoleWrite,
+			Status:       "active",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/delegations?limit=10&company_id=%20company-1%20&owner_kind=resource&owner_id=room-1&delegate_kind=group&delegate_id=team-1&scope=calendar&role=write&active_only=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Delegations []directory.Delegation `json:"directory_delegations"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Delegations) != 1 || body.Delegations[0].ID != "delegation-1" {
+		t.Fatalf("directory_delegations = %+v", body.Delegations)
+	}
+	if service.lastDirectoryDelegationList.Limit != 10 ||
+		service.lastDirectoryDelegationList.CompanyID != "company-1" ||
+		service.lastDirectoryDelegationList.OwnerKind != directory.PrincipalKindResource ||
+		service.lastDirectoryDelegationList.OwnerID != "room-1" ||
+		service.lastDirectoryDelegationList.DelegateKind != directory.PrincipalKindGroup ||
+		service.lastDirectoryDelegationList.DelegateID != "team-1" ||
+		service.lastDirectoryDelegationList.Scope != directory.DelegationScopeCalendar ||
+		service.lastDirectoryDelegationList.Role != directory.DelegationRoleWrite ||
+		service.lastDirectoryDelegationList.ActiveOnly {
+		t.Fatalf("lastDirectoryDelegationList = %+v", service.lastDirectoryDelegationList)
+	}
+}
+
+func TestAdminDirectoryDelegationsHandlerDefaultsActiveOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/delegations?company_id=company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastDirectoryDelegationList.ActiveOnly {
+		t.Fatalf("lastDirectoryDelegationList.ActiveOnly = false, want default true")
+	}
+}
+
+func TestAdminDirectoryDelegationsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/delegations?company_id=company%0Abad",
+		"/admin/v1/directory/delegations?company_id=company-1&owner_id=owner-1",
+		"/admin/v1/directory/delegations?company_id=company-1&delegate_kind=calendar",
+		"/admin/v1/directory/delegations?company_id=company-1&active_only=maybe",
+		"/admin/v1/directory/delegations?company_id=company-1&cursor=opaque",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryDelegationList.CompanyID != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryDelegationList)
 		}
 	}
 }
@@ -6595,6 +6691,7 @@ type fakeAdminService struct {
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
+	directoryDelegations                        []directory.Delegation
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
 	driveUsageSummary                           drive.UsageSummary
@@ -6675,6 +6772,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
+	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
 	lastDriveUsage                              drive.GetUsageSummaryRequest
@@ -6879,6 +6977,14 @@ func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.Aud
 func (f *fakeAdminService) CheckAuditLogIntegrity(_ context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error) {
 	f.lastAuditLogIntegrity = req
 	return f.auditLogIntegrity, nil
+}
+
+func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
+	if _, err := directory.NormalizeListDelegationsRequest(req); err != nil {
+		return nil, err
+	}
+	f.lastDirectoryDelegationList = req
+	return f.directoryDelegations, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {

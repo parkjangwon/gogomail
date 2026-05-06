@@ -756,6 +756,14 @@ Admin operational read models also keep explicit envelope keys:
   supports `limit` and RFC3339 `since`, recomputes each row hash, checks
   in-window `prev_hash` continuity, and returns typed break records without
   mutating audit rows.
+- `GET /admin/v1/directory/delegations` returns
+  `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
+  delegation relationships. It supports bounded `limit`, required `company_id`,
+  optional `owner_kind`, `owner_id`, `delegate_kind`, `delegate_id`,
+  `scope=calendar|contacts|drive|mailbox`, `role=read|write|manage`, and
+  `active_only` filters. `active_only` defaults to `true`; text filters reject
+  CR/LF-bearing or oversized values before service dispatch, and the Directory
+  boundary rejects principal IDs without their corresponding kind.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

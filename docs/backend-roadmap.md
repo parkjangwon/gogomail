@@ -2693,6 +2693,13 @@ Implementation order:
        consoles, shared-calendar management, Drive shares, shared inboxes, and
        Contacts/CardDAV delegation one observable relationship read model
        instead of product-local delegation queries.
+1175b. The admin backend API now exposes Directory delegation inspection at
+       `GET /admin/v1/directory/delegations`, returning a
+       `directory_delegations` envelope with bounded company, owner, delegate,
+       scope, role, active-only, and limit filters documented in OpenAPI and
+       the backend API contract. This gives the future admin console a
+       contract-first diagnostics surface without making delegated CalDAV,
+       Drive, Contacts/CardDAV, or shared-inbox mutation workflows public.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

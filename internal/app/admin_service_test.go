@@ -12,6 +12,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -210,6 +211,36 @@ func TestAdminServiceListDriveUploadSessionsDelegatesToDrive(t *testing.T) {
 	}
 	if driveStore.lastReq.UserID != "user-1" || driveStore.lastReq.Status != drive.UploadSessionStatusUploading || driveStore.lastReq.Limit != 5 {
 		t.Fatalf("lastReq = %+v", driveStore.lastReq)
+	}
+}
+
+func TestAdminServiceListDirectoryDelegationsDelegatesToDirectory(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		delegations: []directory.Delegation{{ID: "delegation-1", CompanyID: "company-1"}},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ListDelegationsRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    directory.PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: directory.PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        directory.DelegationScopeCalendar,
+		Role:         directory.DelegationRoleWrite,
+		ActiveOnly:   true,
+		Limit:        5,
+	}
+	delegations, err := service.ListDirectoryDelegations(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ListDirectoryDelegations returned error: %v", err)
+	}
+	if len(delegations) != 1 || delegations[0].ID != "delegation-1" {
+		t.Fatalf("delegations = %+v", delegations)
+	}
+	if directoryStore.lastReq != req {
+		t.Fatalf("lastReq = %+v, want %+v", directoryStore.lastReq, req)
 	}
 }
 
@@ -492,6 +523,16 @@ type fakeAdminDrive struct {
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
 	lastResolveReq  drive.ResolveObjectCleanupFailureRequest
 	lastRetryReq    drive.ListObjectCleanupFailuresRequest
+}
+
+type fakeAdminDirectory struct {
+	delegations []directory.Delegation
+	lastReq     directory.ListDelegationsRequest
+}
+
+func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
+	f.lastReq = req
+	return f.delegations, nil
 }
 
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {

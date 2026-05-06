@@ -261,6 +261,11 @@ relationship model instead of forcing product modules to query
 `directory_delegations` directly. The CalDAV release tier should therefore stay
 experimental while the platform-level Directory/Identity, Contacts/CardDAV,
 Notification & Sync, Search, and Policy/Audit foundations continue to close.
+The admin backend API now exposes that read boundary as
+`GET /admin/v1/directory/delegations`, returning
+`{"directory_delegations":[...]}` with bounded company, owner, delegate, scope,
+role, active-only, and limit filters. This is intentionally an operator/admin
+diagnostic surface, not a public CalDAV sharing UX.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.
@@ -2677,6 +2682,11 @@ The platform hardening sprint completed the following:
   principal filters, delegation scope, role, active-only state, and result
   limits before querying, giving admin consoles and shared resource management
   a reusable read path without product-specific SQL.
+- Admin APIs now expose Directory delegation inspection through
+  `GET /admin/v1/directory/delegations`, with OpenAPI and backend contract
+  coverage for the response envelope and bounded filter set. This gives future
+  admin console work a contract-first path for shared-calendar/resource access
+  diagnostics while CalDAV itself remains experimental.
 - `internal/accesspolicy` now provides a small effective-delegation evaluator
   that normalizes principal/scope/role inputs, forces active principal checks,
   and returns explicit allow/deny decisions. It is deliberately product-neutral
