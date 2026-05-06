@@ -862,7 +862,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		listFields = fields[2:]
 	}
 	listOptions, listError, ok := imapListCommandOptions(listFields, subscribed)
-	if !ok || len(listOptions.fields) != 2 {
+	if !ok {
 		if listError != "" {
 			_, err := writer.WriteString(tag + " BAD " + listError + "\r\n")
 			return false, err
@@ -870,7 +870,11 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
 		return false, err
 	}
-	pattern, patternOK := imapListPattern(listOptions.fields[0], listOptions.fields[1])
+	if len(listOptions.fields) < 2 {
+		_, err := writer.WriteString(tag + " BAD " + command + " requires reference and mailbox pattern atoms\r\n")
+		return false, err
+	}
+	patterns, patternOK := imapListPatterns(listOptions.fields)
 	if !patternOK {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is not valid modified UTF-7\r\n")
 		return false, err
@@ -882,7 +886,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if imapStatusRequestsItem(listOptions.statusItems, "HIGHESTMODSEQ") {
 		state.condstoreAware = true
 	}
-	if pattern == "" {
+	if len(patterns) == 1 && patterns[0] == "" {
 		if listOptions.specialUseOnly {
 			_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
 			return false, err
@@ -894,9 +898,9 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		return false, err
 	}
 	if subscribed || listOptions.subscribedOnly {
-		return s.writeSubscribedListResponses(writer, tag, state, pattern, command, listOptions)
+		return s.writeSubscribedListResponses(writer, tag, state, patterns, command, listOptions)
 	}
-	matcher, ok := imapMailboxPatternMatcher(pattern)
+	matcher, ok := imapMailboxPatternMatcherAny(patterns)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is invalid\r\n")
 		return false, err
@@ -916,11 +920,22 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		}
 	}
 	children := imapMailboxChildren(mailboxes)
+	seen := make(map[string]struct{}, len(mailboxes))
+	if imapMailboxPatternListContainsRoot(patterns) && !listOptions.specialUseOnly {
+		if _, err := writer.WriteString("* " + command + ` (\Noselect) "/" ""` + "\r\n"); err != nil {
+			return false, err
+		}
+	}
 	for _, mailbox := range mailboxes {
 		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
 		if !matcher(displayName) {
 			continue
 		}
+		key := strings.ToLower(displayName)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
 		wireDisplayName := imapEncodeMailboxName(displayName)
 		attributes := imapMailboxListAttributes(mailbox, children[mailbox.ID])
 		if _, ok := subscribedNames[strings.ToLower(displayName)]; ok {
@@ -942,7 +957,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	return false, err
 }
 
-func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, pattern string, command string, listOptions imapListOptions) (bool, error) {
+func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, patterns []string, command string, listOptions imapListOptions) (bool, error) {
 	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
@@ -956,7 +971,7 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 	}
 	children := imapMailboxChildren(mailboxes)
 	seen := make(map[string]struct{}, len(subscriptions))
-	matcher, ok := imapMailboxPatternMatcher(pattern)
+	matcher, ok := imapMailboxPatternMatcherAny(patterns)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is invalid\r\n")
 		return false, err
@@ -967,7 +982,7 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 			displayName = imapMailboxWireName(imapMailboxDisplayName(subscription.Mailbox))
 		}
 		if !matcher(displayName) {
-			parentName := imapLSubParentName(displayName, pattern, matcher)
+			parentName := imapLSubParentNameAny(displayName, patterns)
 			if parentName == "" {
 				continue
 			}
@@ -1023,6 +1038,19 @@ func (s *Server) subscribedMailboxWireNames(ctx context.Context, state *imapConn
 		names[strings.ToLower(displayName)] = struct{}{}
 	}
 	return names, nil
+}
+
+func imapLSubParentNameAny(name string, patterns []string) string {
+	for _, pattern := range patterns {
+		matcher, ok := imapMailboxPatternMatcher(pattern)
+		if !ok {
+			continue
+		}
+		if parentName := imapLSubParentName(name, pattern, matcher); parentName != "" {
+			return parentName
+		}
+	}
+	return ""
 }
 
 func imapLSubParentName(name string, pattern string, matcher func(string) bool) string {
@@ -6941,19 +6969,31 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 		return imapListOptions{}, "", false
 	}
 	options.fields = fields[:2]
-	if len(fields) == 2 {
+	rest := fields[2:]
+	if strings.HasPrefix(strings.TrimSpace(fields[1]), "(") {
+		if !strings.HasPrefix(fields[1], "(") {
+			return imapListOptions{}, "", false
+		}
+		patternFields, patternRest, ok := imapConsumeParenthesizedFields(fields[1:])
+		if !ok {
+			return imapListOptions{}, "", false
+		}
+		options.fields = append([]string{fields[0]}, patternFields...)
+		rest = patternRest
+	}
+	if len(rest) == 0 {
 		return options, "", true
 	}
-	if len(fields) < 4 || !strings.EqualFold(fields[2], "RETURN") {
+	if len(rest) < 2 || !strings.EqualFold(rest[0], "RETURN") {
 		return imapListOptions{}, "", false
 	}
-	if !imapListReturnOptionsParenthesized(fields[3:]) {
+	if !imapListReturnOptionsParenthesized(rest[1:]) {
 		return imapListOptions{}, "LIST requires parenthesized return options", false
 	}
-	if !imapListStatusReturnItemsParenthesized(fields[3:]) {
+	if !imapListStatusReturnItemsParenthesized(rest[1:]) {
 		return imapListOptions{}, "LIST requires parenthesized status item list", false
 	}
-	tokens := imapFetchNormalizedTokens(fields[3:])
+	tokens := imapFetchNormalizedTokens(rest[1:])
 	if len(tokens) == 0 {
 		return imapListOptions{}, "", false
 	}
@@ -7200,6 +7240,70 @@ func imapListPattern(reference string, pattern string) (string, bool) {
 	return strings.TrimRight(reference, "/") + "/" + pattern, true
 }
 
+func imapListPatterns(fields []string) ([]string, bool) {
+	if len(fields) < 2 {
+		return nil, false
+	}
+	reference := fields[0]
+	if len(fields) == 2 && !strings.HasPrefix(strings.TrimSpace(fields[1]), "(") {
+		pattern, ok := imapListPattern(reference, fields[1])
+		if !ok {
+			return nil, false
+		}
+		return []string{pattern}, true
+	}
+	if len(fields) < 2 || !strings.HasPrefix(fields[1], "(") {
+		return nil, false
+	}
+	raw := strings.Join(fields[1:], " ")
+	if !strings.HasPrefix(raw, "(") || !strings.HasSuffix(raw, ")") || strings.HasPrefix(raw, "((") {
+		return nil, false
+	}
+	patternFields := imapParenthesizedMailboxPatternFields(fields[1:])
+	patterns := make([]string, 0, len(patternFields))
+	seen := make(map[string]struct{}, len(patternFields))
+	for _, patternField := range patternFields {
+		if patternField == "" {
+			return nil, false
+		}
+		pattern, ok := imapListPattern(reference, patternField)
+		if !ok {
+			return nil, false
+		}
+		key := strings.ToLower(pattern)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		patterns = append(patterns, pattern)
+	}
+	return patterns, len(patterns) > 0
+}
+
+func imapParenthesizedMailboxPatternFields(fields []string) []string {
+	patterns := make([]string, 0, len(fields))
+	for i, field := range fields {
+		if i == 0 {
+			field = strings.TrimPrefix(field, "(")
+		}
+		field = strings.TrimSuffix(field, ")")
+		if field == "" {
+			continue
+		}
+		if strings.ContainsAny(field, "()") {
+			return nil
+		}
+		if strings.Contains(field, `"`) && !(strings.HasPrefix(field, `"`) && strings.HasSuffix(field, `"`) && len(field) >= 2) {
+			return nil
+		}
+		if strings.HasPrefix(field, `"`) {
+			field = strings.TrimSuffix(strings.TrimPrefix(field, `"`), `"`)
+		}
+		patterns = append(patterns, field)
+	}
+	return patterns
+}
+
 func imapSelectCondstore(fields []string) (bool, bool) {
 	if len(fields) == 0 {
 		return false, true
@@ -7247,6 +7351,37 @@ func imapParenthesizedAtomListShapeValid(fields []string) bool {
 func imapMailboxMatchesPattern(name string, pattern string) bool {
 	matcher, ok := imapMailboxPatternMatcher(pattern)
 	return ok && matcher(name)
+}
+
+func imapMailboxPatternMatcherAny(patterns []string) (func(string) bool, bool) {
+	matchers := make([]func(string) bool, 0, len(patterns))
+	for _, pattern := range patterns {
+		if pattern == "" {
+			continue
+		}
+		matcher, ok := imapMailboxPatternMatcher(pattern)
+		if !ok {
+			return nil, false
+		}
+		matchers = append(matchers, matcher)
+	}
+	return func(name string) bool {
+		for _, matcher := range matchers {
+			if matcher(name) {
+				return true
+			}
+		}
+		return false
+	}, true
+}
+
+func imapMailboxPatternListContainsRoot(patterns []string) bool {
+	for _, pattern := range patterns {
+		if pattern == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func imapMailboxPatternMatcher(pattern string) (func(string) bool, bool) {
