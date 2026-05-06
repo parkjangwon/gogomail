@@ -3390,6 +3390,61 @@ func TestServerCloseClearsSavedSearch(t *testing.T) {
 	}
 }
 
+func TestServerCloseCondstoreAwareMailboxDrainsEventsAndResetsLifecycleState(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &closeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	events := make(chan MailboxEvent, 1)
+	events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
+	canceled := false
+	var output strings.Builder
+	writer := bufio.NewWriter(&output)
+	state := &imapConnState{
+		session:          &Session{UserID: "user-1"},
+		selectedMailbox:  "inbox",
+		selectedMessages: 2,
+		selectedNoModSeq: true,
+		condstoreAware:   true,
+		permanentFlags:   map[string]struct{}{FlagSeen: {}},
+		savedSearch:      []imapSearchSavedMessage{{uid: 7, sequenceNumber: 1}},
+		events:           events,
+		cancelEvents:     func() { canceled = true },
+	}
+
+	done, err := server.handleLineWithLiteral(writer, "a1 CLOSE\r\n", nil, state)
+	if err != nil {
+		t.Fatalf("handleLineWithLiteral returned error: %v", err)
+	}
+	if done {
+		t.Fatal("handleLineWithLiteral done = true, want false")
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush close response: %v", err)
+	}
+	if got := output.String(); got != "* 3 EXISTS\r\na1 OK CLOSE completed\r\n" {
+		t.Fatalf("close response = %q", got)
+	}
+	if strings.Contains(output.String(), "EXPUNGE") {
+		t.Fatalf("CLOSE response unexpectedly emitted EXPUNGE: %q", output.String())
+	}
+	if backendImpl.expungeCount != 1 || backendImpl.expungeMailboxID != "inbox" || backendImpl.expungeUserID != "user-1" {
+		t.Fatalf("close expunge = count %d user %q mailbox %q, want writable selected mailbox expunged", backendImpl.expungeCount, backendImpl.expungeUserID, backendImpl.expungeMailboxID)
+	}
+	if !canceled {
+		t.Fatal("event subscription was not canceled")
+	}
+	if !state.condstoreAware {
+		t.Fatal("session CONDSTORE awareness was cleared by CLOSE")
+	}
+	if state.selectedMailbox != "" || state.selectedMessages != 0 || state.selectedHighestModSeq != 0 || state.selectedNoModSeq || state.permanentFlags != nil || state.readOnly || state.savedSearch != nil || state.events != nil || state.cancelEvents != nil {
+		t.Fatalf("selected state after CLOSE = mailbox %q messages %d modseq %d noModSeq %t flags %#v readOnly %t saved %#v events %#v cancel nil %t", state.selectedMailbox, state.selectedMessages, state.selectedHighestModSeq, state.selectedNoModSeq, state.permanentFlags, state.readOnly, state.savedSearch, state.events, state.cancelEvents == nil)
+	}
+}
+
 func TestServerHandlesUnselectAfterSelect(t *testing.T) {
 	t.Parallel()
 
