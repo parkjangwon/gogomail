@@ -371,11 +371,15 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if len(page.Objects) >= limit {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: response contains more objects than requested limit")
 		}
+		lastModified, ok := parseS3ListTime(item.LastModified)
+		if !ok {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid last-modified")
+		}
 		page.Objects = append(page.Objects, ObjectInfo{
 			Path:         objectPath,
 			Size:         size,
 			ETag:         cleanS3ETag(item.ETag),
-			LastModified: parseS3ListTime(item.LastModified),
+			LastModified: lastModified,
 		})
 	}
 	if !page.HasMore {
@@ -790,15 +794,21 @@ func parseHTTPTime(value string) time.Time {
 	return parsed
 }
 
-func parseS3ListTime(value string) time.Time {
-	value = strings.TrimSpace(value)
+func parseS3ListTime(value string) (time.Time, bool) {
 	if value == "" {
-		return time.Time{}
+		return time.Time{}, true
+	}
+	if strings.TrimSpace(value) != value {
+		return time.Time{}, false
 	}
 	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
-		return parsed
+		return parsed, true
 	}
-	return parseHTTPTime(value)
+	parsed := parseHTTPTime(value)
+	if parsed.IsZero() {
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 func (s *S3Store) key(objectPath string) string {

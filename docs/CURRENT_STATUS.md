@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list namespace hardening)
+Last updated: 2026-05-07 (updated after S3 list last-modified hardening)
 
 ## Current phase
 
@@ -138,6 +138,10 @@ S3-compatible `ListObjectsV2` response XML now applies the same namespace
 boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
 roots only before pagination, prefix filtering, cleanup, or Drive callers see
 listed object metadata.
+S3-compatible `ListObjectsV2` object `LastModified` metadata now fails closed
+when a non-empty provider value is malformed or whitespace-padded, while still
+allowing missing values for compatible providers that omit optional timestamp
+metadata.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

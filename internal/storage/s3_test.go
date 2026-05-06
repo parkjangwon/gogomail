@@ -1156,6 +1156,48 @@ func TestS3StoreListRejectsSignedObjectSize(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"not-a-time",
+		" 2026-05-05T12:00:00Z ",
+	}
+	for _, lastModified := range tests {
+		lastModified := lastModified
+		t.Run(lastModified, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><LastModified>` + lastModified + `</LastModified></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "invalid last-modified") {
+				t.Fatalf("List err = %v, want invalid last-modified", err)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsMissingObjectKey(t *testing.T) {
 	t.Parallel()
 

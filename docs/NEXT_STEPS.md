@@ -155,6 +155,10 @@ Current state:
   boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
   roots only before pagination, prefix filtering, cleanup, or Drive callers see
   listed object metadata.
+- S3-compatible `ListObjectsV2` object `LastModified` metadata now fails
+  closed when a non-empty provider value is malformed or whitespace-padded,
+  while still allowing missing values for compatible providers that omit
+  optional timestamp metadata.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,
