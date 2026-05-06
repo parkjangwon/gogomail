@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after admin Directory delegation role update API)
+Last updated: 2026-05-06 (updated after single active Directory delegation grants)
 
 ## Current phase
 
@@ -353,6 +353,10 @@ transaction, and is exposed as
 `PATCH /admin/v1/directory/delegations/{id}/role`. This lets CalDAV, Drive,
 Contacts/CardDAV, and shared inbox access management evolve through one
 predictable delegation lifecycle instead of product-local role semantics.
+The Directory delegation schema now enforces one active grant per
+company/owner/delegate/scope, independent of role, so role changes are true
+mutations of a single relationship rather than parallel active grants with
+conflicting privilege semantics.
 Directory group membership creation now follows that same platform boundary:
 `CreateGroupMembershipWithAudit` normalizes membership roles
 (`member|manager|owner`), verifies the active group and member principal belong
