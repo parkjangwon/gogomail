@@ -1650,6 +1650,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists, returning only the header terminator for empty
   include requests and the full header block when the exclude list is empty.
+- IMAP `FETCH`/`UID FETCH` now rejects whitespace-only, padded, or collapsed
+  `HEADER.FIELDS` and `HEADER.FIELDS.NOT` field-list forms such as
+  `HEADER.FIELDS ( )`, while preserving exact empty-list `()` compatibility.
 - IMAP `FETCH`/`UID FETCH` has regression coverage for partial-window empty
   top-level header-field-list requests, including `HEADER.FIELDS ()<0.1>` and
   `HEADER.FIELDS.NOT ()<0.10>` preview forms.
