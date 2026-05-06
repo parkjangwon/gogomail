@@ -3009,6 +3009,10 @@ Implementation order:
       syntax such as nested `((FLAGS))` before authentication or selected-state
       checks, keeping RFC 3501 fetch grammar failures distinct from mailbox
       state failures.
+1222. IMAP `STORE` and `UID STORE` now validate malformed `UNCHANGEDSINCE`,
+      store mode, and flag-list syntax before authentication or selected-state
+      checks, keeping RFC 3501 and CONDSTORE mutation grammar failures
+      distinct from mailbox state failures.
 
 ## Deferred until backend contracts stabilize
 

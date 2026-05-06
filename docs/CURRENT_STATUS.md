@@ -929,6 +929,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH` and `UID FETCH` now validate malformed fetch data-item syntax
   such as nested `((FLAGS))` before authentication or selected-mailbox checks,
   keeping RFC 3501 fetch grammar errors from being masked as state failures.
+- IMAP `STORE` and `UID STORE` now validate malformed `UNCHANGEDSINCE`, store
+  mode, and flag-list syntax before authentication or selected-mailbox checks,
+  keeping RFC 3501/CONDSTORE mutation grammar distinct from state failures.
 - IMAP command tokenization now rejects embedded quote characters inside
   unquoted atoms while preserving escaped quotes inside proper quoted strings,
   keeping RFC 3501 atom and quoted-string handling separate.

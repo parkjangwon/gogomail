@@ -147,6 +147,9 @@ Current state:
 - IMAP `FETCH` and `UID FETCH` reject malformed fetch data-item syntax such as
   nested `((FLAGS))` before authentication or selected-mailbox checks, keeping
   RFC 3501 fetch grammar diagnostics ahead of state-machine errors.
+- IMAP `STORE` and `UID STORE` reject malformed `UNCHANGEDSINCE`, store mode,
+  and flag-list syntax before authentication or selected-mailbox checks,
+  keeping RFC 3501/CONDSTORE mutation diagnostics ahead of state errors.
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.

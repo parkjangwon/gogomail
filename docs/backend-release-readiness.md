@@ -880,6 +880,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH` and `UID FETCH` reject malformed fetch data-item syntax such as
   nested `((FLAGS))` before authentication or selected-mailbox checks, keeping
   RFC 3501 fetch grammar failures separate from state failures.
+- IMAP `STORE` and `UID STORE` reject malformed `UNCHANGEDSINCE`, store mode,
+  and flag-list syntax before authentication or selected-mailbox checks,
+  keeping RFC 3501/CONDSTORE mutation grammar failures separate from state
+  failures.
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
