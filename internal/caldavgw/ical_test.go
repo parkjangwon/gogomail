@@ -49,19 +49,24 @@ func TestParseICalendarObjectRejectsInvalidObjects(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string][]byte{
-		"empty":                  nil,
-		"not calendar":           []byte("BEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\n"),
-		"missing uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"duplicate uid":          []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"multiple objects":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"two masters":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"mixed override uid":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"unsupported only":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
-		"oversized uid":          []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"too many children":      []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"event dtend duration":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"todo due duration":      []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"todo duration no start": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"empty":                    nil,
+		"not calendar":             []byte("BEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\n"),
+		"missing uid":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"duplicate uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"multiple objects":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"two masters":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"mixed override uid":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"unsupported only":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
+		"oversized uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"too many children":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event dtend duration":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event duplicate dtstart":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTSTART:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event duplicate status":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nSTATUS:CONFIRMED\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"todo due duration":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"todo duration no start":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"todo duplicate due":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDUE:20260506T010000Z\r\nDUE:20260506T020000Z\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"journal duplicate status": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VJOURNAL\r\nUID:journal-1@example.com\r\nSTATUS:DRAFT\r\nSTATUS:FINAL\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n"),
+		"freebusy duplicate dtend": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nUID:fb-1@example.com\r\nDTEND:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n"),
 	}
 	for name, body := range tests {
 		name, body := name, body

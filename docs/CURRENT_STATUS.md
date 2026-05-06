@@ -2549,7 +2549,10 @@ The platform hardening sprint completed the following:
   component/property count caps before `.ics` bodies reach storage. It also
   rejects RFC-invalid duration/end combinations for stored `VEVENT` and `VTODO`
   objects, including `VEVENT` `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and
-  `VTODO` `DURATION` without `DTSTART`.
+  `VTODO` `DURATION` without `DTSTART`; singleton time/status properties such
+  as `DTSTART`, `DTEND`, `DUE`, `DURATION`, `STATUS`, `TRANSP`,
+  `RECURRENCE-ID`, and `DTSTAMP` are rejected when duplicated on supported
+  calendar components.
 - CalDAV now has a WebDAV `multistatus` response builder for future PROPFIND
   and REPORT handlers. It renders per-property `propstat` statuses, principal
   discovery properties, calendar-home hints, calendar collection metadata

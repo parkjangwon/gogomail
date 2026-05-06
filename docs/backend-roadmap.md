@@ -2957,6 +2957,11 @@ Implementation order:
       `VEVENT`/`VTODO` duration/end combinations, including `VEVENT`
       `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and `VTODO` `DURATION`
       without `DTSTART`, before malformed calendar objects can reach storage.
+1208. CalDAV iCalendar object validation now rejects duplicated singleton
+      time/status properties such as `DTSTAMP`, `DTSTART`, `DTEND`, `DUE`,
+      `DURATION`, `STATUS`, `TRANSP`, and `RECURRENCE-ID` on supported
+      calendar components, keeping stored `.ics` objects deterministic for
+      future native-client sync and scheduling semantics.
 
 ## Deferred until backend contracts stabilize
 
