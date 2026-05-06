@@ -802,7 +802,7 @@ func validateAddressDataAttributes(el xml.StartElement) error {
 			}
 		case "version":
 			version := strings.TrimSpace(attr.Value)
-			if version != "4.0" {
+			if version != "3.0" && version != "4.0" {
 				return UnsupportedAddressDataError{Attribute: "version", Value: version}
 			}
 		}

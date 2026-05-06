@@ -145,6 +145,31 @@ func TestContactObjectDataPropertyRejectsProjectionFailures(t *testing.T) {
 	}
 }
 
+func TestContactObjectDataPropertyUsesStoredVCardVersion(t *testing.T) {
+	t.Parallel()
+
+	prop, err := ContactObjectDataPropertyWithProperties([]byte("BEGIN:VCARD\r\nVERSION:3.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"), nil)
+	if err != nil {
+		t.Fatalf("ContactObjectDataPropertyWithProperties returned error: %v", err)
+	}
+	if prop.Value.AddressDataVersion != "3.0" {
+		t.Fatalf("AddressDataVersion = %q, want 3.0", prop.Value.AddressDataVersion)
+	}
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href: "/carddav/addressbooks/user-1/personal/contact-1.vcf",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusOK,
+			Properties: []PropertyResult{prop},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	if !strings.Contains(string(body), `version="3.0"`) {
+		t.Fatalf("address-data did not carry stored vCard version:\n%s", body)
+	}
+}
+
 func TestBuildMultiStatusXMLRendersAddressDataTypeAttributes(t *testing.T) {
 	t.Parallel()
 
@@ -298,7 +323,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		"<C:addressbook></C:addressbook>",
 		"<C:addressbook-description>People</C:addressbook-description>",
 		"<D:getetag>" + strings.ReplaceAll(collectionETag, `"`, "&#34;") + "</D:getetag>",
-		"<C:supported-address-data><C:address-data content-type=\"text/vcard\" version=\"4.0\"></C:address-data></C:supported-address-data>",
+		"<C:supported-address-data><C:address-data content-type=\"text/vcard\" version=\"4.0\"></C:address-data><C:address-data content-type=\"text/vcard\" version=\"3.0\"></C:address-data></C:supported-address-data>",
 		"<C:supported-collation-set><C:supported-collation>i;ascii-casemap</C:supported-collation><C:supported-collation>i;unicode-casemap</C:supported-collation></C:supported-collation-set>",
 		"<C:max-resource-size>5242880</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",
