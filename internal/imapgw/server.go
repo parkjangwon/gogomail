@@ -359,7 +359,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	}
 	fields, parseErr := parseIMAPFieldsWithLiteral(trimmedLine, literals)
 	if parseErr != nil {
-		_, err := writer.WriteString("* BAD malformed command\r\n")
+		_, err := writer.WriteString(imapMalformedCommandResponse(trimmedLine))
 		return false, err
 	}
 	if len(fields) < 2 {
@@ -763,6 +763,13 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func imapMalformedCommandResponse(line string) string {
+	if tag := imapTagFromCommandLine(line); tag != "" {
+		return tag + " BAD malformed command\r\n"
+	}
+	return "* BAD malformed command\r\n"
 }
 
 func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, state *imapConnState, subscribed bool) (bool, error) {

@@ -315,7 +315,7 @@ func TestServerRejectsControlCharactersInAtoms(t *testing.T) {
 		t.Fatalf("write atom control: %v", err)
 	}
 	want := []string{
-		"* BAD malformed command\r\n",
+		"a1 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a2 OK LOGOUT completed\r\n",
 	}
@@ -355,8 +355,8 @@ func TestServerRejectsMalformedQuotedCommandArguments(t *testing.T) {
 		t.Fatalf("write malformed quoted arguments: %v", err)
 	}
 	want := []string{
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a1 BAD malformed command\r\n",
+		"a2 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a3 OK LOGOUT completed\r\n",
 	}
@@ -4808,8 +4808,8 @@ func TestServerValidatesMailboxCommandSyntaxBeforeAuthentication(t *testing.T) {
 		"a8 BAD SUBSCRIBE requires a mailbox atom\r\n",
 		"a9 BAD SUBSCRIBE mailbox name is not valid modified UTF-7\r\n",
 		"a10 NO authentication required\r\n",
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a11 BAD malformed command\r\n",
+		"a12 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a13 OK LOGOUT completed\r\n",
 	}
@@ -5648,10 +5648,10 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"* SEARCH 1 2\r\n",
 		"a28 OK SEARCH completed\r\n",
 		"a29 BAD SEARCH criteria are unsupported\r\n",
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a30 BAD malformed command\r\n",
+		"a31 BAD malformed command\r\n",
 		"a32 BAD SEARCH criteria are unsupported\r\n",
-		"* BAD malformed command\r\n",
+		"a33 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5715,7 +5715,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 		"a6 OK SORT completed\r\n",
 		"a7 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
 		"a8 BAD SORT arguments are unsupported\r\n",
-		"* BAD malformed command\r\n",
+		"a9 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5792,8 +5792,8 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 		"a4 OK UID THREAD completed\r\n",
 		"a5 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
 		"a6 BAD THREAD algorithm is unsupported\r\n",
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a7 BAD malformed command\r\n",
+		"a8 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6005,8 +6005,8 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"* SEARCH 8\r\n",
 		"a15 OK UID SEARCH completed\r\n",
 		"a16 BAD SEARCH criteria are unsupported\r\n",
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a17 BAD malformed command\r\n",
+		"a18 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6076,7 +6076,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 		"a9 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a10 OK UID SEARCH completed\r\n",
-		"* BAD malformed command\r\n",
+		"a11 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6205,7 +6205,7 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 		"a9 OK SEARCH completed\r\n",
 		"* SEARCH 7 8\r\n",
 		"a10 OK UID SEARCH completed\r\n",
-		"* BAD malformed command\r\n",
+		"a11 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6273,8 +6273,8 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 		"a8 OK UID SEARCH completed\r\n",
 		"* SEARCH 2\r\n",
 		"a9 OK SEARCH completed\r\n",
-		"* BAD malformed command\r\n",
-		"* BAD malformed command\r\n",
+		"a10 BAD malformed command\r\n",
+		"a11 BAD malformed command\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

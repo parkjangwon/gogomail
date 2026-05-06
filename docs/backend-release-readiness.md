@@ -1559,7 +1559,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   ambiguous tagged replies for invalid client command tags.
 - IMAP command parsing rejects control characters inside unquoted atoms,
   matching the existing quoted-string control-character guardrail before
-  command dispatch.
+  command dispatch. Parser failures now return tagged `BAD` when a
+  syntactically valid command tag can still be recovered, keeping client
+  command tracking deterministic.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

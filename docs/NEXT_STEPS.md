@@ -33,6 +33,9 @@ Current state:
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.
+- IMAP command parsing returns tagged `BAD` for malformed command lines when
+  the command tag is still syntactically recoverable, while malformed or
+  missing tags continue to receive untagged `BAD`.
 - `UID` dispatch validates missing, malformed, unknown, or state-independent
   malformed subcommands before authentication or selected-mailbox state, while
   valid unauthenticated UID commands still return `NO authentication required`.
