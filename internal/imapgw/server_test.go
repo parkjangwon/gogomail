@@ -7297,6 +7297,51 @@ func TestServerRejectsPaddedSearchCharsetsAndThreadAlgorithms(t *testing.T) {
 	}
 }
 
+func TestServerRejectsMalformedSearchReturnOptionListsBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SEARCH RETURN \" (COUNT) \" ALL\r\na2 SEARCH RETURN ( COUNT) ALL\r\na3 SEARCH RETURN (COUNT ) ALL\r\na4 SORT RETURN \" (SAVE) \" (DATE) UTF-8 ALL\r\na5 THREAD RETURN \" (SAVE) \" ORDEREDSUBJECT UTF-8 ALL\r\na6 SEARCH RETURN () ALL\r\na7 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write malformed search return options: %v", err)
+	}
+	want := []string{
+		"a1 BAD SEARCH return options are unsupported\r\n",
+		"a2 BAD SEARCH return options are unsupported\r\n",
+		"a3 BAD SEARCH return options are unsupported\r\n",
+		"a4 BAD SORT return options are unsupported\r\n",
+		"a5 BAD THREAD return options are unsupported\r\n",
+		"a6 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a7 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read malformed search return option response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("malformed search return option response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsMalformedSortCriterionListsBeforeAuthentication(t *testing.T) {
 	t.Parallel()
 

@@ -1984,7 +1984,10 @@ func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, b
 	if !ok {
 		return imapSearchReturnSpec{}, nil, false
 	}
-	tokens := imapFetchNormalizedTokens(optionFields)
+	tokens, ok := imapSearchReturnOptionTokens(optionFields)
+	if !ok {
+		return imapSearchReturnSpec{}, nil, false
+	}
 	if len(tokens) == 0 {
 		tokens = []string{"ALL"}
 	}
@@ -2021,11 +2024,22 @@ func imapSearchSaveReturnOption(fields []string) (bool, []string, bool) {
 	if !ok {
 		return false, nil, false
 	}
-	tokens := imapFetchNormalizedTokens(optionFields)
+	tokens, ok := imapSearchReturnOptionTokens(optionFields)
+	if !ok {
+		return false, nil, false
+	}
 	if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SAVE") {
 		return false, nil, false
 	}
 	return true, rest, true
+}
+
+func imapSearchReturnOptionTokens(fields []string) ([]string, bool) {
+	inner, ok := imapStatusItemListInner(fields)
+	if !ok {
+		return nil, false
+	}
+	return imapParenthesizedAtomListTokens(inner)
 }
 
 func imapSearchFieldsContainCriteria(fields []string) bool {
