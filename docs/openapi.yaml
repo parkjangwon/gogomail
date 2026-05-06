@@ -3847,6 +3847,12 @@ paths:
     get:
       operationId: listAdminSuppressionEntries
       summary: Admin suppression list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: domain_id
@@ -3873,6 +3879,12 @@ paths:
     delete:
       operationId: deleteAdminSuppressionEntry
       summary: Admin remove suppression entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3884,6 +3896,12 @@ paths:
     get:
       operationId: listAdminTrustedRelays
       summary: Admin trusted relay CIDR list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - in: query
@@ -3906,6 +3924,12 @@ paths:
     post:
       operationId: createAdminTrustedRelay
       summary: Admin add trusted relay CIDR
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/TrustedRelayCreate"
       responses:
@@ -3917,6 +3941,12 @@ paths:
     delete:
       operationId: deleteAdminTrustedRelay
       summary: Admin remove trusted relay CIDR
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3928,6 +3958,12 @@ paths:
     get:
       operationId: listAdminDeliveryRoutes
       summary: Admin delivery gateway and smart-host route list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: status
@@ -3953,6 +3989,12 @@ paths:
     post:
       operationId: createAdminDeliveryRoute
       summary: Admin create delivery gateway or smart-host route
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DeliveryRouteCreate"
       responses:
@@ -3964,6 +4006,12 @@ paths:
     get:
       operationId: resolveAdminDeliveryRoute
       summary: Admin resolve the active delivery route for a recipient domain
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: domain
           in: query
@@ -3980,6 +4028,12 @@ paths:
     patch:
       operationId: updateAdminDeliveryRouteStatus
       summary: Admin enable or disable a delivery route
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3993,6 +4047,12 @@ paths:
     delete:
       operationId: deleteAdminDeliveryRoute
       summary: Admin remove delivery route
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -4019,6 +4079,12 @@ paths:
     get:
       operationId: listAdminDkimKeys
       summary: Admin DKIM key list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: domain_id
@@ -4039,6 +4105,12 @@ paths:
     post:
       operationId: createAdminDkimKey
       summary: Admin create DKIM key
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DKIMKeyCreate"
       responses:
@@ -4050,6 +4122,12 @@ paths:
     delete:
       operationId: deleteAdminDkimKey
       summary: Admin deactivate DKIM key
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -4061,6 +4139,12 @@ paths:
     post:
       operationId: verifyAdminDkimKeyDns
       summary: Admin verify DKIM key DNS record
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -4072,6 +4156,12 @@ paths:
     post:
       operationId: retryAdminOutboxEvent
       summary: Admin retry one outbox event
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:

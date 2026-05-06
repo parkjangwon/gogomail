@@ -113,6 +113,10 @@ Current state:
   notification attempt/statistics OpenAPI operations now also pin `/admin/v1`
   and admin-token/bearer auth alternatives, matching their runtime operational
   observability and provider outcome boundary.
+- Suppression list, trusted relay, delivery route, DKIM key/DNS verification,
+  and outbox retry OpenAPI operations now also pin `/admin/v1` and admin-token
+  /bearer auth alternatives, matching their runtime outbound mail operations
+  and domain signing boundary.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to
