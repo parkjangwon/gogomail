@@ -921,6 +921,9 @@ Current state:
   criteria scans, with `BODY` excluding the RFC 5322 header block.
 - `SEARCH`/`UID SEARCH` now supports bounded RFC `HEADER <field> <value>`
   criteria scans over the raw message header block.
+- `SEARCH`/`UID SEARCH` now preserves RFC 3501 zero-length search string
+  semantics for quoted empty strings across envelope, body/text, and header
+  substring criteria instead of treating them as guaranteed no-match requests.
 - `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER` criteria
   over message `RFC822.SIZE` metadata.
 - `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and `CHARSET UTF-8`
