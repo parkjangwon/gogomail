@@ -52,6 +52,12 @@ booking policy, and scheduling semantics are implemented explicitly.
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,
   and shared inbox features can share one auditable model instead of adding
   module-local principal semantics.
+- Effective delegation checks preserve the direct delegation boundary and add a
+  bounded nested-group expansion path for group delegates. A group-granted
+  delegation can satisfy an effective user, organization, group, or resource
+  member only through the shared Directory membership graph, with the same
+  active filters, depth cap, cycle guard, and role hierarchy used by the direct
+  delegation model.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.

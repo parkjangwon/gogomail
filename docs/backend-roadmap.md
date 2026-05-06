@@ -2583,6 +2583,12 @@ Implementation order:
       giving future organizer/attendee and scheduling work a standards-shaped
       principal-address boundary without prematurely enabling public scheduling
       or delegated/shared calendar semantics.
+1167. Directory/Identity now exposes `CheckEffectiveDelegation`, a bounded
+      group-expansion access check that preserves direct delegation behavior,
+      applies the same `manage >= write >= read` role hierarchy, respects
+      active-only filters, and lets group-granted delegations satisfy effective
+      user, organization, group, or resource members without adding
+      product-local sharing models.
 
 ## Deferred until backend contracts stabilize
 
@@ -2594,9 +2600,9 @@ Implementation order:
 - IMAP
 - CalDAV public/client-ready compatibility
 - Directory/Identity expansion for delegated relationships, effective
-  access grants, and resource booking policy beyond the initial principal
-  tables, resolver, alias lookup, bounded membership expansion, and
-  company-scoped delegation relationship checks
+  resource booking policy beyond the initial principal tables, resolver, alias
+  lookup, bounded membership expansion, company-scoped delegation relationship
+  checks, and bounded group-backed effective delegation reads
 - Contacts/CardDAV broader vCard
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,

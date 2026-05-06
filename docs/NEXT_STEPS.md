@@ -1667,6 +1667,11 @@ Next:
   `read`/`write`/`manage` role hierarchy. Next CalDAV work should connect it
   only through explicit policy decisions and WebDAV privilege semantics, not by
   ad-hoc calendar-specific sharing columns.
+- Effective delegation now has a bounded group-expansion read boundary. Next
+  product-module integration should still remain deliberate: CalDAV/CardDAV,
+  Drive, mailbox sharing, and admin APIs should consume it through explicit
+  policy/audit adapters and WebDAV privilege semantics instead of directly
+  branching on directory rows in protocol handlers.
 - CalDAV principal discovery now exposes Directory primary email addresses via
   RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:
