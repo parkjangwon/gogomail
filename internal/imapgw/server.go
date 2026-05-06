@@ -1025,7 +1025,13 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 		if len(fields) >= 3 {
 			switch strings.ToUpper(fields[2]) {
 			case "SEARCH", "SORT", "THREAD":
-				return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 3, strings.ToUpper(fields[2]))
+				subcommand := strings.ToUpper(fields[2])
+				if handled, done, err := imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 3, subcommand); handled {
+					return true, done, err
+				}
+				if subcommand == "SORT" {
+					return imapRejectStringSortCriterionListArgument(writer, tag, line, fields, 3)
+				}
 			}
 		}
 	case "APPEND":
@@ -1041,7 +1047,10 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 	case "SEARCH":
 		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "SEARCH")
 	case "SORT":
-		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "SORT")
+		if handled, done, err := imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "SORT"); handled {
+			return true, done, err
+		}
+		return imapRejectStringSortCriterionListArgument(writer, tag, line, fields, 2)
 	case "THREAD":
 		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "THREAD")
 	case "LIST":
@@ -1068,6 +1077,28 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 		}
 	}
 	return false, false, nil
+}
+
+func imapRejectStringSortCriterionListArgument(writer *bufio.Writer, tag string, line string, fields []string, argumentStart int) (bool, bool, error) {
+	criterionRawIndex := imapSortCriterionRawIndex(fields, argumentStart)
+	if criterionRawIndex < 0 || !strings.HasPrefix(fields[criterionRawIndex], "(") || !imapRawFieldIsStringLike(line, criterionRawIndex) {
+		return false, false, nil
+	}
+	_, err := writer.WriteString(tag + " BAD SORT requires parenthesized sort criteria\r\n")
+	return true, false, err
+}
+
+func imapSortCriterionRawIndex(fields []string, argumentStart int) int {
+	if len(fields) <= argumentStart {
+		return -1
+	}
+	if strings.EqualFold(fields[argumentStart], "RETURN") {
+		if len(fields) <= argumentStart+2 {
+			return -1
+		}
+		return argumentStart + 2
+	}
+	return argumentStart
 }
 
 func imapRejectStringSearchReturnControlArgument(writer *bufio.Writer, tag string, line string, fields []string, returnRawIndex int, commandName string) (bool, bool, error) {

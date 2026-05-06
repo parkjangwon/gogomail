@@ -128,7 +128,7 @@ Recent release-readiness work also includes:
   passwords routed to backend authentication failures instead of protocol
   `BAD`, strict atom-only command and UID subcommand dispatch, strict
   SEARCH/SORT/THREAD charset and thread-algorithm atoms,
-  strict SORT criterion-list framing, strict FETCH data-item framing,
+  strict raw SORT criterion-list framing, strict FETCH data-item framing,
   atom-only FETCH data-item controls, atom-only ENABLE capability controls,
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   STORE control-atom checks, raw parenthesized flag/status/select-param list

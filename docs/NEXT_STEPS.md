@@ -366,6 +366,9 @@ Current state:
   criterion atoms and `REVERSE` are interpreted case-insensitively, so client
   probes such as `SORT (reverse subject) UTF-8 ALL` remain compatible without
   relaxing the list grammar.
+- IMAP `SORT` and `UID SORT` criterion lists now also reject exact quoted or
+  command-literal parenthesized lists such as `"(DATE)"` and `{6+}\r\n(DATE)`
+  before state checks, preserving raw RFC list framing for sort controls.
 - IMAP `SEARCH RETURN (...)` and `SORT`/`THREAD` `RETURN (SAVE)` option lists
   now reject whitespace-padded quoted or literal list values such as
   `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming them into
