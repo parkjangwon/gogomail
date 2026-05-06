@@ -10181,6 +10181,30 @@ func TestIMAPFetchDataItemsSyntaxRejectsUnsupportedItems(t *testing.T) {
 	}
 }
 
+func TestIMAPFetchDataItemsSyntaxRejectsMalformedHeaderFieldLists(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		items []string
+	}{
+		{name: "space only header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "( )]"}},
+		{name: "padded header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "( Subject)]"}},
+		{name: "double space header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(Subject  From)]"}},
+		{name: "space only header fields not", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "( )]"}},
+		{name: "padded nested header fields", items: []string{"BODY.PEEK[1.HEADER.FIELDS", "( Subject)]"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			message, ok := imapFetchDataItemsSyntaxError(tc.items)
+			if !ok || message != "FETCH header field list is invalid" {
+				t.Fatalf("syntax error = %q, %v; want header field list invalid", message, ok)
+			}
+		})
+	}
+}
+
 func TestIMAPHeaderFieldNameValid(t *testing.T) {
 	t.Parallel()
 

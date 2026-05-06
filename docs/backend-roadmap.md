@@ -3888,6 +3888,11 @@ Implementation order:
 1406. IMAP UID and message sequence-set syntax now rejects whitespace-padded
       quoted or literal set strings such as `SEARCH " 1 "` or
       `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
+1407. IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT`
+      parsing now rejects whitespace-only, padded, or collapsed field-list
+      forms such as `HEADER.FIELDS ( )` while preserving exact empty-list
+      `()` compatibility for clients that intentionally request an empty
+      header projection.
 
 ## Deferred until backend contracts stabilize
 

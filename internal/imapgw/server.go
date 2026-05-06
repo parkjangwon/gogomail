@@ -5073,7 +5073,10 @@ func imapParseMIMEPartHeaderFieldsRequest(items []string) (imapMIMEPartRequest, 
 			return imapMIMEPartRequest{}, false
 		}
 		fieldsEnd += fieldsStart + 1
-		fields := strings.Fields(joined[fieldsStart+1 : fieldsEnd])
+		fields, ok := imapHeaderFieldListNames(joined[fieldsStart+1 : fieldsEnd])
+		if !ok {
+			return imapMIMEPartRequest{}, false
+		}
 		req := imapMIMEPartRequest{
 			path:                path,
 			messageSection:      marker,
@@ -5515,15 +5518,7 @@ func imapFetchHeaderFieldList(items []string, marker string) ([]string, bool) {
 	if end < 0 {
 		return nil, false
 	}
-	fieldsText := joined[idx+start+1 : idx+start+1+end]
-	fields := make([]string, 0)
-	for _, field := range strings.Fields(fieldsText) {
-		if !imapHeaderFieldNameValid(field) {
-			return nil, false
-		}
-		fields = append(fields, field)
-	}
-	return fields, true
+	return imapHeaderFieldListNames(joined[idx+start+1 : idx+start+1+end])
 }
 
 func imapFetchHeaderFieldListsValid(items []string) bool {
@@ -5548,15 +5543,31 @@ func imapFetchHeaderFieldListsValid(items []string) bool {
 			if end < 0 {
 				return false
 			}
-			for _, field := range strings.Fields(joined[idx+start+1 : idx+start+1+end]) {
-				if !imapHeaderFieldNameValid(field) {
-					return false
-				}
+			if _, ok := imapHeaderFieldListNames(joined[idx+start+1 : idx+start+1+end]); !ok {
+				return false
 			}
 			offset = idx + start + 1 + end + 1
 		}
 	}
 	return true
+}
+
+func imapHeaderFieldListNames(fieldsText string) ([]string, bool) {
+	if fieldsText == "" {
+		return nil, true
+	}
+	if strings.TrimSpace(fieldsText) != fieldsText {
+		return nil, false
+	}
+	fields := strings.Split(fieldsText, " ")
+	names := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if !imapHeaderFieldNameValid(field) {
+			return nil, false
+		}
+		names = append(names, field)
+	}
+	return names, true
 }
 
 func imapHeaderFieldNameValid(field string) bool {

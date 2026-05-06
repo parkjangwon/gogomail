@@ -635,6 +635,10 @@ Current state:
   `HEADER.FIELDS.NOT ()` lists. Empty include lists return the blank header
   terminator, while empty exclude lists return the full header block as RFC
   clients expect.
+- IMAP `FETCH`/`UID FETCH` rejects whitespace-only, padded, or collapsed
+  `HEADER.FIELDS`/`HEADER.FIELDS.NOT` lists such as `HEADER.FIELDS ( )`,
+  keeping exact `()` compatibility without silently normalizing malformed
+  field-list syntax.
 - IMAP `FETCH`/`UID FETCH` now has regression coverage for partial-window
   empty top-level header-field-list requests such as `HEADER.FIELDS ()<0.1>`
   and `HEADER.FIELDS.NOT ()<0.10>`.
