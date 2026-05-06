@@ -3,6 +3,7 @@ package carddavgw
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -1038,6 +1039,14 @@ type addressBookChangeExecer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
+const (
+	contactsChangedEvent       = "contacts.changed"
+	davChangeOutboxTopic       = "dav.event"
+	davChangeSchemaVersion     = "2026-05-06.dav-change.v1"
+	davChangeKindCardDAV       = "carddav"
+	davChangePartitionFallback = "unknown"
+)
+
 func insertAddressBookChange(ctx context.Context, execer addressBookChangeExecer, userID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
 	_, err := execer.ExecContext(ctx, `
 INSERT INTO carddav_addressbook_changes (
@@ -1045,6 +1054,38 @@ INSERT INTO carddav_addressbook_changes (
 ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`, userID, addressBookID, syncToken, action, objectName, etag)
 	if err != nil {
 		return fmt.Errorf("insert CardDAV address book change: %w", err)
+	}
+	if err := insertAddressBookChangeOutbox(ctx, execer, userID, addressBookID, syncToken, action, objectName, etag); err != nil {
+		return err
+	}
+	return nil
+}
+
+func insertAddressBookChangeOutbox(ctx context.Context, execer addressBookChangeExecer, userID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
+	payload, err := json.Marshal(map[string]any{
+		"event":          contactsChangedEvent,
+		"schema_version": davChangeSchemaVersion,
+		"dav_kind":       davChangeKindCardDAV,
+		"action":         action,
+		"user_id":        userID,
+		"collection_id":  addressBookID,
+		"object_name":    objectName,
+		"etag":           etag,
+		"sync_token":     syncToken,
+		"changed_at":     time.Now().UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal CardDAV change event: %w", err)
+	}
+	partitionKey := strings.TrimSpace(userID)
+	if partitionKey == "" {
+		partitionKey = davChangePartitionFallback
+	}
+	_, err = execer.ExecContext(ctx, `
+INSERT INTO outbox (topic, partition_key, payload, status)
+VALUES ($1, $2, $3::jsonb, 'pending')`, davChangeOutboxTopic, partitionKey, string(payload))
+	if err != nil {
+		return fmt.Errorf("insert CardDAV change outbox event: %w", err)
 	}
 	return nil
 }

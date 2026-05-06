@@ -1851,6 +1851,11 @@ Current state:
   while preserving the newest marker per calendar, backed by a prune-order
   migration index. Next, wire an operator/worker path with an explicit
   retention-age policy before treating token expiry as production-ready.
+- CalDAV sync-change writes now also enqueue transactional `dav.event`
+  outbox rows with `calendar.changed` payloads. Next Notification & Sync work
+  should consume those domain events for reminder, device, mobile delta, and
+  search/index fan-out instead of coupling push delivery into the CalDAV
+  protocol gateway.
 - CalDAV initial `sync-collection` snapshots now also fetch one extra calendar
   object through a sync-specific repository list path, so omitted or exact
   `limit/nresults` requests cannot silently return a partial snapshot with the
@@ -2163,6 +2168,10 @@ Next:
   run boundary at `/admin/v1/dav-sync/retention-runs`: dry-run calls persist
   preview audit rows, and destructive calls require `confirm_ready=true` plus a
   non-truncated readiness preview before CalDAV/CardDAV prune calls are made.
+  CardDAV address-book change writes now also enqueue transactional
+  `dav.event` outbox rows with `contacts.changed` payloads. Future Contacts,
+  autocomplete, mobile sync, and notification workers should consume that event
+  boundary rather than querying CardDAV change tables from product code.
   Next, choose a production retention-age policy and run native-client expiry
   compatibility tests before treating DAV token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs

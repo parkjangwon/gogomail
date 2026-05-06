@@ -1,6 +1,10 @@
 package caldavgw
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -119,6 +123,91 @@ func TestMapCalendarObjectUpsertErrorMapsUniqueNameViolation(t *testing.T) {
 		t.Fatalf("mapped error = %v, want duplicate object context", err)
 	}
 }
+
+func TestInsertCalendarSyncChangeQueuesDomainEvent(t *testing.T) {
+	t.Parallel()
+
+	execer := &captureCalDAVSyncChangeExecer{}
+	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "calendar-1", "sync-1", "object-upserted", "event-1.ics", `"etag-1"`)
+	if err != nil {
+		t.Fatalf("insertCalendarSyncChange returned error: %v", err)
+	}
+	if len(execer.calls) != 2 {
+		t.Fatalf("exec calls = %d, want sync row and outbox row", len(execer.calls))
+	}
+	if !strings.Contains(execer.calls[0].query, "INSERT INTO caldav_calendar_sync_changes") {
+		t.Fatalf("first query = %s, want CalDAV sync insert", execer.calls[0].query)
+	}
+	if !strings.Contains(execer.calls[1].query, "INSERT INTO outbox") {
+		t.Fatalf("second query = %s, want outbox insert", execer.calls[1].query)
+	}
+	if got := execer.calls[1].args[0]; got != davChangeOutboxTopic {
+		t.Fatalf("outbox topic = %v, want %q", got, davChangeOutboxTopic)
+	}
+	if got := execer.calls[1].args[1]; got != "user-1" {
+		t.Fatalf("partition key = %v, want user-1", got)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(execer.calls[1].args[2].(string)), &payload); err != nil {
+		t.Fatalf("decode outbox payload: %v", err)
+	}
+	for key, want := range map[string]string{
+		"event":          calendarChangedEvent,
+		"schema_version": davChangeSchemaVersion,
+		"dav_kind":       davChangeKindCalDAV,
+		"action":         "object-upserted",
+		"user_id":        "user-1",
+		"collection_id":  "calendar-1",
+		"object_name":    "event-1.ics",
+		"etag":           `"etag-1"`,
+		"sync_token":     "sync-1",
+	} {
+		if got := payload[key]; got != want {
+			t.Fatalf("payload[%s] = %v, want %q; payload=%v", key, got, want, payload)
+		}
+	}
+	if payload["changed_at"] == "" {
+		t.Fatalf("payload changed_at missing: %v", payload)
+	}
+}
+
+func TestInsertCalendarSyncChangeFailsWhenOutboxInsertFails(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("outbox failed")
+	execer := &captureCalDAVSyncChangeExecer{failCall: 2, err: wantErr}
+	err := insertCalendarSyncChange(context.Background(), execer, "user-1", "calendar-1", "sync-1", "object-deleted", "event-1.ics", `"etag-1"`)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("insertCalendarSyncChange error = %v, want wrapped outbox failure", err)
+	}
+	if len(execer.calls) != 2 {
+		t.Fatalf("exec calls = %d, want sync insert then outbox insert", len(execer.calls))
+	}
+}
+
+type calDAVExecCall struct {
+	query string
+	args  []any
+}
+
+type captureCalDAVSyncChangeExecer struct {
+	calls    []calDAVExecCall
+	failCall int
+	err      error
+}
+
+func (e *captureCalDAVSyncChangeExecer) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
+	e.calls = append(e.calls, calDAVExecCall{query: query, args: append([]any(nil), args...)})
+	if e.failCall == len(e.calls) {
+		return nil, e.err
+	}
+	return fakeCalDAVSQLResult(1), nil
+}
+
+type fakeCalDAVSQLResult int64
+
+func (r fakeCalDAVSQLResult) LastInsertId() (int64, error) { return 0, nil }
+func (r fakeCalDAVSQLResult) RowsAffected() (int64, error) { return int64(r), nil }
 
 func TestValidateUpdateCalendarRequest(t *testing.T) {
 	t.Parallel()

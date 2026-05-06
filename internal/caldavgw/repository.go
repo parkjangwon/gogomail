@@ -3,6 +3,7 @@ package caldavgw
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -1174,6 +1175,14 @@ type syncChangeExecer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
+const (
+	calendarChangedEvent       = "calendar.changed"
+	davChangeOutboxTopic       = "dav.event"
+	davChangeSchemaVersion     = "2026-05-06.dav-change.v1"
+	davChangeKindCalDAV        = "caldav"
+	davChangePartitionFallback = "unknown"
+)
+
 func insertCalendarSyncChange(ctx context.Context, execer syncChangeExecer, userID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
 	_, err := execer.ExecContext(ctx, `
 INSERT INTO caldav_calendar_sync_changes (
@@ -1181,6 +1190,38 @@ INSERT INTO caldav_calendar_sync_changes (
 ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`, userID, calendarID, syncToken, action, objectName, etag)
 	if err != nil {
 		return fmt.Errorf("insert CalDAV sync change: %w", err)
+	}
+	if err := insertCalendarChangeOutbox(ctx, execer, userID, calendarID, syncToken, action, objectName, etag); err != nil {
+		return err
+	}
+	return nil
+}
+
+func insertCalendarChangeOutbox(ctx context.Context, execer syncChangeExecer, userID string, calendarID string, syncToken string, action string, objectName string, etag string) error {
+	payload, err := json.Marshal(map[string]any{
+		"event":          calendarChangedEvent,
+		"schema_version": davChangeSchemaVersion,
+		"dav_kind":       davChangeKindCalDAV,
+		"action":         action,
+		"user_id":        userID,
+		"collection_id":  calendarID,
+		"object_name":    objectName,
+		"etag":           etag,
+		"sync_token":     syncToken,
+		"changed_at":     time.Now().UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal CalDAV change event: %w", err)
+	}
+	partitionKey := strings.TrimSpace(userID)
+	if partitionKey == "" {
+		partitionKey = davChangePartitionFallback
+	}
+	_, err = execer.ExecContext(ctx, `
+INSERT INTO outbox (topic, partition_key, payload, status)
+VALUES ($1, $2, $3::jsonb, 'pending')`, davChangeOutboxTopic, partitionKey, string(payload))
+	if err != nil {
+		return fmt.Errorf("insert CalDAV change outbox event: %w", err)
 	}
 	return nil
 }

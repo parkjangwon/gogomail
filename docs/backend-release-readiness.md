@@ -464,6 +464,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   address book and use a dedicated prune-order index. Public-ready Contacts
   sync still requires documented token-retention policy and native-client
   expiry testing.
+- CalDAV and CardDAV mutation paths now enqueue transactional `dav.event`
+  outbox rows from the same repository boundary that appends durable sync
+  changes. `calendar.changed` and `contacts.changed` payloads are an internal
+  Notification & Sync/search/mobile-delta foundation, not public reminder or
+  push-delivery semantics yet.
 - CalDAV initial `sync-collection` snapshots now use a sync-specific
   one-extra-object repository list path, preventing omitted-limit snapshots
   from being clipped by generic list defaults while still returning the current
