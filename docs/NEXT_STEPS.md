@@ -1630,9 +1630,10 @@ Next:
   PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`
-  can create child collections and collection `DELETE` can remove them,
-  `DAV:write-properties` only on address-book collections with implemented
-  `PROPPATCH`, plus `DAV:write-content` only on contact objects with
+  can create child collections and collection `DELETE` can remove them, and on
+  address-book collections where contact-object `PUT`/`DELETE` can bind or
+  unbind child `.vcf` members. Collections also advertise `DAV:write-properties`
+  only with implemented `PROPPATCH`, plus `DAV:write-content` only on contact objects with
   implemented write paths.
   Address-book collections also expose CalendarServer-compatible `getctag`
   from the same durable sync token used for WebDAV `sync-token`, keeping

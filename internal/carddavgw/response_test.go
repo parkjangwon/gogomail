@@ -260,7 +260,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		"<D:sync-token>sync-123</D:sync-token>",
 		"<CS:getctag>sync-123</CS:getctag>",
 		"<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>",
-		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:write-properties></D:write-properties></D:privilege></D:current-user-privilege-set>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:bind></D:bind></D:privilege><D:privilege><D:unbind></D:unbind></D:privilege><D:privilege><D:write-properties></D:write-properties></D:privilege></D:current-user-privilege-set>",
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
 		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
 		"<D:supported-report-set>",

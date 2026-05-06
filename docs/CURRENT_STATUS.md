@@ -98,12 +98,13 @@ response building is available for CardDAV principal, address-book collection,
 contact-object, REPORT, and sync responses.
 CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 `current-user-privilege-set`: readable resources advertise `DAV:read`, and
-address-book collections now also advertise `DAV:write-properties` because
+address-book collections now also advertise `DAV:bind`/`DAV:unbind` for child
+contact-object `PUT`/`DELETE` semantics plus `DAV:write-properties` because
 collection `PROPPATCH` semantics exist. Contact objects advertise
 `DAV:write-content` because object `PUT`/`DELETE` semantics exist. ACL and
-broader collection write privileges remain unadvertised until their exact
-WebDAV semantics are implemented. Address-book homes advertise `DAV:bind`
-because extended `MKCOL` can create child address-book collections there and
+unimplemented write privileges remain unadvertised until their exact WebDAV
+semantics are implemented. Address-book homes advertise `DAV:bind` because
+extended `MKCOL` can create child address-book collections there and
 `DAV:unbind` because collection `DELETE` can remove them.
 Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable sync token used for WebDAV
