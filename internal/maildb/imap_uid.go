@@ -360,7 +360,7 @@ LIMIT 1`
 	}, nil
 }
 
-func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode, unchangedSince uint64) ([]imapgw.MessageSummary, error) {
+func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode, unchangedSince uint64, unchangedSinceSet bool) ([]imapgw.MessageSummary, error) {
 	if r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -428,7 +428,7 @@ FOR UPDATE`
 	for _, candidate := range candidates {
 		row := candidate.row
 		messageUID := candidate.messageUID
-		if unchangedSince > 0 && messageUID.ModSeq > unchangedSince {
+		if unchangedSinceSet && messageUID.ModSeq > unchangedSince {
 			modified = append(modified, candidate.uid)
 			continue
 		}

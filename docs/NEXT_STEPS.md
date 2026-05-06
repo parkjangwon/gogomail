@@ -488,7 +488,10 @@ Current state:
   sizes.
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
-  `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+  `UNCHANGEDSINCE`, rejecting signed values such as `+17`. Positive
+  `mod-sequence-value` contexts reject zero, while `UNCHANGEDSINCE 0` remains
+  a real zero-allowed conditional guard instead of being treated as no
+  modifier.
 - IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
   signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
 - IMAP UID and message sequence-set numbers now also reject leading-zero

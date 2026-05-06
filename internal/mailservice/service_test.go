@@ -1139,12 +1139,13 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	service := New(repo, nil).WithIMAPMailboxEvents(events)
 
 	got, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
-		UserID:         " user-1 ",
-		MailboxID:      " inbox ",
-		UIDs:           []imapgw.UID{12},
-		Flags:          imapgw.MessageFlags{Read: true},
-		Mode:           imapgw.StoreFlagsAdd,
-		UnchangedSince: 42,
+		UserID:            " user-1 ",
+		MailboxID:         " inbox ",
+		UIDs:              []imapgw.UID{12},
+		Flags:             imapgw.MessageFlags{Read: true},
+		Mode:              imapgw.StoreFlagsAdd,
+		UnchangedSince:    42,
+		UnchangedSinceSet: true,
 	})
 	if err != nil {
 		t.Fatalf("StoreIMAPFlags returned error: %v", err)
@@ -1157,6 +1158,9 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 	}
 	if repo.lastIMAPFlagUnchangedSince != 42 {
 		t.Fatalf("unchanged since = %d, want 42", repo.lastIMAPFlagUnchangedSince)
+	}
+	if !repo.lastIMAPFlagUnchangedSinceSet {
+		t.Fatal("unchanged since set = false, want true")
 	}
 	if repo.lastIMAPFlagUserID != "user-1" || repo.lastIMAPFlagMailboxID != "inbox" {
 		t.Fatalf("store flags ids = %q/%q", repo.lastIMAPFlagUserID, repo.lastIMAPFlagMailboxID)
@@ -2392,6 +2396,7 @@ type fakeRepository struct {
 	lastIMAPFlags                  imapgw.MessageFlags
 	lastIMAPFlagMode               imapgw.StoreFlagsMode
 	lastIMAPFlagUnchangedSince     uint64
+	lastIMAPFlagUnchangedSinceSet  bool
 	lastIMAPFlagUserID             string
 	lastIMAPFlagMailboxID          string
 	lastIMAPAppendUserID           string
@@ -2584,12 +2589,13 @@ func (f *fakeRepository) BackfillIMAPMailboxUIDs(_ context.Context, userID strin
 	return f.backfilledIMAPUIDs, nil
 }
 
-func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailboxID string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode, unchangedSince uint64) ([]imapgw.MessageSummary, error) {
+func (f *fakeRepository) StoreIMAPFlags(_ context.Context, userID string, mailboxID string, _ []imapgw.UID, flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode, unchangedSince uint64, unchangedSinceSet bool) ([]imapgw.MessageSummary, error) {
 	f.lastIMAPFlagUserID = userID
 	f.lastIMAPFlagMailboxID = mailboxID
 	f.lastIMAPFlags = flags
 	f.lastIMAPFlagMode = mode
 	f.lastIMAPFlagUnchangedSince = unchangedSince
+	f.lastIMAPFlagUnchangedSinceSet = unchangedSinceSet
 	if f.imapFlagErr != nil {
 		return f.imapFlagSummaries, f.imapFlagErr
 	}

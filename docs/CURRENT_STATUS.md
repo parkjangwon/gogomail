@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP search size leading-zero hardening)
+Last updated: 2026-05-07 (updated after IMAP CONDSTORE zero-boundary hardening)
 
 ## Current phase
 
@@ -150,6 +150,11 @@ IMAP `SEARCH` and `UID SEARCH` `LARGER`/`SMALLER` size criteria now use the
 same RFC 3501 `number` grammar boundary, preserving valid zero-size searches
 while rejecting leading-zero values such as `SEARCH LARGER 020` before command
 execution.
+IMAP CONDSTORE parsing now separates positive RFC `mod-sequence-value` inputs
+from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0` and
+`FETCH (CHANGEDSINCE 0)` are rejected as malformed, while
+`STORE (UNCHANGEDSINCE 0)` is preserved as a real conditional guard that
+returns `MODIFIED` instead of being collapsed into an unconditional STORE.
 IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT` parsing
 now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
 `.` while still rejecting empty, space/control-bearing, colon-suffixed, or
@@ -1538,7 +1543,10 @@ owner/resource target without scanning unrelated audit history.
   instead of silently treating them as valid sizes.
 - IMAP mod-sequence numeric inputs now require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
-  `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+  `UNCHANGEDSINCE`, rejecting signed values such as `+17`. Positive
+  `mod-sequence-value` contexts now reject zero, while `UNCHANGEDSINCE 0`
+  remains zero-allowed and is preserved as a conditional STORE guard rather
+  than being treated as no modifier.
 - IMAP UID and message sequence-set numbers now require digit-only atoms,
   rejecting signed values such as `UID FETCH +7` and `FETCH +1` before command
   execution.

@@ -53,6 +53,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`
   size atoms.
+- IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
+  inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
+  and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
+  remains a real conditional guard that yields `MODIFIED` instead of an
+  unconditional flag mutation.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
@@ -1329,7 +1334,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   sizes.
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
-  `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
+  `UNCHANGEDSINCE`, rejecting signed values such as `+17`. Positive
+  `mod-sequence-value` contexts reject zero, while `UNCHANGEDSINCE 0` remains
+  a real zero-allowed conditional guard instead of being treated as no
+  modifier.
 - IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
   signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
 - IMAP UID and message sequence-set expansion accepts common client-scale
