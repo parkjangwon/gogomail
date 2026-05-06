@@ -52,6 +52,9 @@ Current state:
   object ETag into repository mutation guards even for successful
   `If-Match: *` existing-resource preconditions, reducing stale mutation races
   while preserving WebDAV existence semantics.
+- CalDAV and CardDAV object `DELETE` now evaluates `If-None-Match` before
+  mutation, returning HTTP 412 for `*` or matching ETags and preserving the
+  existing `.ics`/`.vcf` representation.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an

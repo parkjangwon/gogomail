@@ -446,31 +446,43 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	observedETag := ""
-	if ifMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
 		if err != nil {
-			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
-			return
-		}
-		if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
-			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
-			return
-		}
-		if ifMatch != "" {
-			observedETag = object.ETag
-		}
-		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
-			http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
-			return
+			if ifMatch != "" || ifUnmodifiedSince != "" {
+				http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+				return
+			}
+		} else {
+			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, object.ETag) {
+				http.Error(w, "caldav object if-none-match precondition failed", http.StatusPreconditionFailed)
+				return
+			}
+			if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
+				http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+				return
+			}
+			if ifMatch != "" {
+				observedETag = object.ETag
+			}
+			if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
+				http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
+				return
+			}
 		}
 	}
 	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName, ObservedETag: observedETag}); err != nil {
+		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
+			http.Error(w, "caldav object precondition failed", http.StatusPreconditionFailed)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}

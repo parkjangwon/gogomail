@@ -3745,6 +3745,10 @@ Implementation order:
       semantics with S3 `Prefix` responses and extending the shared storage
       portability contract for config-only flips between local, NFS, MinIO,
       and AWS/S3-compatible backends.
+1372. CalDAV and CardDAV object `DELETE` now honors `If-None-Match`
+      preconditions before mutation, returning HTTP 412 for `*` or matching
+      object ETags and keeping existing calendar/contact objects intact under
+      WebDAV conditional delete probes.
 
 ## Deferred until backend contracts stabilize
 
