@@ -4846,6 +4846,67 @@ func TestServerDrainsExistsBeforeSequenceSetCommand(t *testing.T) {
 	}
 }
 
+func TestServerDrainsExistsBeforeUIDSequenceSetCommand(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventSequenceBackend{eventBackend: eventBackend{events: make(chan MailboxEvent, 4)}}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
+	if _, err := client.Write([]byte("a3 UID FETCH * (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write uid fetch: %v", err)
+	}
+	want := []string{
+		"* 3 EXISTS\r\n",
+		"* 3 FETCH (UID 9 FLAGS (\\Answered) RFC822.SIZE 9)\r\n",
+		"a3 OK UID FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read uid fetch event response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("uid fetch event response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if !backendImpl.canceled {
+		t.Fatal("event subscription was not canceled")
+	}
+}
+
 func TestServerNoopIncludesModSeqForCondstoreAwareSession(t *testing.T) {
 	t.Parallel()
 

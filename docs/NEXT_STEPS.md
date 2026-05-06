@@ -294,8 +294,10 @@ Current state:
   mailbox before attempting the new selection, so failed selection attempts
   leave no stale selected mailbox for later selected-state commands.
 - IMAP selected-state sequence-set commands now drain queued mailbox events
-  before command dispatch, keeping `*` and range resolution aligned with live
-  `EXISTS`/`EXPUNGE` updates instead of the selection-time message count.
+  before command dispatch, including UID-addressed subcommands such as
+  `UID FETCH *`, keeping `*` and range resolution aligned with live
+  `EXISTS`/`EXPUNGE`/`FLAGS` updates instead of the selection-time message
+  count.
 - IMAP `APPEND` now joins that selected-mailbox pre-command event drain path,
   so already queued FLAGS/EXISTS/EXPUNGE updates are emitted before APPEND
   mutation responses and are not delayed until a later `NOOP` or selected

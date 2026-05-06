@@ -1415,7 +1415,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-state commands reject malformed message sequence-set and UID
   set syntax, including signed values such as `+1`/`+7`, before authentication
   or selected-mailbox checks while preserving selected-mailbox bounds checks
-  for execution time.
+  for execution time. UID-addressed selected-state commands now also drain
+  queued mailbox events before execution, so `UID FETCH *` resolves after
+  pending `EXISTS`/`EXPUNGE`/`FLAGS` notifications are emitted.
 - IMAP `SEARCH` and `UID SEARCH` reject malformed search sequence-set and
   `UID` search-key set syntax before authentication or selected-mailbox checks,
   so signed values such as `SEARCH +1` and `UID SEARCH UID +7` fail as grammar

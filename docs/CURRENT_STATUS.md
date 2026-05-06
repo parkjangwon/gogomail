@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3-compatible Put/Delete embedded-error hardening)
+Last updated: 2026-05-07 (updated after IMAP UID selected-event drain hardening)
 
 ## Current phase
 
@@ -1685,7 +1685,10 @@ owner/resource target without scanning unrelated audit history.
 - IMAP selected-state commands now validate malformed message sequence-set and
   UID set syntax, including signed values such as `+1`/`+7`, before
   authentication or selected-mailbox checks while leaving selected-mailbox
-  bounds validation at execution time.
+  bounds validation at execution time. UID subcommands now also drain queued
+  selected-mailbox events before execution, so `UID FETCH *` and other
+  UID-addressed workflows see pending `EXISTS`/`EXPUNGE`/`FLAGS` updates
+  before resolving live mailbox state.
 - IMAP `SEARCH` and `UID SEARCH` now also validate malformed search
   sequence-set and `UID` search-key set syntax before authentication or
   selected-mailbox checks, so signed values such as `SEARCH +1` and
