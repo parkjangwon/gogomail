@@ -3573,6 +3573,9 @@ Implementation order:
       `application/json` content type, unknown-field rejection, and
       trailing-token rejection before service dispatch, keeping Drive API
       payload semantics aligned with Mail/Admin JSON contracts.
+1331. CalDAV and CardDAV `sync-collection` REPORT parsing now rejects duplicate
+      `DAV:sync-token` and `DAV:sync-level` controls, preventing ambiguous sync
+      anchors from silently changing snapshot or change-list semantics.
 
 ## Deferred until backend contracts stabilize
 

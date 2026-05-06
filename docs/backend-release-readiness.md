@@ -582,6 +582,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT` parsing rejects duplicate `DAV:limit` controls and duplicate
   nested `DAV:nresults` controls, avoiding ambiguous bounded query/sync
   pagination before repository scans begin.
+- CalDAV `sync-collection` parsing rejects duplicate `DAV:sync-token` and
+  `DAV:sync-level` controls, avoiding ambiguous sync anchors before snapshot or
+  change-log repository work.
 - CalDAV object and collection preconditions now combine repeated `If-Match`
   and `If-None-Match` headers into one ETag list before evaluation, matching
   HTTP conditional request semantics for cache validation and write guards.
@@ -890,9 +893,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   repeated HTTP `Depth` headers before XML body parsing, keeping address-book
   traversal scope deterministic. `REPORT` parsing also rejects duplicate
   `DAV:limit` controls and duplicate nested `DAV:nresults` controls before
-  repository scans begin. Object `GET`/`HEAD` ignores `If-Modified-Since`
-  whenever `If-None-Match` is present, preserving HTTP conditional precedence
-  for cached `.vcf` bodies. Object and collection preconditions combine
+  repository scans begin. `sync-collection` parsing rejects duplicate
+  `DAV:sync-token` and `DAV:sync-level` controls before snapshot or change-log
+  work. Object `GET`/`HEAD` ignores `If-Modified-Since` whenever
+  `If-None-Match` is present, preserving HTTP conditional precedence for
+  cached `.vcf` bodies. Object and collection preconditions combine
   repeated `If-Match` and `If-None-Match` headers into one ETag list before
   evaluation. Stale-token delta reads probe one
   change-log row beyond bounded `limit/nresults`, so exact-limit responses are
