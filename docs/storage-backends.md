@@ -326,6 +326,10 @@ rejected instead of being silently exposed as a zero timestamp, while missing
 timestamps and
 HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
+S3-compatible full-object `GET` validates present `Content-Length` metadata
+with the same exact unsigned decimal grammar as `Stat`; when the response
+length is known, the returned reader is bounded to that size and reports
+`io.ErrUnexpectedEOF` if the provider truncates the body.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
 so compatible providers cannot silently downgrade partial reads into full

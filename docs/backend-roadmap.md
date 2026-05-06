@@ -3961,6 +3961,10 @@ Implementation order:
       even when the HTTP response has already populated `ContentLength`,
       rejecting malformed or contradictory provider length metadata instead
       of trusting normalized transport state alone.
+1427. S3-compatible full-object `GET` now validates present `Content-Length`
+      headers with exact unsigned decimal grammar and wraps known-length
+      successful bodies in a bounded reader, surfacing truncated provider
+      bodies as `io.ErrUnexpectedEOF` instead of silent short reads.
 
 ## Deferred until backend contracts stabilize
 

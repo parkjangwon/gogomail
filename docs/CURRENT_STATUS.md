@@ -126,6 +126,10 @@ S3-compatible `HEAD`/`Stat` now also validates the raw `Content-Length` header
 when Go has already populated `Response.ContentLength`, rejecting malformed or
 contradictory provider metadata instead of trusting the normalized struct
 field alone.
+S3-compatible full-object `GET` now applies the same exact `Content-Length`
+header validation when present and wraps known-length successful bodies in a
+bounded reader, so truncated compatible-provider full reads surface
+`io.ErrUnexpectedEOF` instead of a silent short body.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

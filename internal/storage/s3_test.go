@@ -500,6 +500,90 @@ func TestS3StoreGetDrainsSmallRemainderOnClose(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRejectsInvalidContentLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		header        string
+		contentLength int64
+		want          string
+	}{
+		{name: "invalid", header: "not-a-size", contentLength: -1, want: "invalid content length"},
+		{name: "signed", header: "+5", contentLength: -1, want: "invalid content length"},
+		{name: "leading space", header: " 5", contentLength: -1, want: "invalid content length"},
+		{name: "trailing space", header: "5 ", contentLength: -1, want: "invalid content length"},
+		{name: "header invalid with populated content length", header: " 5", contentLength: 5, want: "invalid content length"},
+		{name: "header mismatch", header: "5", contentLength: 4, want: "content-length mismatch"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("hello")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode:    http.StatusOK,
+						Header:        http.Header{"Content-Length": []string{tc.header}},
+						ContentLength: tc.contentLength,
+						Body:          body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if _, err := store.Get(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Get err = %v, want %q", err, tc.want)
+			}
+			if !body.closed {
+				t.Fatal("invalid get response body was not closed")
+			}
+		})
+	}
+}
+
+func TestS3StoreGetReportsTruncatedContentLengthBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Length": []string{"5"}},
+				Body:       io.NopCloser(strings.NewReader("hel")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	reader, err := store.Get(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	if _, err := io.ReadAll(reader); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("get read err = %v, want io.ErrUnexpectedEOF", err)
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatalf("close get reader: %v", err)
+	}
+}
+
 func TestS3StoreGetRejectsUnexpectedPartialContent(t *testing.T) {
 	t.Parallel()
 
