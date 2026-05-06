@@ -114,9 +114,13 @@ Current state:
   and admin-token/bearer auth alternatives, matching their runtime operational
   observability and provider outcome boundary.
 - Suppression list, trusted relay, delivery route, DKIM key/DNS verification,
-  and outbox retry OpenAPI operations now also pin `/admin/v1` and admin-token
-  /bearer auth alternatives, matching their runtime outbound mail operations
+  and outbox retry OpenAPI operations now also pin `/admin/v1` and
+  admin-token/bearer auth alternatives, matching their runtime outbound mail operations
   and domain signing boundary.
+- OpenAPI contract tests now derive registered `/admin/v1` routes from
+  `admin.go` and require every matching operation to pin `/admin/v1` plus
+  admin-token/bearer auth, preventing future admin route additions from
+  silently drifting to ambiguous generated-client base/auth contracts.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

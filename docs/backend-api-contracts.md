@@ -422,6 +422,10 @@ Suppression list, trusted relay, delivery route, DKIM key/DNS verification,
 and outbox retry routes also carry operation-level Admin API base/auth
 metadata. These routes are operator-only outbound mail operations, relay trust,
 domain signing, and retry-control surfaces under `/admin/v1`.
+Contract tests derive registered `/admin/v1` routes from `admin.go` and verify
+each corresponding OpenAPI operation pins the Admin API server plus both
+`adminToken` and `bearerAuth` alternatives. New admin route additions must
+therefore update OpenAPI with the same operator-only base/auth contract.
 
 ## Pagination
 
