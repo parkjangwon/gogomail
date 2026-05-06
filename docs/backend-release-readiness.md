@@ -421,10 +421,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   (STATUS ...)`. Embedded atom fragments such as `Archive{12}` remain
   malformed so parenthesized literal support does not broaden atom parsing.
 - IMAP `COPY`/`UID COPY` and `UID MOVE` now preserve quoted destination
-  mailbox names containing spaces and escaped quotes through parser
-  tokenization, canonical mailbox lookup, and service-backed mutation
-  requests, covering folder names such as `"Team Archive"` without widening
-  atom parsing.
+  mailbox names containing spaces, escaped quotes, and command-literal mailbox
+  strings through parser tokenization, canonical mailbox lookup, and
+  service-backed mutation requests, covering folder names such as
+  `"Team Archive"` without widening atom parsing.
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.
