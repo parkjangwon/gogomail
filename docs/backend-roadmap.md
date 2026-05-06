@@ -3695,6 +3695,11 @@ Implementation order:
       S3-compatible storage now delegates separator checks to the shared
       validator so local/NFS, MinIO, AWS S3, and compatible gateways keep the
       same key-boundary semantics under proxy or provider double-decoding.
+1361. CalDAV and CardDAV request paths and absolute REPORT hrefs now reject
+      double-encoded path separators such as `%252F` and `%255C` before
+      resource parsing, extending the direct `%2F`/`%5C` guard so principal,
+      collection, and object identities cannot change segment shape after
+      proxy or client double-decoding.
 
 ## Deferred until backend contracts stabilize
 

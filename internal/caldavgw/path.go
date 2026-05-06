@@ -166,8 +166,18 @@ func splitPathSegments(value string) []string {
 }
 
 func containsEncodedPathSeparator(value string) bool {
-	value = strings.ToLower(value)
-	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
+	for i := 0; i < 4; i++ {
+		lower := strings.ToLower(value)
+		if strings.Contains(lower, "%2f") || strings.Contains(lower, "%5c") {
+			return true
+		}
+		decoded, err := url.PathUnescape(value)
+		if err != nil || decoded == value {
+			return false
+		}
+		value = decoded
+	}
+	return false
 }
 
 func validateICSObjectName(value string) (string, error) {

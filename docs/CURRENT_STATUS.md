@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after shared storage double-encoded separator hardening)
+Last updated: 2026-05-07 (updated after DAV double-encoded separator hardening)
 
 ## Current phase
 
@@ -49,9 +49,10 @@ precedence by ignoring `If-Modified-Since` whenever `If-None-Match` is present,
 so stale client validators cannot accidentally receive `304 Not Modified` for
 changed `.ics` or `.vcf` bodies.
 CalDAV and CardDAV request paths and absolute REPORT hrefs now reject encoded
-path separators such as `%2F` and `%5C` before URL decoding, preventing
-calendar/address-book/object identifiers from changing path shape at the
-segment validation boundary.
+path separators such as `%2F` and `%5C`, plus double-encoded forms such as
+`%252F` and `%255C`, before URL decoding, preventing calendar/address-book/
+object identifiers from changing path shape at the segment validation
+boundary.
 CalDAV and CardDAV object `PUT`/`DELETE` now carry the currently observed
 strong object ETag into repository mutation guards even when `If-Match: *`
 matches an existing resource, so existence-only DAV preconditions still

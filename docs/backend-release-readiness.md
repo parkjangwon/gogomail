@@ -571,7 +571,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collection objects while still allowing calendar-home same-user hrefs.
 - CalDAV and CardDAV request paths and absolute REPORT hrefs reject encoded
   path separators before URL decoding, keeping principal, collection, and
-  object identifiers from crossing segment boundaries through `%2F` or `%5C`.
+  object identifiers from crossing segment boundaries through `%2F`, `%5C`,
+  `%252F`, or `%255C`.
 - CalDAV `PROPFIND` now returns exact WebDAV `owner`, `creationdate`, and
   `getlastmodified` metadata for calendar collections and objects, with
   principal owner hrefs and standards-shaped timestamp formatting.
