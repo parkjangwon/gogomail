@@ -1397,6 +1397,31 @@ func TestHandlerGetCalendarObjectHonorsRepeatedIfNoneMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectRejectsRepeatedDateConditionals(t *testing.T) {
+	t.Parallel()
+
+	for _, header := range []string{"If-Modified-Since", "If-Unmodified-Since"} {
+		header := header
+		t.Run(header, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+			req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+			req.Header.Add(header, "Wed, 06 May 2026 04:05:06 GMT")
+			req.Header.Add(header, "Wed, 06 May 2026 04:05:07 GMT")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), header+" header must not be repeated") {
+				t.Fatalf("response did not explain repeated %s rejection: %s", header, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandlerGetCalendarObjectHonorsIfModifiedSince(t *testing.T) {
 	t.Parallel()
 
@@ -1683,6 +1708,26 @@ func TestHandlerPutRejectsFailedIfUnmodifiedSince(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerPutRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:07 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
 	}
 }
 
@@ -2025,6 +2070,24 @@ func TestHandlerDeleteCalendarCollectionHonorsIfUnmodifiedSince(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarCollectionRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:07 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerDeleteCalendarCollectionRejectsMismatchedIfMatch(t *testing.T) {
 	t.Parallel()
 
@@ -2165,6 +2228,24 @@ func TestHandlerDeleteRejectsFailedIfUnmodifiedSince(t *testing.T) {
 	}
 	if len(store.objects) != 1 {
 		t.Fatalf("objects after rejected delete = %d, want 1", len(store.objects))
+	}
+}
+
+func TestHandlerDeleteCalendarObjectRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:07 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
 	}
 }
 
