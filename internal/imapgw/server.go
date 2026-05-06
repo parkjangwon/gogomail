@@ -7149,10 +7149,14 @@ func imapSelectCondstore(fields []string) (bool, bool) {
 	if len(fields) == 0 {
 		return false, true
 	}
-	if !imapParenthesizedAtomListShapeValid(fields) {
+	inner, ok := imapStatusItemListInner(fields)
+	if !ok {
 		return false, false
 	}
-	tokens := imapFetchNormalizedTokens(fields)
+	tokens, ok := imapParenthesizedAtomListTokens(inner)
+	if !ok {
+		return false, false
+	}
 	if len(tokens) != 1 || tokens[0] != "CONDSTORE" {
 		return false, false
 	}

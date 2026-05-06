@@ -80,7 +80,8 @@ Recent release-readiness work also includes:
   saved SEARCHRES state,
   strict STATUS item-list framing with LIST-STATUS compatibility coverage,
   strict LIST RETURN option-list framing,
-  CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
+  strict CONDSTORE select-param framing, CONDSTORE/MODSEQ-shaped behavior,
+  syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
   diagnostics, strict SEARCH/SORT/THREAD charset and thread-algorithm atoms,
   strict SORT criterion-list framing, SEARCH/SORT/THREAD diagnostics,
