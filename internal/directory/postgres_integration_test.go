@@ -111,6 +111,27 @@ func TestPostgresCheckEffectiveDelegationExpandsGroupDelegates(t *testing.T) {
 	if got {
 		t.Fatal("nested group delegation ignored requested depth cap")
 	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE users SET status = 'suspended' WHERE id = $1::uuid`, seed.bobID); err != nil {
+		t.Fatalf("suspend nested delegate user: %v", err)
+	}
+	got, err = repo.CheckEffectiveDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.roomID,
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   seed.bobID,
+		Scope:        DelegationScopeCalendar,
+		RequiredRole: DelegationRoleRead,
+		ActiveOnly:   true,
+		MaxDepth:     2,
+	})
+	if err != nil {
+		t.Fatalf("CheckEffectiveDelegation inactive delegate returned error: %v", err)
+	}
+	if got {
+		t.Fatal("inactive delegate principal satisfied effective delegation")
+	}
 }
 
 type directoryDelegationSeed struct {

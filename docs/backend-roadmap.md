@@ -2586,9 +2586,9 @@ Implementation order:
 1167. Directory/Identity now exposes `CheckEffectiveDelegation`, a bounded
       group-expansion access check that preserves direct delegation behavior,
       applies the same `manage >= write >= read` role hierarchy, respects
-      active-only filters, and lets group-granted delegations satisfy effective
-      user, organization, group, or resource members without adding
-      product-local sharing models.
+      active-only owner/delegate principal checks plus group filters, and lets
+      group-granted delegations satisfy effective user, organization, group, or
+      resource members without adding product-local sharing models.
 
 ## Deferred until backend contracts stabilize
 

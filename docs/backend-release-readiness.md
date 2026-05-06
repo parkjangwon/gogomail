@@ -380,10 +380,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   recursion cap and cycle guard. Directory also has a company-scoped delegation
   table and check boundary for owner/delegate principals, product scopes, and
   hierarchical `read`/`write`/`manage` roles. Effective delegation now expands
-  group delegates through bounded nested membership so group-granted access can
-  satisfy user, organization, group, or resource delegates without creating
-  product-local sharing rows, but protocol modules do not use it for public
-  sharing yet. CalDAV discovery delegates active user lookup
+  group delegates through bounded nested membership and verifies active
+  owner/delegate principals under the requested company scope, so group-granted
+  access can satisfy user, organization, group, or resource delegates without
+  creating product-local sharing rows, but protocol modules do not use it for
+  public sharing yet. CalDAV discovery delegates active user lookup
   to this boundary, keeps calendar-home `current-user-principal` discovery
   anchored to canonical principal URLs, and advertises only local-user WebDAV
   privileges that are implemented today. This does not make shared calendars,
