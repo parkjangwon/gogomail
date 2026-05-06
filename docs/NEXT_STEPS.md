@@ -1312,6 +1312,11 @@ Current state:
   a non-negative optional listener cap. Positive values bound concurrent
   `ServeConn` sessions and reject excess clients with an initial IMAP
   `BYE [ALERT]` instead of allowing unbounded connection goroutines.
+- `GOGOMAIL_SMTP_MAX_CONNECTIONS` and
+  `GOGOMAIL_SUBMISSION_MAX_CONNECTIONS` are now loaded from env/YAML and
+  validated as non-negative optional listener caps. Positive values bound
+  concurrent SMTP session goroutines and reject overflow clients with a
+  transient `421 4.3.2` response before close.
 - IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
   files with TLS 1.2 minimum and derive the server name from the IMAP listener
   host before falling back to `GOGOMAIL_SMTP_DOMAIN`.

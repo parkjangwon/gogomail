@@ -712,6 +712,7 @@ func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	cfg.SubmissionSMTPSAddr = " :2465 "
 	cfg.SMTPReadTimeout = 7 * time.Second
 	cfg.SMTPWriteTimeout = 8 * time.Second
+	cfg.SubmissionMaxConnections = 64
 	cfg.SubmissionMaxMessageBytes = 1234
 	cfg.SubmissionMaxRecipients = 12
 	cfg.SubmissionAllowInsecureAuth = false
@@ -734,6 +735,9 @@ func TestSubmissionServerOptionsSelectSMTPSAddress(t *testing.T) {
 	}
 	if opts.AllowInsecureAuth {
 		t.Fatal("AllowInsecureAuth = true, want false")
+	}
+	if opts.MaxConnections != 64 {
+		t.Fatalf("MaxConnections = %d, want 64", opts.MaxConnections)
 	}
 	if !opts.EnableDSN {
 		t.Fatal("EnableDSN = false, want true")

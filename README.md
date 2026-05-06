@@ -271,6 +271,13 @@ process-local concurrent session cap; `0` keeps the listener unlimited for
 development or externally limited deployments, while capped deployments reject
 excess clients with an initial IMAP `BYE [ALERT]` response.
 
+SMTP receive and submission listeners can also be bounded with
+`GOGOMAIL_SMTP_MAX_CONNECTIONS` and `GOGOMAIL_SUBMISSION_MAX_CONNECTIONS`.
+Positive values hold one slot per active SMTP session and reject overflow
+clients with an RFC-shaped transient `421 4.3.2` banner before closing; `0`
+keeps the default unlimited listener for small or externally fronted
+deployments.
+
 `all-in-one` serves health, Mail API, and Admin API routes from one HTTP
 process for small deployments and local release smoke tests.
 
@@ -516,6 +523,8 @@ Useful SMTP receive guardrails:
 ```bash
 GOGOMAIL_SMTP_MAX_RECIPIENTS=100
 GOGOMAIL_SMTP_MAX_MESSAGE_BYTES=26214400
+GOGOMAIL_SMTP_MAX_CONNECTIONS=0
+GOGOMAIL_SUBMISSION_MAX_CONNECTIONS=0
 GOGOMAIL_SMTP_READ_TIMEOUT=30s
 GOGOMAIL_SMTP_WRITE_TIMEOUT=30s
 GOGOMAIL_SMTP_ADD_RECEIVED_HEADER=true

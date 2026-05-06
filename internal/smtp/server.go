@@ -5,8 +5,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"strings"
+	"sync"
 	"time"
 
 	gosmtp "github.com/emersion/go-smtp"
@@ -31,6 +34,7 @@ type ServerOptions struct {
 	EnableDSN         bool
 	EnableBinaryMIME  bool
 	ImplicitTLS       bool
+	MaxConnections    int
 }
 
 func RunServer(ctx context.Context, opts ServerOptions) error {
@@ -50,6 +54,9 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	if opts.ImplicitTLS && !hasServerCertificate(opts.TLSConfig) {
 		return fmt.Errorf("implicit TLS SMTP listener requires a server certificate")
 	}
+	if opts.MaxConnections < 0 {
+		return fmt.Errorf("smtp max connections must not be negative")
+	}
 
 	logger := opts.Logger
 	if logger == nil {
@@ -61,7 +68,7 @@ func RunServer(ctx context.Context, opts ServerOptions) error {
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("smtp server listening", "addr", opts.Addr, "domain", opts.Domain, "implicit_tls", opts.ImplicitTLS)
-		errCh <- listenAndServeSMTP(server, opts.ImplicitTLS)
+		errCh <- listenAndServeSMTP(server, opts.ImplicitTLS, opts.MaxConnections)
 	}()
 
 	select {
@@ -94,11 +101,78 @@ func newSMTPServer(backend gosmtp.Backend, opts ServerOptions) *gosmtp.Server {
 	return server
 }
 
-func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool) error {
-	if implicitTLS {
-		return server.ListenAndServeTLS()
+func listenAndServeSMTP(server *gosmtp.Server, implicitTLS bool, maxConnections int) error {
+	network := "tcp"
+	addr := server.Addr
+	if strings.TrimSpace(addr) == "" {
+		if implicitTLS {
+			addr = ":smtps"
+		} else {
+			addr = ":smtp"
+		}
 	}
-	return server.ListenAndServe()
+	var listener net.Listener
+	var err error
+	if implicitTLS {
+		listener, err = tls.Listen(network, addr, server.TLSConfig)
+	} else {
+		listener, err = net.Listen(network, addr)
+	}
+	if err != nil {
+		return err
+	}
+	if maxConnections > 0 {
+		listener = newSMTPConnectionLimitListener(listener, maxConnections)
+	}
+	return server.Serve(listener)
+}
+
+type smtpConnectionLimitListener struct {
+	net.Listener
+	slots chan struct{}
+}
+
+func newSMTPConnectionLimitListener(listener net.Listener, maxConnections int) net.Listener {
+	if maxConnections <= 0 {
+		return listener
+	}
+	return &smtpConnectionLimitListener{
+		Listener: listener,
+		slots:    make(chan struct{}, maxConnections),
+	}
+}
+
+func (l *smtpConnectionLimitListener) Accept() (net.Conn, error) {
+	for {
+		conn, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		select {
+		case l.slots <- struct{}{}:
+			return &smtpConnectionLimitConn{Conn: conn, release: func() { <-l.slots }}, nil
+		default:
+			rejectSMTPConnectionOverLimit(conn)
+		}
+	}
+}
+
+type smtpConnectionLimitConn struct {
+	net.Conn
+	once    sync.Once
+	release func()
+}
+
+func (c *smtpConnectionLimitConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(c.release)
+	return err
+}
+
+func rejectSMTPConnectionOverLimit(conn net.Conn) {
+	_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+	_, _ = io.WriteString(conn, "421 4.3.2 Too many connections, try again later\r\n")
+	_ = conn.Close()
 }
 
 func normalizeServerTLSConfig(cfg *tls.Config) *tls.Config {

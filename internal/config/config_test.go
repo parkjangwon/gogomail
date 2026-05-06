@@ -32,6 +32,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", "")
@@ -60,6 +61,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
 	t.Setenv("GOGOMAIL_SMTP_READ_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_SMTP_WRITE_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_SMTP_MAX_CONNECTIONS", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "")
 	t.Setenv("GOGOMAIL_SMTP_REQUIRE_AUTH", "")
@@ -162,6 +164,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.InboundSMTPAddr != ":2526" {
 		t.Fatalf("InboundSMTPAddr = %q, want :2526", cfg.InboundSMTPAddr)
 	}
+	if cfg.SMTPMaxConnections != 0 {
+		t.Fatalf("SMTPMaxConnections = %d, want 0 for unlimited default", cfg.SMTPMaxConnections)
+	}
 	if len(cfg.InboundTrustedRelays) != 2 {
 		t.Fatalf("InboundTrustedRelays = %+v, want loopback defaults", cfg.InboundTrustedRelays)
 	}
@@ -215,6 +220,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.SubmissionSMTPSAddr != "" {
 		t.Fatalf("SubmissionSMTPSAddr = %q, want empty", cfg.SubmissionSMTPSAddr)
+	}
+	if cfg.SubmissionMaxConnections != 0 {
+		t.Fatalf("SubmissionMaxConnections = %d, want 0 for unlimited default", cfg.SubmissionMaxConnections)
 	}
 	if cfg.SubmissionMaxRecipients != 100 {
 		t.Fatalf("SubmissionMaxRecipients = %d, want 100", cfg.SubmissionMaxRecipients)
@@ -500,6 +508,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_HTTP_MAX_HEADER_BYTES", "32768")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
+	t.Setenv("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", "128")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "1048576")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", "false")
@@ -517,6 +526,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", "true")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "db/migrations")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
+	t.Setenv("GOGOMAIL_SMTP_MAX_CONNECTIONS", "256")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
 	t.Setenv("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", "2097152")
 	t.Setenv("GOGOMAIL_SMTP_REQUIRE_AUTH", "true")
@@ -639,8 +649,14 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)
 	}
+	if cfg.SMTPMaxConnections != 256 {
+		t.Fatalf("SMTPMaxConnections = %d, want 256", cfg.SMTPMaxConnections)
+	}
 	if cfg.SubmissionAddr != ":10587" {
 		t.Fatalf("SubmissionAddr = %q, want :10587", cfg.SubmissionAddr)
+	}
+	if cfg.SubmissionMaxConnections != 128 {
+		t.Fatalf("SubmissionMaxConnections = %d, want 128", cfg.SubmissionMaxConnections)
 	}
 	if cfg.SubmissionMaxRecipients != 25 {
 		t.Fatalf("SubmissionMaxRecipients = %d, want 25", cfg.SubmissionMaxRecipients)

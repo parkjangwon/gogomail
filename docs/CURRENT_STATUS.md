@@ -280,6 +280,12 @@ positive, accepted sessions hold a bounded slot for the lifetime of
 `ServeConn`; excess clients receive an initial `BYE [ALERT]` and close instead
 of creating unbounded goroutines, while the default `0` remains unlimited for
 small or externally rate-limited deployments.
+SMTP receive and submission listener startup now accepts optional
+`GOGOMAIL_SMTP_MAX_CONNECTIONS` and
+`GOGOMAIL_SUBMISSION_MAX_CONNECTIONS` caps from env/YAML config. Positive
+values hold one slot per active SMTP session and reject excess connections with
+an RFC-shaped transient `421 4.3.2` banner before close, while the default `0`
+keeps the listener unlimited for small or externally rate-limited deployments.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

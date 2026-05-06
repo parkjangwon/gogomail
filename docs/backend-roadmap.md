@@ -4055,6 +4055,11 @@ Implementation order:
 1449. S3-compatible `CopyObjectResult` success bodies now require a non-blank
       bounded `ETag`, preventing copy/move success from being reported when
       provider success metadata omits object identity.
+1450. SMTP receive and submission listeners now accept optional non-negative
+      connection caps via env/YAML config. Positive caps bound active session
+      goroutines and reject overflow clients with a transient RFC-shaped
+      `421 4.3.2` banner before close, while the default remains unlimited for
+      small or externally rate-limited deployments.
 
 ## Deferred until backend contracts stabilize
 
