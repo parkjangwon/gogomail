@@ -3313,6 +3313,10 @@ Implementation order:
 1279. IMAP `STATUS` and advertised `LIST-STATUS` now report duplicated status
       data items with explicit duplicate diagnostics instead of folding them
       into unsupported-item failures, including before authentication checks.
+1280. Validated storage config overlays now cover local filesystem, explicit
+      NFS, local MinIO, and AWS S3-style profiles under `configs/storage.*.yaml`,
+      with config-loader tests proving each profile parses and passes startup
+      validation as a reviewed `--config` starting point.
 
 ## Deferred until backend contracts stabilize
 

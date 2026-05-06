@@ -118,6 +118,45 @@ func TestLoadFileParsesExampleConfig(t *testing.T) {
 	}
 }
 
+func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
+	tests := []struct {
+		path        string
+		backend     string
+		endpoint    string
+		pathStyle   bool
+		environment string
+	}{
+		{path: "../../configs/storage.local.yaml", backend: "local"},
+		{path: "../../configs/storage.nfs.yaml", backend: "nfs"},
+		{path: "../../configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000", pathStyle: true},
+		{path: "../../configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", environment: "production"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.backend, func(t *testing.T) {
+			cfg, err := LoadFile(tt.path)
+			if err != nil {
+				t.Fatalf("LoadFile(%s) returned error: %v", tt.path, err)
+			}
+			if cfg.StorageBackend != tt.backend {
+				t.Fatalf("StorageBackend = %q, want %q", cfg.StorageBackend, tt.backend)
+			}
+			if cfg.StorageS3Endpoint != tt.endpoint {
+				t.Fatalf("StorageS3Endpoint = %q, want %q", cfg.StorageS3Endpoint, tt.endpoint)
+			}
+			if cfg.StorageS3ForcePathStyle != tt.pathStyle {
+				t.Fatalf("StorageS3ForcePathStyle = %v, want %v", cfg.StorageS3ForcePathStyle, tt.pathStyle)
+			}
+			if tt.environment != "" && cfg.Environment != tt.environment {
+				t.Fatalf("Environment = %q, want %q", cfg.Environment, tt.environment)
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("%s Validate() error = %v", tt.path, err)
+			}
+		})
+	}
+}
+
 func writeYAMLConfig(t *testing.T, raw string) string {
 	t.Helper()
 	path := t.TempDir() + "/gogomail.yaml"

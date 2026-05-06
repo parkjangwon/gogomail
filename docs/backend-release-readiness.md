@@ -100,7 +100,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   the same private-object-store TLS trust path before backend flips.
 - The `gogomail` binary accepts `--config=<path>` for a validated flat YAML
   overlay, and the example config documents storage backend/S3 fields so local,
-  NFS, MinIO, and AWS S3 profiles can be switched by config file.
+  NFS, MinIO, and AWS S3 profiles can be switched by config file. Dedicated
+  validated overlays now exist for local, NFS, MinIO, and S3 storage profiles
+  under `configs/storage.*.yaml`.
 - CLI startup regression coverage verifies `--config` handoff and fail-fast
   invalid config/mode behavior before component startup.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and

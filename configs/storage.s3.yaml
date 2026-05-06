@@ -1,0 +1,19 @@
+# AWS S3 or strict S3-compatible production storage profile.
+environment: production
+submission_allow_insecure_auth: false
+imap_allow_insecure_auth: false
+caldav_allow_insecure_auth: false
+carddav_allow_insecure_auth: false
+storage_backend: s3
+storage_backend_compat_labels: []
+storage_s3_endpoint: https://s3.us-east-1.amazonaws.com
+storage_s3_region: us-east-1
+storage_s3_bucket: gogomail-prod
+storage_s3_prefix: mail
+storage_s3_access_key_id: CHANGE_ME_ACCESS_KEY_ID
+storage_s3_secret_access_key: CHANGE_ME_SECRET_ACCESS_KEY
+storage_s3_session_token: ""
+storage_s3_force_path_style: false
+storage_s3_ca_cert_file: ""
+storage_s3_insecure_skip_verify: false
+mailstore_root: var/mailstore

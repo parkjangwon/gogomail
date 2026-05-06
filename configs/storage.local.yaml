@@ -1,0 +1,14 @@
+# Local development or single-node filesystem storage profile.
+storage_backend: local
+mailstore_root: var/mailstore
+storage_backend_compat_labels: []
+storage_s3_endpoint: ""
+storage_s3_region: us-east-1
+storage_s3_bucket: ""
+storage_s3_prefix: ""
+storage_s3_access_key_id: ""
+storage_s3_secret_access_key: ""
+storage_s3_session_token: ""
+storage_s3_force_path_style: false
+storage_s3_ca_cert_file: ""
+storage_s3_insecure_skip_verify: false
