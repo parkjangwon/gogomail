@@ -2562,9 +2562,10 @@ The platform hardening sprint completed the following:
 - Drive public share endpoints now have an optional Redis-backed fixed-window
   abuse-control boundary (`GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` and
   `GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE`) that buckets anonymous traffic
-  by normalized remote address plus share token, returns HTTP 429 with
-  `Retry-After` on quota exhaustion, and fails open on transient limiter errors
-  after startup.
+  by normalized remote address plus a share-token SHA-256 digest, returns HTTP
+  429 with `Retry-After` on quota exhaustion, and fails open on transient
+  limiter errors after startup. Raw public share tokens are not passed across
+  the limiter interface.
 - Drive public share metadata/download successes, denied token/permission
   checks, and rate-limited requests now emit best-effort
   hash-chain audit rows (`category=drive`, `share_link.resolve`,

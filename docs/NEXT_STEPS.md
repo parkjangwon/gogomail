@@ -1563,9 +1563,10 @@ Current state:
   single-range download contract.
 - Drive public share-link abuse controls now have a configurable Redis
   fixed-window limiter for anonymous metadata/download routes. The limiter
-  buckets normalized remote address plus token, returns 429/`Retry-After` when
-  the per-minute quota is exhausted, and keeps limiter runtime errors fail-open
-  so storage availability does not become a hidden public-download dependency.
+  buckets normalized remote address plus a share-token SHA-256 digest, returns
+  429/`Retry-After` when the per-minute quota is exhausted, and keeps limiter
+  runtime errors fail-open so storage availability does not become a hidden
+  public-download dependency.
 - Drive public share-link successful metadata/download accesses, denied
   token/permission checks, and rate-limited requests now write best-effort
   hash-chain audit rows with sanitized link/node/request metadata when

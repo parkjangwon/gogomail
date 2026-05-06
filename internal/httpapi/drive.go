@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -879,7 +881,7 @@ func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts D
 	if opts.PublicShareLimiter == nil {
 		return true
 	}
-	key := "remote=" + ratelimit.RemoteBucket(r.RemoteAddr) + " token=" + token
+	key := drivePublicShareRateLimitKey(r.RemoteAddr, token)
 	decision, err := opts.PublicShareLimiter.Allow(r.Context(), key)
 	if err != nil {
 		return true
@@ -895,6 +897,11 @@ func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts D
 	recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken(action, "rate_limited", http.StatusTooManyRequests, token, ""))
 	writeError(w, http.StatusTooManyRequests, "drive share link rate limit exceeded")
 	return false
+}
+
+func drivePublicShareRateLimitKey(remoteAddr string, token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return "remote=" + ratelimit.RemoteBucket(remoteAddr) + " token_sha256=" + hex.EncodeToString(sum[:])
 }
 
 func drivePublicShareAccessEvent(action string, result string, status int, resolved drive.ResolvedShareLink, token string, rangeHeader string) DrivePublicShareAccessEvent {
