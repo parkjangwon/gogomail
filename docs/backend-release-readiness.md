@@ -526,7 +526,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   accepting default/explicit `Depth: 0` and rejecting `Depth: 1` before sync
   lookup or change-log work. `sync-collection` parsing distinguishes empty
   initial `DAV:sync-token` elements from missing token elements and rejects the
-  latter before sync lookup or snapshot work.
+  latter before sync lookup or snapshot work. Stale-token delta reads probe one
+  change-log row beyond bounded `limit/nresults`, so exact-limit responses are
+  not falsely rejected while truly truncating deltas still fail closed.
   Contact-object writes preflight duplicate active vCard UIDs within the same
   address book before SQL upsert, keeping failures predictable while the
   PostgreSQL partial unique index remains the final concurrency guard.

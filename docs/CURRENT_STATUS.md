@@ -176,7 +176,10 @@ It now enforces RFC 6578 Depth behavior for `sync-collection`, accepting the
 default/explicit `Depth: 0` request scope and rejecting `Depth: 1` before sync
 work. `sync-collection` parsing also distinguishes an empty initial
 `DAV:sync-token` element from a missing element and rejects requests that omit
-the required token element.
+the required token element. Stale-token change delta handling now probes one
+row beyond bounded `limit/nresults`, matching CalDAV so exact-limit address
+book changes are not falsely rejected while genuinely truncating deltas still
+fail closed.
 CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the
 same address book before the SQL upsert path, while the PostgreSQL partial
 unique index remains the final concurrency guard. Repository error mapping also

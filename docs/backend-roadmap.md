@@ -2673,6 +2673,10 @@ Implementation order:
       change-log row behind bounded `limit/nresults`, allowing exact-limit
       change sets to complete while still rejecting genuinely truncating
       responses until continuation support exists.
+1185. CardDAV stale-token `sync-collection` delta reads now use the same
+      bounded one-extra-row probe as CalDAV, allowing exact-limit address-book
+      change sets to complete while still rejecting genuinely truncating
+      responses until continuation support exists.
 
 ## Deferred until backend contracts stabilize
 
