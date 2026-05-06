@@ -34,6 +34,8 @@ const (
 	MaxPrincipalSearchBytes     = 200
 	DefaultPrincipalSearchLimit = 20
 	MaxPrincipalSearchLimit     = 100
+	DefaultDelegationListLimit  = 50
+	MaxDelegationListLimit      = 200
 )
 
 type Principal struct {
@@ -111,6 +113,18 @@ type CheckDelegationRequest struct {
 	RequiredRole string
 	ActiveOnly   bool
 	MaxDepth     int
+}
+
+type ListDelegationsRequest struct {
+	CompanyID    string
+	OwnerKind    string
+	OwnerID      string
+	DelegateKind string
+	DelegateID   string
+	Scope        string
+	Role         string
+	ActiveOnly   bool
+	Limit        int
 }
 
 func NormalizePrincipalKind(kind string) (string, error) {
@@ -290,6 +304,75 @@ func NormalizeCheckDelegationRequest(req CheckDelegationRequest) (CheckDelegatio
 	}
 	req.Scope = scope
 	req.RequiredRole = role
+	return req, nil
+}
+
+func NormalizeListDelegationsRequest(req ListDelegationsRequest) (ListDelegationsRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return ListDelegationsRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	req.CompanyID = companyID
+	if strings.TrimSpace(req.OwnerKind) != "" {
+		ownerKind, err := NormalizePrincipalKind(req.OwnerKind)
+		if err != nil {
+			return ListDelegationsRequest{}, fmt.Errorf("owner kind: %w", err)
+		}
+		req.OwnerKind = ownerKind
+	}
+	if strings.TrimSpace(req.OwnerID) != "" {
+		if req.OwnerKind == "" {
+			return ListDelegationsRequest{}, fmt.Errorf("owner kind is required when owner id is set")
+		}
+		ownerID, err := NormalizePrincipalID(req.OwnerID)
+		if err != nil {
+			return ListDelegationsRequest{}, fmt.Errorf("owner id: %w", err)
+		}
+		req.OwnerID = ownerID
+	}
+	if strings.TrimSpace(req.DelegateKind) != "" {
+		delegateKind, err := NormalizePrincipalKind(req.DelegateKind)
+		if err != nil {
+			return ListDelegationsRequest{}, fmt.Errorf("delegate kind: %w", err)
+		}
+		req.DelegateKind = delegateKind
+	}
+	if strings.TrimSpace(req.DelegateID) != "" {
+		if req.DelegateKind == "" {
+			return ListDelegationsRequest{}, fmt.Errorf("delegate kind is required when delegate id is set")
+		}
+		delegateID, err := NormalizePrincipalID(req.DelegateID)
+		if err != nil {
+			return ListDelegationsRequest{}, fmt.Errorf("delegate id: %w", err)
+		}
+		req.DelegateID = delegateID
+	}
+	if strings.TrimSpace(req.Scope) != "" {
+		scope, err := NormalizeDelegationScope(req.Scope)
+		if err != nil {
+			return ListDelegationsRequest{}, err
+		}
+		req.Scope = scope
+	}
+	if strings.TrimSpace(req.Role) != "" {
+		role, err := NormalizeDelegationRole(req.Role)
+		if err != nil {
+			return ListDelegationsRequest{}, err
+		}
+		req.Role = role
+	}
+	if req.OwnerKind != "" && req.OwnerKind == req.DelegateKind && req.OwnerID != "" && req.OwnerID == req.DelegateID {
+		return ListDelegationsRequest{}, fmt.Errorf("delegation owner and delegate must differ")
+	}
+	if req.Limit < 0 {
+		return ListDelegationsRequest{}, fmt.Errorf("delegation list limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultDelegationListLimit
+	}
+	if req.Limit > MaxDelegationListLimit {
+		return ListDelegationsRequest{}, fmt.Errorf("delegation list limit is too large")
+	}
 	return req, nil
 }
 

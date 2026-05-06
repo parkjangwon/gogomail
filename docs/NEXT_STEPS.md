@@ -1764,6 +1764,13 @@ Next:
   Drive, mailbox sharing, and admin APIs should consume it through explicit
   policy/audit adapters and WebDAV privilege semantics instead of directly
   branching on directory rows in protocol handlers.
+- Directory/Identity now also has a bounded delegation listing boundary for
+  owner/delegate/scope/role-filtered inspection. This was prioritized before
+  deeper CalDAV sharing semantics because admin consoles, shared calendar
+  management, Drive shares, shared inboxes, and Contacts/CardDAV delegation all
+  need the same observable relationship read model. Next API work should expose
+  it through contract-first admin endpoints rather than letting products query
+  `directory_delegations` directly.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

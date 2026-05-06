@@ -68,6 +68,13 @@ booking policy, and scheduling semantics are implemented explicitly.
   member only through the shared Directory membership graph, with the same
   active owner/delegate principal checks, group filters, depth cap, cycle
   guard, and role hierarchy used by the direct delegation model.
+- Delegation inspection now has a bounded repository read boundary as well.
+  Admin consoles, shared-calendar management, Drive shares, shared inboxes, and
+  Contacts/CardDAV delegation should list relationships through
+  `ListDelegations`, with company scope, optional owner/delegate filters,
+  scope, role, active-only state, and result limits normalized before query
+  execution, instead of issuing product-local SQL against
+  `directory_delegations`.
 - Product modules should consume delegated access through policy adapters, not
   by branching directly on Directory rows. The initial `internal/accesspolicy`
   adapter turns effective delegation into a normalized allow/deny decision so
