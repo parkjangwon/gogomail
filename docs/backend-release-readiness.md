@@ -50,6 +50,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preserving valid `{0}` literals while rejecting leading-zero literal sizes
   such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such
   as `{+1}`, `{-1}`, and `{1++}`, before reading literal bytes.
+- IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
+  token, rejecting leading/trailing whitespace variants as malformed
+  termination instead of silently ending the idle state.
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.

@@ -3869,6 +3869,9 @@ Implementation order:
       bounded safe single-line validation as `Stat` and `List`, rejecting
       malformed copy success metadata before copy/move callers treat the
       provider response as durable.
+1401. IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
+      token, rejecting leading/trailing whitespace variants as malformed
+      termination instead of silently ending the idle state.
 
 ## Deferred until backend contracts stabilize
 

@@ -1194,7 +1194,7 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 
 func (s *Server) handleIdleDone(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
 	tag := state.pendingIdleTag
-	if strings.ToUpper(strings.TrimSpace(line)) != "DONE" {
+	if !strings.EqualFold(line, "DONE") {
 		_, err := writer.WriteString(tag + " BAD IDLE terminated by unexpected command\r\n")
 		state.pendingIdleTag = ""
 		return false, err
