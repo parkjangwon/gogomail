@@ -594,6 +594,9 @@ owner/resource target without scanning unrelated audit history.
 - S3-compatible `ListObjectsV2` success bodies now must decode as
   `ListBucketResult` XML, preventing unexpected provider success XML from
   being treated as an empty canonical object page.
+- S3-compatible `ListObjectsV2` object-size validation now runs only after a
+  provider key maps back to the requested canonical gogomail prefix, so
+  out-of-scope bucket noise cannot fail an otherwise valid canonical list page.
 - Local/NFS and S3-compatible storage now expose a shared object `Move`
   contract for Drive-ready rename/relocation workflows. Local/NFS uses
   filesystem rename semantics, while S3-compatible storage performs signed

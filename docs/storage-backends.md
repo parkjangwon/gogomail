@@ -46,8 +46,10 @@ contract against the target backend:
   buffering or prefix streaming.
 - `Stat` reports the canonical object key and byte size without reading the
   object body.
-- `List` returns only keys under the requested canonical prefix and hides any
-  deployment-specific S3 bucket prefix from callers.
+- `List` returns only keys under the requested canonical prefix, hides any
+  deployment-specific S3 bucket prefix from callers, and validates object
+  metadata only after a backend key maps back to a canonical gogomail object
+  path.
 - `Copy` preserves bytes at a new key; `Move` relocates through the backend's
   documented semantics while removing the old key.
 - `Delete` is idempotent for already-missing objects.
@@ -256,9 +258,11 @@ status requirement. Successful list responses must decode as bounded
 `ListBucketResult` XML, so unexpected success bodies cannot masquerade as empty
 object pages. Returned keys are normalized back to gogomail object paths under
 the configured storage prefix, so callers do not see deployment-specific bucket
-prefixes. Returned ETags use the same bounded metadata cleanup as `Stat`.
-Provider responses that return more matching objects than requested are
-rejected, keeping local/NFS and S3-compatible pagination semantics aligned.
+prefixes. Size and returned ETag metadata are validated only after that
+canonical prefix mapping succeeds, and ETags use the same bounded metadata
+cleanup as `Stat`. Provider responses that return more matching objects than
+requested are rejected, keeping local/NFS and S3-compatible pagination
+semantics aligned.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup
