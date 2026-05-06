@@ -4060,6 +4060,10 @@ Implementation order:
       goroutines and reject overflow clients with a transient RFC-shaped
       `421 4.3.2` banner before close, while the default remains unlimited for
       small or externally rate-limited deployments.
+1451. IMAP RFC 5258 `LIST-EXTENDED` parenthesized mailbox pattern lists now
+      preserve quoted pattern strings containing spaces, letting clients match
+      folders such as `"Archive 2026"` and request `RETURN (STATUS ...)`
+      without the command parser splitting the mailbox pattern early.
 
 ## Deferred until backend contracts stabilize
 

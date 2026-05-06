@@ -453,7 +453,9 @@ Current state:
   mailbox rows, keeping large folder-tree discovery allocation-aware.
 - IMAP RFC 5258 `LIST-EXTENDED` now accepts parenthesized mailbox pattern
   lists such as `LIST "" ("INBOX" "Sent")`, applies `RETURN` options to the
-  union of matching folders, and de-duplicates overlapping pattern results.
+  union of matching folders, de-duplicates overlapping pattern results, and
+  preserves quoted mailbox patterns containing spaces such as
+  `"Archive 2026"` inside the pattern list.
 - IMAP UIDPLUS `COPYUID` generation now uses an explicit copy-result mapping
   from source UID to destination message summary across the gateway, service,
   and PostgreSQL repository boundary, so sparse UID requests and concurrent

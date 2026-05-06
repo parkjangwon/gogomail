@@ -7281,25 +7281,22 @@ func imapListPatterns(fields []string) ([]string, bool) {
 }
 
 func imapParenthesizedMailboxPatternFields(fields []string) []string {
-	patterns := make([]string, 0, len(fields))
-	for i, field := range fields {
-		if i == 0 {
-			field = strings.TrimPrefix(field, "(")
-		}
-		field = strings.TrimSuffix(field, ")")
-		if field == "" {
-			continue
-		}
-		if strings.ContainsAny(field, "()") {
+	raw := strings.TrimSpace(strings.Join(fields, " "))
+	if !strings.HasPrefix(raw, "(") || !strings.HasSuffix(raw, ")") || strings.HasPrefix(raw, "((") {
+		return nil
+	}
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(raw, "("), ")"))
+	if inner == "" {
+		return nil
+	}
+	patterns, err := parseIMAPFields(inner)
+	if err != nil || len(patterns) == 0 {
+		return nil
+	}
+	for _, pattern := range patterns {
+		if pattern == "" || strings.ContainsAny(pattern, "()") {
 			return nil
 		}
-		if strings.Contains(field, `"`) && !(strings.HasPrefix(field, `"`) && strings.HasSuffix(field, `"`) && len(field) >= 2) {
-			return nil
-		}
-		if strings.HasPrefix(field, `"`) {
-			field = strings.TrimSuffix(strings.TrimPrefix(field, `"`), `"`)
-		}
-		patterns = append(patterns, field)
 	}
 	return patterns
 }
@@ -7594,6 +7591,15 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 			}
 			continue
 		}
+		if line[i] == '(' && imapParenthesizedFieldNeedsGrouping(line, i) {
+			field, next, err := parseIMAPParenthesizedField(line, i)
+			if err != nil {
+				return nil, err
+			}
+			fields = append(fields, field)
+			i = next
+			continue
+		}
 		start := i
 		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
 			if line[i] == '"' && line[start] != '(' {
@@ -7630,6 +7636,93 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 		return nil, fmt.Errorf("unused imap literal")
 	}
 	return fields, nil
+}
+
+func imapParenthesizedFieldNeedsGrouping(line string, start int) bool {
+	depth := 0
+	quoted := false
+	escaped := false
+	quotedHasWhitespace := false
+	for i := start; i < len(line); i++ {
+		c := line[i]
+		if quoted {
+			if escaped {
+				escaped = false
+				continue
+			}
+			switch c {
+			case '\\':
+				escaped = true
+			case '"':
+				quoted = false
+			case ' ', '\t':
+				quotedHasWhitespace = true
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			quoted = true
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth <= 0 {
+				return quotedHasWhitespace
+			}
+		}
+	}
+	return false
+}
+
+func parseIMAPParenthesizedField(line string, start int) (string, int, error) {
+	depth := 0
+	quoted := false
+	escaped := false
+	for i := start; i < len(line); i++ {
+		c := line[i]
+		if c < 0x20 || c == 0x7f {
+			return "", 0, fmt.Errorf("invalid parenthesized control character")
+		}
+		if quoted {
+			if escaped {
+				if c != '\\' && c != '"' {
+					return "", 0, fmt.Errorf("invalid quoted escape")
+				}
+				escaped = false
+				continue
+			}
+			switch c {
+			case '\\':
+				escaped = true
+			case '"':
+				quoted = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			quoted = true
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth < 0 {
+				return "", 0, fmt.Errorf("unbalanced parenthesized field")
+			}
+			if depth == 0 {
+				next := i + 1
+				if next < len(line) && line[next] != ' ' && line[next] != '\t' {
+					return "", 0, fmt.Errorf("parenthesized field must be delimited")
+				}
+				return line[start:next], next, nil
+			}
+		}
+	}
+	if quoted || escaped {
+		return "", 0, fmt.Errorf("unterminated quoted string")
+	}
+	return "", 0, fmt.Errorf("unterminated parenthesized field")
 }
 
 func imapLooksLikeLiteral(field string) bool {
