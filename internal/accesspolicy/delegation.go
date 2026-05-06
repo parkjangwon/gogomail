@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/directory"
 )
 
 const (
 	DecisionReasonDelegationAllowed = "delegation_allowed"
 	DecisionReasonDelegationDenied  = "delegation_denied"
+)
+
+const (
+	AuditCategoryAccess          = "access"
+	AuditActionDelegatedAccess   = "delegation.access_checked"
+	AuditResultDelegationAllowed = "allowed"
+	AuditResultDelegationDenied  = "denied"
 )
 
 const (
@@ -55,17 +63,7 @@ func (e DelegationEvaluator) CheckDelegatedAccess(ctx context.Context, req Deleg
 	if e.Checker == nil {
 		return Decision{}, fmt.Errorf("effective delegation checker is required")
 	}
-	check, err := directory.NormalizeCheckDelegationRequest(directory.CheckDelegationRequest{
-		CompanyID:    req.CompanyID,
-		OwnerKind:    req.Owner.Kind,
-		OwnerID:      req.Owner.ID,
-		DelegateKind: req.Actor.Kind,
-		DelegateID:   req.Actor.ID,
-		Scope:        req.Scope,
-		RequiredRole: req.RequiredRole,
-		ActiveOnly:   true,
-		MaxDepth:     req.MaxDepth,
-	})
+	check, err := normalizeDelegatedAccessRequest(req)
 	if err != nil {
 		return Decision{}, err
 	}
@@ -116,7 +114,36 @@ func WebDAVPrivilegesForDecision(decision Decision) []string {
 }
 
 func DelegatedAccessAuditDetail(req DelegatedAccessRequest, decision Decision) (json.RawMessage, error) {
-	check, err := directory.NormalizeCheckDelegationRequest(directory.CheckDelegationRequest{
+	check, err := normalizeDelegatedAccessRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return delegatedAccessAuditDetailFromCheck(check, decision)
+}
+
+func DelegatedAccessAuditLog(req DelegatedAccessRequest, decision Decision) (audit.Log, error) {
+	check, err := normalizeDelegatedAccessRequest(req)
+	if err != nil {
+		return audit.Log{}, err
+	}
+	detail, err := delegatedAccessAuditDetailFromCheck(check, decision)
+	if err != nil {
+		return audit.Log{}, err
+	}
+	return audit.Log{
+		CompanyID:  check.CompanyID,
+		ActorID:    check.DelegateID,
+		Category:   AuditCategoryAccess,
+		Action:     AuditActionDelegatedAccess,
+		TargetType: check.OwnerKind,
+		TargetID:   check.OwnerID,
+		Result:     delegatedAccessAuditResult(decision),
+		Detail:     detail,
+	}, nil
+}
+
+func normalizeDelegatedAccessRequest(req DelegatedAccessRequest) (directory.CheckDelegationRequest, error) {
+	return directory.NormalizeCheckDelegationRequest(directory.CheckDelegationRequest{
 		CompanyID:    req.CompanyID,
 		OwnerKind:    req.Owner.Kind,
 		OwnerID:      req.Owner.ID,
@@ -127,9 +154,9 @@ func DelegatedAccessAuditDetail(req DelegatedAccessRequest, decision Decision) (
 		ActiveOnly:   true,
 		MaxDepth:     req.MaxDepth,
 	})
-	if err != nil {
-		return nil, err
-	}
+}
+
+func delegatedAccessAuditDetailFromCheck(check directory.CheckDelegationRequest, decision Decision) (json.RawMessage, error) {
 	reason := normalizedDecisionReason(decision)
 	detail, err := json.Marshal(struct {
 		CompanyID        string   `json:"company_id"`
@@ -158,6 +185,13 @@ func DelegatedAccessAuditDetail(req DelegatedAccessRequest, decision Decision) (
 		return nil, fmt.Errorf("marshal delegated access audit detail: %w", err)
 	}
 	return detail, nil
+}
+
+func delegatedAccessAuditResult(decision Decision) string {
+	if decision.Allowed {
+		return AuditResultDelegationAllowed
+	}
+	return AuditResultDelegationDenied
 }
 
 func normalizedDecisionReason(decision Decision) string {
