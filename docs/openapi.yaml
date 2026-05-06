@@ -1472,6 +1472,16 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: target_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
         - name: since
           in: query
           schema:
