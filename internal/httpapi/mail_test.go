@@ -847,6 +847,36 @@ func TestListThreadsHandler(t *testing.T) {
 	}
 }
 
+func TestListThreadsHandlerUsesContractDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		threads: []maildb.ThreadSummary{{ID: "thread-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Limit int `json:"limit"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("response limit = %d, want %d", body.Limit, maildb.MessageListDefaultLimit)
+	}
+	if service.lastLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("lastLimit = %d, want %d", service.lastLimit, maildb.MessageListDefaultLimit)
+	}
+}
+
 func TestListThreadsHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	t.Parallel()
 
@@ -1133,6 +1163,39 @@ func TestListThreadMessagesHandler(t *testing.T) {
 	}
 	if service.lastUserID != "user-1" || service.lastLimit != 20 {
 		t.Fatalf("lastUserID=%q lastLimit=%d", service.lastUserID, service.lastLimit)
+	}
+}
+
+func TestListThreadMessagesHandlerUsesContractDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/threads/thread-1/messages?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Limit int `json:"limit"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("response limit = %d, want %d", body.Limit, maildb.MessageListDefaultLimit)
+	}
+	if service.lastThreadID != "thread-1" {
+		t.Fatalf("lastThreadID = %q", service.lastThreadID)
+	}
+	if service.lastLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("lastLimit = %d, want %d", service.lastLimit, maildb.MessageListDefaultLimit)
 	}
 }
 
@@ -1756,6 +1819,36 @@ func TestSearchDraftsHandler(t *testing.T) {
 	}
 	if service.lastDraftSearch.HasAttachment == nil || *service.lastDraftSearch.HasAttachment {
 		t.Fatalf("HasAttachment = %+v", service.lastDraftSearch.HasAttachment)
+	}
+}
+
+func TestSearchDraftsHandlerUsesContractDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		drafts: []maildb.MessageDetail{{ID: "draft-1", Subject: "hello draft", TextBody: "body"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/search?user_id=user-1&q=hello", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Limit int `json:"limit"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("response limit = %d, want %d", body.Limit, maildb.MessageListDefaultLimit)
+	}
+	if service.lastDraftSearch.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("draft search limit = %d, want %d", service.lastDraftSearch.Limit, maildb.MessageListDefaultLimit)
 	}
 }
 

@@ -48,8 +48,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unread/read/starred/attachment webmail views while retaining opaque cursor
   pagination and folder scoping.
 - Mail API list/search handlers apply the documented default `limit=50` when
-  `limit` is omitted or empty, preserving OpenAPI/runtime pagination alignment
-  for generated webmail and admin clients.
+  `limit` is omitted or empty, with regression coverage for message lists,
+  thread lists, thread-message lists, active search, and draft search to
+  preserve OpenAPI/runtime pagination alignment for generated webmail and admin
+  clients.
 - Mail API thread lists support optional `read=true|false`,
   `starred=true|false`, and `has_attachment=true|false` filters for
   conversation-level unread/read/starred/attachment quick views while retaining
