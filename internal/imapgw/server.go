@@ -1265,7 +1265,7 @@ func imapAuthCredentialsValid(username string, password string) bool {
 		return false
 	}
 	username = strings.TrimSpace(username)
-	if username == "" || len(username) > maxIMAPAuthIdentityBytes || len(password) > maxIMAPAuthPasswordBytes {
+	if username == "" || password == "" || len(username) > maxIMAPAuthIdentityBytes || len(password) > maxIMAPAuthPasswordBytes {
 		return false
 	}
 	return true

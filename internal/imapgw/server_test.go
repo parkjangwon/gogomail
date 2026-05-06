@@ -1479,6 +1479,77 @@ func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
 	}
 }
 
+func TestServerPreservesQuotedLoginCredentialSpaces(t *testing.T) {
+	t.Parallel()
+
+	authBackend := literalLoginBackend{creds: make(chan [2]string, 1)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: authBackend, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN \" user@example.com \" \" secret \"\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write login/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	select {
+	case got := <-authBackend.creds:
+		if got != [2]string{" user@example.com ", " secret "} {
+			t.Fatalf("Authenticate credentials = %#v", got)
+		}
+	default:
+		t.Fatalf("Authenticate was not called")
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsEmptyLoginPassword(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com \"\"\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write login/logout: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD LOGIN credentials are malformed\r\n" {
+		t.Fatalf("empty-password login = %q err = %v", line, err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	t.Parallel()
 
@@ -7875,6 +7946,7 @@ func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 		"not-base64",
 		base64.StdEncoding.EncodeToString([]byte("user@example.com\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00\x00secret")),
+		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00")),
 		base64.StdEncoding.EncodeToString([]byte("delegate@example.com\x00user@example.com\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\r\n\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret\r\n")),
@@ -7897,6 +7969,19 @@ func TestDecodeSASLPlainAcceptsMatchingAuthorizationIdentity(t *testing.T) {
 	}
 	if username != "user@example.com" || password != "secret" {
 		t.Fatalf("decodeSASLPlain = %q %q, want user@example.com secret", username, password)
+	}
+}
+
+func TestDecodeSASLPlainPreservesCredentialSpaces(t *testing.T) {
+	t.Parallel()
+
+	value := base64.StdEncoding.EncodeToString([]byte(" user@example.com \x00 user@example.com \x00 secret "))
+	username, password, ok := decodeSASLPlain(value)
+	if !ok {
+		t.Fatal("decodeSASLPlain rejected credentials with quoted-string-equivalent spaces")
+	}
+	if username != " user@example.com " || password != " secret " {
+		t.Fatalf("decodeSASLPlain = %q %q, want preserved spaces", username, password)
 	}
 }
 
