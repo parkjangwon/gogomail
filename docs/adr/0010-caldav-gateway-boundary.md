@@ -193,10 +193,12 @@ incomplete delta after retention gaps or unsupported history.
 Retention pruning is also repository-owned. A bounded
 `PruneCalendarSyncChanges` boundary can dry-run or delete old change-log rows
 while preserving the newest marker per calendar, backed by a prune-order
-database index. This keeps future operator/worker retention policy outside the
-HTTP handler and prevents cleanup work from deleting the token needed by a
-current client. Public readiness still needs worker wiring, deployment-specific
-retention age policy, and native-client compatibility testing around expired
+database index. The `dav-sync-retention-worker` runs that path with CardDAV
+retention on an interval or once-and-exit, dry-run by default and guarded by
+explicit confirmation before destructive runs. This keeps retention policy
+outside the HTTP handler and prevents cleanup work from deleting the token
+needed by a current client. Public readiness still needs deployment-specific
+retention age policy and native-client compatibility testing around expired
 tokens.
 
 Service discovery starts at the gateway as well: `/.well-known/caldav` redirects
@@ -278,5 +280,5 @@ and compatibility tests.
 - The frontend calendar can be built later without bypassing the standards
   boundary needed by native clients.
 - Public CalDAV compatibility is experimental until recurrence, scheduling,
-  retention-worker policy, native-client compatibility testing, and the shared
+  production token-retention policy, native-client compatibility testing, and the shared
   Directory/Contacts/Notification/Search/Policy boundaries are in place.

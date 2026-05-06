@@ -81,6 +81,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", "")
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", "")
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_INTERVAL", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_BATCH_SIZE", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_RUN_ONCE", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN", "")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY", "")
 	t.Setenv("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "")
 	t.Setenv("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "")
@@ -324,6 +330,24 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.DriveCleanupRunOnce {
 		t.Fatal("DriveCleanupRunOnce = true, want false")
 	}
+	if cfg.DAVSyncRetentionInterval != 24*time.Hour {
+		t.Fatalf("DAVSyncRetentionInterval = %s, want 24h", cfg.DAVSyncRetentionInterval)
+	}
+	if cfg.DAVSyncRetentionCutoffAge != 90*24*time.Hour {
+		t.Fatalf("DAVSyncRetentionCutoffAge = %s, want 2160h", cfg.DAVSyncRetentionCutoffAge)
+	}
+	if cfg.DAVSyncRetentionBatchSize != 1000 {
+		t.Fatalf("DAVSyncRetentionBatchSize = %d, want 1000", cfg.DAVSyncRetentionBatchSize)
+	}
+	if cfg.DAVSyncRetentionRunOnce {
+		t.Fatal("DAVSyncRetentionRunOnce = true, want false")
+	}
+	if !cfg.DAVSyncRetentionDryRun {
+		t.Fatal("DAVSyncRetentionDryRun = false, want true")
+	}
+	if cfg.DAVSyncRetentionConfirmReady {
+		t.Fatal("DAVSyncRetentionConfirmReady = true, want false")
+	}
 	if cfg.DriveShareRateLimitBackend != "none" {
 		t.Fatalf("DriveShareRateLimitBackend = %q, want none", cfg.DriveShareRateLimitBackend)
 	}
@@ -508,6 +532,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", "30m")
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", "75")
 	t.Setenv("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", "true")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_INTERVAL", "6h")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE", "168h")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_BATCH_SIZE", "600")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_RUN_ONCE", "true")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN", "false")
+	t.Setenv("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY", "true")
 	t.Setenv("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "redis")
 	t.Setenv("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", "42")
 	t.Setenv("GOGOMAIL_API_USAGE_RETENTION_INTERVAL", "12h")
@@ -717,6 +747,24 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if !cfg.DriveCleanupRunOnce {
 		t.Fatal("DriveCleanupRunOnce = false, want true")
+	}
+	if cfg.DAVSyncRetentionInterval != 6*time.Hour {
+		t.Fatalf("DAVSyncRetentionInterval = %s, want 6h", cfg.DAVSyncRetentionInterval)
+	}
+	if cfg.DAVSyncRetentionCutoffAge != 168*time.Hour {
+		t.Fatalf("DAVSyncRetentionCutoffAge = %s, want 168h", cfg.DAVSyncRetentionCutoffAge)
+	}
+	if cfg.DAVSyncRetentionBatchSize != 600 {
+		t.Fatalf("DAVSyncRetentionBatchSize = %d, want 600", cfg.DAVSyncRetentionBatchSize)
+	}
+	if !cfg.DAVSyncRetentionRunOnce {
+		t.Fatal("DAVSyncRetentionRunOnce = false, want true")
+	}
+	if cfg.DAVSyncRetentionDryRun {
+		t.Fatal("DAVSyncRetentionDryRun = true, want false")
+	}
+	if !cfg.DAVSyncRetentionConfirmReady {
+		t.Fatal("DAVSyncRetentionConfirmReady = false, want true")
 	}
 	if cfg.DriveShareRateLimitBackend != "redis" {
 		t.Fatalf("DriveShareRateLimitBackend = %q, want redis", cfg.DriveShareRateLimitBackend)

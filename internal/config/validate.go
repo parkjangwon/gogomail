@@ -21,6 +21,7 @@ const (
 	maxWebhookTokenBytes                   = 4096
 	maxAttachmentCleanupBatchSize          = 1000
 	maxDriveCleanupBatchSize               = 1000
+	maxDAVSyncRetentionBatchSize           = 10000
 	minHTTPMaxHeaderBytes                  = 4 << 10
 	maxHTTPMaxHeaderBytes                  = 1 << 20
 )
@@ -269,6 +270,18 @@ func (c Config) Validate() error {
 	}
 	if c.DriveCleanupBatchSize <= 0 || c.DriveCleanupBatchSize > maxDriveCleanupBatchSize {
 		return fmt.Errorf("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE must be between 1 and %d", maxDriveCleanupBatchSize)
+	}
+	if c.DAVSyncRetentionInterval <= 0 {
+		return fmt.Errorf("GOGOMAIL_DAV_SYNC_RETENTION_INTERVAL must be positive")
+	}
+	if c.DAVSyncRetentionCutoffAge <= 0 {
+		return fmt.Errorf("GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE must be positive")
+	}
+	if c.DAVSyncRetentionBatchSize <= 0 || c.DAVSyncRetentionBatchSize > maxDAVSyncRetentionBatchSize {
+		return fmt.Errorf("GOGOMAIL_DAV_SYNC_RETENTION_BATCH_SIZE must be between 1 and %d", maxDAVSyncRetentionBatchSize)
+	}
+	if !c.DAVSyncRetentionDryRun && !c.DAVSyncRetentionConfirmReady {
+		return fmt.Errorf("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY must be true when DAV sync retention dry-run is disabled")
 	}
 	if err := validateEnum("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", c.PushNotifyBackend, "none", "slog", "webhook"); err != nil {
 		return err

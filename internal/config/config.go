@@ -90,6 +90,12 @@ type Config struct {
 	DriveCleanupInterval                time.Duration
 	DriveCleanupBatchSize               int
 	DriveCleanupRunOnce                 bool
+	DAVSyncRetentionInterval            time.Duration
+	DAVSyncRetentionCutoffAge           time.Duration
+	DAVSyncRetentionBatchSize           int
+	DAVSyncRetentionRunOnce             bool
+	DAVSyncRetentionDryRun              bool
+	DAVSyncRetentionConfirmReady        bool
 	DriveShareRateLimitBackend          string
 	DriveShareRateLimitPerMinute        int
 	PushNotifyBackend                   string
@@ -273,6 +279,12 @@ func Load() Config {
 		DriveCleanupInterval:                durationEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", 15*time.Minute),
 		DriveCleanupBatchSize:               intEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", 100),
 		DriveCleanupRunOnce:                 boolEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", false),
+		DAVSyncRetentionInterval:            durationEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_INTERVAL", 24*time.Hour),
+		DAVSyncRetentionCutoffAge:           durationEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE", 90*24*time.Hour),
+		DAVSyncRetentionBatchSize:           intEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_BATCH_SIZE", 1000),
+		DAVSyncRetentionRunOnce:             boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_RUN_ONCE", false),
+		DAVSyncRetentionDryRun:              boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN", true),
+		DAVSyncRetentionConfirmReady:        boolEnvOrDefault("GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY", false),
 		DriveShareRateLimitBackend:          envOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "none"),
 		DriveShareRateLimitPerMinute:        intEnvOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", 120),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),

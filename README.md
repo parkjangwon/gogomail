@@ -62,6 +62,7 @@ go run ./cmd/gogomail --mode=inbound-mta
 go run ./cmd/gogomail --mode=outbound-mta
 go run ./cmd/gogomail --mode=delivery-worker
 go run ./cmd/gogomail --mode=attachment-cleanup-worker
+go run ./cmd/gogomail --mode=dav-sync-retention-worker
 go run ./cmd/gogomail --mode=search-index-worker
 go run ./cmd/gogomail --mode=api-metering-worker
 go run ./cmd/gogomail --mode=api-usage-retention-worker
@@ -72,9 +73,9 @@ go run ./cmd/gogomail --mode=mail-api
 go run ./cmd/gogomail --mode=admin-api
 ```
 
-`imap` is a gateway scaffold today: it initializes the service-backed IMAP
-store adapter and process-local mailbox event broker, while the TCP protocol
-listener remains deferred.
+`imap` starts the service-backed IMAP gateway with the TCP listener, protocol
+auth adapter, mailbox event broker, and live `mail.stored` notification
+consumer for IDLE/NOOP update delivery.
 
 `all-in-one` serves health, Mail API, and Admin API routes from one HTTP
 process for small deployments and local release smoke tests.
@@ -118,6 +119,23 @@ Set `GOGOMAIL_API_USAGE_RETENTION_DRY_RUN=false` only after export storage and
 signing policy are production-ready; validation requires
 `GOGOMAIL_API_USAGE_RETENTION_CONFIRM_READY=true` and a configured
 `remote-ed25519` export manifest signer for destructive runs.
+
+`dav-sync-retention-worker` prunes old CalDAV/CardDAV sync-change rows while
+preserving the newest marker per calendar/address book, so current clients keep
+their sync-token continuity. It is dry-run by default:
+
+```bash
+GOGOMAIL_DAV_SYNC_RETENTION_INTERVAL=24h
+GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE=2160h
+GOGOMAIL_DAV_SYNC_RETENTION_BATCH_SIZE=1000
+GOGOMAIL_DAV_SYNC_RETENTION_RUN_ONCE=false
+GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN=true
+GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY=false
+```
+
+Set `GOGOMAIL_DAV_SYNC_RETENTION_DRY_RUN=false` only after choosing the
+deployment token-retention policy; validation requires
+`GOGOMAIL_DAV_SYNC_RETENTION_CONFIRM_READY=true` for destructive runs.
 
 Webhook push handoff:
 

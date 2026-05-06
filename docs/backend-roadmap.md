@@ -3140,6 +3140,12 @@ Implementation order:
       per calendar, so future retention workers can expire history while
       preserving current-token continuity; unknown or expired client tokens
       continue to fail with DAV `valid-sync-token`.
+1246. `dav-sync-retention-worker` now runs CalDAV and CardDAV sync-change
+      pruning on an interval or once-and-exit. It is dry-run by default,
+      validates interval/cutoff/batch settings, and requires explicit
+      `confirm_ready` before destructive runs, turning the DAV retention
+      repository boundaries into an operationally safe worker without making
+      token-expiry policy public/client-ready yet.
 
 ## Deferred until backend contracts stabilize
 

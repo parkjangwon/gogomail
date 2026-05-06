@@ -1868,7 +1868,7 @@ Current state:
 Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
-  gates are closed: broader recurrence edge cases, sync retention worker and
+  gates are closed: broader recurrence edge cases, production sync-token
   retention-age policy, slug/path-alias support for friendlier MKCALENDAR
   clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
@@ -2121,8 +2121,11 @@ Next:
   CardDAV sync-change retention now has repository groundwork:
   `PruneAddressBookChanges` can dry-run or delete bounded old change rows while
   preserving the newest marker per address book, backed by a prune-order
-  migration index. Next, wire an operator/worker path with an explicit
-  retention-age policy before treating CardDAV token expiry as production-ready.
+  migration index. The `dav-sync-retention-worker` now runs the CalDAV and
+  CardDAV prune paths together on an interval or once-and-exit, dry-run by
+  default and guarded by explicit confirmation before destructive runs. Next,
+  choose and document a production retention-age policy before treating DAV
+  token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
   within the same calendar before the SQL upsert path, keeping repository
   errors predictable while the PostgreSQL partial unique index remains the
