@@ -356,7 +356,8 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if prefix != "" && objectPath != prefix && !strings.HasPrefix(objectPath, prefix+"/") {
 			continue
 		}
-		if item.Size < 0 {
+		size, ok := parseS3ListObjectSize(item.Size)
+		if !ok {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
 		}
 		if len(page.Objects) >= limit {
@@ -364,7 +365,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		}
 		page.Objects = append(page.Objects, ObjectInfo{
 			Path:         objectPath,
-			Size:         item.Size,
+			Size:         size,
 			ETag:         cleanS3ETag(item.ETag),
 			LastModified: parseS3ListTime(item.LastModified),
 		})
@@ -585,6 +586,11 @@ func parseS3NonNegativeDecimal(value string) (int64, bool) {
 		return 0, false
 	}
 	return size, true
+}
+
+func parseS3ListObjectSize(value string) (int64, bool) {
+	value = strings.TrimSpace(value)
+	return parseS3NonNegativeDecimal(value)
 }
 
 func cleanS3MetadataValue(value string, maxBytes int) string {
@@ -1155,7 +1161,7 @@ type s3ListObjectsResult struct {
 
 type s3ListObjectContent struct {
 	Key          string `xml:"Key"`
-	Size         int64  `xml:"Size"`
+	Size         string `xml:"Size"`
 	ETag         string `xml:"ETag"`
 	LastModified string `xml:"LastModified"`
 }

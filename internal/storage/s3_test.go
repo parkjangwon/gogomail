@@ -1017,6 +1017,45 @@ func TestS3StoreListValidatesSizeAfterCanonicalPrefix(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsSignedObjectSize(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{"+5", "-1"}
+	for _, size := range tests {
+		size := size
+		t.Run(size, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>` + size + `</Size></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "invalid object size") {
+				t.Fatalf("List err = %v, want invalid object size", err)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsWhitespacePaddedContinuationToken(t *testing.T) {
 	t.Parallel()
 
