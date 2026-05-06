@@ -2,6 +2,8 @@ package carddavgw
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -113,6 +115,91 @@ func TestMapContactObjectUpsertErrorPreservesUnknownErrors(t *testing.T) {
 		t.Fatalf("mapped error = %v, want upsert context", err)
 	}
 }
+
+func TestInsertAddressBookChangeQueuesDomainEvent(t *testing.T) {
+	t.Parallel()
+
+	execer := &captureCardDAVChangeExecer{}
+	err := insertAddressBookChange(context.Background(), execer, "user-1", "book-1", "sync-1", "contact-upserted", "contact-1.vcf", `"etag-1"`)
+	if err != nil {
+		t.Fatalf("insertAddressBookChange returned error: %v", err)
+	}
+	if len(execer.calls) != 2 {
+		t.Fatalf("exec calls = %d, want change row and outbox row", len(execer.calls))
+	}
+	if !strings.Contains(execer.calls[0].query, "INSERT INTO carddav_addressbook_changes") {
+		t.Fatalf("first query = %s, want CardDAV change insert", execer.calls[0].query)
+	}
+	if !strings.Contains(execer.calls[1].query, "INSERT INTO outbox") {
+		t.Fatalf("second query = %s, want outbox insert", execer.calls[1].query)
+	}
+	if got := execer.calls[1].args[0]; got != davChangeOutboxTopic {
+		t.Fatalf("outbox topic = %v, want %q", got, davChangeOutboxTopic)
+	}
+	if got := execer.calls[1].args[1]; got != "user-1" {
+		t.Fatalf("partition key = %v, want user-1", got)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(execer.calls[1].args[2].(string)), &payload); err != nil {
+		t.Fatalf("decode outbox payload: %v", err)
+	}
+	for key, want := range map[string]string{
+		"event":          contactsChangedEvent,
+		"schema_version": davChangeSchemaVersion,
+		"dav_kind":       davChangeKindCardDAV,
+		"action":         "contact-upserted",
+		"user_id":        "user-1",
+		"collection_id":  "book-1",
+		"object_name":    "contact-1.vcf",
+		"etag":           `"etag-1"`,
+		"sync_token":     "sync-1",
+	} {
+		if got := payload[key]; got != want {
+			t.Fatalf("payload[%s] = %v, want %q; payload=%v", key, got, want, payload)
+		}
+	}
+	if payload["changed_at"] == "" {
+		t.Fatalf("payload changed_at missing: %v", payload)
+	}
+}
+
+func TestInsertAddressBookChangeFailsWhenOutboxInsertFails(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("outbox failed")
+	execer := &captureCardDAVChangeExecer{failCall: 2, err: wantErr}
+	err := insertAddressBookChange(context.Background(), execer, "user-1", "book-1", "sync-1", "contact-deleted", "contact-1.vcf", `"etag-1"`)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("insertAddressBookChange error = %v, want wrapped outbox failure", err)
+	}
+	if len(execer.calls) != 2 {
+		t.Fatalf("exec calls = %d, want change insert then outbox insert", len(execer.calls))
+	}
+}
+
+type cardDAVExecCall struct {
+	query string
+	args  []any
+}
+
+type captureCardDAVChangeExecer struct {
+	calls    []cardDAVExecCall
+	failCall int
+	err      error
+}
+
+func (e *captureCardDAVChangeExecer) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
+	e.calls = append(e.calls, cardDAVExecCall{query: query, args: append([]any(nil), args...)})
+	if e.failCall == len(e.calls) {
+		return nil, e.err
+	}
+	return fakeCardDAVSQLResult(1), nil
+}
+
+type fakeCardDAVSQLResult int64
+
+func (r fakeCardDAVSQLResult) LastInsertId() (int64, error) { return 0, nil }
+func (r fakeCardDAVSQLResult) RowsAffected() (int64, error) { return int64(r), nil }
 
 func TestValidateCreateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()

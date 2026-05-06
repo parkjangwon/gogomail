@@ -249,6 +249,10 @@ user-specific metadata. Notification & Sync should own domain events, reminder
 decisions, device registry, delivery adapters, quiet-hours/per-device policy,
 and delta fan-out. Search and Policy/Audit should own unified event/person/
 resource lookup, retention, admin controls, and traceable access decisions.
+CalDAV therefore emits transactional `dav.event` outbox rows from the same
+repository boundary that appends durable calendar sync-change rows, but it does
+not decide reminder delivery, mobile push, or indexing behavior inside the
+protocol gateway.
 Until these boundaries exist, shared calendars, delegated access, resource
 booking, attendee auto-complete, and reminder delivery remain release gates
 rather than isolated CalDAV CRUD features.

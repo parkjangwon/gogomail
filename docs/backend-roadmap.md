@@ -3217,6 +3217,12 @@ Implementation order:
       resource hrefs, `DAV:owner`, and repository lookups remain owner-scoped.
       This preserves WebDAV identity semantics for native clients and avoids
       confusing delegated access with account impersonation.
+1259. CalDAV and CardDAV mutation paths now enqueue transactional `dav.event`
+      outbox rows whenever they append durable sync-change rows. CalDAV emits
+      `calendar.changed` and CardDAV emits `contacts.changed` v1 payloads with
+      DAV kind, action, user, collection, object, ETag, sync token, and changed
+      timestamp fields, giving Notification & Sync, search indexing, reminders,
+      and mobile delta fan-out a clean asynchronous boundary.
 
 ## Deferred until backend contracts stabilize
 

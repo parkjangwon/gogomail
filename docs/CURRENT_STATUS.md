@@ -87,6 +87,13 @@ CalDAV object and collection preconditions now evaluate repeated `If-Match`
 and `If-None-Match` headers as a single ETag list, so cache validation and
 write guards match HTTP field-combination semantics instead of depending on the
 first wire header.
+CalDAV mutating repository paths now enqueue a transactional `dav.event`
+outbox row whenever they append a durable calendar sync-change row. The v1
+`calendar.changed` payload carries the DAV kind, action, user, collection,
+object name, ETag, sync token, and changed timestamp, giving future
+Notification & Sync, search indexing, reminders, and mobile delta fan-out a
+clean event-stream boundary without making CalDAV call push/vendor adapters
+directly.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.
@@ -276,6 +283,11 @@ marker per address book, and `dav-sync-retention-worker` runs that prune path
 on the same dry-run-by-default schedule as CalDAV. Unknown or expired CardDAV
 sync tokens fail with DAV `valid-sync-token`; deployment retention-age policy
 and native-client expiry testing remain future work.
+CardDAV mutating repository paths now mirror the same transactional outbox
+boundary: each durable address-book sync-change row also queues a `dav.event`
+row with a v1 `contacts.changed` payload. Contacts/CardDAV remains the
+user-owned address-book source of truth, while Notification & Sync can consume
+domain events asynchronously rather than reaching into CardDAV mutation code.
 Initial address-book sync snapshots now use a sync-specific
 bounded object list path as well, so a large address book cannot be clipped by
 the generic repository list default and then reported as fully synchronized.
