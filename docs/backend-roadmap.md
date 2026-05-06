@@ -2431,6 +2431,10 @@ Implementation order:
       `ends-with`, and `negate-condition`, while rejecting unsupported
       collations or malformed text-match attributes instead of silently
       changing query semantics.
+1110a. CardDAV filter parsing now rejects duplicate `text-match` elements
+       inside a single `prop-filter` or `param-filter`, preserving RFC 6352's
+       singular text-match grammar instead of silently widening or ignoring
+       native-client address-book query predicates.
 1111. CardDAV `addressbook-query` now evaluates the first nested
       `param-filter` under a `prop-filter`, parsing unfolded vCard content-line
       parameters and supporting parameter existence, `is-not-defined`, and

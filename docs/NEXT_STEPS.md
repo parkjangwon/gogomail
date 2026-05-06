@@ -2279,7 +2279,9 @@ Next:
   `CARDDAV:supported-filter` precondition instead of misleading empty success
   responses, including `Depth: 0` requests that otherwise return no child
   objects. Unsupported CardDAV filter child elements now use the same
-  `CARDDAV:supported-filter` precondition. REPORT `address-data` can also
+  `CARDDAV:supported-filter` precondition. Duplicate `text-match` elements
+  inside one `prop-filter` or `param-filter` are rejected at parse time,
+  preserving RFC 6352's singular text-match grammar. REPORT `address-data` can also
   project returned vCards to
   requested property names and rejects unsupported requested address-data
   content types or versions with the RFC 6352

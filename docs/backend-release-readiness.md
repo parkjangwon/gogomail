@@ -814,7 +814,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `i;unicode-casemap`, and query evaluation implements both advertised
   collations. Capability properties that should not appear in a bare `allprop`
   response remain available through explicit `prop`, `include`, and `propname`
-  discovery.
+  discovery. Duplicate `text-match` elements inside one `prop-filter` or
+  `param-filter` are rejected at parse time to keep RFC 6352 address-book
+  filter semantics singular and predictable.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   a `version` attribute matching the stored vCard body.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

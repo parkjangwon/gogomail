@@ -377,6 +377,9 @@ unsupported vCard property or parameter filters with the RFC 6352
 success responses, even for `Depth: 0` requests that otherwise return no child
 objects. Unsupported CardDAV filter child elements use the same
 `CARDDAV:supported-filter` precondition instead of a generic bad request.
+CardDAV filter parsing now rejects duplicate `text-match` elements inside a
+single `prop-filter` or `param-filter`, matching RFC 6352's singular
+text-match grammar instead of silently widening or ignoring filter predicates.
 REPORT `address-data` can now
 project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
