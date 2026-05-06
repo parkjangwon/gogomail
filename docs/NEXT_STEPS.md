@@ -1667,6 +1667,9 @@ Next:
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
+  CardDAV `OPTIONS` and unsupported-method responses share one implemented
+  method list for `Allow`, keeping native contact clients from seeing methods
+  before handler semantics exist.
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
   that hot path. Address-data projection failures are explicit errors rather

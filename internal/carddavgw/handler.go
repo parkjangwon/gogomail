@@ -1367,5 +1367,5 @@ func readBoundedContactObjectBody(r io.Reader) ([]byte, error) {
 }
 
 func cardDAVDiscoveryAllowHeader() string {
-	return strings.Join([]string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete, MethodMkcol}, ", ")
+	return strings.Join(ImplementedMethods(), ", ")
 }

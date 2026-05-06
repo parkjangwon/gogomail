@@ -105,3 +105,17 @@ func AdvertisedDAVTokens(includeSync bool) []string {
 	}
 	return tokens
 }
+
+func ImplementedMethods() []string {
+	return []string{
+		MethodOptions,
+		MethodPropfind,
+		MethodProppatch,
+		MethodReport,
+		MethodGet,
+		MethodHead,
+		MethodPut,
+		MethodDelete,
+		MethodMkcol,
+	}
+}
