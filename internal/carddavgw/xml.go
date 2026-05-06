@@ -103,6 +103,15 @@ type ReportRequest struct {
 	Filter                AddressBookQueryFilter
 }
 
+type UnsupportedAddressDataError struct {
+	Attribute string
+	Value     string
+}
+
+func (e UnsupportedAddressDataError) Error() string {
+	return fmt.Sprintf("unsupported CardDAV address-data %s %q", e.Attribute, e.Value)
+}
+
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -773,12 +782,12 @@ func validateAddressDataAttributes(el xml.StartElement) error {
 		case "content-type":
 			contentType := strings.ToLower(strings.TrimSpace(attr.Value))
 			if contentType != "text/vcard" {
-				return fmt.Errorf("unsupported CardDAV address-data content-type %q", contentType)
+				return UnsupportedAddressDataError{Attribute: "content-type", Value: contentType}
 			}
 		case "version":
 			version := strings.TrimSpace(attr.Value)
 			if version != "4.0" {
-				return fmt.Errorf("unsupported CardDAV address-data version %q", version)
+				return UnsupportedAddressDataError{Attribute: "version", Value: version}
 			}
 		}
 	}

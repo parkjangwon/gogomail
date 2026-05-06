@@ -391,7 +391,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   no child objects. REPORT `address-data` can project returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
   Requested address-data content types and versions are validated against the
-  advertised `text/vcard` 4.0 support before handler execution.
+  advertised `text/vcard` 4.0 support and fail with the RFC 6352
+  `CARDDAV:supported-address-data` precondition before handler execution.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   `version="4.0"` attributes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

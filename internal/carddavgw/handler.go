@@ -451,6 +451,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	}
 	report, err := ParseReport(r.Body)
 	if err != nil {
+		var unsupportedAddressData UnsupportedAddressDataError
+		if errors.As(err, &unsupportedAddressData) {
+			writeCardDAVPreconditionError(w, http.StatusForbidden, "supported-address-data", err.Error())
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

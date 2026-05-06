@@ -2469,6 +2469,10 @@ Implementation order:
 1139. CardDAV `addressbook-query` now accepts RFC 6352 `Depth: infinity`
       requests, treating them with the same flat address-book scan semantics as
       `Depth: 1` while preserving `Depth: 0` as collection-scoped.
+1140. CardDAV REPORT parsing now maps unsupported requested `address-data`
+      content types or versions to the RFC 6352
+      `CARDDAV:supported-address-data` precondition instead of a generic
+      bad-request text error.
 
 ## Deferred until backend contracts stabilize
 
