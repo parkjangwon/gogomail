@@ -182,6 +182,18 @@ func TestMapDirectoryAliasInsertErrorMapsActiveAddressUniqueIndex(t *testing.T) 
 	}
 }
 
+func TestMapDirectoryDelegationInsertErrorMapsActiveGrantUniqueIndex(t *testing.T) {
+	t.Parallel()
+
+	err := mapDirectoryDelegationInsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_directory_delegations_active_grant",
+	})
+	if !errors.Is(err, ErrDelegationAlreadyExists) {
+		t.Fatalf("mapped error = %v, want ErrDelegationAlreadyExists", err)
+	}
+}
+
 func TestDirectoryAliasCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -431,6 +443,30 @@ func TestNormalizeCheckGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestDirectoryDelegationCreateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryDelegationCreateAuditDetail(Delegation{
+		ID:           "delegation-1",
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		Role:         DelegationRoleWrite,
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("directoryDelegationCreateAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"delegation_id":"delegation-1"`) ||
+		!strings.Contains(string(detail), `"scope":"calendar"`) ||
+		!strings.Contains(string(detail), `"role":"write"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestNormalizeCheckDelegationRequest(t *testing.T) {
 	t.Parallel()
 
@@ -456,6 +492,32 @@ func TestNormalizeCheckDelegationRequest(t *testing.T) {
 		got.RequiredRole != DelegationRoleWrite ||
 		!got.ActiveOnly ||
 		got.MaxDepth != DefaultMembershipMaxDepth {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCreateDelegationRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCreateDelegationRequest(CreateDelegationRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-1 ",
+		DelegateKind: " GROUP ",
+		DelegateID:   " team-1 ",
+		Scope:        " Calendar ",
+		Role:         " WRITE ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCreateDelegationRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.OwnerKind != PrincipalKindResource ||
+		got.OwnerID != "room-1" ||
+		got.DelegateKind != PrincipalKindGroup ||
+		got.DelegateID != "team-1" ||
+		got.Scope != DelegationScopeCalendar ||
+		got.Role != DelegationRoleWrite {
 		t.Fatalf("request = %+v", got)
 	}
 }

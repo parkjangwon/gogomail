@@ -137,6 +137,16 @@ type CheckDelegationRequest struct {
 	MaxDepth     int
 }
 
+type CreateDelegationRequest struct {
+	CompanyID    string `json:"company_id"`
+	OwnerKind    string `json:"owner_kind"`
+	OwnerID      string `json:"owner_id"`
+	DelegateKind string `json:"delegate_kind"`
+	DelegateID   string `json:"delegate_id"`
+	Scope        string `json:"scope"`
+	Role         string `json:"role"`
+}
+
 type ListDelegationsRequest struct {
 	CompanyID    string
 	OwnerKind    string
@@ -327,6 +337,30 @@ func NormalizeCheckDelegationRequest(req CheckDelegationRequest) (CheckDelegatio
 	req.Scope = scope
 	req.RequiredRole = role
 	return req, nil
+}
+
+func NormalizeCreateDelegationRequest(req CreateDelegationRequest) (CreateDelegationRequest, error) {
+	check, err := NormalizeCheckDelegationRequest(CheckDelegationRequest{
+		CompanyID:    req.CompanyID,
+		OwnerKind:    req.OwnerKind,
+		OwnerID:      req.OwnerID,
+		DelegateKind: req.DelegateKind,
+		DelegateID:   req.DelegateID,
+		Scope:        req.Scope,
+		RequiredRole: req.Role,
+	})
+	if err != nil {
+		return CreateDelegationRequest{}, err
+	}
+	return CreateDelegationRequest{
+		CompanyID:    check.CompanyID,
+		OwnerKind:    check.OwnerKind,
+		OwnerID:      check.OwnerID,
+		DelegateKind: check.DelegateKind,
+		DelegateID:   check.DelegateID,
+		Scope:        check.Scope,
+		Role:         check.RequiredRole,
+	}, nil
 }
 
 func NormalizeListDelegationsRequest(req ListDelegationsRequest) (ListDelegationsRequest, error) {

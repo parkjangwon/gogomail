@@ -1772,10 +1772,14 @@ Next:
   it through contract-first admin endpoints rather than letting products query
   `directory_delegations` directly.
 - That first contract-first admin endpoint now exists as
-  `GET /admin/v1/directory/delegations`. Next management work should add
-  mutation workflows only after policy semantics, audit envelopes, and UX
-  expectations are explicit; do not let CalDAV, Drive, or shared inbox modules
-  create their own delegation CRUD surfaces.
+  `GET /admin/v1/directory/delegations`.
+- Audited delegation creation now exists as
+  `POST /admin/v1/directory/delegations`, backed by
+  `CreateDelegationWithAudit`. It validates active same-company owner/delegate
+  principals, scope, role, and self-delegation before inserting the grant and
+  `directory_delegation.create` audit row in one transaction. Next delegation
+  work should add delete/update flows with the same audit shape before CalDAV,
+  Drive, or shared inbox modules expose product-facing delegation UX.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and

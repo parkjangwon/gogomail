@@ -800,6 +800,14 @@ Admin operational read models also keep explicit envelope keys:
   `active_only` filters. `active_only` defaults to `true`; text filters reject
   CR/LF-bearing or oversized values before service dispatch, and the Directory
   boundary rejects principal IDs without their corresponding kind.
+- `POST /admin/v1/directory/delegations` accepts
+  `{company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role}`
+  and returns `{"directory_delegation":{...}}` after creating an active
+  Directory-owned delegation grant. The Directory boundary normalizes principal
+  kinds, scope, and role, rejects self-delegation, verifies active same-company
+  owner/delegate principals, maps duplicate active grants to a predictable
+  duplicate-delegation error, and records `directory_delegation.create` in the
+  same transaction as the grant insert.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

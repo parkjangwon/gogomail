@@ -817,6 +817,91 @@ func TestAdminDirectoryDelegationsHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminCreateDirectoryDelegationHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryDelegation: directory.Delegation{
+			ID:           "delegation-1",
+			CompanyID:    "company-1",
+			OwnerKind:    directory.PrincipalKindResource,
+			OwnerID:      "room-1",
+			DelegateKind: directory.PrincipalKindGroup,
+			DelegateID:   "team-1",
+			Scope:        directory.DelegationScopeCalendar,
+			Role:         directory.DelegationRoleWrite,
+			Status:       "active",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := []byte(`{"company_id":"company-1","owner_kind":"resource","owner_id":"room-1","delegate_kind":"group","delegate_id":"team-1","scope":"calendar","role":"write"}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/directory/delegations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Delegation directory.Delegation `json:"directory_delegation"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Delegation.ID != "delegation-1" {
+		t.Fatalf("directory_delegation = %+v", response.Delegation)
+	}
+	if service.lastDirectoryDelegationCreate.CompanyID != "company-1" ||
+		service.lastDirectoryDelegationCreate.OwnerKind != directory.PrincipalKindResource ||
+		service.lastDirectoryDelegationCreate.OwnerID != "room-1" ||
+		service.lastDirectoryDelegationCreate.DelegateKind != directory.PrincipalKindGroup ||
+		service.lastDirectoryDelegationCreate.DelegateID != "team-1" ||
+		service.lastDirectoryDelegationCreate.Scope != directory.DelegationScopeCalendar ||
+		service.lastDirectoryDelegationCreate.Role != directory.DelegationRoleWrite {
+		t.Fatalf("lastDirectoryDelegationCreate = %+v", service.lastDirectoryDelegationCreate)
+	}
+}
+
+func TestAdminCreateDirectoryDelegationHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+		ct   string
+	}{
+		{name: "unknown query", path: "/admin/v1/directory/delegations?dry_run=true", body: `{}`, ct: "application/json"},
+		{name: "bad content type", path: "/admin/v1/directory/delegations", body: `{}`, ct: "text/plain"},
+		{name: "unknown json field", path: "/admin/v1/directory/delegations", body: `{"company_id":"company-1","owner_kind":"resource","owner_id":"room-1","delegate_kind":"group","delegate_id":"team-1","scope":"calendar","role":"write","extra":true}`, ct: "application/json"},
+		{name: "self delegation", path: "/admin/v1/directory/delegations", body: `{"company_id":"company-1","owner_kind":"user","owner_id":"user-1","delegate_kind":"user","delegate_id":"user-1","scope":"calendar","role":"read"}`, ct: "application/json"},
+		{name: "bad role", path: "/admin/v1/directory/delegations", body: `{"company_id":"company-1","owner_kind":"resource","owner_id":"room-1","delegate_kind":"group","delegate_id":"team-1","scope":"calendar","role":"owner"}`, ct: "application/json"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", tc.ct)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryDelegationCreate.CompanyID != "" {
+				t.Fatalf("dispatched request %+v", service.lastDirectoryDelegationCreate)
+			}
+		})
+	}
+}
+
 func TestAdminCreateDirectoryAliasHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7124,6 +7209,7 @@ type fakeAdminService struct {
 	directoryPrincipals                         []directory.Principal
 	directoryAlias                              directory.Alias
 	directoryAliases                            []directory.Alias
+	directoryDelegation                         directory.Delegation
 	directoryDelegations                        []directory.Delegation
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
@@ -7210,6 +7296,7 @@ type fakeAdminService struct {
 	lastDirectoryAliasDeleteID                  string
 	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
 	lastDirectoryAliasList                      directory.ListAliasesRequest
+	lastDirectoryDelegationCreate               directory.CreateDelegationRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -7455,6 +7542,14 @@ func (f *fakeAdminService) ListDirectoryAliases(_ context.Context, req directory
 	}
 	f.lastDirectoryAliasList = req
 	return f.directoryAliases, nil
+}
+
+func (f *fakeAdminService) CreateDirectoryDelegation(_ context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error) {
+	if _, err := directory.NormalizeCreateDelegationRequest(req); err != nil {
+		return directory.Delegation{}, err
+	}
+	f.lastDirectoryDelegationCreate = req
+	return f.directoryDelegation, nil
 }
 
 func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {

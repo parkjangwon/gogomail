@@ -1711,6 +1711,16 @@ paths:
           $ref: "#/components/responses/DirectoryDelegationList"
         default:
           $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminDirectoryDelegation
+      summary: Create an audited Directory delegation relationship
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryDelegationCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DirectoryDelegation"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -3800,6 +3810,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryDelegationListEnvelope"
+    DirectoryDelegation:
+      description: Directory delegation envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryDelegationEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -4411,6 +4427,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryAliasCreateRequest"
+    DirectoryDelegationCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryDelegationCreateRequest"
     StatusUpdate:
       required: true
       content:
@@ -6374,6 +6396,37 @@ components:
         status:
           type: string
           enum: [active, deleted]
+    DirectoryDelegationCreateRequest:
+      type: object
+      required: [company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role]
+      properties:
+        company_id:
+          type: string
+          maxLength: 1024
+        owner_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        owner_id:
+          type: string
+          maxLength: 1024
+        delegate_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        delegate_id:
+          type: string
+          maxLength: 1024
+        scope:
+          type: string
+          enum: [calendar, contacts, drive, mailbox]
+        role:
+          type: string
+          enum: [read, write, manage]
+    DirectoryDelegationEnvelope:
+      type: object
+      required: [directory_delegation]
+      properties:
+        directory_delegation:
+          $ref: "#/components/schemas/DirectoryDelegation"
     DirectoryDelegationListEnvelope:
       type: object
       required: [directory_delegations]
