@@ -59,6 +59,10 @@ Current state:
   the calendar/address-book collection ETag before recursive deletion,
   returning HTTP 412 for `*` or matching validators and preserving child
   `.ics`/`.vcf` members.
+- CalDAV and CardDAV collection `PROPPATCH` uses the same `If-None-Match`
+  precondition gate before reading WebDAV XML bodies, keeping metadata
+  mutations cheap and fail-closed when clients send `*` or a matching
+  collection validator.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an

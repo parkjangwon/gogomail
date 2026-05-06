@@ -2145,6 +2145,62 @@ func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" {
+		t.Fatalf("calendar name = %q, want Work", calendar.Name)
+	}
+}
+
+func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" {
+		t.Fatalf("calendar name = %q, want Work", calendar.Name)
+	}
+}
+
 func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	t.Parallel()
 

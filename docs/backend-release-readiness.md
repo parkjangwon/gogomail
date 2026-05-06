@@ -27,6 +27,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preconditions against collection ETags before recursive calendar/address-book
   deletion, preserving child `.ics` and `.vcf` resources when native clients
   send `*` or a matching collection validator.
+- CalDAV and CardDAV collection `PROPPATCH` now honors the same
+  `If-None-Match` precondition gate before reading WebDAV XML request bodies,
+  keeping conditional metadata mutations aligned with collection delete
+  semantics.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

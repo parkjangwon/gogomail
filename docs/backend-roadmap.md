@@ -3753,6 +3753,10 @@ Implementation order:
       preconditions against calendar/address-book collection ETags before
       recursive deletion, preserving child `.ics` and `.vcf` members when
       native DAV clients send `*` or a matching collection validator.
+1374. CalDAV and CardDAV collection `PROPPATCH` now has explicit
+      `If-None-Match` regression coverage for matching ETags and `*`, proving
+      metadata mutations fail with HTTP 412 before WebDAV XML bodies are read
+      when native clients send a matching collection validator.
 
 ## Deferred until backend contracts stabilize
 

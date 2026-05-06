@@ -1057,6 +1057,62 @@ func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" {
+		t.Fatalf("address book name = %q, want Personal", book.Name)
+	}
+}
+
+func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" {
+		t.Fatalf("address book name = %q, want Personal", book.Name)
+	}
+}
+
 func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
 	t.Parallel()
 
