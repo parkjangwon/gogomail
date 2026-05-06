@@ -218,12 +218,16 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if err != nil {
 		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", rawObjectPath, err)
 	}
+	lastModified, err := parseS3StatLastModified(resp.Header.Get("Last-Modified"))
+	if err != nil {
+		return ObjectInfo{}, err
+	}
 	return ObjectInfo{
 		Path:         objectPath,
 		Size:         size,
 		ContentType:  cleanS3MetadataValue(resp.Header.Get("Content-Type"), maxS3ContentTypeBytes),
 		ETag:         cleanS3ETag(resp.Header.Get("ETag")),
-		LastModified: parseHTTPTime(resp.Header.Get("Last-Modified")),
+		LastModified: lastModified,
 	}, nil
 }
 
@@ -792,6 +796,18 @@ func parseHTTPTime(value string) time.Time {
 		return time.Time{}
 	}
 	return parsed
+}
+
+func parseS3StatLastModified(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := http.ParseTime(value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("stat s3 object: invalid last-modified")
+	}
+	return parsed, nil
 }
 
 func parseS3ListTime(value string) (time.Time, bool) {

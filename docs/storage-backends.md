@@ -317,7 +317,11 @@ S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
 bounded to safe single-line UTF-8 values before crossing the adapter boundary;
-malformed metadata is dropped while object identity and size remain available.
+malformed content type and ETag metadata is dropped while object identity and
+size remain available. A non-empty malformed `Last-Modified` header is rejected
+instead of being silently exposed as a zero timestamp, while missing timestamps
+and HTTP optional whitespace around otherwise valid timestamp values remain
+compatible.
 S3-compatible `GetRange` uses a signed `GET` request with a single
 `Range: bytes=start-end` header and requires a `206 Partial Content` response,
 so compatible providers cannot silently downgrade partial reads into full

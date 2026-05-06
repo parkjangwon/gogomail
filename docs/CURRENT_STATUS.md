@@ -3731,6 +3731,10 @@ The platform hardening sprint completed the following:
   enforce that stored object keys remain under the owning user's
   `drive/users/{user_id}/...` prefix before storage adapter access, tightening
   tenant isolation at the storage boundary.
+- S3-compatible `HEAD`/`Stat` metadata now rejects non-empty malformed
+  `Last-Modified` headers instead of silently returning zero timestamps,
+  while preserving HTTP optional-whitespace compatibility around otherwise
+  valid timestamp values.
 
 Next focus areas:
 

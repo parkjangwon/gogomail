@@ -135,6 +135,10 @@ Current state:
 - S3-compatible `Content-Length` parsing requires unsigned decimal digits for
   `HEAD` metadata and range-response validation, rejecting signed values such
   as `+5` instead of normalizing them as valid sizes.
+- S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
+  `Last-Modified` headers instead of silently returning zero timestamps,
+  while preserving HTTP optional-whitespace compatibility around otherwise
+  valid timestamp values.
 - S3-compatible `Content-Range` start, end, and total-size numbers reuse that
   unsigned decimal parser, rejecting signed values such as `bytes +1-3/5` or
   `bytes 1-3/+5` before range metadata can be normalized.
