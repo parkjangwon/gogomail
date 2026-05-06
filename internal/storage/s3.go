@@ -233,15 +233,23 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate etag")
 	}
+	etag, err := parseS3StatETag(rawETag)
+	if err != nil {
+		return ObjectInfo{}, err
+	}
 	rawContentType, ok := s3ResponseSingleHeader(resp, "Content-Type")
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate content-type")
 	}
+	contentType, err := parseS3StatContentType(rawContentType)
+	if err != nil {
+		return ObjectInfo{}, err
+	}
 	return ObjectInfo{
 		Path:         objectPath,
 		Size:         size,
-		ContentType:  cleanS3MetadataValue(rawContentType, maxS3ContentTypeBytes),
-		ETag:         cleanS3ETag(rawETag),
+		ContentType:  contentType,
+		ETag:         etag,
 		LastModified: lastModified,
 	}, nil
 }
@@ -730,6 +738,22 @@ func cleanS3ETag(value string) string {
 		return ""
 	}
 	return value
+}
+
+func parseS3StatContentType(value string) (string, error) {
+	contentType := cleanS3MetadataValue(value, maxS3ContentTypeBytes)
+	if strings.TrimSpace(value) != "" && contentType == "" {
+		return "", fmt.Errorf("stat s3 object: invalid content-type")
+	}
+	return contentType, nil
+}
+
+func parseS3StatETag(value string) (string, error) {
+	etag := cleanS3ETag(value)
+	if strings.TrimSpace(value) != "" && etag == "" {
+		return "", fmt.Errorf("stat s3 object: invalid etag")
+	}
+	return etag, nil
 }
 
 func validateS3ContentRange(value string, req RangeRequest) error {
