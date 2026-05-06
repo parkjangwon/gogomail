@@ -2885,6 +2885,12 @@ paths:
     get:
       operationId: listAdminAPIUsageExportArtifacts
       summary: List API usage export artifacts for a batch
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2901,6 +2907,12 @@ paths:
     post:
       operationId: createAdminAPIUsageExportArtifact
       summary: Register an external API usage export artifact
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2923,6 +2935,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportArtifact
       summary: API usage export artifact detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2945,6 +2963,12 @@ paths:
     post:
       operationId: writeAdminAPIUsageExportArtifact
       summary: Write an API usage export artifact object for a batch
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2967,6 +2991,12 @@ paths:
     get:
       operationId: downloadAdminAPIUsageExportArtifact
       summary: Download a stored API usage export artifact object
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2989,6 +3019,12 @@ paths:
     get:
       operationId: verifyAdminAPIUsageExportArtifact
       summary: Verify a stored API usage export artifact object
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path

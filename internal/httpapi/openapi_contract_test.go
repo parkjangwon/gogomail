@@ -64,6 +64,12 @@ func TestOpenAPIDraftPinsAdminBootstrapOperationsToAdminBase(t *testing.T) {
 		"GET /api-usage/export-batches/{id}",
 		"GET /api-usage/export-batches/{id}/handoff-readiness",
 		"GET /api-usage/export-batches/{id}/export",
+		"GET /api-usage/export-batches/{id}/artifacts",
+		"POST /api-usage/export-batches/{id}/artifacts",
+		"GET /api-usage/export-batches/{id}/artifacts/{artifact_id}",
+		"POST /api-usage/export-batches/{id}/artifacts/write",
+		"GET /api-usage/export-batches/{id}/artifacts/{artifact_id}/download",
+		"GET /api-usage/export-batches/{id}/artifacts/{artifact_id}/verification",
 	} {
 		block, ok := operations[route]
 		if !ok {
