@@ -1,8 +1,10 @@
 package smtpd
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +68,83 @@ func TestRunServerRejectsImplicitTLSWithoutConfig(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "requires TLS configuration") {
 		t.Fatalf("RunServer error = %v, want TLS configuration rejection", err)
+	}
+}
+
+func TestRunServerRejectsNegativeMaxConnections(t *testing.T) {
+	t.Parallel()
+
+	err := RunServer(context.Background(), ServerOptions{
+		Addr:           "127.0.0.1:0",
+		Domain:         "mail.example",
+		MaxConnections: -1,
+		Backend: gosmtp.BackendFunc(func(*gosmtp.Conn) (gosmtp.Session, error) {
+			return nil, nil
+		}),
+	})
+	if err == nil || !strings.Contains(err.Error(), "max connections") {
+		t.Fatalf("RunServer error = %v, want max connections rejection", err)
+	}
+}
+
+func TestSMTPConnectionLimitListenerRejectsExcessConnections(t *testing.T) {
+	t.Parallel()
+
+	base, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen returned error: %v", err)
+	}
+	t.Cleanup(func() { _ = base.Close() })
+	limited := newSMTPConnectionLimitListener(base, 1)
+
+	firstAccept := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := limited.Accept()
+		firstAccept <- conn
+	}()
+	client1, err := net.Dial("tcp", base.Addr().String())
+	if err != nil {
+		t.Fatalf("first Dial returned error: %v", err)
+	}
+	t.Cleanup(func() { _ = client1.Close() })
+	server1 := <-firstAccept
+	t.Cleanup(func() { _ = server1.Close() })
+
+	secondAccept := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := limited.Accept()
+		secondAccept <- conn
+	}()
+	client2, err := net.Dial("tcp", base.Addr().String())
+	if err != nil {
+		t.Fatalf("second Dial returned error: %v", err)
+	}
+	defer client2.Close()
+	_ = client2.SetReadDeadline(time.Now().Add(time.Second))
+	line, err := bufio.NewReader(client2).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read over-limit banner returned error: %v", err)
+	}
+	if !strings.HasPrefix(line, "421 4.3.2 Too many connections") {
+		t.Fatalf("over-limit banner = %q", line)
+	}
+
+	if err := server1.Close(); err != nil {
+		t.Fatalf("first server close returned error: %v", err)
+	}
+	client3, err := net.Dial("tcp", base.Addr().String())
+	if err != nil {
+		t.Fatalf("third Dial returned error: %v", err)
+	}
+	defer client3.Close()
+	select {
+	case server3 := <-secondAccept:
+		if server3 == nil {
+			t.Fatal("third accepted connection = nil")
+		}
+		_ = server3.Close()
+	case <-time.After(time.Second):
+		t.Fatal("third connection was not accepted after slot release")
 	}
 }
 

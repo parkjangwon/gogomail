@@ -38,6 +38,8 @@ delivery_farm_concurrency:
 delivery_domain_concurrency: example.com=5,example.net=3
 attachment_scan_timeout: 3s
 imap_max_connections: 512
+smtp_max_connections: 1024
+submission_max_connections: 256
 `)
 
 	cfg, err := LoadFile(path)
@@ -70,6 +72,12 @@ imap_max_connections: 512
 	}
 	if cfg.IMAPMaxConnections != 512 {
 		t.Fatalf("IMAPMaxConnections = %d, want 512", cfg.IMAPMaxConnections)
+	}
+	if cfg.SMTPMaxConnections != 1024 {
+		t.Fatalf("SMTPMaxConnections = %d, want 1024", cfg.SMTPMaxConnections)
+	}
+	if cfg.SubmissionMaxConnections != 256 {
+		t.Fatalf("SubmissionMaxConnections = %d, want 256", cfg.SubmissionMaxConnections)
 	}
 }
 

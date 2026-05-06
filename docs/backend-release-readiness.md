@@ -374,6 +374,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   initial `BYE [ALERT]`, preventing unbounded connection goroutine growth
   under client storms while leaving the default unlimited for development or
   externally limited deployments.
+- SMTP receive and submission listener concurrency is now operator-bounded
+  through `GOGOMAIL_SMTP_MAX_CONNECTIONS` / `smtp_max_connections` and
+  `GOGOMAIL_SUBMISSION_MAX_CONNECTIONS` / `submission_max_connections`;
+  positive caps hold one slot per active SMTP session and reject overflow
+  clients with transient `421 4.3.2` banners before close, limiting session
+  goroutine growth without changing the unlimited default.
 - IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
   before joining relative mailbox patterns, keeping namespace/root-style
   discovery probes compatible with root-relative mailbox storage.

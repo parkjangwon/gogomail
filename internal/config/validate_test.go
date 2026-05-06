@@ -473,6 +473,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "http empty", mutate: func(cfg *Config) { cfg.HTTPAddr = "" }},
 		{name: "smtp missing port", mutate: func(cfg *Config) { cfg.SMTPAddr = "localhost" }},
 		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
+		{name: "smtp max connections negative", mutate: func(cfg *Config) { cfg.SMTPMaxConnections = -1 }},
 		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
 		{name: "imap max connections negative", mutate: func(cfg *Config) { cfg.IMAPMaxConnections = -1 }},
@@ -482,6 +483,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "carddav newline", mutate: func(cfg *Config) { cfg.CardDAVAddr = ":8082\nbad" }},
 		{name: "imap tls cert newline", mutate: func(cfg *Config) { cfg.IMAPTLSCertFile = "cert.pem\nbad" }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
+		{name: "submission max connections negative", mutate: func(cfg *Config) { cfg.SubmissionMaxConnections = -1 }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
 		{name: "newline", mutate: func(cfg *Config) { cfg.HTTPAddr = ":8080\nbad" }},
 	}

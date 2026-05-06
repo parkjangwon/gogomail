@@ -36,6 +36,7 @@ type Config struct {
 	CardDAVAllowInsecureAuth            bool
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
+	SubmissionMaxConnections            int
 	SubmissionMaxRecipients             int
 	SubmissionMaxMessageBytes           int64
 	SubmissionAddReceivedHeader         bool
@@ -64,6 +65,7 @@ type Config struct {
 	SMTPDomain                          string
 	SMTPReadTimeout                     time.Duration
 	SMTPWriteTimeout                    time.Duration
+	SMTPMaxConnections                  int
 	SMTPMaxRecipients                   int
 	SMTPMaxMessageBytes                 int64
 	SMTPRequireAuth                     bool
@@ -228,6 +230,7 @@ func Load() Config {
 		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
+		SubmissionMaxConnections:            intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", 0),
 		SubmissionMaxRecipients:             intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", 100),
 		SubmissionMaxMessageBytes:           int64EnvOrDefault("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SubmissionAddReceivedHeader:         boolEnvOrDefault("GOGOMAIL_SUBMISSION_ADD_RECEIVED_HEADER", true),
@@ -256,6 +259,7 @@ func Load() Config {
 		SMTPDomain:                          envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
 		SMTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_SMTP_READ_TIMEOUT", 30*time.Second),
 		SMTPWriteTimeout:                    durationEnvOrDefault("GOGOMAIL_SMTP_WRITE_TIMEOUT", 30*time.Second),
+		SMTPMaxConnections:                  intEnvOrDefault("GOGOMAIL_SMTP_MAX_CONNECTIONS", 0),
 		SMTPMaxRecipients:                   intEnvOrDefault("GOGOMAIL_SMTP_MAX_RECIPIENTS", 100),
 		SMTPMaxMessageBytes:                 int64EnvOrDefault("GOGOMAIL_SMTP_MAX_MESSAGE_BYTES", 25*1024*1024),
 		SMTPRequireAuth:                     boolEnvOrDefault("GOGOMAIL_SMTP_REQUIRE_AUTH", false),

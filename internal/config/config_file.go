@@ -73,6 +73,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.SubmissionAddr, key)
 	case "submission_smtps_addr":
 		return setYAMLString(value, &cfg.SubmissionSMTPSAddr, key)
+	case "submission_max_connections":
+		return setYAMLInt(value, &cfg.SubmissionMaxConnections, key)
 	case "submission_max_recipients":
 		return setYAMLInt(value, &cfg.SubmissionMaxRecipients, key)
 	case "submission_max_message_bytes":
@@ -125,6 +127,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.MigrationDir, key)
 	case "smtp_domain":
 		return setYAMLString(value, &cfg.SMTPDomain, key)
+	case "smtp_max_connections":
+		return setYAMLInt(value, &cfg.SMTPMaxConnections, key)
 	case "smtp_auth_verification_enabled":
 		return setYAMLBool(value, &cfg.SMTPAuthVerificationEnabled, key)
 	case "smtp_authserv_id":

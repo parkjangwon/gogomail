@@ -1,10 +1,12 @@
 environment: development
 http_addr: :8080
 smtp_addr: :2525
+smtp_max_connections: 0
 imap_addr: :1143
 imap_max_connections: 0
 submission_addr: :2587
 submission_smtps_addr: ""
+submission_max_connections: 0
 smtp_domain: localhost
 smtp_auth_verification_enabled: false
 smtp_authserv_id: localhost
