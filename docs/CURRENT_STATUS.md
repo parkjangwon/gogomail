@@ -30,16 +30,18 @@ native CalDAV/iCalendar clients can share a protocol-correct backend.
 
 CalDAV remains an experimental/backend-only release slice: useful protocol
 building blocks now exist, but the module is not yet advertised as public
-client-ready. The next compatibility gates are broader recurrence semantics
-including overrides and detached instances, scheduling semantics,
-retention-aware sync deltas, collection-deletion sync, broader native-client
-testing, and the platform boundaries below.
+client-ready. The next compatibility gates are broader recurrence edge cases,
+scheduling semantics, retention-aware sync deltas, collection-deletion sync,
+broader native-client testing, and the platform boundaries below.
 CalDAV `calendar-query` and `free-busy-query` now expand bounded VEVENT
 recurrence sets from RFC 5545 `RRULE`/`EXDATE`/`RDATE` parsing when evaluating
 time ranges, so recurring events can be discovered and included in VFREEBUSY
 responses without treating recurrence as simple one-shot event metadata. The
 expansion is capped per object to avoid unbounded CPU or memory use on dense or
-unbounded recurrence rules.
+unbounded recurrence rules. CalDAV iCalendar validation now also permits the
+common recurring-object shape of one VEVENT master plus same-UID
+`RECURRENCE-ID` detached override VEVENTs, and time-range/free-busy evaluation
+uses detached overrides while excluding the replaced master occurrences.
 CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
 scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
 traversal controlled by the request body's `sync-level` rather than accidentally

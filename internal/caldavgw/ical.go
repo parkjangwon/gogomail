@@ -42,7 +42,7 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 	if err := validateICalendarBounds(cal.Component); err != nil {
 		return ICalendarObject{}, err
 	}
-	var found []ICalendarObject
+	var found []calendarComponentObject
 	for _, child := range cal.Children {
 		component := strings.ToUpper(strings.TrimSpace(child.Name))
 		switch component {
@@ -51,16 +51,53 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 			if err != nil {
 				return ICalendarObject{}, err
 			}
-			found = append(found, ICalendarObject{UID: uid, Component: component})
+			hasRecurrenceID := false
+			if _, ok, err := eventRecurrenceID(child); err != nil {
+				return ICalendarObject{}, err
+			} else {
+				hasRecurrenceID = ok
+			}
+			found = append(found, calendarComponentObject{
+				ICalendarObject: ICalendarObject{UID: uid, Component: component},
+				HasRecurrenceID: hasRecurrenceID,
+			})
 		}
 	}
 	if len(found) == 0 {
 		return ICalendarObject{}, fmt.Errorf("iCalendar object must contain a supported calendar component")
 	}
 	if len(found) > 1 {
-		return ICalendarObject{}, fmt.Errorf("iCalendar object must contain exactly one supported calendar component")
+		if err := validateDetachedComponents(found); err != nil {
+			return ICalendarObject{}, err
+		}
 	}
-	return found[0], nil
+	return found[0].ICalendarObject, nil
+}
+
+type calendarComponentObject struct {
+	ICalendarObject
+	HasRecurrenceID bool
+}
+
+func validateDetachedComponents(found []calendarComponentObject) error {
+	first := found[0]
+	if first.Component != ComponentVEVENT {
+		return fmt.Errorf("iCalendar object with multiple supported components must contain recurring VEVENT overrides")
+	}
+	masters := 0
+	for _, object := range found {
+		if object.UID != first.UID || object.Component != first.Component {
+			return fmt.Errorf("iCalendar object with multiple supported components must use one UID and component type")
+		}
+		if object.HasRecurrenceID {
+			continue
+		}
+		masters++
+	}
+	if masters != 1 {
+		return fmt.Errorf("iCalendar recurring VEVENT object must contain exactly one master component")
+	}
+	return nil
 }
 
 func ProjectCalendarData(body []byte, req CalendarDataRequest) ([]byte, error) {
@@ -141,15 +178,30 @@ func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, er
 	if cal == nil || cal.Component == nil {
 		return false, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
 	}
+	excludedRecurrences := veventOverrideRecurrenceIDs(cal.Children)
 	for _, child := range cal.Children {
 		if strings.EqualFold(child.Name, ComponentVEVENT) {
-			return eventOverlapsRange(child, *timeRange)
+			uid, err := calendarComponentUID(child)
+			if err != nil {
+				return false, err
+			}
+			excluded := excludedRecurrences[uid]
+			if child.Props.Get(ical.PropRecurrenceID) != nil {
+				excluded = nil
+			}
+			matches, err := eventOverlapsRange(child, *timeRange, excluded)
+			if err != nil {
+				return false, err
+			}
+			if matches {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
 }
 
-func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
+func eventOverlapsRange(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}) (bool, error) {
 	start, end, duration, err := eventTimeSpanWithDuration(component)
 	if err != nil {
 		return false, err
@@ -159,7 +211,7 @@ func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, e
 		return false, fmt.Errorf("decode VEVENT recurrence: %w", err)
 	}
 	if recurrence == nil {
-		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start)
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences)
 		if err != nil {
 			return false, err
 		}
@@ -183,6 +235,9 @@ func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, e
 		if !occurrenceStart.Before(timeRange.End) {
 			return false, nil
 		}
+		if recurrenceExcluded(occurrenceStart, excludedRecurrences) {
+			continue
+		}
 		if timeSpansOverlap(occurrenceStart, occurrenceStart.Add(duration), timeRange) {
 			return true, nil
 		}
@@ -199,10 +254,19 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 		return nil, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
 	}
 	var periods []BusyPeriod
+	excludedRecurrences := veventOverrideRecurrenceIDs(cal.Children)
 	for _, child := range cal.Children {
 		switch {
 		case strings.EqualFold(child.Name, ComponentVEVENT):
-			objectPeriods, err := eventBusyPeriods(child, timeRange)
+			uid, err := calendarComponentUID(child)
+			if err != nil {
+				return nil, err
+			}
+			excluded := excludedRecurrences[uid]
+			if child.Props.Get(ical.PropRecurrenceID) != nil {
+				excluded = nil
+			}
+			objectPeriods, err := eventBusyPeriods(child, timeRange, excluded)
 			if err != nil {
 				return nil, err
 			}
@@ -218,7 +282,7 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 	return periods, nil
 }
 
-func eventBusyPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPeriod, error) {
+func eventBusyPeriods(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}) ([]BusyPeriod, error) {
 	event := ical.Event{Component: component}
 	status, err := event.Status()
 	if err != nil {
@@ -247,7 +311,7 @@ func eventBusyPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPer
 		return nil, fmt.Errorf("decode VEVENT recurrence: %w", err)
 	}
 	if recurrence == nil {
-		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start)
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences)
 		if err != nil {
 			return nil, err
 		}
@@ -276,12 +340,51 @@ func eventBusyPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPer
 		if !occurrenceStart.Before(timeRange.End) {
 			return periods, nil
 		}
+		if recurrenceExcluded(occurrenceStart, excludedRecurrences) {
+			continue
+		}
 		period, ok := clippedBusyPeriod(occurrenceStart, occurrenceStart.Add(duration), busyType, timeRange)
 		if ok {
 			periods = append(periods, period)
 		}
 	}
 	return periods, nil
+}
+
+func veventOverrideRecurrenceIDs(children []*ical.Component) map[string]map[int64]struct{} {
+	excluded := make(map[string]map[int64]struct{})
+	for _, child := range children {
+		if !strings.EqualFold(child.Name, ComponentVEVENT) {
+			continue
+		}
+		recurrenceID, ok, err := eventRecurrenceID(child)
+		if err != nil || !ok {
+			continue
+		}
+		uid, err := calendarComponentUID(child)
+		if err != nil {
+			continue
+		}
+		bucket := excluded[uid]
+		if bucket == nil {
+			bucket = make(map[int64]struct{})
+			excluded[uid] = bucket
+		}
+		bucket[recurrenceID.UnixNano()] = struct{}{}
+	}
+	return excluded
+}
+
+func eventRecurrenceID(component *ical.Component) (time.Time, bool, error) {
+	prop := component.Props.Get(ical.PropRecurrenceID)
+	if prop == nil {
+		return time.Time{}, false, nil
+	}
+	date, err := prop.DateTime(time.UTC)
+	if err != nil {
+		return time.Time{}, false, fmt.Errorf("decode VEVENT RECURRENCE-ID: %w", err)
+	}
+	return date.UTC(), true, nil
 }
 
 func freeBusyComponentPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPeriod, error) {
@@ -429,7 +532,7 @@ func eventTimeSpanWithDuration(component *ical.Component) (time.Time, time.Time,
 	return start, end, duration, nil
 }
 
-func explicitRecurrenceStarts(component *ical.Component, start time.Time) ([]time.Time, bool, error) {
+func explicitRecurrenceStarts(component *ical.Component, start time.Time, excludedRecurrences map[int64]struct{}) ([]time.Time, bool, error) {
 	explicit := len(component.Props[ical.PropRecurrenceDates]) > 0 || len(component.Props[ical.PropExceptionDates]) > 0
 	starts := []time.Time{start.UTC()}
 	for _, prop := range component.Props[ical.PropRecurrenceDates] {
@@ -438,9 +541,6 @@ func explicitRecurrenceStarts(component *ical.Component, start time.Time) ([]tim
 			return nil, explicit, fmt.Errorf("decode VEVENT RDATE: %w", err)
 		}
 		starts = append(starts, date.UTC())
-	}
-	if len(component.Props[ical.PropExceptionDates]) == 0 {
-		return starts, explicit, nil
 	}
 	excluded := make(map[int64]struct{}, len(component.Props[ical.PropExceptionDates]))
 	for _, prop := range component.Props[ical.PropExceptionDates] {
@@ -455,9 +555,20 @@ func explicitRecurrenceStarts(component *ical.Component, start time.Time) ([]tim
 		if _, ok := excluded[occurrenceStart.UnixNano()]; ok {
 			continue
 		}
+		if recurrenceExcluded(occurrenceStart, excludedRecurrences) {
+			continue
+		}
 		filtered = append(filtered, occurrenceStart)
 	}
 	return filtered, explicit, nil
+}
+
+func recurrenceExcluded(occurrenceStart time.Time, excludedRecurrences map[int64]struct{}) bool {
+	if len(excludedRecurrences) == 0 {
+		return false
+	}
+	_, ok := excludedRecurrences[occurrenceStart.UTC().UnixNano()]
+	return ok
 }
 
 func explicitRecurrencesOverlap(starts []time.Time, duration time.Duration, timeRange TimeRange) bool {

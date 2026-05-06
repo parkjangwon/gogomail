@@ -32,18 +32,33 @@ func TestParseICalendarObjectAllowsTimezonePlusOneCalendarComponent(t *testing.T
 	}
 }
 
+func TestParseICalendarObjectAllowsDetachedRecurringEventOverrides(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	object, err := ParseICalendarObject(body)
+	if err != nil {
+		t.Fatalf("ParseICalendarObject returned error: %v", err)
+	}
+	if object.UID != "event-1@example.com" || object.Component != ComponentVEVENT {
+		t.Fatalf("object = %+v", object)
+	}
+}
+
 func TestParseICalendarObjectRejectsInvalidObjects(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string][]byte{
-		"empty":             nil,
-		"not calendar":      []byte("BEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\n"),
-		"missing uid":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"duplicate uid":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"multiple objects":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"unsupported only":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
-		"oversized uid":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"too many children": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"empty":              nil,
+		"not calendar":       []byte("BEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\n"),
+		"missing uid":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"duplicate uid":      []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"multiple objects":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"two masters":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"mixed override uid": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"unsupported only":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
+		"oversized uid":      []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"too many children":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
 	}
 	for name, body := range tests {
 		name, body := name, body
@@ -198,6 +213,32 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260502T030000Z"),
+		End:   mustCalDAVTime(t, "20260502T033000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want detached override match")
+	}
+	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260502T010000Z"),
+		End:   mustCalDAVTime(t, "20260502T013000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true for overridden master occurrence")
+	}
+}
+
 func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	t.Parallel()
 
@@ -265,6 +306,25 @@ func TestCalendarObjectBusyPeriodsExpandsRecurringEvent(t *testing.T) {
 	}
 	if got := periods[1].Start.Format("20060102T150405Z"); got != "20260503T010000Z" {
 		t.Fatalf("second period start = %s", got)
+	}
+}
+
+func TestCalendarObjectBusyPeriodsUsesDetachedOverride(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260502T000000Z"),
+		End:   mustCalDAVTime(t, "20260503T000000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 1 {
+		t.Fatalf("periods = %+v, want one override period", periods)
+	}
+	if got := periods[0].Start.Format("20060102T150405Z"); got != "20260502T030000Z" {
+		t.Fatalf("period start = %s", got)
 	}
 }
 

@@ -1736,6 +1736,11 @@ Current state:
   and `RDATE` support from the shared iCalendar library. Dense or unbounded
   rules are capped per object so native-client time-range scans cannot turn
   one stored event into unbounded gateway work.
+- CalDAV iCalendar object validation now accepts one VEVENT master plus
+  same-UID `RECURRENCE-ID` detached override VEVENTs in a single stored object.
+  `calendar-query` and `free-busy-query` scan all VEVENTs in the object and
+  suppress the replaced master occurrence when an override is present, matching
+  common RFC 5545 recurring-event client output more closely.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1746,9 +1751,9 @@ Current state:
 Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
-  gates are closed: broader recurrence semantics such as detached overridden
-  instances, sync retention and collection-deletion deltas, slug/path-alias
-  support for friendlier MKCALENDAR clients, scheduling semantics, and broader
+  gates are closed: broader recurrence edge cases, sync retention and
+  collection-deletion deltas, slug/path-alias support for friendlier
+  MKCALENDAR clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Before public shared/delegated calendar or resource-booking features,
   extend the initial `internal/directory` user/organization/group/resource

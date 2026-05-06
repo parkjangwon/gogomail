@@ -2892,6 +2892,12 @@ Implementation order:
       rules are capped per object so native-client time-range scans remain
       predictable while recurring events become visible in query and VFREEBUSY
       responses.
+1196. CalDAV iCalendar object validation now accepts the common recurring-event
+      storage shape of one VEVENT master plus same-UID `RECURRENCE-ID`
+      detached override VEVENTs. Calendar-query and free-busy evaluation now
+      scan all VEVENTs in a stored object and suppress the replaced master
+      occurrence when an override exists, improving RFC 5545 native-client
+      compatibility without introducing a product-specific event model.
 
 ## Deferred until backend contracts stabilize
 
@@ -2901,8 +2907,8 @@ Implementation order:
 - etcd
 - Vault
 - IMAP
-- CalDAV public/client-ready compatibility, including detached recurrence
-  overrides and broader native-client scheduling behavior
+- CalDAV public/client-ready compatibility, including broader recurrence edge
+  cases and native-client scheduling behavior
 - Directory/Identity expansion for delegated relationships, effective
   resource booking policy beyond the initial principal tables, resolver, alias
   lookup, bounded membership expansion, company-scoped delegation relationship
