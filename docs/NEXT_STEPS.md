@@ -647,6 +647,10 @@ Current state:
   `UID` search-key set syntax before authentication or selected-mailbox checks,
   so signed values such as `SEARCH +1` and `UID SEARCH UID +7` fail as grammar
   errors rather than state errors.
+- IMAP `SEARCH` top-level sequence-set criteria and `UID SEARCH UID`
+  sequence-set values now reject quoted or literal-framed set strings such as
+  `SEARCH "1"` or `UID SEARCH UID {1+}\r\n7`, preserving RFC set atoms while
+  leaving string values available for text/header search keys.
 - IMAP `SORT`, `UID SORT`, `THREAD`, and `UID THREAD` reuse the same
   syntax-only search-key validation before authentication or selected-mailbox
   checks, keeping malformed embedded search criteria consistent across the

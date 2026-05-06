@@ -862,6 +862,11 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 
 func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
 	switch command {
+	case "SEARCH":
+		if imapSearchHasNonAtomSequenceSetArgument(line, fields, 2, 2) {
+			_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
+			return true, false, err
+		}
 	case "FETCH":
 		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
 			_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
@@ -887,6 +892,11 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 			return false, false, nil
 		}
 		switch strings.ToUpper(fields[2]) {
+		case "SEARCH":
+			if imapSearchHasNonAtomSequenceSetArgument(line, fields, 3, 3) {
+				_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
+				return true, false, err
+			}
 		case "FETCH":
 			if !imapRawFieldIsAtom(line, 3) {
 				_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
@@ -915,6 +925,32 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 		}
 	}
 	return false, false, nil
+}
+
+func imapSearchHasNonAtomSequenceSetArgument(line string, fields []string, criteriaStart int, rawCriteriaStart int) bool {
+	for i := criteriaStart; i < len(fields); i++ {
+		field := fields[i]
+		if !imapSearchFieldRequiresAtomSet(fields, i, criteriaStart) {
+			continue
+		}
+		if imapSearchCriterionLooksLikeSequenceSet(field) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
+			return true
+		}
+	}
+	return false
+}
+
+func imapSearchFieldRequiresAtomSet(fields []string, index int, criteriaStart int) bool {
+	if index > criteriaStart {
+		switch strings.ToUpper(fields[index-1]) {
+		case "FROM", "TO", "CC", "BCC", "SUBJECT", "BODY", "TEXT":
+			return false
+		}
+	}
+	if index > criteriaStart+1 && strings.EqualFold(fields[index-2], "HEADER") {
+		return false
+	}
+	return true
 }
 
 func imapMalformedCommandResponse(line string) string {
