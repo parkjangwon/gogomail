@@ -3749,6 +3749,9 @@ The platform hardening sprint completed the following:
 - IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
   token, rejecting leading/trailing whitespace variants as malformed
   termination instead of silently ending the idle state.
+- IMAP `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed
+  PLAIN payloads before plaintext privacy policy checks, preserving
+  syntax-before-policy diagnostics without authenticating before TLS.
 
 Next focus areas:
 
