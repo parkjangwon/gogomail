@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Repository struct {
@@ -13,6 +15,7 @@ type Repository struct {
 }
 
 var ErrPrincipalNotFound = errors.New("directory principal not found")
+var ErrAliasAlreadyExists = errors.New("directory alias already exists")
 
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
@@ -90,6 +93,73 @@ WHERE lower(a.alias_address_ace) = $1
 	return alias, nil
 }
 
+func (r *Repository) CreateAlias(ctx context.Context, req CreateAliasRequest) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCreateAliasRequest(req)
+	if err != nil {
+		return Alias{}, err
+	}
+	domainName, err := r.activeDomainNameACE(ctx, req.CompanyID, req.DomainID)
+	if err != nil {
+		return Alias{}, err
+	}
+	if !aliasAddressMatchesDomain(req.Address, domainName) {
+		return Alias{}, fmt.Errorf("alias address domain does not match directory domain")
+	}
+	target, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.TargetID,
+		Kind:       req.TargetKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		return Alias{}, fmt.Errorf("resolve directory alias target: %w", err)
+	}
+	if target.CompanyID != req.CompanyID {
+		return Alias{}, fmt.Errorf("directory alias target belongs to a different company")
+	}
+	const query = `
+INSERT INTO directory_aliases (
+  company_id,
+  domain_id,
+  alias_address,
+  alias_address_ace,
+  target_kind,
+  target_id
+)
+VALUES ($1::uuid, $2::uuid, $3, $3, $4, $5::uuid)
+RETURNING id::text,
+          company_id::text,
+          domain_id::text,
+          alias_address,
+          alias_address_ace,
+          target_kind,
+          target_id::text,
+          status`
+	var alias Alias
+	if err := r.db.QueryRowContext(ctx, query,
+		req.CompanyID,
+		req.DomainID,
+		req.Address,
+		req.TargetKind,
+		req.TargetID,
+	).Scan(
+		&alias.ID,
+		&alias.CompanyID,
+		&alias.DomainID,
+		&alias.Address,
+		&alias.AddressACE,
+		&alias.TargetKind,
+		&alias.TargetID,
+		&alias.Status,
+	); err != nil {
+		return Alias{}, mapDirectoryAliasInsertError(err)
+	}
+	alias.TargetPrincipal = target
+	return alias, nil
+}
+
 func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -161,6 +231,41 @@ LIMIT $7`
 		return nil, fmt.Errorf("list directory alias rows: %w", err)
 	}
 	return aliases, nil
+}
+
+func (r *Repository) activeDomainNameACE(ctx context.Context, companyID string, domainID string) (string, error) {
+	const query = `
+SELECT d.name_ace
+FROM domains d
+JOIN companies c ON c.id = d.company_id
+WHERE c.id = $1::uuid
+  AND d.id = $2::uuid
+  AND c.status = 'active'
+  AND d.status = 'active'`
+	var name string
+	if err := r.db.QueryRowContext(ctx, query, companyID, domainID).Scan(&name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("directory domain not found")
+		}
+		return "", fmt.Errorf("read directory domain: %w", err)
+	}
+	return strings.ToLower(strings.TrimSpace(name)), nil
+}
+
+func aliasAddressMatchesDomain(address string, domain string) bool {
+	_, addressDomain, ok := strings.Cut(address, "@")
+	return ok && strings.EqualFold(addressDomain, domain)
+}
+
+func mapDirectoryAliasInsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_directory_aliases_active_address":
+			return fmt.Errorf("%w", ErrAliasAlreadyExists)
+		}
+	}
+	return fmt.Errorf("create directory alias: %w", err)
 }
 
 func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsRequest) ([]Principal, error) {

@@ -2730,6 +2730,13 @@ Implementation order:
        contract. This gives future admin alias screens and shared inbox
        management a contract-first read surface while alias mutation policy and
        audit semantics remain future work.
+1175g. Directory/Identity now exposes a guarded `CreateAlias` repository
+       mutation boundary. It normalizes alias addresses, requires active
+       company/domain scope, verifies the alias address domain matches the
+       Directory domain, resolves an active same-company target principal, and
+       maps active-address unique-index races to a predictable duplicate-alias
+       error. Admin alias write APIs remain gated on explicit audit envelope,
+       ownership policy, and shared-inbox UX semantics.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

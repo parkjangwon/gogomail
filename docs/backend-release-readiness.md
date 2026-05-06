@@ -460,6 +460,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `directory_aliases` queries. The admin backend API now exposes that boundary
   through `GET /admin/v1/directory/aliases`, with OpenAPI and backend contract
   coverage for target-principal hydrated list responses.
+  Directory alias creation now has a guarded repository mutation boundary that
+  normalizes addresses, requires active company/domain scope, enforces
+  alias-domain alignment, verifies active same-company target principals, and
+  maps active-address unique-index races to a stable duplicate-alias error.
+  Public/admin alias write endpoints remain outside this release slice until
+  ownership policy and audit semantics are explicit.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

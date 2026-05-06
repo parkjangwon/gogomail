@@ -1792,9 +1792,12 @@ Next:
   keep using `ListAliases`/`ResolveAlias` instead of reaching into
   `directory_aliases` directly.
 - That admin API read path now exists as `GET /admin/v1/directory/aliases`.
-  Next alias work should add mutation workflows only after audit envelope,
-  ownership policy, duplicate-address behavior, and shared-inbox UX semantics
-  are explicit.
+- Directory alias creation now has a repository mutation boundary that
+  normalizes addresses, requires active domain scope, enforces alias-domain
+  alignment, verifies an active same-company target principal, and returns a
+  predictable duplicate-alias error on the active-address unique index. Next
+  alias work should expose admin mutation workflows only after audit envelope,
+  ownership policy, and shared-inbox UX semantics are explicit.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

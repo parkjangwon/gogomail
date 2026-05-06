@@ -3,6 +3,7 @@ package directory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -269,6 +270,81 @@ VALUES
 	}
 	if len(aliases) != 0 {
 		t.Fatalf("active alias list returned deleted rows: %+v", aliases)
+	}
+}
+
+func TestPostgresCreateAliasValidatesDomainTargetAndUniqueness(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	alias, err := repo.CreateAlias(ctx, CreateAliasRequest{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		Address:    " Ops@Example.COM ",
+		TargetKind: PrincipalKindGroup,
+		TargetID:   seed.teamID,
+	})
+	if err != nil {
+		t.Fatalf("CreateAlias returned error: %v", err)
+	}
+	if alias.Address != "ops@example.com" ||
+		alias.AddressACE != "ops@example.com" ||
+		alias.CompanyID != seed.companyID ||
+		alias.DomainID != seed.domainID ||
+		alias.TargetKind != PrincipalKindGroup ||
+		alias.TargetID != seed.teamID ||
+		alias.TargetPrincipal.ID != seed.teamID ||
+		alias.TargetPrincipal.Kind != PrincipalKindGroup ||
+		alias.Status != "active" {
+		t.Fatalf("alias = %+v", alias)
+	}
+
+	resolved, err := repo.ResolveAlias(ctx, ResolveAliasRequest{Address: "ops@example.com", ActiveOnly: true})
+	if err != nil {
+		t.Fatalf("ResolveAlias returned error: %v", err)
+	}
+	if resolved.ID != alias.ID || resolved.TargetPrincipal.ID != seed.teamID {
+		t.Fatalf("resolved alias = %+v, want id %q target %q", resolved, alias.ID, seed.teamID)
+	}
+
+	_, err = repo.CreateAlias(ctx, CreateAliasRequest{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		Address:    "ops@example.com",
+		TargetKind: PrincipalKindResource,
+		TargetID:   seed.roomID,
+	})
+	if !errors.Is(err, ErrAliasAlreadyExists) {
+		t.Fatalf("duplicate CreateAlias error = %v, want ErrAliasAlreadyExists", err)
+	}
+
+	_, err = repo.CreateAlias(ctx, CreateAliasRequest{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		Address:    "ops@example.net",
+		TargetKind: PrincipalKindGroup,
+		TargetID:   seed.teamID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "domain does not match") {
+		t.Fatalf("mismatched domain error = %v, want domain rejection", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE directory_groups SET status = 'suspended' WHERE id = $1::uuid`, seed.teamID); err != nil {
+		t.Fatalf("suspend alias target group: %v", err)
+	}
+	_, err = repo.CreateAlias(ctx, CreateAliasRequest{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		Address:    "inactive-team@example.com",
+		TargetKind: PrincipalKindGroup,
+		TargetID:   seed.teamID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "target") {
+		t.Fatalf("inactive target error = %v, want target rejection", err)
 	}
 }
 

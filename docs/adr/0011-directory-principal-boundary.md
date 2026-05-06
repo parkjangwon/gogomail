@@ -64,6 +64,11 @@ booking policy, and scheduling semantics are implemented explicitly.
   `directory_aliases` directly. The admin API may expose that bounded list
   boundary for diagnostics and management screens, but alias mutation policy
   and audit semantics must be explicit before write endpoints are added.
+  Directory-owned alias creation may still exist below the API layer as a
+  guarded repository mutation boundary: it must normalize addresses, require
+  active tenant/domain scope, enforce alias-address/domain alignment, resolve
+  active same-company target principals, and return predictable duplicate
+  errors instead of leaking database-driver details.
 - Direct group-membership checks are now shared and auditable before recursive
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles
