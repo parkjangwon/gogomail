@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP UID EXPUNGE sparse coverage)
+Last updated: 2026-05-06 (updated after IMAP multi-expunge SEARCHRES fix)
 
 ## Current phase
 
@@ -102,6 +102,10 @@ IMAP `UID EXPUNGE` now has sparse/mixed regression coverage: protocol tests
 exercise missing UID members, and PostgreSQL coverage verifies that only
 existing `\Deleted` messages are expunged while unmarked and missing UIDs are
 ignored.
+IMAP saved SEARCHRES state now applies the same adjusted sequence-number
+semantics as emitted multi-message `EXPUNGE` responses, preventing a batch
+expunge from removing the wrong saved-search entry after earlier expunges shift
+later message sequence numbers.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

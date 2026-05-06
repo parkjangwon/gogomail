@@ -3742,13 +3742,17 @@ func (state *imapConnState) removeExpungedFromSavedSearch(summaries []MessageSum
 	sort.Slice(expunged, func(i, j int) bool {
 		return expunged[i] < expunged[j]
 	})
-	for _, sequenceNumber := range expunged {
+	for i, sequenceNumber := range expunged {
+		adjusted := sequenceNumber - uint32(i)
+		if adjusted == 0 {
+			adjusted = 1
+		}
 		next := state.savedSearch[:0]
 		for _, saved := range state.savedSearch {
 			switch {
-			case saved.sequenceNumber == sequenceNumber:
+			case saved.sequenceNumber == adjusted:
 				continue
-			case saved.sequenceNumber > sequenceNumber:
+			case saved.sequenceNumber > adjusted:
 				saved.sequenceNumber--
 			}
 			next = append(next, saved)

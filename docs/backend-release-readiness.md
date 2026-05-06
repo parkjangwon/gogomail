@@ -136,6 +136,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   mailboxes marked `UIDNotSticky`, preserving non-persistent UID semantics.
 - IMAP `UID EXPUNGE` sparse/mixed UID-set behavior is covered across protocol
   and PostgreSQL paths, preserving correct `\Deleted` filtering.
+- IMAP saved SEARCHRES state stays aligned after multi-message expunge
+  responses by applying the same adjusted sequence-number semantics as the
+  emitted `EXPUNGE` lines.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
