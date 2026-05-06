@@ -2537,6 +2537,9 @@ The platform hardening sprint completed the following:
   unsafe sync tokens before SQL work. This still does not advertise public
   native-client compatibility because broader vCard compatibility and client
   compatibility tests are still pending.
+- CardDAV `OPTIONS` and 405 responses now share an explicit implemented-method
+  list, keeping `Allow` aligned with actual address book handlers instead of
+  future WebDAV method ambitions.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
   content length, no-store headers, and `Last-Modified`, while honoring

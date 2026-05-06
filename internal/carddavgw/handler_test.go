@@ -265,6 +265,38 @@ func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 	}
 }
 
+func TestHandlerOptionsAdvertisesOnlyImplementedMethods(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, httptest.NewRequest(MethodOptions, RootPath+"/", nil))
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	want := strings.Join(ImplementedMethods(), ", ")
+	if got := rec.Header().Get("Allow"); got != want {
+		t.Fatalf("Allow = %q, want %q", got, want)
+	}
+}
+
+func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, httptest.NewRequest("COPY", "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil))
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	want := strings.Join(ImplementedMethods(), ", ")
+	if got := rec.Header().Get("Allow"); got != want {
+		t.Fatalf("Allow = %q, want %q", got, want)
+	}
+}
+
 func TestHandlerGetAndHeadContactObject(t *testing.T) {
 	t.Parallel()
 

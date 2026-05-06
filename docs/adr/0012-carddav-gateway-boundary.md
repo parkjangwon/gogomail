@@ -146,6 +146,10 @@ Basic auth only when explicitly configured for non-production environments, and
 reuses the existing HTTP server timeout/header guardrails. Broader CardDAV
 vCard compatibility and native-client verification will be added only when their
 semantics are implemented and tested.
+HTTP `Allow` headers follow the same implemented-capability rule. The gateway
+advertises only methods with actual request handlers through `OPTIONS` and 405
+responses, so future WebDAV method work cannot accidentally appear as a
+client-ready contact-server capability.
 
 ## Consequences
 

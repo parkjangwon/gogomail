@@ -2535,6 +2535,9 @@ Implementation order:
       shared by `OPTIONS` and 405 responses, so future constants such as `MOVE`
       do not leak into native-client capability discovery before handler
       semantics exist.
+1157. CardDAV `Allow` headers now also come from an explicit implemented-method
+      list shared by `OPTIONS` and 405 responses, matching the CalDAV capability
+      pattern and keeping native contact clients aligned with real handlers.
 
 ## Deferred until backend contracts stabilize
 
