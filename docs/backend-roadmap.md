@@ -3580,6 +3580,9 @@ Implementation order:
       semantics by rejecting URL-decoded surrounding whitespace, embedded
       whitespace, and non-printable ASCII before rate limiting, audit, or
       service dispatch.
+1333. IMAP selected-state sequence-set commands now drain queued mailbox
+      events before dispatch, ensuring live `EXISTS`/`EXPUNGE` updates shape
+      `*`, range, search, and mutation resolution before backend work begins.
 
 ## Deferred until backend contracts stabilize
 

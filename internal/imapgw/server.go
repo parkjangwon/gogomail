@@ -388,6 +388,11 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return false, err
 	}
 	command := strings.ToUpper(fields[1])
+	if imapCommandShouldDrainSelectedEvents(command) {
+		if err := s.drainMailboxEvents(writer, state); err != nil {
+			return false, err
+		}
+	}
 	switch command {
 	case "CAPABILITY":
 		if len(fields) != 2 {
@@ -1300,6 +1305,15 @@ func (state *imapConnState) deselectMailbox() {
 	state.readOnly = false
 	state.savedSearch = nil
 	state.closeSubscription()
+}
+
+func imapCommandShouldDrainSelectedEvents(command string) bool {
+	switch strings.ToUpper(command) {
+	case "FETCH", "STORE", "COPY", "MOVE", "SEARCH", "SORT", "THREAD", "CHECK", "CLOSE", "UNSELECT", "EXPUNGE", "UID":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {

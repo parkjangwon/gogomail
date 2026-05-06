@@ -83,6 +83,9 @@ Current state:
 - IMAP authenticated `SELECT`/`EXAMINE` attempts now deselect the current
   mailbox before attempting the new selection, so failed selection attempts
   leave no stale selected mailbox for later selected-state commands.
+- IMAP selected-state sequence-set commands now drain queued mailbox events
+  before command dispatch, keeping `*` and range resolution aligned with live
+  `EXISTS`/`EXPUNGE` updates instead of the selection-time message count.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.

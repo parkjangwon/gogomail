@@ -204,6 +204,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   selected mailbox before attempting the new selection, so failed selection
   attempts leave no stale mailbox state for subsequent selected-state
   commands.
+- IMAP selected-state commands that resolve sequence sets drain queued mailbox
+  events before dispatch, so live `EXISTS`/`EXPUNGE` updates are reflected in
+  `*`, ranges, search criteria, and selected mutations before backend work.
 - IMAP `SELECT`/`EXAMINE` cancel newly opened mailbox event subscriptions when
   response writing fails before the subscription reaches connection state,
   preventing listener leaks during broken-client handshakes.
