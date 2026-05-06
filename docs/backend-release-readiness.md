@@ -632,7 +632,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   duplicate diagnostics instead of being folded into unsupported-item failures.
   LIST-STATUS also reports empty, unparenthesized, or unsupported status return
   lists with specific tagged `BAD` diagnostics instead of generic LIST arity
-  failures.
+  failures, and duplicated `STATUS` return options are rejected before any
+  later status list can replace an earlier one.
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading the
   XML request body when no active collection exists at that path, preserving
   the UUID-only creation contract without extra parse work.

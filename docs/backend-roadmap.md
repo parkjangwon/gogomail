@@ -3657,6 +3657,10 @@ Implementation order:
       bucket/storage prefix, and `DeletePrefix` coverage proves sibling prefix
       keys are not deleted if an S3-compatible provider returns an overly broad
       list page.
+1353. IMAP LIST-STATUS now rejects duplicated `STATUS` return options before
+      mailbox metadata lookup, so forms such as `RETURN (STATUS (...) CHILDREN
+      STATUS (...))` cannot silently replace earlier requested status data with
+      a later status list.
 
 ## Deferred until backend contracts stabilize
 

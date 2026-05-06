@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 logical-prefix list filtering)
+Last updated: 2026-05-07 (updated after LIST-STATUS duplicate return-option rejection)
 
 ## Current phase
 
@@ -191,7 +191,10 @@ authentication or selected-mailbox checks, keeping client charset fallback
 behavior deterministic even during capability probing. IMAP `STATUS` and
 advertised `LIST-STATUS` now distinguish duplicated status data items from
 unknown/unsupported items, including before authentication state checks, so
-client diagnostics remain precise at the status-item grammar boundary. IMAP
+client diagnostics remain precise at the status-item grammar boundary.
+`LIST-STATUS` now also rejects duplicated `STATUS` return options such as
+`RETURN (STATUS (MESSAGES) CHILDREN STATUS (UNSEEN))`, preventing later status
+lists from silently replacing earlier requested status data. IMAP
 `LSUB` now also rejects LIST-EXTENDED-style option probes such as
 `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication with a
 dedicated tagged `BAD`, keeping subscribed-mailbox discovery on the RFC 3501
@@ -3338,8 +3341,8 @@ The platform hardening sprint completed the following:
   remainder on close, keeping preview/cancel download paths friendly to HTTP
   connection reuse without unbounded cleanup reads.
 - IMAP `STATUS` and LIST-STATUS item parsing now rejects duplicate status data
-  items before mailbox metadata lookup, avoiding ambiguous duplicate
-  client-visible status pairs.
+  items and duplicated LIST-STATUS `STATUS` return options before mailbox
+  metadata lookup, avoiding ambiguous duplicate client-visible status pairs.
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading or
   parsing the XML request body when no active collection already exists at that
   path, keeping the UUID-only creation contract cheap and predictable while

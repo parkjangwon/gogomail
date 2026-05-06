@@ -5306,7 +5306,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\na6 LIST \"\" * RETURN (STATUS (MESSAGES MESSAGES))\r\na7 LIST \"\" * RETURN (CHILDREN STATUS (MESSAGES))\r\na8 LIST \"\" * RETURN (STATUS ())\r\na9 LIST \"\" * RETURN (STATUS ( ))\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\na6 LIST \"\" * RETURN (STATUS (MESSAGES MESSAGES))\r\na7 LIST \"\" * RETURN (CHILDREN STATUS (MESSAGES))\r\na8 LIST \"\" * RETURN (STATUS ())\r\na9 LIST \"\" * RETURN (STATUS ( ))\r\na10 LIST \"\" * RETURN (STATUS (MESSAGES) CHILDREN STATUS (UNSEEN))\r\n")); err != nil {
 		t.Fatalf("write list-status: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -5333,6 +5333,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 		"a7 OK LIST completed\r\n",
 		"a8 BAD LIST requires status data items\r\n",
 		"a9 BAD LIST requires status data items\r\n",
+		"a10 BAD LIST status return option is duplicated\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5343,7 +5344,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 			t.Fatalf("list-status response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a11 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
