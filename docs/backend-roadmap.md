@@ -2991,6 +2991,9 @@ Implementation order:
       `If-Match` and `If-None-Match` headers into a single ETag list before
       evaluating object and collection preconditions, preserving HTTP
       field-combination semantics for cache validation and write guards.
+1217. IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
+      `date-day-fixed` syntax, accepting zero-padded or space-padded days while
+      rejecting bare one-digit dates before backend append dispatch.
 
 ## Deferred until backend contracts stabilize
 

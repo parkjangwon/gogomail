@@ -651,7 +651,7 @@ func TestServerValidatesAppendSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 APPEND\r\na2 APPEND inbox BAD\r\na3 APPEND &Jjo! {5+}\r\nhello\r\na4 APPEND inbox BAD {5+}\r\nhello\r\na5 APPEND inbox (\\Seen {5+}\r\nhello\r\na6 APPEND inbox {5+}\r\nhello\r\na7 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 APPEND\r\na2 APPEND inbox BAD\r\na3 APPEND &Jjo! {5+}\r\nhello\r\na4 APPEND inbox BAD {5+}\r\nhello\r\na5 APPEND inbox (\\Seen {5+}\r\nhello\r\na6 APPEND inbox \"5-May-2026 12:34:56 +0900\" {5+}\r\nhello\r\na7 APPEND inbox {5+}\r\nhello\r\na8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write append auth commands: %v", err)
 	}
 	want := []string{
@@ -660,9 +660,10 @@ func TestServerValidatesAppendSyntaxBeforeAuthentication(t *testing.T) {
 		"a3 BAD APPEND mailbox name is not valid modified UTF-7\r\n",
 		"a4 BAD APPEND options are unsupported\r\n",
 		"a5 BAD APPEND options are unsupported\r\n",
-		"a6 NO authentication required\r\n",
+		"a6 BAD APPEND options are unsupported\r\n",
+		"a7 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a7 OK LOGOUT completed\r\n",
+		"a8 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -8004,7 +8005,7 @@ func TestIMAPQuotedStringPreservesIdentitySpacing(t *testing.T) {
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	t.Parallel()
 
-	flags, internalDate, ok := imapAppendOptions([]string{`(\Seen`, `\Deleted)`, "5-May-2026 12:34:56 +0900"})
+	flags, internalDate, ok := imapAppendOptions([]string{`(\Seen`, `\Deleted)`, "05-May-2026 12:34:56 +0900"})
 	if !ok {
 		t.Fatal("imapAppendOptions rejected valid options")
 	}
@@ -8021,6 +8022,9 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	}
 	if !paddedInternalDate.Equal(wantDate) {
 		t.Fatalf("space-padded internal date = %s, want %s", paddedInternalDate, wantDate)
+	}
+	if _, _, ok := imapAppendOptions([]string{"5-May-2026 12:34:56 +0900"}); ok {
+		t.Fatal("imapAppendOptions accepted non-fixed one-digit date-day")
 	}
 	if _, _, ok := imapAppendOptions([]string{`(\Bad)`}); ok {
 		t.Fatal("imapAppendOptions accepted unsupported flag")

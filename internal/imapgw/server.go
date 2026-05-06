@@ -3289,10 +3289,19 @@ func imapAppendOptions(fields []string) (MessageFlags, time.Time, bool) {
 }
 
 func parseIMAPAppendDate(value string) (time.Time, bool) {
+	if len(value) < len("01-Jan-2006 00:00:00 +0000") || value[2] != '-' {
+		return time.Time{}, false
+	}
+	if value[0] == ' ' {
+		if value[1] < '1' || value[1] > '9' {
+			return time.Time{}, false
+		}
+	} else if value[0] < '0' || value[0] > '9' || value[1] < '0' || value[1] > '9' {
+		return time.Time{}, false
+	}
 	for _, layout := range []string{
 		"_2-Jan-2006 15:04:05 -0700",
 		"02-Jan-2006 15:04:05 -0700",
-		"2-Jan-2006 15:04:05 -0700",
 	} {
 		parsed, err := time.Parse(layout, value)
 		if err == nil {

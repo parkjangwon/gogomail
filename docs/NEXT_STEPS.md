@@ -109,6 +109,9 @@ Current state:
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.
 - `APPEND`, `STORE`, and `UID STORE` flag-list parsing rejects unparenthesized
   or unbalanced flag lists instead of silently trimming stray parentheses.
+- IMAP `APPEND` internaldate parsing enforces RFC 3501 fixed-width
+  `date-day-fixed` syntax, accepting zero-padded or space-padded days while
+  rejecting bare one-digit dates such as `"5-May-2026 ..."`.
 - `STORE` and `UID STORE` honor selected-mailbox `[PERMANENTFLAGS]`, rejecting
   otherwise valid system flags when the mailbox did not advertise them as
   permanent before backend mutation dispatch. Empty add/remove flag lists stay
@@ -1041,8 +1044,9 @@ Current state:
   now syntax `BAD` responses rather than unsupported-command responses.
   Successful append results include the new message sequence number for precise
   selected-mailbox `EXISTS` event counts. APPEND internaldate parsing accepts
-  RFC 3501 space-padded one-digit date-days such as `" 5-May-2026 ..."`.
-  Service-level APPEND rejects CR/LF-bearing or oversized user/mailbox
+  RFC 3501 space-padded one-digit date-days such as `" 5-May-2026 ..."` while
+  rejecting bare one-digit dates such as `"5-May-2026 ..."`. Service-level
+  APPEND rejects CR/LF-bearing or oversized user/mailbox
   identifiers before repository lookup, spooling, parsing, storage, or quota
   work.
 - Service-level IMAP `STORE`, `COPY`, `MOVE`, and `EXPUNGE` mutations reject
