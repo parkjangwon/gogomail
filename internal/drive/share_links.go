@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,9 +20,12 @@ const (
 	ShareLinkStatusActive  = "active"
 	ShareLinkStatusRevoked = "revoked"
 
-	DefaultShareLinkTTL = 7 * 24 * time.Hour
-	MaxShareLinkTTL     = 30 * 24 * time.Hour
+	DefaultShareLinkTTL    = 7 * 24 * time.Hour
+	MaxShareLinkTTL        = 30 * 24 * time.Hour
+	MaxShareLinkTokenBytes = 256
 )
+
+var ErrShareLinkPermissionDenied = errors.New("drive share link does not allow download")
 
 type ShareLink struct {
 	ID          string    `json:"id"`
@@ -55,6 +59,16 @@ type ListShareLinksRequest struct {
 type RevokeShareLinkRequest struct {
 	UserID string
 	LinkID string
+}
+
+type ResolveShareLinkRequest struct {
+	Token string
+	Now   time.Time
+}
+
+type ResolvedShareLink struct {
+	ShareLink ShareLink
+	Node      Node
 }
 
 func NewShareLinkToken() (string, error) {
@@ -152,6 +166,18 @@ func ValidateRevokeShareLinkRequest(req RevokeShareLinkRequest) (RevokeShareLink
 	return RevokeShareLinkRequest{UserID: userID, LinkID: linkID}, nil
 }
 
+func ValidateResolveShareLinkRequest(req ResolveShareLinkRequest) (ResolveShareLinkRequest, string, error) {
+	tokenHash, _, err := hashShareLinkToken(req.Token)
+	if err != nil {
+		return ResolveShareLinkRequest{}, "", err
+	}
+	now := req.Now
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	return ResolveShareLinkRequest{Token: req.Token, Now: now.UTC()}, tokenHash, nil
+}
+
 func ValidateShareLinkPermission(permission string) (string, error) {
 	permission = strings.TrimSpace(strings.ToLower(permission))
 	if permission == "" {
@@ -182,7 +208,7 @@ func hashShareLinkToken(token string) (string, string, error) {
 	if len(token) < 32 {
 		return "", "", fmt.Errorf("drive share token is too short")
 	}
-	if len(token) > 256 {
+	if len(token) > MaxShareLinkTokenBytes {
 		return "", "", fmt.Errorf("drive share token is too long")
 	}
 	if strings.ContainsAny(token, "\r\n\t ") {
@@ -199,6 +225,95 @@ func hashShareLinkToken(token string) (string, string, error) {
 		suffix = suffix[len(suffix)-8:]
 	}
 	return hex.EncodeToString(sum[:]), suffix, nil
+}
+
+func (r *Repository) ResolveShareLink(ctx context.Context, req ResolveShareLinkRequest) (ResolvedShareLink, error) {
+	if r == nil || r.db == nil {
+		return ResolvedShareLink{}, fmt.Errorf("database handle is required")
+	}
+	req, tokenHash, err := ValidateResolveShareLinkRequest(req)
+	if err != nil {
+		return ResolvedShareLink{}, err
+	}
+	const query = `
+SELECT
+  l.id::text,
+  l.user_id::text,
+  l.node_id::text,
+  l.token_suffix,
+  l.permission,
+  l.status,
+  l.expires_at,
+  l.created_at,
+  l.updated_at,
+  l.revoked_at,
+  n.id::text,
+  n.company_id::text,
+  n.domain_id::text,
+  n.user_id::text,
+  COALESCE(n.parent_id::text, ''),
+  n.node_type,
+  n.name,
+  n.normalized_name,
+  n.mime_type,
+  n.size,
+  n.storage_backend,
+  n.storage_path,
+  n.checksum_sha256,
+  n.status,
+  n.created_at,
+  n.updated_at
+FROM drive_share_links l
+JOIN drive_nodes n ON n.id = l.node_id AND n.user_id = l.user_id
+JOIN users u ON u.id = l.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE l.token_hash = $1
+  AND l.status = 'active'
+  AND l.expires_at > $2
+  AND n.node_type = 'file'
+  AND n.status = 'active'
+  AND u.status = 'active'
+  AND d.status = 'active'`
+	var resolved ResolvedShareLink
+	var revokedAt sql.NullTime
+	err = r.db.QueryRowContext(ctx, query, tokenHash, req.Now).Scan(
+		&resolved.ShareLink.ID,
+		&resolved.ShareLink.UserID,
+		&resolved.ShareLink.NodeID,
+		&resolved.ShareLink.TokenSuffix,
+		&resolved.ShareLink.Permission,
+		&resolved.ShareLink.Status,
+		&resolved.ShareLink.ExpiresAt,
+		&resolved.ShareLink.CreatedAt,
+		&resolved.ShareLink.UpdatedAt,
+		&revokedAt,
+		&resolved.Node.ID,
+		&resolved.Node.CompanyID,
+		&resolved.Node.DomainID,
+		&resolved.Node.UserID,
+		&resolved.Node.ParentID,
+		&resolved.Node.Type,
+		&resolved.Node.Name,
+		&resolved.Node.NormalizedName,
+		&resolved.Node.MIMEType,
+		&resolved.Node.Size,
+		&resolved.Node.StorageBackend,
+		&resolved.Node.StoragePath,
+		&resolved.Node.ChecksumSHA256,
+		&resolved.Node.Status,
+		&resolved.Node.CreatedAt,
+		&resolved.Node.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ResolvedShareLink{}, fmt.Errorf("active drive share link not found")
+		}
+		return ResolvedShareLink{}, fmt.Errorf("resolve drive share link: %w", err)
+	}
+	if revokedAt.Valid {
+		resolved.ShareLink.RevokedAt = revokedAt.Time
+	}
+	return resolved, nil
 }
 
 func (r *Repository) CreateShareLink(ctx context.Context, req CreateShareLinkRequest) (ShareLink, error) {

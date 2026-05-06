@@ -580,6 +580,24 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /drive/share-links/{id}:
+    get:
+      operationId: resolveDriveShareLink
+      summary: Resolve an active public Drive share link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 256
+          description: Raw public Drive share token.
+      responses:
+        "200":
+          $ref: "#/components/responses/DriveSharedFile"
+        "404":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
     delete:
       operationId: revokeDriveShareLink
       summary: Revoke an active Drive share link
@@ -589,6 +607,57 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/DriveShareLink"
+        default:
+          $ref: "#/components/responses/Error"
+  /drive/share-links/{id}/download:
+    head:
+      operationId: headDriveSharedFileDownload
+      summary: Return public Drive shared-file download headers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 256
+          description: Raw public Drive share token.
+      responses:
+        "200":
+          description: Shared Drive file download headers
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: downloadDriveSharedFile
+      summary: Download a public Drive shared file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 256
+          description: Raw public Drive share token.
+        - name: Range
+          in: header
+          schema:
+            type: string
+            maxLength: 8192
+          description: Optional single HTTP byte range. Multi-range requests are rejected.
+      responses:
+        "200":
+          description: Shared Drive file bytes
+        "206":
+          description: Partial shared Drive file bytes
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "416":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
   /mailbox/overview:
@@ -3327,6 +3396,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DriveShareLinkListEnvelope"
+    DriveSharedFile:
+      description: Public Drive shared-file metadata envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DriveSharedFileEnvelope"
     DriveStagedObject:
       description: Drive staged object envelope
       content:
@@ -4403,6 +4478,38 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DriveShareLink"
+    DriveSharedFile:
+      type: object
+      required: [node_id, name, size, permission, expires_at, updated_at]
+      properties:
+        node_id:
+          type: string
+        name:
+          type: string
+        mime_type:
+          type: string
+        size:
+          type: integer
+          format: int64
+          minimum: 0
+        checksum_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        permission:
+          type: string
+          enum: [view, download]
+        expires_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DriveSharedFileEnvelope:
+      type: object
+      required: [drive_shared_file]
+      properties:
+        drive_shared_file:
+          $ref: "#/components/schemas/DriveSharedFile"
     DriveUsageSummary:
       type: object
       required: [user_id, quota_used, quota_limit, total_nodes, active_nodes, trashed_nodes, deleted_nodes, folder_count, file_count, active_bytes, trashed_bytes, deleted_bytes, pending_upload_sessions, uploading_upload_sessions, failed_upload_sessions, pending_upload_bytes]

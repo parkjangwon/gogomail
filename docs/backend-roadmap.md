@@ -2562,6 +2562,12 @@ Implementation order:
       response code: plaintext TLS-required sessions advertise
       `STARTTLS`/`LOGINDISABLED`, and implicit TLS sessions advertise immediate
       `SASL-IR`/`AUTH=PLAIN` login capability.
+1163. Drive public share-link resolution/download now has a backend API
+      boundary: token paths resolve only by SHA-256 hash, enforce active,
+      unexpired, unrevoked links plus active owner/domain/file state, keep
+      storage backend/path details out of metadata responses, and reuse the
+      no-store, checksum, HEAD, and single-range download contract for
+      `download`-permission links.
 
 ## Deferred until backend contracts stabilize
 

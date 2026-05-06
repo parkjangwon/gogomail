@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
@@ -162,6 +163,102 @@ func TestDriveRevokeShareLinkHandler(t *testing.T) {
 	}
 	if service.revokeShareLinkReq.UserID != "user-1" || service.revokeShareLinkReq.LinkID != "link-1" {
 		t.Fatalf("revoke share-link request = %+v, want user/link", service.revokeShareLinkReq)
+	}
+}
+
+func TestDriveResolveShareLinkHandler(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("s", 40)
+	service := &fakeDriveService{resolvedShareLink: drive.ResolvedShareLink{
+		ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionView, ExpiresAt: time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)},
+		Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, StoragePath: "drive/users/user-1/objects/node-1", ChecksumSHA256: strings.Repeat("A", 64), Status: drive.NodeStatusActive},
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.resolveShareLinkReq.Token != token {
+		t.Fatalf("resolve request = %+v, want token", service.resolveShareLinkReq)
+	}
+	if strings.Contains(rec.Body.String(), "storage_path") || strings.Contains(rec.Body.String(), "storage_backend") {
+		t.Fatalf("response body leaks storage internals: %s", rec.Body.String())
+	}
+	var body struct {
+		File struct {
+			NodeID         string `json:"node_id"`
+			Name           string `json:"name"`
+			ChecksumSHA256 string `json:"checksum_sha256"`
+			Permission     string `json:"permission"`
+		} `json:"drive_shared_file"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.File.NodeID != "node-1" || body.File.Name != "Report.pdf" || body.File.Permission != drive.ShareLinkPermissionView || body.File.ChecksumSHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("shared file = %+v, want sanitized metadata", body.File)
+	}
+}
+
+func TestDriveSharedDownloadHandlerSupportsByteRange(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("d", 40)
+	service := &fakeDriveService{
+		metadata: drive.FileMetadata{
+			Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, ChecksumSHA256: strings.Repeat("b", 64), Status: drive.NodeStatusActive},
+			Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+		},
+		rangeDownload: drive.FileDownload{
+			Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, ChecksumSHA256: strings.Repeat("b", 64), Status: drive.NodeStatusActive},
+			Body: io.NopCloser(strings.NewReader("nte")),
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+	req.Header.Set("Range", "bytes=2-4")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPartialContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.statSharedReq.Token != token {
+		t.Fatalf("stat shared request = %+v, want token", service.statSharedReq)
+	}
+	if service.openSharedRangeReq.Token != token || service.openSharedStorageRange.Offset != 2 || service.openSharedStorageRange.Length != 3 {
+		t.Fatalf("shared range request = %+v/%+v, want token/range", service.openSharedRangeReq, service.openSharedStorageRange)
+	}
+	if rec.Body.String() != "nte" {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Range"); got != "bytes 2-4/7" {
+		t.Fatalf("Content-Range = %q", got)
+	}
+}
+
+func TestDriveSharedDownloadHandlerRejectsViewOnlyLink(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("v", 40)
+	service := &fakeDriveService{err: drive.ErrShareLinkPermissionDenied}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -953,11 +1050,17 @@ type fakeDriveService struct {
 	usageSummary              drive.UsageSummary
 	shareLink                 drive.ShareLink
 	shareLinks                []drive.ShareLink
+	resolvedShareLink         drive.ResolvedShareLink
 	err                       error
 	getReq                    drive.GetNodeRequest
 	openReq                   drive.OpenFileRequest
 	openRangeReq              drive.OpenFileRangeRequest
 	statReq                   drive.OpenFileRequest
+	resolveShareLinkReq       drive.ResolveShareLinkRequest
+	openSharedReq             drive.ResolveShareLinkRequest
+	openSharedRangeReq        drive.ResolveShareLinkRequest
+	openSharedStorageRange    storage.RangeRequest
+	statSharedReq             drive.ResolveShareLinkRequest
 	usageReq                  drive.GetUsageSummaryRequest
 	createShareLinkReq        drive.CreateShareLinkRequest
 	listShareLinksReq         drive.ListShareLinksRequest
@@ -1076,6 +1179,57 @@ func (f *fakeDriveService) RevokeShareLink(_ context.Context, req drive.RevokeSh
 		return drive.ShareLink{}, f.err
 	}
 	return f.shareLink, nil
+}
+
+func (f *fakeDriveService) ResolveShareLink(_ context.Context, req drive.ResolveShareLinkRequest) (drive.ResolvedShareLink, error) {
+	f.resolveShareLinkReq = req
+	if f.err != nil {
+		return drive.ResolvedShareLink{}, f.err
+	}
+	return f.resolvedShareLink, nil
+}
+
+func (f *fakeDriveService) OpenSharedFile(_ context.Context, req drive.ResolveShareLinkRequest) (drive.FileDownload, error) {
+	f.openSharedReq = req
+	if f.err != nil {
+		return drive.FileDownload{}, f.err
+	}
+	if f.download.Body != nil {
+		return f.download, nil
+	}
+	return drive.FileDownload{
+		Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Body: io.NopCloser(strings.NewReader("content")),
+	}, nil
+}
+
+func (f *fakeDriveService) OpenSharedFileRange(_ context.Context, req drive.ResolveShareLinkRequest, rangeReq storage.RangeRequest) (drive.FileDownload, error) {
+	f.openSharedRangeReq = req
+	f.openSharedStorageRange = rangeReq
+	if f.err != nil {
+		return drive.FileDownload{}, f.err
+	}
+	if f.rangeDownload.Body != nil {
+		return f.rangeDownload, nil
+	}
+	return drive.FileDownload{
+		Node: drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: rangeReq.Length, Status: drive.NodeStatusActive},
+		Body: io.NopCloser(strings.NewReader("content")),
+	}, nil
+}
+
+func (f *fakeDriveService) StatSharedFile(_ context.Context, req drive.ResolveShareLinkRequest) (drive.FileMetadata, error) {
+	f.statSharedReq = req
+	if f.err != nil {
+		return drive.FileMetadata{}, f.err
+	}
+	if f.metadata.Node.ID != "" {
+		return f.metadata, nil
+	}
+	return drive.FileMetadata{
+		Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+		Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+	}, nil
 }
 
 func (f *fakeDriveService) CreateFileFromObject(_ context.Context, req drive.CreateFileFromObjectRequest) (drive.Node, error) {

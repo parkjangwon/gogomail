@@ -360,6 +360,35 @@ func (s *Service) driveFileObject(ctx context.Context, req OpenFileRequest) (Nod
 	return node, storagePath, store, nil
 }
 
+func (s *Service) sharedDriveFileObject(ctx context.Context, req ResolveShareLinkRequest, requireDownload bool) (ResolvedShareLink, string, storage.Store, error) {
+	if s == nil || s.repo == nil {
+		return ResolvedShareLink{}, "", nil, fmt.Errorf("drive repository is required")
+	}
+	resolved, err := s.repo.ResolveShareLink(ctx, req)
+	if err != nil {
+		return ResolvedShareLink{}, "", nil, err
+	}
+	if requireDownload && resolved.ShareLink.Permission != ShareLinkPermissionDownload {
+		return ResolvedShareLink{}, "", nil, ErrShareLinkPermissionDenied
+	}
+	if resolved.Node.Type != NodeTypeFile {
+		return ResolvedShareLink{}, "", nil, fmt.Errorf("drive node is not a file")
+	}
+	storageBackend, err := validateStorageBackend(resolved.Node.StorageBackend)
+	if err != nil {
+		return ResolvedShareLink{}, "", nil, err
+	}
+	storagePath, err := validateUserObjectPath(resolved.Node.UserID, resolved.Node.StoragePath)
+	if err != nil {
+		return ResolvedShareLink{}, "", nil, fmt.Errorf("unsafe shared drive file storage path: %w", err)
+	}
+	store := s.stores[storageBackend]
+	if store == nil {
+		return ResolvedShareLink{}, "", nil, fmt.Errorf("storage store %q is required", storageBackend)
+	}
+	return resolved, storagePath, store, nil
+}
+
 func (s *Service) GetUsageSummary(ctx context.Context, req GetUsageSummaryRequest) (UsageSummary, error) {
 	if s == nil || s.repo == nil {
 		return UsageSummary{}, fmt.Errorf("drive repository is required")
@@ -386,6 +415,53 @@ func (s *Service) RevokeShareLink(ctx context.Context, req RevokeShareLinkReques
 		return ShareLink{}, fmt.Errorf("drive repository is required")
 	}
 	return s.repo.RevokeShareLink(ctx, req)
+}
+
+func (s *Service) ResolveShareLink(ctx context.Context, req ResolveShareLinkRequest) (ResolvedShareLink, error) {
+	if s == nil || s.repo == nil {
+		return ResolvedShareLink{}, fmt.Errorf("drive repository is required")
+	}
+	return s.repo.ResolveShareLink(ctx, req)
+}
+
+func (s *Service) OpenSharedFile(ctx context.Context, req ResolveShareLinkRequest) (FileDownload, error) {
+	resolved, storagePath, store, err := s.sharedDriveFileObject(ctx, req, true)
+	if err != nil {
+		return FileDownload{}, err
+	}
+	body, err := store.Get(ctx, storagePath)
+	if err != nil {
+		return FileDownload{}, fmt.Errorf("open shared drive file object: %w", err)
+	}
+	return FileDownload{Node: resolved.Node, Body: body}, nil
+}
+
+func (s *Service) OpenSharedFileRange(ctx context.Context, req ResolveShareLinkRequest, rangeReq storage.RangeRequest) (FileDownload, error) {
+	rangeReq, err := storage.ValidateRangeRequest(rangeReq)
+	if err != nil {
+		return FileDownload{}, err
+	}
+	resolved, storagePath, store, err := s.sharedDriveFileObject(ctx, req, true)
+	if err != nil {
+		return FileDownload{}, err
+	}
+	body, err := store.GetRange(ctx, storagePath, rangeReq)
+	if err != nil {
+		return FileDownload{}, fmt.Errorf("open shared drive file object range: %w", err)
+	}
+	return FileDownload{Node: resolved.Node, Body: body}, nil
+}
+
+func (s *Service) StatSharedFile(ctx context.Context, req ResolveShareLinkRequest) (FileMetadata, error) {
+	resolved, storagePath, store, err := s.sharedDriveFileObject(ctx, req, true)
+	if err != nil {
+		return FileMetadata{}, err
+	}
+	info, err := store.Stat(ctx, storagePath)
+	if err != nil {
+		return FileMetadata{}, fmt.Errorf("stat shared drive file object: %w", err)
+	}
+	return FileMetadata{Node: resolved.Node, Object: info}, nil
 }
 
 func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {
