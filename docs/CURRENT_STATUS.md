@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP IDLE unexpected-command recovery coverage)
+Last updated: 2026-05-06 (updated after IMAP partial empty HEADER.FIELDS coverage)
 
 ## Current phase
 
@@ -43,6 +43,10 @@ fetches consistent with top-level header fetch behavior. IMAP IDLE recovery
 semantics are also regression-covered: any line other than standalone `DONE`
 while idling returns a tagged `BAD` for the pending IDLE command, exits idle
 state, and leaves the authenticated session usable for the next legal command.
+Partial-window forms of the same empty top-level header-field-list requests,
+such as `BODY.PEEK[HEADER.FIELDS ()]<0.1>` and
+`BODY.PEEK[HEADER.FIELDS.NOT ()]<0.10>`, are now regression-covered so preview
+clients get deterministic bounded literals.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
@@ -1155,6 +1159,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists, returning only the header terminator for empty
   include requests and the full header block when the exclude list is empty.
+- IMAP `FETCH`/`UID FETCH` has regression coverage for partial-window empty
+  top-level header-field-list requests, including `HEADER.FIELDS ()<0.1>` and
+  `HEADER.FIELDS.NOT ()<0.10>` preview forms.
 - IMAP `FETCH`/`UID FETCH` applies the same empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` semantics to `message/rfc822` MIME-part sections such
   as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]`.

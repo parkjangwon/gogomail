@@ -7113,7 +7113,30 @@ func TestServerHandlesUIDFetchHeaderAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
 		t.Fatalf("empty header fields completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 UID FETCH 9 BODY.PEEK[HEADER.FIELDS ()]<0.1>\r\n")); err != nil {
+		t.Fatalf("write uid fetch partial empty header fields: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read partial empty header fields literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS ()]<0> {1}\r\n" {
+		t.Fatalf("partial empty header fields literal header = %q", line)
+	}
+	partialEmptyHeader := make([]byte, 1)
+	if _, err := io.ReadFull(reader, partialEmptyHeader); err != nil {
+		t.Fatalf("read partial empty header fields literal: %v", err)
+	}
+	if string(partialEmptyHeader) != "\r" {
+		t.Fatalf("partial empty header fields = %q", partialEmptyHeader)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("partial empty header fields close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a6 OK UID FETCH completed\r\n" {
+		t.Fatalf("partial empty header fields completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -7345,7 +7368,30 @@ func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("empty header fields not completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 9 BODY.PEEK[HEADER.FIELDS.NOT ()]<0.10>\r\n")); err != nil {
+		t.Fatalf("write uid fetch partial empty header fields not: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read partial empty header fields not literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS.NOT ()]<0> {10}\r\n" {
+		t.Fatalf("partial empty header fields not literal header = %q", line)
+	}
+	partialFullHeader := make([]byte, 10)
+	if _, err := io.ReadFull(reader, partialFullHeader); err != nil {
+		t.Fatalf("read partial empty header fields not literal: %v", err)
+	}
+	if string(partialFullHeader) != "Subject: H" {
+		t.Fatalf("partial empty header fields not = %q", partialFullHeader)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("partial empty header fields not close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
+		t.Fatalf("partial empty header fields not completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

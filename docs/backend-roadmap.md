@@ -3243,6 +3243,11 @@ Implementation order:
       non-`DONE` line during IDLE continuation mode returns the pending IDLE
       tag as `BAD`, exits idle state, and keeps the authenticated session
       usable for the next legal command.
+1264. IMAP `FETCH` and `UID FETCH` now have regression coverage for
+      partial-window empty top-level header-field-list requests. Preview-style
+      requests such as `BODY.PEEK[HEADER.FIELDS ()]<0.1>` and
+      `BODY.PEEK[HEADER.FIELDS.NOT ()]<0.10>` continue to return bounded
+      RFC-shaped literals.
 
 ## Deferred until backend contracts stabilize
 
