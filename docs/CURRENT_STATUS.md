@@ -2448,6 +2448,11 @@ The platform hardening sprint completed the following:
 - Directory/Identity can resolve normalized alias email addresses to target
   user, organization, group, or resource principals, with active alias
   uniqueness enforced at the normalized address boundary.
+- CalDAV discovery now has an explicit Directory-to-CalDAV principal conversion
+  guard: only Directory user principals can become CalDAV user principals.
+  Organization, group, and resource principals remain Directory-owned release
+  gates for delegated/shared calendars and resource booking rather than being
+  silently treated as personal calendar homes.
 - Directory/Identity can check direct active group membership across user,
   organization, group, and resource principals, establishing the first
   auditable membership read boundary before recursive/effective delegation is

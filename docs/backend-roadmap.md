@@ -2527,6 +2527,10 @@ Implementation order:
       properties, keeping `calendar-home-set` and other principal-only
       semantics on the principal resource while still advertising
       `current-user-principal` and `principal-collection-set`.
+1155. CalDAV Directory discovery now explicitly converts only Directory user
+      principals into CalDAV principals, rejecting organization, group, and
+      resource principals until delegated/shared calendar and resource-booking
+      semantics have real policy and storage boundaries.
 
 ## Deferred until backend contracts stabilize
 
