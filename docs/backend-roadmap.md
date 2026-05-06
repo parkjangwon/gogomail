@@ -2973,6 +2973,10 @@ Implementation order:
 1211. CalDAV object `PUT` now rejects explicit non-`2.0` `text/calendar`
       media-version parameters before body parsing, aligning the HTTP media
       contract with the advertised `supported-calendar-data` version.
+1212. CalDAV REPORT `calendar-data` parsing now rejects unsupported
+      `content-type` and non-`2.0` `version` attributes, keeping multiget,
+      query, and sync projection requests aligned with advertised calendar-data
+      support instead of silently serving an unadvertised media variant.
 
 ## Deferred until backend contracts stabilize
 

@@ -215,6 +215,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV object `PUT` rejects non-`text/calendar` media types and non-`2.0`
   `text/calendar` version parameters before parsing `.ics` bodies, keeping the
   HTTP media contract aligned with advertised supported-calendar-data.
+- CalDAV REPORT `calendar-data` parsing rejects unsupported `content-type` and
+  non-`2.0` `version` attributes before projection work, so clients cannot ask
+  for unadvertised calendar media variants and receive misleading data.
 - CalDAV WebDAV response generation now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar collections, and calendar objects before protocol

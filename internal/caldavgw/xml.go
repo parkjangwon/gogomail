@@ -745,7 +745,7 @@ func parseReportPropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, Cal
 			name := xmlName(tok.Name)
 			properties = append(properties, name)
 			if name == PropCalendarData {
-				parsed, err := parseCalendarDataElement(dec, tok.Name)
+				parsed, err := parseCalendarDataElement(dec, tok)
 				if err != nil {
 					return nil, CalendarDataRequest{}, err
 				}
@@ -762,8 +762,22 @@ func parseReportPropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, Cal
 	}
 }
 
-func parseCalendarDataElement(dec *xml.Decoder, start xml.Name) (CalendarDataRequest, error) {
+func parseCalendarDataElement(dec *xml.Decoder, start xml.StartElement) (CalendarDataRequest, error) {
 	req := CalendarDataRequest{Requested: true}
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case "content-type":
+			contentType := strings.TrimSpace(attr.Value)
+			if contentType != "" && !strings.EqualFold(contentType, "text/calendar") {
+				return CalendarDataRequest{}, fmt.Errorf("calendar-data content-type must be text/calendar")
+			}
+		case "version":
+			version := strings.TrimSpace(attr.Value)
+			if version != "" && version != "2.0" {
+				return CalendarDataRequest{}, fmt.Errorf("calendar-data version must be 2.0")
+			}
+		}
+	}
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -799,7 +813,7 @@ func parseCalendarDataElement(dec *xml.Decoder, start xml.Name) (CalendarDataReq
 				}
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, start) {
+			if sameName(tok.Name, start.Name) {
 				return req, nil
 			}
 		}
