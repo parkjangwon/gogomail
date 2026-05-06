@@ -948,7 +948,7 @@ func TestServerValidatesAuthSyntaxBeforePrivacyRequired(t *testing.T) {
 	}
 	want := []string{
 		"a1 BAD LOGIN requires username and password atoms\r\n",
-		"a2 BAD AUTHENTICATE mechanism is unsupported\r\n",
+		"a2 NO AUTHENTICATE mechanism is unsupported\r\n",
 		"a3 NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n",
 		"a4 NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
@@ -961,6 +961,46 @@ func TestServerValidatesAuthSyntaxBeforePrivacyRequired(t *testing.T) {
 		}
 		if line != expected {
 			t.Fatalf("auth response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsUnsupportedAuthenticateMechanismWithNo(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 AUTHENTICATE SCRAM-SHA-256\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write authenticate/logout: %v", err)
+	}
+	want := []string{
+		"a1 NO AUTHENTICATE mechanism is unsupported\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a2 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("response = %q, want %q", line, expected)
 		}
 	}
 	if err := <-errCh; err != nil {

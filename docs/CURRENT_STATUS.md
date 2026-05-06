@@ -2267,9 +2267,10 @@ The platform hardening sprint completed the following:
   syntax for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and `MOVE` before
   authentication or selected-mailbox state, while leaving selected-state-
   dependent UID set resolution to the selected command handlers.
-- IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
-  unsupported mechanisms before returning `[PRIVACYREQUIRED]` on plaintext
-  TLS-required listeners.
+- IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape before
+  returning `[PRIVACYREQUIRED]` on plaintext TLS-required listeners, while
+  syntactically valid but unsupported SASL mechanisms return tagged `NO` so
+  clients can fall back cleanly.
 - IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include an
   authenticated `[CAPABILITY ...]` response code, so clients can learn the
   post-auth extension set without an immediate follow-up `CAPABILITY` command
