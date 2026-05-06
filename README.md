@@ -104,7 +104,9 @@ Recent release-readiness work also includes:
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested
   `CopyObjectResult` embedded error bodies, is streamed into bounded one-line
   diagnostics with request-id and host-id context when supplied, even when the
-  provider body is truncated.
+  provider body is truncated. Optional `PutObject` success `ETag` headers must
+  also be singular and bounded when supplied, so provider write identity
+  metadata cannot depend on header collapse or malformed values.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB

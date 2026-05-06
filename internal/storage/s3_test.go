@@ -241,6 +241,56 @@ try later</Message>
 	}
 }
 
+func TestS3StorePutValidatesSuccessETag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		header http.Header
+		want   string
+	}{
+		{name: "missing"},
+		{name: "valid_quoted", header: http.Header{"ETag": []string{`"etag-1"`}}},
+		{name: "duplicate", header: http.Header{"ETag": []string{`"etag-1"`, `"etag-2"`}}, want: "duplicate etag"},
+		{name: "invalid", header: http.Header{"ETag": []string{`"bad` + "\n" + `etag"`}}, want: "invalid etag"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     tc.header,
+						Body:       io.NopCloser(strings.NewReader("")),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("Put returned error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Put err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreRejectsNilPutBody(t *testing.T) {
 	t.Parallel()
 
