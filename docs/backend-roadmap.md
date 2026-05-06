@@ -4024,6 +4024,10 @@ Implementation order:
       `Last-Modified` headers before timestamp parsing, preventing compatible
       provider timestamp ambiguity from being collapsed into a single object
       modification time.
+1441. S3-compatible `HEAD`/`Stat` metadata now rejects duplicate `ETag`
+      headers before object metadata is returned, preventing compatible
+      provider identity ambiguity from being collapsed into a single ETag by
+      HTTP header lookup.
 
 ## Deferred until backend contracts stabilize
 

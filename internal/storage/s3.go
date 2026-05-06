@@ -229,11 +229,15 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if err != nil {
 		return ObjectInfo{}, err
 	}
+	rawETag, ok := s3ResponseSingleHeader(resp, "ETag")
+	if !ok {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate etag")
+	}
 	return ObjectInfo{
 		Path:         objectPath,
 		Size:         size,
 		ContentType:  cleanS3MetadataValue(resp.Header.Get("Content-Type"), maxS3ContentTypeBytes),
-		ETag:         cleanS3ETag(resp.Header.Get("ETag")),
+		ETag:         cleanS3ETag(rawETag),
 		LastModified: lastModified,
 	}, nil
 }
@@ -653,12 +657,22 @@ func s3ResponseContentLengthHeader(resp *http.Response) (string, error) {
 }
 
 func s3ResponseSingleHeader(resp *http.Response, name string) (string, bool) {
-	values := resp.Header.Values(name)
-	if len(values) > 1 {
-		return "", false
+	var found string
+	count := 0
+	for key, values := range resp.Header {
+		if !strings.EqualFold(key, name) {
+			continue
+		}
+		for _, value := range values {
+			count++
+			if count > 1 {
+				return "", false
+			}
+			found = value
+		}
 	}
-	if len(values) == 1 {
-		return values[0], true
+	if count == 1 {
+		return found, true
 	}
 	return "", true
 }

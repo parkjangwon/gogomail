@@ -331,7 +331,8 @@ object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
 bounded to safe single-line UTF-8 values before crossing the adapter boundary;
 malformed content type and ETag metadata is dropped while object identity and
-size remain available. `Content-Length` is treated as exact unsigned decimal
+size remain available, but duplicate ETag headers are rejected because object
+identity metadata is ambiguous. `Content-Length` is treated as exact unsigned decimal
 metadata, so signed or whitespace-padded values fail closed instead of being
 normalized; if both the raw header and normalized HTTP response length are
 available, they must agree, and duplicate `Content-Length` headers are
