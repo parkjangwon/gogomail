@@ -106,6 +106,7 @@ type AdminService interface {
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
 	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
+	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
@@ -221,6 +222,7 @@ type adminConsoleOperationCapabilities struct {
 	AttachmentCleanup        bool `json:"attachment_cleanup"`
 	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
 	DirectoryPrincipals      bool `json:"directory_principals"`
+	DirectoryAliases         bool `json:"directory_aliases"`
 	DirectoryDelegations     bool `json:"directory_delegations"`
 	DriveUploadSessions      bool `json:"drive_upload_sessions"`
 	DriveNodes               bool `json:"drive_nodes"`
@@ -278,6 +280,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			AttachmentCleanup:        true,
 			AttachmentUploadSession:  true,
 			DirectoryPrincipals:      true,
+			DirectoryAliases:         true,
 			DirectoryDelegations:     true,
 			DriveUploadSessions:      true,
 			DriveNodes:               true,
@@ -972,6 +975,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"directory_principals": principals})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/directory/aliases/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "address", "active_only") {
+			return
+		}
+		req, ok := parseDirectoryAliasResolveRequest(w, r)
+		if !ok {
+			return
+		}
+		alias, err := service.ResolveDirectoryAlias(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_alias": alias})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -3006,6 +3025,25 @@ func splitDirectoryPrincipalKinds(value string) []string {
 		}
 	}
 	return kinds
+}
+
+func parseDirectoryAliasResolveRequest(w http.ResponseWriter, r *http.Request) (directory.ResolveAliasRequest, bool) {
+	address, ok := parseBoundedAdminQuery(w, r, "address")
+	if !ok {
+		return directory.ResolveAliasRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ResolveAliasRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ResolveAliasRequest{
+		Address:    address,
+		ActiveOnly: activeOnly,
+	}, true
 }
 
 func parseDirectoryDelegationListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListDelegationsRequest, bool) {

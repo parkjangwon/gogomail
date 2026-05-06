@@ -273,6 +273,11 @@ and resource lookup. This gives the future admin console, CalDAV attendee and
 resource lookup, Contacts/CardDAV autocomplete, Drive sharing, and shared inbox
 targeting one contract-first principal discovery path instead of product-local
 search endpoints.
+Admin alias diagnostics now use the same Directory boundary:
+`GET /admin/v1/directory/aliases/resolve` normalizes an email address and
+returns the matching alias plus its target principal. This keeps mail routing,
+attendee resolution, shared inbox targeting, and operator debugging on the same
+alias-to-principal contract instead of duplicating address parsing.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.
@@ -2699,6 +2704,10 @@ The platform hardening sprint completed the following:
   coverage for company/domain/organization/kind/query/active-only filters. This
   moves admin console and future product autocomplete flows onto the shared
   Directory/Identity boundary.
+- Admin APIs now expose Directory alias resolution through
+  `GET /admin/v1/directory/aliases/resolve`, with OpenAPI and backend contract
+  coverage for address normalization and active-only lookup. This gives
+  operators and future product flows one address-to-principal diagnostic path.
 - `internal/accesspolicy` now provides a small effective-delegation evaluator
   that normalizes principal/scope/role inputs, forces active principal checks,
   and returns explicit allow/deny decisions. It is deliberately product-neutral

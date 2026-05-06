@@ -765,6 +765,13 @@ Admin operational read models also keep explicit envelope keys:
   oversized values before service dispatch, and the Directory boundary
   normalizes principal kinds, query length, wildcard escaping, and result
   limits before SQL execution.
+- `GET /admin/v1/directory/aliases/resolve` returns
+  `{"directory_alias":{...}}` for normalized email-alias resolution, including
+  the target Directory principal. It supports required `address` and optional
+  `active_only` filters. `active_only` defaults to `true`; the address is
+  normalized through the shared mail address parser before repository lookup,
+  so mail routing, attendee resolution, shared inbox targeting, and admin
+  diagnostics can share one alias-to-principal contract.
 - `GET /admin/v1/directory/delegations` returns
   `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
   delegation relationships. It supports bounded `limit`, required `company_id`,

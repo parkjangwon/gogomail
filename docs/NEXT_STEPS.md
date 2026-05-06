@@ -1782,6 +1782,11 @@ Next:
   admin console screens should reuse this contract or the underlying
   `SearchPrincipals` boundary rather than adding product-local principal search
   semantics.
+- Directory alias resolution is exposed through
+  `GET /admin/v1/directory/aliases/resolve`. Future mail routing diagnostics,
+  attendee resolution, shared inbox targeting, and admin console screens should
+  use this address-to-principal contract instead of re-parsing addresses or
+  querying `directory_aliases` directly.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

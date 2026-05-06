@@ -88,7 +88,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DirectoryPrincipals || !got.Operations.DirectoryDelegations || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
+	if !got.Operations.AuditLogs || !got.Operations.DirectoryPrincipals || !got.Operations.DirectoryAliases || !got.Operations.DirectoryDelegations || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -572,6 +572,100 @@ func TestAdminDirectoryPrincipalsHandlerRejectsUnsafeFilters(t *testing.T) {
 		}
 		if service.lastDirectoryPrincipalSearch.CompanyID != "" {
 			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryPrincipalSearch)
+		}
+	}
+}
+
+func TestAdminDirectoryAliasResolveHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryAlias: directory.Alias{
+			ID:         "alias-1",
+			CompanyID:  "company-1",
+			DomainID:   "domain-1",
+			Address:    "ops@example.com",
+			AddressACE: "ops@example.com",
+			TargetKind: directory.PrincipalKindGroup,
+			TargetID:   "group-1",
+			Status:     "active",
+			TargetPrincipal: directory.Principal{
+				ID:          "group-1",
+				Kind:        directory.PrincipalKindGroup,
+				CompanyID:   "company-1",
+				DisplayName: "Ops",
+				Status:      "active",
+			},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/aliases/resolve?address=%20Ops@Example.COM%20&active_only=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Alias directory.Alias `json:"directory_alias"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Alias.ID != "alias-1" || body.Alias.TargetPrincipal.ID != "group-1" {
+		t.Fatalf("directory_alias = %+v", body.Alias)
+	}
+	if service.lastDirectoryAliasResolve.Address != "Ops@Example.COM" ||
+		service.lastDirectoryAliasResolve.ActiveOnly {
+		t.Fatalf("lastDirectoryAliasResolve = %+v", service.lastDirectoryAliasResolve)
+	}
+}
+
+func TestAdminDirectoryAliasResolveHandlerDefaultsActiveOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{directoryAlias: directory.Alias{ID: "alias-1"}}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/aliases/resolve?address=ops@example.com", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastDirectoryAliasResolve.ActiveOnly {
+		t.Fatalf("lastDirectoryAliasResolve.ActiveOnly = false, want default true")
+	}
+}
+
+func TestAdminDirectoryAliasResolveHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/aliases/resolve",
+		"/admin/v1/directory/aliases/resolve?address=not-an-address",
+		"/admin/v1/directory/aliases/resolve?address=ops@example.com%0Abad",
+		"/admin/v1/directory/aliases/resolve?address=ops@example.com&active_only=maybe",
+		"/admin/v1/directory/aliases/resolve?address=ops@example.com&cursor=opaque",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryAliasResolve.Address != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryAliasResolve)
 		}
 	}
 }
@@ -6783,6 +6877,7 @@ type fakeAdminService struct {
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
 	directoryPrincipals                         []directory.Principal
+	directoryAlias                              directory.Alias
 	directoryDelegations                        []directory.Delegation
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
@@ -6865,6 +6960,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDirectoryPrincipalSearch                directory.SearchPrincipalsRequest
+	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -7078,6 +7174,14 @@ func (f *fakeAdminService) SearchDirectoryPrincipals(_ context.Context, req dire
 	}
 	f.lastDirectoryPrincipalSearch = req
 	return f.directoryPrincipals, nil
+}
+
+func (f *fakeAdminService) ResolveDirectoryAlias(_ context.Context, req directory.ResolveAliasRequest) (directory.Alias, error) {
+	if _, err := directory.NormalizeResolveAliasRequest(req); err != nil {
+		return directory.Alias{}, err
+	}
+	f.lastDirectoryAliasResolve = req
+	return f.directoryAlias, nil
 }
 
 func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {

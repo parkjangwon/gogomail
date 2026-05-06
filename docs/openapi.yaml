@@ -1565,6 +1565,28 @@ paths:
           $ref: "#/components/responses/DirectoryPrincipalList"
         default:
           $ref: "#/components/responses/Error"
+  /directory/aliases/resolve:
+    get:
+      operationId: resolveAdminDirectoryAlias
+      summary: Resolve a Directory email alias to its target principal
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 320
+          description: Email address to normalize and resolve through Directory aliases.
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryAlias"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/delegations:
     get:
       operationId: listAdminDirectoryDelegations
@@ -3690,6 +3712,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryPrincipalListEnvelope"
+    DirectoryAlias:
+      description: Directory alias resolution envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryAliasEnvelope"
     DirectoryDelegationList:
       description: Directory delegation list envelope
       content:
@@ -5823,7 +5851,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_aliases, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -5840,6 +5868,8 @@ components:
             attachment_upload_sessions:
               type: boolean
             directory_principals:
+              type: boolean
+            directory_aliases:
               type: boolean
             directory_delegations:
               type: boolean
@@ -6177,6 +6207,36 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DirectoryPrincipal"
+    DirectoryAlias:
+      type: object
+      required: [id, company_id, domain_id, address, address_ace, target_kind, target_id, status, target_principal]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        address:
+          type: string
+        address_ace:
+          type: string
+        target_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        target_id:
+          type: string
+        status:
+          type: string
+          enum: [active, deleted]
+        target_principal:
+          $ref: "#/components/schemas/DirectoryPrincipal"
+    DirectoryAliasEnvelope:
+      type: object
+      required: [directory_alias]
+      properties:
+        directory_alias:
+          $ref: "#/components/schemas/DirectoryAlias"
     DirectoryDelegation:
       type: object
       required: [id, company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role, status]

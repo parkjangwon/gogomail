@@ -270,6 +270,26 @@ func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T)
 	}
 }
 
+func TestAdminServiceResolveDirectoryAliasDelegatesToDirectory(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		alias: directory.Alias{ID: "alias-1", Address: "ops@example.com", TargetKind: directory.PrincipalKindGroup, TargetID: "group-1"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ResolveAliasRequest{Address: " Ops@Example.COM ", ActiveOnly: true}
+	alias, err := service.ResolveDirectoryAlias(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ResolveDirectoryAlias returned error: %v", err)
+	}
+	if alias.ID != "alias-1" {
+		t.Fatalf("alias = %+v", alias)
+	}
+	if directoryStore.lastAliasReq != req {
+		t.Fatalf("lastAliasReq = %+v, want %+v", directoryStore.lastAliasReq, req)
+	}
+}
+
 func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -553,8 +573,10 @@ type fakeAdminDrive struct {
 
 type fakeAdminDirectory struct {
 	delegations   []directory.Delegation
+	alias         directory.Alias
 	principals    []directory.Principal
 	lastReq       directory.ListDelegationsRequest
+	lastAliasReq  directory.ResolveAliasRequest
 	lastSearchReq directory.SearchPrincipalsRequest
 }
 
@@ -566,6 +588,11 @@ func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.Li
 func (f *fakeAdminDirectory) SearchPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {
 	f.lastSearchReq = req
 	return f.principals, nil
+}
+
+func (f *fakeAdminDirectory) ResolveAlias(_ context.Context, req directory.ResolveAliasRequest) (directory.Alias, error) {
+	f.lastAliasReq = req
+	return f.alias, nil
 }
 
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {

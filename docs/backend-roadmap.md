@@ -2709,6 +2709,13 @@ Implementation order:
        consoles, CalDAV attendee/resource lookup, Contacts/CardDAV
        autocomplete, Drive sharing, and shared inbox targeting one
        contract-first principal discovery surface.
+1175d. The admin backend API now exposes Directory alias resolution at
+       `GET /admin/v1/directory/aliases/resolve`, returning a
+       `directory_alias` envelope with the resolved target principal. The
+       endpoint normalizes the requested email address through the shared mail
+       address parser and keeps active-only lookup explicit, giving mail
+       routing diagnostics, attendee resolution, shared inbox targeting, and
+       admin consoles one address-to-principal contract.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

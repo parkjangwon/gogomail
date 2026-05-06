@@ -41,6 +41,7 @@ type adminService struct {
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
 	directory                   interface {
 		ListDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
+		ResolveAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 		SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	}
 	drive interface {
@@ -314,6 +315,13 @@ func (s adminService) SearchDirectoryPrincipals(ctx context.Context, req directo
 		return nil, fmt.Errorf("directory backend is not configured")
 	}
 	return s.directory.SearchPrincipals(ctx, req)
+}
+
+func (s adminService) ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error) {
+	if s.directory == nil {
+		return directory.Alias{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.ResolveAlias(ctx, req)
 }
 
 func (s adminService) ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {

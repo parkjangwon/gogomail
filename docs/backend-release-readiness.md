@@ -449,6 +449,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   coverage for bounded company, domain, organization, kind, query, active-only,
   and limit filters. This prepares admin console and future product
   autocomplete flows without making scheduling or sharing public-release ready.
+  Directory alias resolution is now available through
+  `GET /admin/v1/directory/aliases/resolve`, with OpenAPI and backend contract
+  coverage for address normalization and active-only target-principal lookup.
+  This prepares mail-routing diagnostics, attendee resolution, and shared inbox
+  targeting without duplicating address parsing in product modules.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows
