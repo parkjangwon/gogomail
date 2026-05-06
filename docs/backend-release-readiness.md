@@ -421,8 +421,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   public sharing yet. CalDAV discovery delegates active user lookup
   to this boundary, keeps calendar-home `current-user-principal` discovery
   anchored to canonical principal URLs, and advertises only local-user WebDAV
-  privileges that are implemented today. This does not make shared calendars,
-  resource booking, or delegated access public-release ready yet.
+  privileges that are implemented today. Directory also exposes a bounded
+  `SearchPrincipals` repository boundary for company-scoped user,
+  organization, group, and resource search, with validated scope, kind, query,
+  and limit inputs plus escaped SQL `LIKE` wildcard handling. This prepares
+  CalDAV attendee/resource lookup, Contacts/CardDAV autocomplete, shared inbox
+  targeting, and admin consoles without putting principal search semantics in
+  product modules. This does not make shared calendars, resource booking, or
+  delegated access public-release ready yet.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

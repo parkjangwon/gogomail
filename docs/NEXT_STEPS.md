@@ -1611,6 +1611,13 @@ Current state:
   calendar bind/unbind, collection object bind/unbind plus `PROPPATCH`
   metadata writes, and object content writes. ACL and broader delegation
   privileges remain unadvertised until their semantics exist.
+- Directory/Identity now includes a bounded `SearchPrincipals` repository
+  boundary over users, organizations, groups, and resources. It validates
+  tenant/domain/organization scope, permitted principal kinds, query length,
+  and result limits, and escapes `LIKE` wildcards before querying. Future
+  CalDAV attendee/resource resolution, Contacts/CardDAV autocomplete, shared
+  inbox targeting, and admin consoles should use this boundary instead of
+  product-local principal lookup.
 - CalDAV now handles WebDAV `PROPPATCH` on authenticated calendar collections
   for display name, description, and CalendarServer/Apple calendar color.
   The parser is bounded and namespace-aware, optional properties can be

@@ -110,6 +110,87 @@ func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
 	}
 }
 
+func TestNormalizeSearchPrincipalsRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeSearchPrincipalsRequest(SearchPrincipalsRequest{
+		CompanyID:      " company-1 ",
+		DomainID:       " domain-1 ",
+		OrganizationID: " org-1 ",
+		Kinds:          []string{" USER ", "resource", "USER"},
+		Query:          "  Alice   Room  ",
+		ActiveOnly:     true,
+		Limit:          5,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeSearchPrincipalsRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.DomainID != "domain-1" ||
+		got.OrganizationID != "org-1" ||
+		got.Query != "Alice Room" ||
+		!got.ActiveOnly ||
+		got.Limit != 5 {
+		t.Fatalf("request = %+v", got)
+	}
+	if strings.Join(got.Kinds, ",") != PrincipalKindUser+","+PrincipalKindResource {
+		t.Fatalf("kinds = %#v", got.Kinds)
+	}
+}
+
+func TestNormalizeSearchPrincipalsRequestDefaultsKindsAndLimit(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeSearchPrincipalsRequest(SearchPrincipalsRequest{CompanyID: "company-1"})
+	if err != nil {
+		t.Fatalf("NormalizeSearchPrincipalsRequest returned error: %v", err)
+	}
+	if got.Limit != DefaultPrincipalSearchLimit {
+		t.Fatalf("limit = %d, want %d", got.Limit, DefaultPrincipalSearchLimit)
+	}
+	if strings.Join(got.Kinds, ",") != PrincipalKindUser+","+PrincipalKindOrganization+","+PrincipalKindGroup+","+PrincipalKindResource {
+		t.Fatalf("kinds = %#v", got.Kinds)
+	}
+}
+
+func TestNormalizeSearchPrincipalsRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []SearchPrincipalsRequest{
+		{Query: "alice"},
+		{CompanyID: "company\n1"},
+		{CompanyID: "company-1", DomainID: "domain\n1"},
+		{CompanyID: "company-1", OrganizationID: "org\n1"},
+		{CompanyID: "company-1", Kinds: []string{"calendar"}},
+		{CompanyID: "company-1", Query: "alice\nbob"},
+		{CompanyID: "company-1", Query: strings.Repeat("x", MaxPrincipalSearchBytes+1)},
+		{CompanyID: "company-1", Limit: -1},
+		{CompanyID: "company-1", Limit: MaxPrincipalSearchLimit + 1},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.Query, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeSearchPrincipalsRequest(req); err == nil {
+				t.Fatalf("NormalizeSearchPrincipalsRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
+func TestPrincipalSearchPatternEscapesLikeWildcards(t *testing.T) {
+	t.Parallel()
+
+	got := principalSearchPattern(` A_%\ `)
+	if got != `%a\_\%\\%` {
+		t.Fatalf("principalSearchPattern = %q", got)
+	}
+	if got := principalSearchPattern("  "); got != "" {
+		t.Fatalf("empty principalSearchPattern = %q", got)
+	}
+}
+
 func TestNormalizeCheckGroupMembershipRequest(t *testing.T) {
 	t.Parallel()
 
