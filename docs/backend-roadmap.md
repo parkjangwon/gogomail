@@ -3207,6 +3207,11 @@ Implementation order:
       wiring registers `local` and `nfs` as bidirectional compatibility labels,
       and Admin capabilities/OpenAPI/docs expose the alias without changing
       object-key semantics or leaking local root paths.
+1257. CalDAV and CardDAV delegated access policies now verify that resolved
+      owner and actor principals are `user` principals before role checks or
+      audit insertion. Non-user Directory principals fail closed at the DAV
+      policy boundary, preserving future organization/group/resource semantics
+      instead of leaking them into personal calendar/address-book storage.
 
 ## Deferred until backend contracts stabilize
 

@@ -124,6 +124,10 @@ boundary, so read-only delegates are not incorrectly shown bind/unbind or write
 privileges. Delegated REPORT and sync responses now use the same privilege
 shaping for calendar-object properties, and missing Directory principals fail
 closed as access denial instead of surfacing as a distinct server-error path.
+The delegated policy boundary also verifies that resolved owner and actor
+principals are still `user` principals before audit or delegation checks run,
+so future organization, group, and resource principals cannot accidentally flow
+through the user-calendar storage path.
 This is still a foundation, not full public shared-calendar support: delegated
 write/manage UX, resource booking, scheduling policy, and broad native-client
 sharing tests remain release gates.
@@ -292,7 +296,11 @@ boundary, so read-only delegates see read-only CardDAV/WebDAV privileges rather
 than owner-level bind/unbind/write capabilities; REPORT and sync responses use
 the same delegated privilege shaping for contact-object properties. Missing
 principals fail closed as access denial instead of exposing a different
-server-error path. This remains an
+server-error path. The CardDAV delegated policy boundary also requires resolved
+owner and actor principals to remain `user` principals before audit or
+delegation checks run, keeping organization, group, and resource principals out
+of the personal address-book storage path until explicit product semantics
+exist. This remains an
 experimental/backend-only capability: public contacts sharing UX, native-client
 shared address-book compatibility, and group/resource/person product workflows
 remain release gates.

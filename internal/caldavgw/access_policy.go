@@ -33,6 +33,9 @@ func (p DelegatedAccessPolicy) AuthorizeCalendarAccess(ctx context.Context, req 
 		}
 		return AccessDecision{}, fmt.Errorf("resolve CalDAV owner principal: %w", err)
 	}
+	if owner.Kind != directory.PrincipalKindUser {
+		return AccessDecision{Allowed: false}, nil
+	}
 	actor, err := p.Directory.ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
 		ID:         req.ActorUserID,
 		Kind:       directory.PrincipalKindUser,
@@ -43,6 +46,9 @@ func (p DelegatedAccessPolicy) AuthorizeCalendarAccess(ctx context.Context, req 
 			return AccessDecision{Allowed: false}, nil
 		}
 		return AccessDecision{}, fmt.Errorf("resolve CalDAV actor principal: %w", err)
+	}
+	if actor.Kind != directory.PrincipalKindUser {
+		return AccessDecision{Allowed: false}, nil
 	}
 	if owner.CompanyID == "" || actor.CompanyID != owner.CompanyID {
 		return AccessDecision{Allowed: false}, nil
