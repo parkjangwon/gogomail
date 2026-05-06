@@ -163,7 +163,9 @@ clients can reuse saved search results through both `SEARCH $` and
 `SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria. IMAP `CLOSE`
 now also clears the selected-session saved SEARCHRES `$` state while tearing
 down selected mailbox state, keeping saved results scoped to the mailbox
-selection lifecycle just like `SELECT`, `EXAMINE`, and `UNSELECT`.
+selection lifecycle just like `SELECT`, `EXAMINE`, and `UNSELECT`. Deleting
+the currently selected mailbox now follows the same selected-state teardown
+boundary, including saved SEARCHRES cleanup and event subscription closure.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

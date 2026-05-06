@@ -3488,6 +3488,10 @@ Implementation order:
       while tearing down selected mailbox metadata, keeping RFC 5182 saved
       results scoped to the same mailbox-selection lifecycle as `SELECT`,
       `EXAMINE`, and `UNSELECT`.
+1316. IMAP `DELETE` of the currently selected mailbox now clears saved
+      SEARCHRES `$` state and closes the mailbox event subscription together
+      with selected mailbox metadata, keeping mailbox-removal lifecycle
+      behavior aligned with the rest of the selected-state teardown paths.
 
 ## Deferred until backend contracts stabilize
 

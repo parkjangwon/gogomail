@@ -5879,6 +5879,55 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	}
 }
 
+func TestServerDeleteSelectedMailboxClearsSavedSearch(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	var output strings.Builder
+	writer := bufio.NewWriter(&output)
+	closedSubscription := false
+	state := &imapConnState{
+		session:               &Session{UserID: "user-1"},
+		selectedMailbox:       "archive",
+		selectedMessages:      3,
+		selectedHighestModSeq: 77,
+		selectedNoModSeq:      true,
+		permanentFlags:        map[string]struct{}{FlagSeen: {}},
+		readOnly:              true,
+		savedSearch:           []imapSearchSavedMessage{{uid: 7, sequenceNumber: 1}},
+		events:                make(chan MailboxEvent),
+		cancelEvents: func() {
+			closedSubscription = true
+		},
+	}
+
+	done, err := server.handleDeleteMailbox(writer, "a1", []string{"a1", "DELETE", "Archive"}, state)
+	if err != nil {
+		t.Fatalf("handleDeleteMailbox returned error: %v", err)
+	}
+	if done {
+		t.Fatal("handleDeleteMailbox done = true, want false")
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush delete response: %v", err)
+	}
+	if output.String() != "a1 OK DELETE completed\r\n" {
+		t.Fatalf("delete response = %q", output.String())
+	}
+	if state.savedSearch != nil {
+		t.Fatalf("savedSearch = %#v, want nil after selected mailbox DELETE", state.savedSearch)
+	}
+	if !closedSubscription || state.events != nil || state.cancelEvents != nil {
+		t.Fatalf("subscription after selected mailbox DELETE = closed %t events nil %t cancel nil %t", closedSubscription, state.events == nil, state.cancelEvents == nil)
+	}
+	if state.selectedMailbox != "" || state.selectedMessages != 0 || state.selectedHighestModSeq != 0 || state.selectedNoModSeq || state.permanentFlags != nil || state.readOnly {
+		t.Fatalf("selected state after DELETE = mailbox %q messages %d modseq %d noModSeq %t flags %#v readOnly %t", state.selectedMailbox, state.selectedMessages, state.selectedHighestModSeq, state.selectedNoModSeq, state.permanentFlags, state.readOnly)
+	}
+}
+
 func TestServerHandlesStatusAfterLogin(t *testing.T) {
 	t.Parallel()
 
