@@ -3317,6 +3317,10 @@ Implementation order:
       NFS, local MinIO, and AWS S3-style profiles under `configs/storage.*.yaml`,
       with config-loader and CLI handoff tests proving each profile parses and
       passes startup validation as a reviewed `--config` starting point.
+1281. IMAP `LSUB` now rejects LIST-EXTENDED-style option probes such as
+      `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication
+      with a dedicated `LSUB` tagged `BAD`, keeping RFC 3501 subscribed-mailbox
+      discovery separate from advertised extended `LIST` behavior.
 
 ## Deferred until backend contracts stabilize
 

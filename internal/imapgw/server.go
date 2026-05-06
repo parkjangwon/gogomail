@@ -6396,6 +6396,12 @@ type imapListOptions struct {
 
 func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, string, bool) {
 	if subscribed {
+		if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
+			return imapListOptions{}, "LSUB does not support LIST extension options", false
+		}
+		if len(fields) > 2 && strings.EqualFold(fields[2], "RETURN") {
+			return imapListOptions{}, "LSUB does not support LIST extension options", false
+		}
 		return imapListOptions{fields: fields}, "", true
 	}
 	options := imapListOptions{}
