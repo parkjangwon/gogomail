@@ -5829,6 +5829,59 @@ func TestServerListSupportsQuotedPatternListsWithSpaces(t *testing.T) {
 	}
 }
 
+func TestServerListSupportsLiteralPatternListsWithSpaces(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: spacedListPatternBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" ({12}\r\n")); err != nil {
+		t.Fatalf("write literal list pattern-list command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login response = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("Archive 2026 \"INBOX\") RETURN (STATUS (MESSAGES))\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write literal list pattern-list suffix: %v", err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* STATUS \"INBOX\" (MESSAGES 17)\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"Archive 2026\"\r\n",
+		"* STATUS \"Archive 2026\" (MESSAGES 9)\r\n",
+		"a2 OK LIST completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read literal list pattern-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("literal list pattern-list response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerListSupportsSubscribedExtendedPatternLists(t *testing.T) {
 	t.Parallel()
 
@@ -10396,6 +10449,13 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if got, want := fields, []string{"a1", "LIST", "", `("Archive 2026" "INBOX")`, "RETURN", "(STATUS", "(MESSAGES))"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("spaced pattern-list fields = %#v, want %#v", got, want)
+	}
+	fields, err = parseIMAPFieldsWithLiteral(`a1 LIST "" ({12} "INBOX") RETURN (STATUS (MESSAGES))`, []string{"Archive 2026"})
+	if err != nil {
+		t.Fatalf("parseIMAPFields literal pattern list returned error: %v", err)
+	}
+	if got, want := fields, []string{"a1", "LIST", "", `("Archive 2026" "INBOX")`, "RETURN", "(STATUS", "(MESSAGES))"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("literal pattern-list fields = %#v, want %#v", got, want)
 	}
 	if _, _, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12}\r\n"); err != nil || !ok {
 		t.Fatalf("imapCommandLiteralSize synchronizing ok = %v err = %v", ok, err)

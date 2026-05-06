@@ -7592,7 +7592,7 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 			continue
 		}
 		if line[i] == '(' && imapParenthesizedFieldNeedsGrouping(line, i) {
-			field, next, err := parseIMAPParenthesizedField(line, i)
+			field, next, err := parseIMAPParenthesizedField(line, i, literals, &literalIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -7643,6 +7643,7 @@ func imapParenthesizedFieldNeedsGrouping(line string, start int) bool {
 	quoted := false
 	escaped := false
 	quotedHasWhitespace := false
+	hasLiteralMarker := false
 	for i := start; i < len(line); i++ {
 		c := line[i]
 		if quoted {
@@ -7663,22 +7664,29 @@ func imapParenthesizedFieldNeedsGrouping(line string, start int) bool {
 		switch c {
 		case '"':
 			quoted = true
+		case '{':
+			end := strings.IndexByte(line[i:], '}')
+			if end >= 0 && imapLooksLikeLiteral(line[i:i+end+1]) {
+				hasLiteralMarker = true
+				i += end
+			}
 		case '(':
 			depth++
 		case ')':
 			depth--
 			if depth <= 0 {
-				return quotedHasWhitespace
+				return quotedHasWhitespace || hasLiteralMarker
 			}
 		}
 	}
 	return false
 }
 
-func parseIMAPParenthesizedField(line string, start int) (string, int, error) {
+func parseIMAPParenthesizedField(line string, start int, literals []string, literalIndex *int) (string, int, error) {
 	depth := 0
 	quoted := false
 	escaped := false
+	var field strings.Builder
 	for i := start; i < len(line); i++ {
 		c := line[i]
 		if c < 0x20 || c == 0x7f {
@@ -7689,23 +7697,46 @@ func parseIMAPParenthesizedField(line string, start int) (string, int, error) {
 				if c != '\\' && c != '"' {
 					return "", 0, fmt.Errorf("invalid quoted escape")
 				}
+				field.WriteByte(c)
 				escaped = false
 				continue
 			}
 			switch c {
 			case '\\':
+				field.WriteByte(c)
 				escaped = true
 			case '"':
+				field.WriteByte(c)
 				quoted = false
+			default:
+				field.WriteByte(c)
 			}
 			continue
 		}
 		switch c {
 		case '"':
+			field.WriteByte(c)
 			quoted = true
+		case '{':
+			end := strings.IndexByte(line[i:], '}')
+			if end >= 0 {
+				marker := line[i : i+end+1]
+				if imapLooksLikeLiteral(marker) {
+					if literalIndex == nil || *literalIndex >= len(literals) {
+						return "", 0, fmt.Errorf("imap literal is not available")
+					}
+					field.WriteString(imapQuotedString(literals[*literalIndex]))
+					*literalIndex = *literalIndex + 1
+					i += end
+					continue
+				}
+			}
+			field.WriteByte(c)
 		case '(':
+			field.WriteByte(c)
 			depth++
 		case ')':
+			field.WriteByte(c)
 			depth--
 			if depth < 0 {
 				return "", 0, fmt.Errorf("unbalanced parenthesized field")
@@ -7715,8 +7746,10 @@ func parseIMAPParenthesizedField(line string, start int) (string, int, error) {
 				if next < len(line) && line[next] != ' ' && line[next] != '\t' {
 					return "", 0, fmt.Errorf("parenthesized field must be delimited")
 				}
-				return line[start:next], next, nil
+				return field.String(), next, nil
 			}
+		default:
+			field.WriteByte(c)
 		}
 	}
 	if quoted || escaped {
@@ -7904,7 +7937,7 @@ func imapCommandLiteralSize(line string) (int, bool, bool, error) {
 	if start < 0 {
 		return 0, false, false, nil
 	}
-	if start > 0 && trimmed[start-1] != ' ' && trimmed[start-1] != '\t' {
+	if start > 0 && trimmed[start-1] != ' ' && trimmed[start-1] != '\t' && trimmed[start-1] != '(' {
 		return 0, false, false, nil
 	}
 	value := trimmed[start+1 : len(trimmed)-1]
