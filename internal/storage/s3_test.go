@@ -590,6 +590,64 @@ func TestS3StoreStatRequiresContentLength(t *testing.T) {
 	}
 }
 
+func TestS3StoreStatRequiresValidLastModified(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Last-Modified": []string{"not-a-time"}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "invalid last-modified") {
+		t.Fatalf("Stat err = %v, want last-modified rejection", err)
+	}
+}
+
+func TestS3StoreStatAllowsLastModifiedOWS(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Last-Modified": []string{" Tue, 05 May 2026 12:00:00 GMT\t"}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.LastModified.IsZero() {
+		t.Fatal("LastModified was not parsed")
+	}
+}
+
 func TestS3StoreStatDropsUnsafeMetadata(t *testing.T) {
 	t.Parallel()
 

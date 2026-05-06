@@ -66,9 +66,10 @@ Recent release-readiness work also includes:
   filesystems. The S3-compatible adapter now treats provider metadata as a
   strict contract: list pages recheck returned keys against the requested
   logical prefix, object sizes and content/range lengths use unsigned decimal
-  grammar, truncated pages require canonical continuation state, malformed
-  list entries fail closed, and `CopyObject` success XML is accepted only from
-  namespace-free or AWS S3 `CopyObjectResult` roots.
+  grammar, `HEAD`/`Stat` rejects malformed `Last-Modified` metadata, truncated
+  pages require canonical continuation state, malformed list entries fail
+  closed, and `CopyObject` success XML is accepted only from namespace-free or
+  AWS S3 `CopyObjectResult` roots.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB

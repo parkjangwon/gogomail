@@ -3853,6 +3853,10 @@ Implementation order:
       forms such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed
       forms such as `{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing
       response before reading literal bytes.
+1397. S3-compatible `HEAD`/`Stat` metadata now rejects non-empty malformed
+      `Last-Modified` headers instead of silently returning zero timestamps,
+      while preserving HTTP optional-whitespace compatibility around otherwise
+      valid timestamp values.
 
 ## Deferred until backend contracts stabilize
 
