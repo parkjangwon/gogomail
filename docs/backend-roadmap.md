@@ -1363,9 +1363,10 @@ Implementation order:
 862. IMAP authenticated `UID` dispatch now validates state-independent
      subcommand arity and destination mailbox-name syntax before selected
      mailbox state for `FETCH`, `STORE`, `EXPUNGE`, `COPY`, and `MOVE`.
-863. IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
-     unsupported mechanisms before plaintext `[PRIVACYREQUIRED]` responses on
-     TLS-required listeners, preserving precise auth handshake diagnostics.
+863. IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape
+     before plaintext `[PRIVACYREQUIRED]` responses on TLS-required listeners,
+     while syntactically valid but unsupported SASL mechanisms return tagged
+     `NO` so mechanism-probing clients can fall back cleanly.
 864. IMAP mailbox management and subscription commands now validate malformed
      `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
      `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before

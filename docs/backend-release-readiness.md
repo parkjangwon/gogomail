@@ -1116,7 +1116,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   codes for better client and migration-tool diagnostics.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
-  round trips.
+  round trips. Unsupported but syntactically valid SASL mechanisms return
+  tagged `NO`, keeping mechanism probing distinct from malformed auth syntax.
 - IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses include the
   authenticated `[CAPABILITY ...]` response code, so clients can refresh
   post-auth extension state without an extra probe and without retaining

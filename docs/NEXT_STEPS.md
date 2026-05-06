@@ -61,9 +61,10 @@ Current state:
 - `UID` dispatch validates subcommand arity and destination mailbox-name syntax
   before authentication or selected-mailbox state for `FETCH`, `STORE`,
   `EXPUNGE`, `COPY`, and `MOVE`.
-- `LOGIN` and `AUTHENTICATE` validate malformed argument shape or unsupported
-  mechanisms before plaintext `[PRIVACYREQUIRED]` responses on TLS-required
-  listeners.
+- `LOGIN` and `AUTHENTICATE` validate malformed argument shape before
+  plaintext `[PRIVACYREQUIRED]` responses on TLS-required listeners, while
+  syntactically valid but unsupported SASL mechanisms return tagged `NO`
+  responses so probing clients can fall back cleanly.
 - Successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include the
   authenticated `[CAPABILITY ...]` response code, keeping post-auth capability
   discovery explicit for RFC-shaped clients.
