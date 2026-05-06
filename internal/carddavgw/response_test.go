@@ -247,9 +247,14 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 	}
 	assertParseableXML(t, body)
 	text := string(body)
+	collectionETag, err := AddressBookCollectionETag("user-1", AddressBook{ID: "personal", SyncToken: "sync-123"})
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
 	for _, want := range []string{
 		"<C:addressbook></C:addressbook>",
 		"<C:addressbook-description>People</C:addressbook-description>",
+		"<D:getetag>" + strings.ReplaceAll(collectionETag, `"`, "&#34;") + "</D:getetag>",
 		"<C:supported-address-data><C:address-data content-type=\"text/vcard\" version=\"4.0\"></C:address-data></C:supported-address-data>",
 		"<C:max-resource-size>5242880</C:max-resource-size>",
 		"<D:sync-token>sync-123</D:sync-token>",

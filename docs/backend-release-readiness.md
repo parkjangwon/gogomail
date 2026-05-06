@@ -405,7 +405,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `PROPPATCH` can update authenticated address-book collection `displayname`
   and `addressbook-description` through bounded XML parsing and a small
   repository boundary that refreshes sync state and records an
-  `addressbook-updated` change.
+  `addressbook-updated` change. Address-book collections derive a strong ETag
+  from the durable sync token, expose it through WebDAV `getetag`, and enforce
+  `If-Match`/`If-Unmodified-Since` on collection `PROPPATCH` before reading
+  XML request bodies.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

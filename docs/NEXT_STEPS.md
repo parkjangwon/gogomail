@@ -1628,7 +1628,10 @@ Next:
   metadata. WebDAV `PROPPATCH` now updates authenticated address-book
   collection `DAV:displayname` and `addressbook-description` through a bounded
   parser and repository mutation that refreshes sync state and appends an
-  `addressbook-updated` change row.
+  `addressbook-updated` change row. Collection ETags are derived from the
+  durable sync token, exposed through PROPFIND `getetag`, and used with
+  `If-Match`/`If-Unmodified-Since` to reject stale `PROPPATCH` requests before
+  body reads.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

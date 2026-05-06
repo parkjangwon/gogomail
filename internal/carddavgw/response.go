@@ -166,9 +166,14 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 	if err != nil {
 		return nil, err
 	}
+	etag, err := AddressBookCollectionETag(userID, book)
+	if err != nil {
+		return nil, err
+	}
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: book.Name}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeAddressBook}}, Found: true},
+		{Name: PropGetETag, Value: PropertyValue{Text: etag}, Found: true},
 		{Name: PropAddressBookDescription, Value: PropertyValue{Text: book.Description}, Found: true},
 		webDAVTimeProperty(PropCreationDate, book.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),

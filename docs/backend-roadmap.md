@@ -2399,6 +2399,10 @@ Implementation order:
       `DAV:displayname` and RFC 6352 `addressbook-description`, updating the
       repository through a small collection-metadata boundary, refreshing the
       durable sync token, and appending an `addressbook-updated` change row.
+1123. CardDAV address-book collections now derive a strong collection ETag
+      from the durable sync token, expose it through WebDAV `getetag`, and use
+      it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
+      `PROPPATCH` requests before reading XML request bodies.
 
 ## Deferred until backend contracts stabilize
 

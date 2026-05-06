@@ -220,6 +220,17 @@ func AddressBookSyncToken(parts ...string) string {
 	return "sync-" + hex.EncodeToString(sum[:])[:32]
 }
 
+func AddressBookCollectionETag(userID string, book AddressBook) (string, error) {
+	userID = strings.TrimSpace(userID)
+	bookID := strings.TrimSpace(book.ID)
+	syncToken := strings.TrimSpace(book.SyncToken)
+	if userID == "" || bookID == "" || syncToken == "" {
+		return "", fmt.Errorf("address book collection etag requires user, address book, and sync token")
+	}
+	sum := sha256.Sum256([]byte(AddressBookSyncToken("collection-etag", userID, bookID, syncToken)))
+	return `"` + hex.EncodeToString(sum[:]) + `"`, nil
+}
+
 func unfoldVCardLines(raw string) ([]string, error) {
 	raw = strings.TrimSuffix(raw, "\r\n")
 	raw = strings.TrimSuffix(raw, "\n")
