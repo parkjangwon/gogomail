@@ -47,6 +47,11 @@ booking policy, and scheduling semantics are implemented explicitly.
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles
   before any product module can use it for access policy.
+- Delegated access now has an initial company-scoped relationship table and
+  repository check boundary. Delegations are keyed by owner principal, delegate
+  principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,
+  and shared inbox features can share one auditable model instead of adding
+  module-local principal semantics.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.

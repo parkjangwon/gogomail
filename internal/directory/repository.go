@@ -155,6 +155,53 @@ SELECT EXISTS (
 	return exists, nil
 }
 
+func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationRequest) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCheckDelegationRequest(req)
+	if err != nil {
+		return false, err
+	}
+	const query = `
+SELECT d.role
+FROM directory_delegations d
+JOIN companies c ON c.id = d.company_id
+WHERE d.company_id = $1::uuid
+  AND d.owner_kind = $2
+  AND d.owner_id = $3::uuid
+  AND d.delegate_kind = $4
+  AND d.delegate_id = $5::uuid
+  AND d.scope = $6
+  AND ($7::boolean = false OR (d.status = 'active' AND c.status = 'active'))`
+	rows, err := r.db.QueryContext(ctx, query,
+		req.CompanyID,
+		req.OwnerKind,
+		req.OwnerID,
+		req.DelegateKind,
+		req.DelegateID,
+		req.Scope,
+		req.ActiveOnly,
+	)
+	if err != nil {
+		return false, fmt.Errorf("check directory delegation: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var role string
+		if err := rows.Scan(&role); err != nil {
+			return false, fmt.Errorf("scan directory delegation: %w", err)
+		}
+		if DelegationRoleSatisfies(role, req.RequiredRole) {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("check directory delegation rows: %w", err)
+	}
+	return false, nil
+}
+
 func (r *Repository) resolveUserPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
 	const query = `
 SELECT u.id::text,
