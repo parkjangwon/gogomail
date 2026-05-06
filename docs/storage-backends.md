@@ -22,7 +22,9 @@ followed by source delete. `List` returns bounded, cursor-paginated object
 metadata under a validated prefix, using a local/NFS directory walk or signed
 S3 `ListObjectsV2` requests; truncated S3 pages must include a continuation
 token before callers see the page, and provider-returned keys are not trimmed
-before prefix/object-path validation. Future Drive and lifecycle modules should
+before prefix/object-path validation. Provider responses must also respect the
+requested page size for matching objects, so a malformed S3-compatible service
+cannot bypass the shared bounded-list contract. Future Drive and lifecycle modules should
 prefer `Stat` for existence/size checks, `GetRange` for resumable downloads
 and media preview windows, `Copy` for object duplication workflows, `Move` for
 file rename/relocation workflows, and `List` for prefix-scoped browsing,
@@ -168,7 +170,9 @@ S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, and opaque continuation tokens. Returned keys are
 normalized back to gogomail object paths under the configured storage prefix,
 so callers do not see deployment-specific bucket prefixes. Returned ETags use
-the same bounded metadata cleanup as `Stat`.
+the same bounded metadata cleanup as `Stat`. Provider responses that return
+more matching objects than requested are rejected, keeping local/NFS and
+S3-compatible pagination semantics aligned.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup

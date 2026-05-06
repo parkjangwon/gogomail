@@ -388,6 +388,38 @@ func TestS3StoreListDropsUnsafeETagMetadata(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsProviderOverLimitPage(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents>
+  <Contents><Key>mail/messages/msg-2.eml</Key><Size>7</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Limit: 1})
+	if err == nil || !strings.Contains(err.Error(), "more objects than requested limit") {
+		t.Fatalf("List err = %v, want provider over-limit rejection", err)
+	}
+}
+
 func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
 	t.Parallel()
 

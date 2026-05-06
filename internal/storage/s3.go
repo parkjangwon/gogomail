@@ -322,6 +322,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if !ok {
 			continue
 		}
+		if len(page.Objects) >= limit {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: response contains more objects than requested limit")
+		}
 		page.Objects = append(page.Objects, ObjectInfo{
 			Path:         objectPath,
 			Size:         item.Size,

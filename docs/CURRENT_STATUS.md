@@ -600,6 +600,9 @@ release gates.
 - S3-compatible endpoint base paths are now segment-escaped with the same
   literal `+` preservation as object keys, keeping proxy/base-path deployments
   aligned with SigV4 canonical request paths.
+- S3-compatible `ListObjectsV2` pages now reject provider responses that return
+  more matching objects than the requested bounded page size, keeping S3,
+  MinIO, and local/NFS pagination under the same storage contract.
 - S3-compatible uploads now set a deterministic `Content-Length` for seekable
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first
