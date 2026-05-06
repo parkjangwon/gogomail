@@ -521,6 +521,17 @@ type ReportFilter struct {
 
 const unsupportedCalendarQueryComponent = "__unsupported__"
 
+type UnsupportedCalendarFilterError struct {
+	Element XMLName
+}
+
+func (e UnsupportedCalendarFilterError) Error() string {
+	if e.Element.Local == "" {
+		return "unsupported CalDAV calendar-query filter"
+	}
+	return fmt.Sprintf("unsupported CalDAV calendar-query filter {%s}%s", e.Element.Space, e.Element.Local)
+}
+
 func ParseReport(r io.Reader) (ReportRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -929,11 +940,12 @@ func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, er
 				}
 				found = mergeReportFilters(found, nested)
 			default:
-				nested, err := parseFilterElement(dec, tok.Name)
-				if err != nil {
+				if tok.Name.Space == CalDAVNamespace {
+					return ReportFilter{}, UnsupportedCalendarFilterError{Element: xmlName(tok.Name)}
+				}
+				if err := skipElement(dec, tok.Name); err != nil {
 					return ReportFilter{}, err
 				}
-				found = mergeReportFilters(found, nested)
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, filterName) {
@@ -977,6 +989,9 @@ func parseCompFilterElement(dec *xml.Decoder, start xml.StartElement, parentComp
 				}
 				found = mergeReportFilters(found, nested)
 			default:
+				if tok.Name.Space == CalDAVNamespace {
+					return ReportFilter{}, UnsupportedCalendarFilterError{Element: xmlName(tok.Name)}
+				}
 				if err := skipElement(dec, tok.Name); err != nil {
 					return ReportFilter{}, err
 				}

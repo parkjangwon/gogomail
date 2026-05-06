@@ -609,6 +609,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	}
 	report, err := ParseReport(r.Body)
 	if err != nil {
+		var unsupportedFilter UnsupportedCalendarFilterError
+		if errors.As(err, &unsupportedFilter) {
+			writeCalDAVPreconditionError(w, http.StatusForbidden, "supported-filter", err.Error())
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -1146,13 +1151,35 @@ func containsXMLName(names []XMLName, target XMLName) bool {
 }
 
 func writeDAVPreconditionError(w http.ResponseWriter, status int, precondition string, message string) {
+	writePreconditionError(w, status, DAVNamespace, "D", precondition, message)
+}
+
+func writeCalDAVPreconditionError(w http.ResponseWriter, status int, precondition string, message string) {
+	writePreconditionError(w, status, CalDAVNamespace, "C", precondition, message)
+}
+
+func writePreconditionError(w http.ResponseWriter, status int, namespace string, prefix string, precondition string, message string) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
-	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>`+
-		`<D:error xmlns:D="%s"><D:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
+	if prefix == "D" {
+		_, _ = fmt.Fprintf(w,
+			`<?xml version="1.0" encoding="UTF-8"?>`+
+				`<D:error xmlns:D="%s"><D:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
+			namespace,
+			precondition,
+			xmlEscapeText(message),
+		)
+		return
+	}
+	_, _ = fmt.Fprintf(w,
+		`<?xml version="1.0" encoding="UTF-8"?>`+
+			`<D:error xmlns:D="%s" xmlns:%s="%s"><%s:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
 		DAVNamespace,
+		prefix,
+		namespace,
+		prefix,
 		precondition,
 		xmlEscapeText(message),
 	)
