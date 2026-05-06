@@ -632,7 +632,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		}
 		body, err = BuildSyncCollectionXML(responses, syncToken)
 	} else {
-		responses, err = h.reportResponses(r.Context(), userID, resource, report)
+		responses, err = h.reportResponses(r.Context(), userID, resource, depth, report)
 		if err != nil {
 			var invalidSyncToken InvalidSyncTokenError
 			if errors.As(err, &invalidSyncToken) {
@@ -863,7 +863,7 @@ func proppatchResponse(href string, calendar Calendar, properties []XMLName) Mul
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
 }
 
-func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, report ReportRequest) ([]MultiStatusResponse, error) {
 	switch report.Kind {
 	case ReportCalendarMulti:
 		if resource.Kind != ResourceCalendarCollection && resource.Kind != ResourceCalendarHome {
@@ -873,6 +873,9 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 	case ReportCalendarQuery:
 		if resource.Kind != ResourceCalendarCollection {
 			return nil, fmt.Errorf("calendar-query requires a calendar collection resource")
+		}
+		if depth == DepthZero {
+			return nil, nil
 		}
 		return h.calendarQueryResponses(ctx, userID, resource, report)
 	case ReportSyncCollection:

@@ -365,6 +365,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `Depth: 0` request scope before repository lookup or change-log work, keeping
   WebDAV sync traversal governed by the request-body `sync-level` and matching
   the CardDAV sync contract.
+- CalDAV `REPORT calendar-query` now keeps child calendar-object scans behind
+  explicit `Depth: 1`; default/explicit `Depth: 0` collection queries return no
+  child object matches, preserving WebDAV request-scope semantics for native
+  clients.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs from native
   clients by normalizing only the URI path through the existing CalDAV scope
   checks, while rejecting userinfo-bearing authorities, query, fragment,

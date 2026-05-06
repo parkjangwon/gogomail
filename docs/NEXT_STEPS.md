@@ -1657,6 +1657,10 @@ Current state:
   lookup or change-log work, matching the RFC 6578 request-scope model and the
   existing CardDAV behavior while leaving child traversal to the required
   request-body `sync-level`.
+- CalDAV `REPORT calendar-query` now honors HTTP `Depth: 0` by returning no
+  child calendar-object matches for collection-scoped queries unless clients
+  explicitly send `Depth: 1`, keeping WebDAV request scope from silently
+  widening during event searches.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
