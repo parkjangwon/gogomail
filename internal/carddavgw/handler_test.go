@@ -698,7 +698,7 @@ func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
   <D:href>/carddav/addressbooks/user-1/personal/missing.vcf</D:href>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-multiget>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -724,7 +724,7 @@ func TestHandlerReportAddressBookMultigetProjectsAddressData(t *testing.T) {
   <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
   <D:prop><D:getetag/><C:address-data><C:prop name="FN"/></C:address-data></D:prop>
 </C:addressbook-multiget>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -745,7 +745,7 @@ func TestHandlerReportAddressBookQueryFiltersTextMatch(t *testing.T) {
   <C:filter><C:prop-filter name="FN"><C:text-match>Contact One</C:text-match></C:prop-filter></C:filter>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -766,7 +766,7 @@ func TestHandlerReportAddressBookQueryFiltersSpecificVCardProperty(t *testing.T)
   <C:filter><C:prop-filter name="EMAIL"><C:text-match>other@example.com</C:text-match></C:prop-filter></C:filter>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -787,7 +787,7 @@ func TestHandlerReportAddressBookQueryHonorsTextMatchAttributes(t *testing.T) {
   <C:filter><C:prop-filter name="EMAIL"><C:text-match match-type="equals" negate-condition="yes">contact-one@example.com</C:text-match></C:prop-filter></C:filter>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -808,7 +808,7 @@ func TestHandlerReportAddressBookQueryHonorsParamFilter(t *testing.T) {
   <C:filter><C:prop-filter name="EMAIL"><C:param-filter name="TYPE"><C:text-match match-type="equals">work</C:text-match></C:param-filter></C:prop-filter></C:filter>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -835,7 +835,7 @@ func TestHandlerReportAddressBookQueryHonorsFilterComposition(t *testing.T) {
   </C:filter>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
@@ -857,13 +857,47 @@ func TestHandlerReportAddressBookQueryHonorsLimit(t *testing.T) {
   <D:limit><D:nresults>1</D:nresults></D:limit>
   <D:prop><D:getetag/><C:address-data/></D:prop>
 </C:addressbook-query>`
-	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	if count := strings.Count(rec.Body.String(), "<D:response>"); count != 1 {
 		t.Fatalf("response count = %d, body = %s", count, rec.Body.String())
+	}
+}
+
+func TestHandlerReportAddressBookQueryRequiresDepthHeader(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"/></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReportWithoutDepth(t, "/carddav/addressbooks/user-1/personal/", body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Depth header") {
+		t.Fatalf("missing-depth response lacks context: %s", rec.Body.String())
+	}
+}
+
+func TestHandlerReportAddressBookQueryDepthZeroReturnsCollectionScope(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"/></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "<D:response>") {
+		t.Fatalf("Depth: 0 addressbook-query should not return child objects:\n%s", rec.Body.String())
 	}
 }
 
@@ -1116,6 +1150,16 @@ func runCardDAVReport(t *testing.T, path string, depth Depth, body string) *http
 
 	req := httptest.NewRequest(MethodReport, path, strings.NewReader(body))
 	req.Header.Set("Depth", string(depth))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+	return rec
+}
+
+func runCardDAVReportWithoutDepth(t *testing.T, path string, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(MethodReport, path, strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
 	handler.ServeHTTP(rec, req)

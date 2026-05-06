@@ -2442,6 +2442,10 @@ Implementation order:
       the repository transaction and rechecks `If-Match` state under the
       address-book lock before deleting the active object row, closing the
       precondition race between handler lookup and storage mutation.
+1132. CardDAV `addressbook-query` now follows the RFC 6352 Depth contract more
+      closely: the handler requires an explicit `Depth` header, uses `Depth: 1`
+      for address-object child scans, and treats `Depth: 0` as
+      collection-scoped rather than returning every child object.
 
 ## Deferred until backend contracts stabilize
 
