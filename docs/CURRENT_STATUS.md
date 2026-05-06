@@ -926,6 +926,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `SEARCH` and `UID SEARCH` now reject `CHARSET` prefixes that omit the
   required following search-key before authentication or selected-mailbox
   checks, preserving RFC 3501 search grammar on the hot command boundary.
+- IMAP `FETCH` and `UID FETCH` now validate malformed fetch data-item syntax
+  such as nested `((FLAGS))` before authentication or selected-mailbox checks,
+  keeping RFC 3501 fetch grammar errors from being masked as state failures.
 - IMAP command tokenization now rejects embedded quote characters inside
   unquoted atoms while preserving escaped quotes inside proper quoted strings,
   keeping RFC 3501 atom and quoted-string handling separate.

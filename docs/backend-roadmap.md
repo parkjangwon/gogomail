@@ -3005,6 +3005,10 @@ Implementation order:
       instead of trimming opaque provider tokens, preserving exact pagination
       identity across local/NFS and S3-compatible Drive, lifecycle, and
       reconciliation scans.
+1221. IMAP `FETCH` and `UID FETCH` now validate malformed fetch data-item
+      syntax such as nested `((FLAGS))` before authentication or selected-state
+      checks, keeping RFC 3501 fetch grammar failures distinct from mailbox
+      state failures.
 
 ## Deferred until backend contracts stabilize
 
