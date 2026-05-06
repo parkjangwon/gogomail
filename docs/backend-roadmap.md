@@ -3872,6 +3872,10 @@ Implementation order:
 1401. IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
       token, rejecting leading/trailing whitespace variants as malformed
       termination instead of silently ending the idle state.
+1402. IMAP `AUTHENTICATE PLAIN` SASL-IR initial responses now validate
+      malformed PLAIN payloads before plaintext privacy policy checks,
+      preserving syntax-before-policy diagnostics without authenticating before
+      TLS.
 
 ## Deferred until backend contracts stabilize
 

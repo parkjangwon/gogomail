@@ -53,6 +53,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
   token, rejecting leading/trailing whitespace variants as malformed
   termination instead of silently ending the idle state.
+- IMAP `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed
+  PLAIN payloads before plaintext privacy policy checks, preserving
+  syntax-before-policy diagnostics without authenticating before TLS.
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.

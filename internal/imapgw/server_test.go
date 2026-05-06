@@ -1284,16 +1284,17 @@ func TestServerValidatesAuthSyntaxBeforePrivacyRequired(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com\r\na2 AUTHENTICATE BOGUS\r\na3 AUTHENTICATE PLAIN\r\na4 LOGIN user@example.com secret\r\na5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com\r\na2 AUTHENTICATE BOGUS\r\na3 AUTHENTICATE PLAIN not-base64\r\na4 AUTHENTICATE PLAIN\r\na5 LOGIN user@example.com secret\r\na6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write auth commands: %v", err)
 	}
 	want := []string{
 		"a1 BAD LOGIN requires username and password atoms\r\n",
 		"a2 NO AUTHENTICATE mechanism is unsupported\r\n",
-		"a3 NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n",
-		"a4 NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n",
+		"a3 BAD AUTHENTICATE PLAIN response is malformed\r\n",
+		"a4 NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n",
+		"a5 NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a5 OK LOGOUT completed\r\n",
+		"a6 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

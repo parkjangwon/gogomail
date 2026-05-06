@@ -352,6 +352,9 @@ Current state:
   plaintext `[PRIVACYREQUIRED]` responses on TLS-required listeners, while
   syntactically valid but unsupported SASL mechanisms return tagged `NO`
   responses so probing clients can fall back cleanly.
+- `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed PLAIN
+  payloads before plaintext privacy policy checks, preserving
+  syntax-before-policy diagnostics without authenticating before TLS.
 - SASL PLAIN decoding rejects oversized encoded and decoded responses before
   credential splitting or backend authentication, keeping `AUTHENTICATE PLAIN`
   continuation and `SASL-IR` literal paths bounded.

@@ -543,6 +543,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO AUTHENTICATE mechanism is unsupported\r\n")
 			return false, err
 		}
+		if len(fields) == 4 {
+			if _, _, ok := decodeSASLPlain(fields[3]); !ok {
+				_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
+				return false, err
+			}
+		}
 		if !s.authAllowed(state) {
 			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n")
 			return false, err
