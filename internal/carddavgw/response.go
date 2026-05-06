@@ -35,11 +35,12 @@ var (
 )
 
 var (
-	ResourceTypeCollection  = XMLName{Space: DAVNamespace, Local: "collection"}
-	ResourceTypePrincipal   = XMLName{Space: DAVNamespace, Local: "principal"}
-	ResourceTypeAddressBook = XMLName{Space: CardDAVNamespace, Local: "addressbook"}
-	PrivilegeRead           = XMLName{Space: DAVNamespace, Local: "read"}
-	PrivilegeWriteContent   = XMLName{Space: DAVNamespace, Local: "write-content"}
+	ResourceTypeCollection   = XMLName{Space: DAVNamespace, Local: "collection"}
+	ResourceTypePrincipal    = XMLName{Space: DAVNamespace, Local: "principal"}
+	ResourceTypeAddressBook  = XMLName{Space: CardDAVNamespace, Local: "addressbook"}
+	PrivilegeRead            = XMLName{Space: DAVNamespace, Local: "read"}
+	PrivilegeWriteContent    = XMLName{Space: DAVNamespace, Local: "write-content"}
+	PrivilegeWriteProperties = XMLName{Space: DAVNamespace, Local: "write-properties"}
 )
 
 type PropertyValue struct {
@@ -178,7 +179,7 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		webDAVTimeProperty(PropCreationDate, book.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
-		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: readOnlyPrivileges()}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: addressBookCollectionPrivileges()}, Found: true},
 		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
@@ -217,6 +218,10 @@ func ContactObjectProperties(userID string, object ContactObject) ([]PropertyRes
 
 func readOnlyPrivileges() []XMLName {
 	return []XMLName{PrivilegeRead}
+}
+
+func addressBookCollectionPrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeWriteProperties}
 }
 
 func writableObjectPrivileges() []XMLName {

@@ -394,10 +394,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response cap is satisfied instead of materializing the whole address book.
   Address-data projection failures are explicit errors rather than silent
   full-body fallbacks. PROPFIND responses expose conservative RFC 3744-style
-  current-user privileges: readable resources return `DAV:read`, while contact
-  objects also return `DAV:write-content` because object write semantics are
-  implemented. Broader collection, property, bind/unbind, and ACL write
-  privileges remain unadvertised. Address-book collection PROPFIND also
+  current-user privileges: readable resources return `DAV:read`, address-book
+  collections also return `DAV:write-properties` because collection
+  `PROPPATCH` semantics are implemented, and contact objects also return
+  `DAV:write-content` because object write semantics are implemented. Broader
+  collection, bind/unbind, and ACL write privileges remain unadvertised.
+  Address-book collection PROPFIND also
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
   adding a second versioning model. Address-book collection discovery also
