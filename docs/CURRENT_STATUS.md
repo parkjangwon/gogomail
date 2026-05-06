@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV delegated change actor context)
+Last updated: 2026-05-06 (updated after IMAP absolute LIST reference handling)
 
 ## Current phase
 
@@ -72,6 +72,11 @@ with the hierarchy delimiter as root-absolute patterns before matching the
 server's root-relative mailbox names, so probes such as `LIST "Archive"
 "/INBOX"` still discover `INBOX` instead of being matched against an impossible
 leading-slash mailbox name.
+IMAP `LIST` reference names that begin with the hierarchy delimiter are now
+normalized the same way before joining them with relative mailbox patterns, so
+namespace/root-style probes such as `LIST "/Projects" "2026"` match the
+root-relative `Projects/2026` mailbox rather than constructing an impossible
+leading-slash internal path.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

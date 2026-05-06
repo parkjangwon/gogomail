@@ -116,6 +116,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   patterns as root-absolute selectors before matching root-relative mailbox
   names, preserving client compatibility for absolute mailbox discovery
   probes.
+- IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
+  before joining relative mailbox patterns, keeping namespace/root-style
+  discovery probes compatible with root-relative mailbox storage.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
