@@ -328,12 +328,16 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err != nil {
 		return ObjectListPage{}, err
 	}
-	nextCursor, err := ValidateListCursor(result.NextContinuationToken)
-	if err != nil {
-		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid continuation token: %w", err)
-	}
-	if result.IsTruncated && nextCursor == "" {
-		return ObjectListPage{}, fmt.Errorf("list s3 objects: truncated response missing continuation token")
+	nextCursor := ""
+	if result.IsTruncated {
+		var err error
+		nextCursor, err = ValidateListCursor(result.NextContinuationToken)
+		if err != nil {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid continuation token: %w", err)
+		}
+		if nextCursor == "" {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: truncated response missing continuation token")
+		}
 	}
 	page := ObjectListPage{
 		Objects:    make([]ObjectInfo, 0, len(result.Contents)),

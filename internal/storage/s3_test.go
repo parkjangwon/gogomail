@@ -1015,6 +1015,44 @@ func TestS3StoreListRejectsWhitespacePaddedContinuationToken(t *testing.T) {
 	}
 }
 
+func TestS3StoreListIgnoresContinuationTokenOnFinalPage(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <NextContinuationToken> cursor-ignored </NextContinuationToken>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if page.HasMore || page.NextCursor != "" {
+		t.Fatalf("page = %+v, want final page with empty cursor", page)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-1.eml" {
+		t.Fatalf("objects = %+v, want listed object", page.Objects)
+	}
+}
+
 func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
 	t.Parallel()
 

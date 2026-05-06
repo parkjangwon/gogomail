@@ -159,6 +159,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before deletion, preserving completed progress and surfacing a structured
   sibling-listing error if a backend returns keys outside the requested
   canonical cleanup prefix.
+- S3-compatible `List` now validates provider continuation tokens only when
+  `IsTruncated=true` and always clears final-page cursors, improving
+  compatibility with S3-like providers that include ignored or malformed
+  `NextContinuationToken` values on non-truncated pages.
 - Drive backend groundwork is started without frontend implementation: ADR
   0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`

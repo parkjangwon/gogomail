@@ -42,6 +42,10 @@ Future Drive and lifecycle modules should prefer `Stat` for existence/size
 checks, `GetRange` for resumable downloads and media preview windows, `Copy`
 for object duplication workflows, `Move` for file rename/relocation workflows,
 and `List` for prefix-scoped browsing, reconciliation, and cleanup scans.
+S3-compatible listings validate provider continuation tokens only when a page
+is actually truncated and always clear final-page cursors, so ignored
+`NextContinuationToken` values on non-truncated provider responses do not leak
+into callers.
 `storage.DeletePrefix` composes `List` and idempotent `Delete` into a bounded
 page-level cleanup helper for future Drive folder deletion, attachment
 lifecycle, and reconciliation jobs without requiring callers to know whether
