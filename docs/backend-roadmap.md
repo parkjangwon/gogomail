@@ -3496,6 +3496,11 @@ Implementation order:
       canonical mailbox ID before mutation dispatch, aligning mailbox
       management with the canonical-ID boundaries already used by `DELETE`,
       `APPEND`, `COPY`, and `MOVE`.
+1318. IMAP `ENABLE CONDSTORE` after a mailbox selection with no persistent
+      mod-sequences now records selected `NOMODSEQ` state as well as emitting
+      the untagged `[NOMODSEQ]` response, keeping later MODSEQ-dependent
+      `FETCH`, search, sort/thread, and store commands behind the RFC 7162
+      persistent-mod-sequence guard.
 
 ## Deferred until backend contracts stabilize
 

@@ -176,6 +176,10 @@ Current state:
 - IMAP `RENAME` now resolves the source mailbox wire name to the backend's
   canonical mailbox ID before mutation dispatch, aligning mailbox-management
   commands with the canonical-ID boundaries used by operational commands.
+- IMAP `ENABLE CONDSTORE` after a non-persistent-mod-sequence selection now
+  persists selected `NOMODSEQ` state, so later `FETCH MODSEQ`,
+  `CHANGEDSINCE`, `MODSEQ` search, and `UNCHANGEDSINCE` mutations stay behind
+  the RFC 7162 persistent-mod-sequence guard.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

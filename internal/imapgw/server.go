@@ -6149,11 +6149,15 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 	}
 	if enableCondstore && !wasCondstoreAware && state.selectedMailbox != "" {
 		if state.selectedHighestModSeq > 0 {
+			state.selectedNoModSeq = false
 			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", state.selectedHighestModSeq)); err != nil {
 				return false, err
 			}
-		} else if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
-			return false, err
+		} else {
+			state.selectedNoModSeq = true
+			if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
+				return false, err
+			}
 		}
 	}
 	_, err := writer.WriteString(tag + " OK ENABLE completed\r\n")

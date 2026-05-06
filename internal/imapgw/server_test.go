@@ -2373,7 +2373,7 @@ func TestServerEnableCondstoreAfterNoModSeqSelectReturnsNoModSeq(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 ENABLE CONDSTORE\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 ENABLE CONDSTORE\r\na4 FETCH 1 (MODSEQ)\r\n")); err != nil {
 		t.Fatalf("write login/select/enable: %v", err)
 	}
 	want := []string{
@@ -2388,6 +2388,7 @@ func TestServerEnableCondstoreAfterNoModSeqSelectReturnsNoModSeq(t *testing.T) {
 		"* ENABLED CONDSTORE\r\n",
 		"* OK [NOMODSEQ] No persistent mod-sequences\r\n",
 		"a3 OK ENABLE completed\r\n",
+		"a4 BAD FETCH requires persistent mod-sequences\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -2398,7 +2399,7 @@ func TestServerEnableCondstoreAfterNoModSeqSelectReturnsNoModSeq(t *testing.T) {
 			t.Fatalf("enable after select nomodseq response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

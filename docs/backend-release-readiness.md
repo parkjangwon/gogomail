@@ -190,6 +190,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `RENAME` resolves the source mailbox wire name to a canonical backend
   mailbox ID before mutation dispatch, preserving backend-boundary consistency
   for localized or display-name mailbox inputs.
+- IMAP `ENABLE CONDSTORE` after a selected mailbox with no persistent
+  mod-sequences now records selected `NOMODSEQ` state before later
+  MODSEQ-dependent command validation.
 - IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is covered across a
   following `SELECT` and `UID STORE`, verifying MODSEQ echo behavior after
   mailbox selection.
