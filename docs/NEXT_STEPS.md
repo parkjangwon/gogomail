@@ -260,6 +260,10 @@ Current state:
   to `message/rfc822` MIME-part sections too, so forwarded-message probes such
   as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]` behave like
   top-level header subset fetches.
+- Nested `message/rfc822` header-field partial fetches now have regression
+  coverage for forwarded-message previews, including non-empty
+  `HEADER.FIELDS`, empty `HEADER.FIELDS`, and empty `HEADER.FIELDS.NOT`
+  windows on attached messages.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.
