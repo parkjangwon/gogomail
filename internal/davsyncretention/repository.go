@@ -5,12 +5,17 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
 
-const maxRunErrorMessageBytes = 1024
+const (
+	maxRunErrorMessageBytes = 1024
+	maxRunIDBytes           = 128
+	MaxRunListLimit         = 100
+)
 
 type RunStatus string
 
@@ -32,6 +37,13 @@ type RunRecord struct {
 	CalDAVDeleted     int64     `json:"caldav_deleted_count"`
 	CardDAVCandidates int64     `json:"carddav_candidate_count"`
 	CardDAVDeleted    int64     `json:"carddav_deleted_count"`
+}
+
+type RunListRequest struct {
+	Limit       int
+	Status      RunStatus
+	CreatedFrom time.Time
+	CreatedTo   time.Time
 }
 
 type Repository struct {
@@ -78,6 +90,83 @@ INSERT INTO dav_sync_retention_runs (
 	return record, nil
 }
 
+func (r *Repository) ListRuns(ctx context.Context, req RunListRequest) ([]RunRecord, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := normalizeRunListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	query := `
+SELECT id, created_at, cutoff, limit_count, dry_run, confirm_ready, status, error_message,
+  caldav_candidate_count, caldav_deleted_count, carddav_candidate_count, carddav_deleted_count
+FROM dav_sync_retention_runs`
+	var conditions []string
+	var args []any
+	if req.Status != "" {
+		args = append(args, string(req.Status))
+		conditions = append(conditions, fmt.Sprintf("status = $%d", len(args)))
+	}
+	if !req.CreatedFrom.IsZero() {
+		args = append(args, req.CreatedFrom.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if !req.CreatedTo.IsZero() {
+		args = append(args, req.CreatedTo.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at < $%d", len(args)))
+	}
+	if len(conditions) > 0 {
+		query += "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+	args = append(args, req.Limit)
+	query += fmt.Sprintf(`
+ORDER BY created_at DESC, id DESC
+LIMIT $%d`, len(args))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list DAV sync retention runs: %w", err)
+	}
+	defer rows.Close()
+
+	var runs []RunRecord
+	for rows.Next() {
+		run, err := scanRun(rows)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate DAV sync retention runs: %w", err)
+	}
+	return runs, nil
+}
+
+func (r *Repository) GetRun(ctx context.Context, id string) (RunRecord, error) {
+	if r.db == nil {
+		return RunRecord{}, fmt.Errorf("database handle is required")
+	}
+	id, err := validateRunID(id)
+	if err != nil {
+		return RunRecord{}, err
+	}
+	const query = `
+SELECT id, created_at, cutoff, limit_count, dry_run, confirm_ready, status, error_message,
+  caldav_candidate_count, caldav_deleted_count, carddav_candidate_count, carddav_deleted_count
+FROM dav_sync_retention_runs
+WHERE id = $1`
+	run, err := scanRun(r.db.QueryRowContext(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return RunRecord{}, fmt.Errorf("DAV sync retention run not found")
+		}
+		return RunRecord{}, fmt.Errorf("get DAV sync retention run: %w", err)
+	}
+	return run, nil
+}
+
 func normalizeRunRecord(record RunRecord, now func() time.Time) (RunRecord, error) {
 	if record.Cutoff.IsZero() {
 		return RunRecord{}, fmt.Errorf("cutoff is required")
@@ -114,6 +203,42 @@ func normalizeRunRecord(record RunRecord, now func() time.Time) (RunRecord, erro
 	return record, nil
 }
 
+func normalizeRunListRequest(req RunListRequest) (RunListRequest, error) {
+	if req.Limit < 0 {
+		return RunListRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	if req.Limit == 0 || req.Limit > MaxRunListLimit {
+		req.Limit = MaxRunListLimit
+	}
+	if req.Status != "" && req.Status != RunStatusCompleted && req.Status != RunStatusFailed {
+		return RunListRequest{}, fmt.Errorf("DAV sync retention status is unsupported")
+	}
+	if !req.CreatedFrom.IsZero() {
+		req.CreatedFrom = req.CreatedFrom.UTC()
+	}
+	if !req.CreatedTo.IsZero() {
+		req.CreatedTo = req.CreatedTo.UTC()
+	}
+	if !req.CreatedFrom.IsZero() && !req.CreatedTo.IsZero() && !req.CreatedFrom.Before(req.CreatedTo) {
+		return RunListRequest{}, fmt.Errorf("created_from must be before created_to")
+	}
+	return req, nil
+}
+
+func validateRunID(id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", fmt.Errorf("DAV sync retention run id is required")
+	}
+	if len(id) > maxRunIDBytes {
+		return "", fmt.Errorf("DAV sync retention run id is too long")
+	}
+	if strings.ContainsAny(id, "\r\n\t") {
+		return "", fmt.Errorf("DAV sync retention run id must not contain control whitespace")
+	}
+	return id, nil
+}
+
 func cleanRunErrorMessage(message string) string {
 	message = strings.TrimSpace(message)
 	if message == "" {
@@ -137,6 +262,38 @@ func cleanRunErrorMessage(message string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+type runScanner interface {
+	Scan(...any) error
+}
+
+func scanRun(scanner runScanner) (RunRecord, error) {
+	var run RunRecord
+	var status string
+	if err := scanner.Scan(
+		&run.ID,
+		&run.CreatedAt,
+		&run.Cutoff,
+		&run.Limit,
+		&run.DryRun,
+		&run.ConfirmReady,
+		&status,
+		&run.ErrorMessage,
+		&run.CalDAVCandidates,
+		&run.CalDAVDeleted,
+		&run.CardDAVCandidates,
+		&run.CardDAVDeleted,
+	); err != nil {
+		return RunRecord{}, fmt.Errorf("scan DAV sync retention run: %w", err)
+	}
+	run.Status = RunStatus(status)
+	if run.Status != RunStatusCompleted && run.Status != RunStatusFailed {
+		return RunRecord{}, fmt.Errorf("scan DAV sync retention run: unsupported status")
+	}
+	run.CreatedAt = run.CreatedAt.UTC()
+	run.Cutoff = run.Cutoff.UTC()
+	return run, nil
 }
 
 func newRunID() (string, error) {

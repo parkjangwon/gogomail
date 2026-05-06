@@ -3162,6 +3162,11 @@ Implementation order:
       and CalDAV/CardDAV candidate/deleted counts. Partial failures after one
       DAV side prunes successfully are now traceable before Admin API
       readiness/history endpoints make retention publicly operable.
+1249. The DAV sync retention repository now exposes bounded run-history reads:
+      list by status and created-at window with a capped limit, and fetch one
+      run by bounded ID. This gives Admin API readiness/history endpoints a
+      stable operational read boundary over `dav_sync_retention_runs` without
+      coupling controllers to worker execution internals.
 
 ## Deferred until backend contracts stabilize
 

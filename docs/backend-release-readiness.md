@@ -432,9 +432,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   default and guarded by explicit confirmation before destructive runs. Worker
   executions now persist `dav_sync_retention_runs` audit/read-model rows with
   cutoff, limit, dry-run/confirmation flags, status, bounded error text, and
-  CalDAV/CardDAV candidate/deleted counts, including partial failures.
-  Public-ready status still requires Admin API inspection plus documented
-  token-retention policy.
+  CalDAV/CardDAV candidate/deleted counts, including partial failures. The DAV
+  retention repository can list bounded history by status/created-at window and
+  fetch one run by bounded ID, giving the future Admin API a stable operational
+  read boundary. Public-ready status still requires Admin API inspection plus
+  documented token-retention policy.
 - CardDAV sync-change retention pruning now mirrors that boundary for address
   books: bounded dry-run/delete calls preserve the newest sync marker per
   address book and use a dedicated prune-order index. Public-ready Contacts
