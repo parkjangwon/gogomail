@@ -1120,7 +1120,7 @@ func TestS3StoreListValidatesSizeAfterCanonicalPrefix(t *testing.T) {
 func TestS3StoreListRejectsSignedObjectSize(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{"+5", "-1"}
+	tests := []string{"+5", "-1", " 5 "}
 	for _, size := range tests {
 		size := size
 		t.Run(size, func(t *testing.T) {

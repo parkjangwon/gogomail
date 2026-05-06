@@ -368,11 +368,12 @@ see deployment-specific bucket prefixes. The mapped gogomail path is then
 rechecked against the requested logical prefix, preserving local/NFS
 sibling-prefix isolation even if a compatible provider returns an overly broad
 page. Size and returned ETag metadata are validated only after that canonical
-prefix mapping succeeds, and ETags use the same bounded metadata cleanup as
-`Stat`. Non-empty `LastModified` values must parse as exact S3/RFC-compatible
-timestamps; malformed or whitespace-padded values are rejected instead of
-being silently exposed as zero timestamps. Provider responses that return more
-matching objects than requested are rejected, keeping local/NFS and
+prefix mapping succeeds; object sizes must be exact unsigned decimal digits,
+and ETags use the same bounded metadata cleanup as `Stat`. Non-empty
+`LastModified` values must parse as exact S3/RFC-compatible timestamps;
+malformed or whitespace-padded values are rejected instead of being silently
+exposed as zero timestamps. Provider responses that return more matching
+objects than requested are rejected, keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded
 separators are ignored before exposure to callers, preserving the same
 portable key-shape rule used for request paths. `ListObjectsV2` query
