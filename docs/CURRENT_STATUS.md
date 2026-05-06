@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after Local/NFS cross-device move fallback)
+Last updated: 2026-05-07 (updated after IMAP header field-name compatibility hardening)
 
 ## Current phase
 
@@ -101,6 +101,11 @@ IMAP `FETCH` body-part selectors now reject leading-zero MIME part numbers
 such as `BODY[01]` or `BODY[1.02.TEXT]`, and partial fetch counts now reject
 leading-zero `nz-number` forms such as `<12.034>`, keeping body-section and
 partial-window parsing aligned with RFC 3501 number semantics.
+IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT` parsing
+now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
+`.` while still rejecting empty, space/control-bearing, colon-suffixed, or
+non-ASCII field names. This keeps custom header probes from being falsely
+rejected at the IMAP parser boundary.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

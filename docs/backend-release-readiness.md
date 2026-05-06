@@ -222,6 +222,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `nz-number` forms such as `BODY[01]` and `BODY[1.02.TEXT]`, and partial
   fetch counts reject leading-zero forms such as `<12.034>`, keeping body
   section and partial-window parsing at the RFC-shaped syntax boundary.
+- IMAP header field-name validation for `SEARCH HEADER` and
+  `HEADER.FIELDS`/`HEADER.FIELDS.NOT` now accepts RFC 5322-style visible
+  custom names containing `_`, `+`, or `.`, while rejecting empty,
+  whitespace/control-bearing, colon-suffixed, or non-ASCII names before
+  command execution.
 - IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
   before joining relative mailbox patterns, keeping namespace/root-style
   discovery probes compatible with root-relative mailbox storage.

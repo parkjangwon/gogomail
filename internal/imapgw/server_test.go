@@ -8263,7 +8263,7 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("partial completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 UID FETCH 9 BODY.PEEK[HEADER.FIELDS ([Subject])]\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 9 BODY.PEEK[HEADER.FIELDS (Subject:)]\r\n")); err != nil {
 		t.Fatalf("write malformed uid fetch header fields: %v", err)
 	}
 	if line, err = reader.ReadString('\n'); err != nil || line != "a5 BAD FETCH header field list is invalid\r\n" {
@@ -9913,6 +9913,37 @@ func TestIMAPFetchDataItemsSyntaxRejectsUnsupportedItems(t *testing.T) {
 	}
 }
 
+func TestIMAPHeaderFieldNameValid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		field string
+		want  bool
+	}{
+		{name: "subject", field: "Subject", want: true},
+		{name: "message id", field: "Message-ID", want: true},
+		{name: "underscore", field: "X_Custom", want: true},
+		{name: "plus", field: "X+Custom", want: true},
+		{name: "period", field: "X.Custom", want: true},
+		{name: "empty", field: "", want: false},
+		{name: "space", field: "Bad Field", want: false},
+		{name: "colon", field: "Subject:", want: false},
+		{name: "control", field: "Bad\tField", want: false},
+		{name: "non ascii", field: "X-\x80", want: false},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := imapSearchHeaderFieldNameValid(tc.field); got != tc.want {
+				t.Fatalf("imapSearchHeaderFieldNameValid(%q) = %v, want %v", tc.field, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
 	t.Parallel()
 
@@ -9924,6 +9955,7 @@ func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
 		{name: "core list", items: []string{"(UID", "FLAGS", "RFC822.SIZE", "MODSEQ)"}},
 		{name: "full body partial", items: []string{"BODY.PEEK[]<12.34>"}},
 		{name: "header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(Subject", "From)]"}},
+		{name: "custom header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(X_Custom", "X+Trace", "X.Trace)]"}},
 		{name: "empty header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "()]"}},
 		{name: "empty header fields not", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "()]"}},
 		{name: "header fields partial", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "(From)]<0.10>"}},

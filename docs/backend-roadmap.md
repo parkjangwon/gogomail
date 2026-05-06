@@ -3721,6 +3721,11 @@ Implementation order:
       only when filesystem rename reports cross-device `EXDEV`, preserving the
       normal rename fast path while keeping object relocation portable across
       NFS or bind-mount style storage roots.
+1367. IMAP `SEARCH HEADER` and `FETCH`
+      `HEADER.FIELDS`/`HEADER.FIELDS.NOT` validation now accepts RFC
+      5322-style visible custom field names containing `_`, `+`, or `.`, while
+      continuing to reject empty, whitespace/control-bearing, colon-suffixed,
+      or non-ASCII field names at the parser boundary.
 
 ## Deferred until backend contracts stabilize
 
