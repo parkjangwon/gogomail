@@ -2637,6 +2637,12 @@ Implementation order:
       responses. This keeps AWS S3/compatible copy failures from being treated
       as successful Drive, attachment lifecycle, or reconciliation object
       duplication.
+1177. Drive runtime storage wiring now treats configured `s3` and `minio`
+      backends as bidirectional labels for the same S3-compatible store. Rows
+      persisted with `storage_backend='minio'` can still be served after an
+      AWS S3-style config flip, and rows persisted with `storage_backend='s3'`
+      can still be served by a MinIO-style deployment when object keys and
+      bucket contents are compatible.
 
 ## Deferred until backend contracts stabilize
 

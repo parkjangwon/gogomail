@@ -933,6 +933,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Localhost and IP-address endpoints also switch to path-style addressing
   automatically, avoiding `bucket.localhost`/`bucket.127.0.0.1` drift for local
   S3-compatible stores even when `GOGOMAIL_STORAGE_BACKEND=s3` is used.
+  Drive runtime wiring registers the active S3-compatible store under both
+  `s3` and `minio` labels, keeping existing Drive/upload rows reachable across
+  MinIO-to-AWS S3-style backend flips when object keys and bucket contents have
+  been migrated.
   S3 request paths preserve literal `+` characters as `%2B` so object identity
   and SigV4 canonical paths do not drift for plus-bearing mail object keys or
   plus-bearing endpoint base paths.

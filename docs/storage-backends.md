@@ -116,6 +116,12 @@ GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY=gogomail123
 
 The `minio` backend always uses path-style S3 requests so local endpoints do
 not need wildcard DNS.
+Drive and upload-session rows persist a `storage_backend` label. At runtime,
+gogomail registers the configured S3-compatible store under both `minio` and
+`s3` labels when either backend is active, so a deployment can move from local
+MinIO to AWS S3-style configuration, or back, without breaking existing rows
+solely because their stored backend label differs. Operators still need to
+migrate or replicate the actual bucket contents and preserve object keys.
 
 ## AWS S3 or compatible object storage
 
