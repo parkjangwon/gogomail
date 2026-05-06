@@ -2951,6 +2951,10 @@ Implementation order:
       scan all VEVENTs in a stored object and suppress the replaced master
       occurrence when an override exists, improving RFC 5545 native-client
       compatibility without introducing a product-specific event model.
+1196a. CalDAV `calendar-query` filter parsing now rejects RFC 4791-invalid
+       `time-range` placement directly under `filter` and duplicate
+       `time-range` elements within one component filter, keeping native-client
+       range matching fail-closed instead of silently accepting ambiguous XML.
 1197. Admin audit-log listing now supports bounded `action_prefix` filters,
       giving operators a contract-level way to inspect action families such as
       `share_link.` across successful, denied, and rate-limited public Drive

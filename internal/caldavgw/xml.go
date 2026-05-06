@@ -943,11 +943,7 @@ func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, er
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
-				timeRange, err := parseTimeRangeElement(dec, tok)
-				if err != nil {
-					return ReportFilter{}, err
-				}
-				found.TimeRange = &timeRange
+				return ReportFilter{}, fmt.Errorf("calendar-query time-range must be inside a comp-filter")
 			case sameXMLName(tok.Name, CalDAVNamespace, "comp-filter"):
 				topLevelComponents++
 				if topLevelComponents > 1 {
@@ -993,6 +989,7 @@ func parseCompFilterElement(dec *xml.Decoder, start xml.StartElement, parentComp
 			found.Component = unsupportedCalendarQueryComponent
 		}
 	}
+	hasTimeRange := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -1005,10 +1002,14 @@ func parseCompFilterElement(dec *xml.Decoder, start xml.StartElement, parentComp
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, CalDAVNamespace, "time-range"):
+				if hasTimeRange {
+					return ReportFilter{}, fmt.Errorf("calendar-query comp-filter must not contain multiple time-range elements")
+				}
 				timeRange, err := parseTimeRangeElement(dec, tok)
 				if err != nil {
 					return ReportFilter{}, err
 				}
+				hasTimeRange = true
 				found.TimeRange = &timeRange
 			case sameXMLName(tok.Name, CalDAVNamespace, "comp-filter"):
 				nested, err := parseCompFilterElement(dec, tok, component)
