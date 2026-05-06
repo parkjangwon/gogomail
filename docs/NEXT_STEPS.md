@@ -1653,6 +1653,10 @@ Current state:
   preserving same-user / same-collection scope checks; userinfo-bearing
   authorities, query, fragment, opaque, non-HTTP(S), and unsafe hrefs stay
   rejected as per-resource misses.
+- CalDAV `REPORT sync-collection` now enforces HTTP `Depth: 0` before sync
+  lookup or change-log work, matching the RFC 6578 request-scope model and the
+  existing CardDAV behavior while leaving child traversal to the required
+  request-body `sync-level`.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after Directory effective delegation)
+Last updated: 2026-05-06 (updated after CalDAV sync Depth hardening)
 
 ## Current phase
 
@@ -33,6 +33,10 @@ building blocks now exist, but the module is not yet advertised as public
 client-ready. The next compatibility gates are recurrence expansion, scheduling
 semantics, retention-aware sync deltas, collection-deletion sync, broader
 native-client testing, and the platform boundaries below.
+CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
+scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
+traversal controlled by the request body's `sync-level` rather than accidentally
+mixing in a broader HTTP `Depth: 1` traversal.
 
 Calendar product features must not grow as isolated CRUD. Before delegated
 calendars, shared ownership, attendees, resource booking, reminders, or
