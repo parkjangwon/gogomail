@@ -147,6 +147,11 @@ Current state:
 - IMAP `FETCH` and `UID FETCH` reject malformed fetch data-item syntax such as
   nested `((FLAGS))` before authentication or selected-mailbox checks, keeping
   RFC 3501 fetch grammar diagnostics ahead of state-machine errors.
+- IMAP `FETCH` and `UID FETCH` reject unsupported data items before
+  authentication or selected-mailbox checks instead of silently returning
+  default attributes, while preserving supported `BODY`, `BODY.PEEK`,
+  `RFC822.*`, `HEADER.FIELDS`, partial fetch, MIME section, macro, and
+  `CHANGEDSINCE` forms.
 - IMAP `STORE` and `UID STORE` reject malformed `UNCHANGEDSINCE`, store mode,
   and flag-list syntax before authentication or selected-mailbox checks,
   keeping RFC 3501/CONDSTORE mutation diagnostics ahead of state errors.

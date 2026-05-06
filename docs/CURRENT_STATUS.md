@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV calendar-query filter hardening)
+Last updated: 2026-05-06 (updated after IMAP FETCH data-item validation)
 
 ## Current phase
 
@@ -935,6 +935,11 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH` and `UID FETCH` now validate malformed fetch data-item syntax
   such as nested `((FLAGS))` before authentication or selected-mailbox checks,
   keeping RFC 3501 fetch grammar errors from being masked as state failures.
+- IMAP `FETCH` and `UID FETCH` now reject unsupported data items before
+  authentication or selected-mailbox checks instead of silently returning the
+  default fetch attributes. Supported `BODY`, `BODY.PEEK`, `RFC822.*`,
+  `HEADER.FIELDS`, partial fetch, MIME section, macro, and `CHANGEDSINCE`
+  shapes remain accepted through the same syntax boundary.
 - IMAP `STORE` and `UID STORE` now validate malformed `UNCHANGEDSINCE`, store
   mode, and flag-list syntax before authentication or selected-mailbox checks,
   keeping RFC 3501/CONDSTORE mutation grammar distinct from state failures.
