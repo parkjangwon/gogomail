@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP multi-expunge SEARCHRES fix)
+Last updated: 2026-05-06 (updated after IMAP UIDPLUS/SEARCHRES compliance hardening)
 
 ## Current phase
 
@@ -98,6 +98,9 @@ IMAP destination mailbox metadata now carries `UIDNotSticky`, and
 `COPY`/`UID COPY`/`MOVE`/`UID MOVE` omit UIDPLUS `COPYUID` response codes when
 the destination mailbox reports non-sticky UIDs, aligning the advertised
 UIDPLUS behavior with RFC 4315's non-persistent UID semantics.
+`APPEND` results can now also report non-sticky UID stores and suppress
+`APPENDUID` even when a backend returns UID metadata, keeping UIDPLUS response
+codes meaningful across append, copy, and move operations.
 IMAP `UID EXPUNGE` now has sparse/mixed regression coverage: protocol tests
 exercise missing UID members, and PostgreSQL coverage verifies that only
 existing `\Deleted` messages are expunged while unmarked and missing UIDs are
@@ -106,6 +109,10 @@ IMAP saved SEARCHRES state now applies the same adjusted sequence-number
 semantics as emitted multi-message `EXPUNGE` responses, preventing a batch
 expunge from removing the wrong saved-search entry after earlier expunges shift
 later message sequence numbers.
+SEARCHRES `$` is now accepted as a bare `SEARCH` sequence-set criterion, so
+clients can reuse saved search results through both `SEARCH $` and
+`UID SEARCH $ ...` forms instead of being limited to `FETCH $` or explicit
+`UID $` criteria.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

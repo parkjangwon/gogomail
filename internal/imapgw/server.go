@@ -1930,7 +1930,7 @@ func imapSearchCriterionLooksLikeSequenceSet(value string) bool {
 	if value == "" {
 		return false
 	}
-	if value == "*" || strings.ContainsAny(value, ":,") {
+	if value == "*" || value == "$" || strings.ContainsAny(value, ":,") {
 		return true
 	}
 	first := value[0]
@@ -3498,7 +3498,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		}
 	}
 	responseCode := ""
-	if result.UIDValidity != 0 && summary.UID != 0 {
+	if !result.UIDNotSticky && result.UIDValidity != 0 && summary.UID != 0 {
 		responseCode = fmt.Sprintf(" [APPENDUID %d %d]", result.UIDValidity, summary.UID)
 	}
 	_, err = writer.WriteString(tag + " OK" + responseCode + " APPEND completed\r\n")
