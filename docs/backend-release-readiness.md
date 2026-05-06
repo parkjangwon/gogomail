@@ -145,6 +145,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   attachment lifecycle, future Drive, and object reconciliation work without
   binding product code to filesystem or S3 APIs directly. S3-compatible moves
   are documented as copy-then-delete rather than atomic rename.
+- Local/NFS `Move` now falls back to copy-delete only when filesystem rename
+  reports cross-device `EXDEV`, preserving efficient local rename behavior
+  while keeping the backend-neutral relocation contract available on
+  NFS/bind-mount style layouts that cannot satisfy direct rename.
 - Shared storage also exposes bounded prefix cleanup through `DeletePrefix`,
   allowing future Drive folder deletion and lifecycle workers to delete one
   cursor page at a time instead of depending on provider-specific recursive

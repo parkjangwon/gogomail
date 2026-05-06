@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -364,6 +365,45 @@ func TestLocalStoreMoveHonorsCanceledContextBeforeRename(t *testing.T) {
 	store := NewLocalStore(t.TempDir())
 	if err := store.Move(ctx, "mailstore/source.eml", "mailstore/dest.eml"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Move err = %v, want context.Canceled", err)
+	}
+}
+
+func TestLocalStoreMoveFallsBackToCopyDeleteOnRenameCrossDeviceError(t *testing.T) {
+	root := t.TempDir()
+	store := NewLocalStore(root)
+	sourcePath := "mailstore/company/domain/source.eml"
+	destPath := "mailstore/company/domain/archive/dest.eml"
+	if err := store.Put(context.Background(), sourcePath, strings.NewReader("Subject: moved\r\n\r\nbody")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	var renameCalls int
+	store.rename = func(oldPath, newPath string) error {
+		renameCalls++
+		return &os.LinkError{Op: "rename", Old: oldPath, New: newPath, Err: syscall.EXDEV}
+	}
+
+	if err := store.Move(context.Background(), sourcePath, destPath); err != nil {
+		t.Fatalf("Move returned error: %v", err)
+	}
+	if renameCalls != 1 {
+		t.Fatalf("rename calls = %d, want 1", renameCalls)
+	}
+	body, err := store.Get(context.Background(), destPath)
+	if err != nil {
+		t.Fatalf("Get moved destination returned error: %v", err)
+	}
+	got, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("read moved destination: %v", err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatalf("close moved destination: %v", err)
+	}
+	if string(got) != "Subject: moved\r\n\r\nbody" {
+		t.Fatalf("moved destination body = %q", got)
+	}
+	if _, err := store.Get(context.Background(), sourcePath); err == nil {
+		t.Fatal("source still exists after rename fallback move")
 	}
 }
 

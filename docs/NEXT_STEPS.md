@@ -89,6 +89,10 @@ Current state:
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,
   and strict compatible gateways.
+- Local/NFS `Move` now keeps the normal filesystem rename fast path but falls
+  back to copy-delete on cross-device `EXDEV`, preserving backend-neutral file
+  relocation across NFS/bind-mount style deployments where a direct rename can
+  fail despite readable source and writable destination paths.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.
@@ -676,8 +680,9 @@ Current state:
   deletes as complete.
 - Local/NFS and S3-compatible storage expose a shared object `Move` contract
   for future Drive/file relocation workflows. Local/NFS uses efficient
-  filesystem rename semantics; S3-compatible storage uses signed server-side
-  copy followed by source delete. Post-copy source delete failures now return a
+  filesystem rename semantics and falls back to copy-delete only on
+  cross-device `EXDEV`; S3-compatible storage uses signed server-side copy
+  followed by source delete. Post-copy source delete failures now return a
   structured cleanup error with source and destination paths, so callers can
   safely distinguish recoverable duplicate cleanup from pre-copy move failure.
 - S3-compatible `Copy` now requires exact `200 OK` responses with bounded

@@ -2,21 +2,24 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 type LocalStore struct {
-	root string
+	root   string
+	rename func(oldPath, newPath string) error
 }
 
 func NewLocalStore(root string) *LocalStore {
-	return &LocalStore{root: filepath.Clean(root)}
+	return &LocalStore{root: filepath.Clean(root), rename: os.Rename}
 }
 
 func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error {
@@ -255,7 +258,20 @@ func (s *LocalStore) Move(ctx context.Context, sourcePath string, destPath strin
 	if err := s.ensureObjectParentDir(destObjectPath); err != nil {
 		return fmt.Errorf("create destination storage directory: %w", err)
 	}
-	if err := os.Rename(sourceFullPath, destFullPath); err != nil {
+	rename := s.rename
+	if rename == nil {
+		rename = os.Rename
+	}
+	if err := rename(sourceFullPath, destFullPath); err != nil {
+		if errors.Is(err, syscall.EXDEV) {
+			if err := s.Copy(ctx, sourceObjectPath, destObjectPath); err != nil {
+				return fmt.Errorf("move storage object: rename fallback copy failed: %w", err)
+			}
+			if err := s.Delete(ctx, sourceObjectPath); err != nil {
+				return fmt.Errorf("move storage object: rename fallback delete failed: %w", err)
+			}
+			return nil
+		}
 		return fmt.Errorf("move storage object: %w", err)
 	}
 	return nil

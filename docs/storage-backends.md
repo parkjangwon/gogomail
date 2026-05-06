@@ -27,8 +27,9 @@ caller sees bytes.
 `Copy` preserves object keys and adapter semantics while avoiding caller-side
 read/write loops when the backend can copy server-side. `Move` gives callers
 one backend-neutral object relocation contract: local/NFS uses filesystem
-rename semantics, while S3-compatible storage performs server-side copy
-followed by source delete. `List` returns bounded, cursor-paginated object
+rename semantics and falls back to copy-delete only for cross-device `EXDEV`
+rename failures, while S3-compatible storage performs server-side copy followed
+by source delete. `List` returns bounded, cursor-paginated object
 metadata under a validated prefix, using a local/NFS directory walk or signed
 S3 `ListObjectsV2` requests; truncated S3 pages must include a continuation
 token before callers see the page, and provider-returned keys are not trimmed
@@ -160,7 +161,10 @@ S3-compatible range-reader contract instead of receiving a silent short read.
 atomic temporary-file write path used by normal local/NFS writes.
 `Move` creates missing destination directories and uses `rename`, keeping local
 and NFS-style file relocation efficient and avoiding caller-side copy/delete
-loops.
+loops on the normal path. If `rename` reports cross-device `EXDEV`, `Move`
+falls back to the same validated copy-delete sequence used by the shared
+storage contract so bind-mount or NFS-style boundary layouts can still relocate
+objects safely.
 `List` walks under the requested canonical prefix, returns bounded pages, and
 uses an opaque cursor so callers do not depend on filesystem traversal details.
 Prefix cleanup uses the same bounded list pages and idempotent object deletes,
