@@ -143,6 +143,27 @@ When frontend implementation starts, use Next.js with TypeScript, shadcn/ui,
 `DESIGN.md`, and a Notion Mail-like product feel. Do not create substantial
 frontend apps or screens before that frontend-specific start gate is opened.
 
+## Release-readiness map
+
+Use this repository as a backend-contract workbench before treating any client
+surface as public. The short path for new contributors and coding agents is:
+
+- `docs/CURRENT_STATUS.md` for what is actually implemented and hardened now
+- `docs/NEXT_STEPS.md` for the next release-oriented backend priorities
+- `docs/backend-release-readiness.md` for the first webmail-focused release
+  gates
+- `docs/backend-api-contracts.md` and `docs/openapi.yaml` for generated-client
+  contracts
+- `docs/storage-backends.md` for local, NFS, MinIO, AWS S3, and compatible S3
+  storage behavior
+- `docs/adr/` for architectural boundaries that should not be rediscovered in
+  every agent session
+
+Treat a capability as release-ready only when runtime behavior, regression
+tests, docs/OpenAPI contracts, and operator guidance all describe the same
+thing. Partial protocol work should stay explicitly gated or experimental,
+especially for IMAP, CalDAV, CardDAV, and frontend-facing APIs.
+
 ## Agent handoff
 
 Future coding agents should read these files before changing code:
@@ -330,6 +351,27 @@ The release script runs `go test ./...`, `go mod tidy -diff`, optional
 database-gated checks when configured, and a clean-worktree check. For narrow
 changes, run the closest package test first, then the release script before
 committing and pushing.
+
+For storage portability work, also run the backend-neutral storage package
+coverage and, when a compatible endpoint is available, the optional S3/MinIO
+integration smoke:
+
+```bash
+go test ./internal/storage
+
+GOGOMAIL_TEST_S3_ENDPOINT=http://localhost:19000 \
+GOGOMAIL_TEST_S3_BUCKET=gogomail \
+GOGOMAIL_TEST_S3_ACCESS_KEY_ID=gogomail \
+GOGOMAIL_TEST_S3_SECRET_ACCESS_KEY=gogomail123 \
+  go test ./internal/storage
+```
+
+For AWS S3 or virtual-hosted compatible providers, add
+`GOGOMAIL_TEST_S3_REGION` and set
+`GOGOMAIL_TEST_S3_FORCE_PATH_STYLE=false`. Private CA or self-signed test
+endpoints can use `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
+`GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`; keep those variables test-scoped and
+document the chosen TLS posture in deployment runbooks.
 
 Release-oriented PostgreSQL checks are opt-in because they need a disposable
 database. They run migrations in a temporary schema and exercise draft send plus
