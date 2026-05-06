@@ -259,11 +259,14 @@ Current state:
   item normalization, preventing malformed requests such as `FETCH 1
   ((FLAGS))` and `UID FETCH 7 BODY.PEEK[]))` from being repaired.
 - Local filesystem storage remains the default and can be backed by local disk
-  or NFS-style mounted storage.
+  or NFS-style mounted storage. `GOGOMAIL_STORAGE_BACKEND=nfs` is now accepted
+  as an explicit alias for the same local filesystem adapter, and runtime
+  storage wiring treats `local` and `nfs` as bidirectional compatibility labels
+  for Drive rows.
 - Local/NFS storage configuration requires a non-empty bounded
   `GOGOMAIL_MAILSTORE_ROOT` without line breaks when
-  `GOGOMAIL_STORAGE_BACKEND=local`, so broken filesystem roots fail during
-  config validation instead of surfacing later as storage probe errors.
+  `GOGOMAIL_STORAGE_BACKEND=local` or `nfs`, so broken filesystem roots fail
+  during config validation instead of surfacing later as storage probe errors.
 - Local/NFS-style storage writes stage data through unique temporary files in
   the destination directory before `rename`, avoiding fixed `.tmp` collisions
   while preserving atomic object replacement semantics.
@@ -313,8 +316,8 @@ Current state:
   `GetRange` against the probe object, catching broken filesystem seek/range
   handling or S3 `Range` response compatibility before partial-read workflows
   report ready.
-- The storage interface is backend-neutral (`Put`, `Get`, `Stat`, `Copy`,
-  `Move`, `List`, `Delete`) and object paths share strict canonical key
+- The storage interface is backend-neutral (`Put`, `Get`, `GetRange`, `Stat`,
+  `Copy`, `Move`, `List`, `Delete`) and object paths share strict canonical key
   validation before adapter use, including valid UTF-8 object paths, prefixes,
   and list cursors.
 - S3-compatible `Stat` and `List` now bound and sanitize provider-returned

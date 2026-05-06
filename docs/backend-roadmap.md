@@ -3202,6 +3202,11 @@ Implementation order:
       fallback used by object reads/writes and WebDAV discovery/report methods,
       preventing manually assembled handlers from panicking on a nil resolver
       while preserving fail-closed unauthorized responses.
+1256. Storage configuration now accepts `GOGOMAIL_STORAGE_BACKEND=nfs` as an
+      explicit alias for the local filesystem adapter. Runtime Drive storage
+      wiring registers `local` and `nfs` as bidirectional compatibility labels,
+      and Admin capabilities/OpenAPI/docs expose the alias without changing
+      object-key semantics or leaking local root paths.
 
 ## Deferred until backend contracts stabilize
 

@@ -191,6 +191,18 @@ func TestObjectStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	}
 }
 
+func TestObjectStoreForConfigBuildsNFSAliasBackend(t *testing.T) {
+	t.Parallel()
+
+	store, err := objectStoreForConfig(config.Config{StorageBackend: " nfs ", MailstoreRoot: t.TempDir()})
+	if err != nil {
+		t.Fatalf("objectStoreForConfig returned error: %v", err)
+	}
+	if _, ok := store.(*storage.LocalStore); !ok {
+		t.Fatalf("store = %T, want *storage.LocalStore", store)
+	}
+}
+
 func TestStorageCapabilitiesForConfigDescribesLocalBackend(t *testing.T) {
 	t.Parallel()
 
@@ -201,11 +213,23 @@ func TestStorageCapabilitiesForConfigDescribesLocalBackend(t *testing.T) {
 	if capabilities.ConfiguredBackend != "local" || capabilities.BackendClass != "local" || !capabilities.LocalFilesystem || capabilities.S3Compatible {
 		t.Fatalf("capabilities = %+v", capabilities)
 	}
-	if len(capabilities.ActiveLabels) != 2 || capabilities.ActiveLabels[0] != "local" || capabilities.ActiveLabels[1] != "s3" {
+	if len(capabilities.ActiveLabels) != 3 || capabilities.ActiveLabels[0] != "local" || capabilities.ActiveLabels[1] != "nfs" || capabilities.ActiveLabels[2] != "s3" {
 		t.Fatalf("active labels = %#v", capabilities.ActiveLabels)
 	}
 	if !capabilities.CompatLabelsEnabled || !capabilities.ReadinessProbe || !capabilities.SecretsRedacted || !capabilities.SupportsBackendSwitch {
 		t.Fatalf("capabilities = %+v", capabilities)
+	}
+}
+
+func TestStorageCapabilitiesForConfigDescribesNFSAliasBackend(t *testing.T) {
+	t.Parallel()
+
+	capabilities := storageCapabilitiesForConfig(config.Config{StorageBackend: " nfs "})
+	if capabilities.ConfiguredBackend != "nfs" || capabilities.BackendClass != "local" || !capabilities.LocalFilesystem || capabilities.S3Compatible {
+		t.Fatalf("capabilities = %+v", capabilities)
+	}
+	if len(capabilities.ActiveLabels) != 2 || capabilities.ActiveLabels[0] != "local" || capabilities.ActiveLabels[1] != "nfs" {
+		t.Fatalf("active labels = %#v", capabilities.ActiveLabels)
 	}
 }
 
@@ -310,15 +334,52 @@ func TestDriveServiceForConfigTreatsS3AndMinIOAsCompatibleLabels(t *testing.T) {
 	}
 }
 
+func TestDriveServiceForConfigTreatsLocalAndNFSAsCompatibleLabels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		configBackend   string
+		recordedBackend string
+	}{
+		{name: "local serves nfs rows", configBackend: "local", recordedBackend: "nfs"},
+		{name: "nfs serves local rows", configBackend: "nfs", recordedBackend: "local"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := storage.NewLocalStore(t.TempDir())
+			service := driveServiceForConfig(nil, config.Config{StorageBackend: tt.configBackend}, store)
+			staged, err := service.StoreStagedObject(context.Background(), drive.StoreStagedObjectRequest{
+				UserID:         "user-1",
+				UploadID:       strings.ReplaceAll(tt.name, " ", "-"),
+				StorageBackend: tt.recordedBackend,
+				Body:           strings.NewReader("portable nfs drive object"),
+			})
+			if err != nil {
+				t.Fatalf("StoreStagedObject returned error: %v", err)
+			}
+			if staged.StorageBackend != tt.recordedBackend {
+				t.Fatalf("storage backend = %q, want preserved recorded label %q", staged.StorageBackend, tt.recordedBackend)
+			}
+			if _, err := store.Stat(context.Background(), staged.StoragePath); err != nil {
+				t.Fatalf("staged object not written through compatible store: %v", err)
+			}
+		})
+	}
+}
+
 func TestStorageStoresForConfigAddsExplicitCompatLabels(t *testing.T) {
 	t.Parallel()
 
 	store := storage.NewLocalStore(t.TempDir())
 	stores := storageStoresForConfig(config.Config{
 		StorageBackend:             "s3",
-		StorageBackendCompatLabels: []string{" local ", "MINIO", "local"},
+		StorageBackendCompatLabels: []string{" local ", "NFS", "MINIO", "local"},
 	}, store)
-	for _, label := range []string{"s3", "minio", "local"} {
+	for _, label := range []string{"s3", "minio", "local", "nfs"} {
 		if stores[label] != store {
 			t.Fatalf("stores[%q] = %T, want configured store", label, stores[label])
 		}

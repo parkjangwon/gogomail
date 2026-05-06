@@ -115,16 +115,16 @@ func (c Config) Validate() error {
 	if err := validateTCPAddr("GOGOMAIL_SUBMISSION_SMTPS_ADDR", c.SubmissionSMTPSAddr, false); err != nil {
 		return err
 	}
-	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local", "s3", "minio"); err != nil {
+	if err := validateEnum("GOGOMAIL_STORAGE_BACKEND", c.StorageBackend, "local", "nfs", "s3", "minio"); err != nil {
 		return err
 	}
 	storageBackend := strings.ToLower(strings.TrimSpace(c.StorageBackend))
 	for _, label := range c.StorageBackendCompatLabels {
-		if err := validateEnum("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS", label, "local", "s3", "minio"); err != nil {
+		if err := validateEnum("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS", label, "local", "nfs", "s3", "minio"); err != nil {
 			return err
 		}
 	}
-	if storageBackend == "local" {
+	if storageBackend == "local" || storageBackend == "nfs" {
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_MAILSTORE_ROOT", c.MailstoreRoot, 4096); err != nil {
 			return err
 		}

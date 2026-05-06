@@ -535,12 +535,13 @@ func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *
 }
 
 func storageStoresForConfig(cfg config.Config, store storage.Store) map[string]storage.Store {
-	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
-	if backend == "" {
-		backend = "local"
-	}
+	backend := normalizedStorageBackend(cfg.StorageBackend)
 	stores := map[string]storage.Store{
 		backend: store,
+	}
+	if backend == "local" || backend == "nfs" {
+		stores["local"] = store
+		stores["nfs"] = store
 	}
 	if backend == "s3" || backend == "minio" {
 		stores["s3"] = store
@@ -557,11 +558,11 @@ func storageStoresForConfig(cfg config.Config, store storage.Store) map[string]s
 }
 
 func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities {
-	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
-	if backend == "" {
-		backend = "local"
-	}
+	backend := normalizedStorageBackend(cfg.StorageBackend)
 	labels := []string{backend}
+	if backend == "local" || backend == "nfs" {
+		labels = append(labels, "local", "nfs")
+	}
 	if backend == "s3" || backend == "minio" {
 		labels = append(labels, "s3", "minio")
 	}
@@ -587,7 +588,7 @@ func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities
 		BackendClass:          backend,
 		ActiveLabels:          activeLabels,
 		Operations:            []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
-		LocalFilesystem:       backend == "local",
+		LocalFilesystem:       backend == "local" || backend == "nfs",
 		S3Compatible:          backend == "s3" || backend == "minio",
 		PathStyleAddressing:   false,
 		CompatLabelsEnabled:   len(cfg.StorageBackendCompatLabels) > 0,
@@ -617,8 +618,18 @@ func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities
 		} else {
 			capabilities.PathStyleAddressing = cfg.StorageS3ForcePathStyle || backend == "minio"
 		}
+	} else if capabilities.LocalFilesystem {
+		capabilities.BackendClass = "local"
 	}
 	return capabilities
+}
+
+func normalizedStorageBackend(value string) string {
+	backend := strings.ToLower(strings.TrimSpace(value))
+	if backend == "" {
+		return "local"
+	}
+	return backend
 }
 
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
@@ -2074,12 +2085,9 @@ type configuredObjectStore interface {
 }
 
 func objectStoreForConfig(cfg config.Config) (configuredObjectStore, error) {
-	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
-	if backend == "" {
-		backend = "local"
-	}
+	backend := normalizedStorageBackend(cfg.StorageBackend)
 	switch backend {
-	case "local":
+	case "local", "nfs":
 		return storage.NewLocalStore(cfg.MailstoreRoot), nil
 	case "s3", "minio":
 		return storage.NewS3Store(s3OptionsForConfig(cfg, backend))
