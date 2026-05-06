@@ -829,6 +829,10 @@ Current state:
 - S3-compatible `ListObjectsV2` `200 OK` responses now fail closed when the
   body is a top-level standard S3 `<Error>` document, surfacing the same
   bounded embedded-error diagnostic instead of a generic invalid list control.
+- S3-compatible `PutObject` and `DeleteObject` success responses now also
+  reject top-level standard S3 `<Error>` bodies before reporting completed
+  writes or cleanup, keeping compatible-provider throttling/auth/policy
+  failures from crossing the shared storage contract as false success.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.

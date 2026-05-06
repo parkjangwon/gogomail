@@ -206,6 +206,41 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 	}
 }
 
+func TestS3StorePutRejectsEmbeddedErrorInOKResponse(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader(`<Error>
+  <Code>SlowDown</Code>
+  <Message>put throttled
+try later</Message>
+  <RequestId>req-put-1</RequestId>
+</Error>`)}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	err = store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+	if err == nil || !strings.Contains(err.Error(), "embedded error") || !strings.Contains(err.Error(), "SlowDown: put throttled try later: request-id=req-put-1") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("Put err = %q, want sanitized embedded error rejection", err)
+	}
+	if !body.closed {
+		t.Fatal("embedded-error response body was not closed")
+	}
+}
+
 func TestS3StoreRejectsNilPutBody(t *testing.T) {
 	t.Parallel()
 
@@ -3110,6 +3145,48 @@ func TestS3StoreDeleteAcceptsCompatibleSuccessStatus(t *testing.T) {
 			}
 			if !body.closed {
 				t.Fatal("success response body was not closed")
+			}
+		})
+	}
+}
+
+func TestS3StoreDeleteRejectsEmbeddedErrorInSuccessResponse(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		status := status
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader(`<Error>
+  <Code>AccessDenied</Code>
+  <Message>delete denied
+by policy</Message>
+  <HostId>host-delete-1</HostId>
+</Error>`)}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: status,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Delete(context.Background(), "messages/msg-1.eml")
+			if err == nil || !strings.Contains(err.Error(), "embedded error") || !strings.Contains(err.Error(), "AccessDenied: delete denied by policy: host-id=host-delete-1") || strings.ContainsAny(err.Error(), "\r\n") {
+				t.Fatalf("Delete err = %q, want sanitized embedded error rejection", err)
+			}
+			if !body.closed {
+				t.Fatal("embedded-error response body was not closed")
 			}
 		})
 	}

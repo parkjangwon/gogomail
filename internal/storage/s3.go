@@ -134,7 +134,7 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("put", resp)
 	}
-	return nil
+	return validateS3EmptySuccessResponse("put", resp.Body)
 }
 
 func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, error) {
@@ -275,7 +275,7 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return s3StatusError("delete", resp)
 	}
-	return nil
+	return validateS3EmptySuccessResponse("delete", resp.Body)
 }
 
 func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) error {
@@ -1317,6 +1317,26 @@ func s3StatusError(operation string, resp *http.Response) error {
 		return fmt.Errorf("%s s3 object: status %d", operation, resp.StatusCode)
 	}
 	return fmt.Errorf("%s s3 object: status %d: %s", operation, resp.StatusCode, preview)
+}
+
+func validateS3EmptySuccessResponse(operation string, body io.Reader) error {
+	if body == nil {
+		return nil
+	}
+	data, err := io.ReadAll(io.LimitReader(body, maxS3CopyResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("%s s3 object: read success response: %w", operation, err)
+	}
+	if len(data) > maxS3CopyResponseBytes {
+		return fmt.Errorf("%s s3 object: success response body is too large", operation)
+	}
+	if preview, ok := s3XMLError(data); ok {
+		if preview == "" {
+			return fmt.Errorf("%s s3 object: embedded error", operation)
+		}
+		return fmt.Errorf("%s s3 object: embedded error: %s", operation, preview)
+	}
+	return nil
 }
 
 func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
