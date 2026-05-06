@@ -148,6 +148,32 @@ func TestDeletePrefixReportsUnsafeListedObjectWithProgress(t *testing.T) {
 	}
 }
 
+func TestDeletePrefixRejectsOutOfScopeListedObjectWithProgress(t *testing.T) {
+	t.Parallel()
+
+	store := &deleteFailingStore{
+		page: ObjectListPage{Objects: []ObjectInfo{
+			{Path: "drive/user-1/a.txt"},
+			{Path: "drive/user-10/b.txt"},
+			{Path: "drive/user-1/c.txt"},
+		}},
+	}
+	result, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1"})
+	var scopeErr DeletePrefixOutOfScopeObjectError
+	if !errors.As(err, &scopeErr) {
+		t.Fatalf("DeletePrefix err = %v, want DeletePrefixOutOfScopeObjectError", err)
+	}
+	if scopeErr.Prefix != "drive/user-1" || scopeErr.ObjectPath != "drive/user-10/b.txt" {
+		t.Fatalf("scope error = %+v", scopeErr)
+	}
+	if result.Deleted != 1 {
+		t.Fatalf("Deleted = %d, want progress count before out-of-scope listed object", result.Deleted)
+	}
+	if got := strings.Join(store.deleted, ","); got != "drive/user-1/a.txt" {
+		t.Fatalf("deleted paths = %q, want first in-scope object only", got)
+	}
+}
+
 func TestDeletePrefixHonorsCanceledContext(t *testing.T) {
 	t.Parallel()
 

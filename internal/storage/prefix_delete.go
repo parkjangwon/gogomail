@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type DeletePrefixOptions struct {
@@ -22,12 +23,21 @@ type DeletePrefixUnsafeObjectError struct {
 	Err        error
 }
 
+type DeletePrefixOutOfScopeObjectError struct {
+	Prefix     string
+	ObjectPath string
+}
+
 func (e DeletePrefixUnsafeObjectError) Error() string {
 	return fmt.Sprintf("storage prefix listing returned unsafe object path %q: %v", e.ObjectPath, e.Err)
 }
 
 func (e DeletePrefixUnsafeObjectError) Unwrap() error {
 	return e.Err
+}
+
+func (e DeletePrefixOutOfScopeObjectError) Error() string {
+	return fmt.Sprintf("storage prefix listing returned object path %q outside requested prefix %q", e.ObjectPath, e.Prefix)
 }
 
 func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (DeletePrefixResult, error) {
@@ -69,6 +79,9 @@ func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (D
 		if err != nil {
 			return result, DeletePrefixUnsafeObjectError{ObjectPath: object.Path, Err: err}
 		}
+		if !objectPathMatchesPrefix(objectPath, prefix) {
+			return result, DeletePrefixOutOfScopeObjectError{Prefix: prefix, ObjectPath: objectPath}
+		}
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
@@ -78,4 +91,11 @@ func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (D
 		result.Deleted++
 	}
 	return result, nil
+}
+
+func objectPathMatchesPrefix(objectPath string, prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	return objectPath == prefix || strings.HasPrefix(objectPath, prefix+"/")
 }

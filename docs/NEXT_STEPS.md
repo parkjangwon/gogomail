@@ -77,6 +77,10 @@ Current state:
   omits its continuation cursor, before deleting any listed object, and S3
   coverage verifies that continuation tokens are carried into the next
   cleanup page.
+- Shared storage `DeletePrefix` now also revalidates every listed object
+  against the requested canonical prefix before deletion, preserving completed
+  progress and returning a structured out-of-scope listing error if a backend
+  returns safe sibling keys.
 - S3-compatible `List` now rechecks provider-returned keys against the
   requested logical prefix after canonical bucket-prefix mapping, so
   S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes
@@ -700,7 +704,9 @@ Current state:
   cleanup path without relying on provider-specific recursive delete behavior.
   If a listing source returns an unsafe object path, cleanup now reports a
   structured partial-progress error that separates listing corruption from
-  ordinary delete failures.
+  ordinary delete failures. If a listing source returns a safe but
+  out-of-scope sibling object, cleanup now reports a structured
+  partial-progress error before deleting it.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
   line breaks during config validation and adapter construction, making copied
   env/config credential mistakes fail fast before runtime S3 authentication
