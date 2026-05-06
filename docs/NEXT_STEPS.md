@@ -31,6 +31,10 @@ Current state:
   ambiguity before admin frontend work starts.
 - Health probes are now pinned to the service-root OpenAPI server, and service
   info is pinned to `/api/v1`, with runtime regressions for wrong-base forms.
+- OpenAPI contract tests now derive registered Mail and Drive API routes from
+  `mail.go` and `drive.go` and require every `/api/v1` operation to pin the
+  Mail API server at the operation level, preventing generated clients from
+  inheriting the global `/admin/v1` server for user-facing routes.
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.

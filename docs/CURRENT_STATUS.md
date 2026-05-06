@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 XML metadata nesting hardening)
+Last updated: 2026-05-07 (updated after Mail API OpenAPI server pinning)
 
 ## Current phase
 
@@ -33,6 +33,12 @@ Health probes are now pinned to the service-root OpenAPI server while service
 info is pinned to `/api/v1`, with runtime regressions for the common wrong-base
 forms. This keeps deployment probes, load balancer checks, and generated
 contract clients aligned with the actual Go router.
+All registered Mail and Drive API operations now carry operation-level
+OpenAPI `servers: /api/v1` entries, with a drift test deriving the registered
+`/api/v1` routes from `mail.go` and `drive.go`. This prevents generated
+clients from inheriting the global `/admin/v1` server option for webmail,
+Drive, public share-link, attachment, draft, thread, push-device, or search
+routes.
 CalDAV and CardDAV discovery now advertise `DAV: sync-collection` and
 collection `supported-report-set` sync reports only when the runtime store
 implements the corresponding sync change-log interface, preventing native

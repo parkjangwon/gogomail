@@ -4113,6 +4113,10 @@ Implementation order:
       success metadata now reject nested child elements inside simple
       `Key`/`Size`/`ETag`/`LastModified` fields before XML unmarshalling can
       treat structured provider metadata as canonical strings.
+1464. OpenAPI contract tests now derive registered Mail and Drive API routes
+      from `mail.go` and `drive.go` and require every `/api/v1` operation to
+      pin the Mail API server at the operation level, preventing generated
+      clients from inheriting `/admin/v1` for user-facing routes.
 
 ## Deferred until backend contracts stabilize
 
