@@ -238,6 +238,106 @@ func directoryAliasCreateAuditDetail(alias Alias) (json.RawMessage, error) {
 	return detail, nil
 }
 
+func (r *Repository) DeleteAliasWithAudit(ctx context.Context, id string) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return Alias{}, fmt.Errorf("alias id: %w", err)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Alias{}, fmt.Errorf("begin delete directory alias transaction: %w", err)
+	}
+	defer tx.Rollback()
+	alias, err := r.deleteAliasTx(ctx, tx, id)
+	if err != nil {
+		return Alias{}, err
+	}
+	detail, err := directoryAliasDeleteAuditDetail(alias)
+	if err != nil {
+		return Alias{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  alias.CompanyID,
+		DomainID:   alias.DomainID,
+		Category:   "admin",
+		Action:     "directory_alias.delete",
+		TargetType: "directory_alias",
+		TargetID:   alias.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return Alias{}, fmt.Errorf("record directory alias delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Alias{}, fmt.Errorf("commit delete directory alias transaction: %w", err)
+	}
+	return alias, nil
+}
+
+func (r *Repository) deleteAliasTx(ctx context.Context, tx *sql.Tx, id string) (Alias, error) {
+	const query = `
+UPDATE directory_aliases
+SET status = 'deleted',
+    updated_at = now()
+WHERE id = $1::uuid
+  AND status = 'active'
+RETURNING id::text,
+          company_id::text,
+          domain_id::text,
+          alias_address,
+          alias_address_ace,
+          target_kind,
+          target_id::text,
+          status`
+	var alias Alias
+	if err := tx.QueryRowContext(ctx, query, id).Scan(
+		&alias.ID,
+		&alias.CompanyID,
+		&alias.DomainID,
+		&alias.Address,
+		&alias.AddressACE,
+		&alias.TargetKind,
+		&alias.TargetID,
+		&alias.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Alias{}, fmt.Errorf("directory alias not found")
+		}
+		return Alias{}, fmt.Errorf("delete directory alias: %w", err)
+	}
+	target, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         alias.TargetID,
+		Kind:       alias.TargetKind,
+		ActiveOnly: false,
+	})
+	if err != nil {
+		return Alias{}, fmt.Errorf("resolve deleted directory alias target: %w", err)
+	}
+	alias.TargetPrincipal = target
+	return alias, nil
+}
+
+func directoryAliasDeleteAuditDetail(alias Alias) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"alias_id":        alias.ID,
+		"company_id":      alias.CompanyID,
+		"domain_id":       alias.DomainID,
+		"address":         alias.Address,
+		"address_ace":     alias.AddressACE,
+		"target_kind":     alias.TargetKind,
+		"target_id":       alias.TargetID,
+		"previous_status": "active",
+		"status":          alias.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory alias delete audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

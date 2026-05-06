@@ -205,6 +205,28 @@ func TestDirectoryAliasCreateAuditDetail(t *testing.T) {
 	}
 }
 
+func TestDirectoryAliasDeleteAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryAliasDeleteAuditDetail(Alias{
+		ID:         "alias-1",
+		CompanyID:  "company-1",
+		DomainID:   "domain-1",
+		Address:    "ops@example.com",
+		AddressACE: "ops@example.com",
+		TargetKind: PrincipalKindGroup,
+		TargetID:   "group-1",
+		Status:     "deleted",
+	})
+	if err != nil {
+		t.Fatalf("directoryAliasDeleteAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"previous_status":"active"`) ||
+		!strings.Contains(string(detail), `"status":"deleted"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestNormalizeListAliasesRequest(t *testing.T) {
 	t.Parallel()
 

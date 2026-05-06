@@ -468,7 +468,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `POST /admin/v1/directory/aliases`; the alias insert and
   `directory_alias.create` audit row commit in one transaction. Public
   shared-inbox UX and non-admin alias mutation flows remain outside this
-  release slice.
+  release slice. Audited alias deletion is also available at
+  `DELETE /admin/v1/directory/aliases/{id}`, soft-deleting active aliases and
+  recording `directory_alias.delete` in the same transaction.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

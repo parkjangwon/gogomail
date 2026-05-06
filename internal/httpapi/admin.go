@@ -107,6 +107,7 @@ type AdminService interface {
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
 	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	CreateDirectoryAlias(ctx context.Context, req directory.CreateAliasRequest) (directory.Alias, error)
+	DeleteDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
@@ -1032,6 +1033,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_alias": alias})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/directory/aliases/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		alias, err := service.DeleteDirectoryAlias(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_alias": alias})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

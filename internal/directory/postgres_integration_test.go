@@ -325,7 +325,6 @@ WHERE company_id = $1::uuid
 	if auditCount != 1 {
 		t.Fatalf("directory alias audit rows = %d, want 1", auditCount)
 	}
-
 	_, err = repo.CreateAlias(ctx, CreateAliasRequest{
 		CompanyID:  seed.companyID,
 		DomainID:   seed.domainID,
@@ -335,6 +334,29 @@ WHERE company_id = $1::uuid
 	})
 	if !errors.Is(err, ErrAliasAlreadyExists) {
 		t.Fatalf("duplicate CreateAlias error = %v, want ErrAliasAlreadyExists", err)
+	}
+	deleted, err := repo.DeleteAliasWithAudit(ctx, alias.ID)
+	if err != nil {
+		t.Fatalf("DeleteAliasWithAudit returned error: %v", err)
+	}
+	if deleted.ID != alias.ID ||
+		deleted.Status != "deleted" ||
+		deleted.TargetPrincipal.ID != seed.teamID {
+		t.Fatalf("deleted alias = %+v", deleted)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND domain_id = $2::uuid
+  AND action = 'directory_alias.delete'
+  AND target_type = 'directory_alias'
+  AND target_id = $3
+  AND result = 'deleted'`, seed.companyID, seed.domainID, alias.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory alias delete audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory alias delete audit rows = %d, want 1", auditCount)
 	}
 
 	_, err = repo.CreateAlias(ctx, CreateAliasRequest{

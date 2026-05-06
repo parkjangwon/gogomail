@@ -1796,9 +1796,13 @@ Next:
   requires active domain scope, enforces alias-domain alignment, verifies an
   active same-company target principal, returns a predictable duplicate-alias
   error on the active-address unique index, and records
-  `directory_alias.create` in the same transaction. Next alias work should add
-  deactivate/delete/update flows only with the same transaction-audited policy
-  shape and without turning this into a product-local shared-inbox CRUD model.
+  `directory_alias.create` in the same transaction.
+- Directory alias deletion now exists as
+  `DELETE /admin/v1/directory/aliases/{id}` and records
+  `directory_alias.delete` in the same transaction as the soft delete. Next
+  alias work should add update/reassign flows only with the same
+  transaction-audited policy shape and without turning this into a product-local
+  shared-inbox CRUD model.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared
