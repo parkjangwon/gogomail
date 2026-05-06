@@ -453,6 +453,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `POST /admin/v1/directory/group-memberships`, validating active same-company
   principals and nested group cycles before committing
   `directory_group_membership.create` with the insert.
+  Audited group membership deletion is available through
+  `DELETE /admin/v1/directory/group-memberships/{id}`, committing
+  `directory_group_membership.delete` with the soft delete.
   Directory principal search is now also available to operators through
   `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
   coverage for bounded company, domain, organization, kind, query, active-only,

@@ -567,6 +567,28 @@ func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
 	}
 }
 
+func TestDirectoryGroupMembershipDeleteAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryGroupMembershipDeleteAuditDetail(GroupMembership{
+		ID:         "membership-1",
+		GroupID:    "group-1",
+		CompanyID:  "company-1",
+		MemberKind: PrincipalKindGroup,
+		MemberID:   "team-1",
+		Role:       GroupMembershipRoleOwner,
+		Status:     "deleted",
+	})
+	if err != nil {
+		t.Fatalf("directoryGroupMembershipDeleteAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
+		!strings.Contains(string(detail), `"previous_status":"active"`) ||
+		!strings.Contains(string(detail), `"status":"deleted"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestNormalizeGroupMembershipRole(t *testing.T) {
 	t.Parallel()
 

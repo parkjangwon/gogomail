@@ -111,6 +111,7 @@ type AdminService interface {
 	CreateDirectoryGroupMembership(ctx context.Context, req directory.CreateGroupMembershipRequest) (directory.GroupMembership, error)
 	DeleteDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
 	DeleteDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error)
+	DeleteDirectoryGroupMembership(ctx context.Context, id string) (directory.GroupMembership, error)
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
@@ -1110,6 +1111,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_group_membership": membership})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/directory/group-memberships/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		membership, err := service.DeleteDirectoryGroupMembership(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_group_membership": membership})
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/directory/delegations/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

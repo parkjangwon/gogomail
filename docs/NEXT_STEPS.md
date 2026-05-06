@@ -1789,8 +1789,13 @@ Next:
   `CreateGroupMembershipWithAudit`. It validates active same-company group and
   member principals, role, self-membership, and nested group cycles before
   inserting the membership and `directory_group_membership.create` audit row in
-  one transaction. Next group-membership work should add audited deletion so
-  group-backed delegation can be revoked cleanly.
+  one transaction.
+- Audited group membership deletion now exists as
+  `DELETE /admin/v1/directory/group-memberships/{id}`, backed by
+  `DeleteGroupMembershipWithAudit`, so group-backed delegation can be revoked
+  with a transaction-coupled `directory_group_membership.delete` audit row. Next
+  group-membership work should add list/update/reassign flows before product
+  modules depend on group membership as public authorization UX.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and

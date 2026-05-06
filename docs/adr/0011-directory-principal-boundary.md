@@ -84,6 +84,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   self-membership and nested group cycles, maps duplicate active memberships to
   a stable error, and commits `directory_group_membership.create` with the
   membership insert.
+- Group membership deletion follows the same Directory-owned mutation model.
+  Admin revocation must use `DeleteGroupMembershipWithAudit`, which soft-deletes
+  active memberships and commits `directory_group_membership.delete` with the
+  status change in one transaction.
 - Delegated access now has an initial company-scoped relationship table and
   repository check boundary. Delegations are keyed by owner principal, delegate
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,

@@ -629,6 +629,33 @@ WHERE company_id = $1::uuid
 		t.Fatalf("duplicate CreateGroupMembershipWithAudit error = %v, want ErrGroupMembershipAlreadyExists", err)
 	}
 
+	deleted, err := repo.DeleteGroupMembershipWithAudit(ctx, membership.ID)
+	if err != nil {
+		t.Fatalf("DeleteGroupMembershipWithAudit returned error: %v", err)
+	}
+	if deleted.ID != membership.ID ||
+		deleted.GroupID != seed.teamID ||
+		deleted.CompanyID != seed.companyID ||
+		deleted.MemberKind != PrincipalKindUser ||
+		deleted.MemberID != seed.aliceID ||
+		deleted.Role != GroupMembershipRoleManager ||
+		deleted.Status != "deleted" {
+		t.Fatalf("deleted membership = %+v", deleted)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_group_membership.delete'
+  AND target_type = 'directory_group_membership'
+  AND target_id = $2
+  AND result = 'deleted'`, seed.companyID, membership.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory group membership delete audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory group membership delete audit rows = %d, want 1", auditCount)
+	}
+
 	_, err = repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{
 		GroupID:    seed.deeperID,
 		MemberKind: PrincipalKindGroup,
