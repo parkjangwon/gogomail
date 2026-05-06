@@ -2554,6 +2554,10 @@ Implementation order:
       `internal/directory` exposes normalized delegation checks so future
       CalDAV/CardDAV/Drive/shared-inbox access can share one auditable
       relationship model.
+1161. IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include an
+      authenticated `[CAPABILITY ...]` response code, exposing the post-auth
+      capability set immediately while keeping pre-auth `SASL-IR` and
+      `AUTH=PLAIN` out of authenticated capability advertisements.
 
 ## Deferred until backend contracts stabilize
 

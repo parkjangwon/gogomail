@@ -2176,6 +2176,10 @@ The platform hardening sprint completed the following:
 - IMAP `LOGIN` and `AUTHENTICATE` now validate malformed argument shape or
   unsupported mechanisms before returning `[PRIVACYREQUIRED]` on plaintext
   TLS-required listeners.
+- IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include an
+  authenticated `[CAPABILITY ...]` response code, so clients can learn the
+  post-auth extension set without an immediate follow-up `CAPABILITY` command
+  and without carrying pre-auth `SASL-IR`/`AUTH=PLAIN` state forward.
 - IMAP mailbox management and subscription commands now validate malformed
   `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
   `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before

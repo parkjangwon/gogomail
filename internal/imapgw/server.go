@@ -401,7 +401,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			return false, writeErr
 		}
 		state.session = &authSession
-		_, err = writer.WriteString(tag + " OK LOGIN completed\r\n")
+		_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " LOGIN completed\r\n")
 		return false, err
 	case "AUTHENTICATE":
 		if state.session != nil {
@@ -1170,7 +1170,7 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 		return false, writeErr
 	}
 	state.session = &authSession
-	_, err = writer.WriteString(tag + " OK AUTHENTICATE completed\r\n")
+	_, err = writer.WriteString(tag + " OK " + s.authenticatedCapabilityCode(state) + " AUTHENTICATE completed\r\n")
 	return false, err
 }
 
@@ -5350,6 +5350,10 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 		}
 	}
 	return capabilities
+}
+
+func (s *Server) authenticatedCapabilityCode(state *imapConnState) string {
+	return "[CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "]"
 }
 
 func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {

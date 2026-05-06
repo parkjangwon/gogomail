@@ -1027,6 +1027,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
   round trips.
+- IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses include the
+  authenticated `[CAPABILITY ...]` response code, so clients can refresh
+  post-auth extension state without an extra probe and without retaining
+  pre-auth auth mechanisms.
 - IMAP `LOGIN` and SASL PLAIN decoded credentials reject blank, CR/LF-bearing,
   or oversized authentication identities and oversized or CR/LF-bearing
   passwords at the protocol boundary before backend auth work.

@@ -358,7 +358,7 @@ func TestServerRejectsMalformedCommandAtoms(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD malformed command\r\n" {
 		t.Fatalf("malformed command response = %q err = %v", line, err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -410,7 +410,7 @@ func TestServerValidatesUIDSubcommandBeforeSelectedState(t *testing.T) {
 		t.Fatalf("write uid commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 BAD UID requires subcommand\r\n",
 		"a3 BAD malformed command\r\n",
 		"a4 BAD UID command not implemented\r\n",
@@ -508,7 +508,7 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 		t.Fatalf("write selected-state commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 BAD FETCH requires sequence set and data items\r\n",
 		"a3 BAD STORE requires sequence set, mode, and flags\r\n",
 		"a4 BAD COPY requires sequence set and destination mailbox\r\n",
@@ -703,7 +703,7 @@ func TestServerValidatesSelectedNoArgSyntaxBeforeSelectedState(t *testing.T) {
 		t.Fatalf("write selected no-arg commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 BAD CHECK does not accept arguments\r\n",
 		"a3 BAD IDLE does not accept arguments\r\n",
 		"a4 BAD CLOSE does not accept arguments\r\n",
@@ -973,7 +973,7 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read login: %v", err)
 	}
-	if line != "a1 OK LOGIN completed\r\n" {
+	if line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login = %q", line)
 	}
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
@@ -1051,7 +1051,7 @@ func TestServerLoginAcceptsMultipleSynchronizingLiterals(t *testing.T) {
 	if _, err := client.Write([]byte("secret\r\n")); err != nil {
 		t.Fatalf("write login second literal: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("literal login = %q err = %v", line, err)
 	}
 	select {
@@ -1131,7 +1131,7 @@ func TestServerHandlesNamespaceAfterLogin(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO authentication required\r\n" {
 		t.Fatalf("unauthenticated namespace = %q err = %v", line, err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -1385,7 +1385,7 @@ func TestServerHandlesQuotedLoginCredentials(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN \"user@example.com\" \"sec\\\\ret\"\r\na2 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write login/logout: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -1431,7 +1431,7 @@ func TestServerHandlesAuthenticatePlain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read authenticate completion: %v", err)
 	}
-	if line != "a1 OK AUTHENTICATE completed\r\n" {
+	if line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] AUTHENTICATE completed\r\n" {
 		t.Fatalf("authenticate completion = %q", line)
 	}
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
@@ -1533,7 +1533,7 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	if _, err := client.Write([]byte("a2 LOGIN user@example.com secret\r\na3 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK LOGIN completed\r\n" {
+	if line, err = reader.ReadString('\n'); err != nil || line != "a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -1585,7 +1585,7 @@ func TestServerSelectEmitsFirstUnseenSequence(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -1638,7 +1638,7 @@ func TestServerSelectReportsHighestModSeq(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -1691,7 +1691,7 @@ func TestServerSelectReportsUIDNotSticky(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
 		t.Fatalf("write login/examine: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -1800,7 +1800,7 @@ func TestServerEnableCondstoreEnablesModSeqEvents(t *testing.T) {
 		t.Fatalf("write login/enable/select: %v", err)
 	}
 	wantPrefix := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"* ENABLED CONDSTORE\r\n",
 		"a2 OK ENABLE completed\r\n",
 	}
@@ -1867,7 +1867,7 @@ func TestServerEnableIgnoresUnsupportedCapabilities(t *testing.T) {
 		t.Fatalf("write enable unknown capability: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"* ENABLED\r\n",
 		"a2 OK ENABLE completed\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
@@ -1908,7 +1908,7 @@ func TestServerSelectRejectsUnsupportedParameter(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox (QRESYNC)\r\n")); err != nil {
 		t.Fatalf("write login/select unsupported parameter: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD SELECT requires a mailbox atom and optional CONDSTORE parameter\r\n" {
@@ -1946,7 +1946,7 @@ func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
 		t.Fatalf("write login/examine: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -2007,7 +2007,7 @@ func TestServerValidatesMalformedMutationsBeforeReadOnly(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
 		t.Fatalf("write login/examine: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2082,7 +2082,7 @@ func TestServerSelectUsesCanonicalMailboxID(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT INBOX\r\na3 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write select/logout: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2167,7 +2167,7 @@ func TestServerSelectFailsBeforeSelectedStateWhenSubscriptionFails(t *testing.T)
 		t.Fatalf("write select/fetch: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 NO SELECT failed\r\n",
 		"a3 NO mailbox must be selected\r\n",
 	}
@@ -2212,7 +2212,7 @@ func TestServerExamineFailureUsesExamineCommandName(t *testing.T) {
 		t.Fatalf("write examine/fetch: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 NO EXAMINE failed\r\n",
 		"a3 NO mailbox must be selected\r\n",
 	}
@@ -2257,7 +2257,7 @@ func TestServerReturnsNonexistentForMissingMailboxCommands(t *testing.T) {
 		t.Fatalf("write missing mailbox commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 NO [NONEXISTENT] SELECT mailbox does not exist\r\n",
 		"a3 NO [NONEXISTENT] EXAMINE mailbox does not exist\r\n",
 		"a4 NO [NONEXISTENT] STATUS mailbox does not exist\r\n",
@@ -2305,7 +2305,7 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN " + response + "\r\n")); err != nil {
 		t.Fatalf("write authenticate initial response: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK AUTHENTICATE completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] AUTHENTICATE completed\r\n" {
 		t.Fatalf("authenticate initial response completion = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 CAPABILITY\r\n")); err != nil {
@@ -2381,7 +2381,7 @@ func TestServerHandlesCheckAndCloseAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2442,7 +2442,7 @@ func TestServerRejectsArgumentsForSelectedStateNoArgCommands(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2505,7 +2505,7 @@ func TestServerCloseReadOnlyMailboxDoesNotExpunge(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 EXAMINE inbox\r\n")); err != nil {
 		t.Fatalf("write login/examine: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2553,7 +2553,7 @@ func TestServerHandlesUnselectAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2608,7 +2608,7 @@ func TestServerHandlesExpunge(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2665,7 +2665,7 @@ func TestServerRejectsUnsupportedMoveAndAppend(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2725,7 +2725,7 @@ func TestServerAllowsMoveToSelectedMailbox(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2783,7 +2783,7 @@ func TestServerConsumesAppendSynchronizingLiteralBeforeUnsupportedResponse(t *te
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 APPEND inbox (\\Seen \\Flagged) \"05-May-2026 12:34:56 +0900\" {11}\r\n")); err != nil {
@@ -2851,7 +2851,7 @@ func TestServerAppendSuccessReturnsAppendUID(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
@@ -2903,7 +2903,7 @@ func TestServerAppendSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) 
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -2970,7 +2970,7 @@ func TestServerAppendAcceptsLiteralPlusWithoutContinuation(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 APPEND inbox {11+}\r\nhello world\r\n")); err != nil {
@@ -3014,7 +3014,7 @@ func TestServerAppendMissingMailboxReturnsTryCreate(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 APPEND missing {11}\r\n")); err != nil {
@@ -3061,7 +3061,7 @@ func TestServerAppendOverQuotaReturnsOverQuota(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
@@ -3108,7 +3108,7 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -3178,7 +3178,7 @@ func TestServerCopyToSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) 
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -3234,7 +3234,7 @@ func TestServerCopyAndMoveMissingDestinationReturnsTryCreate(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -3290,7 +3290,7 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -3421,7 +3421,7 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -3642,7 +3642,7 @@ func TestServerHandlesListAfterLogin(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3690,7 +3690,7 @@ func TestServerListUsesModifiedUTF7MailboxNames(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" \"~peter/mail/&U,BTFw-/*\"\r\n")); err != nil {
 		t.Fatalf("write unicode list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3737,7 +3737,7 @@ func TestServerListPreservesMailboxNameSpacing(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
 		t.Fatalf("write spaced list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3785,7 +3785,7 @@ func TestServerListReportsMailboxChildren(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3834,7 +3834,7 @@ func TestServerListInfersNestedMailboxChildrenFromFullPath(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3884,7 +3884,7 @@ func TestServerListReportsSpecialUseAttributes(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list special-use: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3934,7 +3934,7 @@ func TestServerListSupportsSpecialUseSelectionAndReturn(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST (SPECIAL-USE) \"\" *\r\na3 LIST \"\" * RETURN (SPECIAL-USE)\r\na4 LIST (REMOTE) \"\" *\r\n")); err != nil {
 		t.Fatalf("write login/list special-use extended: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -3989,7 +3989,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\na6 LIST \"\" * RETURN (STATUS (MESSAGES MESSAGES))\r\n")); err != nil {
 		t.Fatalf("write list-status: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4047,7 +4047,7 @@ func TestServerFiltersListByPattern(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" \"INBOX\"\r\na3 LIST \"\" \"Archive%\"\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4096,7 +4096,7 @@ func TestServerHandlesLsubAfterLogin(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"INBOX\"\r\n")); err != nil {
 		t.Fatalf("write login/lsub: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4143,7 +4143,7 @@ func TestServerLsubIncludesMissingSubscriptionNames(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"*\"\r\n")); err != nil {
 		t.Fatalf("write login/lsub: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4191,7 +4191,7 @@ func TestServerLsubPercentReturnsSubscribedParentName(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LSUB \"\" \"%\"\r\n")); err != nil {
 		t.Fatalf("write login/lsub: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4238,7 +4238,7 @@ func TestServerListsHierarchyRoot(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" \"\"\r\na3 LSUB \"\" \"\"\r\n")); err != nil {
 		t.Fatalf("write login/list root: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4289,7 +4289,7 @@ func TestServerHandlesSubscriptionCommandsAfterLogin(t *testing.T) {
 		t.Fatalf("write subscription commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 OK SUBSCRIBE completed\r\n",
 		"a3 OK UNSUBSCRIBE completed\r\n",
 	}
@@ -4338,7 +4338,7 @@ func TestServerDecodesModifiedUTF7MailboxMutationArguments(t *testing.T) {
 		t.Fatalf("write mailbox commands: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 OK CREATE completed\r\n",
 		"a3 OK RENAME completed\r\n",
 		"a4 OK SUBSCRIBE completed\r\n",
@@ -4388,7 +4388,7 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
 		t.Fatalf("write login: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if _, err := client.Write([]byte("a2 SELECT &U,BTFw-\r\n")); err != nil {
@@ -4489,7 +4489,7 @@ func TestServerRejectsMalformedModifiedUTF7MailboxName(t *testing.T) {
 		t.Fatalf("write bad mailbox command: %v", err)
 	}
 	want := []string{
-		"a1 OK LOGIN completed\r\n",
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a2 BAD CREATE mailbox name is not valid modified UTF-7\r\n",
 	}
 	for _, expected := range want {
@@ -4675,7 +4675,7 @@ func TestServerRejectsMalformedSubscriptionCommand(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SUBSCRIBE\r\n")); err != nil {
 		t.Fatalf("write malformed subscribe: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD SUBSCRIBE requires a mailbox atom\r\n" {
@@ -4714,7 +4714,7 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	}
 	want := []string{
 		"a1 NO authentication required\r\n",
-		"a2 OK LOGIN completed\r\n",
+		"a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
 		"a3 OK CREATE completed\r\n",
 		"a4 OK DELETE completed\r\n",
 		"a5 OK RENAME completed\r\n",
@@ -4763,7 +4763,7 @@ func TestServerHandlesStatusAfterLogin(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (MESSAGES UIDNEXT UIDVALIDITY UNSEEN SIZE)\r\n")); err != nil {
 		t.Fatalf("write login/status: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	want := []string{
@@ -4810,7 +4810,7 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (UIDNEXT RECENT)\r\na3 STATUS inbox (BADITEM)\r\na4 STATUS inbox MESSAGES\r\na5 STATUS inbox (UIDNEXT UIDNEXT)\r\n")); err != nil {
 		t.Fatalf("write login/status: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "* STATUS \"INBOX\" (UIDNEXT 5 RECENT 0)\r\n" {
@@ -4859,7 +4859,7 @@ func TestServerStatusReportsHighestModSeq(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 STATUS inbox (HIGHESTMODSEQ UIDNEXT)\r\n")); err != nil {
 		t.Fatalf("write login/status: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "* STATUS \"INBOX\" (HIGHESTMODSEQ 9 UIDNEXT 5)\r\n" {
@@ -4899,7 +4899,7 @@ func TestServerHandlesUIDFetchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 UID FETCH 7 (FLAGS RFC822.SIZE)\r\n")); err != nil {
 		t.Fatalf("write login/uid fetch before select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a2 NO mailbox must be selected\r\n" {
@@ -4960,7 +4960,7 @@ func TestServerFetchFailuresUseIssuedCommandName(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5192,7 +5192,7 @@ func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5259,7 +5259,7 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5319,7 +5319,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5426,7 +5426,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5507,7 +5507,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5568,7 +5568,7 @@ func TestServerSearchResSavesAndReusesResults(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5641,7 +5641,7 @@ func TestServerSearchResClearsSavedResultsOnSaveNo(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5699,7 +5699,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5781,7 +5781,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5851,7 +5851,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5910,7 +5910,7 @@ func TestServerHandlesTextSearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -5976,7 +5976,7 @@ func TestServerHandlesBodySearchAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6039,7 +6039,7 @@ func TestServerHandlesFetchEnvelopeAndInternalDate(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6094,7 +6094,7 @@ func TestServerHandlesFetchBodyStructure(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6150,7 +6150,7 @@ func TestServerFetchBodySetsSeenButPeekDoesNot(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6229,7 +6229,7 @@ func TestServerHandlesFetchMacros(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6288,7 +6288,7 @@ func TestServerHandlesUIDFetchBodyAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6387,7 +6387,7 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6478,7 +6478,7 @@ func TestServerHandlesUIDFetchHeaderAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6563,7 +6563,7 @@ func TestServerHandlesFetchHeaderAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6625,7 +6625,7 @@ func TestServerHandlesUIDFetchHeaderFieldsAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6710,7 +6710,7 @@ func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6772,7 +6772,7 @@ func TestServerHandlesUIDFetchTextAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6834,7 +6834,7 @@ func TestServerHandlesUIDFetchSinglePartTextAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6896,7 +6896,7 @@ func TestServerHandlesUIDFetchSinglePartMIMEAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -6958,7 +6958,7 @@ func TestServerHandlesUIDStoreAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7015,7 +7015,7 @@ func TestServerHonorsSelectedPermanentFlagsForStore(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7076,7 +7076,7 @@ func TestServerRejectsEmptyReplaceWhenNoPermanentFlagsAllowed(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7134,7 +7134,7 @@ func TestServerHandlesStoreAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7190,7 +7190,7 @@ func TestServerStoresForwardedKeywordFlagAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7246,7 +7246,7 @@ func TestServerHandlesEmptyStoreFlagLists(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7578,7 +7578,7 @@ func TestServerHandlesStoreSilentAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -7623,7 +7623,7 @@ func TestServerHandlesUIDStoreSilentAfterSelect(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8038,7 +8038,7 @@ func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8087,7 +8087,7 @@ func TestServerHandlesFetchMultipartBodyStructure(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8135,7 +8135,7 @@ func TestServerHandlesMessageRFC822BodyStructure(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8185,7 +8185,7 @@ func TestServerHandlesMultipartMessageRFC822NestedMultipartBodyStructure(t *test
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8237,7 +8237,7 @@ func TestServerHandlesMessageRFC822SectionFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8343,7 +8343,7 @@ func TestServerHandlesMessageRFC822NestedMultipartPartFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8424,7 +8424,7 @@ func TestServerHandlesMalformedMessageRFC822SectionFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8505,7 +8505,7 @@ func TestServerHandlesMultipartMessageRFC822SectionFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8587,7 +8587,7 @@ func TestServerHandlesMultipartMessageRFC822NestedMultipartPartFetch(t *testing.
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8669,7 +8669,7 @@ func TestServerHandlesMultipartPartFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8806,7 +8806,7 @@ func TestServerHandlesNestedMultipartPartFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
@@ -8870,7 +8870,7 @@ func TestServerHandlesCombinedBodyStructureAndHeaderFetch(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write login/select: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
 		t.Fatalf("login line = %q err = %v", line, err)
 	}
 	for i := 0; i < 7; i++ {
