@@ -17,10 +17,12 @@ import (
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 type adminRouteConfig struct {
-	routeCounters *delivery.RouteCounters
+	routeCounters       *delivery.RouteCounters
+	storageCapabilities *storage.BackendCapabilities
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -29,6 +31,10 @@ type AdminRouteOption func(*adminRouteConfig)
 // WithRouteCounters enables the GET /admin/v1/delivery-routes/counters endpoint.
 func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.routeCounters = c }
+}
+
+func WithStorageCapabilities(capabilities storage.BackendCapabilities) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.storageCapabilities = &capabilities }
 }
 
 func rejectUnknownAPIUsageAggregateQuery(w http.ResponseWriter, r *http.Request) bool {
@@ -220,6 +226,7 @@ type adminConsoleCapabilities struct {
 	Tenancy         adminConsoleTenancyCapabilities   `json:"tenancy"`
 	Operations      adminConsoleOperationCapabilities `json:"operations"`
 	Security        adminConsoleSecurityCapabilities  `json:"security"`
+	Storage         storage.BackendCapabilities       `json:"storage"`
 }
 
 type adminConsoleLimits struct {
@@ -276,7 +283,7 @@ type adminConsoleSecurityCapabilities struct {
 	NoStoreJSON          bool `json:"no_store_json"`
 }
 
-func currentAdminConsoleCapabilities() adminConsoleCapabilities {
+func currentAdminConsoleCapabilities(storageCapabilities storage.BackendCapabilities) adminConsoleCapabilities {
 	return adminConsoleCapabilities{
 		ContractVersion: BackendContractVersion,
 		Modules: map[string]string{
@@ -334,6 +341,31 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			RejectsAmbiguousAuth: true,
 			NoStoreJSON:          true,
 		},
+		Storage: storageCapabilities,
+	}
+}
+
+func storageCapabilitiesFromRouteConfig(cfg adminRouteConfig) storage.BackendCapabilities {
+	if cfg.storageCapabilities != nil {
+		return *cfg.storageCapabilities
+	}
+	return storage.BackendCapabilities{
+		ContractVersion:       BackendContractVersion,
+		ConfiguredBackend:     "local",
+		BackendClass:          "local",
+		ActiveLabels:          []string{"local"},
+		Operations:            []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
+		LocalFilesystem:       true,
+		S3Compatible:          false,
+		PathStyleAddressing:   false,
+		CompatLabelsEnabled:   false,
+		ReadinessProbe:        true,
+		SecretsRedacted:       true,
+		SupportsBackendSwitch: true,
+		SupportsLocalNFS:      true,
+		SupportsMinIO:         true,
+		SupportsAWSCompatible: true,
+		RequiresByteMigration: true,
 	}
 }
 
@@ -399,7 +431,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
-		writeJSON(w, http.StatusOK, adminConsoleCapabilitiesEnvelope{AdminConsoleCapabilities: currentAdminConsoleCapabilities()})
+		writeJSON(w, http.StatusOK, adminConsoleCapabilitiesEnvelope{AdminConsoleCapabilities: currentAdminConsoleCapabilities(storageCapabilitiesFromRouteConfig(cfg))})
 	}))
 
 	if cfg.routeCounters != nil {

@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -553,6 +554,71 @@ func storageStoresForConfig(cfg config.Config, store storage.Store) map[string]s
 		stores[label] = store
 	}
 	return stores
+}
+
+func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities {
+	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
+	if backend == "" {
+		backend = "local"
+	}
+	labels := []string{backend}
+	if backend == "s3" || backend == "minio" {
+		labels = append(labels, "s3", "minio")
+	}
+	labels = append(labels, cfg.StorageBackendCompatLabels...)
+	activeLabels := make([]string, 0, len(labels))
+	seen := map[string]struct{}{}
+	for _, label := range labels {
+		label = strings.ToLower(strings.TrimSpace(label))
+		if label == "" {
+			continue
+		}
+		if _, ok := seen[label]; ok {
+			continue
+		}
+		seen[label] = struct{}{}
+		activeLabels = append(activeLabels, label)
+	}
+	sort.Strings(activeLabels)
+
+	capabilities := storage.BackendCapabilities{
+		ContractVersion:       httpapi.BackendContractVersion,
+		ConfiguredBackend:     backend,
+		BackendClass:          backend,
+		ActiveLabels:          activeLabels,
+		Operations:            []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
+		LocalFilesystem:       backend == "local",
+		S3Compatible:          backend == "s3" || backend == "minio",
+		PathStyleAddressing:   false,
+		CompatLabelsEnabled:   len(cfg.StorageBackendCompatLabels) > 0,
+		ReadinessProbe:        true,
+		SecretsRedacted:       true,
+		SupportsBackendSwitch: true,
+		SupportsLocalNFS:      true,
+		SupportsMinIO:         true,
+		SupportsAWSCompatible: true,
+		RequiresByteMigration: true,
+	}
+	if capabilities.S3Compatible {
+		capabilities.BackendClass = "s3_compatible"
+		capabilities.Region = strings.TrimSpace(cfg.StorageS3Region)
+		capabilities.Bucket = strings.TrimSpace(cfg.StorageS3Bucket)
+		capabilities.Prefix = strings.Trim(strings.TrimSpace(cfg.StorageS3Prefix), "/")
+		endpointValue := strings.TrimSpace(cfg.StorageS3Endpoint)
+		if endpointValue == "" && capabilities.Region != "" {
+			endpointValue = "https://s3." + capabilities.Region + ".amazonaws.com"
+		}
+		if endpoint, err := storage.ValidateS3Endpoint(endpointValue); err == nil {
+			capabilities.EndpointOrigin = endpoint.Scheme + "://" + endpoint.Host
+			if endpoint.Path != "" && endpoint.Path != "/" {
+				capabilities.EndpointOrigin += endpoint.EscapedPath()
+			}
+			capabilities.PathStyleAddressing = cfg.StorageS3ForcePathStyle || backend == "minio" || storage.S3BucketNeedsPathStyle(endpoint, capabilities.Bucket)
+		} else {
+			capabilities.PathStyleAddressing = cfg.StorageS3ForcePathStyle || backend == "minio"
+		}
+	}
+	return capabilities
 }
 
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
@@ -1944,7 +2010,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			calDAVSyncRetention:         caldavgw.NewRepository(db),
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
-		}, cfg.AdminToken)
+		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)))
 		logger.Info("admin api routes registered")
 	}
 

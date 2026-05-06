@@ -191,6 +191,49 @@ func TestObjectStoreForConfigRejectsUnsupportedBackend(t *testing.T) {
 	}
 }
 
+func TestStorageCapabilitiesForConfigDescribesLocalBackend(t *testing.T) {
+	t.Parallel()
+
+	capabilities := storageCapabilitiesForConfig(config.Config{
+		StorageBackend:             " LOCAL ",
+		StorageBackendCompatLabels: []string{"s3", " local "},
+	})
+	if capabilities.ConfiguredBackend != "local" || capabilities.BackendClass != "local" || !capabilities.LocalFilesystem || capabilities.S3Compatible {
+		t.Fatalf("capabilities = %+v", capabilities)
+	}
+	if len(capabilities.ActiveLabels) != 2 || capabilities.ActiveLabels[0] != "local" || capabilities.ActiveLabels[1] != "s3" {
+		t.Fatalf("active labels = %#v", capabilities.ActiveLabels)
+	}
+	if !capabilities.CompatLabelsEnabled || !capabilities.ReadinessProbe || !capabilities.SecretsRedacted || !capabilities.SupportsBackendSwitch {
+		t.Fatalf("capabilities = %+v", capabilities)
+	}
+}
+
+func TestStorageCapabilitiesForConfigDescribesS3CompatibleBackend(t *testing.T) {
+	t.Parallel()
+
+	capabilities := storageCapabilitiesForConfig(config.Config{
+		StorageBackend:           "s3",
+		StorageS3Endpoint:        "https://s3.us-east-1.amazonaws.com/base+proxy",
+		StorageS3Region:          "us-east-1",
+		StorageS3Bucket:          "gogomail.prod",
+		StorageS3Prefix:          "/mail/",
+		StorageS3AccessKeyID:     "AKIAEXAMPLE",
+		StorageS3SecretAccessKey: "secret",
+	})
+	if capabilities.ConfiguredBackend != "s3" || capabilities.BackendClass != "s3_compatible" || !capabilities.S3Compatible || !capabilities.PathStyleAddressing {
+		t.Fatalf("capabilities = %+v", capabilities)
+	}
+	if capabilities.EndpointOrigin != "https://s3.us-east-1.amazonaws.com/base+proxy" || capabilities.Bucket != "gogomail.prod" || capabilities.Prefix != "mail" || capabilities.Region != "us-east-1" {
+		t.Fatalf("sanitized S3 profile = %+v", capabilities)
+	}
+	for _, leaked := range []string{"AKIAEXAMPLE", "secret"} {
+		if strings.Contains(capabilities.EndpointOrigin+capabilities.Bucket+capabilities.Prefix+capabilities.Region, leaked) {
+			t.Fatalf("storage capabilities leaked secret-like value %q: %+v", leaked, capabilities)
+		}
+	}
+}
+
 func TestObjectStoreForConfigBuildsS3Backend(t *testing.T) {
 	t.Parallel()
 

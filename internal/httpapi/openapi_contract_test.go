@@ -305,9 +305,25 @@ func TestOpenAPIDraftDocumentsAdminConsoleCapabilityLimits(t *testing.T) {
 		"api_usage_export",
 		"imap_uid_backfill",
 		"rejects_ambiguous_auth",
+		"storage",
+		"StorageBackendCapabilities",
 	} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("AdminConsoleCapabilities schema must document %q", want)
+		}
+	}
+	storageBlock := extractOpenAPIComponentBlock(t, string(raw), "schemas", "StorageBackendCapabilities")
+	for _, want := range []string{
+		"configured_backend",
+		"active_labels",
+		"operations",
+		"path_style_addressing",
+		"endpoint_origin",
+		"secrets_redacted",
+		"supports_backend_switch",
+	} {
+		if !strings.Contains(storageBlock, want) {
+			t.Fatalf("StorageBackendCapabilities schema must document %q", want)
 		}
 	}
 }

@@ -729,6 +729,10 @@ func s3BucketNeedsPathStyle(endpoint *url.URL, bucket string) bool {
 	return host == "localhost" || net.ParseIP(host) != nil
 }
 
+func S3BucketNeedsPathStyle(endpoint *url.URL, bucket string) bool {
+	return s3BucketNeedsPathStyle(endpoint, bucket)
+}
+
 func s3EndpointHostname(endpoint *url.URL) string {
 	if endpoint == nil {
 		return ""

@@ -487,7 +487,12 @@ owner/resource target without scanning unrelated audit history.
 - Admin API exposes `GET /admin/v1/console/capabilities` so a production
   operator console can discover backend contract version, available
   modules, list/cleanup/retention limits, tenancy controls, operational triage
-  surfaces, and auth/no-store behavior before rendering console navigation.
+  surfaces, auth/no-store behavior, and a redacted storage backend profile
+  before rendering console navigation. The storage profile reports the
+  normalized configured backend, active labels, supported object primitives,
+  local-vs-S3-compatible class, path-style S3 addressing status, sanitized
+  endpoint origin/bucket/prefix/region when applicable, and confirms that
+  secrets/local roots are not exposed.
 - Delivery-attempt list, stats, and exhausted-attempt reads can filter by
   message id, farm, sender, recipient domain, and recent time window for
   targeted retry/bounce incident triage.

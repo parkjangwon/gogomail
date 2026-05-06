@@ -1445,7 +1445,11 @@ Next:
 - Admin API now exposes `GET /admin/v1/console/capabilities` as the operator
   console companion bootstrap surface for module status, common list and
   cleanup/retention limits, tenant/domain/user management, operational triage,
-  API usage/export, IMAP UID backfill, and admin auth/no-store behavior.
+  API usage/export, IMAP UID backfill, admin auth/no-store behavior, and the
+  redacted storage backend profile operators need before flipping between
+  local/NFS, MinIO, and AWS S3-compatible storage. Next storage work should
+  focus on runbook-grade backend migration verification rather than exposing
+  secrets or host-local filesystem roots.
 
 ### 7. Frontend planning
 
