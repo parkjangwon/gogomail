@@ -33,6 +33,9 @@ reconciliation, and cleanup scans.
 page-level cleanup helper for future Drive folder deletion, attachment
 lifecycle, and reconciliation jobs without requiring callers to know whether
 the backend is local/NFS or S3-compatible storage.
+If a listing page is truncated, it must include a continuation cursor before
+`DeletePrefix` deletes any listed object; otherwise cleanup fails closed rather
+than risking an unresumable partial prefix delete.
 If a backend listing returns an unsafe object path, `DeletePrefix` preserves
 completed delete progress and returns a structured unsafe-listed-object error,
 letting cleanup workers distinguish corrupt listing data from provider delete
