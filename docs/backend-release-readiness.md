@@ -148,6 +148,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP SEARCHRES `$` reuse is accepted as a bare `SEARCH` sequence-set
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
   after `SEARCH RETURN (SAVE)`, plus `SORT`/`THREAD` criteria coverage.
+- Storage profile smoke tests now verify the NFS YAML profile's
+  `storage_root` and explicit `local` compatibility label through both config
+  loading and CLI `--config` handoff.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

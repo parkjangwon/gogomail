@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -140,11 +141,13 @@ func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
 		path        string
 		backend     string
 		endpoint    string
+		root        string
+		compat      []string
 		pathStyle   bool
 		environment string
 	}{
 		{path: "../../configs/storage.local.yaml", backend: "local"},
-		{path: "../../configs/storage.nfs.yaml", backend: "nfs"},
+		{path: "../../configs/storage.nfs.yaml", backend: "nfs", root: "/mnt/gogomail-storage", compat: []string{"local"}},
 		{path: "../../configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000", pathStyle: true},
 		{path: "../../configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", environment: "production"},
 	}
@@ -160,6 +163,12 @@ func TestLoadFileParsesStorageProfileConfigs(t *testing.T) {
 			}
 			if cfg.StorageS3Endpoint != tt.endpoint {
 				t.Fatalf("StorageS3Endpoint = %q, want %q", cfg.StorageS3Endpoint, tt.endpoint)
+			}
+			if tt.root != "" && cfg.MailstoreRoot != tt.root {
+				t.Fatalf("MailstoreRoot = %q, want %q", cfg.MailstoreRoot, tt.root)
+			}
+			if !slices.Equal(cfg.StorageBackendCompatLabels, tt.compat) {
+				t.Fatalf("StorageBackendCompatLabels = %#v, want %#v", cfg.StorageBackendCompatLabels, tt.compat)
 			}
 			if cfg.StorageS3ForcePathStyle != tt.pathStyle {
 				t.Fatalf("StorageS3ForcePathStyle = %v, want %v", cfg.StorageS3ForcePathStyle, tt.pathStyle)

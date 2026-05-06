@@ -160,6 +160,9 @@ Current state:
   special but canonical object keys and the full object lifecycle across local
   storage and optional S3-compatible integration coverage; use it as the smoke
   matrix before local/NFS, MinIO, or AWS S3 backend flips.
+- Storage profile smoke coverage now checks that the NFS YAML profile's
+  `storage_root` and explicit `local` compatibility label survive both
+  config-loader parsing and CLI `--config` handoff.
 - YAML config overlays accept `storage_root` as the file-level alias for the
   local/NFS object root, matching `GOGOMAIL_STORAGE_ROOT`; `mailstore_root`
   remains supported for backward compatibility.
