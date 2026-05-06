@@ -178,7 +178,12 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 	}
 	switch resp.StatusCode {
 	case http.StatusPartialContent:
-		if err := validateS3ContentRange(resp.Header.Get("Content-Range"), validated); err != nil {
+		contentRange, err := s3ResponseContentRangeHeader(resp)
+		if err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, fmt.Errorf("get range s3 object: %w", err)
+		}
+		if err := validateS3ContentRange(contentRange, validated); err != nil {
 			drainAndCloseS3Body(resp.Body)
 			return nil, err
 		}
@@ -668,6 +673,14 @@ func s3ResponseContentLengthHeader(resp *http.Response) (string, error) {
 	return value, nil
 }
 
+func s3ResponseContentRangeHeader(resp *http.Response) (string, error) {
+	value, ok := s3ResponseSingleHeader(resp, "Content-Range")
+	if !ok {
+		return "", fmt.Errorf("duplicate content-range")
+	}
+	return value, nil
+}
+
 func s3ResponseSingleHeader(resp *http.Response, name string) (string, bool) {
 	var found string
 	count := 0
@@ -801,8 +814,12 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 }
 
 func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequest) error {
-	if strings.TrimSpace(resp.Header.Get("Content-Range")) != "" {
-		if err := validateS3ContentRange(resp.Header.Get("Content-Range"), req); err != nil {
+	contentRange, err := s3ResponseContentRangeHeader(resp)
+	if err != nil {
+		return fmt.Errorf("get range s3 object: %w", err)
+	}
+	if strings.TrimSpace(contentRange) != "" {
+		if err := validateS3ContentRange(contentRange, req); err != nil {
 			return err
 		}
 		return validateS3RangeContentLength(resp, req)
