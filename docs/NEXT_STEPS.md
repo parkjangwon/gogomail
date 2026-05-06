@@ -483,8 +483,9 @@ Current state:
   and `LITERAL+` string literals inside the parenthesized field/value list,
   while missing or unused literal payloads remain tagged `BAD` syntax errors.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
-  digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
-  instead of silently treating them as valid sizes.
+  RFC 3501 `number` atoms, rejecting signed values such as `+20` and
+  leading-zero values such as `020` instead of silently treating them as valid
+  sizes.
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
