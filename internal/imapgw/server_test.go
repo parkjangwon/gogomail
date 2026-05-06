@@ -5500,6 +5500,102 @@ func TestServerLsubIncludesMissingSubscriptionNames(t *testing.T) {
 	}
 }
 
+func TestServerListSupportsSubscribedSelectionAndReturn(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: subscriptionBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST (SUBSCRIBED) \"\" \"*\" RETURN (SUBSCRIBED CHILDREN)\r\n")); err != nil {
+		t.Fatalf("write login/list subscribed: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren \\Subscribed) \"/\" \"INBOX\"\r\n",
+		"* LIST (\\Noselect \\Subscribed) \"/\" \"Retired\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read list subscribed response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("list subscribed response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerListSupportsSubscribedReturnOption(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" \"*\" RETURN (SUBSCRIBED)\r\n")); err != nil {
+		t.Fatalf("write login/list subscribed return: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* LIST (\\HasNoChildren \\Subscribed) \"/\" \"INBOX\"\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"Archive 2026\"\r\n",
+		"a2 OK LIST completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read list subscribed return response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("list subscribed return response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerLsubPercentReturnsSubscribedParentName(t *testing.T) {
 	t.Parallel()
 

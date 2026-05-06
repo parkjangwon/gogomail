@@ -215,6 +215,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `LIST-STATUS`, aligning capability discovery with the implemented extended
   `LIST` selection and return option grammar so compliant clients can use
   those options without relying on undocumented behavior.
+- IMAP `LIST-EXTENDED` now accepts RFC 5258 `SUBSCRIBED` selection and
+  `RETURN (SUBSCRIBED)`, sharing the `LSUB` subscription backend path while
+  preserving missing subscribed mailbox names as `\Noselect` rows and only
+  emitting `\Subscribed` when the client requested it.
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.

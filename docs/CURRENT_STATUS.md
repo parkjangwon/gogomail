@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after dynamic admin OpenAPI drift guard)
+Last updated: 2026-05-07 (updated after IMAP LIST-EXTENDED SUBSCRIBED support)
 
 ## Current phase
 
@@ -195,7 +195,11 @@ reference/pattern command shape while leaving extended `LIST` behavior
 separate. IMAP `CAPABILITY` now advertises RFC 5258 `LIST-EXTENDED` alongside
 `SPECIAL-USE` and RFC 5819 `LIST-STATUS`, matching the already implemented
 extended `LIST` selection/return option semantics so standards-aware clients
-can legally use those options. IMAP `LIST` and `LSUB` now also treat mailbox
+can legally use those options. IMAP `LIST-EXTENDED` now also supports RFC 5258
+`SUBSCRIBED` selection and `RETURN (SUBSCRIBED)`, reusing the subscribed
+mailbox store for `LIST (SUBSCRIBED) ...` and marking `\Subscribed` only when
+that return option is requested while preserving `CHILDREN`, `SPECIAL-USE`,
+and `STATUS` return behavior. IMAP `LIST` and `LSUB` now also treat mailbox
 patterns beginning with the hierarchy delimiter as root-absolute patterns
 before matching the server's root-relative mailbox names, so probes such as
 `LIST "Archive" "/INBOX"` still discover `INBOX` instead of being matched

@@ -216,8 +216,11 @@ Current state:
   separate from advertised extended `LIST` semantics. `CAPABILITY` now
   advertises RFC 5258 `LIST-EXTENDED` alongside RFC 5819 `LIST-STATUS`, so
   clients can legally send the extended `LIST` selection and return options
-  already implemented by the gateway. `LIST` and `LSUB` also
-  normalize leading hierarchy delimiters in mailbox patterns as root-absolute
+  already implemented by the gateway. `LIST-EXTENDED` now supports RFC 5258
+  `SUBSCRIBED` selection and `RETURN (SUBSCRIBED)`, so clients can discover
+  subscribed folders through standard `LIST` flows and receive `\Subscribed`
+  attributes only when requested. `LIST` and `LSUB` also normalize leading
+  hierarchy delimiters in mailbox patterns as root-absolute
   selectors before matching internal root-relative mailbox names. `LIST`
   reference names with a leading hierarchy delimiter are normalized the same
   way before joining relative patterns, keeping namespace/root-style list
@@ -1086,6 +1089,10 @@ Current state:
   trips, can be combined with `RETURN (CHILDREN)`, and rejects malformed
   `RETURN (STATUS MESSAGES)` style status item lists before mailbox listing
   work.
+- RFC 5258 `LIST-EXTENDED` now accepts `SUBSCRIBED` as a selection option and
+  `RETURN (SUBSCRIBED)` as a return option, using the same subscription store
+  as `LSUB` while keeping missing subscription names visible as `\Noselect`
+  rows when clients explicitly list subscribed mailboxes.
 - `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return active message octet totals per mailbox without
   fetching every message's `RFC822.SIZE`.
