@@ -34,6 +34,9 @@ Current state:
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.
+- CalDAV and CardDAV `REPORT` parsing now rejects duplicate `DAV:limit`
+  controls and duplicate nested `DAV:nresults` controls, keeping bounded
+  query/sync pagination semantics deterministic before backend scans begin.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API

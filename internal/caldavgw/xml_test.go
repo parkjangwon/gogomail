@@ -577,6 +577,11 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"bad range order": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260507T000000Z" end="20260506T000000Z"/></C:free-busy-query>`,
 		"bad range utc":   `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260506T000000" end="20260507T000000Z"/></C:free-busy-query>`,
 		"bad limit":       `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>0</D:nresults></D:limit></D:sync-collection>`,
+		"duplicate limit": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>25</D:nresults></D:limit><D:limit><D:nresults>50</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"duplicate nresults": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit>
+  <D:nresults>25</D:nresults>
+  <D:nresults>50</D:nresults>
+</D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 	}
 	for name, body := range tests {
 		name, body := name, body
