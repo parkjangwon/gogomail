@@ -2000,6 +2000,65 @@ func TestHandlerMkcalendarRejectsExistingCalendar(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarRejectsExistingIfNoneMatchStarBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/work/", body)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
+func TestHandlerMkcalendarRejectsMissingIfMatchStarBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", body)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := handler.Store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite If-Match precondition")
+	}
+}
+
+func TestHandlerMkcalendarAllowsMissingIfNoneMatchStar(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201, body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err != nil {
+		t.Fatalf("created calendar lookup failed: %v", err)
+	}
+}
+
 func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
 	t.Parallel()
 

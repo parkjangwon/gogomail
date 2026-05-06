@@ -191,8 +191,15 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav address-book home not found", http.StatusConflict)
 		return
 	}
-	if _, err := h.Store.LookupAddressBook(r.Context(), userID, resource.AddressBookID); err == nil {
+	book, err := h.Store.LookupAddressBook(r.Context(), userID, resource.AddressBookID)
+	if err == nil {
+		if !h.checkAddressBookCollectionCreatePreconditions(w, r, userID, book, true) {
+			return
+		}
 		http.Error(w, "carddav address book already exists", http.StatusMethodNotAllowed)
+		return
+	}
+	if !h.checkAddressBookCollectionCreatePreconditions(w, r, userID, AddressBook{}, false) {
 		return
 	}
 	if _, err := ValidateAddressBookPathID(resource.AddressBookID); err != nil {
@@ -204,7 +211,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	book, err := store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
+	book, err = store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
 		UserID:        userID,
 		ActorUserID:   actorUserID,
 		AddressBookID: resource.AddressBookID,
@@ -920,6 +927,43 @@ func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter,
 		return etag, true
 	}
 	return "", true
+}
+
+func (h *Handler) checkAddressBookCollectionCreatePreconditions(w http.ResponseWriter, r *http.Request, userID string, book AddressBook, exists bool) bool {
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+	if !exists {
+		if ifMatch != "" || ifUnmodifiedSince != "" {
+			http.Error(w, "carddav address book create precondition failed", http.StatusPreconditionFailed)
+			return false
+		}
+		return true
+	}
+	if ifMatch != "" || ifNoneMatch != "" {
+		etag, err := AddressBookCollectionETag(userID, book)
+		if err != nil {
+			http.Error(w, "carddav address book collection etag unavailable", http.StatusPreconditionFailed)
+			return false
+		}
+		if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
+			http.Error(w, "carddav address book collection etag mismatch", http.StatusPreconditionFailed)
+			return false
+		}
+		if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
+			http.Error(w, "carddav address book collection if-none-match precondition failed", http.StatusPreconditionFailed)
+			return false
+		}
+	}
+	if objectModifiedSince(ifUnmodifiedSince, book.UpdatedAt) {
+		http.Error(w, "carddav address book modified since precondition", http.StatusPreconditionFailed)
+		return false
+	}
+	return true
 }
 
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {

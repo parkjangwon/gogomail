@@ -35,6 +35,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collection ETags into repository mutation guards after successful
   preconditions, including `If-Match: *`, reducing stale recursive-delete and
   metadata-update races under concurrent native DAV clients.
+- CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now evaluate conditional
+  create preconditions before WebDAV XML body reads, returning HTTP 412 for
+  existing targets with matching `If-None-Match` validators and missing
+  targets guarded by `If-Match` or `If-Unmodified-Since`.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

@@ -245,8 +245,15 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav calendar home not found", http.StatusConflict)
 		return
 	}
-	if _, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID); err == nil {
+	calendar, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID)
+	if err == nil {
+		if !h.checkCalendarCollectionCreatePreconditions(w, r, userID, calendar, true) {
+			return
+		}
 		http.Error(w, "caldav calendar already exists", http.StatusMethodNotAllowed)
+		return
+	}
+	if !h.checkCalendarCollectionCreatePreconditions(w, r, userID, Calendar{}, false) {
 		return
 	}
 	if _, err := ValidateCalendarPathID(resource.CalendarID); err != nil {
@@ -258,7 +265,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	calendar, err := store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
+	calendar, err = store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
 		UserID:      userID,
 		ActorUserID: actorUserID,
 		CalendarID:  resource.CalendarID,
@@ -557,6 +564,43 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 		return etag, true
 	}
 	return "", true
+}
+
+func (h *Handler) checkCalendarCollectionCreatePreconditions(w http.ResponseWriter, r *http.Request, userID string, calendar Calendar, exists bool) bool {
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
+	if !exists {
+		if ifMatch != "" || ifUnmodifiedSince != "" {
+			http.Error(w, "caldav calendar create precondition failed", http.StatusPreconditionFailed)
+			return false
+		}
+		return true
+	}
+	if ifMatch != "" || ifNoneMatch != "" {
+		etag, err := CalendarCollectionETag(userID, calendar)
+		if err != nil {
+			http.Error(w, "caldav calendar collection etag unavailable", http.StatusPreconditionFailed)
+			return false
+		}
+		if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
+			http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
+			return false
+		}
+		if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
+			http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
+			return false
+		}
+	}
+	if objectModifiedSince(ifUnmodifiedSince, calendar.UpdatedAt) {
+		http.Error(w, "caldav calendar modified since precondition", http.StatusPreconditionFailed)
+		return false
+	}
+	return true
 }
 
 func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {

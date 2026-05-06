@@ -3763,6 +3763,12 @@ Implementation order:
       calendar/address-book collection races are rechecked inside the storage
       transaction before recursive delete or metadata update state is
       committed.
+1376. CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now evaluate collection
+      creation preconditions before reading WebDAV XML request bodies:
+      existing targets reject matching `If-None-Match` validators with HTTP
+      412, missing targets reject `If-Match`/`If-Unmodified-Since`, and
+      `If-None-Match: *` remains the create-only success path for absent
+      collections.
 
 ## Deferred until backend contracts stabilize
 

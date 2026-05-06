@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV collection mutation ETag rechecks)
+Last updated: 2026-05-07 (updated after DAV collection create preconditions)
 
 ## Current phase
 
@@ -71,6 +71,11 @@ observed collection ETag into repository mutation guards after successful
 conditional preflight, including `If-Match: *`, so stale calendar/address-book
 collection races are rechecked under the storage transaction before recursive
 delete or metadata update state is committed.
+CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now evaluate collection
+creation preconditions before reading WebDAV XML bodies: existing collection
+targets reject matching `If-None-Match` validators with HTTP 412, missing
+targets reject `If-Match` or `If-Unmodified-Since` with HTTP 412, and
+`If-None-Match: *` remains the safe create-only path for absent collections.
 CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new
