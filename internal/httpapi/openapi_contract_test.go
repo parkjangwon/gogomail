@@ -419,6 +419,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /directory/delegations":                                 "#/components/responses/DirectoryDelegationList",
 		"POST /directory/delegations":                                "#/components/responses/DirectoryDelegation",
 		"DELETE /directory/delegations/{id}":                         "#/components/responses/DirectoryDelegation",
+		"POST /directory/group-memberships":                          "#/components/responses/DirectoryGroupMembership",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",
 		"GET /quota-usage":                                           "#/components/responses/QuotaUsageList",
@@ -896,11 +897,12 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 	draft := string(raw)
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, requestBodyRef := range map[string]string{
-		"PATCH /companies/{id}/quota": "#/components/requestBodies/CompanyQuotaUpdate",
-		"PATCH /domains/{id}/quota":   "#/components/requestBodies/DomainQuotaUpdate",
-		"PATCH /users/{id}/quota":     "#/components/requestBodies/UserQuotaUpdate",
-		"POST /directory/aliases":     "#/components/requestBodies/DirectoryAliasCreate",
-		"POST /directory/delegations": "#/components/requestBodies/DirectoryDelegationCreate",
+		"PATCH /companies/{id}/quota":       "#/components/requestBodies/CompanyQuotaUpdate",
+		"PATCH /domains/{id}/quota":         "#/components/requestBodies/DomainQuotaUpdate",
+		"PATCH /users/{id}/quota":           "#/components/requestBodies/UserQuotaUpdate",
+		"POST /directory/aliases":           "#/components/requestBodies/DirectoryAliasCreate",
+		"POST /directory/delegations":       "#/components/requestBodies/DirectoryDelegationCreate",
+		"POST /directory/group-memberships": "#/components/requestBodies/DirectoryGroupMembershipCreate",
 	} {
 		block, ok := operations[route]
 		if !ok {
@@ -1095,6 +1097,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"DirectoryAliasEnvelope":                              "directory_alias",
 		"DirectoryAliasListEnvelope":                          "directory_aliases",
 		"DirectoryDelegationEnvelope":                         "directory_delegation",
+		"DirectoryGroupMembershipEnvelope":                    "directory_group_membership",
 		"DirectoryDelegationListEnvelope":                     "directory_delegations",
 		"BackpressureEnvelope":                                "backpressure",
 		"QuotaUsageListEnvelope":                              "quota_usage",

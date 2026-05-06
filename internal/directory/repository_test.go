@@ -194,6 +194,18 @@ func TestMapDirectoryDelegationInsertErrorMapsActiveGrantUniqueIndex(t *testing.
 	}
 }
 
+func TestMapDirectoryGroupMembershipInsertErrorMapsActiveMemberUniqueIndex(t *testing.T) {
+	t.Parallel()
+
+	err := mapDirectoryGroupMembershipInsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_directory_group_memberships_active_member",
+	})
+	if !errors.Is(err, ErrGroupMembershipAlreadyExists) {
+		t.Fatalf("mapped error = %v, want ErrGroupMembershipAlreadyExists", err)
+	}
+}
+
 func TestDirectoryAliasCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -402,6 +414,49 @@ func TestNormalizeCheckGroupMembershipRequest(t *testing.T) {
 	}
 }
 
+func TestNormalizeCreateGroupMembershipRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCreateGroupMembershipRequest(CreateGroupMembershipRequest{
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+		Role:       " OWNER ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCreateGroupMembershipRequest returned error: %v", err)
+	}
+	if got.GroupID != "group-1" ||
+		got.MemberKind != PrincipalKindUser ||
+		got.MemberID != "user-1" ||
+		got.Role != GroupMembershipRoleOwner {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCreateGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CreateGroupMembershipRequest{
+		{MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{GroupID: "group\n1", MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{GroupID: "group-1", MemberKind: "calendar", MemberID: "user-1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user\n1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindGroup, MemberID: "group-1"},
+		{GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1", Role: "admin"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.GroupID+"/"+req.MemberID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeCreateGroupMembershipRequest(req); err == nil {
+				t.Fatalf("NormalizeCreateGroupMembershipRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeCheckGroupMembershipRequestHonorsExplicitDepth(t *testing.T) {
 	t.Parallel()
 
@@ -488,6 +543,45 @@ func TestDirectoryDelegationDeleteAuditDetail(t *testing.T) {
 		!strings.Contains(string(detail), `"status":"deleted"`) ||
 		!strings.Contains(string(detail), `"delegation_id":"delegation-1"`) {
 		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
+func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryGroupMembershipCreateAuditDetail(GroupMembership{
+		ID:         "membership-1",
+		GroupID:    "group-1",
+		CompanyID:  "company-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+		Role:       GroupMembershipRoleManager,
+		Status:     "active",
+	})
+	if err != nil {
+		t.Fatalf("directoryGroupMembershipCreateAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
+		!strings.Contains(string(detail), `"role":"manager"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
+func TestNormalizeGroupMembershipRole(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeGroupMembershipRole(" MANAGER ")
+	if err != nil {
+		t.Fatalf("NormalizeGroupMembershipRole returned error: %v", err)
+	}
+	if got != GroupMembershipRoleManager {
+		t.Fatalf("role = %q", got)
+	}
+	if got, err := NormalizeGroupMembershipRole(""); err != nil || got != GroupMembershipRoleMember {
+		t.Fatalf("default role = %q err=%v", got, err)
+	}
+	if _, err := NormalizeGroupMembershipRole("admin"); err == nil {
+		t.Fatal("NormalizeGroupMembershipRole accepted unsupported role")
 	}
 }
 

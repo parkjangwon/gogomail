@@ -2713,6 +2713,13 @@ Implementation order:
         grants and committing `directory_delegation.delete` in the same
         transaction so shared-calendar, Drive, Contacts/CardDAV, and shared
         inbox access can be revoked through one platform boundary.
+1175b3. Directory/Identity now exposes audited group membership creation
+        through `CreateGroupMembershipWithAudit` and
+        `POST /admin/v1/directory/group-memberships`, returning a
+        `directory_group_membership` envelope. The boundary validates active
+        same-company group/member principals, membership role, self-membership,
+        and nested group cycles, and commits
+        `directory_group_membership.create` with the membership insert.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

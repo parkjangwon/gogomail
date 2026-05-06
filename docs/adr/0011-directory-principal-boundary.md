@@ -78,6 +78,12 @@ booking policy, and scheduling semantics are implemented explicitly.
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles
   before any product module can use it for access policy.
+- Group membership creation is Directory-owned and transaction-audited. Admin
+  creation must use `CreateGroupMembershipWithAudit`, which normalizes
+  membership role, verifies active same-company group/member principals, rejects
+  self-membership and nested group cycles, maps duplicate active memberships to
+  a stable error, and commits `directory_group_membership.create` with the
+  membership insert.
 - Delegated access now has an initial company-scoped relationship table and
   repository check boundary. Delegations are keyed by owner principal, delegate
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,

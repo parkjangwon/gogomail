@@ -1737,6 +1737,17 @@ paths:
           $ref: "#/components/responses/DirectoryDelegation"
         default:
           $ref: "#/components/responses/Error"
+  /directory/group-memberships:
+    post:
+      operationId: createAdminDirectoryGroupMembership
+      summary: Create an audited Directory group membership
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryGroupMembershipCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DirectoryGroupMembership"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -3832,6 +3843,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryDelegationEnvelope"
+    DirectoryGroupMembership:
+      description: Directory group membership envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryGroupMembershipEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -4449,6 +4466,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryDelegationCreateRequest"
+    DirectoryGroupMembershipCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryGroupMembershipCreateRequest"
     StatusUpdate:
       required: true
       content:
@@ -6443,6 +6466,50 @@ components:
       properties:
         directory_delegation:
           $ref: "#/components/schemas/DirectoryDelegation"
+    DirectoryGroupMembership:
+      type: object
+      required: [id, group_id, company_id, member_kind, member_id, role, status]
+      properties:
+        id:
+          type: string
+        group_id:
+          type: string
+        company_id:
+          type: string
+        member_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        member_id:
+          type: string
+        role:
+          type: string
+          enum: [member, manager, owner]
+        status:
+          type: string
+          enum: [active, deleted]
+    DirectoryGroupMembershipCreateRequest:
+      type: object
+      required: [group_id, member_kind, member_id]
+      properties:
+        group_id:
+          type: string
+          maxLength: 1024
+        member_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        member_id:
+          type: string
+          maxLength: 1024
+        role:
+          type: string
+          enum: [member, manager, owner]
+          default: member
+    DirectoryGroupMembershipEnvelope:
+      type: object
+      required: [directory_group_membership]
+      properties:
+        directory_group_membership:
+          $ref: "#/components/schemas/DirectoryGroupMembership"
     DirectoryDelegationListEnvelope:
       type: object
       required: [directory_delegations]
