@@ -401,6 +401,36 @@ func TestAdminServiceUpdateDirectoryDelegationRoleUsesAuditedDirectoryBoundary(t
 	}
 }
 
+func TestAdminServiceReassignDirectoryDelegationUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		delegation: directory.Delegation{ID: "delegation-1", DelegateID: "user-1", Scope: directory.DelegationScopeDrive, Status: "active"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ReassignDelegationRequest{
+		ID:           " delegation-1 ",
+		OwnerKind:    directory.PrincipalKindResource,
+		OwnerID:      "room-2",
+		DelegateKind: directory.PrincipalKindUser,
+		DelegateID:   "user-1",
+		Scope:        directory.DelegationScopeDrive,
+	}
+	delegation, err := service.ReassignDirectoryDelegation(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ReassignDirectoryDelegation returned error: %v", err)
+	}
+	if delegation.ID != "delegation-1" || delegation.Scope != directory.DelegationScopeDrive {
+		t.Fatalf("delegation = %+v", delegation)
+	}
+	if directoryStore.lastDelegationReassignReq != req {
+		t.Fatalf("lastDelegationReassignReq = %+v, want %+v", directoryStore.lastDelegationReassignReq, req)
+	}
+	if directoryStore.reassignDelegationWithAuditCalls != 1 {
+		t.Fatalf("reassignDelegationWithAuditCalls = %d, want 1", directoryStore.reassignDelegationWithAuditCalls)
+	}
+}
+
 func TestAdminServiceUpdateDirectoryGroupMembershipRoleUsesAuditedDirectoryBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -873,6 +903,7 @@ type fakeAdminDirectory struct {
 	lastDelegationCreateReq            directory.CreateDelegationRequest
 	lastDelegationDeleteID             string
 	lastDelegationRoleUpdateReq        directory.UpdateDelegationRoleRequest
+	lastDelegationReassignReq          directory.ReassignDelegationRequest
 	lastMembershipCreateReq            directory.CreateGroupMembershipRequest
 	lastMembershipListReq              directory.ListGroupMembershipsRequest
 	lastMembershipDeleteID             string
@@ -890,6 +921,7 @@ type fakeAdminDirectory struct {
 	deleteMembershipWithAuditCalls     int
 	deleteAliasWithAuditCalls          int
 	updateDelegationRoleWithAuditCalls int
+	reassignDelegationWithAuditCalls   int
 	updateMembershipRoleWithAuditCalls int
 	reassignMembershipWithAuditCalls   int
 }
@@ -931,6 +963,12 @@ func (f *fakeAdminDirectory) DeleteGroupMembershipWithAudit(_ context.Context, i
 func (f *fakeAdminDirectory) UpdateDelegationRoleWithAudit(_ context.Context, req directory.UpdateDelegationRoleRequest) (directory.Delegation, error) {
 	f.updateDelegationRoleWithAuditCalls++
 	f.lastDelegationRoleUpdateReq = req
+	return f.delegation, nil
+}
+
+func (f *fakeAdminDirectory) ReassignDelegationWithAudit(_ context.Context, req directory.ReassignDelegationRequest) (directory.Delegation, error) {
+	f.reassignDelegationWithAuditCalls++
+	f.lastDelegationReassignReq = req
 	return f.delegation, nil
 }
 

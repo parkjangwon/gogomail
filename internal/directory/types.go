@@ -197,6 +197,15 @@ type UpdateDelegationRoleRequest struct {
 	Role string `json:"role"`
 }
 
+type ReassignDelegationRequest struct {
+	ID           string `json:"-"`
+	OwnerKind    string `json:"owner_kind"`
+	OwnerID      string `json:"owner_id"`
+	DelegateKind string `json:"delegate_kind"`
+	DelegateID   string `json:"delegate_id"`
+	Scope        string `json:"scope"`
+}
+
 type ListDelegationsRequest struct {
 	CompanyID    string
 	OwnerKind    string
@@ -437,6 +446,43 @@ func NormalizeUpdateDelegationRoleRequest(req UpdateDelegationRoleRequest) (Upda
 	}
 	req.ID = id
 	req.Role = role
+	return req, nil
+}
+
+func NormalizeReassignDelegationRequest(req ReassignDelegationRequest) (ReassignDelegationRequest, error) {
+	id, err := NormalizePrincipalID(req.ID)
+	if err != nil {
+		return ReassignDelegationRequest{}, fmt.Errorf("delegation id: %w", err)
+	}
+	ownerID, err := NormalizePrincipalID(req.OwnerID)
+	if err != nil {
+		return ReassignDelegationRequest{}, fmt.Errorf("owner id: %w", err)
+	}
+	delegateID, err := NormalizePrincipalID(req.DelegateID)
+	if err != nil {
+		return ReassignDelegationRequest{}, fmt.Errorf("delegate id: %w", err)
+	}
+	ownerKind, err := NormalizePrincipalKind(req.OwnerKind)
+	if err != nil {
+		return ReassignDelegationRequest{}, fmt.Errorf("owner kind: %w", err)
+	}
+	delegateKind, err := NormalizePrincipalKind(req.DelegateKind)
+	if err != nil {
+		return ReassignDelegationRequest{}, fmt.Errorf("delegate kind: %w", err)
+	}
+	scope, err := NormalizeDelegationScope(req.Scope)
+	if err != nil {
+		return ReassignDelegationRequest{}, err
+	}
+	if ownerKind == delegateKind && ownerID == delegateID {
+		return ReassignDelegationRequest{}, fmt.Errorf("delegation owner and delegate must differ")
+	}
+	req.ID = id
+	req.OwnerKind = ownerKind
+	req.OwnerID = ownerID
+	req.DelegateKind = delegateKind
+	req.DelegateID = delegateID
+	req.Scope = scope
 	return req, nil
 }
 

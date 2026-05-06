@@ -595,6 +595,73 @@ WHERE company_id = $1::uuid
 	if !errors.Is(err, ErrDelegationAlreadyExists) {
 		t.Fatalf("duplicate CreateDelegationWithAudit error = %v, want ErrDelegationAlreadyExists", err)
 	}
+	reassigned, err := repo.ReassignDelegationWithAudit(ctx, ReassignDelegationRequest{
+		ID:           delegation.ID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   seed.aliceID,
+		Scope:        DelegationScopeContacts,
+	})
+	if err != nil {
+		t.Fatalf("ReassignDelegationWithAudit returned error: %v", err)
+	}
+	if reassigned.ID != delegation.ID ||
+		reassigned.CompanyID != seed.companyID ||
+		reassigned.OwnerKind != PrincipalKindResource ||
+		reassigned.OwnerID != seed.equipmentID ||
+		reassigned.DelegateKind != PrincipalKindUser ||
+		reassigned.DelegateID != seed.aliceID ||
+		reassigned.Scope != DelegationScopeContacts ||
+		reassigned.Role != DelegationRoleRead ||
+		reassigned.Status != "active" {
+		t.Fatalf("reassigned delegation = %+v", reassigned)
+	}
+	ok, err = repo.CheckDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		RequiredRole: DelegationRoleRead,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDelegation old assignment after reassign returned error: %v", err)
+	}
+	if ok {
+		t.Fatal("old delegation assignment remained active after reassign")
+	}
+	ok, err = repo.CheckDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   seed.aliceID,
+		Scope:        DelegationScopeContacts,
+		RequiredRole: DelegationRoleRead,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDelegation new assignment after reassign returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("reassigned delegation did not satisfy read role")
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_delegation.reassign'
+  AND target_type = 'directory_delegation'
+  AND target_id = $2
+  AND result = 'updated'`, seed.companyID, delegation.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory delegation reassign audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory delegation reassign audit rows = %d, want 1", auditCount)
+	}
 	deleted, err := repo.DeleteDelegationWithAudit(ctx, delegation.ID)
 	if err != nil {
 		t.Fatalf("DeleteDelegationWithAudit returned error: %v", err)
@@ -602,7 +669,7 @@ WHERE company_id = $1::uuid
 	if deleted.ID != delegation.ID ||
 		deleted.Status != "deleted" ||
 		deleted.OwnerID != seed.equipmentID ||
-		deleted.DelegateID != seed.deeperID {
+		deleted.DelegateID != seed.aliceID {
 		t.Fatalf("deleted delegation = %+v", deleted)
 	}
 	if err := db.QueryRowContext(ctx, `

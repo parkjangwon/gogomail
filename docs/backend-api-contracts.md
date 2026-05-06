@@ -822,6 +822,14 @@ Admin operational read models also keep explicit envelope keys:
   delegation grant role. The path id and JSON body are bounded before service
   dispatch, and the backend records `directory_delegation.role_update` in the
   same transaction as the role change.
+- `PATCH /admin/v1/directory/delegations/{id}/assignment` accepts
+  `{owner_kind, owner_id, delegate_kind, delegate_id, scope}` and returns
+  `{"directory_delegation":{...}}` after moving an active Directory
+  delegation grant while preserving its role. The Directory boundary verifies
+  the new owner/delegate principals are active in the same company, rejects
+  self-delegation, maps duplicate active grants to the stable
+  duplicate-delegation error, and records `directory_delegation.reassign` in
+  the same transaction as the update.
 - `GET /admin/v1/directory/group-memberships` returns
   `{"directory_group_memberships":[...]}` for admin diagnostics over
   Directory-owned group membership relationships. It supports bounded `limit`,

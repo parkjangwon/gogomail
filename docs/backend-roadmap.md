@@ -2744,6 +2744,13 @@ Implementation order:
          relationship instead of parallel active grants with conflicting
          privilege semantics; create and update uniqueness races map to the
          same stable duplicate-delegation error.
+1175b2c. Directory/Identity now exposes audited delegation reassignment through
+         `ReassignDelegationWithAudit` and
+         `PATCH /admin/v1/directory/delegations/{id}/assignment`, moving active
+         grants to a new owner/delegate/scope while preserving the role,
+         validating active same-company new principals, mapping duplicate
+         active grants to the stable duplicate-delegation error, and committing
+         `directory_delegation.reassign` in the same transaction.
 1175b3. Directory/Identity now exposes audited group membership creation
         through `CreateGroupMembershipWithAudit` and
         `POST /admin/v1/directory/group-memberships`, returning a
