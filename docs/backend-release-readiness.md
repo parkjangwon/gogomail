@@ -1439,9 +1439,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `NO SELECT failed`, keeping tagged failure responses aligned with the
   selected-mailbox command clients actually issued.
 - IMAP malformed recognized `UID` subcommands are routed to their
-  command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
-  `UID STORE`, `UID EXPUNGE`, and `UID COPY` receive precise tagged `BAD`
-  responses instead of a generic UID-dispatch failure.
+  command-specific validators, so incomplete or structurally invalid
+  `UID SEARCH`, `UID SORT`, `UID THREAD`, `UID FETCH`, `UID STORE`,
+  `UID EXPUNGE`, and `UID COPY` receive precise tagged `BAD` responses before
+  authentication/selected-state checks instead of a generic UID-dispatch
+  failure.
 - IMAP missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`, `DELETE`,
   and `RENAME` now return tagged `[NONEXISTENT]` response codes instead of
   generic command failures, preserving machine-readable absent-folder state for

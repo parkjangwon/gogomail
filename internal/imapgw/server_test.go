@@ -495,7 +495,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY 7 &Jjo!\r\na8 UID MOVE 7 &Jjo!\r\na9 UID FETCH 7 (FLAGS)\r\na10 UID SEARCH ALL\r\na11 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY 7 &Jjo!\r\na8 UID MOVE 7 &Jjo!\r\na9 UID FETCH 7 (FLAGS)\r\na10 UID SEARCH\r\na11 UID SEARCH RETURN (COUNT)\r\na12 UID SORT (DATE) UTF-8\r\na13 UID SORT DATE UTF-8 ALL\r\na14 UID THREAD ORDEREDSUBJECT UTF-8\r\na15 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na16 UID SEARCH ALL\r\na17 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write uid auth commands: %v", err)
 	}
 	want := []string{
@@ -508,9 +508,15 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 		"a7 BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n",
 		"a8 BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n",
 		"a9 NO authentication required\r\n",
-		"a10 NO authentication required\r\n",
+		"a10 BAD SEARCH requires criteria\r\n",
+		"a11 BAD SEARCH requires criteria\r\n",
+		"a12 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a13 BAD SORT arguments are unsupported\r\n",
+		"a14 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a15 NO authentication required\r\n",
+		"a16 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a11 OK LOGOUT completed\r\n",
+		"a17 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

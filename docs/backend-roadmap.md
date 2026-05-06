@@ -1303,9 +1303,11 @@ Implementation order:
      `NO SELECT failed`, keeping tagged failure responses aligned with the
      selected-mailbox command clients actually issued.
 844. IMAP malformed recognized `UID` subcommands now reach their
-     command-specific validators, so incomplete `UID SEARCH`, `UID FETCH`,
-     `UID STORE`, `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD`
-     responses instead of a generic UID-dispatch failure.
+     command-specific validators, so incomplete or structurally invalid
+     `UID SEARCH`, `UID SORT`, `UID THREAD`, `UID FETCH`, `UID STORE`,
+     `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD` responses
+     before authentication/selected-state checks instead of a generic
+     UID-dispatch failure.
 845. IMAP missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`,
      `DELETE`, and `RENAME` now return tagged `[NONEXISTENT]` response codes
      instead of generic command failures, preserving machine-readable
