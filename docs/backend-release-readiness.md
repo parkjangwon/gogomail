@@ -16,6 +16,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Health probes are pinned to the service-root OpenAPI server and service info
   is pinned to `/api/v1`, with runtime coverage for wrong-base URLs so
   operators and generated clients do not probe undocumented routes.
+- CalDAV and CardDAV OPTIONS discovery now advertise `DAV: sync-collection`
+  only when the runtime store implements the corresponding sync change-log
+  interface, avoiding false native-client sync capability discovery on limited
+  backends.
 - Webmail capability discovery now advertises only the message-search filters
   implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
   and `has_attachment`), keeping generated clients from calling unsupported

@@ -278,11 +278,19 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) serveOptions(w http.ResponseWriter) {
 	w.Header().Set("Allow", cardDAVDiscoveryAllowHeader())
-	w.Header().Set("DAV", strings.Join(AdvertisedDAVTokens(h.IncludeSync), ", "))
+	w.Header().Set("DAV", strings.Join(AdvertisedDAVTokens(h.includeSyncCollection()), ", "))
 	w.Header().Set("MS-Author-Via", "DAV")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) includeSyncCollection() bool {
+	if !h.IncludeSync {
+		return false
+	}
+	_, ok := h.Store.(SyncChangeStore)
+	return ok
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {

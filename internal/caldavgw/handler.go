@@ -828,9 +828,14 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) serveOptions(w http.ResponseWriter) {
 	w.Header().Set("Allow", calDAVAllowHeader())
-	w.Header().Set("DAV", strings.Join(AdvertisedDAVTokens(h.IncludeScheduling), ", "))
+	w.Header().Set("DAV", strings.Join(AdvertisedDAVTokens(h.IncludeScheduling, h.includeSyncCollection()), ", "))
 	w.Header().Set("MS-Author-Via", "DAV")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) includeSyncCollection() bool {
+	_, ok := h.Store.(SyncChangeStore)
+	return ok
 }
 
 func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {

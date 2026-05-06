@@ -33,6 +33,10 @@ Health probes are now pinned to the service-root OpenAPI server while service
 info is pinned to `/api/v1`, with runtime regressions for the common wrong-base
 forms. This keeps deployment probes, load balancer checks, and generated
 contract clients aligned with the actual Go router.
+CalDAV and CardDAV OPTIONS discovery now advertise `DAV: sync-collection` only
+when the runtime store implements the corresponding sync change-log interface,
+preventing native clients from enabling DAV sync against backends that cannot
+serve sync-token deltas.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

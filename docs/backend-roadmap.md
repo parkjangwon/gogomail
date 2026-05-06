@@ -3449,6 +3449,10 @@ Implementation order:
       service-root OpenAPI server, while service info pins `GET /info` to the
       `/api/v1` server; runtime regressions reject wrong-base variants so
       operators and generated clients do not rely on undocumented probe URLs.
+1307. CalDAV and CardDAV OPTIONS discovery now advertise `DAV:
+      sync-collection` only when the runtime store implements the relevant
+      sync change-log interface, preventing native clients from discovering a
+      sync-token capability that a limited backend cannot actually serve.
 
 ## Deferred until backend contracts stabilize
 

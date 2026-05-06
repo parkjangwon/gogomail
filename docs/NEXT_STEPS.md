@@ -31,6 +31,8 @@ Current state:
   ambiguity before admin frontend work starts.
 - Health probes are now pinned to the service-root OpenAPI server, and service
   info is pinned to `/api/v1`, with runtime regressions for wrong-base forms.
+- CalDAV and CardDAV OPTIONS discovery now advertise `sync-collection` only
+  when the runtime store implements the relevant sync change-log interface.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.
