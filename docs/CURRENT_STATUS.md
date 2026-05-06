@@ -2186,6 +2186,9 @@ The platform hardening sprint completed the following:
 - IMAP `ENABLE` now validates missing capability arguments before
   authentication failures, while valid unauthenticated enable attempts still
   return `NO authentication required` without mutating session feature state.
+- IMAP `ENABLE` now has regression coverage for RFC 5161-compatible unknown
+  capability handling: well-formed unsupported capability names are ignored and
+  return an empty `ENABLED` response instead of being treated as syntax errors.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

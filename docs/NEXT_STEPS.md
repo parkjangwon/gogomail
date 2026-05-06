@@ -80,6 +80,9 @@ Current state:
 - `ENABLE` also validates malformed capability atoms before authentication or
   session mutation, keeping RFC 5161 syntax errors separate from unsupported
   but well-formed capabilities.
+- `ENABLE` preserves RFC 5161-compatible unknown capability handling:
+  unsupported but syntactically valid capability names are ignored and can
+  produce an empty `ENABLED` response when no requested capability is enabled.
 - `LIST`/`LSUB` CHILDREN attributes infer immediate parents from nested
   `FullPath` values when backend rows do not carry `ParentID`, preserving
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.

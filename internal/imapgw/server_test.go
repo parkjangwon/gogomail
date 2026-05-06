@@ -1845,6 +1845,48 @@ func TestServerEnableCondstoreEnablesModSeqEvents(t *testing.T) {
 	}
 }
 
+func TestServerEnableIgnoresUnsupportedCapabilities(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 ENABLE X-UNKNOWN\r\na3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write enable unknown capability: %v", err)
+	}
+	want := []string{
+		"a1 OK LOGIN completed\r\n",
+		"* ENABLED\r\n",
+		"a2 OK ENABLE completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read enable unknown response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("enable unknown response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerSelectRejectsUnsupportedParameter(t *testing.T) {
 	t.Parallel()
 
