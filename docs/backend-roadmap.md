@@ -3611,6 +3611,10 @@ Implementation order:
 1342. Core queue stats, delivery route counters, and IMAP UID backfill OpenAPI
       operations now pin `/admin/v1` and admin-token/bearer auth alternatives,
       matching their runtime admin-authenticated diagnostics/repair routes.
+1343. Tenant, domain, and user administration OpenAPI operations now pin
+      `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated organization identity, domain policy, DNS,
+      quota, and user lifecycle routes.
 
 ## Deferred until backend contracts stabilize
 

@@ -396,6 +396,10 @@ Core operator diagnostics and repair routes also carry operation-level Admin
 API base/auth metadata:
 `GET /admin/v1/queue`, `GET /admin/v1/delivery-routes/counters`, and
 `POST /admin/v1/imap/mailboxes/{id}/uid-backfill`.
+Tenant, domain, and user administration routes carry the same operation-level
+Admin API base/auth metadata. This includes company list/detail/quota, domain
+list/create/detail/stats/DNS/status/quota/policy, and user
+list/create/detail/status/quota/password-hash operations under `/admin/v1`.
 
 ## Pagination
 

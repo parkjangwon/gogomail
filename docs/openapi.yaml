@@ -3783,6 +3783,12 @@ paths:
     get:
       operationId: listAdminCompanies
       summary: Admin company list with contracted storage pool usage
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: status
@@ -3800,6 +3806,12 @@ paths:
     get:
       operationId: getAdminCompany
       summary: Admin company detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3811,6 +3823,12 @@ paths:
     patch:
       operationId: updateAdminCompanyQuota
       summary: Admin update company contracted storage quota
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3824,6 +3842,12 @@ paths:
     get:
       operationId: listAdminDomains
       summary: Admin domain list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: company_id
@@ -3849,6 +3873,12 @@ paths:
     post:
       operationId: createAdminDomain
       summary: Admin create domain
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DomainCreate"
       responses:
@@ -3860,6 +3890,12 @@ paths:
     get:
       operationId: getAdminDomain
       summary: Admin domain detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3871,6 +3907,12 @@ paths:
     get:
       operationId: getAdminDomainStats
       summary: Get aggregate statistics for a domain
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3886,6 +3928,12 @@ paths:
     get:
       operationId: checkAdminDomainDns
       summary: Admin verify domain DNS records
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3897,6 +3945,12 @@ paths:
     get:
       operationId: listAdminDomainDnsChecks
       summary: Admin list persisted domain DNS verification history
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/Limit"
@@ -3921,6 +3975,12 @@ paths:
     patch:
       operationId: updateAdminDomainStatus
       summary: Admin update domain status
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3934,6 +3994,12 @@ paths:
     patch:
       operationId: updateAdminDomainQuota
       summary: Admin update domain quota
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3947,6 +4013,12 @@ paths:
     patch:
       operationId: updateAdminDomainPolicy
       summary: Admin update domain operational policy model
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3960,6 +4032,12 @@ paths:
     get:
       operationId: listAdminUsers
       summary: Admin user list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: domain_id
@@ -3984,6 +4062,12 @@ paths:
     post:
       operationId: createAdminUser
       summary: Admin create user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/UserCreate"
       responses:
@@ -3995,6 +4079,12 @@ paths:
     get:
       operationId: getAdminUser
       summary: Admin user detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -4006,6 +4096,12 @@ paths:
     patch:
       operationId: updateAdminUserStatus
       summary: Admin update user status
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -4019,6 +4115,12 @@ paths:
     patch:
       operationId: updateAdminUserQuota
       summary: Admin update user quota
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -4032,6 +4134,12 @@ paths:
     patch:
       operationId: updateAdminUserPasswordHash
       summary: Admin update user password hash
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
