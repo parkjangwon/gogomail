@@ -290,6 +290,34 @@ func TestAdminServiceResolveDirectoryAliasDelegatesToDirectory(t *testing.T) {
 	}
 }
 
+func TestAdminServiceListDirectoryAliasesDelegatesToDirectory(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		aliases: []directory.Alias{{ID: "alias-1", Address: "ops@example.com"}},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ListAliasesRequest{
+		CompanyID:  " company-1 ",
+		DomainID:   " domain-1 ",
+		TargetKind: directory.PrincipalKindGroup,
+		TargetID:   "group-1",
+		Query:      " ops ",
+		ActiveOnly: true,
+		Limit:      5,
+	}
+	aliases, err := service.ListDirectoryAliases(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ListDirectoryAliases returned error: %v", err)
+	}
+	if len(aliases) != 1 || aliases[0].ID != "alias-1" {
+		t.Fatalf("aliases = %+v", aliases)
+	}
+	if directoryStore.lastAliasListReq != req {
+		t.Fatalf("lastAliasListReq = %+v, want %+v", directoryStore.lastAliasListReq, req)
+	}
+}
+
 func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -572,12 +600,14 @@ type fakeAdminDrive struct {
 }
 
 type fakeAdminDirectory struct {
-	delegations   []directory.Delegation
-	alias         directory.Alias
-	principals    []directory.Principal
-	lastReq       directory.ListDelegationsRequest
-	lastAliasReq  directory.ResolveAliasRequest
-	lastSearchReq directory.SearchPrincipalsRequest
+	delegations      []directory.Delegation
+	alias            directory.Alias
+	aliases          []directory.Alias
+	principals       []directory.Principal
+	lastReq          directory.ListDelegationsRequest
+	lastAliasReq     directory.ResolveAliasRequest
+	lastAliasListReq directory.ListAliasesRequest
+	lastSearchReq    directory.SearchPrincipalsRequest
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
@@ -593,6 +623,11 @@ func (f *fakeAdminDirectory) SearchPrincipals(_ context.Context, req directory.S
 func (f *fakeAdminDirectory) ResolveAlias(_ context.Context, req directory.ResolveAliasRequest) (directory.Alias, error) {
 	f.lastAliasReq = req
 	return f.alias, nil
+}
+
+func (f *fakeAdminDirectory) ListAliases(_ context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error) {
+	f.lastAliasListReq = req
+	return f.aliases, nil
 }
 
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {

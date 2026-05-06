@@ -1791,6 +1791,10 @@ Next:
   work can expose it for alias management screens, but product modules should
   keep using `ListAliases`/`ResolveAlias` instead of reaching into
   `directory_aliases` directly.
+- That admin API read path now exists as `GET /admin/v1/directory/aliases`.
+  Next alias work should add mutation workflows only after audit envelope,
+  ownership policy, duplicate-address behavior, and shared-inbox UX semantics
+  are explicit.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

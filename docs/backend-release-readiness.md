@@ -457,7 +457,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Directory alias listing now also has a bounded repository boundary with
   company/domain, target-principal, text query, active-only, and result-limit
   validation, preparing admin alias management without exposing raw
-  `directory_aliases` queries.
+  `directory_aliases` queries. The admin backend API now exposes that boundary
+  through `GET /admin/v1/directory/aliases`, with OpenAPI and backend contract
+  coverage for target-principal hydrated list responses.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

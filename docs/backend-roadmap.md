@@ -2723,6 +2723,13 @@ Implementation order:
        through the shared principal resolver so shared inbox management,
        mail-routing diagnostics, and admin alias screens do not query
        `directory_aliases` directly.
+1175f. The admin backend API now exposes Directory alias listing at
+       `GET /admin/v1/directory/aliases`, returning a `directory_aliases`
+       envelope with bounded company, domain, target principal, query,
+       active-only, and limit filters documented in OpenAPI and the backend API
+       contract. This gives future admin alias screens and shared inbox
+       management a contract-first read surface while alias mutation policy and
+       audit semantics remain future work.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

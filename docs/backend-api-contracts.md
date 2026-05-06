@@ -772,6 +772,13 @@ Admin operational read models also keep explicit envelope keys:
   normalized through the shared mail address parser before repository lookup,
   so mail routing, attendee resolution, shared inbox targeting, and admin
   diagnostics can share one alias-to-principal contract.
+- `GET /admin/v1/directory/aliases` returns
+  `{"directory_aliases":[...]}` for bounded alias inspection, including target
+  Directory principals. It supports bounded `limit`, required `company_id`,
+  optional `domain_id`, `target_kind`, `target_id`, `q`, and `active_only`
+  filters. `active_only` defaults to `true`; the Directory boundary rejects
+  target IDs without a target kind, caps query length, escapes wildcard input,
+  and resolves each returned alias through the shared principal resolver.
 - `GET /admin/v1/directory/delegations` returns
   `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
   delegation relationships. It supports bounded `limit`, required `company_id`,

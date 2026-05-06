@@ -107,6 +107,7 @@ type AdminService interface {
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
 	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
+	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
@@ -991,6 +992,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"directory_alias": alias})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/directory/aliases", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "target_kind", "target_id", "q", "active_only") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseDirectoryAliasListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		aliases, err := service.ListDirectoryAliases(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_aliases": aliases})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -3043,6 +3064,46 @@ func parseDirectoryAliasResolveRequest(w http.ResponseWriter, r *http.Request) (
 	return directory.ResolveAliasRequest{
 		Address:    address,
 		ActiveOnly: activeOnly,
+	}, true
+}
+
+func parseDirectoryAliasListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListAliasesRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	targetKind, ok := parseBoundedAdminQuery(w, r, "target_kind")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	targetID, ok := parseBoundedAdminQuery(w, r, "target_id")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	query, ok := parseBoundedAdminQuery(w, r, "q")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListAliasesRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListAliasesRequest{
+		CompanyID:  companyID,
+		DomainID:   domainID,
+		TargetKind: targetKind,
+		TargetID:   targetID,
+		Query:      query,
+		ActiveOnly: activeOnly,
+		Limit:      limit,
 	}, true
 }
 
