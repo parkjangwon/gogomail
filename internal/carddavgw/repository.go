@@ -71,6 +71,7 @@ type DeleteContactObjectRequest struct {
 	UserID        string
 	AddressBookID string
 	ObjectName    string
+	ObservedETag  string
 }
 
 type DeleteAddressBookRequest struct {
@@ -557,6 +558,11 @@ func (r *Repository) DeleteContactObject(ctx context.Context, req DeleteContactO
 	if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
 		return ContactObject{}, err
 	}
+	if req.ObservedETag != "" {
+		if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
+			return ContactObject{}, err
+		}
+	}
 	const query = `
 UPDATE carddav_contact_objects
 SET status = 'deleted', deleted_at = now(), updated_at = now()
@@ -871,8 +877,12 @@ func ValidateDeleteContactObjectRequest(req DeleteContactObjectRequest) (DeleteC
 	if err != nil {
 		return DeleteContactObjectRequest{}, "", err
 	}
+	observedETag, err := validateOptionalContactETag(req.ObservedETag)
+	if err != nil {
+		return DeleteContactObjectRequest{}, "", err
+	}
 	syncToken := AddressBookSyncToken(userID, bookID, objectName, "contact-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	return DeleteContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName}, syncToken, nil
+	return DeleteContactObjectRequest{UserID: userID, AddressBookID: bookID, ObjectName: objectName, ObservedETag: observedETag}, syncToken, nil
 }
 
 func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceRequest) (ListAddressBookChangesSinceRequest, error) {

@@ -228,8 +228,15 @@ func (s fakeCardDAVDiscoveryStore) UpsertContactObject(_ context.Context, req Up
 }
 
 func (s fakeCardDAVDiscoveryStore) DeleteContactObject(_ context.Context, req DeleteContactObjectRequest) (ContactObject, error) {
+	req, _, err := ValidateDeleteContactObjectRequest(req)
+	if err != nil {
+		return ContactObject{}, err
+	}
 	for _, object := range s.objects {
 		if object.UserID == req.UserID && object.AddressBookID == req.AddressBookID && object.ObjectName == req.ObjectName {
+			if req.ObservedETag != "" && req.ObservedETag != object.ETag {
+				return ContactObject{}, errors.New("CardDAV contact object etag mismatch")
+			}
 			return object, nil
 		}
 	}

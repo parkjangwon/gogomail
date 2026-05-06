@@ -1649,7 +1649,9 @@ Next:
   repository errors predictable while the PostgreSQL partial unique index
   remains the final concurrency guard. Final unique-index races are mapped back
   to stable duplicate UID/name repository errors instead of surfacing raw driver
-  messages.
+  messages. Contact-object `DELETE` now passes observed strong ETags into the
+  repository transaction so `If-Match` deletes are rechecked under the
+  address-book lock before row removal.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

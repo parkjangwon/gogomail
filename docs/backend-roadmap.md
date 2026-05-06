@@ -2438,6 +2438,10 @@ Implementation order:
       active object names or vCard UIDs into stable repository errors, so
       concurrent writes keep developer-readable CardDAV failure semantics
       instead of exposing raw driver details.
+1131. CardDAV contact-object `DELETE` now carries observed strong ETags into
+      the repository transaction and rechecks `If-Match` state under the
+      address-book lock before deleting the active object row, closing the
+      precondition race between handler lookup and storage mutation.
 
 ## Deferred until backend contracts stabilize
 

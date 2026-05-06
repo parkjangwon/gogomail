@@ -361,11 +361,16 @@ func TestValidateContactObjectReadAndDeleteRequests(t *testing.T) {
 		UserID:        " user-1 ",
 		AddressBookID: " book-1 ",
 		ObjectName:    " contact-1.vcf ",
+		ObservedETag:  ` "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateDeleteContactObjectRequest returned error: %v", err)
 	}
-	if del.UserID != "user-1" || del.AddressBookID != "book-1" || del.ObjectName != "contact-1.vcf" || !strings.HasPrefix(syncToken, "sync-") {
+	if del.UserID != "user-1" ||
+		del.AddressBookID != "book-1" ||
+		del.ObjectName != "contact-1.vcf" ||
+		del.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` ||
+		!strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("delete request = %+v sync = %q", del, syncToken)
 	}
 }

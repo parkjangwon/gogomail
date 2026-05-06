@@ -364,6 +364,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
 	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
+	observedETag := ""
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupContactObject(r.Context(), userID, resource.AddressBookID, resource.ObjectName)
 		if err != nil {
@@ -374,12 +375,24 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
 			return
 		}
+		if ifMatch != "" && ifMatch != "*" {
+			observedETag = object.ETag
+		}
 		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
 			http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
 			return
 		}
 	}
-	if _, err := store.DeleteContactObject(r.Context(), DeleteContactObjectRequest{UserID: userID, AddressBookID: resource.AddressBookID, ObjectName: resource.ObjectName}); err != nil {
+	if _, err := store.DeleteContactObject(r.Context(), DeleteContactObjectRequest{
+		UserID:        userID,
+		AddressBookID: resource.AddressBookID,
+		ObjectName:    resource.ObjectName,
+		ObservedETag:  observedETag,
+	}); err != nil {
+		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
+			http.Error(w, "carddav contact object precondition failed", http.StatusPreconditionFailed)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
