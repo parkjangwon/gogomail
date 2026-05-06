@@ -1370,6 +1370,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 			return true, false, err
 		}
+		if !imapSearchFieldsContainCriteria(searchFields) {
+			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+			return true, false, err
+		}
 	case "SORT":
 		if len(fields) < 6 {
 			_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
@@ -1450,6 +1454,10 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	if len(searchFields) == 0 {
+		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+		return false, err
+	}
+	if !imapSearchFieldsContainCriteria(searchFields) {
 		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 		return false, err
 	}
@@ -1691,6 +1699,16 @@ func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, b
 	}
 	_, save := seen["SAVE"]
 	return imapSearchReturnSpec{extended: true, save: save, options: options}, rest, true
+}
+
+func imapSearchFieldsContainCriteria(fields []string) bool {
+	if len(fields) == 0 {
+		return false
+	}
+	if strings.EqualFold(fields[0], "CHARSET") {
+		return len(fields) >= 3
+	}
+	return true
 }
 
 func imapConsumeParenthesizedFields(fields []string) ([]string, []string, bool) {

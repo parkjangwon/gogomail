@@ -2998,6 +2998,9 @@ Implementation order:
       only after a returned key maps to the requested canonical gogomail prefix,
       preserving the storage contract that out-of-scope bucket keys are hidden
       from callers.
+1219. IMAP `SEARCH` and `UID SEARCH` now reject `CHARSET` prefixes that omit
+      the required following search-key before authentication or selected-state
+      checks, preserving RFC 3501 grammar semantics at the command boundary.
 
 ## Deferred until backend contracts stabilize
 

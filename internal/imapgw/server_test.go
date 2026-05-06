@@ -495,7 +495,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY 7 &Jjo!\r\na8 UID MOVE 7 &Jjo!\r\na9 UID FETCH 7 (FLAGS)\r\na10 UID SEARCH\r\na11 UID SEARCH RETURN (COUNT)\r\na12 UID SORT (DATE) UTF-8\r\na13 UID SORT DATE UTF-8 ALL\r\na14 UID THREAD ORDEREDSUBJECT UTF-8\r\na15 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na16 UID SEARCH ALL\r\na17 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID EXPUNGE\r\na7 UID COPY 7 &Jjo!\r\na8 UID MOVE 7 &Jjo!\r\na9 UID FETCH 7 (FLAGS)\r\na10 UID SEARCH\r\na11 UID SEARCH RETURN (COUNT)\r\na12 UID SEARCH CHARSET UTF-8\r\na13 UID SORT (DATE) UTF-8\r\na14 UID SORT DATE UTF-8 ALL\r\na15 UID THREAD ORDEREDSUBJECT UTF-8\r\na16 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na17 UID SEARCH ALL\r\na18 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write uid auth commands: %v", err)
 	}
 	want := []string{
@@ -510,13 +510,14 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 		"a9 NO authentication required\r\n",
 		"a10 BAD SEARCH requires criteria\r\n",
 		"a11 BAD SEARCH requires criteria\r\n",
-		"a12 BAD SORT requires sort criteria, charset, and search criteria\r\n",
-		"a13 BAD SORT arguments are unsupported\r\n",
-		"a14 BAD THREAD requires algorithm, charset, and search criteria\r\n",
-		"a15 NO authentication required\r\n",
+		"a12 BAD SEARCH requires criteria\r\n",
+		"a13 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a14 BAD SORT arguments are unsupported\r\n",
+		"a15 BAD THREAD requires algorithm, charset, and search criteria\r\n",
 		"a16 NO authentication required\r\n",
+		"a17 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a17 OK LOGOUT completed\r\n",
+		"a18 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -550,7 +551,7 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 COPY 1\r\na5 COPY 1 &Jjo!\r\na6 MOVE 1\r\na7 SEARCH\r\na8 SEARCH RETURN (COUNT COUNT) ALL\r\na9 SORT\r\na10 SORT (DATE) UTF-8\r\na11 THREAD\r\na12 THREAD REFERENCES UTF-8 ALL\r\na13 FETCH 1 (FLAGS)\r\na14 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 COPY 1\r\na5 COPY 1 &Jjo!\r\na6 MOVE 1\r\na7 SEARCH\r\na8 SEARCH RETURN (COUNT COUNT) ALL\r\na9 SEARCH CHARSET UTF-8\r\na10 SORT\r\na11 SORT (DATE) UTF-8\r\na12 THREAD\r\na13 THREAD REFERENCES UTF-8 ALL\r\na14 FETCH 1 (FLAGS)\r\na15 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write selected-state commands: %v", err)
 	}
 	want := []string{
@@ -562,13 +563,14 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 		"a6 BAD MOVE requires sequence set and destination mailbox\r\n",
 		"a7 BAD SEARCH requires criteria\r\n",
 		"a8 BAD SEARCH return options are unsupported\r\n",
-		"a9 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a9 BAD SEARCH requires criteria\r\n",
 		"a10 BAD SORT requires sort criteria, charset, and search criteria\r\n",
-		"a11 BAD THREAD requires algorithm, charset, and search criteria\r\n",
-		"a12 BAD THREAD algorithm is unsupported\r\n",
-		"a13 NO mailbox must be selected\r\n",
+		"a11 BAD SORT requires sort criteria, charset, and search criteria\r\n",
+		"a12 BAD THREAD requires algorithm, charset, and search criteria\r\n",
+		"a13 BAD THREAD algorithm is unsupported\r\n",
+		"a14 NO mailbox must be selected\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a14 OK LOGOUT completed\r\n",
+		"a15 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -697,7 +699,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH ALL\r\na9 SORT (DATE) UTF-8 ALL\r\na10 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na11 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH ALL\r\na10 SORT (DATE) UTF-8 ALL\r\na11 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na12 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -708,11 +710,12 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a5 BAD SORT requires sort criteria, charset, and search criteria\r\n",
 		"a6 BAD THREAD requires algorithm, charset, and search criteria\r\n",
 		"a7 NO authentication required\r\n",
-		"a8 NO authentication required\r\n",
+		"a8 BAD SEARCH requires criteria\r\n",
 		"a9 NO authentication required\r\n",
 		"a10 NO authentication required\r\n",
+		"a11 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a11 OK LOGOUT completed\r\n",
+		"a12 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
