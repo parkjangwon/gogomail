@@ -74,6 +74,13 @@ func assertStorePortabilityContract(t *testing.T, store Store, basePrefix string
 	if !listContainsPath(page, objectPath) || !listContainsPath(page, relatedPath) {
 		t.Fatalf("List page = %+v, want primary and related objects", page)
 	}
+	exact, err := store.List(ctx, ListOptions{Prefix: objectPath, Limit: 10})
+	if err != nil {
+		t.Fatalf("List exact object prefix returned error: %v", err)
+	}
+	if len(exact.Objects) != 1 || exact.Objects[0].Path != objectPath || exact.HasMore || exact.NextCursor != "" {
+		t.Fatalf("List exact object prefix = %+v, want only primary object", exact)
+	}
 
 	if err := store.Copy(ctx, objectPath, copyPath); err != nil {
 		t.Fatalf("Copy returned error: %v", err)

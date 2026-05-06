@@ -85,6 +85,10 @@ Current state:
   pages and clears final-page cursors, so compatible providers that include
   unusable `NextContinuationToken` values on `IsTruncated=false` pages do not
   break Drive/lifecycle listings.
+- Local/NFS `List` now returns a single-object final page when the requested
+  prefix exactly names an existing object, matching S3 `Prefix` behavior and
+  keeping exact-object reconciliation probes portable across local, NFS, MinIO,
+  and AWS/S3-compatible storage.
 - S3-compatible `List` now rechecks provider-returned keys against the
   requested logical prefix after canonical bucket-prefix mapping, so
   S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes

@@ -202,6 +202,36 @@ func TestLocalStoreListObjectsByPrefix(t *testing.T) {
 	}
 }
 
+func TestLocalStoreListReturnsExactObjectPrefix(t *testing.T) {
+	t.Parallel()
+
+	store := NewLocalStore(t.TempDir())
+	ctx := context.Background()
+	objectPath := "drive/user-1/file.txt"
+	if err := store.Put(ctx, objectPath, strings.NewReader("hello")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+
+	page, err := store.List(ctx, ListOptions{Prefix: objectPath, Limit: 10})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if page.HasMore || page.NextCursor != "" || len(page.Objects) != 1 {
+		t.Fatalf("List exact object page = %+v, want single final page", page)
+	}
+	if page.Objects[0].Path != objectPath || page.Objects[0].Size != int64(len("hello")) {
+		t.Fatalf("listed object = %+v, want exact object path and size", page.Objects[0])
+	}
+
+	after, err := store.List(ctx, ListOptions{Prefix: objectPath, Limit: 10, Cursor: objectPath})
+	if err != nil {
+		t.Fatalf("List after cursor returned error: %v", err)
+	}
+	if len(after.Objects) != 0 || after.HasMore || after.NextCursor != "" {
+		t.Fatalf("List after exact object cursor = %+v, want empty final page", after)
+	}
+}
+
 func TestLocalStoreRejectsNilPutBody(t *testing.T) {
 	t.Parallel()
 

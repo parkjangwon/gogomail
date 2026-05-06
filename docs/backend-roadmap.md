@@ -3740,6 +3740,11 @@ Implementation order:
       an initial `BYE [ALERT]` to excess clients, keeping IMAP deployment
       goroutine growth operator-controlled without changing the default
       unlimited development behavior.
+1371. Local/NFS storage `List` now returns a single-object final page when the
+      requested prefix exactly names an object, aligning local filesystem
+      semantics with S3 `Prefix` responses and extending the shared storage
+      portability contract for config-only flips between local, NFS, MinIO,
+      and AWS/S3-compatible backends.
 
 ## Deferred until backend contracts stabilize
 
