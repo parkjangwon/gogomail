@@ -132,6 +132,9 @@ same address book before the SQL upsert path, while the PostgreSQL partial
 unique index remains the final concurrency guard. Repository error mapping also
 turns final unique-index races into predictable duplicate UID/name failures
 instead of leaking raw driver details.
+CardDAV contact-object `DELETE` now carries observed strong ETags into the
+repository transaction so `If-Match` deletes are rechecked under the address-book
+lock before the active object row is removed.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

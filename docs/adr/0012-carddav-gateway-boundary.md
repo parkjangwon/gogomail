@@ -105,6 +105,9 @@ remains the final concurrency guard, but normal handler/repository failures now
 stay predictable and developer-readable. Final unique-index races for active
 object names or UIDs are mapped back into stable repository errors instead of
 exposing raw database driver diagnostics.
+Contact-object deletes carry observed strong ETags into the repository
+transaction, so `If-Match` preconditions are rechecked under the address-book
+lock before the active object row is removed.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
