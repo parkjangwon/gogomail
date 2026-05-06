@@ -64,6 +64,9 @@ paths:
       servers:
         - url: /admin/v1
           description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/AdminConsoleCapabilities"

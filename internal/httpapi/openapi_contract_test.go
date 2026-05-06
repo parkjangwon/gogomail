@@ -58,6 +58,11 @@ func TestOpenAPIDraftPinsAdminConsoleCapabilitiesToAdminBase(t *testing.T) {
 			t.Fatalf("admin console capabilities operation must pin the admin server with %q:\n%s", want, block)
 		}
 	}
+	for _, want := range []string{"security:", "adminToken: []", "bearerAuth: []"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("admin console capabilities operation must document admin auth with %q:\n%s", want, block)
+		}
+	}
 }
 
 func TestOpenAPIDraftPinsHealthAndInfoServers(t *testing.T) {
