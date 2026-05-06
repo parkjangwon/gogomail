@@ -1180,11 +1180,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   attributes plus RFC 6154 special-use attributes for system folders such as
   Drafts, Sent, Trash, Junk, Archive, All, and Flagged when those folder roles
   are present in storage metadata, and extended
-  `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
+  `LIST (SPECIAL-USE)`, `RETURN (SPECIAL-USE)`, and no-op
+  `RETURN (CHILDREN)` forms are accepted.
 - IMAP `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits requested `STATUS` metadata
   immediately after each matching selectable mailbox so compatible clients can
-  avoid per-folder `STATUS` round trips.
+  avoid per-folder `STATUS` round trips, and it can be combined with
+  `RETURN (CHILDREN)`.
 - IMAP `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return per-mailbox total active message octets without
   requiring clients to fetch and sum each message's `RFC822.SIZE`.

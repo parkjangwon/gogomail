@@ -5941,12 +5941,14 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	}
 	for i := 0; i < len(tokens); {
 		switch strings.ToUpper(tokens[i]) {
+		case "CHILDREN":
+			i++
 		case "SPECIAL-USE":
 			i++
 		case "STATUS":
 			i++
 			start := i
-			for i < len(tokens) && !strings.EqualFold(tokens[i], "SPECIAL-USE") {
+			for i < len(tokens) && !strings.EqualFold(tokens[i], "CHILDREN") && !strings.EqualFold(tokens[i], "SPECIAL-USE") {
 				i++
 			}
 			if start == i {

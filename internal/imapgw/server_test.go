@@ -3794,7 +3794,7 @@ func TestServerHandlesListAfterLogin(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (CHILDREN)\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -4141,7 +4141,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\na6 LIST \"\" * RETURN (STATUS (MESSAGES MESSAGES))\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" * RETURN (STATUS (MESSAGES UNSEEN UIDNEXT HIGHESTMODSEQ SIZE))\r\na3 LIST \"\" * RETURN (SPECIAL-USE STATUS (MESSAGES SIZE))\r\na4 LIST \"\" * RETURN (STATUS)\r\na5 LIST \"\" * RETURN (STATUS MESSAGES)\r\na6 LIST \"\" * RETURN (STATUS (MESSAGES MESSAGES))\r\na7 LIST \"\" * RETURN (CHILDREN STATUS (MESSAGES))\r\n")); err != nil {
 		t.Fatalf("write list-status: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -4161,6 +4161,11 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 		"a4 BAD LIST requires reference and mailbox pattern atoms\r\n",
 		"a5 BAD LIST requires reference and mailbox pattern atoms\r\n",
 		"a6 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
+		"* STATUS \"INBOX\" (MESSAGES 17)\r\n",
+		"* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent\"\r\n",
+		"* STATUS \"Sent\" (MESSAGES 5)\r\n",
+		"a7 OK LIST completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -4171,7 +4176,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 			t.Fatalf("list-status response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
