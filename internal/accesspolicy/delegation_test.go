@@ -2,6 +2,7 @@ package accesspolicy
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -152,6 +153,133 @@ func TestWebDAVPrivilegesForDecisionMapsRoles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDelegatedAccessAuditDetailNormalizesDecision(t *testing.T) {
+	t.Parallel()
+
+	detail, err := DelegatedAccessAuditDetail(DelegatedAccessRequest{
+		CompanyID:    " company-1 ",
+		Owner:        Principal(" RESOURCE ", " room-1 "),
+		Actor:        Principal(" USER ", " user-1 "),
+		Scope:        " Calendar ",
+		RequiredRole: " WRITE ",
+	}, Decision{Allowed: true, Reason: DecisionReasonDelegationAllowed})
+	if err != nil {
+		t.Fatalf("DelegatedAccessAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		CompanyID        string   `json:"company_id"`
+		OwnerKind        string   `json:"owner_kind"`
+		OwnerID          string   `json:"owner_id"`
+		ActorKind        string   `json:"actor_kind"`
+		ActorID          string   `json:"actor_id"`
+		Scope            string   `json:"scope"`
+		RequiredRole     string   `json:"required_role"`
+		Allowed          bool     `json:"allowed"`
+		Reason           string   `json:"reason"`
+		WebDAVPrivileges []string `json:"webdav_privileges"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.OwnerKind != directory.PrincipalKindResource ||
+		got.OwnerID != "room-1" ||
+		got.ActorKind != directory.PrincipalKindUser ||
+		got.ActorID != "user-1" ||
+		got.Scope != directory.DelegationScopeCalendar ||
+		got.RequiredRole != directory.DelegationRoleWrite ||
+		!got.Allowed ||
+		got.Reason != DecisionReasonDelegationAllowed {
+		t.Fatalf("audit detail = %+v", got)
+	}
+	wantPrivileges := []string{WebDAVPrivilegeRead, WebDAVPrivilegeWriteContent, WebDAVPrivilegeWriteProperties}
+	if len(got.WebDAVPrivileges) != len(wantPrivileges) {
+		t.Fatalf("webdav privileges = %+v, want %+v", got.WebDAVPrivileges, wantPrivileges)
+	}
+	for i := range wantPrivileges {
+		if got.WebDAVPrivileges[i] != wantPrivileges[i] {
+			t.Fatalf("webdav privileges = %+v, want %+v", got.WebDAVPrivileges, wantPrivileges)
+		}
+	}
+}
+
+func TestDelegatedAccessAuditDetailOmitsDeniedPrivileges(t *testing.T) {
+	t.Parallel()
+
+	detail, err := DelegatedAccessAuditDetail(DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleManage,
+	}, Decision{Allowed: false})
+	if err != nil {
+		t.Fatalf("DelegatedAccessAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		Allowed          bool     `json:"allowed"`
+		Reason           string   `json:"reason"`
+		WebDAVPrivileges []string `json:"webdav_privileges"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.Allowed || got.Reason != DecisionReasonDelegationDenied || len(got.WebDAVPrivileges) != 0 {
+		t.Fatalf("audit detail = %+v, want denied without privileges", got)
+	}
+}
+
+func TestDelegatedAccessAuditDetailNormalizesUnsupportedReason(t *testing.T) {
+	t.Parallel()
+
+	req := DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}
+	detail, err := DelegatedAccessAuditDetail(req, Decision{Allowed: true, Reason: "user supplied\nreason"})
+	if err != nil {
+		t.Fatalf("DelegatedAccessAuditDetail returned error: %v", err)
+	}
+	var got struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.Reason != DecisionReasonDelegationAllowed {
+		t.Fatalf("reason = %q, want normalized allowed reason", got.Reason)
+	}
+
+	detail, err = DelegatedAccessAuditDetail(req, Decision{Allowed: false, Reason: DecisionReasonDelegationAllowed})
+	if err != nil {
+		t.Fatalf("DelegatedAccessAuditDetail returned error: %v", err)
+	}
+	if err := json.Unmarshal(detail, &got); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if got.Reason != DecisionReasonDelegationDenied {
+		t.Fatalf("reason = %q, want normalized denied reason", got.Reason)
+	}
+}
+
+func TestDelegatedAccessAuditDetailRejectsMalformedRequest(t *testing.T) {
+	t.Parallel()
+
+	_, err := DelegatedAccessAuditDetail(DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal("calendar", "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}, Decision{Allowed: true})
+	if err == nil {
+		t.Fatal("DelegatedAccessAuditDetail accepted malformed actor principal kind")
 	}
 }
 

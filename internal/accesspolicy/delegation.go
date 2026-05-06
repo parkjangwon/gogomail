@@ -2,6 +2,7 @@ package accesspolicy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -112,4 +113,63 @@ func WebDAVPrivilegesForDecision(decision Decision) []string {
 	default:
 		return nil
 	}
+}
+
+func DelegatedAccessAuditDetail(req DelegatedAccessRequest, decision Decision) (json.RawMessage, error) {
+	check, err := directory.NormalizeCheckDelegationRequest(directory.CheckDelegationRequest{
+		CompanyID:    req.CompanyID,
+		OwnerKind:    req.Owner.Kind,
+		OwnerID:      req.Owner.ID,
+		DelegateKind: req.Actor.Kind,
+		DelegateID:   req.Actor.ID,
+		Scope:        req.Scope,
+		RequiredRole: req.RequiredRole,
+		ActiveOnly:   true,
+		MaxDepth:     req.MaxDepth,
+	})
+	if err != nil {
+		return nil, err
+	}
+	reason := normalizedDecisionReason(decision)
+	detail, err := json.Marshal(struct {
+		CompanyID        string   `json:"company_id"`
+		OwnerKind        string   `json:"owner_kind"`
+		OwnerID          string   `json:"owner_id"`
+		ActorKind        string   `json:"actor_kind"`
+		ActorID          string   `json:"actor_id"`
+		Scope            string   `json:"scope"`
+		RequiredRole     string   `json:"required_role"`
+		Allowed          bool     `json:"allowed"`
+		Reason           string   `json:"reason"`
+		WebDAVPrivileges []string `json:"webdav_privileges,omitempty"`
+	}{
+		CompanyID:        check.CompanyID,
+		OwnerKind:        check.OwnerKind,
+		OwnerID:          check.OwnerID,
+		ActorKind:        check.DelegateKind,
+		ActorID:          check.DelegateID,
+		Scope:            check.Scope,
+		RequiredRole:     check.RequiredRole,
+		Allowed:          decision.Allowed,
+		Reason:           reason,
+		WebDAVPrivileges: WebDAVPrivilegesForDecision(Decision{Allowed: decision.Allowed, RequiredRole: check.RequiredRole}),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal delegated access audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+func normalizedDecisionReason(decision Decision) string {
+	reason := strings.TrimSpace(decision.Reason)
+	if decision.Allowed && reason == DecisionReasonDelegationAllowed {
+		return reason
+	}
+	if !decision.Allowed && reason == DecisionReasonDelegationDenied {
+		return reason
+	}
+	if decision.Allowed {
+		return DecisionReasonDelegationAllowed
+	}
+	return DecisionReasonDelegationDenied
 }

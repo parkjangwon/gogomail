@@ -2598,6 +2598,12 @@ Implementation order:
       4918 WebDAV privilege names, giving CalDAV/CardDAV a single
       read/write/manage-to-privilege translation point before shared calendar
       or delegated address-book privileges are advertised.
+1170. `internal/accesspolicy` now builds bounded delegated-access audit detail
+      JSON from the same normalized request and decision boundary, including
+      company, owner, actor, scope, role, allow/deny state, fixed reason enums,
+      and WebDAV privileges so future CalDAV/CardDAV/Drive/mailbox audit
+      emitters do not invent divergent log shapes or accept free-form reason
+      cardinality.
 
 ## Deferred until backend contracts stabilize
 
