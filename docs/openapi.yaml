@@ -6084,7 +6084,7 @@ components:
               type: array
               items:
                 type: string
-                enum: [q, folder_id, from, subject, has_attachment, since, before, read, starred]
+                enum: [q, folder_id, from, subject, has_attachment]
             highlights:
               type: boolean
             opaque_cursors:

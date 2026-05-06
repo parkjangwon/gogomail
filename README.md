@@ -30,6 +30,8 @@ Recent release-readiness work also includes:
   UI-only features
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract without starting frontend implementation
+- webmail capability discovery that advertises only runtime-backed search
+  filters, so generated clients do not call unsupported query shapes
 
 The Next.js web apps will be added after the backend contracts stabilize and
 after the user provides frontend-specific guidance.
