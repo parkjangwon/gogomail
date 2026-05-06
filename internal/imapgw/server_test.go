@@ -10015,6 +10015,11 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	if flags, ok := imapStoreFlags("()"); !ok || !imapMessageFlagsEmpty(flags) {
 		t.Fatalf("imapStoreFlags empty flag-list = %#v, %v; want empty accepted", flags, ok)
 	}
+	for _, value := range []string{" (\\Seen)", "(\\Seen) ", " (\\Seen) "} {
+		if flags, ok := imapStoreFlags(value); ok {
+			t.Fatalf("imapStoreFlags(%q) = %#v true, want padded flag-list rejection", value, flags)
+		}
+	}
 	if got := imapAppendExistsCount(2, MessageSummary{SequenceNumber: 5}); got != 5 {
 		t.Fatalf("imapAppendExistsCount with summary sequence = %d, want 5", got)
 	}

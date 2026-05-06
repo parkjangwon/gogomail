@@ -3905,6 +3905,9 @@ Implementation order:
 1411. IMAP `STORE`/`UID STORE` mode atoms and `UNCHANGEDSINCE` markers now
       reject whitespace-padded quoted or literal values instead of trimming
       them into valid mutation controls.
+1412. IMAP `STORE`/`UID STORE` flag-list parsing now rejects whitespace-padded
+      quoted or literal list values such as ` (\\Seen) ` while preserving
+      exact `()` and parenthesized flag-list semantics.
 
 ## Deferred until backend contracts stabilize
 
