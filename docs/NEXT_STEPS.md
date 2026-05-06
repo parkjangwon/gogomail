@@ -47,6 +47,10 @@ Current state:
 - CalDAV and CardDAV path/href parsing now rejects encoded path separators
   before URL decoding, preventing `%2F` or `%5C` from remapping principal,
   collection, or object boundaries inside request paths and REPORT hrefs.
+- CalDAV and CardDAV object `PUT`/`DELETE` now carry the observed strong
+  object ETag into repository mutation guards even for successful
+  `If-Match: *` existing-resource preconditions, reducing stale mutation races
+  while preserving WebDAV existence semantics.
 - Drive JSON mutation handlers now have regression coverage for required
   `application/json` content type, unknown-field rejection, and trailing-token
   rejection before service dispatch.
@@ -2130,6 +2134,9 @@ Current state:
   `DeleteObjectRequest` and rechecks it inside the repository transaction,
   matching the existing `PUT` observed-ETag guard and reducing stale-delete
   races.
+- CalDAV object `PUT`/`DELETE` now also pass the looked-up strong ETag through
+  repository observed-ETag guards for `If-Match: *`, so existence-only
+  preconditions still protect the exact object version seen by the handler.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs by
   normalizing the URI path through the existing CalDAV path parser and
   preserving same-user / same-collection scope checks; userinfo-bearing
@@ -2509,6 +2516,9 @@ Next:
   messages. Contact-object `DELETE` now passes observed strong ETags into the
   repository transaction so `If-Match` deletes are rechecked under the
   address-book lock before row removal.
+  Contact-object `PUT`/`DELETE` now also carry observed strong ETags for
+  successful `If-Match: *` preconditions, keeping existence-only contact
+  mutations guarded against stale handler preflight.
   Delegated contacts access now uses the Directory/accesspolicy/audit boundary
   instead of a CardDAV-local sharing model: cross-user `GET`, `PUT`, `DELETE`,
   `MKCOL`, `PROPPATCH`, `REPORT`, and `PROPFIND` requests require the matching
