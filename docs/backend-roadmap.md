@@ -2987,6 +2987,10 @@ Implementation order:
 1215. CalDAV and CardDAV `REPORT`/`PROPFIND` handlers now reject repeated HTTP
       `Depth` headers before XML request-body parsing, keeping WebDAV traversal
       scope deterministic for query, sync, and discovery paths.
+1216. CalDAV and CardDAV conditional request handling now combines repeated
+      `If-Match` and `If-None-Match` headers into a single ETag list before
+      evaluating object and collection preconditions, preserving HTTP
+      field-combination semantics for cache validation and write guards.
 
 ## Deferred until backend contracts stabilize
 

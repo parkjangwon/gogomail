@@ -335,7 +335,10 @@ func TestHandlerGetAndHeadContactObject(t *testing.T) {
 func TestHandlerGetContactObjectHonorsCachePreconditions(t *testing.T) {
 	t.Parallel()
 
-	headers := http.Header{"If-None-Match": []string{`"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`}}
+	headers := http.Header{"If-None-Match": []string{
+		`"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
+		`"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+	}}
 	rec := runCardDAVObjectRequest(t, MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", "", headers)
 	if rec.Code != http.StatusNotModified {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotModified)
@@ -363,7 +366,10 @@ func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T)
 
 	updateHeaders := http.Header{
 		"Content-Type": []string{"text/vcard"},
-		"If-Match":     []string{`"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`},
+		"If-Match": []string{
+			`"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
+			`"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+		},
 	}
 	update := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", strings.ReplaceAll(body, "new-contact", "contact-1"), updateHeaders)
 	if update.Code != http.StatusNoContent {
