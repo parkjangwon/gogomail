@@ -3553,6 +3553,10 @@ Implementation order:
       thread lists, thread-message lists, active search, and draft search,
       keeping webmail pagination behavior contract-stable across flat,
       conversation, and compose-focused read models.
+1326. CalDAV and CardDAV `REPORT` parsing now rejects duplicate `DAV:limit`
+      elements and duplicate nested `DAV:nresults` elements, preventing
+      ambiguous bounded query or sync pagination from reaching object and
+      change-list repository scans.
 
 ## Deferred until backend contracts stabilize
 

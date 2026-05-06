@@ -333,6 +333,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 	if err != nil {
 		return ReportRequest{}, err
 	}
+	hasLimit := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -377,11 +378,15 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				}
 				req.SyncLevel = strings.TrimSpace(level)
 			case sameXMLName(tok.Name, DAVNamespace, "limit"):
+				if hasLimit {
+					return ReportRequest{}, fmt.Errorf("REPORT must not contain duplicate limit elements")
+				}
 				limit, err := parseLimitElement(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
 				}
 				req.Limit = limit
+				hasLimit = true
 			case sameXMLName(tok.Name, CardDAVNamespace, "filter"):
 				req.HasFilter = true
 				filter, err := parseAddressBookFilter(dec, tok)
@@ -1125,6 +1130,7 @@ func filterNameAttribute(el xml.StartElement, element string) (string, error) {
 
 func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
 	var limit int
+	hasNResults := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -1141,6 +1147,9 @@ func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
 				}
 				continue
 			}
+			if hasNResults {
+				return 0, fmt.Errorf("limit must not contain duplicate nresults elements")
+			}
 			raw, err := readSimpleElementText(dec, tok.Name)
 			if err != nil {
 				return 0, err
@@ -1153,6 +1162,7 @@ func parseLimitElement(dec *xml.Decoder, name xml.Name) (int, error) {
 				return 0, fmt.Errorf("limit nresults exceeds %d", MaxWebDAVReportLimit)
 			}
 			limit = value
+			hasNResults = true
 		case xml.EndElement:
 			if sameName(tok.Name, name) {
 				return limit, nil

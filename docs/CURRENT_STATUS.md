@@ -37,7 +37,10 @@ CalDAV and CardDAV discovery now advertise `DAV: sync-collection` and
 collection `supported-report-set` sync reports only when the runtime store
 implements the corresponding sync change-log interface, preventing native
 clients from enabling DAV sync against backends that cannot serve sync-token
-deltas.
+deltas. CalDAV and CardDAV `REPORT` parsing now also rejects duplicate
+`DAV:limit` controls and duplicate nested `DAV:nresults` controls, avoiding
+ambiguous client pagination semantics before bounded object or change-list
+work begins.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can

@@ -408,14 +408,19 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"sync unsupported level": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>infinity</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level></D:sync-collection>`,
 		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"text match line break":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
-		"bad match type":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match match-type="wildcard">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
-		"bad negate condition":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match negate-condition="maybe">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
-		"unsupported collation":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
-		"bad filter test":        `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter test="maybe"><C:prop-filter name="FN"/></C:filter></C:addressbook-query>`,
-		"bad prop filter test":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN" test="maybe"/></C:filter></C:addressbook-query>`,
-		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
-		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"duplicate limit":        `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>25</D:nresults></D:limit><D:limit><D:nresults>50</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"duplicate nresults": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit>
+  <D:nresults>25</D:nresults>
+  <D:nresults>50</D:nresults>
+</D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"text match line break": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:text-match>A&#x0A;B</C:text-match></C:filter></C:addressbook-query>`,
+		"bad match type":        `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match match-type="wildcard">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad negate condition":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match negate-condition="maybe">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"unsupported collation": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad filter test":       `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter test="maybe"><C:prop-filter name="FN"/></C:filter></C:addressbook-query>`,
+		"bad prop filter test":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN" test="maybe"/></C:filter></C:addressbook-query>`,
+		"prop filter no name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"bad prop filter name":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"prop filter duplicate text match": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN">
   <C:text-match>A</C:text-match>
   <C:text-match>B</C:text-match>
