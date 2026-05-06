@@ -319,12 +319,12 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		HasMore:    result.IsTruncated,
 	}
 	for _, item := range result.Contents {
-		if item.Size < 0 {
-			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
-		}
 		objectPath, ok := s.objectPathFromKey(item.Key)
 		if !ok {
 			continue
+		}
+		if item.Size < 0 {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
 		}
 		if len(page.Objects) >= limit {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: response contains more objects than requested limit")

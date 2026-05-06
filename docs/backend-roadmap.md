@@ -2994,6 +2994,10 @@ Implementation order:
 1217. IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
       `date-day-fixed` syntax, accepting zero-padded or space-padded days while
       rejecting bare one-digit dates before backend append dispatch.
+1218. S3-compatible `ListObjectsV2` result processing now validates object size
+      only after a returned key maps to the requested canonical gogomail prefix,
+      preserving the storage contract that out-of-scope bucket keys are hidden
+      from callers.
 
 ## Deferred until backend contracts stabilize
 

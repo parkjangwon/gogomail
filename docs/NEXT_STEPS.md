@@ -312,6 +312,9 @@ Current state:
   object keys before prefix/object-path validation, preventing distinct
   whitespace-bearing keys from being silently normalized into canonical
   gogomail object paths.
+- S3-compatible `ListObjectsV2` object-size validation now runs after canonical
+  prefix mapping, so foreign bucket-prefix entries are skipped before their
+  metadata can fail a valid gogomail object listing.
 - S3-compatible `ListObjectsV2` pages reject provider responses that return
   more matching objects than the requested bounded page size, keeping S3,
   MinIO, and local/NFS pagination under the same storage contract.
