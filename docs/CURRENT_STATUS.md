@@ -2180,6 +2180,10 @@ The platform hardening sprint completed the following:
   authenticated `[CAPABILITY ...]` response code, so clients can learn the
   post-auth extension set without an immediate follow-up `CAPABILITY` command
   and without carrying pre-auth `SASL-IR`/`AUTH=PLAIN` state forward.
+- IMAP connection greetings now include a state-aware `[CAPABILITY ...]`
+  response code. Plaintext TLS-required sessions advertise `STARTTLS` and
+  `LOGINDISABLED`, while implicit TLS sessions advertise immediate
+  `SASL-IR`/`AUTH=PLAIN` login capability without a redundant capability probe.
 - IMAP mailbox management and subscription commands now validate malformed
   `LIST`, `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and
   `UNSUBSCRIBE` argument shape or modified UTF-7 mailbox names before

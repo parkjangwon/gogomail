@@ -63,6 +63,9 @@ Current state:
 - Successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include the
   authenticated `[CAPABILITY ...]` response code, keeping post-auth capability
   discovery explicit for RFC-shaped clients.
+- Connection greetings now include a state-aware `[CAPABILITY ...]` response
+  code: plaintext TLS-required sessions expose `STARTTLS`/`LOGINDISABLED`,
+  while implicit TLS sessions expose immediate `SASL-IR`/`AUTH=PLAIN`.
 - Mailbox management and subscription commands validate malformed `LIST`,
   `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and `UNSUBSCRIBE`
   argument shape or modified UTF-7 mailbox names before authentication

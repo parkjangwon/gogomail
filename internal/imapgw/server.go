@@ -146,14 +146,14 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	defer conn.Close()
 	reader := bufio.NewReaderSize(conn, 8192)
 	writer := bufio.NewWriter(conn)
-	if _, err := writer.WriteString("* OK gogomail IMAP4rev1 service ready\r\n"); err != nil {
+	state := imapConnState{}
+	_, state.tlsActive = conn.(*tls.Conn)
+	if _, err := writer.WriteString("* OK " + s.capabilityCode(&state) + " gogomail IMAP4rev1 service ready\r\n"); err != nil {
 		return err
 	}
 	if err := writer.Flush(); err != nil {
 		return err
 	}
-	state := imapConnState{}
-	_, state.tlsActive = conn.(*tls.Conn)
 	defer state.closeSubscription()
 	for {
 		line, literals, err := s.readCommandLine(reader, writer, &state)
@@ -5353,6 +5353,10 @@ func (s *Server) imapCapabilities(state *imapConnState) []string {
 }
 
 func (s *Server) authenticatedCapabilityCode(state *imapConnState) string {
+	return s.capabilityCode(state)
+}
+
+func (s *Server) capabilityCode(state *imapConnState) string {
 	return "[CAPABILITY " + strings.Join(s.imapCapabilities(state), " ") + "]"
 }
 
