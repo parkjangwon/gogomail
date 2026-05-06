@@ -3810,6 +3810,10 @@ Implementation order:
       digits for `HEAD` metadata and range-response validation, rejecting
       signed values such as `+5` instead of normalizing them into valid object
       sizes.
+1386. S3-compatible `Content-Range` start, end, and total-size numbers now
+      reuse the unsigned decimal parser, rejecting signed values such as
+      `bytes +1-3/5` or `bytes 1-3/+5` before provider range metadata can be
+      normalized.
 
 ## Deferred until backend contracts stabilize
 
