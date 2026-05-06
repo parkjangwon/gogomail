@@ -3806,6 +3806,10 @@ Implementation order:
       requested byte window, keeping that compatibility path aligned with the
       ordinary `206 Partial Content` metadata checks before a bounded reader is
       exposed.
+1385. S3-compatible `Content-Length` parsing now requires unsigned decimal
+      digits for `HEAD` metadata and range-response validation, rejecting
+      signed values such as `+5` instead of normalizing them into valid object
+      sizes.
 
 ## Deferred until backend contracts stabilize
 

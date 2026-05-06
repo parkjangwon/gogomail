@@ -532,6 +532,41 @@ func TestS3StoreGetRejectsUnexpectedPartialContent(t *testing.T) {
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 
+	tests := []string{"not-a-size", "-1", "+5"}
+	for _, contentLength := range tests {
+		contentLength := contentLength
+		t.Run(contentLength, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode:    http.StatusOK,
+						Header:        http.Header{"Content-Length": []string{contentLength}},
+						ContentLength: -1,
+						Body:          io.NopCloser(strings.NewReader("")),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "content length") {
+				t.Fatalf("Stat err = %v, want content length rejection", err)
+			}
+		})
+	}
+}
+
+func TestS3StoreStatRequiresContentLength(t *testing.T) {
+	t.Parallel()
+
 	store, err := NewS3Store(S3Options{
 		Endpoint:        "http://localhost:9000",
 		Region:          "us-east-1",
@@ -542,7 +577,6 @@ func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 		HTTPClient: &http.Client{Transport: staticRoundTripper{
 			resp: &http.Response{
 				StatusCode:    http.StatusOK,
-				Header:        http.Header{"Content-Length": []string{"not-a-size"}},
 				ContentLength: -1,
 				Body:          io.NopCloser(strings.NewReader("")),
 			},
@@ -1367,6 +1401,7 @@ func TestS3StoreGetRangeRejectsMismatchedPartialContentLength(t *testing.T) {
 	}{
 		{name: "mismatch", contentLength: "4", want: "content-length mismatch"},
 		{name: "invalid", contentLength: "not-a-size", want: "invalid content length"},
+		{name: "signed", contentLength: "+3", want: "invalid content length"},
 	}
 	for _, tc := range tests {
 		tc := tc
