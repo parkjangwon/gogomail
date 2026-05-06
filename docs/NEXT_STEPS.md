@@ -1686,9 +1686,9 @@ Current state:
 - CalDAV object `GET`/`HEAD` now support `If-None-Match` cache revalidation
   against strong object ETags, returning `304 Not Modified` without streaming
   `.ics` bodies when possible.
-- CalDAV object `PUT` now rejects explicit non-`text/calendar` media types
-  before iCalendar parsing, while still allowing clients that omit
-  `Content-Type`.
+- CalDAV object `PUT` now rejects explicit non-`text/calendar` media types and
+  non-`2.0` `text/calendar` version parameters before iCalendar parsing, while
+  still allowing clients that omit `Content-Type`.
 - CalDAV object `PUT` now enforces `If-Match: *` as an existing-resource
   precondition, preventing accidental object creation through conditional
   overwrite requests.

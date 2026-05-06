@@ -635,12 +635,15 @@ func validateCalendarPutContentType(value string) error {
 	if strings.ContainsAny(value, "\r\n") {
 		return fmt.Errorf("calendar object content type must not contain line breaks")
 	}
-	mediaType, _, err := mime.ParseMediaType(value)
+	mediaType, params, err := mime.ParseMediaType(value)
 	if err != nil {
 		return fmt.Errorf("calendar object content type is invalid")
 	}
 	if !strings.EqualFold(mediaType, "text/calendar") {
 		return fmt.Errorf("calendar object content type must be text/calendar")
+	}
+	if version, ok := params["version"]; ok && strings.TrimSpace(version) != "2.0" {
+		return fmt.Errorf("calendar object content type version must be 2.0")
 	}
 	return nil
 }

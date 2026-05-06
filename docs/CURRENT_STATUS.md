@@ -2702,8 +2702,9 @@ The platform hardening sprint completed the following:
   stored strong ETags, returning `304 Not Modified` with safe cache headers and
   no body when clients already have the current `.ics` representation.
 - CalDAV calendar object `PUT` now validates explicit `Content-Type` headers
-  before body parsing, accepting `text/calendar` with parameters and rejecting
-  incompatible media types with HTTP 415.
+  before body parsing, accepting `text/calendar` with ordinary parameters while
+  rejecting incompatible media types or non-`2.0` `version` parameters with
+  HTTP 415.
 - CalDAV calendar object `PUT` now treats `If-Match: *` as an existing-resource
   precondition, returning HTTP 412 when the target `.ics` object does not yet
   exist instead of accidentally creating it.
