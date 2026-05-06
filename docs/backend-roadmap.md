@@ -2685,6 +2685,11 @@ Implementation order:
       `BAD` response when the command tag is available, followed by `BYE` and a
       clean connection close. This keeps literal-size enforcement observable to
       clients without trying to resynchronize an unrecoverable input stream.
+1188. Shared storage `Get` and `GetRange` readers now observe context
+      cancellation after local/NFS files or S3-compatible response bodies have
+      opened, and local/NFS `GetRange` now reports `io.ErrUnexpectedEOF` for
+      short requested byte windows. This keeps canceled downloads/previews and
+      partial-read failure semantics consistent across backend flips.
 
 ## Deferred until backend contracts stabilize
 

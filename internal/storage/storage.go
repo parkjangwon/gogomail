@@ -41,3 +41,23 @@ type Store interface {
 	List(ctx context.Context, opts ListOptions) (ObjectListPage, error)
 	Delete(ctx context.Context, path string) error
 }
+
+type contextReadCloser struct {
+	ctx    context.Context
+	closer io.ReadCloser
+}
+
+func (r *contextReadCloser) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	n, err := r.closer.Read(p)
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return n, ctxErr
+	}
+	return n, err
+}
+
+func (r *contextReadCloser) Close() error {
+	return r.closer.Close()
+}

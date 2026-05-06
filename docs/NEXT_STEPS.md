@@ -219,6 +219,12 @@ Current state:
 - Local/NFS-style storage writes honor context cancellation during body copy,
   cleaning staged temp objects and avoiding partial object commits after a
   canceled request.
+- Local/NFS and S3-compatible `Get`/`GetRange` readers now observe context
+  cancellation after open/request dispatch, so canceled downloads and previews
+  stop at the storage adapter boundary instead of continuing to stream bytes.
+- Local/NFS `GetRange` now reports `io.ErrUnexpectedEOF` when a requested
+  window extends beyond the available object bytes, matching the S3-compatible
+  range-reader corruption signal instead of silently returning a short range.
 - Local and S3-compatible storage writes reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.

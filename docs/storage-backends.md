@@ -86,7 +86,9 @@ so lifecycle workers behave consistently across storage backends.
 last-modified time without opening the file body.
 `GetRange` seeks to the requested byte offset and returns a closeable limited
 reader for the requested positive byte count, keeping partial reads efficient
-for local disk and NFS-style mounts.
+for local disk and NFS-style mounts. If the requested local/NFS byte window
+extends past the stored object, callers see `io.ErrUnexpectedEOF`, matching the
+S3-compatible range-reader contract instead of receiving a silent short read.
 `Copy` streams from the source object into the destination through the same
 atomic temporary-file write path used by normal local/NFS writes.
 `Move` creates missing destination directories and uses `rename`, keeping local
@@ -188,6 +190,9 @@ the validated requested length. This matches local/NFS behavior even if a
 provider sends an oversized partial-content body. If a provider returns a
 matching `Content-Range` but truncates the response body before the requested
 byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
+Both full-object and range readers observe context cancellation after the
+request has opened, so canceled downloads, previews, and IMAP literal streams
+can stop promptly across local/NFS and S3-compatible backends.
 When a range reader is consumed successfully and closed, gogomail drains a
 small bounded response remainder so normal oversized partial responses can
 still reuse HTTP connections without exposing extra bytes to callers. The same

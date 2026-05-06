@@ -93,7 +93,7 @@ func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error
 	if err != nil {
 		return nil, fmt.Errorf("open storage object: %w", err)
 	}
-	return file, nil
+	return &contextReadCloser{ctx: ctx, closer: file}, nil
 }
 
 func (s *LocalStore) GetRange(ctx context.Context, path string, req RangeRequest) (io.ReadCloser, error) {
@@ -118,16 +118,38 @@ func (s *LocalStore) GetRange(ctx context.Context, path string, req RangeRequest
 		_ = file.Close()
 		return nil, fmt.Errorf("seek storage object range: %w", err)
 	}
-	return &limitedReadCloser{reader: io.LimitReader(file, validated.Length), closer: file}, nil
+	return &limitedReadCloser{ctx: ctx, reader: file, closer: file, remaining: validated.Length}, nil
 }
 
 type limitedReadCloser struct {
-	reader io.Reader
-	closer io.Closer
+	ctx       context.Context
+	reader    io.Reader
+	closer    io.Closer
+	remaining int64
 }
 
 func (r *limitedReadCloser) Read(p []byte) (int, error) {
-	return r.reader.Read(p)
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	if r.remaining <= 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:r.remaining]
+	}
+	n, err := r.reader.Read(p)
+	r.remaining -= int64(n)
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return n, ctxErr
+	}
+	if err == io.EOF && r.remaining > 0 {
+		return n, io.ErrUnexpectedEOF
+	}
+	if err == io.EOF && n > 0 && r.remaining == 0 {
+		return n, nil
+	}
+	return n, err
 }
 
 func (r *limitedReadCloser) Close() error {
