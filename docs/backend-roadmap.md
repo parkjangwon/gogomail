@@ -3638,6 +3638,10 @@ Implementation order:
       and admin-token/bearer auth alternatives, matching their runtime
       admin-authenticated outbound mail operations, relay trust, domain
       signing, and retry-control routes.
+1349. OpenAPI contract tests now derive registered `/admin/v1` routes from
+      `admin.go` and require every matching operation to pin `/admin/v1` plus
+      admin-token/bearer auth alternatives, preventing future admin route
+      additions from silently drifting to ambiguous generated-client contracts.
 
 ## Deferred until backend contracts stabilize
 
