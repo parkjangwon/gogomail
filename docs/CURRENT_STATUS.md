@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 copy namespace hardening)
+Last updated: 2026-05-07 (updated after S3 list namespace hardening)
 
 ## Current phase
 
@@ -134,6 +134,10 @@ is final.
 S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
 namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
 unexpected namespaces before copy/move is reported successful.
+S3-compatible `ListObjectsV2` response XML now applies the same namespace
+boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
+roots only before pagination, prefix filtering, cleanup, or Drive callers see
+listed object metadata.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling
