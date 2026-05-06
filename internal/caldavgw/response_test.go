@@ -259,6 +259,43 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 	}
 }
 
+func TestPrincipalCollectionPropertiesExposeCurrentPrincipal(t *testing.T) {
+	t.Parallel()
+
+	props := PrincipalCollectionProperties(Principal{
+		UserID:           "user-1",
+		DisplayName:      "User One",
+		CalendarHomePath: "/caldav/calendars/user-1/",
+		PrincipalPath:    "/caldav/principals/user-1/",
+	})
+	stats := SelectPropfindProperties(PropfindRequest{
+		Kind: PropfindProp,
+		Properties: []XMLName{
+			PropCurrentUserPrincipal,
+			PropCurrentUserPrivileges,
+			PropPrincipalCollectionSet,
+			PropResourceType,
+		},
+	}, props)
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/principals/", PropStats: stats}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		"<D:href>/caldav/principals/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
+		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("principal collection XML missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestCalendarHomePropertiesExposePrincipalOwner(t *testing.T) {
 	t.Parallel()
 

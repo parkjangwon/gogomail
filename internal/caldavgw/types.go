@@ -36,13 +36,14 @@ const (
 type ResourceKind string
 
 const (
-	ResourceUnknown            ResourceKind = "unknown"
-	ResourceWellKnown          ResourceKind = "well_known"
-	ResourceRoot               ResourceKind = "root"
-	ResourcePrincipal          ResourceKind = "principal"
-	ResourceCalendarHome       ResourceKind = "calendar_home"
-	ResourceCalendarCollection ResourceKind = "calendar_collection"
-	ResourceCalendarObject     ResourceKind = "calendar_object"
+	ResourceUnknown             ResourceKind = "unknown"
+	ResourceWellKnown           ResourceKind = "well_known"
+	ResourceRoot                ResourceKind = "root"
+	ResourcePrincipalCollection ResourceKind = "principal_collection"
+	ResourcePrincipal           ResourceKind = "principal"
+	ResourceCalendarHome        ResourceKind = "calendar_home"
+	ResourceCalendarCollection  ResourceKind = "calendar_collection"
+	ResourceCalendarObject      ResourceKind = "calendar_object"
 )
 
 type ResourcePath struct {
