@@ -1642,7 +1642,9 @@ Next:
   path ids before body reads where possible.
   Address-book collection `DELETE` soft-deletes the collection and active child
   contact objects transactionally, honors collection preconditions, and records
-  an `addressbook-deleted` change row.
+  an `addressbook-deleted` change row. `sync-collection` can now return the
+  latest deletion sync token for stale-token requests even after the collection
+  is no longer active.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

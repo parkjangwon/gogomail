@@ -443,25 +443,25 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	responses, err := h.reportResponses(r.Context(), userID, resource, report)
-	if err != nil {
-		var invalidSyncToken InvalidSyncTokenError
-		if errors.As(err, &invalidSyncToken) {
-			writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
-			return
-		}
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	var body []byte
 	if report.Kind == ReportSyncCollection {
-		book, err := h.Store.LookupAddressBook(r.Context(), userID, resource.AddressBookID)
+		responses, syncToken, err := h.syncCollectionReport(r.Context(), userID, resource, report)
+		if err != nil {
+			var invalidSyncToken InvalidSyncTokenError
+			if errors.As(err, &invalidSyncToken) {
+				writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
+				return
+			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		body, err = BuildSyncCollectionXML(responses, syncToken)
+	} else {
+		responses, err := h.reportResponses(r.Context(), userID, resource, report)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		body, err = BuildSyncCollectionXML(responses, book.SyncToken)
-	} else {
 		body, err = BuildMultiStatusXML(responses)
 	}
 	if err != nil {
@@ -720,7 +720,8 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if resource.Kind != ResourceAddressBookCollection {
 			return nil, fmt.Errorf("sync-collection requires an address-book collection resource")
 		}
-		return h.syncCollectionResponses(ctx, userID, resource, report)
+		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report)
+		return responses, err
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
@@ -969,51 +970,65 @@ func textMatchApplies(value string, match CardDAVTextMatch) bool {
 	return matched
 }
 
-func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+	if resource.Kind != ResourceAddressBookCollection {
+		return nil, "", fmt.Errorf("sync-collection requires an address-book collection resource")
+	}
 	book, err := h.Store.LookupAddressBook(ctx, userID, resource.AddressBookID)
 	if err != nil {
-		return nil, err
+		if report.SyncToken == "" {
+			return nil, "", err
+		}
+		responses, syncToken, changeErr := h.syncChangeResponses(ctx, userID, resource, report)
+		if changeErr != nil {
+			return nil, "", changeErr
+		}
+		return responses, syncToken, nil
 	}
 	if report.SyncToken != "" {
 		if report.SyncToken != book.SyncToken {
-			return h.syncChangeResponses(ctx, userID, resource, report)
+			responses, syncToken, err := h.syncChangeResponses(ctx, userID, resource, report)
+			if err != nil {
+				return nil, "", err
+			}
+			return responses, syncToken, nil
 		}
-		return nil, nil
+		return nil, book.SyncToken, nil
 	}
 	objects, err := h.Store.ListAddressBookObjects(ctx, userID, resource.AddressBookID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if report.Limit > 0 && report.Limit < len(objects) {
-		return nil, fmt.Errorf("sync-collection limit would truncate results")
+		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
 		props, err := ContactObjectProperties(userID, object)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			props = append(props, dataProp)
 		}
 		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
-	return responses, nil
+	return responses, book.SyncToken, nil
 }
 
-func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
 	store, ok := h.Store.(SyncChangeStore)
 	if !ok {
-		return nil, InvalidSyncTokenError{Token: report.SyncToken}
+		return nil, "", InvalidSyncTokenError{Token: report.SyncToken}
 	}
 	limit := report.Limit
 	if limit <= 0 {
@@ -1026,20 +1041,24 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		Limit:         limit,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if report.Limit > 0 && len(changes) == report.Limit {
-		return nil, fmt.Errorf("sync-collection limit may truncate change results")
+		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
 	}
+	syncToken := report.SyncToken
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(changes))
 	for _, change := range changes {
+		if strings.TrimSpace(change.SyncToken) != "" {
+			syncToken = strings.TrimSpace(change.SyncToken)
+		}
 		if change.Action == "addressbook-created" || change.Action == "addressbook-updated" || change.Action == "addressbook-deleted" || change.ObjectName == "" {
 			continue
 		}
 		href, err := ContactObjectPath(userID, change.AddressBookID, change.ObjectName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if change.Action == "contact-deleted" {
 			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
@@ -1052,18 +1071,18 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		}
 		props, err := ContactObjectProperties(userID, object)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 			props = append(props, dataProp)
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
-	return responses, nil
+	return responses, syncToken, nil
 }
 
 func notFoundResponse(href string, properties []XMLName) MultiStatusResponse {
