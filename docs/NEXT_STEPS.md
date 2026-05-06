@@ -186,7 +186,9 @@ Current state:
   connection state, keeping broken-client paths resource-safe.
 - IMAP selected-mailbox `RENAME` now tracks a backend-returned canonical
   mailbox ID and resubscribes event delivery to that ID while preserving
-  same-selection SEARCHRES state.
+  same-selection SEARCHRES state. It also refreshes selected
+  `HIGHESTMODSEQ`/`NOMODSEQ` metadata from the backend-returned mailbox so
+  CONDSTORE gates do not retain stale mod-sequence state after rename.
 - IMAP mailbox event publishing is now guarded against concurrent subscription
   cancellation by delivering non-blocking updates under the broker lock,
   preventing send-on-closed-channel panics without letting slow subscribers
