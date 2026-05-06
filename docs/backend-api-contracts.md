@@ -779,6 +779,14 @@ Admin operational read models also keep explicit envelope keys:
   filters. `active_only` defaults to `true`; the Directory boundary rejects
   target IDs without a target kind, caps query length, escapes wildcard input,
   and resolves each returned alias through the shared principal resolver.
+- `POST /admin/v1/directory/aliases` accepts
+  `{company_id, domain_id, address, target_kind, target_id}` and returns
+  `{"directory_alias":{...}}` after creating an active Directory alias through
+  the audited mutation boundary. The backend normalizes the address, requires
+  active company/domain scope, enforces alias-address/domain alignment, verifies
+  an active same-company target principal, maps active-address uniqueness races
+  to a predictable duplicate-alias error, and records `directory_alias.create`
+  in the same transaction as the alias insert.
 - `GET /admin/v1/directory/delegations` returns
   `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
   delegation relationships. It supports bounded `limit`, required `company_id`,

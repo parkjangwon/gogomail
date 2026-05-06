@@ -817,6 +817,87 @@ func TestAdminDirectoryDelegationsHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminCreateDirectoryAliasHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryAlias: directory.Alias{
+			ID:         "alias-1",
+			CompanyID:  "company-1",
+			DomainID:   "domain-1",
+			Address:    "ops@example.com",
+			AddressACE: "ops@example.com",
+			TargetKind: directory.PrincipalKindGroup,
+			TargetID:   "group-1",
+			Status:     "active",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := []byte(`{"company_id":"company-1","domain_id":"domain-1","address":"Ops@Example.COM","target_kind":"group","target_id":"group-1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/directory/aliases", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Alias directory.Alias `json:"directory_alias"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Alias.ID != "alias-1" {
+		t.Fatalf("directory_alias = %+v", response.Alias)
+	}
+	if service.lastDirectoryAliasCreate.CompanyID != "company-1" ||
+		service.lastDirectoryAliasCreate.DomainID != "domain-1" ||
+		service.lastDirectoryAliasCreate.Address != "Ops@Example.COM" ||
+		service.lastDirectoryAliasCreate.TargetKind != directory.PrincipalKindGroup ||
+		service.lastDirectoryAliasCreate.TargetID != "group-1" {
+		t.Fatalf("lastDirectoryAliasCreate = %+v", service.lastDirectoryAliasCreate)
+	}
+}
+
+func TestAdminCreateDirectoryAliasHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+		ct   string
+	}{
+		{name: "unknown query", path: "/admin/v1/directory/aliases?dry_run=true", body: `{}`, ct: "application/json"},
+		{name: "bad content type", path: "/admin/v1/directory/aliases", body: `{}`, ct: "text/plain"},
+		{name: "unknown json field", path: "/admin/v1/directory/aliases", body: `{"company_id":"company-1","domain_id":"domain-1","address":"ops@example.com","target_kind":"group","target_id":"group-1","extra":true}`, ct: "application/json"},
+		{name: "invalid address", path: "/admin/v1/directory/aliases", body: `{"company_id":"company-1","domain_id":"domain-1","address":"not-an-address","target_kind":"group","target_id":"group-1"}`, ct: "application/json"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", tc.ct)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryAliasCreate.CompanyID != "" {
+				t.Fatalf("dispatched request %+v", service.lastDirectoryAliasCreate)
+			}
+		})
+	}
+}
+
 func TestAdminAuditLogIntegrityHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7061,6 +7142,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDirectoryPrincipalSearch                directory.SearchPrincipalsRequest
+	lastDirectoryAliasCreate                    directory.CreateAliasRequest
 	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
 	lastDirectoryAliasList                      directory.ListAliasesRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
@@ -7276,6 +7358,14 @@ func (f *fakeAdminService) SearchDirectoryPrincipals(_ context.Context, req dire
 	}
 	f.lastDirectoryPrincipalSearch = req
 	return f.directoryPrincipals, nil
+}
+
+func (f *fakeAdminService) CreateDirectoryAlias(_ context.Context, req directory.CreateAliasRequest) (directory.Alias, error) {
+	if _, err := directory.NormalizeCreateAliasRequest(req); err != nil {
+		return directory.Alias{}, err
+	}
+	f.lastDirectoryAliasCreate = req
+	return f.directoryAlias, nil
 }
 
 func (f *fakeAdminService) ResolveDirectoryAlias(_ context.Context, req directory.ResolveAliasRequest) (directory.Alias, error) {

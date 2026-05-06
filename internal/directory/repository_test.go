@@ -182,6 +182,29 @@ func TestMapDirectoryAliasInsertErrorMapsActiveAddressUniqueIndex(t *testing.T) 
 	}
 }
 
+func TestDirectoryAliasCreateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryAliasCreateAuditDetail(Alias{
+		ID:         "alias-1",
+		CompanyID:  "company-1",
+		DomainID:   "domain-1",
+		Address:    "ops@example.com",
+		AddressACE: "ops@example.com",
+		TargetKind: PrincipalKindGroup,
+		TargetID:   "group-1",
+		Status:     "active",
+	})
+	if err != nil {
+		t.Fatalf("directoryAliasCreateAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"alias_id":"alias-1"`) ||
+		!strings.Contains(string(detail), `"target_kind":"group"`) ||
+		strings.Contains(string(detail), "TargetPrincipal") {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestNormalizeListAliasesRequest(t *testing.T) {
 	t.Parallel()
 

@@ -464,8 +464,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   normalizes addresses, requires active company/domain scope, enforces
   alias-domain alignment, verifies active same-company target principals, and
   maps active-address unique-index races to a stable duplicate-alias error.
-  Public/admin alias write endpoints remain outside this release slice until
-  ownership policy and audit semantics are explicit.
+  The admin backend API now exposes that audited mutation at
+  `POST /admin/v1/directory/aliases`; the alias insert and
+  `directory_alias.create` audit row commit in one transaction. Public
+  shared-inbox UX and non-admin alias mutation flows remain outside this
+  release slice.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

@@ -281,7 +281,7 @@ func TestPostgresCreateAliasValidatesDomainTargetAndUniqueness(t *testing.T) {
 	seed := seedDirectoryDelegationGraph(t, db)
 	repo := NewRepository(db)
 
-	alias, err := repo.CreateAlias(ctx, CreateAliasRequest{
+	alias, err := repo.CreateAliasWithAudit(ctx, CreateAliasRequest{
 		CompanyID:  seed.companyID,
 		DomainID:   seed.domainID,
 		Address:    " Ops@Example.COM ",
@@ -309,6 +309,21 @@ func TestPostgresCreateAliasValidatesDomainTargetAndUniqueness(t *testing.T) {
 	}
 	if resolved.ID != alias.ID || resolved.TargetPrincipal.ID != seed.teamID {
 		t.Fatalf("resolved alias = %+v, want id %q target %q", resolved, alias.ID, seed.teamID)
+	}
+	var auditCount int
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND domain_id = $2::uuid
+  AND action = 'directory_alias.create'
+  AND target_type = 'directory_alias'
+  AND target_id = $3
+  AND result = 'created'`, seed.companyID, seed.domainID, alias.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory alias audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory alias audit rows = %d, want 1", auditCount)
 	}
 
 	_, err = repo.CreateAlias(ctx, CreateAliasRequest{

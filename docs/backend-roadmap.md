@@ -2735,8 +2735,13 @@ Implementation order:
        company/domain scope, verifies the alias address domain matches the
        Directory domain, resolves an active same-company target principal, and
        maps active-address unique-index races to a predictable duplicate-alias
-       error. Admin alias write APIs remain gated on explicit audit envelope,
-       ownership policy, and shared-inbox UX semantics.
+       error.
+1175h. The admin backend API now exposes audited Directory alias creation at
+       `POST /admin/v1/directory/aliases`, returning a `directory_alias`
+       envelope. The API uses the transaction-audited Directory mutation
+       boundary so the alias insert and `directory_alias.create` audit row
+       commit together; shared-inbox UX and non-admin product flows remain
+       future work.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`
