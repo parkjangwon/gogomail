@@ -470,7 +470,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
 		return
 	}
-	depthHeader := r.Header.Get("Depth")
+	depthHeader, err := depthHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	depthHeaderPresent := strings.TrimSpace(depthHeader) != ""
 	depth, err := ParseDepth(depthHeader, DepthZero)
 	if err != nil {
@@ -565,7 +569,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
 		return
 	}
-	depth, err := ParseDepth(r.Header.Get("Depth"), DepthInfinity)
+	depth, err := parseDepthHeader(r.Header, DepthInfinity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -787,6 +791,25 @@ func proppatchResponse(href string, book AddressBook, properties []XMLName) Mult
 		}
 	}
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
+}
+
+func depthHeaderValue(header http.Header) (string, error) {
+	values := header.Values("Depth")
+	if len(values) > 1 {
+		return "", fmt.Errorf("Depth header must not be repeated")
+	}
+	if len(values) == 0 {
+		return "", nil
+	}
+	return values[0], nil
+}
+
+func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {
+	value, err := depthHeaderValue(header)
+	if err != nil {
+		return "", err
+	}
+	return ParseDepth(value, fallback)
 }
 
 func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, depthHeaderPresent bool, report ReportRequest) ([]MultiStatusResponse, error) {

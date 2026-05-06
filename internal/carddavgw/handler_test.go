@@ -1121,6 +1121,28 @@ func TestHandlerReportAddressBookQueryRequiresDepthHeader(t *testing.T) {
 	}
 }
 
+func TestHandlerReportRejectsRepeatedDepthBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></C:addressbook-query>`}
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Add("Depth", string(DepthZero))
+	req.Header.Add("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if !strings.Contains(rec.Body.String(), "Depth header must not be repeated") {
+		t.Fatalf("response did not explain repeated Depth rejection: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportAddressBookQueryDepthZeroReturnsCollectionScope(t *testing.T) {
 	t.Parallel()
 

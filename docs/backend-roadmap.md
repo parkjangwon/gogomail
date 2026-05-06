@@ -2984,6 +2984,9 @@ Implementation order:
       XML bodies to use the `ListBucketResult` root, preventing unexpected
       provider success XML from being accepted as an empty canonical object
       page.
+1215. CalDAV and CardDAV `REPORT`/`PROPFIND` handlers now reject repeated HTTP
+      `Depth` headers before XML request-body parsing, keeping WebDAV traversal
+      scope deterministic for query, sync, and discovery paths.
 
 ## Deferred until backend contracts stabilize
 
