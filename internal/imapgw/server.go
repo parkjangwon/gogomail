@@ -448,6 +448,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	if handled, done, err := imapRejectNonAtomStoreControlArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
+	if handled, done, err := imapRejectNonAtomFetchDataItemArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if imapCommandShouldDrainSelectedEvents(command) {
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
@@ -972,6 +975,30 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 		}
 	}
 	return false, false, nil
+}
+
+func imapRejectNonAtomFetchDataItemArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	dataStart := -1
+	switch command {
+	case "FETCH":
+		dataStart = 3
+	case "UID":
+		if len(fields) >= 3 && strings.EqualFold(fields[2], "FETCH") {
+			dataStart = 4
+		}
+	}
+	if dataStart < 0 || len(fields) <= dataStart {
+		return false, false, nil
+	}
+	kind, ok := imapRawFieldKind(line, dataStart)
+	if !ok || (kind != imapRawFieldQuoted && kind != imapRawFieldLiteral) {
+		return false, false, nil
+	}
+	if _, hasSyntaxError := imapFetchDataItemsSyntaxError(fields[dataStart:]); hasSyntaxError {
+		return false, false, nil
+	}
+	_, err := writer.WriteString(tag + " BAD FETCH data item is unsupported\r\n")
+	return true, false, err
 }
 
 func imapRejectNonAtomStoreControlArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {

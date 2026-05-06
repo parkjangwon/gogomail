@@ -4159,6 +4159,9 @@ Implementation order:
 1475. IMAP STORE and UID STORE mutation controls now reject quoted or
       command-literal flag update mode tokens and quoted UNCHANGEDSINCE
       markers before authentication or selected-mailbox mutation state.
+1476. IMAP FETCH and UID FETCH data-item controls now reject exact quoted or
+      command-literal fetch attribute atoms such as FLAGS before
+      authentication or selected-mailbox state.
 
 ## Deferred until backend contracts stabilize
 

@@ -128,7 +128,8 @@ Recent release-readiness work also includes:
   `BAD`, strict atom-only command and UID subcommand dispatch, strict
   SEARCH/SORT/THREAD charset and thread-algorithm atoms,
   strict SORT criterion-list framing, strict FETCH data-item framing,
-  SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
+  atom-only FETCH data-item controls, SEARCH/SORT/THREAD diagnostics,
+  RFC-shaped sequence-set and
   STORE control-atom checks,
   numeric grammar checks including rejection of quoted/literal-framed set
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and

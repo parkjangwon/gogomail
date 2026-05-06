@@ -3983,6 +3983,10 @@ The platform hardening sprint completed the following:
   for flag update modes and preserve the structured `UNCHANGEDSINCE` modifier
   boundary, rejecting quoted or command-literal `+FLAGS`/`FLAGS.SILENT` style
   controls before authentication or selected-mailbox state.
+- IMAP `FETCH` and `UID FETCH` data-item controls now reject exact quoted or
+  command-literal data item atoms such as `"FLAGS"` or literal `FLAGS` instead
+  of dequoting them into valid fetch attributes before authentication or
+  mailbox state checks.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
