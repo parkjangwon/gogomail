@@ -10530,6 +10530,9 @@ func TestIMAPFetchDataItemsSyntaxRejectsUnsupportedItems(t *testing.T) {
 		{name: "leading zero partial offset", items: []string{"BODY.PEEK[]<00.34>"}},
 		{name: "leading zero partial count", items: []string{"BODY.PEEK[]<12.034>"}},
 		{name: "invalid partial suffix", items: []string{"BODY[HEADER.FIELDS", "(Subject)]BAD"}},
+		{name: "invalid top level header field prefix", items: []string{"XBODY[HEADER.FIELDS", "(Subject)]"}},
+		{name: "invalid mime part header field prefix", items: []string{"BODY.PEEK[X.HEADER.FIELDS", "(Subject)]"}},
+		{name: "invalid leading zero mime part header field prefix", items: []string{"BODY.PEEK[01.HEADER.FIELDS", "(Subject)]"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -10613,6 +10616,8 @@ func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
 		{name: "empty header fields not", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "()]"}},
 		{name: "header fields partial", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "(From)]<0.10>"}},
 		{name: "mime part section", items: []string{"BODY.PEEK[1.HEADER]"}},
+		{name: "mime part header fields", items: []string{"BODY.PEEK[1.HEADER.FIELDS", "(Subject)]"}},
+		{name: "nested mime part header fields", items: []string{"BODY.PEEK[1.2.HEADER.FIELDS.NOT", "(From)]"}},
 		{name: "nested mime part partial", items: []string{"BODY.PEEK[1.2.TEXT]<0.6>"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

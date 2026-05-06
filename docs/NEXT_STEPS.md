@@ -300,6 +300,10 @@ Current state:
   parsing now accepts visible RFC 5322-style custom field names containing
   `_`, `+`, or `.`, while preserving fail-fast rejection for empty,
   whitespace/control-bearing, colon-suffixed, or non-ASCII field names.
+  `FETCH` header-field section detection now also requires either an exact
+  top-level body section or a valid numeric MIME part path before the
+  `HEADER.FIELDS` marker, keeping malformed section prefixes from riding the
+  supported header-subset path.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.

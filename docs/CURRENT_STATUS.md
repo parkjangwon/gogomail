@@ -252,7 +252,10 @@ IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT` parsing
 now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
 `.` while still rejecting empty, space/control-bearing, colon-suffixed, or
 non-ASCII field names. This keeps custom header probes from being falsely
-rejected at the IMAP parser boundary.
+rejected at the IMAP parser boundary. `FETCH` header-field section detection
+now also requires an exact top-level body section or a valid numeric MIME part
+path before `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, so malformed section prefixes
+cannot be accepted merely because they contain the marker text.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of
