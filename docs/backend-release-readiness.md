@@ -283,6 +283,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   binary/header contract for `HEAD`, full-body `200`, and byte-range `206`
   responses, with drift coverage so generated clients can safely stream public
   shared files.
+- Drive public share-link metadata and download OpenAPI operations now opt out
+  of global bearer auth, matching the unauthenticated runtime boundary for
+  external recipients.
 - Drive public share-link metadata/download routes now support an optional
   Redis fixed-window abuse limiter with normalized remote+token bucketing and
   HTTP 429/`Retry-After` responses, giving production deployments a first

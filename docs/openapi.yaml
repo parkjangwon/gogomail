@@ -598,6 +598,7 @@ paths:
     get:
       operationId: resolveDriveShareLink
       summary: Resolve an active public Drive share link
+      security: []
       parameters:
         - name: id
           in: path
@@ -630,6 +631,7 @@ paths:
     head:
       operationId: headDriveSharedFileDownload
       summary: Return public Drive shared-file download headers
+      security: []
       parameters:
         - name: id
           in: path
@@ -682,6 +684,7 @@ paths:
     get:
       operationId: downloadDriveSharedFile
       summary: Download a public Drive shared file
+      security: []
       parameters:
         - name: id
           in: path

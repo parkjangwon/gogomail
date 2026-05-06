@@ -272,7 +272,9 @@ or development `user_id` fallback path as webmail mail routes:
   accounts/domains/nodes, and returns `{"drive_shared_file":{...}}` with only
   client-safe file metadata (`node_id`, name, MIME type, size, optional
   checksum, permission, expiry, updated timestamp). It never exposes storage
-  backends, storage paths, user ids, or raw tokens.
+  backends, storage paths, user ids, or raw tokens. OpenAPI explicitly marks
+  this route as unauthenticated so generated public-share clients do not
+  inherit global bearer auth.
 - `GET /api/v1/drive/share-links/{token}/download` and
   `HEAD /api/v1/drive/share-links/{token}/download` stream or describe an
   active shared Drive file through the configured storage backend only when the
@@ -284,7 +286,8 @@ or development `user_id` fallback path as webmail mail routes:
   missing/revoked/expired links to HTTP 404. OpenAPI documents the public
   shared-download `HEAD`, full-body `200`, and byte-range `206` responses as
   non-JSON binary/header contracts so generated Drive clients do not treat
-  shared file bytes as JSON envelopes.
+  shared file bytes as JSON envelopes, and marks those download operations as
+  unauthenticated to match the runtime public-share boundary.
   Public share resolution and download endpoints can be protected with the
   optional `GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` fixed-window limiter.
   When enabled, anonymous requests are bucketed by normalized remote address and
