@@ -2922,6 +2922,11 @@ Implementation order:
       native-client compatibility without turning contacts into a generic CRUD
       API or introducing a separate principal model ahead of the Directory
       boundary.
+1200. CardDAV contact-object `PUT` now validates explicit `text/vcard`
+      media-type `version` parameters, accepting only 3.0/4.0 and requiring the
+      parameter to match the vCard body `VERSION` before repository mutation.
+      This prevents native clients and integrations from storing data under an
+      ambiguous or over-advertised format contract.
 
 ## Deferred until backend contracts stabilize
 

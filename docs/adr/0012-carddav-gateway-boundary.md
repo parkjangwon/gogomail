@@ -143,7 +143,8 @@ lock before the active object row is removed.
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
 support, while `PUT`/`DELETE` reuse bounded body reads, content-type checks,
-strong ETags, and repository validation/mutation boundaries.
+explicit 3.0/4.0 media-type version matching, strong ETags, and repository
+validation/mutation boundaries.
 
 The first runtime wiring starts `gogomail --mode=carddav` on a dedicated
 `GOGOMAIL_CARDDAV_ADDR` listener. It uses HTTP Basic authentication over TLS by

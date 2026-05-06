@@ -134,7 +134,10 @@ response remain available through explicit `prop`, `include`, and `propname`
 discovery.
 Address-book collections advertise `text/vcard` 4.0 and 3.0 support, and
 returned `address-data` elements carry explicit `content-type` plus the stored
-vCard `version` attribute.
+vCard `version` attribute. Contact-object `PUT` also validates explicit
+`text/vcard` `version` media-type parameters against the stored vCard
+`VERSION`, rejecting unsupported or mismatched version contracts before write
+mutation.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so
 large address books can be queried with explicit result caps, and repository
 backends can stream contact objects through a walker interface so matching can
@@ -2900,8 +2903,10 @@ The platform hardening sprint completed the following:
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
   content length, no-store headers, and `Last-Modified`, while honoring
   `If-Match`, `If-None-Match`, `If-Modified-Since`, and
-  `If-Unmodified-Since`. Writes accept `text/vcard`, enforce bounded body
-  reads, reuse vCard validation and observed-ETag repository guards, and map
+  `If-Unmodified-Since`. Writes accept `text/vcard`, reject unsupported
+  explicit vCard media-type versions, require any explicit content-type
+  `version` parameter to match the body `VERSION`, enforce bounded body reads,
+  reuse vCard validation and observed-ETag repository guards, and map
   create/update/delete to standard 201/204/precondition outcomes. This remains
   backend-only until auth/listener wiring and native-client compatibility tests
   are in place.
