@@ -2669,6 +2669,10 @@ Implementation order:
       for initial sync while rejecting omitted sync-token anchors before
       repository work. This keeps RFC 6578 sync state transitions aligned with
       the existing CardDAV behavior.
+1184. CalDAV stale-token `sync-collection` delta reads now request one extra
+      change-log row behind bounded `limit/nresults`, allowing exact-limit
+      change sets to complete while still rejecting genuinely truncating
+      responses until continuation support exists.
 
 ## Deferred until backend contracts stabilize
 

@@ -1668,6 +1668,9 @@ Current state:
 - CalDAV `REPORT sync-collection` now requires the request body to carry an
   explicit `DAV:sync-token` element, accepting an empty element for initial
   sync but rejecting omitted sync-token anchors before repository work.
+- CalDAV stale-token `sync-collection` delta reads now fetch one extra
+  change-log row behind bounded `limit/nresults`, allowing exact-limit deltas
+  to succeed while still rejecting responses that would genuinely truncate.
 - CalDAV `REPORT calendar-query` now honors HTTP `Depth: 0` by returning no
   child calendar-object matches for collection-scoped queries unless clients
   explicitly send `Depth: 1`, keeping WebDAV request scope from silently
