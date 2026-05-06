@@ -1870,6 +1870,10 @@ Current state:
 - CalDAV object and collection preconditions evaluate repeated `If-Match` and
   `If-None-Match` headers as a single ETag list, aligning cache validation and
   write guards with HTTP field-combination semantics.
+- CalDAV date-based conditional headers now fail closed when
+  `If-Modified-Since` or `If-Unmodified-Since` is repeated on object reads,
+  object writes, object deletes, or collection precondition checks, avoiding
+  ambiguous timestamp guards across clients and intermediaries.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs by
   normalizing the URI path through the existing CalDAV path parser and
   preserving same-user / same-collection scope checks; userinfo-bearing

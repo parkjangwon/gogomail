@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP SEARCH HEADER field-name validation)
+Last updated: 2026-05-06 (updated after CalDAV repeated date conditional validation)
 
 ## Current phase
 
@@ -122,7 +122,10 @@ whole-calendar matches.
 CalDAV object and collection preconditions now evaluate repeated `If-Match`
 and `If-None-Match` headers as a single ETag list, so cache validation and
 write guards match HTTP field-combination semantics instead of depending on the
-first wire header.
+first wire header. Date-based CalDAV conditionals now reject repeated
+`If-Modified-Since` or `If-Unmodified-Since` headers before object reads,
+object writes, object deletes, or collection precondition checks, avoiding
+ambiguous timestamp guards that used to depend on the first header value.
 CalDAV mutating repository paths now enqueue a transactional `dav.event`
 outbox row whenever they append a durable calendar sync-change row. The v1
 `calendar.changed` payload carries the DAV kind, action, user, collection,
