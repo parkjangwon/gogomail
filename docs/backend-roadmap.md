@@ -2937,6 +2937,10 @@ Implementation order:
       while preserving untagged `BAD` for malformed or missing tags. This keeps
       RFC-shaped clients able to correlate tokenizer failures with the command
       they issued.
+1203. S3-compatible full-object `GET`, `HEAD`/`Stat`, and `ListObjectsV2` now
+      require exact `200 OK` responses, rejecting unexpected partial-content or
+      other non-OK 2xx statuses so partial provider responses cannot be treated
+      as complete backend-neutral object reads, metadata, or list pages.
 
 ## Deferred until backend contracts stabilize
 

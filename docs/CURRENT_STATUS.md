@@ -764,6 +764,10 @@ owner/resource target without scanning unrelated audit history.
   bounded response-body window before close, improving HTTP connection reuse
   for normal S3/MinIO responses without allowing oversized bodies to stall
   cleanup.
+- S3-compatible full-object `GET`, `HEAD`/`Stat`, and `ListObjectsV2` now
+  require exact `200 OK` responses so unexpected partial-content or other
+  non-OK 2xx statuses cannot masquerade as complete backend-neutral object
+  results.
 - Local/NFS and S3-compatible readiness probes now read the verification object
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.
