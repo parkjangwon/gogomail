@@ -2,6 +2,7 @@ package caldavgw
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gogomail/gogomail/internal/accesspolicy"
@@ -27,6 +28,9 @@ func (p DelegatedAccessPolicy) AuthorizeCalendarAccess(ctx context.Context, req 
 		ActiveOnly: true,
 	})
 	if err != nil {
+		if errors.Is(err, directory.ErrPrincipalNotFound) {
+			return AccessDecision{Allowed: false}, nil
+		}
 		return AccessDecision{}, fmt.Errorf("resolve CalDAV owner principal: %w", err)
 	}
 	actor, err := p.Directory.ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
@@ -35,6 +39,9 @@ func (p DelegatedAccessPolicy) AuthorizeCalendarAccess(ctx context.Context, req 
 		ActiveOnly: true,
 	})
 	if err != nil {
+		if errors.Is(err, directory.ErrPrincipalNotFound) {
+			return AccessDecision{Allowed: false}, nil
+		}
 		return AccessDecision{}, fmt.Errorf("resolve CalDAV actor principal: %w", err)
 	}
 	if owner.CompanyID == "" || actor.CompanyID != owner.CompanyID {

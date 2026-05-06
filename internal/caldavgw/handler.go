@@ -699,7 +699,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
+	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -735,7 +735,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var syncToken string
-		responses, syncToken, err = h.syncCollectionReport(r.Context(), userID, resource, report)
+		responses, syncToken, err = h.syncCollectionReport(r.Context(), userID, resource, report, decision.Privileges)
 		if err != nil {
 			var invalidSyncToken InvalidSyncTokenError
 			if errors.As(err, &invalidSyncToken) {
@@ -747,7 +747,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		}
 		body, err = BuildSyncCollectionXML(responses, syncToken)
 	} else {
-		responses, err = h.reportResponses(r.Context(), userID, resource, depth, report)
+		responses, err = h.reportResponses(r.Context(), userID, resource, depth, report, decision.Privileges)
 		if err != nil {
 			var invalidSyncToken InvalidSyncTokenError
 			if errors.As(err, &invalidSyncToken) {
@@ -1054,13 +1054,13 @@ func proppatchResponse(href string, calendar Calendar, properties []XMLName) Mul
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
 }
 
-func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	switch report.Kind {
 	case ReportCalendarMulti:
 		if resource.Kind != ResourceCalendarCollection && resource.Kind != ResourceCalendarHome {
 			return nil, fmt.Errorf("calendar-multiget requires a calendar collection or home resource")
 		}
-		return h.calendarMultigetResponses(ctx, userID, resource, report)
+		return h.calendarMultigetResponses(ctx, userID, resource, report, currentUserPrivileges)
 	case ReportCalendarQuery:
 		if resource.Kind != ResourceCalendarCollection {
 			return nil, fmt.Errorf("calendar-query requires a calendar collection resource")
@@ -1068,16 +1068,16 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if depth == DepthZero {
 			return nil, nil
 		}
-		return h.calendarQueryResponses(ctx, userID, resource, report)
+		return h.calendarQueryResponses(ctx, userID, resource, report, currentUserPrivileges)
 	case ReportSyncCollection:
-		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report)
+		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report, currentUserPrivileges)
 		return responses, err
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
 }
 
-func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
 	for _, href := range report.Hrefs {
@@ -1095,6 +1095,7 @@ func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropCalendarData) {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
@@ -1122,7 +1123,7 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 	}
 }
 
-func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	limit := report.Limit
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
@@ -1151,6 +1152,7 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropCalendarData) {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
@@ -1210,7 +1212,7 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 	return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, periods)
 }
 
-func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
 	if resource.Kind != ResourceCalendarCollection {
 		return nil, "", fmt.Errorf("sync-collection requires a calendar collection resource")
 	}
@@ -1219,11 +1221,11 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		if report.SyncToken == "" {
 			return nil, "", err
 		}
-		return h.syncChangeResponses(ctx, userID, resource, report)
+		return h.syncChangeResponses(ctx, userID, resource, report, currentUserPrivileges)
 	}
 	if report.SyncToken != "" {
 		if report.SyncToken != calendar.SyncToken {
-			return h.syncChangeResponses(ctx, userID, resource, report)
+			return h.syncChangeResponses(ctx, userID, resource, report, currentUserPrivileges)
 		}
 		return nil, calendar.SyncToken, nil
 	}
@@ -1245,6 +1247,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		if err != nil {
 			return nil, "", err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropCalendarData) {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
@@ -1268,7 +1271,7 @@ func (h *Handler) listCalendarObjectsBounded(ctx context.Context, userID string,
 	return h.Store.ListCalendarObjects(ctx, userID, calendarID)
 }
 
-func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
 	store, ok := h.Store.(SyncChangeStore)
 	if !ok {
 		return nil, "", InvalidSyncTokenError{Token: report.SyncToken}
@@ -1317,6 +1320,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		if err != nil {
 			return nil, "", err
 		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropCalendarData) {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {

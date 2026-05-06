@@ -1868,9 +1868,11 @@ Next:
   against the owner store only when the delegated role check allows it.
   Delegated CalDAV `PROPFIND` now derives WebDAV
   `current-user-privilege-set` from that same decision path so discovery stays
-  consistent with enforced access. Next CalDAV sharing work should add
-  native-client compatibility coverage and write/manage UX semantics before
-  public shared calendars are advertised.
+  consistent with enforced access. Delegated CalDAV REPORT and sync responses
+  now use the same privilege shaping for calendar-object properties, and
+  missing Directory principals fail closed as authorization denial. Next CalDAV
+  sharing work should add native-client compatibility coverage and write/manage
+  UX semantics before public shared calendars are advertised.
 - Effective delegation now has a bounded group-expansion read boundary. Next
   product-module integration should still remain deliberate: CalDAV/CardDAV,
   Drive, mailbox sharing, and admin APIs should consume it through explicit

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV delegated contacts access wiring)
+Last updated: 2026-05-06 (updated after CalDAV delegated REPORT privilege hardening)
 
 ## Current phase
 
@@ -95,9 +95,12 @@ resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared audit
 repository for read/write/manage role checks. Delegated `PROPFIND` responses
 now derive `DAV:current-user-privilege-set` from the same access-policy
 boundary, so read-only delegates are not incorrectly shown bind/unbind or write
-privileges. This is still a foundation, not full public shared-calendar
-support: delegated write/manage UX, resource booking, scheduling policy, and
-broad native-client sharing tests remain release gates.
+privileges. Delegated REPORT and sync responses now use the same privilege
+shaping for calendar-object properties, and missing Directory principals fail
+closed as access denial instead of surfacing as a distinct server-error path.
+This is still a foundation, not full public shared-calendar support: delegated
+write/manage UX, resource booking, scheduling policy, and broad native-client
+sharing tests remain release gates.
 
 Contacts/CardDAV work has started as a standards-first backend boundary, not a
 generic contacts CRUD API. The initial `internal/carddavgw` package defines

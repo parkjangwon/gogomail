@@ -3061,6 +3061,11 @@ Implementation order:
       execute against the owner store when allowed, and derive delegated
       `DAV:current-user-privilege-set` discovery and REPORT responses from the
       same policy decision.
+1234. CalDAV delegated calendar access now applies the same access-policy
+      decision to REPORT and sync `DAV:current-user-privilege-set` calendar
+      object responses, not only PROPFIND, and treats missing Directory
+      principals as fail-closed authorization denial instead of a distinct
+      server-error path.
 
 ## Deferred until backend contracts stabilize
 
