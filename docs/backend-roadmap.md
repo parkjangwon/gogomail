@@ -3730,6 +3730,10 @@ Implementation order:
       under the requested canonical prefix before deletion, preserving completed
       progress and returning a structured out-of-scope listing error if a
       backend returns sibling keys during Drive or lifecycle cleanup scans.
+1369. S3-compatible `List` now validates continuation tokens only on truncated
+      pages and clears final-page cursors, so ignored or malformed
+      `NextContinuationToken` values on `IsTruncated=false` provider responses
+      do not break final-page listings.
 
 ## Deferred until backend contracts stabilize
 

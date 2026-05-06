@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DeletePrefix out-of-scope guard)
+Last updated: 2026-05-07 (updated after S3 final-page cursor compatibility)
 
 ## Current phase
 
@@ -84,6 +84,10 @@ weakening bounded-read semantics.
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling
 keys such as `drive/user-10/...` for a `drive/user-1` cleanup request.
+S3-compatible `List` now validates provider continuation tokens only when
+`IsTruncated=true`; final pages always clear `NextCursor`, even if a
+compatible provider includes a whitespace-padded or otherwise unusable
+`NextContinuationToken` that callers must not reuse.
 The shared storage path/prefix validator now rejects percent-encoded path
 separators such as `%2F` and `%5C`, plus double-encoded forms such as `%252F`
 and `%255C`, keeping object keys portable across local/NFS, MinIO, AWS S3, and

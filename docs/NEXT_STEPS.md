@@ -81,6 +81,10 @@ Current state:
   against the requested canonical prefix before deletion, preserving completed
   progress and returning a structured out-of-scope listing error if a backend
   returns safe sibling keys.
+- S3-compatible `List` now validates continuation tokens only on truncated
+  pages and clears final-page cursors, so compatible providers that include
+  unusable `NextContinuationToken` values on `IsTruncated=false` pages do not
+  break Drive/lifecycle listings.
 - S3-compatible `List` now rechecks provider-returned keys against the
   requested logical prefix after canonical bucket-prefix mapping, so
   S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes
