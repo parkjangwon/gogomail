@@ -7553,6 +7553,9 @@ func imapIDArgumentsValid(argument string) bool {
 
 func imapIDArgumentsValidWithLiterals(argument string, literals []string) bool {
 	argument = strings.TrimSpace(argument)
+	if argument == "" {
+		return len(literals) == 0
+	}
 	if strings.EqualFold(argument, "NIL") {
 		return len(literals) == 0
 	}

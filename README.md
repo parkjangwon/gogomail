@@ -114,7 +114,9 @@ Recent release-readiness work also includes:
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   numeric grammar checks, partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
-  semantics, rejection of whitespace-padded numeric and date search criteria,
+  semantics, RFC 2971 `ID` including bare no-argument probes, `NIL`, and
+  bounded field/value parameter lists, rejection of whitespace-padded numeric
+  and date search criteria,
   rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
   values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
   `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing,

@@ -1763,11 +1763,51 @@ func TestServerHandlesIDParameterListLiterals(t *testing.T) {
 	}
 }
 
+func TestServerHandlesBareIDCommand(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 ID\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write bare id command: %v", err)
+	}
+	want := []string{
+		"* ID (\"name\" \"gogomail\")\r\n",
+		"a1 OK ID completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a2 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read bare id response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("bare id response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsMalformedIDArguments(t *testing.T) {
 	t.Parallel()
 
 	for _, command := range []string{
-		`ID`,
 		`ID NIL "extra"`,
 		`ID "name" "client"`,
 		`ID ("name")`,

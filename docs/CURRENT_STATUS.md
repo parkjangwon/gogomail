@@ -1688,6 +1688,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP RFC 2971 `ID` parameter-list parsing now accepts bounded synchronizing
   and non-synchronizing string literals inside the parenthesized field/value
   list, while still rejecting missing or unused literal payloads.
+- IMAP RFC 2971 `ID` now accepts the bare no-argument command form as an empty
+  client parameter set, returning server identity while preserving strict
+  `NIL` and parenthesized field/value-list validation.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.
@@ -2730,8 +2733,9 @@ The platform hardening sprint completed the following:
 - IMAP quoted-string response formatting now escapes quotes/backslashes and
   cleans controls without collapsing ordinary spacing, preserving mailbox names,
   MIME parameters, and other wire values whose internal spaces are significant.
-- IMAP advertises and supports RFC 2971 `ID`, validating `NIL` or bounded
-  field/value parameter lists before returning gogomail server identity.
+- IMAP advertises and supports RFC 2971 `ID`, validating bare no-argument
+  probes, `NIL`, or bounded field/value parameter lists before returning
+  gogomail server identity.
 - IMAP advertises and supports `UNSELECT`, clearing selected-mailbox state
   without invoking `CLOSE`/EXPUNGE semantics.
 - IMAP `EXPUNGE` and `UID EXPUNGE` delete only messages marked with the
