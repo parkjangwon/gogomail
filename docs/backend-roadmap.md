@@ -3418,6 +3418,12 @@ Implementation order:
       message listing response metadata and search-service dispatch. This
       closes an OpenAPI/runtime drift that previously passed `0` to list/search
       handlers despite the shared pagination contract.
+1303. IMAP mailboxes selected with `NOMODSEQ` now reject mod-sequence-dependent
+      operations before backend scan or mutation work: `FETCH`/`UID FETCH`
+      `MODSEQ`/`CHANGEDSINCE`, `SEARCH`/`SORT`/`THREAD` `MODSEQ`, and
+      `STORE`/`UID STORE` `UNCHANGEDSINCE`. This aligns non-persistent
+      mod-sequence stores with RFC 7162 instead of returning synthetic
+      `MODSEQ (0)` data or dispatching conditional flag mutations.
 
 ## Deferred until backend contracts stabilize
 
