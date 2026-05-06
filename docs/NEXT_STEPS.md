@@ -106,7 +106,9 @@ Current state:
   selectors before matching internal root-relative mailbox names. `LIST`
   reference names with a leading hierarchy delimiter are normalized the same
   way before joining relative patterns, keeping namespace/root-style list
-  probes aligned with the server's root-relative mailbox store.
+  probes aligned with the server's root-relative mailbox store. The decoded
+  pattern matcher is prepared once per `LIST`/`LSUB` command and reused across
+  mailbox rows, keeping large folder-tree discovery allocation-aware.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

@@ -834,6 +834,11 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	if subscribed {
 		return s.writeSubscribedListResponses(writer, tag, state, pattern, command)
 	}
+	matcher, ok := imapMailboxPatternMatcher(pattern)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is invalid\r\n")
+		return false, err
+	}
 	mailboxes, err := s.options.Backend.ListMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
@@ -842,7 +847,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	children := imapMailboxChildren(mailboxes)
 	for _, mailbox := range mailboxes {
 		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
-		if !imapMailboxMatchesPattern(displayName, pattern) {
+		if !matcher(displayName) {
 			continue
 		}
 		wireDisplayName := imapEncodeMailboxName(displayName)
@@ -877,13 +882,18 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 	}
 	children := imapMailboxChildren(mailboxes)
 	seen := make(map[string]struct{}, len(subscriptions))
+	matcher, ok := imapMailboxPatternMatcher(pattern)
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox pattern is invalid\r\n")
+		return false, err
+	}
 	for _, subscription := range subscriptions {
 		displayName := imapMailboxWireName(subscription.Name)
 		if subscription.Exists {
 			displayName = imapMailboxWireName(imapMailboxDisplayName(subscription.Mailbox))
 		}
-		if !imapMailboxMatchesPattern(displayName, pattern) {
-			parentName := imapLSubParentName(displayName, pattern)
+		if !matcher(displayName) {
+			parentName := imapLSubParentName(displayName, pattern, matcher)
 			if parentName == "" {
 				continue
 			}
@@ -914,14 +924,14 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 	return false, err
 }
 
-func imapLSubParentName(name string, pattern string) string {
+func imapLSubParentName(name string, pattern string, matcher func(string) bool) string {
 	if !strings.Contains(pattern, "%") || !strings.Contains(name, "/") {
 		return ""
 	}
 	parts := strings.Split(name, "/")
 	for i := 1; i < len(parts); i++ {
 		parent := strings.Join(parts[:i], "/")
-		if imapMailboxMatchesPattern(parent, pattern) {
+		if matcher(parent) {
 			return parent
 		}
 	}
@@ -6683,8 +6693,13 @@ func imapParenthesizedAtomListShapeValid(fields []string) bool {
 }
 
 func imapMailboxMatchesPattern(name string, pattern string) bool {
+	matcher, ok := imapMailboxPatternMatcher(pattern)
+	return ok && matcher(name)
+}
+
+func imapMailboxPatternMatcher(pattern string) (func(string) bool, bool) {
 	if pattern == "" {
-		return name == ""
+		return func(name string) bool { return name == "" }, true
 	}
 	var b strings.Builder
 	b.WriteString("^")
@@ -6699,8 +6714,11 @@ func imapMailboxMatchesPattern(name string, pattern string) bool {
 		}
 	}
 	b.WriteString("$")
-	matched, err := regexp.MatchString(b.String(), name)
-	return err == nil && matched
+	compiled, err := regexp.Compile(b.String())
+	if err != nil {
+		return nil, false
+	}
+	return compiled.MatchString, true
 }
 
 func imapStatusItems(items []string) ([]string, string, bool) {

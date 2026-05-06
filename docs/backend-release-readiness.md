@@ -119,6 +119,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
   before joining relative mailbox patterns, keeping namespace/root-style
   discovery probes compatible with root-relative mailbox storage.
+- IMAP `LIST`/`LSUB` prepares mailbox-pattern matchers once per command and
+  reuses them across row scans, keeping folder hierarchy discovery more
+  allocation-aware under large mailbox trees.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
