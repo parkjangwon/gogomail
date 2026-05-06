@@ -3301,6 +3301,11 @@ Implementation order:
       or `If-Unmodified-Since` headers before storage/body work, matching the
       CalDAV date-conditional fail-closed boundary and avoiding ambiguous
       timestamp guards through clients or intermediaries.
+1277. CardDAV principal discovery now uses an explicit Directory-to-CardDAV
+      conversion guard that accepts only Directory user principals, keeping
+      organization, group, and resource principals out of user-owned
+      address-book discovery until their CardDAV semantics are deliberately
+      designed.
 
 ## Deferred until backend contracts stabilize
 

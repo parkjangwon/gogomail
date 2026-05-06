@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV date conditional validation)
+Last updated: 2026-05-06 (updated after CardDAV principal boundary hardening)
 
 ## Current phase
 
@@ -278,7 +278,10 @@ response building is available for CardDAV principal, address-book collection,
 contact-object, REPORT, and sync responses.
 CardDAV now resolves the advertised `/carddav/principals/` principal collection
 for `PROPFIND`, returning collection metadata at `Depth: 0` and the
-authenticated principal as a `Depth: 1` child without exposing other users.
+authenticated principal as a `Depth: 1` child without exposing other users. The
+Directory-to-CardDAV conversion boundary now explicitly accepts only Directory
+user principals, keeping organization, group, and resource principals out of
+the user-owned address-book path until their CardDAV semantics are designed.
 CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 `current-user-privilege-set`: readable resources advertise `DAV:read`, and
 address-book collections now also advertise `DAV:bind`/`DAV:unbind` for child
