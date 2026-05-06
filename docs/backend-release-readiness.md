@@ -242,9 +242,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   detection so large collections cannot silently return partial result sets.
   VEVENT recurrence sets now expand through the shared RFC 5545 parser for
   `RRULE`, `EXDATE`, and `RDATE`, with a per-object expansion cap so dense or
-  unbounded rules cannot make query work unbounded. Scheduling, detached
-  recurrence overrides, and broader device/client compatibility tests remain
-  incomplete.
+  unbounded rules cannot make query work unbounded. Stored recurring-event
+  objects may now contain one VEVENT master plus same-UID `RECURRENCE-ID`
+  detached overrides; query/free-busy evaluation scans those VEVENTs and
+  suppresses replaced master occurrences. Scheduling, broader recurrence edge
+  cases, and broader device/client compatibility tests remain incomplete.
 - CalDAV now handles conservative RFC 6578 `REPORT sync-collection` requests:
   explicit empty-token initial sync returns active objects and the current
   collection sync token, current-token sync returns no resource responses,
