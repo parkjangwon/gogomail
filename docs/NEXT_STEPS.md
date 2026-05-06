@@ -785,6 +785,9 @@ Current state:
   ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping
   backend-neutral missing-object checks consistent with local/NFS storage while
   preserving sanitized S3 status diagnostics.
+- S3-compatible status-error diagnostics now format standard S3 `<Error>`
+  XML bodies as bounded one-line `Code: Message` previews, while preserving
+  the sanitized plain-text fallback for non-XML compatible-provider errors.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.
