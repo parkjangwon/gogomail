@@ -745,11 +745,11 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if !depthHeaderPresent {
 			return nil, fmt.Errorf("addressbook-query requires a Depth header")
 		}
-		if depth == DepthZero {
-			return nil, nil
-		}
 		if err := validateAddressBookQueryFilterSupport(report.Filter); err != nil {
 			return nil, err
+		}
+		if depth == DepthZero {
+			return nil, nil
 		}
 		return h.addressBookQueryResponses(ctx, userID, resource, report)
 	case ReportSyncCollection:

@@ -2458,6 +2458,10 @@ Implementation order:
 1136. CardDAV `addressbook-query` now rejects unsupported vCard property or
       parameter filters with the RFC 6352 `CARDDAV:supported-filter`
       precondition instead of returning misleading empty success responses.
+1137. CardDAV `addressbook-query` now validates supported filter names before
+      applying Depth scope, so unsupported filters still return the RFC 6352
+      precondition on `Depth: 0` requests instead of being hidden by an empty
+      collection-scoped response.
 
 ## Deferred until backend contracts stabilize
 
