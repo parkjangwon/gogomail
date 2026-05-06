@@ -47,6 +47,9 @@ Current state:
 - Drive JSON mutation handlers now have regression coverage for required
   `application/json` content type, unknown-field rejection, and trailing-token
   rejection before service dispatch.
+- Public Drive share-link routes now reject whitespace-normalized or
+  non-printable path tokens before limiter/service dispatch, preserving exact
+  bearer-token semantics for public metadata and download routes.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API

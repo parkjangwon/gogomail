@@ -274,7 +274,10 @@ or development `user_id` fallback path as webmail mail routes:
   checksum, permission, expiry, updated timestamp). It never exposes storage
   backends, storage paths, user ids, or raw tokens. OpenAPI explicitly marks
   this route as unauthenticated so generated public-share clients do not
-  inherit global bearer auth.
+  inherit global bearer auth. The `{token}` path value is treated as an exact
+  bearer credential: URL-decoded surrounding whitespace, embedded whitespace,
+  and non-printable ASCII are rejected before rate limiting, audit recording,
+  or service dispatch instead of being trimmed or normalized.
 - `GET /api/v1/drive/share-links/{token}/download` and
   `HEAD /api/v1/drive/share-links/{token}/download` stream or describe an
   active shared Drive file through the configured storage backend only when the

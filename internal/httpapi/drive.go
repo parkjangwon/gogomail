@@ -973,18 +973,24 @@ func driveSharedFileMetadata(resolved drive.ResolvedShareLink) driveSharedFileMe
 }
 
 func parseDriveShareTokenPathValue(w http.ResponseWriter, r *http.Request) (string, bool) {
-	value := strings.TrimSpace(r.PathValue("id"))
+	value := r.PathValue("id")
 	if value == "" {
 		writeError(w, http.StatusBadRequest, "id is required")
 		return "", false
 	}
-	if strings.ContainsAny(value, "\r\n") {
-		writeError(w, http.StatusBadRequest, "id must not contain CR or LF")
+	if value != strings.TrimSpace(value) || strings.ContainsAny(value, "\r\n\t ") {
+		writeError(w, http.StatusBadRequest, "id must not contain whitespace")
 		return "", false
 	}
 	if len(value) > drive.MaxShareLinkTokenBytes {
 		writeError(w, http.StatusBadRequest, "id is too long")
 		return "", false
+	}
+	for _, r := range value {
+		if r < 0x21 || r > 0x7e {
+			writeError(w, http.StatusBadRequest, "id must contain only printable ASCII")
+			return "", false
+		}
 	}
 	return value, true
 }
