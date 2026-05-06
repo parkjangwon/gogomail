@@ -835,22 +835,11 @@ func normalizeS3Prefix(prefix string) (string, error) {
 }
 
 func validateS3ObjectPath(objectPath string) (string, error) {
-	if s3ContainsEncodedPathSeparator(objectPath) {
-		return "", fmt.Errorf("storage path must not contain percent-encoded path separators")
-	}
 	return ValidateObjectPath(objectPath)
 }
 
 func validateS3ObjectPrefix(prefix string) (string, error) {
-	if s3ContainsEncodedPathSeparator(prefix) {
-		return "", fmt.Errorf("storage prefix must not contain percent-encoded path separators")
-	}
 	return ValidateObjectPrefix(prefix)
-}
-
-func s3ContainsEncodedPathSeparator(value string) bool {
-	value = strings.ToLower(value)
-	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
 }
 
 func ValidateS3BucketName(bucket string) error {

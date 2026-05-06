@@ -33,9 +33,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   provider pages cannot leak sibling keys into Drive/lifecycle listings or
   `DeletePrefix` cleanup deletes.
 - Shared storage object paths and prefixes reject encoded separators such as
-  `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preventing
-  configuration-only backend flips from inheriting provider-specific
-  double-decoding key semantics.
+  `%2F` and `%5C`, including double-encoded `%252F` and `%255C` forms, before
+  local/NFS or S3-compatible adapter use, preventing configuration-only
+  backend flips from inheriting provider-specific double-decoding key
+  semantics.
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.
@@ -1423,8 +1424,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping object
   keys, logs, URL escaping, and SigV4 canonical paths text-stable.
 - Shared storage object path and prefix validation also rejects
-  percent-encoded path separators such as `%2F` and `%5C`, keeping keys
-  portable across local/NFS, MinIO, AWS S3, and stricter compatible gateways.
+  percent-encoded path separators such as `%2F` and `%5C`, including
+  double-encoded `%252F` and `%255C` forms, keeping keys portable across
+  local/NFS, MinIO, AWS S3, and stricter compatible gateways.
 - Local/NFS and S3-compatible storage expose a shared object `Copy` contract.
   Local/NFS copies reuse atomic temporary-file commits, and S3-compatible
   copies use signed server-side copy requests with escaped `x-amz-copy-source`

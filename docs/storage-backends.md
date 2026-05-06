@@ -7,8 +7,9 @@ Object paths, prefixes, and list cursors are validated as bounded valid UTF-8
 text before adapter use, keeping local/NFS paths, S3 URLs, SigV4 canonical
 paths, logs, and cleanup cursors unambiguous across backends. Shared object
 paths and prefixes also reject percent-encoded path separators such as `%2F`
-and `%5C`, so deployments do not create keys whose meaning depends on
-provider- or proxy-specific double-decoding behavior.
+and `%5C`, including double-encoded forms such as `%252F` and `%255C`, so
+deployments do not create keys whose meaning depends on provider- or
+proxy-specific double-decoding behavior.
 
 The shared interface supports `Put`, `Get`, `GetRange`, `Stat`, `Copy`,
 `Move`, `List`, and `Delete`.
@@ -276,10 +277,10 @@ AWS S3, MinIO, and strict compatible providers. Endpoint base paths use the
 same segment escaping, so reverse-proxy paths such as `/base+proxy` keep their
 literal plus signs in canonical request paths.
 Configured storage prefixes and object keys must not contain encoded
-separators such as `%2F` or `%5C`; gogomail fails these values before
-filesystem path construction or S3 request signing so the same logical object
-boundary is used on local/NFS, AWS S3, MinIO, and stricter S3-compatible
-gateways.
+separators such as `%2F` or `%5C`, including double-encoded forms such as
+`%252F` or `%255C`; gogomail fails these values before filesystem path
+construction or S3 request signing so the same logical object boundary is used
+on local/NFS, AWS S3, MinIO, and stricter S3-compatible gateways.
 For file-backed or otherwise seekable upload bodies, gogomail sets a precise
 `Content-Length` without buffering the object in memory, improving PUT
 compatibility while preserving streaming-first storage paths.

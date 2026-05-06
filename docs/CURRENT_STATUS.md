@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP RFC822 partial-fetch hardening)
+Last updated: 2026-05-07 (updated after shared storage double-encoded separator hardening)
 
 ## Current phase
 
@@ -70,9 +70,10 @@ logical gogomail prefix after stripping the configured bucket/storage prefix,
 so malformed or overly broad S3-compatible list responses cannot leak sibling
 keys into caller listings or `DeletePrefix` cleanup work.
 The shared storage path/prefix validator now rejects percent-encoded path
-separators such as `%2F` and `%5C`, keeping object keys portable across
-local/NFS, MinIO, AWS S3, and compatible gateways before adapter-specific
-request signing or filesystem paths are built.
+separators such as `%2F` and `%5C`, plus double-encoded forms such as `%252F`
+and `%255C`, keeping object keys portable across local/NFS, MinIO, AWS S3, and
+compatible gateways before adapter-specific request signing or filesystem
+paths are built.
 IMAP RFC 5258 `LIST-EXTENDED` return options now require the whole `RETURN`
 option list to be parenthesized before option parsing, including non-`STATUS`
 forms such as `RETURN (CHILDREN)`. Unparenthesized return options now receive a

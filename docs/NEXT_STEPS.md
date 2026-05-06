@@ -627,7 +627,9 @@ Current state:
 - Shared storage object keys and prefixes now reject encoded separators such
   as `%2F` and `%5C` before filesystem path construction, request signing, or
   list-page exposure, so object names cannot depend on provider-specific
-  single- or double-decoding behavior.
+  single- or double-decoding behavior. The shared validator also rejects
+  double-encoded separator forms such as `%252F` and `%255C`, and S3 now uses
+  that same validator instead of a duplicate adapter-local check.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path
