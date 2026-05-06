@@ -1240,6 +1240,49 @@ func TestServerRejectsStringSortThreadNumericSearchArguments(t *testing.T) {
 	}
 }
 
+func TestServerRejectsStringStoreControlAtomsBeforeState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 STORE 1 \"+FLAGS\" (\\Seen)\r\na2 UID STORE 7 {6+}\r\n+FLAGS (\\Seen)\r\na3 STORE 1 \"(UNCHANGEDSINCE\" 27) +FLAGS (\\Seen)\r\na4 UID STORE 7 (UNCHANGEDSINCE 27) \"+FLAGS\" (\\Seen)\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string store controls: %v", err)
+	}
+	want := []string{
+		"a1 BAD STORE mode is unsupported\r\n",
+		"a2 BAD UID STORE mode is unsupported\r\n",
+		"a3 BAD STORE UNCHANGEDSINCE modifier is invalid\r\n",
+		"a4 BAD UID STORE mode is unsupported\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string store control response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string store control response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsUnsupportedFetchDataItemsBeforeMailboxState(t *testing.T) {
 	t.Parallel()
 
