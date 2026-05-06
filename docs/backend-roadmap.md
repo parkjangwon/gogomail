@@ -2511,6 +2511,10 @@ Implementation order:
       collection for `PROPFIND`, returning collection metadata at `Depth: 0`
       and the authenticated principal as a `Depth: 1` child without exposing
       unrelated users.
+1151. CardDAV now resolves the advertised `/carddav/principals/` principal
+      collection for `PROPFIND`, returning collection metadata at `Depth: 0`
+      and the authenticated principal as a `Depth: 1` child without exposing
+      unrelated users.
 
 ## Deferred until backend contracts stabilize
 

@@ -11,6 +11,7 @@ func TestParseResourcePath(t *testing.T) {
 	}{
 		{path: "/.well-known/carddav", want: ResourcePath{Kind: ResourceWellKnown}},
 		{path: "/carddav/", want: ResourcePath{Kind: ResourceRoot}},
+		{path: "/carddav/principals/", want: ResourcePath{Kind: ResourcePrincipalCollection}},
 		{path: "/carddav/principals/user-1/", want: ResourcePath{Kind: ResourcePrincipal, UserID: "user-1"}},
 		{path: "/carddav/addressbooks/user-1/", want: ResourcePath{Kind: ResourceAddressBookHome, UserID: "user-1"}},
 		{path: "/carddav/addressbooks/user-1/personal/", want: ResourcePath{Kind: ResourceAddressBookCollection, UserID: "user-1", AddressBookID: "personal"}},

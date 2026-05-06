@@ -1267,6 +1267,29 @@ func TestHandlerPropfindRootDiscoversPrincipal(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindPrincipalCollectionDepthOne(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:principal-collection-set/><D:resourcetype/></D:prop></D:propfind>`
+	rec := runCardDAVPropfind(t, "/carddav/principals/", DepthOne, body)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/principals/</D:href>",
+		"<D:href>/carddav/principals/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/carddav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:principal-collection-set><D:href>/carddav/principals/</D:href></D:principal-collection-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("principal collection PROPFIND missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerPropfindAddressBookHomeDepthOneListsCollections(t *testing.T) {
 	t.Parallel()
 

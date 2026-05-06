@@ -233,6 +233,37 @@ func TestAddressBookHomePropertiesUsePrincipalAsCurrentUser(t *testing.T) {
 	}
 }
 
+func TestPrincipalCollectionPropertiesExposeCurrentPrincipal(t *testing.T) {
+	t.Parallel()
+
+	props := PrincipalCollectionProperties(Principal{
+		UserID:              "user-1",
+		DisplayName:         "User One",
+		PrincipalPath:       "/carddav/principals/user-1/",
+		AddressBookHomePath: "/carddav/addressbooks/user-1/",
+	})
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href:      "/carddav/principals/",
+		PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: props}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		"<D:href>/carddav/principals/</D:href>",
+		"<D:current-user-principal><D:href>/carddav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
+		"<D:principal-collection-set><D:href>/carddav/principals/</D:href></D:principal-collection-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("principal collection XML missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 	t.Parallel()
 

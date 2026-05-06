@@ -381,8 +381,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   multistatus response building can render CardDAV principal, address-book,
   contact-object, REPORT, and sync metadata. An internal
   RFC 6764/WebDAV-style discovery handler now covers `/.well-known/carddav`,
-  `OPTIONS`, and bounded `PROPFIND` over root, principal, address-book home,
-  address-book collection, and contact-object resources, with cross-user,
+  `OPTIONS`, and bounded `PROPFIND` over root, the advertised principal
+  collection, principal, address-book home, address-book collection, and
+  contact-object resources, with cross-user,
   `Depth: infinity`, malformed XML, and contact-object depth guards. The
   PostgreSQL repository satisfies that discovery store through the shared
   Directory principal resolver. Internal REPORT execution now covers
