@@ -46,6 +46,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP partial fetch offsets now enforce RFC 3501 `number` syntax, rejecting
   leading-zero forms such as `BODY.PEEK[]<00.34>` before command execution
   while keeping valid zero-offset partial windows available for clients.
+- IMAP command literal size framing now enforces RFC 3501 `number` syntax,
+  preserving valid `{0}` literals while rejecting leading-zero literal sizes
+  such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such
+  as `{+1}`, `{-1}`, and `{1++}`, before reading literal bytes.
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.

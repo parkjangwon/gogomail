@@ -273,6 +273,9 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 			if errors.Is(err, errIMAPCommandLiteralTooLarge) {
 				return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal is too large"}
 			}
+			if errors.Is(err, errIMAPCommandLiteralInvalid) {
+				return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal size is invalid"}
+			}
 			return command.String(), literals, err
 		}
 		if !ok {
@@ -314,6 +317,7 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 var (
 	errIMAPCommandLineTooLong     = errors.New("imap command line is too long")
 	errIMAPCommandLiteralTooLarge = errors.New("imap command literal is too large")
+	errIMAPCommandLiteralInvalid  = errors.New("imap command literal is invalid")
 )
 
 type imapProtocolFramingError struct {
@@ -7510,10 +7514,13 @@ func imapCommandLiteralSize(line string) (int, bool, bool, error) {
 			return 0, false, true, fmt.Errorf("imap literal size is required")
 		}
 	}
+	if len(value) > 1 && value[0] == '0' {
+		return 0, nonSync, true, errIMAPCommandLiteralInvalid
+	}
 	var size int64
 	for i := 0; i < len(value); i++ {
 		if value[i] < '0' || value[i] > '9' {
-			return 0, false, false, nil
+			return 0, nonSync, true, errIMAPCommandLiteralInvalid
 		}
 		size = size*10 + int64(value[i]-'0')
 		if size > maxIMAPCommandLiteralBytes {

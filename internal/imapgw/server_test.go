@@ -223,6 +223,84 @@ func TestServerReportsOversizedCommandLiteralBeforeClosing(t *testing.T) {
 	}
 }
 
+func TestServerRejectsLeadingZeroCommandLiteralSize(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 APPEND INBOX {001}\r\n")); err != nil {
+		t.Fatalf("write leading-zero literal command: %v", err)
+	}
+	want := []string{
+		"a1 BAD command literal size is invalid\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read leading-zero literal response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("leading-zero literal response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsSignedCommandLiteralSize(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 APPEND INBOX {+1}\r\n")); err != nil {
+		t.Fatalf("write signed literal command: %v", err)
+	}
+	want := []string{
+		"a1 BAD command literal size is invalid\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read signed literal response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("signed literal response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	t.Parallel()
 
@@ -9749,8 +9827,16 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	if _, _, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12}\r\n"); err != nil || !ok {
 		t.Fatalf("imapCommandLiteralSize synchronizing ok = %v err = %v", ok, err)
 	}
+	if size, nonSync, ok, err := imapCommandLiteralSize("a1 APPEND inbox {0}\r\n"); err != nil || !ok || nonSync || size != 0 {
+		t.Fatalf("imapCommandLiteralSize zero = size %d nonSync %v ok %v err %v", size, nonSync, ok, err)
+	}
 	if size, nonSync, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12+}\r\n"); err != nil || !ok || !nonSync || size != 12 {
 		t.Fatalf("imapCommandLiteralSize literal+ = size %d nonSync %v ok %v err %v", size, nonSync, ok, err)
+	}
+	for _, command := range []string{"a1 APPEND inbox {00}\r\n", "a1 APPEND inbox {001}\r\n", "a1 APPEND inbox {001+}\r\n", "a1 APPEND inbox {+1}\r\n", "a1 APPEND inbox {-1}\r\n", "a1 APPEND inbox {1++}\r\n"} {
+		if _, _, ok, err := imapCommandLiteralSize(command); !ok || !errors.Is(err, errIMAPCommandLiteralInvalid) {
+			t.Fatalf("imapCommandLiteralSize(%q) = ok %v err %v, want invalid literal size", command, ok, err)
+		}
 	}
 }
 
