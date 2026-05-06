@@ -2754,6 +2754,12 @@ Implementation order:
       response remainder on close, matching the existing range-reader cleanup
       shape so preview/cancel download paths can reuse HTTP connections without
       unbounded cleanup reads.
+1192. CalDAV `REPORT calendar-query` now lists calendar objects through the
+      bounded object limiter with a one-extra-row truncation probe, honoring
+      explicit or default `limit/nresults` caps and rejecting partial result
+      sets until continuation semantics are designed. This keeps large
+      collection scans aligned with the existing sync-collection bounded
+      snapshot contract.
 
 ## Deferred until backend contracts stabilize
 

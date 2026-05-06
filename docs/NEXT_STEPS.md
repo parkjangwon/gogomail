@@ -1564,9 +1564,11 @@ Current state:
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, returning requested ETags and `calendar-data` while filtering
   VEVENT resources against CalDAV time ranges through the RFC 5545 parser.
-  Unsupported CalDAV query filter elements now return a `CALDAV:supported-filter`
-  precondition instead of being silently skipped, keeping unimplemented
-  predicates from broadening result sets.
+  Calendar-query object scans now use bounded `limit/nresults` handling with a
+  one-extra-row truncation probe, rejecting partial result sets until
+  continuation semantics exist. Unsupported CalDAV query filter elements now
+  return a `CALDAV:supported-filter` precondition instead of being silently
+  skipped, keeping unimplemented predicates from broadening result sets.
 - CalDAV now handles conservative `REPORT sync-collection` requests for
   authenticated calendar collections: initial sync returns active objects plus
   a top-level sync token, current tokens return no resource changes, stale
