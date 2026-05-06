@@ -425,11 +425,19 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
 	}
+	if !imapRawFieldIsAtom(trimmedLine, 1) {
+		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
+		return false, err
+	}
 	if !imapAtomValid(fields[1]) {
 		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
 		return false, err
 	}
 	command := strings.ToUpper(fields[1])
+	if command == "UID" && len(fields) >= 3 && !imapRawFieldIsAtom(trimmedLine, 2) {
+		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
+		return false, err
+	}
 	if handled, done, err := imapRejectNonAtomSequenceSetArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}

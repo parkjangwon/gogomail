@@ -3949,6 +3949,10 @@ The platform hardening sprint completed the following:
   `UID STORE`, `UID COPY`, `UID MOVE`, and `UID EXPUNGE`; quoted or
   command-literal values such as `"1"` or `{1}\r\n1` are rejected before
   authentication/selected-mailbox state can normalize them into valid sets.
+- IMAP command names and `UID` subcommand names now must also arrive as raw
+  atom tokens, so quoted probes such as `"NOOP"` or `UID "COPY"` receive
+  tagged `BAD malformed command` responses instead of being dequoted into
+  executable command words.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

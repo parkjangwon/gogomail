@@ -906,6 +906,48 @@ func TestServerRejectsQuotedSequenceSetArgumentsBeforeState(t *testing.T) {
 	}
 }
 
+func TestServerRejectsQuotedCommandAtoms(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 \"NOOP\"\r\na2 LOGIN user@example.com secret\r\na3 UID \"COPY\" 7 Archive\r\na4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write quoted command atoms: %v", err)
+	}
+	want := []string{
+		"a1 BAD malformed command\r\n",
+		"a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a3 BAD malformed command\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a4 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read quoted command atom response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("quoted command atom response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsLiteralSequenceSetArgumentsBeforeState(t *testing.T) {
 	t.Parallel()
 
