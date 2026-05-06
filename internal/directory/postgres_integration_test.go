@@ -500,6 +500,28 @@ func TestPostgresCreateDelegationWithAuditValidatesPrincipalsAndUniqueness(t *te
 	if !ok {
 		t.Fatal("created delegation did not satisfy write role through manage grant")
 	}
+	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'suspended' WHERE id = $1::uuid`, seed.equipmentID); err != nil {
+		t.Fatalf("suspend delegation owner resource: %v", err)
+	}
+	ok, err = repo.CheckDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		RequiredRole: DelegationRoleWrite,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDelegation with inactive owner returned error: %v", err)
+	}
+	if ok {
+		t.Fatal("active-only CheckDelegation allowed inactive owner principal")
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'active' WHERE id = $1::uuid`, seed.equipmentID); err != nil {
+		t.Fatalf("reactivate delegation owner resource: %v", err)
+	}
 	var auditCount int
 	if err := db.QueryRowContext(ctx, `
 SELECT count(*)
@@ -549,7 +571,6 @@ WHERE company_id = $1::uuid
 	if auditCount != 1 {
 		t.Fatalf("directory delegation delete audit rows = %d, want 1", auditCount)
 	}
-
 	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'suspended' WHERE id = $1::uuid`, seed.equipmentID); err != nil {
 		t.Fatalf("suspend delegation owner resource: %v", err)
 	}

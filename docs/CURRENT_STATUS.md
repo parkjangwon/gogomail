@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP IDLE framing-error handling)
+Last updated: 2026-05-06 (updated after direct delegation active-principal checks)
 
 ## Current phase
 
@@ -309,7 +309,10 @@ separate one. Effective
 delegation can now expand group delegates through bounded nested membership, so
 a group-granted delegation can satisfy user, organization, group, or resource
 members while preserving active-only owner/delegate principal checks, group
-filtering, role hierarchy, depth caps, and cycle guards. The first
+filtering, role hierarchy, depth caps, and cycle guards. Direct delegation
+checks now share the same active-only owner/delegate principal gate as effective
+delegation checks, so policy callers do not honor otherwise-active delegation
+rows after either endpoint principal is suspended or deleted. The first
 `internal/accesspolicy` adapter wraps effective delegation as an explicit
 allow/deny decision boundary so CalDAV, CardDAV, Drive, mailbox sharing, and
 admin APIs do not need to branch directly on Directory rows. It also provides
@@ -2927,9 +2930,10 @@ The platform hardening sprint completed the following:
 - Directory/Identity effective delegation now expands group delegates through
   bounded nested group membership, preserving direct delegation semantics,
   cycle/depth guardrails, active-only owner/delegate principal checks, group
-  filtering, and `manage >= write >= read` role satisfaction. This prepares
-  shared calendars, resource calendars, Drive shares, shared inboxes, and
-  Contacts delegation without adding product-local access models.
+  filtering, and `manage >= write >= read` role satisfaction. Direct delegation
+  checks also require active owner/delegate principals when `ActiveOnly` is set.
+  This prepares shared calendars, resource calendars, Drive shares, shared
+  inboxes, and Contacts delegation without adding product-local access models.
 - Directory/Identity delegation inspection now has a bounded repository
   boundary. `ListDelegations` validates company scope, optional owner/delegate
   principal filters, delegation scope, role, active-only state, and result
