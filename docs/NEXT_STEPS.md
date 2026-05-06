@@ -695,6 +695,10 @@ Current state:
   RFC 3501 `number` atoms, rejecting signed values such as `+20` and
   leading-zero values such as `020` instead of silently treating them as valid
   sizes.
+- IMAP `SEARCH`/`UID SEARCH`/`SORT`/`THREAD` numeric search operands now also
+  reject quoted or literal-framed values for `LARGER`, `SMALLER`, and MODSEQ
+  thresholds/entry types, while preserving quoted MODSEQ entry names as
+  RFC string operands.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

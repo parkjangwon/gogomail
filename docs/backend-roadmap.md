@@ -4147,6 +4147,9 @@ Implementation order:
 1471. IMAP SORT/UID SORT and THREAD/UID THREAD embedded search criteria now
       apply the same atom-only sequence-set boundary to quoted and
       literal-framed set operands before state checks.
+1472. IMAP search-family numeric operands now reject quoted or literal-framed
+      values for LARGER/SMALLER and MODSEQ thresholds/entry types, while
+      preserving RFC string handling for MODSEQ entry names.
 
 ## Deferred until backend contracts stabilize
 
