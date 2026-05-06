@@ -3814,6 +3814,9 @@ Implementation order:
       reuse the unsigned decimal parser, rejecting signed values such as
       `bytes +1-3/5` or `bytes 1-3/+5` before provider range metadata can be
       normalized.
+1387. S3-compatible `ListObjectsV2` object-size parsing now also requires
+      unsigned decimal digits, rejecting signed `<Size>` values such as `+5`
+      before list metadata reaches cleanup, Drive, or reconciliation callers.
 
 ## Deferred until backend contracts stabilize
 
