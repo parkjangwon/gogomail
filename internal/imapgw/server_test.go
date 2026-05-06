@@ -5564,7 +5564,7 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 			t.Fatalf("append response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a5 COPY 1 &ZeVnLIqe-\r\na6 UID MOVE 7 &ZeVnLIqe-\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 COPY 1 &ZeVnLIqe-\r\na6 UID MOVE 7 &ZeVnLIqe-\r\na7 RENAME &ZeVnLIqe- &U,BTFw-\r\n")); err != nil {
 		t.Fatalf("write copy/move: %v", err)
 	}
 	want := []string{
@@ -5573,6 +5573,7 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 		"* OK [COPYUID 20 7 51] UID MOVE copied UIDs\r\n",
 		"* 1 EXPUNGE\r\n",
 		"a6 OK UID MOVE completed\r\n",
+		"a7 OK RENAME completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5583,7 +5584,7 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 			t.Fatalf("copy/move response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -5596,6 +5597,9 @@ func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	}
 	if backendImpl.copyDest != "nihon" || backendImpl.moveDest != "nihon" {
 		t.Fatalf("decoded copy/move destination IDs = %q/%q, want nihon/nihon", backendImpl.copyDest, backendImpl.moveDest)
+	}
+	if backendImpl.renameSource != "nihon" || backendImpl.renameDest != "台北" {
+		t.Fatalf("decoded rename source/dest = %q/%q, want nihon/台北", backendImpl.renameSource, backendImpl.renameDest)
 	}
 }
 
@@ -10674,6 +10678,10 @@ func (b *mailboxMutationBackend) CreateMailbox(_ context.Context, _ UserID, mail
 	return Mailbox{ID: mailboxID, Name: string(mailboxID), UIDValidity: 1, UIDNext: 1}, nil
 }
 
+func (b *mailboxMutationBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
+	return Mailbox{ID: mailboxID, Name: string(mailboxID), UIDValidity: 1, UIDNext: 1}, nil
+}
+
 func (b *mailboxMutationBackend) RenameMailbox(_ context.Context, _ UserID, source MailboxID, dest MailboxID) (Mailbox, error) {
 	b.renamedFrom = source
 	b.renamedTo = dest
@@ -10698,6 +10706,8 @@ type operationalMailboxNameBackend struct {
 	appendBody   string
 	copyDest     MailboxID
 	moveDest     MailboxID
+	renameSource MailboxID
+	renameDest   MailboxID
 }
 
 func (b *operationalMailboxNameBackend) SelectMailbox(_ context.Context, req SelectMailboxRequest) (MailboxState, error) {
@@ -10744,6 +10754,12 @@ func (b *operationalMailboxNameBackend) MoveMessages(_ context.Context, req Move
 		Destination:         MessageSummary{ID: "move-51", MailboxID: req.DestMailboxID, UID: 51, SequenceNumber: 1},
 		SourceHighestModSeq: 30,
 	}}, nil
+}
+
+func (b *operationalMailboxNameBackend) RenameMailbox(_ context.Context, _ UserID, source MailboxID, dest MailboxID) (Mailbox, error) {
+	b.renameSource = source
+	b.renameDest = dest
+	return Mailbox{ID: dest, Name: string(dest), UIDValidity: 30, UIDNext: 1}, nil
 }
 
 func (childMailboxBackend) ListMailboxes(context.Context, ListMailboxesRequest) ([]Mailbox, error) {

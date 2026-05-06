@@ -3492,6 +3492,10 @@ Implementation order:
       SEARCHRES `$` state and closes the mailbox event subscription together
       with selected mailbox metadata, keeping mailbox-removal lifecycle
       behavior aligned with the rest of the selected-state teardown paths.
+1317. IMAP `RENAME` now resolves the source mailbox wire name to the backend's
+      canonical mailbox ID before mutation dispatch, aligning mailbox
+      management with the canonical-ID boundaries already used by `DELETE`,
+      `APPEND`, `COPY`, and `MOVE`.
 
 ## Deferred until backend contracts stabilize
 
