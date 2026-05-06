@@ -45,6 +45,21 @@ func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftPinsAdminConsoleCapabilitiesToAdminBase(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	block, ok := operations["GET /console/capabilities"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /console/capabilities is missing")
+	}
+	for _, want := range []string{"servers:", "url: /admin/v1", "description: Admin API"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("admin console capabilities operation must pin the admin server with %q:\n%s", want, block)
+		}
+	}
+}
+
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 

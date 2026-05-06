@@ -24,6 +24,11 @@ aligned so future generated clients do not attempt unsupported `since`,
 `before`, `read`, or `starred` search filters; read/starred filtering remains
 available on the message/thread list endpoints where it is actually
 implemented.
+Admin console capability discovery is now pinned to the `/admin/v1` OpenAPI
+server at the operation level, with a runtime regression that
+`/api/v1/console/capabilities` remains unregistered. This keeps generated
+admin clients from accidentally using the public mail API base path for
+operator bootstrap calls.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
