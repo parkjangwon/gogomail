@@ -6679,7 +6679,10 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 		return MessageFlags{}, nil, false
 	}
 	inner := strings.TrimSuffix(strings.TrimPrefix(value, "("), ")")
-	tokens := strings.Fields(inner)
+	tokens, ok := imapFlagListTokens(inner)
+	if !ok {
+		return MessageFlags{}, nil, false
+	}
 	if len(tokens) == 0 {
 		return flags, nil, value == "()"
 	}
@@ -6705,6 +6708,22 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 		names = append(names, name)
 	}
 	return flags, names, true
+}
+
+func imapFlagListTokens(inner string) ([]string, bool) {
+	if inner == "" {
+		return nil, true
+	}
+	if strings.TrimSpace(inner) != inner {
+		return nil, false
+	}
+	tokens := strings.Split(inner, " ")
+	for _, token := range tokens {
+		if token == "" || strings.TrimSpace(token) != token {
+			return nil, false
+		}
+	}
+	return tokens, true
 }
 
 func imapPermanentFlagSet(flags []string) map[string]struct{} {

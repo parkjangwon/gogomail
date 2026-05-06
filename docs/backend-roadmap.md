@@ -3908,6 +3908,9 @@ Implementation order:
 1412. IMAP `STORE`/`UID STORE` flag-list parsing now rejects whitespace-padded
       quoted or literal list values such as ` (\\Seen) ` while preserving
       exact `()` and parenthesized flag-list semantics.
+1413. IMAP APPEND/STORE flag-list parsing now rejects malformed inner list
+      whitespace such as `( \\Seen)`, `(\\Seen )`, `(\\Seen  \\Flagged)`, or
+      tab-separated flag names instead of collapsing them into valid flags.
 
 ## Deferred until backend contracts stabilize
 
