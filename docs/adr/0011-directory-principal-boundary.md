@@ -58,6 +58,11 @@ booking policy, and scheduling semantics are implemented explicitly.
   member only through the shared Directory membership graph, with the same
   active owner/delegate principal checks, group filters, depth cap, cycle
   guard, and role hierarchy used by the direct delegation model.
+- Product modules should consume delegated access through policy adapters, not
+  by branching directly on Directory rows. The initial `internal/accesspolicy`
+  adapter turns effective delegation into a normalized allow/deny decision so
+  protocol-specific WebDAV privilege mapping and audit logging can be attached
+  at product boundaries.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.
