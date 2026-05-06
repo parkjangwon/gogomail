@@ -376,7 +376,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-multiget`, `addressbook-query`, and `sync-collection`, including
   scoped href handling, optional `address-data`, current sync-token emission,
   bounded change reads since a stored sync token, and deleted contact 404
-  responses. Query filtering evaluates multiple `prop-filter` predicates and
+  responses. `addressbook-multiget` requires an explicit `Depth` header before
+  resolving requested hrefs, while accepting common Depth 0/1 client shapes.
+  Query filtering evaluates multiple `prop-filter` predicates and
   multiple per-property text/parameter conditions with RFC 6352
   `test=anyof|allof` composition. Text-match evaluation honors the RFC default
   `i;unicode-casemap`, `equals`, `contains`, `starts-with`, `ends-with`, and

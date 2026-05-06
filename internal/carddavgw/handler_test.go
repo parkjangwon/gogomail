@@ -738,6 +738,23 @@ func TestHandlerReportAddressBookMultigetProjectsAddressData(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookMultigetRequiresDepthHeader(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-multiget>`
+	rec := runCardDAVReportWithoutDepth(t, "/carddav/addressbooks/user-1/personal/", body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Depth header") {
+		t.Fatalf("missing-depth response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportAddressBookQueryFiltersTextMatch(t *testing.T) {
 	t.Parallel()
 

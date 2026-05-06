@@ -2446,6 +2446,9 @@ Implementation order:
       closely: the handler requires an explicit `Depth` header, uses `Depth: 1`
       for address-object child scans, and treats `Depth: 0` as
       collection-scoped rather than returning every child object.
+1133. CardDAV `addressbook-multiget` now requires an explicit `Depth` header
+      before resolving requested hrefs, preserving the REPORT's depth-scoped
+      request model while accepting common Depth 0/1 native-client shapes.
 
 ## Deferred until backend contracts stabilize
 

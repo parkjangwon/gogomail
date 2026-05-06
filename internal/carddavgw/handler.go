@@ -725,6 +725,9 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if resource.Kind != ResourceAddressBookCollection && resource.Kind != ResourceAddressBookHome {
 			return nil, fmt.Errorf("addressbook-multiget requires an address-book collection or home resource")
 		}
+		if !depthHeaderPresent {
+			return nil, fmt.Errorf("addressbook-multiget requires a Depth header")
+		}
 		return h.addressBookMultigetResponses(ctx, userID, resource, report)
 	case ReportAddressBookQuery:
 		if resource.Kind != ResourceAddressBookCollection {

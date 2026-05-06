@@ -60,7 +60,10 @@ and durable change rows. Public CardDAV compatibility now
 has bounded WebDAV `PROPFIND` parsing, an internal `OPTIONS`/`PROPFIND`
 discovery handler, bounded REPORT request parsing, and internal REPORT
 execution for `addressbook-query`, `addressbook-multiget`, and
-`sync-collection`. `addressbook-query` now preserves the first
+`sync-collection`. `addressbook-multiget` now requires an explicit `Depth`
+header before resolving requested hrefs, matching the REPORT's depth-scoped
+request model while retaining 0/1 client compatibility. `addressbook-query`
+now preserves the first
 `prop-filter` property name and applies `text-match` to parsed unfolded vCard
 property values instead of only scanning the whole object body. It also honors
 the RFC 6352 default `i;unicode-casemap` collation plus `equals`, `contains`,
