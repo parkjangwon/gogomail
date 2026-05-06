@@ -5149,7 +5149,7 @@ func imapFetchHeaderFieldList(items []string, marker string) ([]string, bool) {
 		}
 		fields = append(fields, field)
 	}
-	return fields, len(fields) > 0
+	return fields, true
 }
 
 func imapFetchHeaderFieldListsValid(items []string) bool {
@@ -5200,7 +5200,13 @@ func imapHeaderFieldNameValid(field string) bool {
 }
 
 func filterIMAPHeaderFields(header []byte, fields []string, exclude bool) []byte {
-	if len(header) == 0 || len(fields) == 0 {
+	if len(header) == 0 {
+		return []byte("\r\n")
+	}
+	if len(fields) == 0 {
+		if exclude {
+			return header
+		}
 		return []byte("\r\n")
 	}
 	allowed := make(map[string]struct{}, len(fields))
