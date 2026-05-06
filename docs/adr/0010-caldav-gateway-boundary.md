@@ -145,14 +145,13 @@ Unsupported CalDAV filter elements must fail closed with a
 because broadening query results under an unimplemented predicate is worse for
 client compatibility than an explicit standards-shaped failure.
 
-`REPORT sync-collection` starts with conservative RFC 6578 behavior because the
-repository currently stores one collection sync token but not a durable
-per-change log or tombstone stream. Empty sync-token requests return all active
-objects and a top-level multistatus `sync-token`; requests with the current
-token return only the token; stale tokens return a DAV `valid-sync-token`
-precondition error rather than silently omitting deletes. Truncating limits are
-rejected until continuation semantics can be implemented without lying to
-clients about synchronization completeness.
+`REPORT sync-collection` starts with conservative RFC 6578 behavior. Empty
+sync-token requests return all active objects and a top-level multistatus
+`sync-token`; requests with the current token return only the token;
+stale-but-known tokens return bounded deltas/tombstones; unknown or expired
+tokens return a DAV `valid-sync-token` precondition error rather than silently
+omitting deletes. Truncating limits are rejected until continuation semantics
+can be implemented without lying to clients about synchronization completeness.
 
 `REPORT free-busy-query` is a non-multistatus REPORT and returns a
 `text/calendar` `VFREEBUSY` response. The gateway owns that shape so scheduling
@@ -190,6 +189,15 @@ tombstones, and collection-deleted markers can advance clients to the final
 deleted-collection sync token even after the live calendar row is gone. Unknown
 tokens still fail with `valid-sync-token`, which is safer than fabricating an
 incomplete delta after retention gaps or unsupported history.
+
+Retention pruning is also repository-owned. A bounded
+`PruneCalendarSyncChanges` boundary can dry-run or delete old change-log rows
+while preserving the newest marker per calendar, backed by a prune-order
+database index. This keeps future operator/worker retention policy outside the
+HTTP handler and prevents cleanup work from deleting the token needed by a
+current client. Public readiness still needs worker wiring, deployment-specific
+retention age policy, and native-client compatibility testing around expired
+tokens.
 
 Service discovery starts at the gateway as well: `/.well-known/caldav` redirects
 to `/caldav/`, and root `PROPFIND` exposes the authenticated principal and
@@ -270,6 +278,5 @@ and compatibility tests.
 - The frontend calendar can be built later without bypassing the standards
   boundary needed by native clients.
 - Public CalDAV compatibility is experimental until recurrence, scheduling,
-  retention-aware sync, collection-deletion deltas, native-client compatibility
-  testing, and the shared Directory/Contacts/Notification/Search/Policy
-  boundaries are in place.
+  retention-worker policy, native-client compatibility testing, and the shared
+  Directory/Contacts/Notification/Search/Policy boundaries are in place.

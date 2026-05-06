@@ -96,6 +96,24 @@ type ListChangesSinceRequest struct {
 	Limit      int
 }
 
+type PruneCalendarSyncChangesRequest struct {
+	Cutoff     time.Time
+	UserID     string
+	CalendarID string
+	Limit      int
+	DryRun     bool
+}
+
+type CalendarSyncChangePruneResult struct {
+	Cutoff         time.Time
+	UserID         string
+	CalendarID     string
+	Limit          int
+	DryRun         bool
+	CandidateCount int64
+	DeletedCount   int64
+}
+
 func (r *Repository) CreateCalendar(ctx context.Context, req CreateCalendarRequest) (Calendar, error) {
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
@@ -699,6 +717,73 @@ SELECT EXISTS (
 	return changes, nil
 }
 
+func (r *Repository) PruneCalendarSyncChanges(ctx context.Context, req PruneCalendarSyncChangesRequest) (CalendarSyncChangePruneResult, error) {
+	if r == nil || r.db == nil {
+		return CalendarSyncChangePruneResult{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidatePruneCalendarSyncChangesRequest(req)
+	if err != nil {
+		return CalendarSyncChangePruneResult{}, err
+	}
+	result := CalendarSyncChangePruneResult{
+		Cutoff:     req.Cutoff,
+		UserID:     req.UserID,
+		CalendarID: req.CalendarID,
+		Limit:      req.Limit,
+		DryRun:     req.DryRun,
+	}
+	if req.DryRun {
+		const query = `
+WITH candidates AS (
+  SELECT c.id
+  FROM caldav_calendar_sync_changes c
+  WHERE c.changed_at < $1
+    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR c.calendar_id = NULLIF($3, '')::uuid)
+    AND EXISTS (
+      SELECT 1
+      FROM caldav_calendar_sync_changes newer
+      WHERE newer.calendar_id = c.calendar_id
+        AND newer.id > c.id
+    )
+  ORDER BY c.id ASC
+  LIMIT $4
+)
+SELECT count(*)::bigint FROM candidates`
+		if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.CalendarID, req.Limit).Scan(&result.CandidateCount); err != nil {
+			return CalendarSyncChangePruneResult{}, fmt.Errorf("check CalDAV sync change prune candidates: %w", err)
+		}
+		return result, nil
+	}
+	const query = `
+WITH candidates AS (
+  SELECT c.id
+  FROM caldav_calendar_sync_changes c
+  WHERE c.changed_at < $1
+    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR c.calendar_id = NULLIF($3, '')::uuid)
+    AND EXISTS (
+      SELECT 1
+      FROM caldav_calendar_sync_changes newer
+      WHERE newer.calendar_id = c.calendar_id
+        AND newer.id > c.id
+    )
+  ORDER BY c.id ASC
+  LIMIT $4
+),
+deleted AS (
+  DELETE FROM caldav_calendar_sync_changes c
+  USING candidates
+  WHERE c.id = candidates.id
+  RETURNING c.id
+)
+SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`
+	if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.CalendarID, req.Limit).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
+		return CalendarSyncChangePruneResult{}, fmt.Errorf("prune CalDAV sync changes: %w", err)
+	}
+	return result, nil
+}
+
 func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarRequest, string, string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -965,6 +1050,31 @@ func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSi
 		return ListChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
 	}
 	return ListChangesSinceRequest{UserID: userID, CalendarID: calendarID, SyncToken: syncToken, Limit: normalizeCalDAVChangeLimit(req.Limit)}, nil
+}
+
+func ValidatePruneCalendarSyncChangesRequest(req PruneCalendarSyncChangesRequest) (PruneCalendarSyncChangesRequest, error) {
+	if req.Cutoff.IsZero() {
+		return PruneCalendarSyncChangesRequest{}, fmt.Errorf("cutoff is required")
+	}
+	cutoff := req.Cutoff.UTC()
+	if cutoff.After(time.Now().UTC()) {
+		return PruneCalendarSyncChangesRequest{}, fmt.Errorf("cutoff must not be in the future")
+	}
+	userID, err := validateCalDAVID("user_id", req.UserID, false)
+	if err != nil {
+		return PruneCalendarSyncChangesRequest{}, err
+	}
+	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, false)
+	if err != nil {
+		return PruneCalendarSyncChangesRequest{}, err
+	}
+	return PruneCalendarSyncChangesRequest{
+		Cutoff:     cutoff,
+		UserID:     userID,
+		CalendarID: calendarID,
+		Limit:      normalizeCalDAVChangeLimit(req.Limit),
+		DryRun:     req.DryRun,
+	}, nil
 }
 
 func lockActiveCalendar(ctx context.Context, tx *sql.Tx, userID string, calendarID string) error {

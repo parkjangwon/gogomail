@@ -266,9 +266,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now handles conservative RFC 6578 `REPORT sync-collection` requests:
   explicit empty-token initial sync returns active objects and the current
   collection sync token, current-token sync returns no resource responses,
-  stale tokens produce a DAV `valid-sync-token` precondition error, and
-  truncating limits are rejected until continuation or tombstone/change-log
-  semantics are added.
+  stale-but-known tokens return deltas/tombstones, unknown or expired tokens
+  produce a DAV `valid-sync-token` precondition error, and truncating limits
+  are rejected until continuation semantics are added.
 - CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
   calendar collections, returning `200 OK` `text/calendar` `VFREEBUSY` bodies
   for `Depth: 1` child VEVENT busy periods while bounding child object scans
@@ -291,9 +291,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now persists sync-change rows for calendar creation and object
   upsert/delete mutations, and `REPORT sync-collection` can return
   stale-but-known object updates plus response-level 404 tombstones. Unknown
-  tokens still produce DAV `valid-sync-token`; collection-deleted tokens can
-  now produce a valid top-level sync token after the collection row is gone,
-  while sync retention policy remains incomplete.
+  or expired tokens still produce DAV `valid-sync-token`; collection-deleted
+  tokens can now produce a valid top-level sync token after the collection row
+  is gone. Sync-change retention now has a bounded repository prune boundary
+  that preserves the newest marker per calendar, but worker wiring and an
+  operator-selected retention-age policy remain incomplete.
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.
@@ -420,6 +422,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV stale-token `sync-collection` delta handling now probes one change-log
   row beyond bounded `limit/nresults`, so exact-limit responses are not falsely
   rejected while truly truncating deltas still fail closed.
+- CalDAV sync-change retention pruning now has repository groundwork:
+  bounded dry-run/delete calls preserve the newest sync marker per calendar and
+  use a dedicated prune-order index. Public-ready status still requires
+  operator/worker wiring and documented token-retention policy.
 - CalDAV initial `sync-collection` snapshots now use a sync-specific
   one-extra-object repository list path, preventing omitted-limit snapshots
   from being clipped by generic list defaults while still returning the current

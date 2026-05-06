@@ -82,7 +82,7 @@ type InvalidSyncTokenError struct {
 }
 
 func (e InvalidSyncTokenError) Error() string {
-	return "CalDAV sync-token is no longer valid"
+	return "CalDAV sync-token is unknown or expired"
 }
 
 type TruncatedResultsError struct {
