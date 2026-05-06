@@ -326,7 +326,10 @@ trailing, or nested parenthesized atom-list shapes such as `( DATE)`, `(DATE )`,
 and `((DATE))` before authentication or selected-mailbox checks. `SELECT` and
 `EXAMINE` now reject whitespace-padded quoted or literal `CONDSTORE`
 select-param lists such as `" (CONDSTORE) "` instead of trimming them into
-valid RFC 4551 select parameters.
+valid RFC 4551 select parameters. `SEARCH RETURN (...)` and `SORT`/`THREAD`
+`RETURN (SAVE)` option lists now reject whitespace-padded quoted or literal
+values such as `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming
+them into valid ESEARCH/SEARCHRES controls.
 `THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported

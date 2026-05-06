@@ -3929,6 +3929,10 @@ Implementation order:
 1418. IMAP `SELECT`/`EXAMINE` `CONDSTORE` select-param parsing now rejects
       whitespace-padded quoted or literal list values such as `" (CONDSTORE) "`
       instead of trimming them into valid RFC 4551 select parameters.
+1419. IMAP `SEARCH RETURN (...)` and `SORT`/`THREAD` `RETURN (SAVE)`
+      option-list parsing now rejects whitespace-padded quoted or literal list
+      values such as `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of
+      trimming them into valid ESEARCH/SEARCHRES controls.
 
 ## Deferred until backend contracts stabilize
 
