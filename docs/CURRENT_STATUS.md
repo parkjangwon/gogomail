@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP LSUB extension-option guard)
+Last updated: 2026-05-06 (updated after IMAP absolute LIST/LSUB pattern handling)
 
 ## Current phase
 
@@ -67,7 +67,11 @@ client diagnostics remain precise at the status-item grammar boundary. IMAP
 `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication with a
 dedicated tagged `BAD`, keeping subscribed-mailbox discovery on the RFC 3501
 reference/pattern command shape while leaving extended `LIST` behavior
-separate.
+separate. IMAP `LIST` and `LSUB` now also treat mailbox patterns beginning
+with the hierarchy delimiter as root-absolute patterns before matching the
+server's root-relative mailbox names, so probes such as `LIST "Archive"
+"/INBOX"` still discover `INBOX` instead of being matched against an impossible
+leading-slash mailbox name.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

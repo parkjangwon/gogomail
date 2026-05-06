@@ -112,6 +112,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   advertised extended `LIST` behavior by rejecting LIST-EXTENDED-style
   `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication with
   an `LSUB`-specific tagged `BAD`.
+- IMAP `LIST` and `LSUB` normalize leading hierarchy delimiters in mailbox
+  patterns as root-absolute selectors before matching root-relative mailbox
+  names, preserving client compatibility for absolute mailbox discovery
+  probes.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
