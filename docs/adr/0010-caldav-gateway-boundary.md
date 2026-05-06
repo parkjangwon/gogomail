@@ -137,6 +137,10 @@ time-range overlap checks through the RFC 5545 parser when a CalDAV
 `time-range` filter is supplied. Recurrence expansion and non-VEVENT
 time-range semantics remain future compatibility work before the listener is
 advertised as broadly client-ready.
+Unsupported CalDAV filter elements must fail closed with a
+`CALDAV:supported-filter` precondition rather than being silently ignored,
+because broadening query results under an unimplemented predicate is worse for
+client compatibility than an explicit standards-shaped failure.
 
 `REPORT sync-collection` starts with conservative RFC 6578 behavior because the
 repository currently stores one collection sync token but not a durable

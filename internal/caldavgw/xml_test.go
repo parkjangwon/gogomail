@@ -1,6 +1,7 @@
 package caldavgw
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -468,6 +469,29 @@ func TestParseReportCollectsCalendarQueryComponentFilter(t *testing.T) {
 	}
 	if req.TimeRange != nil {
 		t.Fatalf("time range = %+v, want nil", req.TimeRange)
+	}
+}
+
+func TestParseReportRejectsUnsupportedCalendarQueryFilter(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:prop-filter name="SUMMARY"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`
+	_, err := ParseReport(strings.NewReader(body))
+	var unsupported UnsupportedCalendarFilterError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("ParseReport error = %v, want UnsupportedCalendarFilterError", err)
+	}
+	if unsupported.Element.Local != "prop-filter" {
+		t.Fatalf("unsupported element = %+v", unsupported.Element)
 	}
 }
 

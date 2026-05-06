@@ -474,6 +474,33 @@ func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryRejectsUnsupportedFilter(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:prop-filter name="SUMMARY"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<C:supported-filter/>`) || !strings.Contains(body, "prop-filter") {
+		t.Fatalf("supported-filter precondition missing:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarQueryDepthZeroDoesNotScanChildren(t *testing.T) {
 	t.Parallel()
 
