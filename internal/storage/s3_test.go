@@ -2743,6 +2743,9 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "empty_ok", status: http.StatusOK, body: "", want: "response body is required"},
 		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
 		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
+		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
+		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
+		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code></Error></CopyObjectResult>`, want: "embedded error"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
