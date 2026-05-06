@@ -1035,6 +1035,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during `/health/ready`
   checks.
+- Local/NFS and S3-compatible readiness probes also verify probe-object `Stat`
+  metadata, catching broken filesystem metadata or S3 `HEAD` paths before an
+  instance reports ready.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object
