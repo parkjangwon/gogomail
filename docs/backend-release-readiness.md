@@ -28,6 +28,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   do not activate support booleans until recognized by the support matrix.
   OpenAPI marks active labels as non-empty and unique, and storage operations
   as unique, matching runtime normalization for generated admin clients.
+- S3-compatible object listings are filtered against the requested logical
+  gogomail prefix after bucket/storage-prefix stripping, so overly broad
+  provider pages cannot leak sibling keys into Drive/lifecycle listings or
+  `DeletePrefix` cleanup deletes.
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.

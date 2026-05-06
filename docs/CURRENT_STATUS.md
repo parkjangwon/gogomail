@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP UID ESEARCH capability-boundary alignment)
+Last updated: 2026-05-07 (updated after S3 logical-prefix list filtering)
 
 ## Current phase
 
@@ -61,6 +61,10 @@ labels remain non-activating in the support matrix until explicitly recognized.
 The OpenAPI schema now machine-documents `active_labels` as a non-empty unique
 token list and `operations` as a unique primitive list, with regression coverage
 pinning the default advertised object-storage operations.
+S3-compatible `List` now rechecks provider-returned keys against the requested
+logical gogomail prefix after stripping the configured bucket/storage prefix,
+so malformed or overly broad S3-compatible list responses cannot leak sibling
+keys into caller listings or `DeletePrefix` cleanup work.
 Drive JSON mutation handlers share the strict backend JSON contract and now
 have regression coverage for required `application/json` content type,
 unknown-field rejection, and trailing-token rejection before service dispatch.

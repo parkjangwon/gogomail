@@ -337,6 +337,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if !ok {
 			continue
 		}
+		if prefix != "" && objectPath != prefix && !strings.HasPrefix(objectPath, prefix+"/") {
+			continue
+		}
 		if item.Size < 0 {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object size")
 		}
