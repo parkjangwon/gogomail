@@ -100,7 +100,8 @@ Recent release-readiness work also includes:
   closed, non-empty malformed listed ETags fail closed, and
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
   S3 namespaces plus required bounded copy ETags, timestamp metadata, and
-  known core metadata elements, while standard S3 error XML, including
+  known core metadata elements, rejecting nested XML inside simple provider
+  metadata fields, while standard S3 error XML, including
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested
   `CopyObjectResult` embedded error bodies, is streamed into bounded one-line
   diagnostics with request-id and host-id context when supplied, even when the

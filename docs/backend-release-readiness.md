@@ -152,7 +152,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` object metadata now rejects duplicate
   per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before
   XML unmarshalling can collapse conflicting provider values into one listed
-  object.
+  object. Nested child elements inside those simple object metadata fields are
+  rejected before provider list metadata reaches cleanup, Drive, or
+  reconciliation callers.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

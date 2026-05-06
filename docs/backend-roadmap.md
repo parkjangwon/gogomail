@@ -4109,6 +4109,10 @@ Implementation order:
       regression-covered as unadvertised in `OPTIONS`, 405 `Allow`, and the
       shared implemented-method list until calendar object relocation and
       duplication semantics exist.
+1463. S3-compatible `ListObjectsV2` object metadata and `CopyObjectResult`
+      success metadata now reject nested child elements inside simple
+      `Key`/`Size`/`ETag`/`LastModified` fields before XML unmarshalling can
+      treat structured provider metadata as canonical strings.
 
 ## Deferred until backend contracts stabilize
 
