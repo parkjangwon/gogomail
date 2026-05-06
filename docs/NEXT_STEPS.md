@@ -511,6 +511,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` date criteria accept one-digit date-day atoms such
   as `SINCE 5-May-2026` while preserving malformed quote rejection, improving
   client compatibility without weakening syntax guardrails.
+- IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
+  strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
+  date atoms.
 - IMAP `SEARCH` and `UID SEARCH` reject `CHARSET` prefixes that omit the
   required following search-key before authentication or selected-mailbox
   checks, keeping RFC 3501 search grammar errors distinct from state errors.

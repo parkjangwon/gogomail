@@ -82,8 +82,8 @@ Recent release-readiness work also includes:
   diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped numeric grammar
   checks for sequence sets, partial windows, SEARCH size criteria, and
   CONDSTORE zero-boundary semantics, rejection of whitespace-padded numeric
-  search criteria, exact `IDLE` `DONE` continuation handling, selected-state
-  event draining before sequence-set commands,
+  and date search criteria, exact `IDLE` `DONE` continuation handling,
+  selected-state event draining before sequence-set commands,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
   literal framing coverage

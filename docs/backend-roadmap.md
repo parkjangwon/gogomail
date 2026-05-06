@@ -3882,6 +3882,9 @@ Implementation order:
 1404. IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
       whitespace-padded numeric strings such as `LARGER " 20 "` or
       `MODSEQ " 20 "` instead of trimming them into valid number atoms.
+1405. IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded
+      date strings such as `SINCE " 05-May-2026 "` instead of trimming them
+      into valid date atoms.
 
 ## Deferred until backend contracts stabilize
 
