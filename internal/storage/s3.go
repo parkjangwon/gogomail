@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -907,6 +908,12 @@ func sha256Hex(value []byte) string {
 
 func s3StatusError(operation string, resp *http.Response) error {
 	preview := s3ErrorBodyPreview(resp.Body, 512)
+	if resp.StatusCode == http.StatusNotFound {
+		if preview == "" {
+			return fmt.Errorf("%s s3 object: status %d: %w", operation, resp.StatusCode, os.ErrNotExist)
+		}
+		return fmt.Errorf("%s s3 object: status %d: %s: %w", operation, resp.StatusCode, preview, os.ErrNotExist)
+	}
 	if preview == "" {
 		return fmt.Errorf("%s s3 object: status %d", operation, resp.StatusCode)
 	}

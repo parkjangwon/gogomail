@@ -227,6 +227,10 @@ Current state:
   bounded response-body window before close, improving HTTP connection reuse
   for normal S3/MinIO responses without allowing oversized bodies to stall
   cleanup.
+- S3-compatible missing-object reads now wrap `os.ErrNotExist` for `GET`,
+  ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping
+  backend-neutral missing-object checks consistent with local/NFS storage while
+  preserving sanitized S3 status diagnostics.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.

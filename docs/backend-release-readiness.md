@@ -345,6 +345,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `GetRange` now also bounded-drains unread range bytes on early
   close, improving connection reuse for canceled preview/download paths without
   unbounded cleanup reads.
+- S3-compatible `GET`, ranged `GET`, and `HEAD`/`Stat` now wrap
+  `os.ErrNotExist` on `404 Not Found`, so Drive, attachment lifecycle, and mail
+  storage callers can use the same missing-object checks across local/NFS,
+  MinIO, and AWS S3-style backends.
 - IMAP `STATUS` and LIST-STATUS now reject duplicate status data items before
   mailbox metadata lookup, avoiding ambiguous duplicate status pairs in
   client-visible responses.
