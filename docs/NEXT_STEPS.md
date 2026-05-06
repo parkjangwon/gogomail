@@ -129,6 +129,9 @@ Current state:
 - S3-compatible `Content-Range` parsing rejects internal whitespace inside the
   `start-end/size` byte-range grammar, keeping malformed provider metadata
   from being normalized before range validation.
+- S3-compatible `200 OK` range compatibility responses with a matching
+  `Content-Range` now also validate any present `Content-Length` against the
+  requested window, matching the stricter `206 Partial Content` path.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

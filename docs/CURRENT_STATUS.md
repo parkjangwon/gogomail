@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 Content-Range syntax hardening)
+Last updated: 2026-05-07 (updated after S3 200 Content-Range length hardening)
 
 ## Current phase
 
@@ -110,6 +110,10 @@ metadata is drained and failed before a bounded range reader is returned.
 S3-compatible `Content-Range` validation now rejects internal whitespace inside
 the `start-end/size` byte-range grammar instead of normalizing malformed
 provider metadata before bounded range reads.
+S3-compatible `200 OK` range compatibility responses that include a matching
+`Content-Range` now also validate any present `Content-Length` against the
+requested window, keeping the compatibility path as strict as ordinary
+`206 Partial Content` responses.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

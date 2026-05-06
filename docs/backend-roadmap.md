@@ -3801,6 +3801,11 @@ Implementation order:
       inside the `start-end/size` byte-range grammar, preventing malformed
       range metadata from being normalized before AWS S3, MinIO, or compatible
       gateway range reads are exposed to callers.
+1384. S3-compatible `200 OK` range compatibility responses with a matching
+      `Content-Range` now validate any present `Content-Length` against the
+      requested byte window, keeping that compatibility path aligned with the
+      ordinary `206 Partial Content` metadata checks before a bounded reader is
+      exposed.
 
 ## Deferred until backend contracts stabilize
 

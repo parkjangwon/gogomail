@@ -1262,6 +1262,39 @@ func TestS3StoreGetRangeAcceptsHTTP200WithMatchingContentRangeCompatibility(t *t
 	}
 }
 
+func TestS3StoreGetRangeRejectsHTTP200ContentRangeLengthMismatch(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("ell")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header: http.Header{
+					"Content-Range":  []string{"bytes 1-3/5"},
+					"Content-Length": []string{"4"},
+				},
+				Body: body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3}); err == nil || !strings.Contains(err.Error(), "content-length mismatch") {
+		t.Fatalf("GetRange err = %v, want content-length mismatch", err)
+	}
+	if !body.closed {
+		t.Fatal("unsafe HTTP 200 content-range response body was not closed")
+	}
+}
+
 func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T) {
 	t.Parallel()
 
