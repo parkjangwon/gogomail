@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP empty HEADER.FIELDS compatibility hardening)
+Last updated: 2026-05-06 (updated after IMAP MIME-part empty HEADER.FIELDS compatibility hardening)
 
 ## Current phase
 
@@ -36,7 +36,10 @@ clients a deterministic close reason instead of a silent connection drop. IMAP
 `HEADER.FIELDS.NOT ()` lists as real header-section requests, returning the
 blank header terminator for include-empty requests and the full header block
 for exclude-empty requests instead of silently falling through as unsupported
-literal handling.
+literal handling. The same empty header-field-list semantics now apply to
+`message/rfc822` MIME-part sections such as `BODY[1.HEADER.FIELDS ()]` and
+`BODY[2.HEADER.FIELDS.NOT ()]`, keeping nested forwarded-message preview
+fetches consistent with top-level header fetch behavior.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
@@ -1149,6 +1152,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists, returning only the header terminator for empty
   include requests and the full header block when the exclude list is empty.
+- IMAP `FETCH`/`UID FETCH` applies the same empty `HEADER.FIELDS ()` and
+  `HEADER.FIELDS.NOT ()` semantics to `message/rfc822` MIME-part sections such
+  as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]`.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

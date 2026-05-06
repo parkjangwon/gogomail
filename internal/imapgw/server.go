@@ -4591,7 +4591,7 @@ func (r imapMIMEPartRequest) sectionName() string {
 	}
 	if r.messageSection != "" {
 		parts = append(parts, r.messageSection)
-		if len(r.messageHeaderFields) > 0 {
+		if strings.HasPrefix(r.messageSection, "HEADER.FIELDS") {
 			parts[len(parts)-1] += " (" + strings.Join(r.messageHeaderFields, " ") + ")"
 		}
 	}
@@ -4697,9 +4697,6 @@ func imapParseMIMEPartHeaderFieldsRequest(items []string) (imapMIMEPartRequest, 
 		}
 		fieldsEnd += fieldsStart + 1
 		fields := strings.Fields(joined[fieldsStart+1 : fieldsEnd])
-		if len(fields) == 0 {
-			return imapMIMEPartRequest{}, false
-		}
 		req := imapMIMEPartRequest{
 			path:                path,
 			messageSection:      marker,
@@ -5015,7 +5012,7 @@ func readIMAPRawMessageSectionLiteral(data []byte, req imapMIMEPartRequest) []by
 		return data[end:]
 	}
 	header := data[:end]
-	if len(req.messageHeaderFields) > 0 {
+	if strings.HasPrefix(req.messageSection, "HEADER.FIELDS") {
 		header = filterIMAPHeaderFields(header, req.messageHeaderFields, req.messageHeaderNot)
 	}
 	return header
@@ -5045,7 +5042,7 @@ func readIMAPMessageSectionLiteral(reader io.Reader, req imapMIMEPartRequest) ([
 	if err != nil {
 		return nil, err
 	}
-	if len(req.messageHeaderFields) > 0 {
+	if strings.HasPrefix(req.messageSection, "HEADER.FIELDS") {
 		literal = filterIMAPHeaderFields(literal, req.messageHeaderFields, req.messageHeaderNot)
 	}
 	return literal, nil

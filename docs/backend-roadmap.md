@@ -3233,6 +3233,12 @@ Implementation order:
       Empty include lists return only the header terminator, and empty exclude
       lists return the full header block instead of falling through without the
       requested literal.
+1262. IMAP `FETCH` and `UID FETCH` now apply the same empty
+      `HEADER.FIELDS ()` and `HEADER.FIELDS.NOT ()` semantics to
+      `message/rfc822` MIME-part sections. Nested forwarded-message requests
+      such as `BODY[1.HEADER.FIELDS ()]` and
+      `BODY[2.HEADER.FIELDS.NOT ()]` now return RFC-shaped literals instead of
+      being skipped by the MIME-part header-field parser.
 
 ## Deferred until backend contracts stabilize
 
