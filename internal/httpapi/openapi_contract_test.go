@@ -417,6 +417,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"POST /directory/aliases":                                    "#/components/responses/DirectoryAlias",
 		"DELETE /directory/aliases/{id}":                             "#/components/responses/DirectoryAlias",
 		"GET /directory/delegations":                                 "#/components/responses/DirectoryDelegationList",
+		"POST /directory/delegations":                                "#/components/responses/DirectoryDelegation",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",
 		"GET /quota-usage":                                           "#/components/responses/QuotaUsageList",
@@ -898,6 +899,7 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 		"PATCH /domains/{id}/quota":   "#/components/requestBodies/DomainQuotaUpdate",
 		"PATCH /users/{id}/quota":     "#/components/requestBodies/UserQuotaUpdate",
 		"POST /directory/aliases":     "#/components/requestBodies/DirectoryAliasCreate",
+		"POST /directory/delegations": "#/components/requestBodies/DirectoryDelegationCreate",
 	} {
 		block, ok := operations[route]
 		if !ok {
@@ -1091,6 +1093,7 @@ func TestOpenAPIDraftResponseSchemasExposeEnvelopeKeys(t *testing.T) {
 		"DirectoryPrincipalListEnvelope":                      "directory_principals",
 		"DirectoryAliasEnvelope":                              "directory_alias",
 		"DirectoryAliasListEnvelope":                          "directory_aliases",
+		"DirectoryDelegationEnvelope":                         "directory_delegation",
 		"DirectoryDelegationListEnvelope":                     "directory_delegations",
 		"BackpressureEnvelope":                                "backpressure",
 		"QuotaUsageListEnvelope":                              "quota_usage",

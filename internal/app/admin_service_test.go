@@ -244,6 +244,37 @@ func TestAdminServiceListDirectoryDelegationsDelegatesToDirectory(t *testing.T) 
 	}
 }
 
+func TestAdminServiceCreateDirectoryDelegationUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		delegation: directory.Delegation{ID: "delegation-1", CompanyID: "company-1"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.CreateDelegationRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    directory.PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: directory.PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        directory.DelegationScopeCalendar,
+		Role:         directory.DelegationRoleWrite,
+	}
+	delegation, err := service.CreateDirectoryDelegation(t.Context(), req)
+	if err != nil {
+		t.Fatalf("CreateDirectoryDelegation returned error: %v", err)
+	}
+	if delegation.ID != "delegation-1" {
+		t.Fatalf("delegation = %+v", delegation)
+	}
+	if directoryStore.lastDelegationCreateReq != req {
+		t.Fatalf("lastDelegationCreateReq = %+v, want %+v", directoryStore.lastDelegationCreateReq, req)
+	}
+	if directoryStore.createDelegationWithAuditCalls != 1 {
+		t.Fatalf("createDelegationWithAuditCalls = %d, want 1", directoryStore.createDelegationWithAuditCalls)
+	}
+}
+
 func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -651,23 +682,32 @@ type fakeAdminDrive struct {
 }
 
 type fakeAdminDirectory struct {
-	delegations               []directory.Delegation
-	alias                     directory.Alias
-	aliases                   []directory.Alias
-	principals                []directory.Principal
-	lastReq                   directory.ListDelegationsRequest
-	lastAliasReq              directory.ResolveAliasRequest
-	lastAliasCreateReq        directory.CreateAliasRequest
-	lastAliasDeleteID         string
-	lastAliasListReq          directory.ListAliasesRequest
-	lastSearchReq             directory.SearchPrincipalsRequest
-	createAliasWithAuditCalls int
-	deleteAliasWithAuditCalls int
+	delegations                    []directory.Delegation
+	delegation                     directory.Delegation
+	alias                          directory.Alias
+	aliases                        []directory.Alias
+	principals                     []directory.Principal
+	lastReq                        directory.ListDelegationsRequest
+	lastDelegationCreateReq        directory.CreateDelegationRequest
+	lastAliasReq                   directory.ResolveAliasRequest
+	lastAliasCreateReq             directory.CreateAliasRequest
+	lastAliasDeleteID              string
+	lastAliasListReq               directory.ListAliasesRequest
+	lastSearchReq                  directory.SearchPrincipalsRequest
+	createAliasWithAuditCalls      int
+	createDelegationWithAuditCalls int
+	deleteAliasWithAuditCalls      int
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
 	f.lastReq = req
 	return f.delegations, nil
+}
+
+func (f *fakeAdminDirectory) CreateDelegationWithAudit(_ context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error) {
+	f.createDelegationWithAuditCalls++
+	f.lastDelegationCreateReq = req
+	return f.delegation, nil
 }
 
 func (f *fakeAdminDirectory) SearchPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {

@@ -2700,6 +2700,13 @@ Implementation order:
        the backend API contract. This gives the future admin console a
        contract-first diagnostics surface without making delegated CalDAV,
        Drive, Contacts/CardDAV, or shared-inbox mutation workflows public.
+1175b1. Directory/Identity now exposes audited delegation creation through
+        `CreateDelegationWithAudit` and
+        `POST /admin/v1/directory/delegations`, returning a
+        `directory_delegation` envelope. The boundary normalizes principal
+        kinds, scope, and role, verifies active same-company owner/delegate
+        principals, rejects self-delegation, maps duplicate active grants to a
+        stable error, and commits `directory_delegation.create` with the grant.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

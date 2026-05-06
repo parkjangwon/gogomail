@@ -22,6 +22,7 @@ type rowQuerier interface {
 
 var ErrPrincipalNotFound = errors.New("directory principal not found")
 var ErrAliasAlreadyExists = errors.New("directory alias already exists")
+var ErrDelegationAlreadyExists = errors.New("directory delegation already exists")
 
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
@@ -711,6 +712,47 @@ WHERE d.company_id = $1::uuid
 	return false, nil
 }
 
+func (r *Repository) CreateDelegationWithAudit(ctx context.Context, req CreateDelegationRequest) (Delegation, error) {
+	if r == nil || r.db == nil {
+		return Delegation{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCreateDelegationRequest(req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	if err := r.ensureDelegationPrincipalsActive(ctx, req); err != nil {
+		return Delegation{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("begin create directory delegation transaction: %w", err)
+	}
+	defer tx.Rollback()
+	delegation, err := r.createDelegationTx(ctx, tx, req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	detail, err := directoryDelegationCreateAuditDetail(delegation)
+	if err != nil {
+		return Delegation{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  delegation.CompanyID,
+		Category:   "admin",
+		Action:     "directory_delegation.create",
+		TargetType: "directory_delegation",
+		TargetID:   delegation.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return Delegation{}, fmt.Errorf("record directory delegation create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Delegation{}, fmt.Errorf("commit create directory delegation transaction: %w", err)
+	}
+	return delegation, nil
+}
+
 func (r *Repository) CheckEffectiveDelegation(ctx context.Context, req CheckDelegationRequest) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("database handle is required")
@@ -816,6 +858,81 @@ SELECT role FROM candidate_roles`
 	return false, nil
 }
 
+func (r *Repository) createDelegationTx(ctx context.Context, tx *sql.Tx, req CreateDelegationRequest) (Delegation, error) {
+	const query = `
+INSERT INTO directory_delegations (
+  company_id,
+  owner_kind,
+  owner_id,
+  delegate_kind,
+  delegate_id,
+  scope,
+  role
+)
+VALUES ($1::uuid, $2, $3::uuid, $4, $5::uuid, $6, $7)
+RETURNING id::text,
+          company_id::text,
+          owner_kind,
+          owner_id::text,
+          delegate_kind,
+          delegate_id::text,
+          scope,
+          role,
+          status`
+	var delegation Delegation
+	if err := tx.QueryRowContext(ctx, query,
+		req.CompanyID,
+		req.OwnerKind,
+		req.OwnerID,
+		req.DelegateKind,
+		req.DelegateID,
+		req.Scope,
+		req.Role,
+	).Scan(
+		&delegation.ID,
+		&delegation.CompanyID,
+		&delegation.OwnerKind,
+		&delegation.OwnerID,
+		&delegation.DelegateKind,
+		&delegation.DelegateID,
+		&delegation.Scope,
+		&delegation.Role,
+		&delegation.Status,
+	); err != nil {
+		return Delegation{}, mapDirectoryDelegationInsertError(err)
+	}
+	return delegation, nil
+}
+
+func directoryDelegationCreateAuditDetail(delegation Delegation) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"delegation_id": delegation.ID,
+		"company_id":    delegation.CompanyID,
+		"owner_kind":    delegation.OwnerKind,
+		"owner_id":      delegation.OwnerID,
+		"delegate_kind": delegation.DelegateKind,
+		"delegate_id":   delegation.DelegateID,
+		"scope":         delegation.Scope,
+		"role":          delegation.Role,
+		"status":        delegation.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory delegation create audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+func mapDirectoryDelegationInsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_directory_delegations_active_grant":
+			return fmt.Errorf("%w", ErrDelegationAlreadyExists)
+		}
+	}
+	return fmt.Errorf("create directory delegation: %w", err)
+}
+
 func (r *Repository) ListDelegations(ctx context.Context, req ListDelegationsRequest) ([]Delegation, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -882,6 +999,26 @@ LIMIT $9`
 		return nil, fmt.Errorf("list directory delegation rows: %w", err)
 	}
 	return delegations, nil
+}
+
+func (r *Repository) ensureDelegationPrincipalsActive(ctx context.Context, req CreateDelegationRequest) error {
+	ok, err := r.checkDelegationPrincipalsActive(ctx, CheckDelegationRequest{
+		CompanyID:    req.CompanyID,
+		OwnerKind:    req.OwnerKind,
+		OwnerID:      req.OwnerID,
+		DelegateKind: req.DelegateKind,
+		DelegateID:   req.DelegateID,
+		Scope:        req.Scope,
+		RequiredRole: req.Role,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("directory delegation principals must be active and belong to the same company")
+	}
+	return nil
 }
 
 func (r *Repository) checkDelegationPrincipalsActive(ctx context.Context, req CheckDelegationRequest) (bool, error) {

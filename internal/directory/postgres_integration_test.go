@@ -454,6 +454,97 @@ WHERE company_id = $1::uuid
 	}
 }
 
+func TestPostgresCreateDelegationWithAuditValidatesPrincipalsAndUniqueness(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	delegation, err := repo.CreateDelegationWithAudit(ctx, CreateDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		Role:         DelegationRoleManage,
+	})
+	if err != nil {
+		t.Fatalf("CreateDelegationWithAudit returned error: %v", err)
+	}
+	if delegation.CompanyID != seed.companyID ||
+		delegation.OwnerKind != PrincipalKindResource ||
+		delegation.OwnerID != seed.equipmentID ||
+		delegation.DelegateKind != PrincipalKindGroup ||
+		delegation.DelegateID != seed.deeperID ||
+		delegation.Scope != DelegationScopeContacts ||
+		delegation.Role != DelegationRoleManage ||
+		delegation.Status != "active" {
+		t.Fatalf("delegation = %+v", delegation)
+	}
+	ok, err := repo.CheckDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		RequiredRole: DelegationRoleWrite,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDelegation returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("created delegation did not satisfy write role through manage grant")
+	}
+	var auditCount int
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_delegation.create'
+  AND target_type = 'directory_delegation'
+  AND target_id = $2
+  AND result = 'created'`, seed.companyID, delegation.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory delegation audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory delegation audit rows = %d, want 1", auditCount)
+	}
+
+	_, err = repo.CreateDelegationWithAudit(ctx, CreateDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		Role:         DelegationRoleManage,
+	})
+	if !errors.Is(err, ErrDelegationAlreadyExists) {
+		t.Fatalf("duplicate CreateDelegationWithAudit error = %v, want ErrDelegationAlreadyExists", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'suspended' WHERE id = $1::uuid`, seed.equipmentID); err != nil {
+		t.Fatalf("suspend delegation owner resource: %v", err)
+	}
+	_, err = repo.CreateDelegationWithAudit(ctx, CreateDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   seed.aliceID,
+		Scope:        DelegationScopeDrive,
+		Role:         DelegationRoleRead,
+	})
+	if err == nil || !strings.Contains(err.Error(), "principals") {
+		t.Fatalf("inactive owner error = %v, want principal rejection", err)
+	}
+}
+
 type directoryDelegationSeed struct {
 	companyID   string
 	domainID    string

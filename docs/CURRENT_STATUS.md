@@ -261,6 +261,11 @@ relationship model instead of forcing product modules to query
 `directory_delegations` directly. The CalDAV release tier should therefore stay
 experimental while the platform-level Directory/Identity, Contacts/CardDAV,
 Notification & Sync, Search, and Policy/Audit foundations continue to close.
+Directory delegation creation now has the same transaction-audited mutation
+shape: `CreateDelegationWithAudit` normalizes owner/delegate principal kinds,
+scope, and role, rejects self-delegation, verifies both principals are active in
+the same company, maps active duplicate grants to a stable error, and records
+`directory_delegation.create` in the same transaction as the grant insert.
 Directory alias listing is now a bounded repository boundary as well:
 `ListAliases` validates company/domain scope, target principal filters, query
 size, active-only state, and result limits before querying, then resolves each
@@ -279,6 +284,11 @@ The admin backend API now exposes that read boundary as
 `{"directory_delegations":[...]}` with bounded company, owner, delegate, scope,
 role, active-only, and limit filters. This is intentionally an operator/admin
 diagnostic surface, not a public CalDAV sharing UX.
+Audited delegation creation is also exposed through
+`POST /admin/v1/directory/delegations`, returning
+`{"directory_delegation":{...}}`; this is a platform admin relationship
+operation and still does not make delegated CalDAV/CardDAV/Drive/shared-inbox
+UX public.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,
