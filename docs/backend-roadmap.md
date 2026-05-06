@@ -3661,6 +3661,12 @@ Implementation order:
       mailbox metadata lookup, so forms such as `RETURN (STATUS (...) CHILDREN
       STATUS (...))` cannot silently replace earlier requested status data with
       a later status list.
+1354. Local/NFS storage now rejects symlinked intermediate path components
+      across writes, reads, range reads, metadata probes, deletes, copies,
+      moves, and prefix listings. The local filesystem adapter creates
+      destination directories one segment at a time and verifies existing
+      components with `Lstat`, so mounted deployments cannot follow
+      host-specific symlink parents outside the configured object root.
 
 ## Deferred until backend contracts stabilize
 

@@ -410,6 +410,92 @@ func TestLocalStoreRejectsSymlinkObjects(t *testing.T) {
 	}
 }
 
+func TestLocalStoreRejectsSymlinkParentComponents(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	root := t.TempDir()
+	outsideDir := t.TempDir()
+	linkPath := filepath.Join(root, "mailstore", "company")
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
+		t.Fatalf("create symlink parent: %v", err)
+	}
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Skipf("symlink not available on this platform: %v", err)
+	}
+
+	store := NewLocalStore(root)
+	objectPath := "mailstore/company/domain/message.eml"
+	for _, tt := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "put", run: func() error {
+			return store.Put(ctx, objectPath, strings.NewReader("outside"))
+		}},
+		{name: "get", run: func() error {
+			body, err := store.Get(ctx, objectPath)
+			if body != nil {
+				_ = body.Close()
+			}
+			return err
+		}},
+		{name: "get range", run: func() error {
+			body, err := store.GetRange(ctx, objectPath, RangeRequest{Offset: 0, Length: 1})
+			if body != nil {
+				_ = body.Close()
+			}
+			return err
+		}},
+		{name: "stat", run: func() error {
+			_, err := store.Stat(ctx, objectPath)
+			return err
+		}},
+		{name: "delete", run: func() error {
+			return store.Delete(ctx, objectPath)
+		}},
+		{name: "copy source", run: func() error {
+			return store.Copy(ctx, objectPath, "mailstore/safe/copy.eml")
+		}},
+		{name: "copy destination", run: func() error {
+			sourcePath := "mailstore/safe/source.eml"
+			if err := store.Put(ctx, sourcePath, strings.NewReader("source")); err != nil {
+				return err
+			}
+			return store.Copy(ctx, sourcePath, objectPath)
+		}},
+		{name: "move source", run: func() error {
+			return store.Move(ctx, objectPath, "mailstore/safe/moved.eml")
+		}},
+		{name: "move destination", run: func() error {
+			sourcePath := "mailstore/safe/move-source.eml"
+			if err := store.Put(ctx, sourcePath, strings.NewReader("source")); err != nil {
+				return err
+			}
+			return store.Move(ctx, sourcePath, objectPath)
+		}},
+		{name: "list", run: func() error {
+			_, err := store.List(ctx, ListOptions{Prefix: "mailstore/company", Limit: 10})
+			return err
+		}},
+	} {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.run()
+			if err == nil || !strings.Contains(err.Error(), "symbolic link") {
+				t.Fatalf("%s err = %v, want symbolic link rejection", tt.name, err)
+			}
+		})
+	}
+
+	if _, err := os.Stat(filepath.Join(outsideDir, "domain", "message.eml")); !os.IsNotExist(err) {
+		t.Fatalf("outside object stat err = %v, want not exist", err)
+	}
+	if _, err := store.Get(ctx, "mailstore/safe/move-source.eml"); err != nil {
+		t.Fatalf("failed move should leave source intact: %v", err)
+	}
+}
+
 func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	t.Parallel()
 

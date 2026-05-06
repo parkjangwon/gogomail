@@ -137,8 +137,9 @@ so lifecycle workers behave consistently across storage backends.
 `Stat` reports the canonical object key, byte size, and filesystem
 last-modified time without opening the file body.
 Symbolic links under the local/NFS storage root are not treated as objects:
-reads, range reads, metadata probes, deletes, and source moves reject them, and list
-operations hide them. This keeps mounted filesystems from escaping the
+reads, range reads, metadata probes, deletes, copies, moves, writes, and prefix
+listings reject symlinked intermediate directories, and list operations hide
+final-object symlinks. This keeps mounted filesystems from escaping the
 object-store contract through host-specific link behavior.
 `GetRange` seeks to the requested byte offset and returns a closeable limited
 reader for the requested positive byte count, keeping partial reads efficient

@@ -59,7 +59,9 @@ Recent release-readiness work also includes:
 - storage portability across local filesystem, explicit NFS mounts, local
   MinIO, and AWS/S3-compatible object storage through the shared storage
   interface, validated `configs/storage.*.yaml` profiles, and extensible
-  compatibility labels that keep support claims conservative
+  compatibility labels that keep support claims conservative, with local/NFS
+  symlink parent rejection preserving object-root boundaries on mounted
+  filesystems
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
