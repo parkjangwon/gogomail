@@ -19,6 +19,15 @@ const (
 	ResourceTypeVehicle   = "vehicle"
 	ResourceTypeOther     = "other"
 
+	DelegationScopeCalendar = "calendar"
+	DelegationScopeContacts = "contacts"
+	DelegationScopeDrive    = "drive"
+	DelegationScopeMailbox  = "mailbox"
+
+	DelegationRoleRead   = "read"
+	DelegationRoleWrite  = "write"
+	DelegationRoleManage = "manage"
+
 	MaxPrincipalIDBytes       = 200
 	MaxGroupMembershipDepth   = 16
 	DefaultMembershipMaxDepth = 8
@@ -67,6 +76,29 @@ type CheckGroupMembershipRequest struct {
 	MaxDepth   int
 }
 
+type Delegation struct {
+	ID           string
+	CompanyID    string
+	OwnerKind    string
+	OwnerID      string
+	DelegateKind string
+	DelegateID   string
+	Scope        string
+	Role         string
+	Status       string
+}
+
+type CheckDelegationRequest struct {
+	CompanyID    string
+	OwnerKind    string
+	OwnerID      string
+	DelegateKind string
+	DelegateID   string
+	Scope        string
+	RequiredRole string
+	ActiveOnly   bool
+}
+
 func NormalizePrincipalKind(kind string) (string, error) {
 	kind = strings.TrimSpace(strings.ToLower(kind))
 	if kind == "" {
@@ -77,6 +109,26 @@ func NormalizePrincipalKind(kind string) (string, error) {
 		return kind, nil
 	default:
 		return "", fmt.Errorf("unsupported principal kind %q", kind)
+	}
+}
+
+func NormalizeDelegationScope(scope string) (string, error) {
+	scope = strings.TrimSpace(strings.ToLower(scope))
+	switch scope {
+	case DelegationScopeCalendar, DelegationScopeContacts, DelegationScopeDrive, DelegationScopeMailbox:
+		return scope, nil
+	default:
+		return "", fmt.Errorf("unsupported delegation scope %q", scope)
+	}
+}
+
+func NormalizeDelegationRole(role string) (string, error) {
+	role = strings.TrimSpace(strings.ToLower(role))
+	switch role {
+	case DelegationRoleRead, DelegationRoleWrite, DelegationRoleManage:
+		return role, nil
+	default:
+		return "", fmt.Errorf("unsupported delegation role %q", role)
 	}
 }
 
@@ -111,6 +163,70 @@ func NormalizeResolvePrincipalRequest(req ResolvePrincipalRequest) (ResolvePrinc
 	req.ID = id
 	req.Kind = kind
 	return req, nil
+}
+
+func NormalizeCheckDelegationRequest(req CheckDelegationRequest) (CheckDelegationRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return CheckDelegationRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	ownerID, err := NormalizePrincipalID(req.OwnerID)
+	if err != nil {
+		return CheckDelegationRequest{}, fmt.Errorf("owner id: %w", err)
+	}
+	delegateID, err := NormalizePrincipalID(req.DelegateID)
+	if err != nil {
+		return CheckDelegationRequest{}, fmt.Errorf("delegate id: %w", err)
+	}
+	ownerKind, err := NormalizePrincipalKind(req.OwnerKind)
+	if err != nil {
+		return CheckDelegationRequest{}, fmt.Errorf("owner kind: %w", err)
+	}
+	delegateKind, err := NormalizePrincipalKind(req.DelegateKind)
+	if err != nil {
+		return CheckDelegationRequest{}, fmt.Errorf("delegate kind: %w", err)
+	}
+	scope, err := NormalizeDelegationScope(req.Scope)
+	if err != nil {
+		return CheckDelegationRequest{}, err
+	}
+	role, err := NormalizeDelegationRole(req.RequiredRole)
+	if err != nil {
+		return CheckDelegationRequest{}, err
+	}
+	req.CompanyID = companyID
+	req.OwnerID = ownerID
+	req.DelegateID = delegateID
+	req.OwnerKind = ownerKind
+	req.DelegateKind = delegateKind
+	if req.OwnerKind == req.DelegateKind && req.OwnerID == req.DelegateID {
+		return CheckDelegationRequest{}, fmt.Errorf("delegation owner and delegate must differ")
+	}
+	req.Scope = scope
+	req.RequiredRole = role
+	return req, nil
+}
+
+func DelegationRoleSatisfies(granted string, required string) bool {
+	granted, grantedErr := NormalizeDelegationRole(granted)
+	required, requiredErr := NormalizeDelegationRole(required)
+	if grantedErr != nil || requiredErr != nil {
+		return false
+	}
+	return delegationRoleRank(granted) >= delegationRoleRank(required)
+}
+
+func delegationRoleRank(role string) int {
+	switch role {
+	case DelegationRoleRead:
+		return 1
+	case DelegationRoleWrite:
+		return 2
+	case DelegationRoleManage:
+		return 3
+	default:
+		return 0
+	}
 }
 
 func NormalizeResolveAliasRequest(req ResolveAliasRequest) (ResolveAliasRequest, error) {

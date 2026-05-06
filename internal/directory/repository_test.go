@@ -168,6 +168,87 @@ func TestNormalizeCheckGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestNormalizeCheckDelegationRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCheckDelegationRequest(CheckDelegationRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-1 ",
+		DelegateKind: " GROUP ",
+		DelegateID:   " team-1 ",
+		Scope:        " Calendar ",
+		RequiredRole: " WRITE ",
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckDelegationRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.OwnerKind != PrincipalKindResource ||
+		got.OwnerID != "room-1" ||
+		got.DelegateKind != PrincipalKindGroup ||
+		got.DelegateID != "team-1" ||
+		got.Scope != DelegationScopeCalendar ||
+		got.RequiredRole != DelegationRoleWrite ||
+		!got.ActiveOnly {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCheckDelegationRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CheckDelegationRequest{
+		{OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company\n1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: "calendar", OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner\n1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: "calendar", DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate\n1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "owner-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: "files", RequiredRole: DelegationRoleRead},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: "owner"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.OwnerID+"/"+req.DelegateID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeCheckDelegationRequest(req); err == nil {
+				t.Fatalf("NormalizeCheckDelegationRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
+func TestDelegationRoleSatisfiesHierarchy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		granted  string
+		required string
+		want     bool
+	}{
+		{granted: DelegationRoleRead, required: DelegationRoleRead, want: true},
+		{granted: DelegationRoleWrite, required: DelegationRoleRead, want: true},
+		{granted: DelegationRoleManage, required: DelegationRoleWrite, want: true},
+		{granted: DelegationRoleRead, required: DelegationRoleWrite, want: false},
+		{granted: DelegationRoleWrite, required: DelegationRoleManage, want: false},
+		{granted: "owner", required: DelegationRoleRead, want: false},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.granted+"/"+tc.required, func(t *testing.T) {
+			t.Parallel()
+
+			if got := DelegationRoleSatisfies(tc.granted, tc.required); got != tc.want {
+				t.Fatalf("DelegationRoleSatisfies(%q, %q) = %v, want %v", tc.granted, tc.required, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRepositoryResolvePrincipalRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
@@ -206,6 +287,23 @@ func TestRepositoryCheckEffectiveGroupMembershipRequiresDatabase(t *testing.T) {
 		GroupID:    "group-1",
 		MemberKind: PrincipalKindUser,
 		MemberID:   "user-1",
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryCheckDelegationRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).CheckDelegation(context.Background(), CheckDelegationRequest{
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		RequiredRole: DelegationRoleRead,
 	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)

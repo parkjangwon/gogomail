@@ -1642,6 +1642,11 @@ Next:
   Notification & Sync for reminders, devices, quiet hours, and delta fan-out;
   Search for unified event/person/resource lookup; and Policy/Audit for
   retention, admin controls, and traceable calendar access.
+- Directory/Identity now has the first company-scoped delegation table and
+  repository check boundary for owner/delegate principals, product scopes, and
+  `read`/`write`/`manage` role hierarchy. Next CalDAV work should connect it
+  only through explicit policy decisions and WebDAV privilege semantics, not by
+  ad-hoc calendar-specific sharing columns.
 - Continue Contacts/CardDAV as a standards-first module: the current
   `internal/carddavgw` path/href, storage metadata, address-book/contact
   repository, bounded vCard 4.0 semantic validation, REPORT parsing,

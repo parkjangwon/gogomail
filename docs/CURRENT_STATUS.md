@@ -178,6 +178,13 @@ by normalized address. CalDAV discovery uses this shared resolver instead of
 embedding its own active-user join, but delegated access, shared calendar
 ownership, attendee resolution, and resource booking semantics remain future
 release gates.
+Directory/Identity now also has an initial delegation table and repository
+check boundary keyed by company, owner principal, delegate principal, product
+scope (`calendar`, `contacts`, `drive`, or `mailbox`), and hierarchical role
+(`read`, `write`, `manage`). This is intentionally not wired into public
+CalDAV sharing yet; it gives future shared calendars, resource calendars,
+shared inboxes, Drive shares, and Contacts delegation one auditable principal
+relationship model instead of each module inventing a separate one.
 
 ## Completed or materially advanced
 
@@ -2472,6 +2479,11 @@ The platform hardening sprint completed the following:
   nested groups with an explicit recursion cap and cycle guard, preparing
   delegated access and resource policy evaluation without unbounded graph
   traversal.
+- Directory/Identity now has a company-scoped delegation foundation for owner
+  and delegate principals across calendar, contacts, drive, and mailbox scopes,
+  with `read`/`write`/`manage` role hierarchy checks. CalDAV shared/delegated
+  calendars remain experimental gates until this boundary is connected to
+  protocol semantics and policy/audit decisions.
 - CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`, which
   owns RFC/WebDAV/CardDAV standards names, DAV capability tokens, canonical
   principal/address-book/contact-object paths, `.vcf` resource validation, and

@@ -2547,6 +2547,13 @@ Implementation order:
       keys plus `Put`, `Get`, `GetRange`, `Stat`, `List`, `Copy`, `Move`,
       idempotent `Delete`, and bounded `DeletePrefix` across local/NFS and
       optional S3-compatible integration backends.
+1160. Directory/Identity now has a company-scoped delegation foundation:
+      `directory_delegations` records owner principal, delegate principal,
+      product scope (`calendar`, `contacts`, `drive`, `mailbox`), hierarchical
+      role (`read`, `write`, `manage`), active uniqueness, and lookup indexes;
+      `internal/directory` exposes normalized delegation checks so future
+      CalDAV/CardDAV/Drive/shared-inbox access can share one auditable
+      relationship model.
 
 ## Deferred until backend contracts stabilize
 
@@ -2559,7 +2566,8 @@ Implementation order:
 - CalDAV public/client-ready compatibility
 - Directory/Identity expansion for delegated relationships, effective
   access grants, and resource booking policy beyond the initial principal
-  tables, resolver, alias lookup, and bounded membership expansion
+  tables, resolver, alias lookup, bounded membership expansion, and
+  company-scoped delegation relationship checks
 - Contacts/CardDAV broader vCard
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
