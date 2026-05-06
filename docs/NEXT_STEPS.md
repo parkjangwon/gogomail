@@ -103,7 +103,10 @@ Current state:
   an `LSUB`-specific tagged `BAD`, keeping subscribed-mailbox discovery
   separate from advertised extended `LIST` semantics. `LIST` and `LSUB` also
   normalize leading hierarchy delimiters in mailbox patterns as root-absolute
-  selectors before matching internal root-relative mailbox names.
+  selectors before matching internal root-relative mailbox names. `LIST`
+  reference names with a leading hierarchy delimiter are normalized the same
+  way before joining relative patterns, keeping namespace/root-style list
+  probes aligned with the server's root-relative mailbox store.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

@@ -6635,6 +6635,7 @@ func imapListPattern(reference string, pattern string) (string, bool) {
 	if strings.HasPrefix(pattern, "/") {
 		return strings.TrimPrefix(pattern, "/"), true
 	}
+	reference = strings.TrimPrefix(reference, "/")
 	if reference == "" || pattern == "" {
 		return pattern, true
 	}

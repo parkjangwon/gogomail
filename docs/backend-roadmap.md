@@ -3331,6 +3331,11 @@ Implementation order:
       address-book and contact-object changes, matching the CalDAV event
       boundary for future Contacts, Notification & Sync, search, audit, and
       mobile delta consumers.
+1284. IMAP `LIST` reference names that begin with the hierarchy delimiter now
+      normalize to the same root-relative namespace as absolute mailbox
+      patterns before joining relative patterns, so root-style namespace
+      probes such as `LIST "/Projects" "2026"` discover `Projects/2026`
+      instead of an impossible leading-slash path.
 
 ## Deferred until backend contracts stabilize
 

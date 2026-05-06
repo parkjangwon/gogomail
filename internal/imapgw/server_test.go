@@ -4318,7 +4318,7 @@ func TestServerListReportsMailboxChildren(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 LIST \"\" *\r\na3 LIST \"/Projects\" \"2026\"\r\n")); err != nil {
 		t.Fatalf("write login/list: %v", err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
@@ -4329,6 +4329,8 @@ func TestServerListReportsMailboxChildren(t *testing.T) {
 		"* LIST (\\HasChildren) \"/\" \"Projects\"\r\n",
 		"* LIST (\\HasNoChildren) \"/\" \"Projects/2026\"\r\n",
 		"a2 OK LIST completed\r\n",
+		"* LIST (\\HasNoChildren) \"/\" \"Projects/2026\"\r\n",
+		"a3 OK LIST completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -4339,7 +4341,7 @@ func TestServerListReportsMailboxChildren(t *testing.T) {
 			t.Fatalf("list response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
