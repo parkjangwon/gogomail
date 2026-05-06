@@ -3041,6 +3041,11 @@ Implementation order:
       digest, not the raw token, across the limiter interface while preserving
       normalized-remote plus token-scoped abuse buckets and existing 429
       semantics.
+1230. IMAP `FETCH` and `UID FETCH` now reject unsupported data items at the
+      RFC 3501 syntax boundary before authentication or selected-mailbox state
+      checks, while preserving supported macro, `BODY`/`BODY.PEEK`,
+      `RFC822.*`, header-field-list, partial body, MIME section, and
+      `CHANGEDSINCE` request shapes.
 
 ## Deferred until backend contracts stabilize
 

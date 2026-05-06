@@ -599,6 +599,49 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerRejectsUnsupportedFetchDataItemsBeforeMailboxState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 FETCH 1 BOGUS\r\na2 LOGIN user@example.com secret\r\na3 FETCH 1 (FLAGS BOGUS)\r\na4 FETCH 1 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write unsupported fetch commands: %v", err)
+	}
+	want := []string{
+		"a1 BAD FETCH data item is unsupported\r\n",
+		"a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a3 BAD FETCH data item is unsupported\r\n",
+		"a4 NO mailbox must be selected\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read unsupported fetch response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("unsupported fetch response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerValidatesSelectedActionSyntaxBeforeAuthentication(t *testing.T) {
 	t.Parallel()
 
@@ -8235,6 +8278,55 @@ func TestParseIMAPPartialBody(t *testing.T) {
 		if got, ok := parseIMAPMIMEPartPath(value); ok {
 			t.Fatalf("parseIMAPMIMEPartPath(%q) = %v true, want signed path rejection", value, got)
 		}
+	}
+}
+
+func TestIMAPFetchDataItemsSyntaxRejectsUnsupportedItems(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		items []string
+	}{
+		{name: "unknown atom", items: []string{"BOGUS"}},
+		{name: "unknown list item", items: []string{"(FLAGS", "BOGUS)"}},
+		{name: "unknown section", items: []string{"BODY[BOGUS]"}},
+		{name: "invalid partial suffix", items: []string{"BODY[HEADER.FIELDS", "(Subject)]BAD"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			message, ok := imapFetchDataItemsSyntaxError(tc.items)
+			if !ok || message != "FETCH data item is unsupported" {
+				t.Fatalf("syntax error = %q, %v; want unsupported", message, ok)
+			}
+		})
+	}
+}
+
+func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		items []string
+	}{
+		{name: "macro", items: []string{"FULL"}},
+		{name: "core list", items: []string{"(UID", "FLAGS", "RFC822.SIZE", "MODSEQ)"}},
+		{name: "full body partial", items: []string{"BODY.PEEK[]<12.34>"}},
+		{name: "header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(Subject", "From)]"}},
+		{name: "header fields partial", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "(From)]<0.10>"}},
+		{name: "mime part section", items: []string{"BODY.PEEK[1.HEADER]"}},
+		{name: "nested mime part partial", items: []string{"BODY.PEEK[1.2.TEXT]<0.6>"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			message, ok := imapFetchDataItemsSyntaxError(tc.items)
+			if ok {
+				t.Fatalf("syntax error = %q, want none", message)
+			}
+		})
 	}
 }
 

@@ -5361,6 +5361,9 @@ func imapFetchDataItemsSyntaxError(items []string) (string, bool) {
 	if !imapFetchHeaderFieldListsValid(imapExpandFetchItems(items)) {
 		return "FETCH header field list is invalid", true
 	}
+	if !imapFetchDataItemsSupported(imapExpandFetchItems(items)) {
+		return "FETCH data item is unsupported", true
+	}
 	return "", false
 }
 
@@ -5374,6 +5377,87 @@ func imapFetchNormalizedTokens(items []string) []string {
 		}
 	}
 	return tokens
+}
+
+func imapFetchDataItemsSupported(items []string) bool {
+	for i := 0; i < len(items); i++ {
+		token := imapFetchToken(items[i])
+		if token == "" {
+			continue
+		}
+		if token == "CHANGEDSINCE" {
+			i++
+			continue
+		}
+		if imapFetchHeaderFieldSectionStart(token) {
+			end, ok := imapFetchHeaderFieldSectionEnd(items, i)
+			if !ok {
+				return false
+			}
+			i = end
+			continue
+		}
+		if imapFetchDataItemTokenSupported(token) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func imapFetchToken(item string) string {
+	return strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")
+}
+
+func imapFetchHeaderFieldSectionStart(token string) bool {
+	return strings.Contains(token, "[HEADER.FIELDS") || strings.Contains(token, ".HEADER.FIELDS")
+}
+
+func imapFetchHeaderFieldSectionEnd(items []string, start int) (int, bool) {
+	for i := start; i < len(items); i++ {
+		token := strings.ToUpper(strings.TrimSpace(items[i]))
+		closeIdx := strings.Index(token, ")]")
+		if closeIdx < 0 {
+			continue
+		}
+		suffix := strings.Trim(token[closeIdx+2:], ")")
+		if suffix == "" {
+			return i, true
+		}
+		if strings.HasPrefix(suffix, "<") {
+			_, ok := imapParsePartialBodyToken(suffix)
+			return i, ok
+		}
+		return i, false
+	}
+	return 0, false
+}
+
+func imapFetchDataItemTokenSupported(token string) bool {
+	switch token {
+	case "FLAGS", "INTERNALDATE", "RFC822.SIZE", "ENVELOPE", "BODY", "BODYSTRUCTURE", "UID", "MODSEQ":
+		return true
+	case "RFC822", "RFC822.HEADER", "RFC822.TEXT":
+		return true
+	case "BODY[]", "BODY.PEEK[]", "BODY[HEADER]", "BODY.PEEK[HEADER]", "BODY[TEXT]", "BODY.PEEK[TEXT]":
+		return true
+	}
+	switch {
+	case strings.HasPrefix(token, "BODY[]<") || strings.HasPrefix(token, "BODY.PEEK[]<"):
+		_, ok := imapParsePartialBodyToken(token)
+		return ok
+	case strings.HasPrefix(token, "BODY[HEADER]<") || strings.HasPrefix(token, "BODY.PEEK[HEADER]<"):
+		_, ok := imapParsePartialBodyToken(token)
+		return ok
+	case strings.HasPrefix(token, "BODY[TEXT]<") || strings.HasPrefix(token, "BODY.PEEK[TEXT]<"):
+		_, ok := imapParsePartialBodyToken(token)
+		return ok
+	case strings.HasPrefix(token, "RFC822.HEADER<") || strings.HasPrefix(token, "RFC822.TEXT<"):
+		_, ok := imapParsePartialBodyToken(token)
+		return ok
+	}
+	_, ok := imapParseMIMEPartRequestToken(token)
+	return ok
 }
 
 func imapFetchMacroUsageValid(items []string) bool {
