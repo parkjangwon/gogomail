@@ -416,17 +416,25 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"bad prop filter test":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN" test="maybe"/></C:filter></C:addressbook-query>`,
 		"prop filter no name":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad prop filter name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="bad name"><C:text-match>A</C:text-match></C:prop-filter></C:filter></C:addressbook-query>`,
+		"prop filter duplicate text match": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="FN">
+  <C:text-match>A</C:text-match>
+  <C:text-match>B</C:text-match>
+</C:prop-filter></C:filter></C:addressbook-query>`,
 		"bad address-data prop":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data><C:prop name="bad name"/></C:address-data></D:prop></C:addressbook-query>`,
 		"bad address-data type":  `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data content-type="application/vcard"/></D:prop></C:addressbook-query>`,
 		"bad address-data ver":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><C:filter/><D:prop><C:address-data version="2.1"/></D:prop></C:addressbook-query>`,
 		"param filter no parent": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:param-filter name="TYPE"><C:text-match>home</C:text-match></C:param-filter></C:filter></C:addressbook-query>`,
 		"param filter no name":   `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
 		"param filter mixed":     `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter name="TYPE"><C:is-not-defined/><C:text-match>home</C:text-match></C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
-		"malformed xml":          `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
-		"multiple roots":         `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
-		"xml directive":          `<!DOCTYPE report><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query>`,
-		"too much nesting":       `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter>` + strings.Repeat("<C:x>", MaxWebDAVXMLDepth+1) + strings.Repeat("</C:x>", MaxWebDAVXMLDepth+1) + `</C:filter></C:addressbook-query>`,
-		"href nested element":    `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><D:href><D:x/></D:href></C:addressbook-multiget>`,
+		"param filter duplicate text match": `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter><C:prop-filter name="EMAIL"><C:param-filter name="TYPE">
+  <C:text-match>home</C:text-match>
+  <C:text-match>work</C:text-match>
+</C:param-filter></C:prop-filter></C:filter></C:addressbook-query>`,
+		"malformed xml":       `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter></C:addressbook-query>`,
+		"multiple roots":      `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"xml directive":       `<!DOCTYPE report><C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter/></C:addressbook-query>`,
+		"too much nesting":    `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav"><C:filter>` + strings.Repeat("<C:x>", MaxWebDAVXMLDepth+1) + strings.Repeat("</C:x>", MaxWebDAVXMLDepth+1) + `</C:filter></C:addressbook-query>`,
+		"href nested element": `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:"><D:href><D:x/></D:href></C:addressbook-multiget>`,
 	}
 	for name, body := range tests {
 		name, body := name, body

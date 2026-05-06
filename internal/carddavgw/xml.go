@@ -932,6 +932,9 @@ func parsePropFilterElement(dec *xml.Decoder, el xml.StartElement, depth int) (C
 				if filter.IsNotDefined {
 					return CardDAVPropFilter{}, fmt.Errorf("CardDAV prop-filter cannot mix is-not-defined and match conditions")
 				}
+				if len(filter.TextMatches) > 0 {
+					return CardDAVPropFilter{}, fmt.Errorf("CardDAV prop-filter must not contain multiple text-match elements")
+				}
 				match, err := parseTextMatchElement(dec, tok)
 				if err != nil {
 					return CardDAVPropFilter{}, err
@@ -996,10 +999,11 @@ func parseParamFilterElement(dec *xml.Decoder, el xml.StartElement) (CardDAVPara
 				if filter.IsNotDefined {
 					return CardDAVParamFilter{}, fmt.Errorf("CardDAV param-filter cannot mix is-not-defined and text-match")
 				}
-				if !filter.HasTextMatch {
-					filter.TextMatch = match
-					filter.HasTextMatch = true
+				if filter.HasTextMatch {
+					return CardDAVParamFilter{}, fmt.Errorf("CardDAV param-filter must not contain multiple text-match elements")
 				}
+				filter.TextMatch = match
+				filter.HasTextMatch = true
 			case sameXMLName(tok.Name, CardDAVNamespace, "is-not-defined"):
 				if filter.HasTextMatch {
 					return CardDAVParamFilter{}, fmt.Errorf("CardDAV param-filter cannot mix is-not-defined and text-match")
