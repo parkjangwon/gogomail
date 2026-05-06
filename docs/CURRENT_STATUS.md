@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP absolute LIST reference handling)
+Last updated: 2026-05-06 (updated after IMAP LIST matcher reuse)
 
 ## Current phase
 
@@ -77,6 +77,10 @@ normalized the same way before joining them with relative mailbox patterns, so
 namespace/root-style probes such as `LIST "/Projects" "2026"` match the
 root-relative `Projects/2026` mailbox rather than constructing an impossible
 leading-slash internal path.
+IMAP `LIST` and `LSUB` now compile the decoded mailbox-pattern matcher once
+per command and reuse it across mailbox rows and subscribed-parent inference,
+avoiding per-mailbox regular-expression construction on large folder trees
+without changing wildcard semantics.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

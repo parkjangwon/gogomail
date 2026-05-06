@@ -3336,6 +3336,10 @@ Implementation order:
       patterns before joining relative patterns, so root-style namespace
       probes such as `LIST "/Projects" "2026"` discover `Projects/2026`
       instead of an impossible leading-slash path.
+1285. IMAP `LIST`/`LSUB` mailbox-pattern matching now prepares the decoded
+      wildcard matcher once per command and reuses it across mailbox rows and
+      subscribed-parent inference, reducing repeated regular-expression
+      construction during large mailbox hierarchy discovery.
 
 ## Deferred until backend contracts stabilize
 
