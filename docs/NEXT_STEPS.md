@@ -1914,9 +1914,11 @@ Next:
   `current-user-privilege-set` from that same decision path so discovery stays
   consistent with enforced access. Delegated CalDAV REPORT and sync responses
   now use the same privilege shaping for calendar-object properties, and
-  missing Directory principals fail closed as authorization denial. Next CalDAV
-  sharing work should add native-client compatibility coverage and write/manage
-  UX semantics before public shared calendars are advertised.
+  missing Directory principals fail closed as authorization denial. The policy
+  boundary also rejects resolved non-user owner/actor principals before
+  delegation checks or audit insertion. Next CalDAV sharing work should add
+  native-client compatibility coverage and write/manage UX semantics before
+  public shared calendars are advertised.
 - Effective delegation now has a bounded group-expansion read boundary. Next
   product-module integration should still remain deliberate: CalDAV/CardDAV,
   Drive, mailbox sharing, and admin APIs should consume it through explicit
@@ -1931,10 +1933,12 @@ Next:
   allowed cross-user read/write/manage requests against the owner store through
   the `contacts` Directory delegation scope, records delegated access through
   the shared accesspolicy/audit path, and derives delegated PROPFIND
-  `current-user-privilege-set` from the same decision. Keep this experimental:
-  next Contacts/CardDAV sharing work should add native-client shared
-  address-book coverage, admin/product sharing semantics, and autocomplete
-  linkage before public CardDAV sharing is advertised.
+  `current-user-privilege-set` from the same decision. Resolved non-user
+  owner/actor principals are rejected before delegation checks or audit
+  insertion. Keep this experimental: next Contacts/CardDAV sharing work should
+  add native-client shared address-book coverage, admin/product sharing
+  semantics, and autocomplete linkage before public CardDAV sharing is
+  advertised.
 - Directory/Identity now also has a bounded delegation listing boundary for
   owner/delegate/scope/role-filtered inspection. This was prioritized before
   deeper CalDAV sharing semantics because admin consoles, shared calendar

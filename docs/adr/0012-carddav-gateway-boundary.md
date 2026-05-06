@@ -187,9 +187,10 @@ appropriate `contacts` read/write/manage delegation role before cross-user
 execution, resolves allowed requests against the owner store, and derives
 delegated `DAV:current-user-privilege-set` values for discovery and REPORT
 responses from the same WebDAV privilege mapping used by CalDAV. Missing
-principals fail closed as access denial, while infrastructure and audit-path
-failures remain explicit server errors. This is a protocol boundary foundation,
-not a public contacts-sharing UX.
+principals, or resolved non-user owner/actor principals, fail closed as access
+denial before audit or delegated role checks run, while infrastructure and
+audit-path failures remain explicit server errors. This is a protocol boundary
+foundation, not a public contacts-sharing UX.
 
 ## Consequences
 

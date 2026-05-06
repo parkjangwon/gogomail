@@ -309,6 +309,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar-home `PROPFIND` now keeps WebDAV `current-user-principal` and
   `owner` hrefs pointed at the canonical principal URL, preserving correct
   discovery semantics for future delegated/shared calendar access.
+- CalDAV/CardDAV delegated access policies now fail closed when Directory
+  resolution returns non-user owner or actor principals, before delegated role
+  checks or audit insertion. Organization, group, and resource principals remain
+  Directory-owned future semantics rather than accidental personal calendar or
+  address-book owners.
 - CalDAV now returns RFC 3744-shaped `current-user-privilege-set` values for
   implemented behavior only: read-only principals, calendar-home calendar
   bind/unbind, collection object bind/unbind plus metadata property writes, and

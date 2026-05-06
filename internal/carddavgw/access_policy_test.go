@@ -101,6 +101,60 @@ func TestDelegatedAccessPolicyDeniesMissingContactsPrincipals(t *testing.T) {
 	}
 }
 
+func TestDelegatedAccessPolicyDeniesNonUserContactsPrincipals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		principals fakeDirectoryResolver
+	}{
+		{
+			name: "owner resource",
+			principals: fakeDirectoryResolver{
+				"owner-1": {ID: "owner-1", Kind: directory.PrincipalKindResource, CompanyID: "company-1"},
+				"actor-1": {ID: "actor-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
+			},
+		},
+		{
+			name: "actor group",
+			principals: fakeDirectoryResolver{
+				"owner-1": {ID: "owner-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
+				"actor-1": {ID: "actor-1", Kind: directory.PrincipalKindGroup, CompanyID: "company-1"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			checker := &fakeEffectiveDelegationChecker{allowedRoles: map[string]bool{directory.DelegationRoleRead: true}}
+			recorder := &fakeDelegationAuditRepository{}
+			policy := DelegatedAccessPolicy{
+				Directory:  tt.principals,
+				Authorizer: accesspolicy.DelegatedAccessAuthorizer{Checker: checker, AuditRepository: recorder},
+			}
+			decision, err := policy.AuthorizeAddressBookAccess(context.Background(), AccessRequest{
+				ActorUserID:  "actor-1",
+				OwnerUserID:  "owner-1",
+				RequiredRole: ContactsAccessRoleRead,
+			})
+			if err != nil {
+				t.Fatalf("AuthorizeAddressBookAccess returned error: %v", err)
+			}
+			if decision.Allowed {
+				t.Fatal("Allowed = true, want false")
+			}
+			if len(checker.calls) != 0 {
+				t.Fatalf("delegation checker was called: %+v", checker.calls)
+			}
+			if len(recorder.logs) != 0 {
+				t.Fatalf("audit logs = %+v, want none", recorder.logs)
+			}
+		})
+	}
+}
+
 func TestDelegatedAccessPolicyReturnsHighestGrantedContactsPrivileges(t *testing.T) {
 	t.Parallel()
 
