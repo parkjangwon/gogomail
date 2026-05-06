@@ -2538,6 +2538,10 @@ Implementation order:
 1157. CardDAV `Allow` headers now also come from an explicit implemented-method
       list shared by `OPTIONS` and 405 responses, matching the CalDAV capability
       pattern and keeping native contact clients aligned with real handlers.
+1158. IMAP `ENABLE` now has explicit regression coverage for RFC 5161-compatible
+      unknown capability handling: malformed capability atoms are rejected, but
+      syntactically valid unsupported names are ignored and can return an empty
+      `ENABLED` response.
 
 ## Deferred until backend contracts stabilize
 
