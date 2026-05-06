@@ -194,6 +194,11 @@ gateway semantics. The gateway advertises only `calendar-query`,
 timezone, delegation, or other future reports must not be exposed through
 discovery until their RFC behavior, storage model, and policy boundaries are
 implemented.
+Likewise, HTTP `Allow` headers must stay bound to implemented gateway methods.
+Future WebDAV method constants such as `MOVE` may exist as roadmap markers, but
+they must not appear in `OPTIONS` or 405 capability surfaces until the gateway
+implements their preconditions, storage moves, ETag behavior, sync effects, and
+authorization semantics.
 
 The CalDAV service root is not the authenticated user's principal resource.
 `PROPFIND /caldav/` may expose root collection metadata plus the WebDAV
