@@ -2399,6 +2399,9 @@ The platform hardening sprint completed the following:
   returning `[PRIVACYREQUIRED]` on plaintext TLS-required listeners, while
   syntactically valid but unsupported SASL mechanisms return tagged `NO` so
   clients can fall back cleanly.
+- IMAP SASL PLAIN decoding now rejects oversized encoded and decoded responses
+  before credential splitting or backend authentication, keeping literal
+  initial-response paths bounded by the same username/password policy.
 - IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include an
   authenticated `[CAPABILITY ...]` response code, so clients can learn the
   post-auth extension set without an immediate follow-up `CAPABILITY` command

@@ -65,6 +65,9 @@ Current state:
   plaintext `[PRIVACYREQUIRED]` responses on TLS-required listeners, while
   syntactically valid but unsupported SASL mechanisms return tagged `NO`
   responses so probing clients can fall back cleanly.
+- SASL PLAIN decoding rejects oversized encoded and decoded responses before
+  credential splitting or backend authentication, keeping `AUTHENTICATE PLAIN`
+  continuation and `SASL-IR` literal paths bounded.
 - Successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include the
   authenticated `[CAPABILITY ...]` response code, keeping post-auth capability
   discovery explicit for RFC-shaped clients.
@@ -1122,6 +1125,9 @@ Current state:
   or oversized authentication identities plus empty, oversized, or
   CR/LF-bearing passwords before backend auth work, while preserving
   intentional leading/trailing spaces in RFC string credentials.
+- SASL PLAIN encoded and decoded response bytes are now bounded before
+  credential splitting, preventing literal initial responses from forcing
+  avoidable decode allocation beyond the configured credential caps.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

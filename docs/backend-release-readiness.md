@@ -1215,6 +1215,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
   round trips. Unsupported but syntactically valid SASL mechanisms return
   tagged `NO`, keeping mechanism probing distinct from malformed auth syntax.
+- IMAP SASL PLAIN decoding now bounds encoded and decoded response bytes before
+  credential splitting or backend authentication, keeping continuation and
+  `SASL-IR` literal initial-response paths allocation-aware.
+  tagged `NO`, keeping mechanism probing distinct from malformed auth syntax.
 - IMAP successful `LOGIN` and `AUTHENTICATE PLAIN` responses include the
   authenticated `[CAPABILITY ...]` response code, so clients can refresh
   post-auth extension state without an extra probe and without retaining
