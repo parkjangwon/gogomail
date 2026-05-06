@@ -182,6 +182,16 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		}
 		if state.pendingIdleTag != "" {
 			if err := s.serveIdle(reader, writer, &state); err != nil {
+				var framingErr imapProtocolFramingError
+				if errors.As(err, &framingErr) {
+					if err := writeIMAPFramingError(writer, framingErr.line, framingErr.message); err != nil {
+						return err
+					}
+					if err := writer.Flush(); err != nil {
+						return err
+					}
+					return nil
+				}
 				return err
 			}
 			if err := writer.Flush(); err != nil {
@@ -1090,10 +1100,13 @@ func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *im
 				if errors.Is(result.err, io.EOF) {
 					return nil
 				}
+				if errors.Is(result.err, errIMAPCommandLineTooLong) {
+					return imapProtocolFramingError{line: state.pendingIdleTag + " IDLE", message: "command line is too long"}
+				}
 				return result.err
 			}
 			if len(result.line) > 8192 {
-				return fmt.Errorf("imap command line is too long")
+				return imapProtocolFramingError{line: state.pendingIdleTag + " IDLE", message: "command line is too long"}
 			}
 			_, err := s.handleIdleDone(writer, strings.TrimRight(result.line, "\r\n"), state)
 			return err

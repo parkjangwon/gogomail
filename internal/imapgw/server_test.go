@@ -3862,6 +3862,62 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestServerReportsOversizedIdleLineBeforeClosing(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 IDLE\r\n")); err != nil {
+		t.Fatalf("write login/select/idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q err = %v", line, err)
+	}
+	writeErrCh := make(chan error, 1)
+	go func() {
+		_, err := client.Write([]byte(strings.Repeat("A", maxIMAPCommandLineBytes+1) + "\r\n"))
+		writeErrCh <- err
+	}()
+	want := []string{
+		"a3 BAD command line is too long\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read oversized idle response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("oversized idle response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	<-writeErrCh
+}
+
 func TestServerDrainsExpungeEventsOverNoop(t *testing.T) {
 	t.Parallel()
 

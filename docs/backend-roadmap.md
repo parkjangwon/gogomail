@@ -3094,6 +3094,10 @@ Implementation order:
       lists such as `STATUS inbox ( )` as `BAD STATUS requires status data
       items`, keeping equivalent malformed RFC 3501 status requests on the same
       client-visible diagnostic path.
+1242. IMAP `IDLE` continuation reads now route oversized line framing errors
+      through the same tagged `BAD command line is too long` plus `BYE`
+      response path as ordinary commands, so long-lived clients receive a
+      deterministic protocol close reason.
 
 ## Deferred until backend contracts stabilize
 

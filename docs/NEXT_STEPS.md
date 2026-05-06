@@ -1191,6 +1191,9 @@ Current state:
   credentials delivered to the backend auth boundary.
 - IMAP command and IDLE line reads now enforce the command-line byte cap while
   reading from the socket instead of after an unbounded line allocation.
+- Oversized lines received during an active IMAP `IDLE` continuation now produce
+  the pending command tag's `BAD command line is too long` response followed by
+  `BYE`, matching ordinary command framing-error handling.
 - IMAP oversized command literals now produce an RFC-shaped tagged `BAD`
   response when possible followed by `BYE`, so clients receive a clear protocol
   outcome while the server still closes unrecoverable framing errors instead of
