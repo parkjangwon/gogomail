@@ -635,6 +635,11 @@ Current state:
   set syntax, including signed values such as `+1`/`+7`, before authentication
   or selected-mailbox checks while preserving selected-mailbox bounds checks
   for execution time.
+- IMAP selected-state sequence-set and UID-set command arguments now also
+  reject quoted or literal-framed set tokens such as `"1"` or `{1}\r\n1` for
+  `FETCH`, `STORE`, `COPY`, `MOVE`, `UID FETCH`, `UID STORE`, `UID COPY`,
+  `UID MOVE`, and `UID EXPUNGE`, keeping RFC set atoms distinct from IMAP
+  string values.
 - IMAP `SEARCH` and `UID SEARCH` reject malformed search sequence-set and
   `UID` search-key set syntax before authentication or selected-mailbox checks,
   so signed values such as `SEARCH +1` and `UID SEARCH UID +7` fail as grammar

@@ -69,6 +69,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UID and message sequence-set syntax now rejects whitespace-padded
   quoted or literal set strings such as `SEARCH " 1 "` or
   `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
+- IMAP selected-state sequence-set and UID-set arguments now reject exact
+  quoted or literal-framed set values such as `"1"` or `{1}\r\n1` for
+  `FETCH`, `STORE`, `COPY`, `MOVE`, `UID FETCH`, `UID STORE`, `UID COPY`,
+  `UID MOVE`, and `UID EXPUNGE`, preserving RFC set atom boundaries before
+  authentication or selected-mailbox state checks.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now enforce
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`

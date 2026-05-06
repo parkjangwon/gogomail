@@ -129,7 +129,9 @@ Recent release-readiness work also includes:
   SEARCH/SORT/THREAD charset and thread-algorithm atoms,
   strict SORT criterion-list framing, strict FETCH data-item framing,
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
-  numeric grammar checks, partial windows, SEARCH size criteria,
+  numeric grammar checks including rejection of quoted/literal-framed set
+  values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands,
+  partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, RFC 2971 `ID` including bare no-argument probes, `NIL`, and
   bounded field/value parameter lists, rejection of whitespace-padded numeric

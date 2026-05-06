@@ -859,6 +859,116 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	}
 }
 
+func TestServerRejectsQuotedSequenceSetArgumentsBeforeState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH \"1\" (FLAGS)\r\na3 COPY \"1\" Archive\r\na4 MOVE \"1\" Archive\r\na5 UID FETCH \"7\" (FLAGS)\r\na6 UID COPY \"7\" Archive\r\na7 UID MOVE \"7\" Archive\r\na8 UID EXPUNGE \"7\"\r\na9 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write quoted sequence-set commands: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a2 BAD FETCH requires a valid message sequence set\r\n",
+		"a3 BAD COPY requires a valid message sequence set\r\n",
+		"a4 BAD MOVE requires a valid message sequence set\r\n",
+		"a5 BAD UID FETCH requires a positive UID set\r\n",
+		"a6 BAD UID COPY requires a positive UID set\r\n",
+		"a7 BAD UID MOVE requires a positive UID set\r\n",
+		"a8 BAD UID EXPUNGE requires a positive UID set\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a9 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read quoted sequence-set response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("quoted sequence-set response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsLiteralSequenceSetArgumentsBeforeState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 COPY {1}\r\n")); err != nil {
+		t.Fatalf("write copy literal sequence marker: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("copy literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("1 Archive\r\n")); err != nil {
+		t.Fatalf("write copy literal sequence suffix: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD COPY requires a valid message sequence set\r\n" {
+		t.Fatalf("copy literal sequence response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 UID MOVE {1+}\r\n7 Archive\r\n")); err != nil {
+		t.Fatalf("write uid move literal+ sequence: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 BAD UID MOVE requires a positive UID set\r\n" {
+		t.Fatalf("uid move literal+ sequence response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	want := []string{
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a4 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read logout response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("logout response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsUnsupportedFetchDataItemsBeforeMailboxState(t *testing.T) {
 	t.Parallel()
 

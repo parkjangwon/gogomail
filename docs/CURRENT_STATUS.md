@@ -3944,6 +3944,11 @@ The platform hardening sprint completed the following:
   quoted-special text, preserving RFC 3501 string tokenization through mailbox
   lookup and service-backed backend mutation requests instead of splitting or
   flattening folder names.
+- IMAP selected-state sequence-set and UID-set command arguments now must be
+  raw atom tokens for `FETCH`, `STORE`, `COPY`, `MOVE`, `UID FETCH`,
+  `UID STORE`, `UID COPY`, `UID MOVE`, and `UID EXPUNGE`; quoted or
+  command-literal values such as `"1"` or `{1}\r\n1` are rejected before
+  authentication/selected-mailbox state can normalize them into valid sets.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
