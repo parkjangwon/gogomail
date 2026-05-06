@@ -3831,6 +3831,10 @@ Implementation order:
       AWS S3 namespace `ListBucketResult` roots only, rejecting
       same-local-name XML from unexpected namespaces before pagination, prefix
       filtering, cleanup, or Drive callers see listed object metadata.
+1392. S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
+      non-empty malformed or whitespace-padded timestamp values instead of
+      silently exposing zero timestamps to cleanup, Drive, or reconciliation
+      callers, while still allowing missing values from compatible providers.
 
 ## Deferred until backend contracts stabilize
 

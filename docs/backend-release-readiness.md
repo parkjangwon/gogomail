@@ -87,6 +87,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` response XML now accepts namespace-free or AWS
   S3 namespace `ListBucketResult` roots only, rejecting unexpected namespaces
   before list metadata reaches pagination, cleanup, or Drive callers.
+- S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
+  non-empty malformed or whitespace-padded timestamp values instead of
+  silently exposing zero timestamps to cleanup, Drive, or reconciliation
+  callers.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
