@@ -34,7 +34,8 @@ Recent release-readiness work also includes:
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
   namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
-  workflows, CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
+  workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
+  CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal framing coverage
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
@@ -46,10 +47,13 @@ Recent release-readiness work also includes:
   and native-client compatibility gates kept separate from future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
-  and cleanup readiness without starting frontend implementation
+  public share-link metadata/download, and cleanup readiness without starting
+  frontend implementation
 - OpenAPI drift prevention for generated clients, including root-vs-API server
   pins for health/service metadata, `/admin/v1` pins for operator bootstrap
-  routes, and documented admin auth alternatives for capability discovery
+  routes and readiness checks, public share-link unauthenticated route
+  contracts, and documented admin auth alternatives for capability discovery,
+  export handoff readiness, and retention readiness
 
 The Next.js web apps will be added after the backend contracts stabilize and
 after the user provides frontend-specific guidance. Planned frontend surfaces
