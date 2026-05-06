@@ -557,6 +557,9 @@ owner/resource target without scanning unrelated audit history.
 - Local and S3-compatible storage writes now reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
+- S3-compatible `PutObject` now requires an exact `200 OK` response, rejecting
+  accepted/deferred or otherwise non-OK 2xx acknowledgements before mail,
+  Drive, or lifecycle callers can treat an ambiguous provider write as durable.
 - Local/NFS and S3-compatible storage now expose a shared object `Stat`
   contract, allowing future Drive, lifecycle, and verification paths to inspect
   canonical keys, byte size, and backend metadata without streaming object
@@ -764,10 +767,10 @@ owner/resource target without scanning unrelated audit history.
   bounded response-body window before close, improving HTTP connection reuse
   for normal S3/MinIO responses without allowing oversized bodies to stall
   cleanup.
-- S3-compatible full-object `GET`, `HEAD`/`Stat`, and `ListObjectsV2` now
-  require exact `200 OK` responses so unexpected partial-content or other
-  non-OK 2xx statuses cannot masquerade as complete backend-neutral object
-  results.
+- S3-compatible `PutObject`, full-object `GET`, `HEAD`/`Stat`, and
+  `ListObjectsV2` now require exact `200 OK` responses so accepted/deferred
+  writes, unexpected partial-content, or other non-OK 2xx statuses cannot
+  masquerade as durable or complete backend-neutral object results.
 - Local/NFS and S3-compatible readiness probes now read the verification object
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.

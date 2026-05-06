@@ -2945,6 +2945,10 @@ Implementation order:
       `CopyObjectResult` XML bodies, rejecting empty bodies, unexpected XML, and
       non-OK 2xx statuses so Drive and lifecycle object duplication cannot
       accept ambiguous provider copy acknowledgements.
+1205. S3-compatible `PutObject` now requires exact `200 OK` responses,
+      rejecting accepted/deferred or otherwise non-OK 2xx statuses so mail,
+      Drive, and lifecycle writes cannot treat ambiguous provider
+      acknowledgements as durable object commits.
 
 ## Deferred until backend contracts stabilize
 

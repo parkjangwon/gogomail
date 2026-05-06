@@ -115,7 +115,7 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 		return fmt.Errorf("put s3 object: %w", err)
 	}
 	defer drainAndCloseS3Body(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("put", resp)
 	}
 	return nil

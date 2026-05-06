@@ -1014,10 +1014,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible storage bounds and sanitizes provider-returned `Content-Type`
   and ETag metadata from `Stat`/`List`, dropping unsafe multiline, invalid
   UTF-8, or oversized values without failing the object identity/size result.
-- S3-compatible full-object `GET`, `HEAD`/`Stat`, and `ListObjectsV2` require
-  exact `200 OK` responses, rejecting unexpected partial-content or other
-  non-OK 2xx statuses before callers can treat them as complete local/NFS-style
-  object results.
+- S3-compatible `PutObject`, full-object `GET`, `HEAD`/`Stat`, and
+  `ListObjectsV2` require exact `200 OK` responses, rejecting accepted/deferred
+  writes, unexpected partial-content, or other non-OK 2xx statuses before
+  callers can treat them as durable or complete local/NFS-style object results.
 - Shared storage object path, prefix, and list-cursor validation now rejects
   invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping object
   keys, logs, URL escaping, and SigV4 canonical paths text-stable.

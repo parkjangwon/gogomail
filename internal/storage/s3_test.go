@@ -222,6 +222,52 @@ func TestS3StoreRejectsNilPutBody(t *testing.T) {
 	}
 }
 
+func TestS3StorePutRequiresOKStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		status int
+		want   string
+	}{
+		{name: "created", status: http.StatusCreated, want: "status 201"},
+		{name: "accepted", status: http.StatusAccepted, want: "status 202"},
+		{name: "no_content", status: http.StatusNoContent, want: "status 204"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("provider body")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: tc.status,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Put err = %v, want %q", err, tc.want)
+			}
+			if !body.closed {
+				t.Fatal("unexpected-status response body was not closed")
+			}
+		})
+	}
+}
+
 func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	t.Parallel()
 
