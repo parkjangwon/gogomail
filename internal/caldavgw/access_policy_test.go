@@ -12,7 +12,7 @@ import (
 func TestDelegatedAccessPolicyAuthorizesCalendarDelegation(t *testing.T) {
 	t.Parallel()
 
-	checker := &fakeEffectiveDelegationChecker{allowed: true}
+	checker := &fakeEffectiveDelegationChecker{allowedRoles: map[string]bool{directory.DelegationRoleRead: true}}
 	recorder := &fakeDelegationAuditRepository{}
 	policy := DelegatedAccessPolicy{
 		Directory: fakeDirectoryResolver{
@@ -32,8 +32,15 @@ func TestDelegatedAccessPolicyAuthorizesCalendarDelegation(t *testing.T) {
 	if !decision.Allowed {
 		t.Fatal("Allowed = false, want true")
 	}
-	if checker.last.Scope != directory.DelegationScopeCalendar || checker.last.RequiredRole != directory.DelegationRoleRead {
-		t.Fatalf("delegation check = %+v", checker.last)
+	if len(decision.Privileges) != 1 || decision.Privileges[0] != PrivilegeRead {
+		t.Fatalf("privileges = %+v, want read", decision.Privileges)
+	}
+	if len(checker.calls) != 4 ||
+		checker.calls[0].RequiredRole != directory.DelegationRoleRead ||
+		checker.calls[1].RequiredRole != directory.DelegationRoleManage ||
+		checker.calls[2].RequiredRole != directory.DelegationRoleWrite ||
+		checker.calls[3].RequiredRole != directory.DelegationRoleRead {
+		t.Fatalf("delegation checks = %+v", checker.calls)
 	}
 	if len(recorder.logs) != 1 || recorder.logs[0].ActorID != "actor-1" || recorder.logs[0].TargetID != "owner-1" {
 		t.Fatalf("audit logs = %+v", recorder.logs)
@@ -43,7 +50,7 @@ func TestDelegatedAccessPolicyAuthorizesCalendarDelegation(t *testing.T) {
 func TestDelegatedAccessPolicyDeniesCrossCompanyPrincipals(t *testing.T) {
 	t.Parallel()
 
-	checker := &fakeEffectiveDelegationChecker{allowed: true}
+	checker := &fakeEffectiveDelegationChecker{allowedRoles: map[string]bool{directory.DelegationRoleRead: true}}
 	policy := DelegatedAccessPolicy{
 		Directory: fakeDirectoryResolver{
 			"owner-1": {ID: "owner-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
@@ -62,8 +69,41 @@ func TestDelegatedAccessPolicyDeniesCrossCompanyPrincipals(t *testing.T) {
 	if decision.Allowed {
 		t.Fatal("Allowed = true, want false")
 	}
-	if checker.last.CompanyID != "" {
-		t.Fatalf("delegation checker was called: %+v", checker.last)
+	if len(checker.calls) != 0 {
+		t.Fatalf("delegation checker was called: %+v", checker.calls)
+	}
+}
+
+func TestDelegatedAccessPolicyReturnsHighestGrantedCalendarPrivileges(t *testing.T) {
+	t.Parallel()
+
+	checker := &fakeEffectiveDelegationChecker{allowedRoles: map[string]bool{
+		directory.DelegationRoleRead:  true,
+		directory.DelegationRoleWrite: true,
+	}}
+	policy := DelegatedAccessPolicy{
+		Directory: fakeDirectoryResolver{
+			"owner-1": {ID: "owner-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
+			"actor-1": {ID: "actor-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
+		},
+		Authorizer: accesspolicy.DelegatedAccessAuthorizer{Checker: checker, AuditRepository: &fakeDelegationAuditRepository{}},
+	}
+	decision, err := policy.AuthorizeCalendarAccess(context.Background(), AccessRequest{
+		ActorUserID:  "actor-1",
+		OwnerUserID:  "owner-1",
+		RequiredRole: CalendarAccessRoleRead,
+	})
+	if err != nil {
+		t.Fatalf("AuthorizeCalendarAccess returned error: %v", err)
+	}
+	want := []XMLName{PrivilegeRead, PrivilegeWriteContent, PrivilegeWriteProps}
+	if len(decision.Privileges) != len(want) {
+		t.Fatalf("privileges = %+v, want %+v", decision.Privileges, want)
+	}
+	for i := range want {
+		if decision.Privileges[i] != want[i] {
+			t.Fatalf("privileges = %+v, want %+v", decision.Privileges, want)
+		}
 	}
 }
 
@@ -74,13 +114,13 @@ func (r fakeDirectoryResolver) ResolvePrincipal(_ context.Context, req directory
 }
 
 type fakeEffectiveDelegationChecker struct {
-	allowed bool
-	last    directory.CheckDelegationRequest
+	allowedRoles map[string]bool
+	calls        []directory.CheckDelegationRequest
 }
 
 func (c *fakeEffectiveDelegationChecker) CheckEffectiveDelegation(_ context.Context, req directory.CheckDelegationRequest) (bool, error) {
-	c.last = req
-	return c.allowed, nil
+	c.calls = append(c.calls, req)
+	return c.allowedRoles[req.RequiredRole], nil
 }
 
 type fakeDelegationAuditRepository struct {

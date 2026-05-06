@@ -2099,6 +2099,11 @@ Implementation order:
        the shared audit repository, giving CalDAV cross-user access checks the
        same auditable delegation boundary planned for CardDAV, Drive, mailbox
        sharing, and resource calendars.
+1051d. CalDAV delegated `PROPFIND` privilege discovery now consumes the
+       access-policy decision's WebDAV privilege mapping, so read-only
+       delegates see only `DAV:read`, stronger delegates see privileges scoped
+       to the requested home, collection, or object resource, and weaker
+       delegated sessions no longer receive owner-level static capabilities.
 1052. CalDAV now implements a conservative RFC 6578 `REPORT sync-collection`
       handler for authenticated calendar collections: initial empty-token sync
       returns active objects plus a top-level collection sync token, current

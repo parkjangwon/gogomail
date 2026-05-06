@@ -1732,9 +1732,11 @@ Next:
   `read`/`write`/`manage` role hierarchy. CalDAV runtime authorization now has
   a first integration through explicit Directory/accesspolicy decisions and
   shared audit insertion, allowing cross-user calendar paths to be resolved
-  against the owner store only when the delegated role check allows it. Next
-  CalDAV sharing work should derive WebDAV `current-user-privilege-set` from
-  the same decision path and add native-client compatibility coverage before
+  against the owner store only when the delegated role check allows it.
+  Delegated CalDAV `PROPFIND` now derives WebDAV
+  `current-user-privilege-set` from that same decision path so discovery stays
+  consistent with enforced access. Next CalDAV sharing work should add
+  native-client compatibility coverage and write/manage UX semantics before
   public shared calendars are advertised.
 - Effective delegation now has a bounded group-expansion read boundary. Next
   product-module integration should still remain deliberate: CalDAV/CardDAV,

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV unsupported filter guard)
+Last updated: 2026-05-06 (updated after CalDAV delegated privilege discovery)
 
 ## Current phase
 
@@ -70,10 +70,12 @@ resolve read requests against the owner calendar store, and call a pluggable
 access authorizer instead of hard-coding every cross-user path as forbidden.
 Runtime `caldav` mode wires that authorizer through Directory active principal
 resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared audit
-repository for read/write/manage role checks. This is still a foundation, not
-full public shared-calendar support: WebDAV privilege discovery, delegated
-write/manage UX, resource booking, and broad native-client sharing tests remain
-release gates.
+repository for read/write/manage role checks. Delegated `PROPFIND` responses
+now derive `DAV:current-user-privilege-set` from the same access-policy
+boundary, so read-only delegates are not incorrectly shown bind/unbind or write
+privileges. This is still a foundation, not full public shared-calendar
+support: delegated write/manage UX, resource booking, scheduling policy, and
+broad native-client sharing tests remain release gates.
 
 Contacts/CardDAV work has started as a standards-first backend boundary, not a
 generic contacts CRUD API. The initial `internal/carddavgw` package defines

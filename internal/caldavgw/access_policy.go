@@ -50,5 +50,59 @@ func (p DelegatedAccessPolicy) AuthorizeCalendarAccess(ctx context.Context, req 
 	if err != nil {
 		return AccessDecision{}, err
 	}
-	return AccessDecision{Allowed: decision.Allowed}, nil
+	if !decision.Allowed {
+		return AccessDecision{Allowed: false}, nil
+	}
+	privileges, err := p.calendarPrivileges(ctx, owner.CompanyID, owner.ID, actor.ID)
+	if err != nil {
+		return AccessDecision{}, err
+	}
+	return AccessDecision{Allowed: true, Privileges: privileges}, nil
+}
+
+func (p DelegatedAccessPolicy) calendarPrivileges(ctx context.Context, companyID string, ownerID string, actorID string) ([]XMLName, error) {
+	if p.Authorizer.Checker == nil {
+		return nil, fmt.Errorf("effective delegation checker is required")
+	}
+	for _, role := range []string{directory.DelegationRoleManage, directory.DelegationRoleWrite, directory.DelegationRoleRead} {
+		allowed, err := p.Authorizer.Checker.CheckEffectiveDelegation(ctx, directory.CheckDelegationRequest{
+			CompanyID:    companyID,
+			OwnerKind:    directory.PrincipalKindUser,
+			OwnerID:      ownerID,
+			DelegateKind: directory.PrincipalKindUser,
+			DelegateID:   actorID,
+			Scope:        directory.DelegationScopeCalendar,
+			RequiredRole: role,
+			ActiveOnly:   true,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if allowed {
+			return webDAVPrivilegeNames(accesspolicy.WebDAVPrivilegesForDecision(accesspolicy.Decision{
+				Allowed:      true,
+				RequiredRole: role,
+			})), nil
+		}
+	}
+	return nil, nil
+}
+
+func webDAVPrivilegeNames(names []string) []XMLName {
+	privileges := make([]XMLName, 0, len(names))
+	for _, name := range names {
+		switch name {
+		case accesspolicy.WebDAVPrivilegeRead:
+			privileges = append(privileges, PrivilegeRead)
+		case accesspolicy.WebDAVPrivilegeBind:
+			privileges = append(privileges, PrivilegeBind)
+		case accesspolicy.WebDAVPrivilegeUnbind:
+			privileges = append(privileges, PrivilegeUnbind)
+		case accesspolicy.WebDAVPrivilegeWriteContent:
+			privileges = append(privileges, PrivilegeWriteContent)
+		case accesspolicy.WebDAVPrivilegeWriteProperties:
+			privileges = append(privileges, PrivilegeWriteProps)
+		}
+	}
+	return privileges
 }
