@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after audited Directory delegation role updates)
+Last updated: 2026-05-06 (updated after admin Directory delegation role update API)
 
 ## Current phase
 
@@ -345,13 +345,14 @@ shape: `CreateDelegationWithAudit` normalizes owner/delegate principal kinds,
 scope, and role, rejects self-delegation, verifies both principals are active in
 the same company, maps active duplicate grants to a stable error, and records
 `directory_delegation.create` in the same transaction as the grant insert.
-Directory delegation role changes now use the same audited mutation boundary:
-`UpdateDelegationRoleWithAudit` normalizes grant IDs and roles, updates only
-active grants under active companies, and records
+Directory delegation role changes now use the same audited mutation boundary
+and admin API shape: `UpdateDelegationRoleWithAudit` normalizes grant IDs and
+roles, updates only active grants under active companies, records
 `directory_delegation.role_update` with previous/new role detail in the same
-transaction. This lets CalDAV, Drive, Contacts/CardDAV, and shared inbox access
-management evolve through one predictable delegation lifecycle instead of
-product-local role semantics.
+transaction, and is exposed as
+`PATCH /admin/v1/directory/delegations/{id}/role`. This lets CalDAV, Drive,
+Contacts/CardDAV, and shared inbox access management evolve through one
+predictable delegation lifecycle instead of product-local role semantics.
 Directory group membership creation now follows that same platform boundary:
 `CreateGroupMembershipWithAudit` normalizes membership roles
 (`member|manager|owner`), verifies the active group and member principal belong
@@ -2946,11 +2947,13 @@ The platform hardening sprint completed the following:
   principal filters, delegation scope, role, active-only state, and result
   limits before querying, giving admin consoles and shared resource management
   a reusable read path without product-specific SQL.
-- Directory/Identity delegation role updates now have an audited repository
-  boundary. `UpdateDelegationRoleWithAudit` changes active grants in-place and
-  commits `directory_delegation.role_update` with previous/new role detail,
-  preparing shared calendar, Drive, Contacts/CardDAV, and shared inbox access
-  management without product-local role mutation semantics.
+- Directory/Identity delegation role updates now have an audited repository and
+  admin API boundary. `PATCH /admin/v1/directory/delegations/{id}/role`
+  returns the `directory_delegation` envelope after
+  `UpdateDelegationRoleWithAudit` changes active grants in-place and commits
+  `directory_delegation.role_update` with previous/new role detail, preparing
+  shared calendar, Drive, Contacts/CardDAV, and shared inbox access management
+  without product-local role mutation semantics.
 - Directory/Identity alias inspection now has a bounded repository boundary.
   `ListAliases` validates company/domain scope, optional target principal
   filters, text query, active-only state, and result limits before querying,

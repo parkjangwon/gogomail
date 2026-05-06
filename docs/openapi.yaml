@@ -1743,6 +1743,24 @@ paths:
           $ref: "#/components/responses/DirectoryDelegation"
         default:
           $ref: "#/components/responses/Error"
+  /directory/delegations/{id}/role:
+    patch:
+      operationId: updateAdminDirectoryDelegationRole
+      summary: Update an audited Directory delegation role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryDelegationRoleUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryDelegation"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/group-memberships:
     get:
       operationId: listAdminDirectoryGroupMemberships
@@ -4572,6 +4590,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryDelegationCreateRequest"
+    DirectoryDelegationRoleUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryDelegationRoleUpdateRequest"
     DirectoryGroupMembershipCreate:
       required: true
       content:
@@ -6586,6 +6610,13 @@ components:
       properties:
         directory_delegation:
           $ref: "#/components/schemas/DirectoryDelegation"
+    DirectoryDelegationRoleUpdateRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [read, write, manage]
     DirectoryGroupMembership:
       type: object
       required: [id, group_id, company_id, member_kind, member_id, role, status]
