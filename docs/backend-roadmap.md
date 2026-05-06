@@ -4072,6 +4072,11 @@ Implementation order:
       token-delimited after `(`, space, or tab, keeping embedded atom fragments
       such as `Archive{12}` rejected while preserving legal RFC 5258
       `LIST-EXTENDED` literal pattern lists.
+1454. S3-compatible `PutObject` and `DeleteObject` successful status responses
+      now reject top-level standard S3 `<Error>` bodies with bounded
+      one-line diagnostics before reporting completed writes or cleanup,
+      preventing compatible-provider throttling/auth/policy failures from
+      crossing the shared storage contract as false success.
 
 ## Deferred until backend contracts stabilize
 

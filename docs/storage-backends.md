@@ -327,6 +327,10 @@ The same embedded-error handling applies to `ListObjectsV2` responses that
 arrive as `200 OK` with a top-level standard S3 `<Error>` body, so throttling,
 auth, or provider-side list failures cannot be misreported as malformed
 pagination metadata.
+`PutObject` and `DeleteObject` success responses also reject top-level
+standard S3 `<Error>` bodies before reporting completed writes or cleanup, so
+compatible-provider throttling, auth, or policy failures cannot cross the
+shared storage contract as false success.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are

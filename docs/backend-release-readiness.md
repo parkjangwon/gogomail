@@ -130,6 +130,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `ETag` or `LastModified` metadata and nested `Error` elements before
   provider-side copy metadata can be collapsed into a successful copy/move
   result.
+- S3-compatible `PutObject` and `DeleteObject` success responses now reject
+  top-level standard S3 `<Error>` bodies with bounded one-line diagnostics,
+  so compatible-provider throttling/auth/policy failures cannot be reported as
+  completed object writes or cleanup.
 - S3-compatible `ListObjectsV2` response XML now accepts namespace-free or AWS
   S3 namespace `ListBucketResult` roots only, rejecting unexpected namespaces
   before list metadata reaches pagination, cleanup, or Drive callers.

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP LOGIN empty-password compatibility hardening)
+Last updated: 2026-05-07 (updated after S3-compatible Put/Delete embedded-error hardening)
 
 ## Current phase
 
@@ -161,6 +161,11 @@ S3-compatible `ListObjectsV2` success responses now also reject top-level
 standard S3 `<Error>` XML bodies as embedded provider errors, preserving the
 same bounded `Code: Message`, request-id, and host-id diagnostics instead of
 falling through to generic list-shape failures.
+S3-compatible `PutObject` and `DeleteObject` successful status responses now
+apply the same top-level standard S3 `<Error>` detection before reporting
+success, so throttling, auth, or policy failures hidden inside `200 OK` or
+delete-compatible success responses cannot masquerade as durable object writes
+or cleanup progress.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.
