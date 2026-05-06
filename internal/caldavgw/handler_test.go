@@ -73,16 +73,18 @@ func TestHandlerOptionsAdvertisesOnlyImplementedMethods(t *testing.T) {
 	if got := rec.Header().Get("Allow"); got != want {
 		t.Fatalf("Allow header = %q, want %q", got, want)
 	}
-	if strings.Contains(rec.Header().Get("Allow"), MethodMove) {
-		t.Fatalf("Allow header advertised unimplemented MOVE: %q", rec.Header().Get("Allow"))
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(rec.Header().Get("Allow"), futureMethod) {
+			t.Fatalf("Allow header advertised unimplemented %s: %q", futureMethod, rec.Header().Get("Allow"))
+		}
 	}
 }
 
-func TestHandlerUnsupportedMethodReturnsAllowWithoutMove(t *testing.T) {
+func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(&fakeDiscoveryStore{}, fixedUser("user-1"))
-	req := httptest.NewRequest(MethodMove, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req := httptest.NewRequest(MethodCopy, "/caldav/calendars/user-1/work/event-1.ics", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -93,8 +95,10 @@ func TestHandlerUnsupportedMethodReturnsAllowWithoutMove(t *testing.T) {
 	if got := rec.Header().Get("Allow"); got != want {
 		t.Fatalf("Allow header = %q, want %q", got, want)
 	}
-	if strings.Contains(rec.Header().Get("Allow"), MethodMove) {
-		t.Fatalf("Allow header advertised unimplemented MOVE: %q", rec.Header().Get("Allow"))
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(rec.Header().Get("Allow"), futureMethod) {
+			t.Fatalf("Allow header advertised unimplemented %s: %q", futureMethod, rec.Header().Get("Allow"))
+		}
 	}
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)

@@ -152,7 +152,8 @@ Recent release-readiness work also includes:
   WebDAV conditional mutation guards that recheck observed strong ETags even
   for `If-Match: *`, fail closed on missing-resource
   `If-Unmodified-Since` writes, and reject matching `If-None-Match` validators
-  before object or collection deletion, plus
+  before object or collection deletion, while `COPY`/`MOVE` stay unadvertised
+  until calendar relocation and duplication semantics exist, plus
   Directory/Identity, delegation, Notification & Sync, search, policy, and
   audit boundaries treated as platform prerequisites
 - backend-only CardDAV foundations for contacts interoperability, with
