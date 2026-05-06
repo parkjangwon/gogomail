@@ -3408,6 +3408,11 @@ Implementation order:
       selection/return option implementation and preventing standards-aware
       clients from treating `RETURN (STATUS ...)`, `RETURN (CHILDREN)`, or
       `SPECIAL-USE` list options as unadvertised behavior.
+1301. IMAP repeated `ENABLE CONDSTORE` now honors RFC 7162's first-enabling
+      boundary: if the session is already CONDSTORE-aware through
+      `SELECT ... (CONDSTORE)` or `STATUS HIGHESTMODSEQ` followed by `SELECT`,
+      the server returns `ENABLED CONDSTORE` and tagged completion without
+      re-emitting the selected mailbox's `HIGHESTMODSEQ`/`NOMODSEQ` baseline.
 
 ## Deferred until backend contracts stabilize
 
