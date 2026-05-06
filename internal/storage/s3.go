@@ -1230,7 +1230,28 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 	if err != nil {
 		return ""
 	}
-	text := strings.ToValidUTF8(string(data), "")
+	if preview := s3XMLErrorPreview(data); preview != "" {
+		return preview
+	}
+	return s3PlainErrorPreview(string(data))
+}
+
+func s3XMLErrorPreview(data []byte) string {
+	if strings.TrimSpace(string(data)) == "" {
+		return ""
+	}
+	var response s3CopyResponse
+	if err := xml.Unmarshal(data, &response); err != nil {
+		return ""
+	}
+	if response.XMLName.Local != "Error" || !s3XMLNamespaceAllowed(response.XMLName.Space) {
+		return ""
+	}
+	return s3ErrorPreview(response.Code, response.Message)
+}
+
+func s3PlainErrorPreview(value string) string {
+	text := strings.ToValidUTF8(value, "")
 	text = strings.Map(func(r rune) rune {
 		if r < 0x20 || r == 0x7f {
 			return ' '
