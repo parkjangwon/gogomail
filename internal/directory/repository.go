@@ -23,6 +23,7 @@ type rowQuerier interface {
 var ErrPrincipalNotFound = errors.New("directory principal not found")
 var ErrAliasAlreadyExists = errors.New("directory alias already exists")
 var ErrDelegationAlreadyExists = errors.New("directory delegation already exists")
+var ErrGroupMembershipAlreadyExists = errors.New("directory group membership already exists")
 
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
@@ -624,6 +625,48 @@ SELECT EXISTS (
 	return exists, nil
 }
 
+func (r *Repository) CreateGroupMembershipWithAudit(ctx context.Context, req CreateGroupMembershipRequest) (GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return GroupMembership{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCreateGroupMembershipRequest(req)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	companyID, err := r.ensureGroupMembershipPrincipalsActive(ctx, req)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GroupMembership{}, fmt.Errorf("begin create directory group membership transaction: %w", err)
+	}
+	defer tx.Rollback()
+	membership, err := r.createGroupMembershipTx(ctx, tx, req, companyID)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	detail, err := directoryGroupMembershipCreateAuditDetail(membership)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  membership.CompanyID,
+		Category:   "admin",
+		Action:     "directory_group_membership.create",
+		TargetType: "directory_group_membership",
+		TargetID:   membership.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return GroupMembership{}, fmt.Errorf("record directory group membership create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return GroupMembership{}, fmt.Errorf("commit create directory group membership transaction: %w", err)
+	}
+	return membership, nil
+}
+
 func (r *Repository) CheckEffectiveGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, fmt.Errorf("database handle is required")
@@ -663,6 +706,106 @@ SELECT EXISTS (
 		return false, fmt.Errorf("check effective group membership: %w", err)
 	}
 	return exists, nil
+}
+
+func (r *Repository) createGroupMembershipTx(ctx context.Context, tx *sql.Tx, req CreateGroupMembershipRequest, companyID string) (GroupMembership, error) {
+	const query = `
+INSERT INTO directory_group_memberships (
+  group_id,
+  member_kind,
+  member_id,
+  role
+)
+VALUES ($1::uuid, $2, $3::uuid, $4)
+RETURNING id::text,
+          group_id::text,
+          member_kind,
+          member_id::text,
+          role,
+          status`
+	var membership GroupMembership
+	if err := tx.QueryRowContext(ctx, query,
+		req.GroupID,
+		req.MemberKind,
+		req.MemberID,
+		req.Role,
+	).Scan(
+		&membership.ID,
+		&membership.GroupID,
+		&membership.MemberKind,
+		&membership.MemberID,
+		&membership.Role,
+		&membership.Status,
+	); err != nil {
+		return GroupMembership{}, mapDirectoryGroupMembershipInsertError(err)
+	}
+	membership.CompanyID = companyID
+	return membership, nil
+}
+
+func directoryGroupMembershipCreateAuditDetail(membership GroupMembership) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"membership_id": membership.ID,
+		"group_id":      membership.GroupID,
+		"company_id":    membership.CompanyID,
+		"member_kind":   membership.MemberKind,
+		"member_id":     membership.MemberID,
+		"role":          membership.Role,
+		"status":        membership.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory group membership create audit detail: %w", err)
+	}
+	return detail, nil
+}
+
+func mapDirectoryGroupMembershipInsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_directory_group_memberships_active_member":
+			return fmt.Errorf("%w", ErrGroupMembershipAlreadyExists)
+		}
+	}
+	return fmt.Errorf("create directory group membership: %w", err)
+}
+
+func (r *Repository) ensureGroupMembershipPrincipalsActive(ctx context.Context, req CreateGroupMembershipRequest) (string, error) {
+	group, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.GroupID,
+		Kind:       PrincipalKindGroup,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve active membership group: %w", err)
+	}
+	member, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.MemberID,
+		Kind:       req.MemberKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve active membership member: %w", err)
+	}
+	if group.CompanyID != member.CompanyID {
+		return "", fmt.Errorf("directory group membership principals must belong to the same company")
+	}
+	if req.MemberKind == PrincipalKindGroup {
+		wouldCycle, err := r.CheckEffectiveGroupMembership(ctx, CheckGroupMembershipRequest{
+			GroupID:    req.MemberID,
+			MemberKind: PrincipalKindGroup,
+			MemberID:   req.GroupID,
+			ActiveOnly: true,
+			MaxDepth:   MaxGroupMembershipDepth,
+		})
+		if err != nil {
+			return "", fmt.Errorf("check directory group membership cycle: %w", err)
+		}
+		if wouldCycle {
+			return "", fmt.Errorf("directory group membership would create a cycle")
+		}
+	}
+	return group.CompanyID, nil
 }
 
 func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationRequest) (bool, error) {

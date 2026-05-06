@@ -813,6 +813,15 @@ Admin operational read models also keep explicit envelope keys:
   delegation grant. The path id uses bounded admin identifier validation, and
   the backend records `directory_delegation.delete` in the same transaction as
   the grant status change.
+- `POST /admin/v1/directory/group-memberships` accepts
+  `{group_id, member_kind, member_id, role}` and returns
+  `{"directory_group_membership":{...}}` after creating an active Directory
+  group membership. `role` defaults to `member` and supports
+  `member|manager|owner`. The Directory boundary verifies active same-company
+  group/member principals, rejects self-membership and nested group cycles,
+  maps duplicate active memberships to a predictable duplicate-membership
+  error, and records `directory_group_membership.create` in the same
+  transaction as the membership insert.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

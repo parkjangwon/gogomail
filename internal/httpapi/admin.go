@@ -108,6 +108,7 @@ type AdminService interface {
 	SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	CreateDirectoryAlias(ctx context.Context, req directory.CreateAliasRequest) (directory.Alias, error)
 	CreateDirectoryDelegation(ctx context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error)
+	CreateDirectoryGroupMembership(ctx context.Context, req directory.CreateGroupMembershipRequest) (directory.GroupMembership, error)
 	DeleteDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
 	DeleteDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error)
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
@@ -1090,6 +1091,25 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_delegation": delegation})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/directory/group-memberships", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req directory.CreateGroupMembershipRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		membership, err := service.CreateDirectoryGroupMembership(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"directory_group_membership": membership})
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/directory/delegations/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

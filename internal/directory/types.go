@@ -28,6 +28,10 @@ const (
 	DelegationRoleWrite  = "write"
 	DelegationRoleManage = "manage"
 
+	GroupMembershipRoleMember  = "member"
+	GroupMembershipRoleManager = "manager"
+	GroupMembershipRoleOwner   = "owner"
+
 	MaxPrincipalIDBytes         = 200
 	MaxGroupMembershipDepth     = 16
 	DefaultMembershipMaxDepth   = 8
@@ -113,6 +117,23 @@ type CheckGroupMembershipRequest struct {
 	MaxDepth   int
 }
 
+type GroupMembership struct {
+	ID         string
+	GroupID    string
+	CompanyID  string
+	MemberKind string
+	MemberID   string
+	Role       string
+	Status     string
+}
+
+type CreateGroupMembershipRequest struct {
+	GroupID    string `json:"group_id"`
+	MemberKind string `json:"member_kind"`
+	MemberID   string `json:"member_id"`
+	Role       string `json:"role"`
+}
+
 type Delegation struct {
 	ID           string
 	CompanyID    string
@@ -189,6 +210,19 @@ func NormalizeDelegationRole(role string) (string, error) {
 		return role, nil
 	default:
 		return "", fmt.Errorf("unsupported delegation role %q", role)
+	}
+}
+
+func NormalizeGroupMembershipRole(role string) (string, error) {
+	role = strings.TrimSpace(strings.ToLower(role))
+	if role == "" {
+		return GroupMembershipRoleMember, nil
+	}
+	switch role {
+	case GroupMembershipRoleMember, GroupMembershipRoleManager, GroupMembershipRoleOwner:
+		return role, nil
+	default:
+		return "", fmt.Errorf("unsupported group membership role %q", role)
 	}
 }
 
@@ -577,6 +611,29 @@ func NormalizeCheckGroupMembershipRequest(req CheckGroupMembershipRequest) (Chec
 	}
 	if req.MaxDepth > MaxGroupMembershipDepth {
 		return CheckGroupMembershipRequest{}, fmt.Errorf("membership max depth is too large")
+	}
+	return req, nil
+}
+
+func NormalizeCreateGroupMembershipRequest(req CreateGroupMembershipRequest) (CreateGroupMembershipRequest, error) {
+	check, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    req.GroupID,
+		MemberKind: req.MemberKind,
+		MemberID:   req.MemberID,
+	})
+	if err != nil {
+		return CreateGroupMembershipRequest{}, err
+	}
+	role, err := NormalizeGroupMembershipRole(req.Role)
+	if err != nil {
+		return CreateGroupMembershipRequest{}, err
+	}
+	req.GroupID = check.GroupID
+	req.MemberKind = check.MemberKind
+	req.MemberID = check.MemberID
+	req.Role = role
+	if req.MemberKind == PrincipalKindGroup && req.GroupID == req.MemberID {
+		return CreateGroupMembershipRequest{}, fmt.Errorf("group membership cannot include itself")
 	}
 	return req, nil
 }

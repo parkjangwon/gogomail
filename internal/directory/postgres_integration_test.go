@@ -567,6 +567,78 @@ WHERE company_id = $1::uuid
 	}
 }
 
+func TestPostgresCreateGroupMembershipWithAuditValidatesPrincipalsAndUniqueness(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	membership, err := repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{
+		GroupID:    seed.teamID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+		Role:       GroupMembershipRoleManager,
+	})
+	if err != nil {
+		t.Fatalf("CreateGroupMembershipWithAudit returned error: %v", err)
+	}
+	if membership.GroupID != seed.teamID ||
+		membership.CompanyID != seed.companyID ||
+		membership.MemberKind != PrincipalKindUser ||
+		membership.MemberID != seed.aliceID ||
+		membership.Role != GroupMembershipRoleManager ||
+		membership.Status != "active" {
+		t.Fatalf("membership = %+v", membership)
+	}
+	ok, err := repo.CheckDirectGroupMembership(ctx, CheckGroupMembershipRequest{
+		GroupID:    seed.teamID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDirectGroupMembership returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("created membership was not visible to direct membership check")
+	}
+	var auditCount int
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_group_membership.create'
+  AND target_type = 'directory_group_membership'
+  AND target_id = $2
+  AND result = 'created'`, seed.companyID, membership.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory group membership audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory group membership audit rows = %d, want 1", auditCount)
+	}
+
+	_, err = repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{
+		GroupID:    seed.teamID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+		Role:       GroupMembershipRoleOwner,
+	})
+	if !errors.Is(err, ErrGroupMembershipAlreadyExists) {
+		t.Fatalf("duplicate CreateGroupMembershipWithAudit error = %v, want ErrGroupMembershipAlreadyExists", err)
+	}
+
+	_, err = repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{
+		GroupID:    seed.deeperID,
+		MemberKind: PrincipalKindGroup,
+		MemberID:   seed.teamID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("cycle membership error = %v, want cycle rejection", err)
+	}
+}
+
 type directoryDelegationSeed struct {
 	companyID   string
 	domainID    string

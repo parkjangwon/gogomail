@@ -1784,6 +1784,13 @@ Next:
   transaction-coupled `directory_delegation.delete` audit row. Next delegation
   work should add update/reassign flows with the same audit shape before
   CalDAV, Drive, or shared inbox modules expose product-facing delegation UX.
+- Audited group membership creation now exists as
+  `POST /admin/v1/directory/group-memberships`, backed by
+  `CreateGroupMembershipWithAudit`. It validates active same-company group and
+  member principals, role, self-membership, and nested group cycles before
+  inserting the membership and `directory_group_membership.create` audit row in
+  one transaction. Next group-membership work should add audited deletion so
+  group-backed delegation can be revoked cleanly.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and

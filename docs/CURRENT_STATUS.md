@@ -266,6 +266,12 @@ shape: `CreateDelegationWithAudit` normalizes owner/delegate principal kinds,
 scope, and role, rejects self-delegation, verifies both principals are active in
 the same company, maps active duplicate grants to a stable error, and records
 `directory_delegation.create` in the same transaction as the grant insert.
+Directory group membership creation now follows that same platform boundary:
+`CreateGroupMembershipWithAudit` normalizes membership roles
+(`member|manager|owner`), verifies the active group and member principal belong
+to the same company, rejects self-membership and nested group cycles, maps
+active duplicate memberships to a stable error, and records
+`directory_group_membership.create` with the membership insert.
 Directory alias listing is now a bounded repository boundary as well:
 `ListAliases` validates company/domain scope, target principal filters, query
 size, active-only state, and result limits before querying, then resolves each
@@ -292,6 +298,9 @@ UX public.
 Audited delegation deletion is exposed through
 `DELETE /admin/v1/directory/delegations/{id}`, soft-deleting an active grant
 and recording `directory_delegation.delete` in the same transaction.
+Audited group membership creation is exposed through
+`POST /admin/v1/directory/group-memberships`, returning
+`{"directory_group_membership":{...}}` for group-backed delegation management.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,

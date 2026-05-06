@@ -275,6 +275,34 @@ func TestAdminServiceCreateDirectoryDelegationUsesAuditedDirectoryBoundary(t *te
 	}
 }
 
+func TestAdminServiceCreateDirectoryGroupMembershipUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		membership: directory.GroupMembership{ID: "membership-1", Status: "active"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.CreateGroupMembershipRequest{
+		GroupID:    " group-1 ",
+		MemberKind: directory.PrincipalKindUser,
+		MemberID:   "user-1",
+		Role:       directory.GroupMembershipRoleManager,
+	}
+	membership, err := service.CreateDirectoryGroupMembership(t.Context(), req)
+	if err != nil {
+		t.Fatalf("CreateDirectoryGroupMembership returned error: %v", err)
+	}
+	if membership.ID != "membership-1" {
+		t.Fatalf("membership = %+v", membership)
+	}
+	if directoryStore.lastMembershipCreateReq != req {
+		t.Fatalf("lastMembershipCreateReq = %+v, want %+v", directoryStore.lastMembershipCreateReq, req)
+	}
+	if directoryStore.createMembershipWithAuditCalls != 1 {
+		t.Fatalf("createMembershipWithAuditCalls = %d, want 1", directoryStore.createMembershipWithAuditCalls)
+	}
+}
+
 func TestAdminServiceDeleteDirectoryDelegationUsesAuditedDirectoryBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -706,12 +734,14 @@ type fakeAdminDrive struct {
 type fakeAdminDirectory struct {
 	delegations                    []directory.Delegation
 	delegation                     directory.Delegation
+	membership                     directory.GroupMembership
 	alias                          directory.Alias
 	aliases                        []directory.Alias
 	principals                     []directory.Principal
 	lastReq                        directory.ListDelegationsRequest
 	lastDelegationCreateReq        directory.CreateDelegationRequest
 	lastDelegationDeleteID         string
+	lastMembershipCreateReq        directory.CreateGroupMembershipRequest
 	lastAliasReq                   directory.ResolveAliasRequest
 	lastAliasCreateReq             directory.CreateAliasRequest
 	lastAliasDeleteID              string
@@ -719,6 +749,7 @@ type fakeAdminDirectory struct {
 	lastSearchReq                  directory.SearchPrincipalsRequest
 	createAliasWithAuditCalls      int
 	createDelegationWithAuditCalls int
+	createMembershipWithAuditCalls int
 	deleteDelegationWithAuditCalls int
 	deleteAliasWithAuditCalls      int
 }
@@ -732,6 +763,12 @@ func (f *fakeAdminDirectory) CreateDelegationWithAudit(_ context.Context, req di
 	f.createDelegationWithAuditCalls++
 	f.lastDelegationCreateReq = req
 	return f.delegation, nil
+}
+
+func (f *fakeAdminDirectory) CreateGroupMembershipWithAudit(_ context.Context, req directory.CreateGroupMembershipRequest) (directory.GroupMembership, error) {
+	f.createMembershipWithAuditCalls++
+	f.lastMembershipCreateReq = req
+	return f.membership, nil
 }
 
 func (f *fakeAdminDirectory) DeleteDelegationWithAudit(_ context.Context, id string) (directory.Delegation, error) {
