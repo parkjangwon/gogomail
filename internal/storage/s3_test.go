@@ -2,6 +2,9 @@ package storage
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
@@ -2067,6 +2070,7 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 		SecretAccessKey: secretAccessKey,
 		SessionToken:    os.Getenv("GOGOMAIL_TEST_S3_SESSION_TOKEN"),
 		ForcePathStyle:  forcePathStyle,
+		HTTPClient:      s3IntegrationHTTPClientFromEnv(t),
 	})
 	if err != nil {
 		t.Fatalf("NewS3Store returned error: %v", err)
@@ -2145,4 +2149,69 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 
 	contractPrefix := "integration/contract-" + strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().UTC().Format("20060102150405.000000000")
 	assertStorePortabilityContract(t, store, contractPrefix)
+}
+
+func TestS3IntegrationHTTPClientFromEnvWiresTLSOverrides(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+	certFile := t.TempDir() + "/s3-test-ca.pem"
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(certFile, certPEM, 0o600); err != nil {
+		t.Fatalf("write CA file: %v", err)
+	}
+	t.Setenv("GOGOMAIL_TEST_S3_CA_CERT_FILE", certFile)
+	t.Setenv("GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY", "true")
+
+	client := s3IntegrationHTTPClientFromEnv(t)
+	if client == nil {
+		t.Fatal("client = nil, want custom integration HTTP client")
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", client.Transport)
+	}
+	if transport.TLSClientConfig == nil {
+		t.Fatal("TLSClientConfig = nil, want S3 integration TLS overrides")
+	}
+	if !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("InsecureSkipVerify = false, want test override")
+	}
+	if transport.TLSClientConfig.MinVersion != tls.VersionTLS12 {
+		t.Fatalf("MinVersion = %x, want TLS 1.2", transport.TLSClientConfig.MinVersion)
+	}
+	if len(transport.TLSClientConfig.RootCAs.Subjects()) == 0 {
+		t.Fatal("RootCAs is empty, want custom CA bundle appended")
+	}
+}
+
+func s3IntegrationHTTPClientFromEnv(t *testing.T) *http.Client {
+	t.Helper()
+	caCertFile := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_CA_CERT_FILE"))
+	insecureSkipVerify := strings.EqualFold(strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY")), "true")
+	if caCertFile == "" && !insecureSkipVerify {
+		return nil
+	}
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil || rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+	if caCertFile != "" {
+		data, err := os.ReadFile(caCertFile)
+		if err != nil {
+			t.Fatalf("read GOGOMAIL_TEST_S3_CA_CERT_FILE: %v", err)
+		}
+		if !rootCAs.AppendCertsFromPEM(data) {
+			t.Fatalf("GOGOMAIL_TEST_S3_CA_CERT_FILE must contain at least one PEM-encoded certificate")
+		}
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		RootCAs:            rootCAs,
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
 }

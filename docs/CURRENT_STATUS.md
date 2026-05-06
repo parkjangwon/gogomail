@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after S3 TLS transport config wiring)
+Last updated: 2026-05-06 (updated after S3 TLS integration-test wiring)
 
 ## Current phase
 
@@ -61,7 +61,11 @@ now also accepts a deployment-scoped custom CA bundle through
 `GOGOMAIL_STORAGE_S3_CA_CERT_FILE` and a development-only
 `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY` escape hatch, constructing a
 dedicated TLS 1.2+ HTTP client for private MinIO/S3 endpoints without changing
-the storage adapter or default AWS behavior.
+the storage adapter or default AWS behavior. Optional S3-compatible integration
+coverage can now use matching test-only TLS variables
+(`GOGOMAIL_TEST_S3_CA_CERT_FILE` and
+`GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`) so pre-release smoke tests can verify
+the same private-object-store trust shape.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as

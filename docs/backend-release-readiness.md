@@ -94,6 +94,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   through `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, with PEM validation and a
   dedicated TLS 1.2+ HTTP client, while rejecting
   `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production.
+- Optional S3-compatible integration tests can use
+  `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
+  `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, so release smoke tests can exercise
+  the same private-object-store TLS trust path before backend flips.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and
   session mutation, including malformed capability atoms.
 - Drive upload-session storage now has a dedicated migration and validation

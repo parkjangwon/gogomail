@@ -3252,6 +3252,11 @@ Implementation order:
       trust through `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, validates PEM CA input,
       injects a dedicated TLS 1.2+ HTTP client into the existing S3 adapter, and
       rejects `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production.
+1266. Optional S3-compatible integration coverage now accepts
+      `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
+      `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, letting release smoke tests
+      verify private CA or local self-signed MinIO/S3 endpoints through the same
+      injected HTTP-client path.
 
 ## Deferred until backend contracts stabilize
 
