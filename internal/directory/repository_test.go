@@ -546,6 +546,71 @@ func TestDirectoryDelegationDeleteAuditDetail(t *testing.T) {
 	}
 }
 
+func TestNormalizeListGroupMembershipsRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListGroupMembershipsRequest(ListGroupMembershipsRequest{
+		CompanyID:  " company-1 ",
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+		Role:       " OWNER ",
+		ActiveOnly: true,
+		Limit:      25,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListGroupMembershipsRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.GroupID != "group-1" ||
+		got.MemberKind != PrincipalKindUser ||
+		got.MemberID != "user-1" ||
+		got.Role != GroupMembershipRoleOwner ||
+		!got.ActiveOnly ||
+		got.Limit != 25 {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeListGroupMembershipsRequestDefaultsLimit(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListGroupMembershipsRequest(ListGroupMembershipsRequest{CompanyID: "company-1"})
+	if err != nil {
+		t.Fatalf("NormalizeListGroupMembershipsRequest returned error: %v", err)
+	}
+	if got.Limit != DefaultGroupMembershipListLimit {
+		t.Fatalf("limit = %d, want %d", got.Limit, DefaultGroupMembershipListLimit)
+	}
+}
+
+func TestNormalizeListGroupMembershipsRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListGroupMembershipsRequest{
+		{},
+		{CompanyID: "company\n1"},
+		{CompanyID: "company-1", GroupID: "group\n1"},
+		{CompanyID: "company-1", MemberKind: "calendar"},
+		{CompanyID: "company-1", MemberID: "user-1"},
+		{CompanyID: "company-1", MemberKind: PrincipalKindUser, MemberID: "user\n1"},
+		{CompanyID: "company-1", GroupID: "group-1", MemberKind: PrincipalKindGroup, MemberID: "group-1"},
+		{CompanyID: "company-1", Role: "admin"},
+		{CompanyID: "company-1", Limit: -1},
+		{CompanyID: "company-1", Limit: MaxGroupMembershipListLimit + 1},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.GroupID+"/"+req.MemberID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeListGroupMembershipsRequest(req); err == nil {
+				t.Fatalf("NormalizeListGroupMembershipsRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -847,6 +912,17 @@ func TestRepositoryCheckDirectGroupMembershipRequiresDatabase(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryListGroupMembershipsRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ListGroupMemberships(context.Background(), ListGroupMembershipsRequest{
+		CompanyID: "company-1",
+	})
+	if err == nil {
+		t.Fatal("ListGroupMemberships error = nil, want database handle error")
 	}
 }
 

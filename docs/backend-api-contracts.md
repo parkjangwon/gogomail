@@ -813,6 +813,13 @@ Admin operational read models also keep explicit envelope keys:
   delegation grant. The path id uses bounded admin identifier validation, and
   the backend records `directory_delegation.delete` in the same transaction as
   the grant status change.
+- `GET /admin/v1/directory/group-memberships` returns
+  `{"directory_group_memberships":[...]}` for admin diagnostics over
+  Directory-owned group membership relationships. It supports bounded `limit`,
+  required `company_id`, optional `group_id`, `member_kind`, `member_id`,
+  `role=member|manager|owner`, and `active_only` filters. `active_only`
+  defaults to `true`; `member_id` requires `member_kind`, and unsafe or
+  oversized text is rejected before service dispatch.
 - `POST /admin/v1/directory/group-memberships` accepts
   `{group_id, member_kind, member_id, role}` and returns
   `{"directory_group_membership":{...}}` after creating an active Directory

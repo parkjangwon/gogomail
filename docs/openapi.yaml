@@ -1738,6 +1738,48 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /directory/group-memberships:
+    get:
+      operationId: listAdminDirectoryGroupMemberships
+      summary: List Directory group memberships for admin diagnostics
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required company scope for group membership inspection.
+        - name: group_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: member_kind
+          in: query
+          schema:
+            type: string
+            enum: [user, organization, group, resource]
+        - name: member_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional member principal ID. Requires member_kind when present.
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [member, manager, owner]
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryGroupMembershipList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: createAdminDirectoryGroupMembership
       summary: Create an audited Directory group membership
@@ -3865,6 +3907,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryGroupMembershipEnvelope"
+    DirectoryGroupMembershipList:
+      description: Directory group membership list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryGroupMembershipListEnvelope"
     Backpressure:
       description: SMTP backpressure state envelope
       content:
@@ -6010,7 +6058,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_aliases, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_aliases, directory_delegations, directory_group_memberships, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -6031,6 +6079,8 @@ components:
             directory_aliases:
               type: boolean
             directory_delegations:
+              type: boolean
+            directory_group_memberships:
               type: boolean
             drive_upload_sessions:
               type: boolean
@@ -6526,6 +6576,14 @@ components:
       properties:
         directory_group_membership:
           $ref: "#/components/schemas/DirectoryGroupMembership"
+    DirectoryGroupMembershipListEnvelope:
+      type: object
+      required: [directory_group_memberships]
+      properties:
+        directory_group_memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectoryGroupMembership"
     DirectoryDelegationListEnvelope:
       type: object
       required: [directory_delegations]

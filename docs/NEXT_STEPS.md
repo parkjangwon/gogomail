@@ -1790,11 +1790,16 @@ Next:
   member principals, role, self-membership, and nested group cycles before
   inserting the membership and `directory_group_membership.create` audit row in
   one transaction.
+- Directory group membership listing now exists as
+  `GET /admin/v1/directory/group-memberships`, backed by
+  `ListGroupMemberships`, so operators and the future admin console can inspect
+  company-scoped group-backed access without querying Directory tables
+  directly.
 - Audited group membership deletion now exists as
   `DELETE /admin/v1/directory/group-memberships/{id}`, backed by
   `DeleteGroupMembershipWithAudit`, so group-backed delegation can be revoked
   with a transaction-coupled `directory_group_membership.delete` audit row. Next
-  group-membership work should add list/update/reassign flows before product
+  group-membership work should add update/reassign flows before product
   modules depend on group membership as public authorization UX.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,

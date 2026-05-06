@@ -817,6 +817,98 @@ func TestAdminDirectoryDelegationsHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminDirectoryGroupMembershipsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryGroupMemberships: []directory.GroupMembership{{
+			ID:         "membership-1",
+			GroupID:    "group-1",
+			CompanyID:  "company-1",
+			MemberKind: directory.PrincipalKindUser,
+			MemberID:   "user-1",
+			Role:       directory.GroupMembershipRoleManager,
+			Status:     "active",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/group-memberships?limit=10&company_id=%20company-1%20&group_id=group-1&member_kind=user&member_id=user-1&role=manager&active_only=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Memberships []directory.GroupMembership `json:"directory_group_memberships"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Memberships) != 1 || body.Memberships[0].ID != "membership-1" {
+		t.Fatalf("directory_group_memberships = %+v", body.Memberships)
+	}
+	if service.lastDirectoryGroupMembershipList.Limit != 10 ||
+		service.lastDirectoryGroupMembershipList.CompanyID != "company-1" ||
+		service.lastDirectoryGroupMembershipList.GroupID != "group-1" ||
+		service.lastDirectoryGroupMembershipList.MemberKind != directory.PrincipalKindUser ||
+		service.lastDirectoryGroupMembershipList.MemberID != "user-1" ||
+		service.lastDirectoryGroupMembershipList.Role != directory.GroupMembershipRoleManager ||
+		service.lastDirectoryGroupMembershipList.ActiveOnly {
+		t.Fatalf("lastDirectoryGroupMembershipList = %+v", service.lastDirectoryGroupMembershipList)
+	}
+}
+
+func TestAdminDirectoryGroupMembershipsHandlerDefaultsActiveOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/group-memberships?company_id=company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastDirectoryGroupMembershipList.ActiveOnly {
+		t.Fatalf("lastDirectoryGroupMembershipList.ActiveOnly = false, want default true")
+	}
+}
+
+func TestAdminDirectoryGroupMembershipsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/group-memberships?company_id=company%0Abad",
+		"/admin/v1/directory/group-memberships?company_id=company-1&member_id=user-1",
+		"/admin/v1/directory/group-memberships?company_id=company-1&member_kind=calendar",
+		"/admin/v1/directory/group-memberships?company_id=company-1&role=admin",
+		"/admin/v1/directory/group-memberships?company_id=company-1&active_only=maybe",
+		"/admin/v1/directory/group-memberships?company_id=company-1&cursor=opaque",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryGroupMembershipList.CompanyID != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryGroupMembershipList)
+		}
+	}
+}
+
 func TestAdminCreateDirectoryDelegationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7426,6 +7518,7 @@ type fakeAdminService struct {
 	directoryDelegation                         directory.Delegation
 	directoryDelegations                        []directory.Delegation
 	directoryGroupMembership                    directory.GroupMembership
+	directoryGroupMemberships                   []directory.GroupMembership
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
 	driveUsageSummary                           drive.UsageSummary
@@ -7515,6 +7608,7 @@ type fakeAdminService struct {
 	lastDirectoryDelegationDeleteID             string
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDirectoryGroupMembershipCreate          directory.CreateGroupMembershipRequest
+	lastDirectoryGroupMembershipList            directory.ListGroupMembershipsRequest
 	lastDirectoryGroupMembershipDeleteID        string
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -7776,6 +7870,14 @@ func (f *fakeAdminService) CreateDirectoryGroupMembership(_ context.Context, req
 	}
 	f.lastDirectoryGroupMembershipCreate = req
 	return f.directoryGroupMembership, nil
+}
+
+func (f *fakeAdminService) ListDirectoryGroupMemberships(_ context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error) {
+	if _, err := directory.NormalizeListGroupMembershipsRequest(req); err != nil {
+		return nil, err
+	}
+	f.lastDirectoryGroupMembershipList = req
+	return f.directoryGroupMemberships, nil
 }
 
 func (f *fakeAdminService) DeleteDirectoryGroupMembership(_ context.Context, id string) (directory.GroupMembership, error) {

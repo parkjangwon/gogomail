@@ -619,6 +619,29 @@ WHERE company_id = $1::uuid
 		t.Fatalf("directory group membership audit rows = %d, want 1", auditCount)
 	}
 
+	memberships, err := repo.ListGroupMemberships(ctx, ListGroupMembershipsRequest{
+		CompanyID:  seed.companyID,
+		GroupID:    seed.teamID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+		Role:       GroupMembershipRoleManager,
+		ActiveOnly: true,
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("ListGroupMemberships returned error: %v", err)
+	}
+	if len(memberships) != 1 ||
+		memberships[0].ID != membership.ID ||
+		memberships[0].CompanyID != seed.companyID ||
+		memberships[0].GroupID != seed.teamID ||
+		memberships[0].MemberKind != PrincipalKindUser ||
+		memberships[0].MemberID != seed.aliceID ||
+		memberships[0].Role != GroupMembershipRoleManager ||
+		memberships[0].Status != "active" {
+		t.Fatalf("filtered memberships = %+v", memberships)
+	}
+
 	_, err = repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{
 		GroupID:    seed.teamID,
 		MemberKind: PrincipalKindUser,
@@ -654,6 +677,20 @@ WHERE company_id = $1::uuid
 	}
 	if auditCount != 1 {
 		t.Fatalf("directory group membership delete audit rows = %d, want 1", auditCount)
+	}
+	memberships, err = repo.ListGroupMemberships(ctx, ListGroupMembershipsRequest{
+		CompanyID:  seed.companyID,
+		GroupID:    seed.teamID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+		ActiveOnly: true,
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("ListGroupMemberships active returned error: %v", err)
+	}
+	if len(memberships) != 0 {
+		t.Fatalf("active group membership list returned deleted rows: %+v", memberships)
 	}
 
 	_, err = repo.CreateGroupMembershipWithAudit(ctx, CreateGroupMembershipRequest{

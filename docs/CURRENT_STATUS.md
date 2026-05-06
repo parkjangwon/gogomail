@@ -298,6 +298,10 @@ UX public.
 Audited delegation deletion is exposed through
 `DELETE /admin/v1/directory/delegations/{id}`, soft-deleting an active grant
 and recording `directory_delegation.delete` in the same transaction.
+Directory group membership listing is exposed through
+`GET /admin/v1/directory/group-memberships`, returning
+`{"directory_group_memberships":[...]}` with bounded company, group, member,
+role, active-only, and limit filters for operator diagnostics.
 Audited group membership creation is exposed through
 `POST /admin/v1/directory/group-memberships`, returning
 `{"directory_group_membership":{...}}` for group-backed delegation management.
