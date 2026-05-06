@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after YAML config CLI contract coverage)
+Last updated: 2026-05-06 (updated after nested IMAP header-field partial coverage)
 
 ## Current phase
 
@@ -46,7 +46,10 @@ state, and leaves the authenticated session usable for the next legal command.
 Partial-window forms of the same empty top-level header-field-list requests,
 such as `BODY.PEEK[HEADER.FIELDS ()]<0.1>` and
 `BODY.PEEK[HEADER.FIELDS.NOT ()]<0.10>`, are now regression-covered so preview
-clients get deterministic bounded literals.
+clients get deterministic bounded literals. Nested `message/rfc822`
+header-field partial fetches are also regression-covered for forwarded-message
+previews, including non-empty `HEADER.FIELDS`, empty `HEADER.FIELDS`, and
+empty `HEADER.FIELDS.NOT` windows on attached messages.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

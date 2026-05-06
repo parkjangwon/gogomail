@@ -1041,6 +1041,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` applies those empty header-field-list semantics to
   `message/rfc822` MIME-part sections as well, preserving nested forwarded
   message header probes such as `BODY[1.HEADER.FIELDS ()]`.
+- IMAP `FETCH`/`UID FETCH` regression coverage now includes partial-window
+  nested `message/rfc822` header-field probes, keeping forwarded-message
+  previews deterministic for non-empty, empty include, and empty exclude lists.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

@@ -3265,6 +3265,10 @@ Implementation order:
       `--config` handoff and fail-fast invalid config/mode behavior, so config
       file support is guarded at the binary boundary instead of only the parser
       boundary.
+1269. IMAP nested `message/rfc822` header-field partial fetches now have
+      regression coverage for forwarded-message previews, including non-empty
+      `HEADER.FIELDS`, empty `HEADER.FIELDS`, and empty `HEADER.FIELDS.NOT`
+      windows on attached messages.
 
 ## Deferred until backend contracts stabilize
 
