@@ -4077,6 +4077,10 @@ Implementation order:
       one-line diagnostics before reporting completed writes or cleanup,
       preventing compatible-provider throttling/auth/policy failures from
       crossing the shared storage contract as false success.
+1455. IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria now reuse
+      the common IMAP atom validator for RFC `flag-keyword` arguments,
+      rejecting system flags such as `\Seen` and response-special atoms such
+      as `bad]flag` before search evaluation.
 
 ## Deferred until backend contracts stabilize
 
