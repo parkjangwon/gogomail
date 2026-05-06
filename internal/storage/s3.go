@@ -1248,14 +1248,69 @@ func s3XMLError(data []byte) (string, bool) {
 	if strings.TrimSpace(string(data)) == "" {
 		return "", false
 	}
-	var response s3CopyResponse
-	if err := xml.Unmarshal(data, &response); err != nil {
-		return "", false
-	}
-	if response.XMLName.Local != "Error" || !s3XMLNamespaceAllowed(response.XMLName.Space) {
+	response, ok := parseS3XMLError(data)
+	if !ok {
 		return "", false
 	}
 	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID)), true
+}
+
+func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var response s3CopyResponse
+	var rootSeen bool
+	var depth int
+	var current string
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return response, rootSeen
+		}
+		if err != nil {
+			return response, rootSeen
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			depth++
+			if depth == 1 {
+				if token.Name.Local != "Error" || !s3XMLNamespaceAllowed(token.Name.Space) {
+					return s3CopyResponse{}, false
+				}
+				response.XMLName = token.Name
+				rootSeen = true
+				continue
+			}
+			if depth == 2 && rootSeen && s3XMLNamespaceAllowed(token.Name.Space) {
+				switch token.Name.Local {
+				case "Code", "Message", "RequestId", "HostId":
+					current = token.Name.Local
+				default:
+					current = ""
+				}
+			}
+		case xml.CharData:
+			if depth != 2 {
+				continue
+			}
+			switch current {
+			case "Code":
+				response.Code += string(token)
+			case "Message":
+				response.Message += string(token)
+			case "RequestId":
+				response.RequestID += string(token)
+			case "HostId":
+				response.HostID += string(token)
+			}
+		case xml.EndElement:
+			if depth == 2 {
+				current = ""
+			}
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
 }
 
 func s3PlainErrorPreview(value string) string {

@@ -74,8 +74,8 @@ Recent release-readiness work also includes:
   S3 namespaces plus bounded ETag and timestamp metadata for roots and core
   metadata elements, while standard S3 error XML, including `200 OK`
   `ListObjectsV2` and nested `CopyObjectResult` embedded error bodies, is
-  collapsed into bounded one-line diagnostics with request-id and host-id
-  context when supplied.
+  streamed into bounded one-line diagnostics with request-id and host-id
+  context when supplied, even when the provider body is truncated.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
