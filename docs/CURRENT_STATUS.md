@@ -3739,6 +3739,9 @@ The platform hardening sprint completed the following:
   applies the namespace boundary to core child elements as well as roots, so
   foreign-namespace pagination controls, object metadata, copy metadata, or
   embedded copy errors cannot be collapsed into canonical provider metadata.
+- S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
+  non-empty malformed or whitespace-padded timestamp values instead of
+  accepting ambiguous successful copy metadata.
 
 Next focus areas:
 
