@@ -1868,6 +1868,11 @@ The platform hardening sprint completed the following:
   reading from the socket instead of after an unbounded line allocation,
   keeping malformed clients from accumulating oversized lines in memory before
   syntax rejection.
+- IMAP command framing now reports oversized command literals with a tagged
+  `BAD` response when a valid tag is available, emits `BYE`, and closes the
+  connection cleanly instead of surfacing an internal server error. This keeps
+  unrecoverable literal-size violations visible to clients while preserving the
+  bounded hot path.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
   RFC-shaped tagged `BAD` cancellation, and SASL PLAIN credential decoding over
   the existing protocol auth adapter. Non-empty SASL PLAIN authorization
