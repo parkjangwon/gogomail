@@ -380,10 +380,17 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if !ok {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid last-modified")
 		}
+		etag := ""
+		if item.ETag != "" {
+			etag = cleanS3ETag(item.ETag)
+			if etag == "" {
+				return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object etag")
+			}
+		}
 		page.Objects = append(page.Objects, ObjectInfo{
 			Path:         objectPath,
 			Size:         size,
-			ETag:         cleanS3ETag(item.ETag),
+			ETag:         etag,
 			LastModified: lastModified,
 		})
 	}
