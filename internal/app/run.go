@@ -378,8 +378,16 @@ func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	addressBookRepository := carddavgw.NewRepository(db)
 	accountRepository := maildb.NewRepository(db)
+	directoryRepository := directory.NewRepository(db)
 	resolver := carddavgw.NewBasicAuthResolver(accountRepository, cfg.CardDAVAllowInsecureAuth)
 	handler := carddavgw.NewHandler(addressBookRepository, resolver.Resolve)
+	handler.AccessAuthorizer = carddavgw.DelegatedAccessPolicy{
+		Directory: directoryRepository,
+		Authorizer: accesspolicy.DelegatedAccessAuthorizer{
+			Checker:         directoryRepository,
+			AuditRepository: audit.NewPostgresRepository(db),
+		},
+	}
 	server := newCardDAVHTTPServer(cfg, handler)
 
 	errCh := make(chan error, 1)

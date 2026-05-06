@@ -1876,6 +1876,15 @@ Next:
   Drive, mailbox sharing, and admin APIs should consume it through explicit
   policy/audit adapters and WebDAV privilege semantics instead of directly
   branching on directory rows in protocol handlers.
+- CardDAV now has that first deliberate integration for delegated contacts
+  access. The gateway distinguishes actor and address-book owner, resolves
+  allowed cross-user read/write/manage requests against the owner store through
+  the `contacts` Directory delegation scope, records delegated access through
+  the shared accesspolicy/audit path, and derives delegated PROPFIND
+  `current-user-privilege-set` from the same decision. Keep this experimental:
+  next Contacts/CardDAV sharing work should add native-client shared
+  address-book coverage, admin/product sharing semantics, and autocomplete
+  linkage before public CardDAV sharing is advertised.
 - Directory/Identity now also has a bounded delegation listing boundary for
   owner/delegate/scope/role-filtered inspection. This was prioritized before
   deeper CalDAV sharing semantics because admin consoles, shared calendar
@@ -2077,6 +2086,11 @@ Next:
   messages. Contact-object `DELETE` now passes observed strong ETags into the
   repository transaction so `If-Match` deletes are rechecked under the
   address-book lock before row removal.
+  Delegated contacts access now uses the Directory/accesspolicy/audit boundary
+  instead of a CardDAV-local sharing model: cross-user `GET`, `PUT`, `DELETE`,
+  `MKCOL`, `PROPPATCH`, `REPORT`, and `PROPFIND` requests require the matching
+  contacts read/write/manage role, run against the owner address-book store,
+  and expose delegated WebDAV privileges in discovery and REPORT responses.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

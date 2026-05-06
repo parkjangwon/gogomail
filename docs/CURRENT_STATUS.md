@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP CONDSTORE NOMODSEQ selection reporting)
+Last updated: 2026-05-06 (updated after CardDAV delegated contacts access wiring)
 
 ## Current phase
 
@@ -245,6 +245,21 @@ instead of leaking raw driver details.
 CardDAV contact-object `DELETE` now carries observed strong ETags into the
 repository transaction so `If-Match` deletes are rechecked under the address-book
 lock before the active object row is removed.
+CardDAV now has its first explicit delegated contacts access integration point:
+handler authorization distinguishes authenticated actor and address-book owner,
+uses the owner store when a delegated read/write/manage decision allows access,
+and runtime `carddav` mode wires the authorizer through Directory active
+principal resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared
+audit repository using the `contacts` delegation scope. Delegated PROPFIND
+responses derive `DAV:current-user-privilege-set` from the same policy
+boundary, so read-only delegates see read-only CardDAV/WebDAV privileges rather
+than owner-level bind/unbind/write capabilities; REPORT and sync responses use
+the same delegated privilege shaping for contact-object properties. Missing
+principals fail closed as access denial instead of exposing a different
+server-error path. This remains an
+experimental/backend-only capability: public contacts sharing UX, native-client
+shared address-book compatibility, and group/resource/person product workflows
+remain release gates.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal
@@ -261,9 +276,10 @@ Directory/Identity now also has an initial delegation table and repository
 check boundary keyed by company, owner principal, delegate principal, product
 scope (`calendar`, `contacts`, `drive`, or `mailbox`), and hierarchical role
 (`read`, `write`, `manage`). This is intentionally not wired into public
-shared-calendar UX yet; CalDAV runtime authorization can now consume it through
-the accesspolicy authorizer for cross-user calendar access checks while future
-resource calendars, shared inboxes, Drive shares, and Contacts delegation keep
+shared-calendar or contacts-sharing UX yet; CalDAV runtime authorization can
+now consume it for cross-user calendar access checks, and CardDAV runtime
+authorization can now consume it for cross-user address-book/contact access
+checks while future resource calendars, shared inboxes, and Drive shares keep
 one auditable principal relationship model instead of each module inventing a
 separate one. Effective
 delegation can now expand group delegates through bounded nested membership, so
@@ -3041,7 +3057,8 @@ Next focus areas:
    resources, aliases, group memberships, and bounded membership expansion into
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
-8. Extend CardDAV from internal discovery into authenticated client workflows:
-   add broader CardDAV filter-tree composition, vCard compatibility, and
-   native-client tests before webmail contacts, attendee auto-complete, or
-   public native CardDAV compatibility are exposed.
+8. Extend CardDAV from internal discovery and delegated contacts access into
+   authenticated shared-client workflows: add broader vCard compatibility,
+   native-client shared address-book tests, product/admin sharing UX semantics,
+   and Contacts/CardDAV autocomplete integration before webmail contacts,
+   attendee auto-complete, or public native CardDAV compatibility are exposed.

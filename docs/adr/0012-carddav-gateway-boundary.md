@@ -160,6 +160,18 @@ advertises only methods with actual request handlers through `OPTIONS` and 405
 responses, so future WebDAV method work cannot accidentally appear as a
 client-ready contact-server capability.
 
+Delegated contacts access consumes the shared Directory/accesspolicy/audit
+boundary rather than defining CardDAV-local sharing rows. The handler separates
+authenticated actor user ID from address-book owner user ID, requires the
+appropriate `contacts` read/write/manage delegation role before cross-user
+`GET`, `PUT`, `DELETE`, `MKCOL`, `PROPPATCH`, `REPORT`, or `PROPFIND`
+execution, resolves allowed requests against the owner store, and derives
+delegated `DAV:current-user-privilege-set` values for discovery and REPORT
+responses from the same WebDAV privilege mapping used by CalDAV. Missing
+principals fail closed as access denial, while infrastructure and audit-path
+failures remain explicit server errors. This is a protocol boundary foundation,
+not a public contacts-sharing UX.
+
 ## Consequences
 
 - Contacts/CardDAV can evolve as a standards-first module instead of a webmail
