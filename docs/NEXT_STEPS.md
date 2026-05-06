@@ -1874,6 +1874,10 @@ Current state:
   `If-Modified-Since` or `If-Unmodified-Since` is repeated on object reads,
   object writes, object deletes, or collection precondition checks, avoiding
   ambiguous timestamp guards across clients and intermediaries.
+- CalDAV object `DELETE` now passes a matched strong `If-Match` ETag through
+  `DeleteObjectRequest` and rechecks it inside the repository transaction,
+  matching the existing `PUT` observed-ETag guard and reducing stale-delete
+  races.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs by
   normalizing the URI path through the existing CalDAV path parser and
   preserving same-user / same-collection scope checks; userinfo-bearing

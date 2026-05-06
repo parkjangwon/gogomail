@@ -444,6 +444,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	observedETag := ""
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
 		if err != nil {
@@ -454,12 +455,15 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 			return
 		}
+		if ifMatch != "" && strings.TrimSpace(ifMatch) != "*" {
+			observedETag = object.ETag
+		}
 		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
 			http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 			return
 		}
 	}
-	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName}); err != nil {
+	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName, ObservedETag: observedETag}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}

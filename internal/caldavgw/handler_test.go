@@ -2299,6 +2299,9 @@ func TestHandlerDeleteAcceptsListedETag(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
 	}
+	if store.lastDelete.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("delete observed etag = %q", store.lastDelete.ObservedETag)
+	}
 }
 
 func TestHandlerPropfindRejectsUnsafeDiscovery(t *testing.T) {
@@ -2567,6 +2570,9 @@ func (s *fakeDiscoveryStore) DeleteObject(_ context.Context, req DeleteObjectReq
 	s.lastDelete = validated
 	for i, object := range s.objects {
 		if object.UserID == validated.UserID && object.CalendarID == validated.CalendarID && object.ObjectName == validated.ObjectName {
+			if validated.ObservedETag != "" && object.ETag != validated.ObservedETag {
+				return CalendarObject{}, errFakeNotFound
+			}
 			s.objects = append(s.objects[:i], s.objects[i+1:]...)
 			s.recordChange(validated.UserID, validated.CalendarID, "object-deleted", validated.ObjectName, object.ETag)
 			return object, nil

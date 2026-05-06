@@ -75,10 +75,11 @@ type GetObjectRequest struct {
 }
 
 type DeleteObjectRequest struct {
-	UserID      string
-	ActorUserID string
-	CalendarID  string
-	ObjectName  string
+	UserID       string
+	ActorUserID  string
+	CalendarID   string
+	ObjectName   string
+	ObservedETag string
 }
 
 type DeleteCalendarRequest struct {
@@ -497,6 +498,11 @@ func (r *Repository) DeleteObject(ctx context.Context, req DeleteObjectRequest) 
 	}
 	if err := ensureCalendarSyncMarker(ctx, tx, req.UserID, req.CalendarID); err != nil {
 		return CalendarObject{}, err
+	}
+	if req.ObservedETag != "" {
+		if err := ensureObjectETag(ctx, tx, req.UserID, req.CalendarID, req.ObjectName, req.ObservedETag); err != nil {
+			return CalendarObject{}, err
+		}
 	}
 	const query = `
 UPDATE caldav_calendar_objects
@@ -993,8 +999,12 @@ func ValidateDeleteObjectRequest(req DeleteObjectRequest) (DeleteObjectRequest, 
 	if err != nil {
 		return DeleteObjectRequest{}, "", err
 	}
+	observedETag, err := validateOptionalETag(req.ObservedETag)
+	if err != nil {
+		return DeleteObjectRequest{}, "", err
+	}
 	syncToken := CalendarSyncToken(userID, calendarID, objectName, "delete", time.Now().UTC().Format(time.RFC3339Nano))
-	return DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObjectName: objectName}, syncToken, nil
+	return DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObjectName: objectName, ObservedETag: observedETag}, syncToken, nil
 }
 
 func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarRequest, error) {

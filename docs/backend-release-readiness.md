@@ -443,6 +443,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   precondition checks now reject repeated `If-Modified-Since` or
   `If-Unmodified-Since` headers before storage work, keeping timestamp
   conditionals deterministic instead of first-header-dependent.
+- CalDAV object `DELETE` now revalidates matched strong `If-Match` ETags in
+  the repository transaction before soft deletion, aligning delete concurrency
+  semantics with the existing observed-ETag `PUT` path.
 - CalDAV `REPORT sync-collection` now requires the default/explicit HTTP
   `Depth: 0` request scope before repository lookup or change-log work, keeping
   WebDAV sync traversal governed by the request-body `sync-level` and matching
