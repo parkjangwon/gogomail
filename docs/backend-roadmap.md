@@ -3993,6 +3993,10 @@ Implementation order:
       error field before formatting, preventing oversized provider messages
       from creating large diagnostic strings while preserving useful
       `Code`/`Message`/request/host context.
+1434. S3-compatible status-error diagnostics now suppress previews for
+      standard `<Error>` XML bodies that contain no safe S3 error fields,
+      preventing empty or extension-only provider errors from falling back to
+      raw XML fragments.
 
 ## Deferred until backend contracts stabilize
 

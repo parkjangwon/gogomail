@@ -320,6 +320,8 @@ sanitized preview path. XML error previewing is streaming and best-effort, so
 truncated provider error bodies can still expose parsed S3 fields without
 falling back to raw XML snippets. Each parsed XML error field is capped before
 formatting, keeping diagnostics bounded even for oversized provider messages.
+When a standard S3 error XML body contains no safe preview fields, gogomail
+suppresses the preview instead of exposing raw XML fragments.
 The same embedded-error handling applies to `ListObjectsV2` responses that
 arrive as `200 OK` with a top-level standard S3 `<Error>` body, so throttling,
 auth, or provider-side list failures cannot be misreported as malformed

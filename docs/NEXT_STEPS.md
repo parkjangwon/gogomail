@@ -791,7 +791,8 @@ Current state:
   host-id context, while preserving the sanitized plain-text fallback for
   non-XML compatible-provider errors. Truncated S3 XML error bodies still use
   the same streaming field preview path instead of leaking raw XML snippets,
-  and individual XML error fields are capped before formatting.
+  individual XML error fields are capped before formatting, and empty-field
+  standard S3 error XML suppresses raw XML fallback entirely.
 - S3-compatible `ListObjectsV2` `200 OK` responses now fail closed when the
   body is a top-level standard S3 `<Error>` document, surfacing the same
   bounded embedded-error diagnostic instead of a generic invalid list control.

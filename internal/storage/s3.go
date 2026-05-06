@@ -1230,7 +1230,7 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 	if err != nil {
 		return ""
 	}
-	if preview := s3XMLErrorPreview(data); preview != "" {
+	if preview, ok := s3XMLError(data); ok {
 		return preview
 	}
 	return s3PlainErrorPreview(string(data))
