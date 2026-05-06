@@ -3774,6 +3774,10 @@ Implementation order:
       preserving HTTP 400 syntax errors ahead of 412 state preconditions and
       XML body reads while keeping existing legacy collection IDs on their
       normal already-exists and conditional-response paths.
+1378. IMAP partial fetch offsets now enforce RFC 3501 `number` syntax by
+      rejecting leading-zero forms such as `BODY.PEEK[]<00.34>` and
+      `<012.34>` before command execution, while preserving the valid
+      zero-offset `<0.count>` window used by clients.
 
 ## Deferred until backend contracts stabilize
 

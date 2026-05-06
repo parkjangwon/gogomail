@@ -43,6 +43,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collection path IDs before conditional create checks, keeping syntax errors
   as HTTP 400 ahead of 412 state preconditions without changing existing
   collection already-exists semantics.
+- IMAP partial fetch offsets now enforce RFC 3501 `number` syntax, rejecting
+  leading-zero forms such as `BODY.PEEK[]<00.34>` before command execution
+  while keeping valid zero-offset partial windows available for clients.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
