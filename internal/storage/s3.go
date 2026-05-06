@@ -1294,13 +1294,13 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 			}
 			switch current {
 			case "Code":
-				response.Code += string(token)
+				appendS3ErrorPreviewField(&response.Code, token)
 			case "Message":
-				response.Message += string(token)
+				appendS3ErrorPreviewField(&response.Message, token)
 			case "RequestId":
-				response.RequestID += string(token)
+				appendS3ErrorPreviewField(&response.RequestID, token)
 			case "HostId":
-				response.HostID += string(token)
+				appendS3ErrorPreviewField(&response.HostID, token)
 			}
 		case xml.EndElement:
 			if depth == 2 {
@@ -1311,6 +1311,17 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 			}
 		}
 	}
+}
+
+func appendS3ErrorPreviewField(dst *string, value []byte) {
+	if len(*dst) >= maxS3ErrorPreviewFieldBytes {
+		return
+	}
+	remaining := maxS3ErrorPreviewFieldBytes - len(*dst)
+	if len(value) > remaining {
+		value = value[:remaining]
+	}
+	*dst += string(value)
 }
 
 func s3PlainErrorPreview(value string) string {
@@ -1350,6 +1361,7 @@ type s3CopyResponse struct {
 
 const maxS3ListResponseBytes = 4 << 20
 const maxS3CopyResponseBytes = 1 << 20
+const maxS3ErrorPreviewFieldBytes = 1024
 
 func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 	if body == nil {
