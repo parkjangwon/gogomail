@@ -84,6 +84,10 @@ Deletes are idempotent for missing objects, matching S3-style cleanup behavior
 so lifecycle workers behave consistently across storage backends.
 `Stat` reports the canonical object key, byte size, and filesystem
 last-modified time without opening the file body.
+Symbolic links under the local/NFS storage root are not treated as objects:
+reads, range reads, metadata probes, and source moves reject them, and list
+operations hide them. This keeps mounted filesystems from escaping the
+object-store contract through host-specific link behavior.
 `GetRange` seeks to the requested byte offset and returns a closeable limited
 reader for the requested positive byte count, keeping partial reads efficient
 for local disk and NFS-style mounts. If the requested local/NFS byte window
