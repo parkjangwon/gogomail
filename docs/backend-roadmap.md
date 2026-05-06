@@ -2426,6 +2426,10 @@ Implementation order:
       one repository transaction, honoring collection ETag/time preconditions,
       recording an `addressbook-deleted` change row, and rejecting home,
       contact-object, and cross-user collection-delete targets.
+1128. CardDAV `sync-collection` can answer stale-token requests after an
+      address-book collection has been deleted by reading durable change rows
+      and returning the latest deletion sync token without requiring the
+      collection to remain active.
 
 ## Deferred until backend contracts stabilize
 

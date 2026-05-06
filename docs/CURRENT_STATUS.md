@@ -123,6 +123,9 @@ transaction, honoring collection `If-Match`/`If-Unmodified-Since` preconditions,
 recording an `addressbook-deleted` change row, and rejecting home/object/cross-
 user targets. Address-book homes now also advertise `DAV:unbind` because child
 collection delete semantics exist.
+CardDAV `sync-collection` can now answer stale-token requests after an address
+book collection has been deleted by reading the durable change log and returning
+the latest deletion sync token without requiring the collection to remain active.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

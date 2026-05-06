@@ -96,6 +96,9 @@ request IDs keep path identity separate from future human-readable aliases.
 Collection `DELETE` soft-deletes an address book and active child contact
 objects transactionally, records an `addressbook-deleted` change row, and keeps
 per-contact object deletion on the existing object `DELETE` path.
+Stale `sync-collection` requests can still advance through a deleted collection
+by reading durable change rows and returning the latest deletion sync token,
+instead of requiring the collection row to be active.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

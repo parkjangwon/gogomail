@@ -420,6 +420,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Address-book collection `DELETE` soft-deletes the collection and active child
   contact objects transactionally, honors collection preconditions, records an
   `addressbook-deleted` change row, and rejects unsafe targets.
+  `sync-collection` can answer stale-token requests after collection deletion
+  by returning the latest durable deletion sync token without requiring the
+  collection to remain active.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

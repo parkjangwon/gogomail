@@ -886,6 +886,43 @@ func TestHandlerReportSyncCollectionReturnsChangesSinceToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionReturnsDeletedCollectionToken(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books = nil
+	store.objects = nil
+	store.changes = append(store.changes, AddressBookChange{
+		ID:            4,
+		UserID:        "user-1",
+		AddressBookID: "personal",
+		Action:        "addressbook-deleted",
+		SyncToken:     "sync-deleted",
+		ChangedAt:     time.Date(2026, 5, 6, 10, 11, 12, 0, time.UTC),
+	})
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-123</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthZero))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if strings.Contains(text, "<D:response>") {
+		t.Fatalf("deleted collection sync should not return object responses:\n%s", text)
+	}
+	if !strings.Contains(text, "<D:sync-token>sync-deleted</D:sync-token>") {
+		t.Fatalf("deleted collection sync token missing:\n%s", text)
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsInvalidSyncTokenWithDAVPrecondition(t *testing.T) {
 	t.Parallel()
 
