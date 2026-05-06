@@ -72,6 +72,11 @@ Current state:
   targets reject matching `If-None-Match`, missing targets reject `If-Match`
   or `If-Unmodified-Since`, and `If-None-Match: *` still permits safe
   create-only requests for absent collections.
+- CalDAV/CardDAV collection creation now validates missing-target
+  UUID-shaped collection path IDs before conditional create evaluation,
+  preserving HTTP 400 syntax failures ahead of 412 state preconditions and XML
+  body reads while existing legacy collection IDs retain normal existence
+  semantics.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an

@@ -2089,6 +2089,24 @@ func TestHandlerMkcalendarRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarRejectsUnsafePathIDBeforeConditionalCreate(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", body)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
 func TestHandlerProppatchUpdatesCalendarCollectionProperties(t *testing.T) {
 	t.Parallel()
 

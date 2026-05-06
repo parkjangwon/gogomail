@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV collection create preconditions)
+Last updated: 2026-05-07 (updated after DAV collection create path validation order)
 
 ## Current phase
 
@@ -76,6 +76,11 @@ creation preconditions before reading WebDAV XML bodies: existing collection
 targets reject matching `If-None-Match` validators with HTTP 412, missing
 targets reject `If-Match` or `If-Unmodified-Since` with HTTP 412, and
 `If-None-Match: *` remains the safe create-only path for absent collections.
+For missing collection targets, those creation paths now also validate
+UUID-shaped collection path IDs before conditional create evaluation, so
+malformed new calendar or address-book IDs fail with HTTP 400 before 412
+precondition responses or XML body reads while existing legacy collection IDs
+keep their normal already-exists and conditional semantics.
 CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new
