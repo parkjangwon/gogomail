@@ -4686,6 +4686,77 @@ func TestServerHandlesCopyToQuotedMailboxName(t *testing.T) {
 	}
 }
 
+func TestServerHandlesCopyMoveToEscapedQuotedMailboxName(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &quotedMailboxTransferBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 COPY 1 \"Team \\\"Archive\\\"\"\r\na4 UID MOVE 7 \"Team \\\"Archive\\\"\"\r\n")); err != nil {
+		t.Fatalf("write escaped quoted mailbox commands: %v", err)
+	}
+	want := []string{
+		"a3 OK [COPYUID 8 7 20] COPY completed\r\n",
+		"* OK [HIGHESTMODSEQ 19] UID MOVE source mod-sequence\r\n",
+		"* OK [COPYUID 8 7 30] UID MOVE copied UIDs\r\n",
+		"* 1 EXPUNGE\r\n",
+		"a4 OK UID MOVE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read escaped quoted mailbox response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("escaped quoted mailbox response = %q, want %q", line, expected)
+		}
+	}
+	if got, want := backendImpl.mailboxLookups, []MailboxID{`Team "Archive"`, `Team "Archive"`}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("mailbox lookups = %v, want %v", got, want)
+	}
+	if len(backendImpl.copyRequests) != 1 || len(backendImpl.moveRequests) != 1 {
+		t.Fatalf("request counts = copy %d move %d, want 1 each", len(backendImpl.copyRequests), len(backendImpl.moveRequests))
+	}
+	if req := backendImpl.copyRequests[0]; req.DestMailboxID != "team-quote-archive" || !reflect.DeepEqual(req.UIDs, []UID{7}) {
+		t.Fatalf("copy request = %+v, want team-quote-archive UID 7", req)
+	}
+	if req := backendImpl.moveRequests[0]; req.DestMailboxID != "team-quote-archive" || !reflect.DeepEqual(req.UIDs, []UID{7}) {
+		t.Fatalf("move request = %+v, want team-quote-archive UID 7", req)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerCopyToSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) {
 	t.Parallel()
 
@@ -13054,6 +13125,9 @@ func (b *quotedMailboxTransferBackend) GetMailbox(_ context.Context, _ UserID, m
 	b.mailboxLookups = append(b.mailboxLookups, mailboxID)
 	if mailboxID == "Team Archive" {
 		return Mailbox{ID: "team-archive", Name: "Team Archive", UIDValidity: 7, UIDNext: 20}, nil
+	}
+	if mailboxID == `Team "Archive"` {
+		return Mailbox{ID: "team-quote-archive", Name: `Team "Archive"`, UIDValidity: 8, UIDNext: 20}, nil
 	}
 	return Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2, Unseen: 1}, nil
 }
