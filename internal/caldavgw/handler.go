@@ -155,7 +155,7 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
-	userID, resource, _, ok := h.resolveResourceRequest(w, r, CalendarAccessRoleWrite)
+	userID, resource, actorUserID, _, ok := h.resolveResourceRequest(w, r, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -178,6 +178,7 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	calendar, err := store.UpdateCalendarProperties(r.Context(), UpdateCalendarRequest{
 		UserID:      userID,
+		ActorUserID: actorUserID,
 		CalendarID:  resource.CalendarID,
 		Name:        patch.Name,
 		Color:       patch.Color,
@@ -223,6 +224,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+	actorUserID := userID
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil || resource.Kind != ResourceCalendarCollection {
 		http.Error(w, "MKCALENDAR requires a calendar collection path", http.StatusConflict)
@@ -252,6 +254,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	calendar, err := store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
 		UserID:      userID,
+		ActorUserID: actorUserID,
 		CalendarID:  resource.CalendarID,
 		Name:        req.DisplayName,
 		Color:       req.Color,
@@ -273,7 +276,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleRead)
+	userID, resource, _, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -318,7 +321,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleWrite)
+	userID, resource, actorUserID, ok := h.resolveObjectRequest(w, r, CalendarAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -374,6 +377,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	}
 	object, err := store.UpsertObject(r.Context(), UpsertObjectRequest{
 		UserID:       userID,
+		ActorUserID:  actorUserID,
 		CalendarID:   resource.CalendarID,
 		ObjectName:   resource.ObjectName,
 		ICS:          body,
@@ -405,6 +409,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav user is not authenticated", http.StatusUnauthorized)
 		return
 	}
+	actorUserID := userID
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -416,7 +421,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userID = ownerID
-		h.deleteCalendarCollection(w, r, userID, resource)
+		h.deleteCalendarCollection(w, r, userID, actorUserID, resource)
 		return
 	}
 	if resource.Kind != ResourceCalendarObject {
@@ -454,14 +459,14 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName}); err != nil {
+	if _, err := store.DeleteObject(r.Context(), DeleteObjectRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: resource.CalendarID, ObjectName: resource.ObjectName}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Request, userID string, actorUserID string, resource ResourcePath) {
 	store, ok := h.Store.(CalendarDeleter)
 	if !ok {
 		http.Error(w, "caldav calendar deleter is not configured", http.StatusNotImplemented)
@@ -470,7 +475,7 @@ func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Reques
 	if !h.checkCalendarCollectionPreconditions(w, r, userID, resource.CalendarID) {
 		return
 	}
-	if _, err := store.DeleteCalendar(r.Context(), DeleteCalendarRequest{UserID: userID, CalendarID: resource.CalendarID}); err != nil {
+	if _, err := store.DeleteCalendar(r.Context(), DeleteCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: resource.CalendarID}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -507,22 +512,22 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 	return true
 }
 
-func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
-	userID, resource, _, ok := h.resolveResourceRequest(w, r, requiredRole)
+func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {
+	userID, resource, actorUserID, _, ok := h.resolveResourceRequest(w, r, requiredRole)
 	if !ok {
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
 	if resource.Kind != ResourceCalendarObject {
 		http.Error(w, "caldav object path is required", http.StatusNotFound)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
-	return userID, resource, true
+	return userID, resource, actorUserID, true
 }
 
-func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, AccessDecision, bool) {
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, AccessDecision, bool) {
 	if h.Store == nil {
 		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
-		return "", ResourcePath{}, AccessDecision{}, false
+		return "", ResourcePath{}, "", AccessDecision{}, false
 	}
 	resolve := h.ResolveUser
 	if resolve == nil {
@@ -531,18 +536,18 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request,
 	userID, err := resolve(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return "", ResourcePath{}, AccessDecision{}, false
+		return "", ResourcePath{}, "", AccessDecision{}, false
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
-		return "", ResourcePath{}, AccessDecision{}, false
+		return "", ResourcePath{}, "", AccessDecision{}, false
 	}
 	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
 	if !ok {
-		return "", ResourcePath{}, AccessDecision{}, false
+		return "", ResourcePath{}, "", AccessDecision{}, false
 	}
-	return ownerID, resource, decision, true
+	return ownerID, resource, userID, decision, true
 }
 
 func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, AccessDecision, bool) {

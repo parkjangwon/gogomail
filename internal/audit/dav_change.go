@@ -42,6 +42,9 @@ func DAVChangeAuditLog(payload json.RawMessage) (Log, error) {
 		DAVKind       string `json:"dav_kind"`
 		Action        string `json:"action"`
 		UserID        string `json:"user_id"`
+		OwnerUserID   string `json:"owner_user_id"`
+		ActorUserID   string `json:"actor_user_id"`
+		Delegated     bool   `json:"delegated"`
 		CollectionID  string `json:"collection_id"`
 		ObjectName    string `json:"object_name"`
 		ETag          string `json:"etag"`
@@ -69,6 +72,18 @@ func DAVChangeAuditLog(payload json.RawMessage) (Log, error) {
 	if event.UserID, err = requiredDAVChangeValue("user_id", event.UserID); err != nil {
 		return Log{}, err
 	}
+	if event.OwnerUserID, err = optionalDAVChangeValue("owner_user_id", event.OwnerUserID); err != nil {
+		return Log{}, err
+	}
+	if event.OwnerUserID == "" {
+		event.OwnerUserID = event.UserID
+	}
+	if event.ActorUserID, err = optionalDAVChangeValue("actor_user_id", event.ActorUserID); err != nil {
+		return Log{}, err
+	}
+	if event.ActorUserID == "" {
+		event.ActorUserID = event.UserID
+	}
 	if event.CollectionID, err = requiredDAVChangeValue("collection_id", event.CollectionID); err != nil {
 		return Log{}, err
 	}
@@ -88,6 +103,9 @@ func DAVChangeAuditLog(payload json.RawMessage) (Log, error) {
 	detail, err := json.Marshal(map[string]any{
 		"dav_kind":      event.DAVKind,
 		"action":        event.Action,
+		"owner_user_id": event.OwnerUserID,
+		"actor_user_id": event.ActorUserID,
+		"delegated":     event.Delegated,
 		"collection_id": event.CollectionID,
 		"object_name":   event.ObjectName,
 		"etag":          event.ETag,
@@ -99,7 +117,8 @@ func DAVChangeAuditLog(payload json.RawMessage) (Log, error) {
 	}
 
 	return Log{
-		UserID:     event.UserID,
+		UserID:     event.OwnerUserID,
+		ActorID:    event.ActorUserID,
 		Category:   "dav",
 		Action:     event.Event,
 		TargetType: targetType,
