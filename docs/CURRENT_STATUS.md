@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP CONDSTORE zero-boundary hardening)
+Last updated: 2026-05-07 (updated after S3 partial range content-length hardening)
 
 ## Current phase
 
@@ -104,6 +104,9 @@ window or, without `Content-Range`, when the request starts at offset 0 and
 `Content-Length` exactly equals the requested length. Unsafe `200 OK` range
 responses are drained and rejected, keeping provider compatibility from
 weakening bounded-read semantics.
+S3-compatible `206 Partial Content` range responses now also reject invalid or
+mismatched `Content-Length` headers when present, so contradictory provider
+metadata is drained and failed before a bounded range reader is returned.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

@@ -122,6 +122,10 @@ Current state:
   responses only when `Content-Range` or `Content-Length` proves the body maps
   exactly to the requested byte window, while still rejecting ambiguous
   non-zero-offset or mismatched responses.
+- S3-compatible `206 Partial Content` range responses reject invalid or
+  mismatched `Content-Length` headers when present, draining the body before
+  returning an error so provider metadata contradictions do not reach callers
+  as apparently valid bounded readers.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,
