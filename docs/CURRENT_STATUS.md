@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after production S3 endpoint validation)
+Last updated: 2026-05-06 (updated after IMAP STATUS spaced empty-list validation)
 
 ## Current phase
 
@@ -18,16 +18,16 @@ RFC-sensitive core, but current work should balance:
 - OpenAPI drift prevention
 
 IMAP hardening continues as a release-readiness track. `STATUS` now rejects an
-empty parenthesized status data-item list with an explicit tagged `BAD` instead
-of treating `()` as a generic unsupported item, keeping RFC-shaped client
-diagnostics predictable without changing valid status item handling. `THREAD`
-now also rejects unsupported algorithms before authentication or selected
-mailbox checks, so unsupported extensions such as `REFERENCES` are reported at
-the syntax/capability boundary consistently for normal and UID forms. IMAP
-literal parsing now has regression coverage for suffixed literal markers,
-literal payloads followed by trailing atom data, and unused literal payloads so
-malformed wire input remains in the parser/framing layer instead of leaking
-into command handlers.
+empty parenthesized status data-item list, including spaced forms such as
+`( )`, with an explicit tagged `BAD` instead of treating it as a generic
+unsupported item, keeping RFC-shaped client diagnostics predictable without
+changing valid status item handling. `THREAD` now also rejects unsupported
+algorithms before authentication or selected mailbox checks, so unsupported
+extensions such as `REFERENCES` are reported at the syntax/capability boundary
+consistently for normal and UID forms. IMAP literal parsing now has regression
+coverage for suffixed literal markers, literal payloads followed by trailing
+atom data, and unused literal payloads so malformed wire input remains in the
+parser/framing layer instead of leaking into command handlers.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. Production `s3` runtime configuration now requires an explicit

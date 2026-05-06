@@ -6702,7 +6702,10 @@ func imapStatusItemListIsParenthesized(items []string) bool {
 
 func imapStatusItemListIsEmpty(items []string) bool {
 	joined := strings.TrimSpace(strings.Join(items, " "))
-	return joined == "()"
+	if !strings.HasPrefix(joined, "(") || !strings.HasSuffix(joined, ")") {
+		return false
+	}
+	return strings.TrimSpace(joined[1:len(joined)-1]) == ""
 }
 
 func imapStatusRequestsItem(items []string, want string) bool {
