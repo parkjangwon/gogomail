@@ -1257,30 +1257,42 @@ func s3XMLError(data []byte) (string, bool) {
 
 func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
-	var response s3CopyResponse
-	var rootSeen bool
-	var depth int
-	var current string
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
-			return response, rootSeen
+			return s3CopyResponse{}, false
 		}
 		if err != nil {
-			return response, rootSeen
+			return s3CopyResponse{}, false
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if start.Name.Local != "Error" || !s3XMLNamespaceAllowed(start.Name.Space) {
+			return s3CopyResponse{}, false
+		}
+		response, _ := parseS3XMLErrorElement(decoder, start)
+		return response, true
+	}
+}
+
+func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3CopyResponse, error) {
+	response := s3CopyResponse{XMLName: root.Name}
+	depth := 1
+	current := ""
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return response, nil
+		}
+		if err != nil {
+			return response, err
 		}
 		switch token := token.(type) {
 		case xml.StartElement:
 			depth++
-			if depth == 1 {
-				if token.Name.Local != "Error" || !s3XMLNamespaceAllowed(token.Name.Space) {
-					return s3CopyResponse{}, false
-				}
-				response.XMLName = token.Name
-				rootSeen = true
-				continue
-			}
-			if depth == 2 && rootSeen && s3XMLNamespaceAllowed(token.Name.Space) {
+			if depth == 2 && s3XMLNamespaceAllowed(token.Name.Space) {
 				switch token.Name.Local {
 				case "Code", "Message", "RequestId", "HostId":
 					current = token.Name.Local
@@ -1288,6 +1300,14 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 					current = ""
 				}
 			}
+		case xml.EndElement:
+			if depth == 2 {
+				current = ""
+			}
+			if depth == 1 {
+				return response, nil
+			}
+			depth--
 		case xml.CharData:
 			if depth != 2 {
 				continue
@@ -1301,13 +1321,6 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 				appendS3ErrorPreviewField(&response.RequestID, token)
 			case "HostId":
 				appendS3ErrorPreviewField(&response.HostID, token)
-			}
-		case xml.EndElement:
-			if depth == 2 {
-				current = ""
-			}
-			if depth > 0 {
-				depth--
 			}
 		}
 	}
@@ -1524,7 +1537,7 @@ func validateS3CopyResponse(body io.Reader) error {
 		}
 		return nil
 	case "Error":
-		preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID))
+		preview, _ := s3XMLError(data)
 		if preview == "" {
 			return fmt.Errorf("copy s3 object: embedded error")
 		}
@@ -1579,8 +1592,8 @@ func validateS3CopyResultShape(data []byte) error {
 				if !s3XMLNamespaceAllowed(token.Name.Space) {
 					return fmt.Errorf("copy s3 object: unexpected response namespace")
 				}
-				var response s3CopyResponse
-				if err := decoder.DecodeElement(&response, &token); err != nil {
+				response, err := parseS3XMLErrorElement(decoder, token)
+				if err != nil {
 					return fmt.Errorf("decode s3 copy response: %w", err)
 				}
 				preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID))

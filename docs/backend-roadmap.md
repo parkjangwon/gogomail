@@ -3997,6 +3997,10 @@ Implementation order:
       standard `<Error>` XML bodies that contain no safe S3 error fields,
       preventing empty or extension-only provider errors from falling back to
       raw XML fragments.
+1435. S3-compatible `CopyObject` embedded-error diagnostics now reuse the same
+      capped streaming standard `<Error>` field parser for both top-level and
+      nested copy errors, preventing oversized provider copy-failure messages
+      from bypassing the status-error diagnostic bounds.
 
 ## Deferred until backend contracts stabilize
 

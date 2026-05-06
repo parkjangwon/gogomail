@@ -2968,6 +2968,54 @@ try later</Message>
 	}
 }
 
+func TestS3StoreCopyBoundsEmbeddedErrorPreview(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{
+			name: "top_level",
+			body: `<Error><Code>SlowDown</Code><Message>` + strings.Repeat("copy throttled ", 4096) + `</Message></Error>`,
+		},
+		{
+			name: "nested",
+			body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>` + strings.Repeat("copy throttled ", 4096) + `</Message></Error></CopyObjectResult>`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
+			if err == nil || !strings.Contains(err.Error(), "SlowDown") || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
+				t.Fatalf("Copy err = %q, want sanitized embedded error", err)
+			}
+			if len(err.Error()) > maxS3ErrorPreviewFieldBytes+len("copy s3 object: embedded error: SlowDown: ")+64 {
+				t.Fatalf("Copy err length = %d, want bounded preview", len(err.Error()))
+			}
+		})
+	}
+}
+
 func TestS3StoreCopyAcceptsCopyObjectResult(t *testing.T) {
 	t.Parallel()
 
