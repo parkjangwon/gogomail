@@ -4001,6 +4001,11 @@ Implementation order:
       capped streaming standard `<Error>` field parser for both top-level and
       nested copy errors, preventing oversized provider copy-failure messages
       from bypassing the status-error diagnostic bounds.
+1436. IMAP `FETCH` header-field section detection now requires either an exact
+      top-level body section or a valid numeric MIME part path before
+      `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, preventing malformed section
+      prefixes from being accepted merely because they contain header-subset
+      marker text.
 
 ## Deferred until backend contracts stabilize
 

@@ -360,7 +360,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `HEADER.FIELDS`/`HEADER.FIELDS.NOT` now accepts RFC 5322-style visible
   custom names containing `_`, `+`, or `.`, while rejecting empty,
   whitespace/control-bearing, colon-suffixed, or non-ASCII names before
-  command execution.
+  command execution. `FETCH` header-field section detection now also requires
+  a real top-level body section or a valid numeric MIME part path before the
+  `HEADER.FIELDS` marker, so malformed section prefixes cannot pass through
+  the header-subset literal path.
 - IMAP listener concurrency is now operator-bounded through
   `GOGOMAIL_IMAP_MAX_CONNECTIONS` / `imap_max_connections`; positive caps hold
   one slot per active protocol session and reject excess clients with an

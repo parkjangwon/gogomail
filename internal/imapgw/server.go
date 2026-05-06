@@ -5875,7 +5875,25 @@ func imapFetchToken(item string) string {
 }
 
 func imapFetchHeaderFieldSectionStart(token string) bool {
-	return strings.Contains(token, "[HEADER.FIELDS") || strings.Contains(token, ".HEADER.FIELDS")
+	for _, prefix := range []string{"BODY.PEEK[", "BODY["} {
+		section, ok := strings.CutPrefix(token, prefix)
+		if !ok {
+			continue
+		}
+		for _, marker := range []string{"HEADER.FIELDS.NOT", "HEADER.FIELDS"} {
+			if strings.HasPrefix(section, marker) {
+				return true
+			}
+			markerIndex := strings.Index(section, "."+marker)
+			if markerIndex <= 0 {
+				continue
+			}
+			if _, ok := parseIMAPMIMEPartPath(section[:markerIndex]); ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func imapFetchHeaderFieldSectionEnd(items []string, start int) (int, bool) {
