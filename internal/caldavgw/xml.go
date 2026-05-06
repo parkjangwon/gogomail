@@ -930,6 +930,7 @@ func parsePropElement(dec *xml.Decoder, propName xml.Name) ([]XMLName, error) {
 
 func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, error) {
 	var found ReportFilter
+	topLevelComponents := 0
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -948,6 +949,10 @@ func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, er
 				}
 				found.TimeRange = &timeRange
 			case sameXMLName(tok.Name, CalDAVNamespace, "comp-filter"):
+				topLevelComponents++
+				if topLevelComponents > 1 {
+					return ReportFilter{}, fmt.Errorf("calendar-query filter must contain exactly one top-level comp-filter")
+				}
 				nested, err := parseCompFilterElement(dec, tok, "")
 				if err != nil {
 					return ReportFilter{}, err
@@ -963,6 +968,9 @@ func parseFilterElement(dec *xml.Decoder, filterName xml.Name) (ReportFilter, er
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, filterName) {
+				if topLevelComponents != 1 {
+					return ReportFilter{}, fmt.Errorf("calendar-query filter must contain a VCALENDAR comp-filter")
+				}
 				return found, nil
 			}
 		}

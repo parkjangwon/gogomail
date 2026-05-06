@@ -539,6 +539,14 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
   <D:prop><D:getetag/></D:prop>
   <C:filter><C:comp-filter name="VEVENT"/></C:filter>
 </C:calendar-query>`,
+		"query direct time range filter": `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter><C:time-range start="20260506T000000Z" end="20260507T000000Z"/></C:filter>
+</C:calendar-query>`,
+		"query duplicate top comp filter": `<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+  <C:filter><C:comp-filter name="VCALENDAR"/><C:comp-filter name="VCALENDAR"/></C:filter>
+</C:calendar-query>`,
 		"free busy no range": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"/>`,
 		"free busy duplicate range": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav">
   <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>

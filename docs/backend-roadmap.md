@@ -3034,6 +3034,9 @@ Implementation order:
       the RFC 4791 `name` attribute or use a non-`VCALENDAR` top-level
       component filter, preventing malformed native-client search requests from
       silently widening into whole-calendar scans.
+1228. CalDAV `calendar-query` filters now require exactly one top-level
+      `VCALENDAR` component filter, rejecting missing, direct `time-range`, or
+      repeated top-level filter shapes before calendar-object scan planning.
 
 ## Deferred until backend contracts stabilize
 
