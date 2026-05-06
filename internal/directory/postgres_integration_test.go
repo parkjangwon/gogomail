@@ -500,6 +500,40 @@ func TestPostgresCreateDelegationWithAuditValidatesPrincipalsAndUniqueness(t *te
 	if !ok {
 		t.Fatal("created delegation did not satisfy write role through manage grant")
 	}
+	updated, err := repo.UpdateDelegationRoleWithAudit(ctx, UpdateDelegationRoleRequest{
+		ID:   delegation.ID,
+		Role: DelegationRoleRead,
+	})
+	if err != nil {
+		t.Fatalf("UpdateDelegationRoleWithAudit returned error: %v", err)
+	}
+	if updated.ID != delegation.ID ||
+		updated.CompanyID != seed.companyID ||
+		updated.OwnerKind != PrincipalKindResource ||
+		updated.OwnerID != seed.equipmentID ||
+		updated.DelegateKind != PrincipalKindGroup ||
+		updated.DelegateID != seed.deeperID ||
+		updated.Scope != DelegationScopeContacts ||
+		updated.Role != DelegationRoleRead ||
+		updated.Status != "active" {
+		t.Fatalf("updated delegation = %+v", updated)
+	}
+	ok, err = repo.CheckDelegation(ctx, CheckDelegationRequest{
+		CompanyID:    seed.companyID,
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      seed.equipmentID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.deeperID,
+		Scope:        DelegationScopeContacts,
+		RequiredRole: DelegationRoleWrite,
+		ActiveOnly:   true,
+	})
+	if err != nil {
+		t.Fatalf("CheckDelegation after role update returned error: %v", err)
+	}
+	if ok {
+		t.Fatal("read delegation satisfied write role after downgrade")
+	}
 	if _, err := db.ExecContext(ctx, `UPDATE directory_resources SET status = 'suspended' WHERE id = $1::uuid`, seed.equipmentID); err != nil {
 		t.Fatalf("suspend delegation owner resource: %v", err)
 	}
@@ -535,6 +569,19 @@ WHERE company_id = $1::uuid
 	}
 	if auditCount != 1 {
 		t.Fatalf("directory delegation audit rows = %d, want 1", auditCount)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_delegation.role_update'
+  AND target_type = 'directory_delegation'
+  AND target_id = $2
+  AND result = 'updated'`, seed.companyID, delegation.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory delegation role update audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory delegation role update audit rows = %d, want 1", auditCount)
 	}
 	_, err = repo.CreateDelegationWithAudit(ctx, CreateDelegationRequest{
 		CompanyID:    seed.companyID,

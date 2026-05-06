@@ -1544,6 +1544,112 @@ func directoryDelegationCreateAuditDetail(delegation Delegation) (json.RawMessag
 	return detail, nil
 }
 
+func (r *Repository) UpdateDelegationRoleWithAudit(ctx context.Context, req UpdateDelegationRoleRequest) (Delegation, error) {
+	if r == nil || r.db == nil {
+		return Delegation{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeUpdateDelegationRoleRequest(req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("begin update directory delegation role transaction: %w", err)
+	}
+	defer tx.Rollback()
+	delegation, previousRole, err := r.updateDelegationRoleTx(ctx, tx, req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	detail, err := directoryDelegationRoleUpdateAuditDetail(delegation, previousRole)
+	if err != nil {
+		return Delegation{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  delegation.CompanyID,
+		Category:   "admin",
+		Action:     "directory_delegation.role_update",
+		TargetType: "directory_delegation",
+		TargetID:   delegation.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return Delegation{}, fmt.Errorf("record directory delegation role update audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Delegation{}, fmt.Errorf("commit update directory delegation role transaction: %w", err)
+	}
+	return delegation, nil
+}
+
+func (r *Repository) updateDelegationRoleTx(ctx context.Context, tx *sql.Tx, req UpdateDelegationRoleRequest) (Delegation, string, error) {
+	const query = `
+WITH current_delegation AS (
+  SELECT d.id,
+         d.role AS previous_role
+  FROM directory_delegations d
+  JOIN companies c ON c.id = d.company_id
+  WHERE d.id = $1::uuid
+    AND d.status = 'active'
+    AND c.status = 'active'
+  FOR UPDATE OF d
+)
+UPDATE directory_delegations AS d
+SET role = $2,
+    updated_at = now()
+FROM current_delegation AS current
+WHERE d.id = current.id
+RETURNING d.id::text,
+          d.company_id::text,
+          d.owner_kind,
+          d.owner_id::text,
+          d.delegate_kind,
+          d.delegate_id::text,
+          d.scope,
+          d.role,
+          d.status,
+          current.previous_role`
+	var delegation Delegation
+	var previousRole string
+	if err := tx.QueryRowContext(ctx, query, req.ID, req.Role).Scan(
+		&delegation.ID,
+		&delegation.CompanyID,
+		&delegation.OwnerKind,
+		&delegation.OwnerID,
+		&delegation.DelegateKind,
+		&delegation.DelegateID,
+		&delegation.Scope,
+		&delegation.Role,
+		&delegation.Status,
+		&previousRole,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Delegation{}, "", fmt.Errorf("directory delegation not found")
+		}
+		return Delegation{}, "", fmt.Errorf("update directory delegation role: %w", err)
+	}
+	return delegation, previousRole, nil
+}
+
+func directoryDelegationRoleUpdateAuditDetail(delegation Delegation, previousRole string) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"delegation_id": delegation.ID,
+		"company_id":    delegation.CompanyID,
+		"owner_kind":    delegation.OwnerKind,
+		"owner_id":      delegation.OwnerID,
+		"delegate_kind": delegation.DelegateKind,
+		"delegate_id":   delegation.DelegateID,
+		"scope":         delegation.Scope,
+		"previous_role": previousRole,
+		"role":          delegation.Role,
+		"status":        delegation.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory delegation role update audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func (r *Repository) DeleteDelegationWithAudit(ctx context.Context, id string) (Delegation, error) {
 	if r == nil || r.db == nil {
 		return Delegation{}, fmt.Errorf("database handle is required")
