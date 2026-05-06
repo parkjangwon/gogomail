@@ -110,13 +110,15 @@ type OpenFileRangeRequest struct {
 }
 
 type FileDownload struct {
-	Node Node
-	Body io.ReadCloser
+	Node      Node
+	ShareLink ShareLink
+	Body      io.ReadCloser
 }
 
 type FileMetadata struct {
-	Node   Node
-	Object storage.ObjectInfo
+	Node      Node
+	ShareLink ShareLink
+	Object    storage.ObjectInfo
 }
 
 type TrashNodeRequest struct {

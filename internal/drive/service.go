@@ -433,7 +433,7 @@ func (s *Service) OpenSharedFile(ctx context.Context, req ResolveShareLinkReques
 	if err != nil {
 		return FileDownload{}, fmt.Errorf("open shared drive file object: %w", err)
 	}
-	return FileDownload{Node: resolved.Node, Body: body}, nil
+	return FileDownload{Node: resolved.Node, ShareLink: resolved.ShareLink, Body: body}, nil
 }
 
 func (s *Service) OpenSharedFileRange(ctx context.Context, req ResolveShareLinkRequest, rangeReq storage.RangeRequest) (FileDownload, error) {
@@ -449,7 +449,7 @@ func (s *Service) OpenSharedFileRange(ctx context.Context, req ResolveShareLinkR
 	if err != nil {
 		return FileDownload{}, fmt.Errorf("open shared drive file object range: %w", err)
 	}
-	return FileDownload{Node: resolved.Node, Body: body}, nil
+	return FileDownload{Node: resolved.Node, ShareLink: resolved.ShareLink, Body: body}, nil
 }
 
 func (s *Service) StatSharedFile(ctx context.Context, req ResolveShareLinkRequest) (FileMetadata, error) {
@@ -461,7 +461,7 @@ func (s *Service) StatSharedFile(ctx context.Context, req ResolveShareLinkReques
 	if err != nil {
 		return FileMetadata{}, fmt.Errorf("stat shared drive file object: %w", err)
 	}
-	return FileMetadata{Node: resolved.Node, Object: info}, nil
+	return FileMetadata{Node: resolved.Node, ShareLink: resolved.ShareLink, Object: info}, nil
 }
 
 func (s *Service) TrashNode(ctx context.Context, req TrashNodeRequest) (Node, int64, error) {

@@ -1457,6 +1457,10 @@ Current state:
   buckets normalized remote address plus token, returns 429/`Retry-After` when
   the per-minute quota is exhausted, and keeps limiter runtime errors fail-open
   so storage availability does not become a hidden public-download dependency.
+- Drive public share-link successful metadata/download accesses now write
+  best-effort hash-chain audit rows with sanitized link/node/request metadata,
+  giving Admin audit-log filters immediate visibility into public-link access
+  without blocking downloads on audit persistence.
 - CalDAV module work has started: ADR 0010 records the standards-first gateway
   boundary, `gogomail --mode=caldav` is a runtime scaffold, and
   `internal/caldavgw` owns RFC/WebDAV method tokens plus principal, calendar
@@ -1746,9 +1750,9 @@ Next:
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
-- Add Drive share-link audit/event hooks, admin visibility into public-link
-  download activity, and configurable tenant policy for whether `view` links
-  can preview content beyond metadata before broad public rollout.
+- Add aggregate public-link activity views, denied/rate-limited access
+  eventing, and configurable tenant policy for whether `view` links can preview
+  content beyond metadata before broad public rollout.
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
 - Keep scheduled API usage retention dry-run in pre-production until production
