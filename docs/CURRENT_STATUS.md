@@ -207,6 +207,10 @@ instead of accumulating caller-supplied strings. It also builds the standard
 `audit.Log` envelope for delegated access checks (`access` /
 `delegation.access_checked` with fixed `allowed`/`denied` results), giving
 future CalDAV/CardDAV/Drive/mailbox adapters one auditable shape to insert.
+The admin audit-log list API now accepts bounded `actor_id` and `target_id`
+filters, backed by a partial actor/time read index and the existing target
+index, so operators can trace delegated-access checks by acting principal or
+owner/resource target without scanning unrelated audit history.
 
 ## Completed or materially advanced
 

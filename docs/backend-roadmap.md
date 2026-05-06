@@ -2609,6 +2609,11 @@ Implementation order:
       action, owner principal target, actor principal, and fixed
       `allowed`/`denied` results so product adapters can insert consistent
       audit records without duplicating envelope conventions.
+1172. Admin audit-log listing now supports bounded `actor_id` and `target_id`
+      filters in the repository, HTTP API, OpenAPI contract, and backend API
+      docs. A new partial actor/time index complements the existing target
+      index, making delegated-access forensic queries operable by acting
+      principal or owner/resource target.
 
 ## Deferred until backend contracts stabilize
 

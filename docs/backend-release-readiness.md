@@ -399,6 +399,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   operational logs. The same package now builds the standard delegated-access
   audit envelope so product adapters can insert one consistent `access` /
   `delegation.access_checked` record shape when delegated checks are wired.
+  Admin audit-log listing now exposes bounded `actor_id` and `target_id`
+  filters with an actor/time read index, so delegated-access audit records are
+  queryable by acting principal or owner/resource target.
 - CardDAV is pre-public and backend-only. ADR 0012 and `internal/carddavgw`
   currently cover standards constants, DAV tokens, canonical principal,
   address-book home, address-book collection, and `.vcf` object path/href

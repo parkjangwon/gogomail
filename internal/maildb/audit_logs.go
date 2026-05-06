@@ -21,6 +21,8 @@ type AuditLogListRequest struct {
 	CompanyID  string
 	DomainID   string
 	UserID     string
+	ActorID    string
+	TargetID   string
 	Since      time.Time
 }
 
@@ -120,6 +122,14 @@ FROM audit_logs`
 	if req.UserID != "" {
 		args = append(args, req.UserID)
 		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+	}
+	if req.ActorID != "" {
+		args = append(args, req.ActorID)
+		conditions = append(conditions, fmt.Sprintf("actor_id::text = $%d", len(args)))
+	}
+	if req.TargetID != "" {
+		args = append(args, req.TargetID)
+		conditions = append(conditions, fmt.Sprintf("target_id::text = $%d", len(args)))
 	}
 	if !req.Since.IsZero() {
 		args = append(args, req.Since.UTC())
@@ -312,6 +322,8 @@ func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 	req.CompanyID = strings.TrimSpace(req.CompanyID)
 	req.DomainID = strings.TrimSpace(req.DomainID)
 	req.UserID = strings.TrimSpace(req.UserID)
+	req.ActorID = strings.TrimSpace(req.ActorID)
+	req.TargetID = strings.TrimSpace(req.TargetID)
 	return req
 }
 

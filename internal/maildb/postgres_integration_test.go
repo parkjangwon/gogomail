@@ -749,10 +749,10 @@ func TestPostgresAuditLogReads(t *testing.T) {
 	var keptID string
 	if err := db.QueryRowContext(ctx, `
 INSERT INTO audit_logs (
-  company_id, domain_id, user_id, category, action, target_type, target_id,
+  company_id, domain_id, user_id, actor_id, category, action, target_type, target_id,
   result, detail, prev_hash, hash, created_at
 ) VALUES (
-  $1::uuid, $2::uuid, $3::uuid, 'admin', 'quota.reconciliation_correction',
+  $1::uuid, $2::uuid, $3::uuid, $3::uuid, 'admin', 'quota.reconciliation_correction',
   'user', $3::uuid, 'applied', '{"before_drift_count":1}'::jsonb, 'prev-a', 'hash-a', $4
 ) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, now).Scan(&keptID); err != nil {
 		t.Fatalf("insert kept audit log: %v", err)
@@ -775,6 +775,8 @@ INSERT INTO audit_logs (
 		CompanyID:  seed.companyID,
 		DomainID:   seed.domainID,
 		UserID:     seed.userID,
+		ActorID:    seed.userID,
+		TargetID:   seed.userID,
 		Since:      now.Add(-time.Minute),
 	})
 	if err != nil {

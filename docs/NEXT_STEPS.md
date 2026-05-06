@@ -1681,7 +1681,9 @@ Next:
   delegated-access audit detail builder so logs carry normalized principal,
   role, decision, and privilege fields without free-form reason cardinality,
   or its delegated-access audit log builder when they need the full standard
-  audit envelope.
+  audit envelope. Admin audit-log queries now support `actor_id` and
+  `target_id` filters; future delegated-sharing diagnostics should use those
+  filters instead of adding product-local audit tables.
 - CalDAV principal discovery now exposes Directory primary email addresses via
   RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:
