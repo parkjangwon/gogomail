@@ -151,6 +151,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is covered across a
   following `SELECT` and `UID STORE`, verifying MODSEQ echo behavior after
   mailbox selection.
+- IMAP `ENABLE CONDSTORE` after mailbox selection emits the selected mailbox's
+  `HIGHESTMODSEQ` or `NOMODSEQ` before tagged completion, preserving RFC 7162
+  first-enabling-command behavior.
 - Storage profile smoke tests now verify the NFS YAML profile's
   `storage_root` and explicit `local` compatibility label through both config
   loading and CLI `--config` handoff.

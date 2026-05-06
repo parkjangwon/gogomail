@@ -340,19 +340,20 @@ func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {
 }
 
 type imapConnState struct {
-	session          *Session
-	selectedMailbox  MailboxID
-	selectedMessages uint32
-	permanentFlags   map[string]struct{}
-	readOnly         bool
-	condstoreAware   bool
-	savedSearch      []imapSearchSavedMessage
-	pendingAuthTag   string
-	pendingIdleTag   string
-	startTLS         bool
-	tlsActive        bool
-	events           <-chan MailboxEvent
-	cancelEvents     func()
+	session               *Session
+	selectedMailbox       MailboxID
+	selectedMessages      uint32
+	selectedHighestModSeq uint64
+	permanentFlags        map[string]struct{}
+	readOnly              bool
+	condstoreAware        bool
+	savedSearch           []imapSearchSavedMessage
+	pendingAuthTag        string
+	pendingIdleTag        string
+	startTLS              bool
+	tlsActive             bool
+	events                <-chan MailboxEvent
+	cancelEvents          func()
 }
 
 func (s *Server) handleLine(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -578,6 +579,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		state.closeSubscription()
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
+		state.selectedHighestModSeq = mailboxState.HighestModSeq
 		state.readOnly = command == "EXAMINE"
 		if state.readOnly {
 			state.permanentFlags = nil
@@ -736,6 +738,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
+		state.selectedHighestModSeq = 0
 		state.permanentFlags = nil
 		state.readOnly = false
 		state.savedSearch = nil
@@ -1002,6 +1005,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 	if state.selectedMailbox == mailbox.ID {
 		state.selectedMailbox = ""
 		state.selectedMessages = 0
+		state.selectedHighestModSeq = 0
 		state.permanentFlags = nil
 		state.readOnly = false
 		state.closeSubscription()
@@ -1235,6 +1239,7 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		if message.Body != nil {
 			_ = message.Body.Close()
 		}
+		state.observeHighestModSeq(message.Summary.ModSeq)
 		sequenceNumber, ok := imapSequenceNumber(message.Summary)
 		if !ok {
 			return fmt.Errorf("imap event sequence number is unavailable")
@@ -3493,6 +3498,7 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 	summary := result.Summary
 	if summary.MailboxID == state.selectedMailbox {
 		state.selectedMessages = imapAppendExistsCount(state.selectedMessages, summary)
+		state.observeHighestModSeq(summary.ModSeq)
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
@@ -3587,6 +3593,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 	}
 	state.selectedMailbox = ""
 	state.selectedMessages = 0
+	state.selectedHighestModSeq = 0
 	state.permanentFlags = nil
 	state.readOnly = false
 	state.closeSubscription()
@@ -3625,6 +3632,7 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 	summaries := imapCopyDestinationSummaries(results)
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, summaries)
+		state.observeHighestModSeq(imapHighestSummaryModSeq(summaries))
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
 			return false, err
 		}
@@ -3673,6 +3681,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		}
 	}
 	if highestModSeq := imapMoveHighestModSeq(summaries); highestModSeq > 0 {
+		state.observeHighestModSeq(highestModSeq)
 		if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] %s source mod-sequence\r\n", highestModSeq, completionCommand)); err != nil {
 			return false, err
 		}
@@ -3769,6 +3778,13 @@ func (state *imapConnState) removeExpungedFromSavedSearch(summaries []MessageSum
 	}
 }
 
+func (state *imapConnState) observeHighestModSeq(modSeq uint64) {
+	if state == nil || modSeq == 0 || modSeq <= state.selectedHighestModSeq {
+		return
+	}
+	state.selectedHighestModSeq = modSeq
+}
+
 func (s *Server) uidsForSequenceNumbers(ctx context.Context, state *imapConnState, sequenceNumbers []uint32) ([]UID, error) {
 	messages, err := s.options.Backend.ListMessages(ctx, ListMessagesRequest{
 		UserID:    state.session.UserID,
@@ -3853,6 +3869,16 @@ func imapCopyDestinationSummaries(results []CopyMessageResult) []MessageSummary 
 		summaries = append(summaries, result.Destination)
 	}
 	return summaries
+}
+
+func imapHighestSummaryModSeq(summaries []MessageSummary) uint64 {
+	var highest uint64
+	for _, summary := range summaries {
+		if summary.ModSeq > highest {
+			highest = summary.ModSeq
+		}
+	}
+	return highest
 }
 
 func imapSummariesExistsCount(current uint32, summaries []MessageSummary) uint32 {
@@ -5969,9 +5995,11 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
+	enableCondstore := false
 	enabled := make([]string, 0, len(fields)-2)
 	for _, field := range fields[2:] {
 		if strings.EqualFold(field, "CONDSTORE") {
+			enableCondstore = true
 			state.condstoreAware = true
 			if !imapStringSliceContainsFold(enabled, "CONDSTORE") {
 				enabled = append(enabled, "CONDSTORE")
@@ -5984,6 +6012,15 @@ func (s *Server) handleEnable(writer *bufio.Writer, tag string, fields []string,
 		}
 	} else if _, err := writer.WriteString("* ENABLED " + strings.Join(enabled, " ") + "\r\n"); err != nil {
 		return false, err
+	}
+	if enableCondstore && state.selectedMailbox != "" {
+		if state.selectedHighestModSeq > 0 {
+			if _, err := writer.WriteString(fmt.Sprintf("* OK [HIGHESTMODSEQ %d] Highest mod-sequence\r\n", state.selectedHighestModSeq)); err != nil {
+				return false, err
+			}
+		} else if _, err := writer.WriteString("* OK [NOMODSEQ] No persistent mod-sequences\r\n"); err != nil {
+			return false, err
+		}
 	}
 	_, err := writer.WriteString(tag + " OK ENABLE completed\r\n")
 	return false, err
@@ -6139,6 +6176,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 		var modified *StoreModifiedError
 		if errors.As(err, &modified) {
 			successfulSummaries := imapStoreSuccessfulSummaries(summaries, modified)
+			state.observeHighestModSeq(imapHighestSummaryModSeq(successfulSummaries))
 			if err := s.writeStoreFetchResponses(writer, tag, successfulSummaries, state.condstoreAware, completionCommand); err != nil {
 				return false, err
 			}
@@ -6153,6 +6191,7 @@ func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *im
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
+	state.observeHighestModSeq(imapHighestSummaryModSeq(summaries))
 	if silent && unchangedSince == 0 {
 		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
 		return false, err

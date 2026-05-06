@@ -2063,6 +2063,10 @@ The platform hardening sprint completed the following:
   `STATUS HIGHESTMODSEQ` now has end-to-end regression coverage through a
   following `SELECT` and `UID STORE`, so the awareness state is verified
   across mailbox selection rather than only on the immediate STATUS response.
+  `ENABLE CONDSTORE` issued after mailbox selection now returns the selected
+  mailbox's `HIGHESTMODSEQ` or `NOMODSEQ` before completion, matching RFC 7162
+  first-enabling-command semantics; selected-session mod-sequence state is also
+  refreshed by known APPEND/COPY/MOVE/STORE/event mutations.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`
