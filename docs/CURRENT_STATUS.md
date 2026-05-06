@@ -210,6 +210,11 @@ future CalDAV/CardDAV/Drive/mailbox adapters one auditable shape to insert.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.
+`accesspolicy` now also provides a composed delegated-access authorizer that
+normalizes the request once, checks effective delegation, records the resulting
+allow/deny audit envelope, and fails closed on checker or audit insertion
+errors so future CalDAV/CardDAV/Drive/mailbox adapters do not accidentally
+permit unaudited delegated access.
 The admin audit-log list API now accepts bounded `actor_id` and `target_id`
 filters, backed by partial actor/time and target/time read indexes, so
 operators can trace delegated-access checks by acting principal or
