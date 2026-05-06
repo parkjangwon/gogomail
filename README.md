@@ -73,7 +73,7 @@ Recent release-readiness work also includes:
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
   S3 namespaces plus bounded ETag and timestamp metadata for roots and core
   metadata elements, while standard S3 error XML is collapsed into bounded
-  one-line diagnostics.
+  one-line diagnostics with request-id context when supplied.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB

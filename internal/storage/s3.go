@@ -1247,7 +1247,7 @@ func s3XMLErrorPreview(data []byte) string {
 	if response.XMLName.Local != "Error" || !s3XMLNamespaceAllowed(response.XMLName.Space) {
 		return ""
 	}
-	return s3ErrorPreview(response.Code, response.Message)
+	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID))
 }
 
 func s3PlainErrorPreview(value string) string {
@@ -1279,6 +1279,7 @@ type s3CopyResponse struct {
 	XMLName      xml.Name
 	Code         string `xml:"Code"`
 	Message      string `xml:"Message"`
+	RequestID    string `xml:"RequestId"`
 	ETag         string `xml:"ETag"`
 	LastModified string `xml:"LastModified"`
 }
@@ -1441,7 +1442,7 @@ func validateS3CopyResponse(body io.Reader) error {
 		}
 		return nil
 	case "Error":
-		preview := s3ErrorPreview(response.Code, response.Message)
+		preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID))
 		if preview == "" {
 			return fmt.Errorf("copy s3 object: embedded error")
 		}
@@ -1510,20 +1511,32 @@ func s3XMLNamespaceAllowed(value string) bool {
 	return value == "" || value == s3XMLNamespace
 }
 
-func s3ErrorPreview(code string, message string) string {
-	parts := make([]string, 0, 2)
-	for _, value := range []string{code, message} {
-		value = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
-			if r < 0x20 || r == 0x7f {
-				return ' '
-			}
-			return r
-		}, strings.ToValidUTF8(value, ""))), " ")
+func s3ErrorPreview(code string, message string, details ...string) string {
+	parts := make([]string, 0, 2+len(details))
+	for _, value := range append([]string{code, message}, details...) {
+		value = sanitizeS3ErrorPreviewPart(value)
 		if value != "" {
 			parts = append(parts, value)
 		}
 	}
 	return strings.Join(parts, ": ")
+}
+
+func s3ErrorDetail(name string, value string) string {
+	value = sanitizeS3ErrorPreviewPart(value)
+	if value == "" {
+		return ""
+	}
+	return name + "=" + value
+}
+
+func sanitizeS3ErrorPreviewPart(value string) string {
+	return strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, strings.ToValidUTF8(value, ""))), " ")
 }
 
 const maxS3ResponseDrainBytes = 4096
