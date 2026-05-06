@@ -32,18 +32,20 @@ const (
 	GroupMembershipRoleManager = "manager"
 	GroupMembershipRoleOwner   = "owner"
 
-	MaxPrincipalIDBytes         = 200
-	MaxGroupMembershipDepth     = 16
-	DefaultMembershipMaxDepth   = 8
-	MaxPrincipalSearchBytes     = 200
-	DefaultPrincipalSearchLimit = 20
-	MaxPrincipalSearchLimit     = 100
-	MaxAliasAddressBytes        = 320
-	MaxAliasSearchBytes         = 200
-	DefaultAliasListLimit       = 50
-	MaxAliasListLimit           = 200
-	DefaultDelegationListLimit  = 50
-	MaxDelegationListLimit      = 200
+	MaxPrincipalIDBytes             = 200
+	MaxGroupMembershipDepth         = 16
+	DefaultMembershipMaxDepth       = 8
+	MaxPrincipalSearchBytes         = 200
+	DefaultPrincipalSearchLimit     = 20
+	MaxPrincipalSearchLimit         = 100
+	MaxAliasAddressBytes            = 320
+	MaxAliasSearchBytes             = 200
+	DefaultAliasListLimit           = 50
+	MaxAliasListLimit               = 200
+	DefaultDelegationListLimit      = 50
+	MaxDelegationListLimit          = 200
+	DefaultGroupMembershipListLimit = 50
+	MaxGroupMembershipListLimit     = 200
 )
 
 type Principal struct {
@@ -132,6 +134,16 @@ type CreateGroupMembershipRequest struct {
 	MemberKind string `json:"member_kind"`
 	MemberID   string `json:"member_id"`
 	Role       string `json:"role"`
+}
+
+type ListGroupMembershipsRequest struct {
+	CompanyID  string
+	GroupID    string
+	MemberKind string
+	MemberID   string
+	Role       string
+	ActiveOnly bool
+	Limit      int
 }
 
 type Delegation struct {
@@ -611,6 +623,58 @@ func NormalizeCheckGroupMembershipRequest(req CheckGroupMembershipRequest) (Chec
 	}
 	if req.MaxDepth > MaxGroupMembershipDepth {
 		return CheckGroupMembershipRequest{}, fmt.Errorf("membership max depth is too large")
+	}
+	return req, nil
+}
+
+func NormalizeListGroupMembershipsRequest(req ListGroupMembershipsRequest) (ListGroupMembershipsRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return ListGroupMembershipsRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	req.CompanyID = companyID
+	if strings.TrimSpace(req.GroupID) != "" {
+		groupID, err := NormalizePrincipalID(req.GroupID)
+		if err != nil {
+			return ListGroupMembershipsRequest{}, fmt.Errorf("group id: %w", err)
+		}
+		req.GroupID = groupID
+	}
+	if strings.TrimSpace(req.MemberKind) != "" {
+		memberKind, err := NormalizePrincipalKind(req.MemberKind)
+		if err != nil {
+			return ListGroupMembershipsRequest{}, fmt.Errorf("member kind: %w", err)
+		}
+		req.MemberKind = memberKind
+	}
+	if strings.TrimSpace(req.MemberID) != "" {
+		if req.MemberKind == "" {
+			return ListGroupMembershipsRequest{}, fmt.Errorf("member kind is required when member id is set")
+		}
+		memberID, err := NormalizePrincipalID(req.MemberID)
+		if err != nil {
+			return ListGroupMembershipsRequest{}, fmt.Errorf("member id: %w", err)
+		}
+		req.MemberID = memberID
+	}
+	if strings.TrimSpace(req.Role) != "" {
+		role, err := NormalizeGroupMembershipRole(req.Role)
+		if err != nil {
+			return ListGroupMembershipsRequest{}, err
+		}
+		req.Role = role
+	}
+	if req.GroupID != "" && req.MemberKind == PrincipalKindGroup && req.GroupID == req.MemberID {
+		return ListGroupMembershipsRequest{}, fmt.Errorf("group membership cannot include itself")
+	}
+	if req.Limit < 0 {
+		return ListGroupMembershipsRequest{}, fmt.Errorf("group membership list limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultGroupMembershipListLimit
+	}
+	if req.Limit > MaxGroupMembershipListLimit {
+		return ListGroupMembershipsRequest{}, fmt.Errorf("group membership list limit is too large")
 	}
 	return req, nil
 }

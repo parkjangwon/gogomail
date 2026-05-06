@@ -2727,6 +2727,12 @@ Implementation order:
         `directory_group_membership.delete` in the same transaction so
         group-backed delegation, resource access, and shared inbox membership
         can be revoked through one platform boundary.
+1175b5. Directory/Identity now exposes group membership listing through
+        `ListGroupMemberships` and
+        `GET /admin/v1/directory/group-memberships`, returning a
+        `directory_group_memberships` envelope with bounded company, group,
+        member, role, active-only, and limit filters so operators can inspect
+        group-backed access without product modules querying Directory tables.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

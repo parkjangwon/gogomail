@@ -88,6 +88,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   Admin revocation must use `DeleteGroupMembershipWithAudit`, which soft-deletes
   active memberships and commits `directory_group_membership.delete` with the
   status change in one transaction.
+- Group membership inspection is also Directory-owned. Admin diagnostics should
+  use `ListGroupMemberships` or
+  `GET /admin/v1/directory/group-memberships` instead of product modules
+  reading `directory_group_memberships` directly.
 - Delegated access now has an initial company-scoped relationship table and
   repository check boundary. Delegations are keyed by owner principal, delegate
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,

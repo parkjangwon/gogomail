@@ -303,6 +303,34 @@ func TestAdminServiceCreateDirectoryGroupMembershipUsesAuditedDirectoryBoundary(
 	}
 }
 
+func TestAdminServiceListDirectoryGroupMembershipsDelegatesToDirectory(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		memberships: []directory.GroupMembership{{ID: "membership-1", Status: "active"}},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ListGroupMembershipsRequest{
+		CompanyID:  " company-1 ",
+		GroupID:    "group-1",
+		MemberKind: directory.PrincipalKindUser,
+		MemberID:   "user-1",
+		Role:       directory.GroupMembershipRoleManager,
+		ActiveOnly: true,
+		Limit:      10,
+	}
+	memberships, err := service.ListDirectoryGroupMemberships(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ListDirectoryGroupMemberships returned error: %v", err)
+	}
+	if len(memberships) != 1 || memberships[0].ID != "membership-1" {
+		t.Fatalf("memberships = %+v", memberships)
+	}
+	if directoryStore.lastMembershipListReq != req {
+		t.Fatalf("lastMembershipListReq = %+v, want %+v", directoryStore.lastMembershipListReq, req)
+	}
+}
+
 func TestAdminServiceDeleteDirectoryDelegationUsesAuditedDirectoryBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -756,6 +784,7 @@ type fakeAdminDrive struct {
 type fakeAdminDirectory struct {
 	delegations                    []directory.Delegation
 	delegation                     directory.Delegation
+	memberships                    []directory.GroupMembership
 	membership                     directory.GroupMembership
 	alias                          directory.Alias
 	aliases                        []directory.Alias
@@ -764,6 +793,7 @@ type fakeAdminDirectory struct {
 	lastDelegationCreateReq        directory.CreateDelegationRequest
 	lastDelegationDeleteID         string
 	lastMembershipCreateReq        directory.CreateGroupMembershipRequest
+	lastMembershipListReq          directory.ListGroupMembershipsRequest
 	lastMembershipDeleteID         string
 	lastAliasReq                   directory.ResolveAliasRequest
 	lastAliasCreateReq             directory.CreateAliasRequest
@@ -793,6 +823,11 @@ func (f *fakeAdminDirectory) CreateGroupMembershipWithAudit(_ context.Context, r
 	f.createMembershipWithAuditCalls++
 	f.lastMembershipCreateReq = req
 	return f.membership, nil
+}
+
+func (f *fakeAdminDirectory) ListGroupMemberships(_ context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error) {
+	f.lastMembershipListReq = req
+	return f.memberships, nil
 }
 
 func (f *fakeAdminDirectory) DeleteDelegationWithAudit(_ context.Context, id string) (directory.Delegation, error) {

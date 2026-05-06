@@ -48,6 +48,7 @@ type adminService struct {
 		DeleteGroupMembershipWithAudit(ctx context.Context, id string) (directory.GroupMembership, error)
 		ListAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 		ListDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
+		ListGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error)
 		ResolveAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 		SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 	}
@@ -329,6 +330,13 @@ func (s adminService) CreateDirectoryGroupMembership(ctx context.Context, req di
 		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
 	}
 	return s.directory.CreateGroupMembershipWithAudit(ctx, req)
+}
+
+func (s adminService) ListDirectoryGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error) {
+	if s.directory == nil {
+		return nil, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.ListGroupMemberships(ctx, req)
 }
 
 func (s adminService) DeleteDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error) {

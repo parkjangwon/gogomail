@@ -708,6 +708,69 @@ SELECT EXISTS (
 	return exists, nil
 }
 
+func (r *Repository) ListGroupMemberships(ctx context.Context, req ListGroupMembershipsRequest) ([]GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListGroupMembershipsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT m.id::text,
+       m.group_id::text,
+       g.company_id::text,
+       m.member_kind,
+       m.member_id::text,
+       m.role,
+       m.status
+FROM directory_group_memberships m
+JOIN directory_groups g ON g.id = m.group_id
+JOIN domains d ON d.id = g.domain_id AND d.company_id = g.company_id
+JOIN companies c ON c.id = g.company_id
+WHERE g.company_id = $1::uuid
+  AND ($2 = '' OR m.group_id = NULLIF($2, '')::uuid)
+  AND ($3 = '' OR m.member_kind = $3)
+  AND ($4 = '' OR m.member_id = NULLIF($4, '')::uuid)
+  AND ($5 = '' OR m.role = $5)
+  AND ($6::boolean = false OR (m.status = 'active' AND g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+ORDER BY m.updated_at DESC, m.id
+LIMIT $7`
+	rows, err := r.db.QueryContext(ctx, query,
+		req.CompanyID,
+		req.GroupID,
+		req.MemberKind,
+		req.MemberID,
+		req.Role,
+		req.ActiveOnly,
+		req.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list directory group memberships: %w", err)
+	}
+	defer rows.Close()
+	memberships := make([]GroupMembership, 0, req.Limit)
+	for rows.Next() {
+		var membership GroupMembership
+		if err := rows.Scan(
+			&membership.ID,
+			&membership.GroupID,
+			&membership.CompanyID,
+			&membership.MemberKind,
+			&membership.MemberID,
+			&membership.Role,
+			&membership.Status,
+		); err != nil {
+			return nil, fmt.Errorf("scan directory group membership list result: %w", err)
+		}
+		memberships = append(memberships, membership)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list directory group membership rows: %w", err)
+	}
+	return memberships, nil
+}
+
 func (r *Repository) createGroupMembershipTx(ctx context.Context, tx *sql.Tx, req CreateGroupMembershipRequest, companyID string) (GroupMembership, error) {
 	const query = `
 INSERT INTO directory_group_memberships (

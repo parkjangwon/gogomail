@@ -112,6 +112,7 @@ type AdminService interface {
 	DeleteDirectoryAlias(ctx context.Context, id string) (directory.Alias, error)
 	DeleteDirectoryDelegation(ctx context.Context, id string) (directory.Delegation, error)
 	DeleteDirectoryGroupMembership(ctx context.Context, id string) (directory.GroupMembership, error)
+	ListDirectoryGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error)
 	ResolveDirectoryAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 	ListDirectoryAliases(ctx context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error)
 	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
@@ -221,32 +222,33 @@ type adminConsoleTenancyCapabilities struct {
 }
 
 type adminConsoleOperationCapabilities struct {
-	QueueStats               bool `json:"queue_stats"`
-	OutboxEvents             bool `json:"outbox_events"`
-	AuditLogs                bool `json:"audit_logs"`
-	AuditIntegrity           bool `json:"audit_integrity"`
-	Backpressure             bool `json:"backpressure"`
-	AttachmentCleanup        bool `json:"attachment_cleanup"`
-	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
-	DirectoryPrincipals      bool `json:"directory_principals"`
-	DirectoryAliases         bool `json:"directory_aliases"`
-	DirectoryDelegations     bool `json:"directory_delegations"`
-	DriveUploadSessions      bool `json:"drive_upload_sessions"`
-	DriveNodes               bool `json:"drive_nodes"`
-	DriveNodeDetail          bool `json:"drive_node_detail"`
-	DriveUsageSummary        bool `json:"drive_usage_summary"`
-	DriveUploadCleanup       bool `json:"drive_upload_cleanup"`
-	DriveCleanupFailures     bool `json:"drive_cleanup_failures"`
-	DriveCleanupFailureRetry bool `json:"drive_cleanup_failure_retry"`
-	QuotaReconciliation      bool `json:"quota_reconciliation"`
-	DeliveryAttempts         bool `json:"delivery_attempts"`
-	DeliveryRoutes           bool `json:"delivery_routes"`
-	TrustedRelays            bool `json:"trusted_relays"`
-	SuppressionList          bool `json:"suppression_list"`
-	PushNotificationTriage   bool `json:"push_notification_triage"`
-	APIUsage                 bool `json:"api_usage"`
-	APIUsageExport           bool `json:"api_usage_export"`
-	IMAPUIDBackfill          bool `json:"imap_uid_backfill"`
+	QueueStats                bool `json:"queue_stats"`
+	OutboxEvents              bool `json:"outbox_events"`
+	AuditLogs                 bool `json:"audit_logs"`
+	AuditIntegrity            bool `json:"audit_integrity"`
+	Backpressure              bool `json:"backpressure"`
+	AttachmentCleanup         bool `json:"attachment_cleanup"`
+	AttachmentUploadSession   bool `json:"attachment_upload_sessions"`
+	DirectoryPrincipals       bool `json:"directory_principals"`
+	DirectoryAliases          bool `json:"directory_aliases"`
+	DirectoryDelegations      bool `json:"directory_delegations"`
+	DirectoryGroupMemberships bool `json:"directory_group_memberships"`
+	DriveUploadSessions       bool `json:"drive_upload_sessions"`
+	DriveNodes                bool `json:"drive_nodes"`
+	DriveNodeDetail           bool `json:"drive_node_detail"`
+	DriveUsageSummary         bool `json:"drive_usage_summary"`
+	DriveUploadCleanup        bool `json:"drive_upload_cleanup"`
+	DriveCleanupFailures      bool `json:"drive_cleanup_failures"`
+	DriveCleanupFailureRetry  bool `json:"drive_cleanup_failure_retry"`
+	QuotaReconciliation       bool `json:"quota_reconciliation"`
+	DeliveryAttempts          bool `json:"delivery_attempts"`
+	DeliveryRoutes            bool `json:"delivery_routes"`
+	TrustedRelays             bool `json:"trusted_relays"`
+	SuppressionList           bool `json:"suppression_list"`
+	PushNotificationTriage    bool `json:"push_notification_triage"`
+	APIUsage                  bool `json:"api_usage"`
+	APIUsageExport            bool `json:"api_usage_export"`
+	IMAPUIDBackfill           bool `json:"imap_uid_backfill"`
 }
 
 type adminConsoleSecurityCapabilities struct {
@@ -279,32 +281,33 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			DKIMKeys:       true,
 		},
 		Operations: adminConsoleOperationCapabilities{
-			QueueStats:               true,
-			OutboxEvents:             true,
-			AuditLogs:                true,
-			AuditIntegrity:           true,
-			Backpressure:             true,
-			AttachmentCleanup:        true,
-			AttachmentUploadSession:  true,
-			DirectoryPrincipals:      true,
-			DirectoryAliases:         true,
-			DirectoryDelegations:     true,
-			DriveUploadSessions:      true,
-			DriveNodes:               true,
-			DriveNodeDetail:          true,
-			DriveUsageSummary:        true,
-			DriveUploadCleanup:       true,
-			DriveCleanupFailures:     true,
-			DriveCleanupFailureRetry: true,
-			QuotaReconciliation:      true,
-			DeliveryAttempts:         true,
-			DeliveryRoutes:           true,
-			TrustedRelays:            true,
-			SuppressionList:          true,
-			PushNotificationTriage:   true,
-			APIUsage:                 true,
-			APIUsageExport:           true,
-			IMAPUIDBackfill:          true,
+			QueueStats:                true,
+			OutboxEvents:              true,
+			AuditLogs:                 true,
+			AuditIntegrity:            true,
+			Backpressure:              true,
+			AttachmentCleanup:         true,
+			AttachmentUploadSession:   true,
+			DirectoryPrincipals:       true,
+			DirectoryAliases:          true,
+			DirectoryDelegations:      true,
+			DirectoryGroupMemberships: true,
+			DriveUploadSessions:       true,
+			DriveNodes:                true,
+			DriveNodeDetail:           true,
+			DriveUsageSummary:         true,
+			DriveUploadCleanup:        true,
+			DriveCleanupFailures:      true,
+			DriveCleanupFailureRetry:  true,
+			QuotaReconciliation:       true,
+			DeliveryAttempts:          true,
+			DeliveryRoutes:            true,
+			TrustedRelays:             true,
+			SuppressionList:           true,
+			PushNotificationTriage:    true,
+			APIUsage:                  true,
+			APIUsageExport:            true,
+			IMAPUIDBackfill:           true,
 		},
 		Security: adminConsoleSecurityCapabilities{
 			AdminTokenHeader:     true,
@@ -1092,6 +1095,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_delegation": delegation})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/directory/group-memberships", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "group_id", "member_kind", "member_id", "role", "active_only") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseDirectoryGroupMembershipListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		memberships, err := service.ListDirectoryGroupMemberships(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_group_memberships": memberships})
 	}))
 
 	mux.HandleFunc("POST /admin/v1/directory/group-memberships", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -3265,6 +3288,46 @@ func parseDirectoryDelegationListRequest(w http.ResponseWriter, r *http.Request,
 		Role:         role,
 		ActiveOnly:   activeOnly,
 		Limit:        limit,
+	}, true
+}
+
+func parseDirectoryGroupMembershipListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListGroupMembershipsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	groupID, ok := parseBoundedAdminQuery(w, r, "group_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	memberKind, ok := parseBoundedAdminQuery(w, r, "member_kind")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	memberID, ok := parseBoundedAdminQuery(w, r, "member_id")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	role, ok := parseBoundedAdminQuery(w, r, "role")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListGroupMembershipsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListGroupMembershipsRequest{
+		CompanyID:  companyID,
+		GroupID:    groupID,
+		MemberKind: memberKind,
+		MemberID:   memberID,
+		Role:       role,
+		ActiveOnly: activeOnly,
+		Limit:      limit,
 	}, true
 }
 
