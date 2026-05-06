@@ -1742,6 +1742,9 @@ The platform hardening sprint completed the following:
   the subcommand is recognized, so incomplete `UID SEARCH`, `UID FETCH`,
   `UID STORE`, `UID EXPUNGE`, and `UID COPY` requests receive precise tagged
   `BAD` responses instead of a generic `UID command not implemented` failure.
+- IMAP bare `UID` commands now return `BAD UID requires subcommand`, keeping
+  missing-subcommand diagnostics separate from well-formed but unsupported UID
+  subcommands.
 - IMAP missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`, `DELETE`,
   and `RENAME` now return tagged `[NONEXISTENT]` response codes instead of
   generic command failures, making absent folder state machine-readable for

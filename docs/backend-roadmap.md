@@ -2515,6 +2515,9 @@ Implementation order:
       collection for `PROPFIND`, returning collection metadata at `Depth: 0`
       and the authenticated principal as a `Depth: 1` child without exposing
       unrelated users.
+1152. IMAP bare `UID` commands now return `BAD UID requires subcommand`, keeping
+      missing-subcommand diagnostics distinct from unknown but well-formed UID
+      subcommands.
 
 ## Deferred until backend contracts stabilize
 
