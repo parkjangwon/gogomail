@@ -3954,6 +3954,10 @@ The platform hardening sprint completed the following:
   `{4}\r\nNOOP`, `UID "COPY"`, or `UID {4}\r\nCOPY` receive tagged
   `BAD malformed command` responses instead of being dequoted into executable
   command words.
+- IMAP command tags now must arrive as raw atom tokens as well; quoted or
+  command-literal tag probes such as `"a1" NOOP` or `{2}\r\na1 NOOP` receive
+  untagged `BAD malformed command` responses because the server cannot trust a
+  string value as a recoverable IMAP tag.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

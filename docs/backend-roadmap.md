@@ -4138,6 +4138,9 @@ Implementation order:
       command-literal command words before dispatch, preserving RFC atom
       boundaries for executable verbs while keeping quoted/literal strings
       available where the grammar actually allows strings.
+1469. IMAP command tags now reject quoted-string or command-literal values
+      before tag recovery, returning untagged malformed-command responses for
+      non-atom tag probes.
 
 ## Deferred until backend contracts stabilize
 

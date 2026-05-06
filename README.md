@@ -121,7 +121,7 @@ Recent release-readiness work also includes:
   strict LIST RETURN option-list framing,
   strict SEARCH/SORT/THREAD RETURN option-list framing,
   strict CONDSTORE select-param framing, CONDSTORE/MODSEQ-shaped behavior,
-  syntax-before-state validation,
+  syntax-before-state validation, atom-only command tag handling,
   exact SASL continuation cancellation, exact SASL PLAIN response token
   handling, SASL-IR syntax-before-policy diagnostics, empty quoted `LOGIN`
   passwords routed to backend authentication failures instead of protocol

@@ -420,6 +420,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString("* BAD malformed command\r\n")
 		return false, err
 	}
+	if !imapRawFieldIsAtom(trimmedLine, 0) {
+		_, err := writer.WriteString("* BAD malformed command\r\n")
+		return false, err
+	}
 	tag := fields[0]
 	if !imapTagValid(tag) {
 		_, err := writer.WriteString("* BAD malformed command\r\n")

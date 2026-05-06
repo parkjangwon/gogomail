@@ -599,6 +599,9 @@ Current state:
 - IMAP command tag validation rejects `+` in tags before command routing,
   matching RFC 3501 tag grammar and avoiding ambiguity with continuation
   protocol markers.
+- IMAP command tags now also reject quoted or literal-framed values such as
+  `"a1" NOOP` or `{2}\r\na1 NOOP` as untagged malformed commands, preserving
+  the raw atom-only tag boundary before command routing.
 - IMAP `SEARCH`/`UID SEARCH` date criteria reject malformed date atoms that
   still contain quote characters after command parsing, so broken inputs such
   as `SINCE 05-May-2026"` are not silently normalized.

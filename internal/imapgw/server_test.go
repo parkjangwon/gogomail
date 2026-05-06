@@ -963,6 +963,60 @@ func TestServerRejectsStringCommandAtoms(t *testing.T) {
 	}
 }
 
+func TestServerRejectsStringCommandTags(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("\"a1\" NOOP\r\n{2}\r\n")); err != nil {
+		t.Fatalf("write string command tags: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* BAD malformed command\r\n" {
+		t.Fatalf("quoted tag response = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("literal tag continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 NOOP\r\n")); err != nil {
+		t.Fatalf("write literal tag body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* BAD malformed command\r\n" {
+		t.Fatalf("literal tag response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	want := []string{
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read logout response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("logout response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsLiteralSequenceSetArgumentsBeforeState(t *testing.T) {
 	t.Parallel()
 
