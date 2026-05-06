@@ -803,7 +803,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH ALL\r\na15 SORT (DATE) UTF-8 +1\r\na16 THREAD ORDEREDSUBJECT UTF-8 +1\r\na17 SORT (DATE) UTF-8 ALL\r\na18 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na19 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH X-GM-RAW test\r\na15 SEARCH ALL\r\na16 SORT (DATE) UTF-8 +1\r\na17 THREAD ORDEREDSUBJECT UTF-8 +1\r\na18 SORT (DATE) UTF-8 ALL\r\na19 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na20 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -820,13 +820,14 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a11 BAD SEARCH criteria are unsupported\r\n",
 		"a12 BAD SEARCH criteria are unsupported\r\n",
 		"a13 BAD SEARCH criteria are unsupported\r\n",
-		"a14 NO authentication required\r\n",
-		"a15 BAD SORT criteria are unsupported\r\n",
-		"a16 BAD THREAD criteria are unsupported\r\n",
-		"a17 NO authentication required\r\n",
+		"a14 BAD SEARCH criteria are unsupported\r\n",
+		"a15 NO authentication required\r\n",
+		"a16 BAD SORT criteria are unsupported\r\n",
+		"a17 BAD THREAD criteria are unsupported\r\n",
 		"a18 NO authentication required\r\n",
+		"a19 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a19 OK LOGOUT completed\r\n",
+		"a20 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

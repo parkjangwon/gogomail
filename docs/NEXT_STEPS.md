@@ -267,6 +267,10 @@ Current state:
 - IMAP `SEARCH HEADER` now rejects malformed header field names before
   authentication or selected-mailbox state, so broken criteria such as empty
   field names, `Bad Field`, or `Subject:` do not masquerade as empty searches.
+- IMAP `SEARCH`, `UID SEARCH`, `SORT`, and `THREAD` embedded criteria now
+  reject unknown/unsupported search-key atoms such as `X-GM-RAW` before
+  authentication or selected-mailbox state, keeping capability probes distinct
+  from valid stateful searches.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

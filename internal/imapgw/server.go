@@ -1911,7 +1911,7 @@ func imapSearchCriterionSyntaxConsumed(criteria []string) (int, bool) {
 		if imapSearchCriterionLooksLikeSequenceSet(criteria[0]) {
 			return 1, imapSequenceSetSyntaxValid(criteria[0])
 		}
-		return 1, true
+		return 0, false
 	}
 }
 

@@ -3292,6 +3292,10 @@ Implementation order:
       in addition to the Directory primary email, normalizing and deduplicating
       `mailto:` hrefs while filtering non-user/resource/group aliases until
       scheduling and resource-booking policy is explicitly implemented.
+1275. IMAP search-key syntax validation now rejects unknown or unsupported
+      search-key atoms such as vendor-specific `X-GM-RAW` probes before
+      authentication or selected-mailbox state across `SEARCH`, `UID SEARCH`,
+      `SORT`, and `THREAD` embedded criteria.
 
 ## Deferred until backend contracts stabilize
 

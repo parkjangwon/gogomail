@@ -1035,6 +1035,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
   silently normalized.
+- IMAP search-key syntax validation now rejects unknown or unsupported
+  search-key atoms such as vendor-specific `X-GM-RAW` probes before
+  authentication or selected-mailbox state across `SEARCH`, `UID SEARCH`,
+  `SORT`, and `THREAD` embedded criteria.
 - IMAP command tokenization rejects dangling quote characters at the end of
   unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
   `LIST "" INBOX"` from reaching command-specific normalization while
