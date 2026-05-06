@@ -2073,6 +2073,11 @@ Implementation order:
       authenticated calendar collections, returning requested object ETags and
       `calendar-data` bodies in multistatus responses while rendering missing
       hrefs as per-resource 404 propstats.
+1049a. CalDAV REPORT responses now honor nested RFC 4791 `calendar-data`
+       projection requests for `VCALENDAR` and child component property
+       selection across `calendar-multiget`, `calendar-query`, and
+       `sync-collection`, while preserving required RFC 5545 structure
+       properties needed for valid encoded iCalendar objects.
 1050. CalDAV now handles authenticated calendar object `GET`, `HEAD`, `PUT`,
       and `DELETE`, returning strong ETags and text/calendar bodies, enforcing
       bounded iCalendar object validation, and honoring `If-Match` /

@@ -282,6 +282,51 @@ func TestHandlerReportCalendarMultiget(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarMultigetProjectsCalendarData(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data>
+      <C:comp name="VCALENDAR">
+        <C:prop name="VERSION"/>
+        <C:prop name="PRODID"/>
+        <C:comp name="VEVENT">
+          <C:prop name="UID"/>
+          <C:prop name="SUMMARY"/>
+        </C:comp>
+      </C:comp>
+    </C:calendar-data>
+  </D:prop>
+  <D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>
+</C:calendar-multiget>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<C:calendar-data>BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//gogomail//CalDAV Test//EN",
+		"UID:event-1@example.com",
+		"SUMMARY:Planning",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("projected calendar-data missing %q:\n%s", want, body)
+		}
+	}
+	for _, forbidden := range []string{"DTSTART:", "DTEND:"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("projected calendar-data included %q:\n%s", forbidden, body)
+		}
+	}
+}
+
 func TestHandlerReportCalendarMultigetAcceptsAbsoluteHref(t *testing.T) {
 	t.Parallel()
 

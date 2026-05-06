@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV UID conflict hardening)
+Last updated: 2026-05-06 (updated after CalDAV calendar-data projection)
 
 ## Current phase
 
@@ -2421,10 +2421,17 @@ The platform hardening sprint completed the following:
   element, supported `sync-level=1`, a requested property set, and a bounded
   optional `limit` while keeping empty sync-token elements valid for initial
   sync.
+- CalDAV REPORT parsing now also preserves RFC 4791 `calendar-data` projection
+  requests for nested `VCALENDAR`/component property selection instead of
+  flattening the property to "full body" only.
 - CalDAV now implements a first `REPORT calendar-multiget` handler for
   authenticated calendar collections, returning multistatus object metadata and
   requested `calendar-data` bodies while representing missing hrefs through
   per-resource 404 propstats.
+- `calendar-multiget`, `calendar-query`, and `sync-collection` responses can
+  now project returned iCalendar bodies to requested `calendar-data` calendar
+  and component properties while preserving required RFC 5545 structure fields
+  needed for valid encoded objects.
 - CalDAV now handles calendar object `GET`, `HEAD`, `PUT`, and `DELETE` over
   authenticated `.ics` object paths. Reads return strong ETags and
   `text/calendar` bodies, writes enforce bounded iCalendar validation and

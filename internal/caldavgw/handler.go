@@ -909,7 +909,11 @@ func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, 
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
-			props = append(props, CalendarObjectDataProperty(object.ICS))
+			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, prop)
 		}
 		objectHref, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
 		if err != nil {
@@ -954,7 +958,11 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 			return nil, err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
-			props = append(props, CalendarObjectDataProperty(object.ICS))
+			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+			if err != nil {
+				return nil, err
+			}
+			props = append(props, prop)
 		}
 		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
 		if err != nil {
@@ -1037,7 +1045,11 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
-			props = append(props, CalendarObjectDataProperty(object.ICS))
+			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+			if err != nil {
+				return nil, "", err
+			}
+			props = append(props, prop)
 		}
 		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
 		if err != nil {
@@ -1105,7 +1117,11 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
-			props = append(props, CalendarObjectDataProperty(object.ICS))
+			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+			if err != nil {
+				return nil, "", err
+			}
+			props = append(props, prop)
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}

@@ -61,12 +61,16 @@ type PropertyValue struct {
 	CalendarDataTypes  []CalendarDataType
 }
 
-func CalendarObjectDataProperty(body []byte) PropertyResult {
+func CalendarObjectDataProperty(body []byte, req CalendarDataRequest) (PropertyResult, error) {
+	body, err := ProjectCalendarData(body, req)
+	if err != nil {
+		return PropertyResult{}, err
+	}
 	return PropertyResult{
 		Name:  PropCalendarData,
 		Value: PropertyValue{Text: string(body)},
 		Found: len(body) > 0,
-	}
+	}, nil
 }
 
 type PropertyResult struct {

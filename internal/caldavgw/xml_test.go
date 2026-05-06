@@ -376,6 +376,44 @@ func TestParseReportCollectsPropertiesHrefsAndSyncToken(t *testing.T) {
 	}
 }
 
+func TestParseReportCollectsCalendarDataProjection(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data>
+      <C:comp name="VCALENDAR">
+        <C:prop name="VERSION"/>
+        <C:prop name="PRODID"/>
+        <C:comp name="VEVENT">
+          <C:prop name="UID"/>
+          <C:prop name="DTSTART"/>
+          <C:prop name="SUMMARY"/>
+        </C:comp>
+      </C:comp>
+    </C:calendar-data>
+  </D:prop>
+  <D:href>/caldav/calendars/user/work/event.ics</D:href>
+</C:calendar-multiget>`
+	req, err := ParseReport(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseReport returned error: %v", err)
+	}
+	if !req.CalendarData.Requested || !req.CalendarData.HasProjection {
+		t.Fatalf("calendar-data projection = %+v", req.CalendarData)
+	}
+	if !req.CalendarData.CalendarProperties["VERSION"] || !req.CalendarData.CalendarProperties["PRODID"] {
+		t.Fatalf("calendar properties = %+v", req.CalendarData.CalendarProperties)
+	}
+	if req.CalendarData.Component != ComponentVEVENT {
+		t.Fatalf("component = %q, want %q", req.CalendarData.Component, ComponentVEVENT)
+	}
+	if !req.CalendarData.ComponentProperties["UID"] || !req.CalendarData.ComponentProperties["DTSTART"] || !req.CalendarData.ComponentProperties["SUMMARY"] {
+		t.Fatalf("component properties = %+v", req.CalendarData.ComponentProperties)
+	}
+}
+
 func TestParseReportCollectsCalendarQueryTimeRange(t *testing.T) {
 	t.Parallel()
 
