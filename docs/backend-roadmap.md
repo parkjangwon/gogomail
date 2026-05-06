@@ -3465,6 +3465,11 @@ Implementation order:
       `X-Admin-Token`/bearer-token OpenAPI security alternatives, with runtime
       coverage that the readiness bootstrap accepts each documented credential
       form and rejects ambiguous mixed credentials.
+1311. Drive public share-link downloads now have full OpenAPI binary-response
+      coverage for `HEAD`, full-body `200`, and byte-range `206` responses,
+      including no-store/nosniff, range, content-disposition, content-length,
+      and optional SHA-256 headers plus runtime coverage for portable `HEAD`
+      metadata.
 
 ## Deferred until backend contracts stabilize
 
