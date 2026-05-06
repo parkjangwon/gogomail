@@ -3749,6 +3749,10 @@ Implementation order:
       preconditions before mutation, returning HTTP 412 for `*` or matching
       object ETags and keeping existing calendar/contact objects intact under
       WebDAV conditional delete probes.
+1373. CalDAV and CardDAV collection `DELETE` now honors `If-None-Match`
+      preconditions against calendar/address-book collection ETags before
+      recursive deletion, preserving child `.ics` and `.vcf` members when
+      native DAV clients send `*` or a matching collection validator.
 
 ## Deferred until backend contracts stabilize
 

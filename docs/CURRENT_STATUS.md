@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV delete If-None-Match preconditions)
+Last updated: 2026-05-07 (updated after DAV collection delete If-None-Match preconditions)
 
 ## Current phase
 
@@ -61,6 +61,11 @@ CalDAV and CardDAV object `DELETE` now also evaluate `If-None-Match` before
 mutation, so `If-None-Match: *` or a matching ETag receives HTTP 412 and leaves
 the `.ics` or `.vcf` object intact instead of silently deleting an existing
 representation.
+CalDAV and CardDAV collection `DELETE` now apply the same `If-None-Match`
+precondition boundary against calendar/address-book collection ETags, so
+native DAV clients using `If-None-Match: *` or a matching collection validator
+receive HTTP 412 before recursive child deletion can remove `.ics` or `.vcf`
+members.
 CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new

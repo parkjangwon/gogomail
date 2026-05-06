@@ -77,17 +77,19 @@ Recent release-readiness work also includes:
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
   validation, sync report discovery gated by runtime change-log support,
   WebDAV conditional mutation guards that recheck observed strong ETags even
-  for `If-Match: *` and fail closed on missing-resource
-  `If-Unmodified-Since` writes, and
+  for `If-Match: *`, fail closed on missing-resource
+  `If-Unmodified-Since` writes, and reject matching `If-None-Match` validators
+  before object or collection deletion, plus
   Directory/Identity, delegation, Notification & Sync, search, policy, and
   audit boundaries treated as platform prerequisites
 - backend-only CardDAV foundations for contacts interoperability, with
   address-book principal/object boundaries, vCard validation, sync discovery,
   RFC-shaped query filtering, sync report discovery gated by runtime
   change-log support, WebDAV conditional mutation guards that recheck observed
-  strong ETags even for `If-Match: *` and reject missing-resource
-  `If-Unmodified-Since` writes, and native-client compatibility gates kept
-  separate from future UI work
+  strong ETags even for `If-Match: *`, reject missing-resource
+  `If-Unmodified-Since` writes, and honor matching `If-None-Match` validators
+  before object or collection deletion, with native-client compatibility gates
+  kept separate from future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
   public share-link metadata/download with exact bearer-token path semantics,

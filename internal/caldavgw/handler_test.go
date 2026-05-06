@@ -2329,6 +2329,52 @@ func TestHandlerDeleteCalendarCollectionRejectsMismatchedIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteCalendarCollectionRejectsMatchingIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 1 {
+		t.Fatalf("calendars after rejected delete = %d, want 1", len(store.calendars))
+	}
+	if len(store.objects) != 1 {
+		t.Fatalf("objects after rejected delete = %d, want 1", len(store.objects))
+	}
+}
+
+func TestHandlerDeleteCalendarCollectionRejectsIfNoneMatchStar(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/", nil)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.calendars) != 1 {
+		t.Fatalf("calendars after rejected delete = %d, want 1", len(store.calendars))
+	}
+	if len(store.objects) != 1 {
+		t.Fatalf("objects after rejected delete = %d, want 1", len(store.objects))
+	}
+}
+
 func TestHandlerDeleteCalendarCollectionAcceptsMatchingIfMatch(t *testing.T) {
 	t.Parallel()
 

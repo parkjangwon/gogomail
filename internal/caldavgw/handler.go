@@ -509,20 +509,32 @@ func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Reques
 
 func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, calendarID string) bool {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return false
 	}
-	if ifMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
 		calendar, err := h.Store.LookupCalendar(r.Context(), userID, calendarID)
 		if err != nil {
-			http.Error(w, "caldav calendar not found", http.StatusPreconditionFailed)
-			return false
+			if ifMatch != "" || ifUnmodifiedSince != "" {
+				http.Error(w, "caldav calendar not found", http.StatusPreconditionFailed)
+				return false
+			}
+			return true
 		}
-		if ifMatch != "" {
+		if ifMatch != "" || ifNoneMatch != "" {
 			etag, err := CalendarCollectionETag(userID, calendar)
-			if err != nil || !ifMatchMatches(ifMatch, etag) {
+			if err != nil {
+				http.Error(w, "caldav calendar collection etag unavailable", http.StatusPreconditionFailed)
+				return false
+			}
+			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
+				http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
+				return false
+			}
+			if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
 				http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
 				return false
 			}

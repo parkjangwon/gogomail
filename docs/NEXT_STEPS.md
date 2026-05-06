@@ -55,6 +55,10 @@ Current state:
 - CalDAV and CardDAV object `DELETE` now evaluates `If-None-Match` before
   mutation, returning HTTP 412 for `*` or matching ETags and preserving the
   existing `.ics`/`.vcf` representation.
+- CalDAV and CardDAV collection `DELETE` now evaluates `If-None-Match` against
+  the calendar/address-book collection ETag before recursive deletion,
+  returning HTTP 412 for `*` or matching validators and preserving child
+  `.ics`/`.vcf` members.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an
