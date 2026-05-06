@@ -68,6 +68,10 @@ Current state:
   omits its continuation cursor, before deleting any listed object, and S3
   coverage verifies that continuation tokens are carried into the next
   cleanup page.
+- S3-compatible `List` now rechecks provider-returned keys against the
+  requested logical prefix after canonical bucket-prefix mapping, so
+  S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes
+  even if a provider returns an overly broad page.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.
@@ -598,6 +602,10 @@ Current state:
 - S3-compatible `ListObjectsV2` pages reject provider responses that return
   more matching objects than the requested bounded page size, keeping S3,
   MinIO, and local/NFS pagination under the same storage contract.
+- S3-compatible `ListObjectsV2` pages also filter mapped object paths by the
+  caller's requested logical prefix after removing the configured storage
+  prefix, preserving local/NFS prefix isolation semantics during Drive,
+  lifecycle, and reconciliation cleanup scans.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path

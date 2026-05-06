@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -757,6 +758,66 @@ func TestS3StoreDeletePrefixUsesContinuationCursor(t *testing.T) {
 	}
 }
 
+func TestS3StoreDeletePrefixSkipsSiblingKeysAfterCanonicalMapping(t *testing.T) {
+	t.Parallel()
+
+	var requests []string
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.Method+" "+req.URL.EscapedPath())
+			switch req.Method {
+			case http.MethodGet:
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/drive/user-10/leak.txt</Key><Size>1</Size></Contents>
+  <Contents><Key>mail/drive/user-1/docs/a.txt</Key><Size>1</Size></Contents>
+</ListBucketResult>`)),
+					Request: req,
+				}, nil
+			case http.MethodDelete:
+				return &http.Response{
+					StatusCode: http.StatusNoContent,
+					Body:       io.NopCloser(strings.NewReader("")),
+					Request:    req,
+				}, nil
+			default:
+				return &http.Response{
+					StatusCode: http.StatusBadRequest,
+					Body:       io.NopCloser(strings.NewReader("unexpected request")),
+					Request:    req,
+				}, nil
+			}
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	result, err := DeletePrefix(context.Background(), store, DeletePrefixOptions{Prefix: "drive/user-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("DeletePrefix returned error: %v", err)
+	}
+	if result.Deleted != 1 || result.HasMore || result.NextCursor != "" {
+		t.Fatalf("DeletePrefix result = %+v, want only matching object deleted", result)
+	}
+	want := []string{
+		"GET /gogomail",
+		"DELETE /gogomail/mail/drive/user-1/docs/a.txt",
+	}
+	if !reflect.DeepEqual(requests, want) {
+		t.Fatalf("requests = %+v, want %+v", requests, want)
+	}
+}
+
 func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 	t.Parallel()
 
@@ -781,6 +842,41 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
 	if err == nil || !strings.Contains(err.Error(), "expected element type <ListBucketResult>") {
 		t.Fatalf("List err = %v, want unexpected XML root rejection", err)
+	}
+}
+
+func TestS3StoreListFiltersLogicalPrefixAfterCanonicalMapping(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/drive/user-10/leak.txt</Key><Size>1</Size></Contents>
+  <Contents><Key>mail/drive/user-1/docs/a.txt</Key><Size>2</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	page, err := store.List(context.Background(), ListOptions{Prefix: "drive/user-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "drive/user-1/docs/a.txt" || page.Objects[0].Size != 2 {
+		t.Fatalf("list objects = %+v, want only drive/user-1 object", page.Objects)
 	}
 }
 

@@ -3652,6 +3652,11 @@ Implementation order:
       keeping RFC 4731 `ESEARCH` capability support scoped to `SEARCH RETURN`
       and `UID SEARCH RETURN` semantics instead of falling through as an
       unknown UID command.
+1352. S3-compatible storage `List` now filters provider-returned keys against
+      the caller's logical gogomail prefix after stripping the configured
+      bucket/storage prefix, and `DeletePrefix` coverage proves sibling prefix
+      keys are not deleted if an S3-compatible provider returns an overly broad
+      list page.
 
 ## Deferred until backend contracts stabilize
 

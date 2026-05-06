@@ -22,13 +22,15 @@ followed by source delete. `List` returns bounded, cursor-paginated object
 metadata under a validated prefix, using a local/NFS directory walk or signed
 S3 `ListObjectsV2` requests; truncated S3 pages must include a continuation
 token before callers see the page, and provider-returned keys are not trimmed
-before prefix/object-path validation. Provider responses must also respect the
-requested page size for matching objects, so a malformed S3-compatible service
-cannot bypass the shared bounded-list contract. Future Drive and lifecycle modules should
-prefer `Stat` for existence/size checks, `GetRange` for resumable downloads
-and media preview windows, `Copy` for object duplication workflows, `Move` for
-file rename/relocation workflows, and `List` for prefix-scoped browsing,
-reconciliation, and cleanup scans.
+before prefix/object-path validation. S3-compatible listings are also rechecked
+against the requested logical prefix after bucket-prefix stripping, so overly
+broad provider pages cannot expose sibling prefixes to callers. Provider
+responses must also respect the requested page size for matching objects, so a
+malformed S3-compatible service cannot bypass the shared bounded-list contract.
+Future Drive and lifecycle modules should prefer `Stat` for existence/size
+checks, `GetRange` for resumable downloads and media preview windows, `Copy`
+for object duplication workflows, `Move` for file rename/relocation workflows,
+and `List` for prefix-scoped browsing, reconciliation, and cleanup scans.
 `storage.DeletePrefix` composes `List` and idempotent `Delete` into a bounded
 page-level cleanup helper for future Drive folder deletion, attachment
 lifecycle, and reconciliation jobs without requiring callers to know whether
@@ -330,11 +332,13 @@ status requirement. Successful list responses must decode as bounded
 `ListBucketResult` XML, so unexpected success bodies cannot masquerade as empty
 object pages. Returned keys are normalized back to gogomail object paths under
 the configured storage prefix, so callers do not see deployment-specific bucket
-prefixes. Size and returned ETag metadata are validated only after that
-canonical prefix mapping succeeds, and ETags use the same bounded metadata
-cleanup as `Stat`. Provider responses that return more matching objects than
-requested are rejected, keeping local/NFS and S3-compatible pagination
-semantics aligned. `ListObjectsV2` query parameters are encoded with SigV4
+prefixes. The mapped gogomail path is then rechecked against the requested
+logical prefix, preserving local/NFS sibling-prefix isolation even if a
+compatible provider returns an overly broad page. Size and returned ETag
+metadata are validated only after that canonical prefix mapping succeeds, and
+ETags use the same bounded metadata cleanup as `Stat`. Provider responses that
+return more matching objects than requested are rejected, keeping local/NFS and
+S3-compatible pagination semantics aligned. `ListObjectsV2` query parameters are encoded with SigV4
 canonical URI rules instead of form-style query escaping, so prefixes and
 continuation tokens containing spaces, literal `+`, `/`, `=`, or `@`
 characters sign and round-trip consistently across AWS S3, MinIO, and stricter
