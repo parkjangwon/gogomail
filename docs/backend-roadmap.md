@@ -2604,6 +2604,11 @@ Implementation order:
       and WebDAV privileges so future CalDAV/CardDAV/Drive/mailbox audit
       emitters do not invent divergent log shapes or accept free-form reason
       cardinality.
+1171. `internal/accesspolicy` now also builds the delegated-access `audit.Log`
+      envelope with stable `access` category, `delegation.access_checked`
+      action, owner principal target, actor principal, and fixed
+      `allowed`/`denied` results so product adapters can insert consistent
+      audit records without duplicating envelope conventions.
 
 ## Deferred until backend contracts stabilize
 

@@ -203,7 +203,10 @@ decisions before those privileges are exposed by protocol modules. The same
 boundary now emits bounded delegated-access audit detail JSON with normalized
 company, owner, actor, scope, role, decision, reason, and WebDAV privilege
 fields; reasons are fixed enum values so operational logs stay predictable
-instead of accumulating caller-supplied strings.
+instead of accumulating caller-supplied strings. It also builds the standard
+`audit.Log` envelope for delegated access checks (`access` /
+`delegation.access_checked` with fixed `allowed`/`denied` results), giving
+future CalDAV/CardDAV/Drive/mailbox adapters one auditable shape to insert.
 
 ## Completed or materially advanced
 

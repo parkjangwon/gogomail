@@ -283,6 +283,70 @@ func TestDelegatedAccessAuditDetailRejectsMalformedRequest(t *testing.T) {
 	}
 }
 
+func TestDelegatedAccessAuditLogBuildsStableEnvelope(t *testing.T) {
+	t.Parallel()
+
+	log, err := DelegatedAccessAuditLog(DelegatedAccessRequest{
+		CompanyID:    " company-1 ",
+		Owner:        Principal(" RESOURCE ", " room-1 "),
+		Actor:        Principal(" USER ", " user-1 "),
+		Scope:        " Calendar ",
+		RequiredRole: " MANAGE ",
+	}, Decision{Allowed: true, Reason: "caller-specific text"})
+	if err != nil {
+		t.Fatalf("DelegatedAccessAuditLog returned error: %v", err)
+	}
+	if log.CompanyID != "company-1" ||
+		log.ActorID != "user-1" ||
+		log.Category != AuditCategoryAccess ||
+		log.Action != AuditActionDelegatedAccess ||
+		log.TargetType != directory.PrincipalKindResource ||
+		log.TargetID != "room-1" ||
+		log.Result != AuditResultDelegationAllowed {
+		t.Fatalf("audit log = %+v", log)
+	}
+	var detail struct {
+		Reason           string   `json:"reason"`
+		WebDAVPrivileges []string `json:"webdav_privileges"`
+	}
+	if err := json.Unmarshal(log.Detail, &detail); err != nil {
+		t.Fatalf("unmarshal audit detail: %v", err)
+	}
+	if detail.Reason != DecisionReasonDelegationAllowed {
+		t.Fatalf("reason = %q, want normalized allowed reason", detail.Reason)
+	}
+	wantPrivileges := []string{
+		WebDAVPrivilegeRead,
+		WebDAVPrivilegeBind,
+		WebDAVPrivilegeUnbind,
+		WebDAVPrivilegeWriteContent,
+		WebDAVPrivilegeWriteProperties,
+	}
+	if len(detail.WebDAVPrivileges) != len(wantPrivileges) {
+		t.Fatalf("webdav privileges = %+v, want %+v", detail.WebDAVPrivileges, wantPrivileges)
+	}
+	for i := range wantPrivileges {
+		if detail.WebDAVPrivileges[i] != wantPrivileges[i] {
+			t.Fatalf("webdav privileges = %+v, want %+v", detail.WebDAVPrivileges, wantPrivileges)
+		}
+	}
+}
+
+func TestDelegatedAccessAuditLogRejectsMalformedRequest(t *testing.T) {
+	t.Parallel()
+
+	_, err := DelegatedAccessAuditLog(DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal("calendar", "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}, Decision{Allowed: false})
+	if err == nil {
+		t.Fatal("DelegatedAccessAuditLog accepted malformed actor principal kind")
+	}
+}
+
 type fakeDelegationChecker struct {
 	allowed bool
 	err     error

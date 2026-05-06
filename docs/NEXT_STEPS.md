@@ -1679,7 +1679,9 @@ Next:
   For WebDAV protocols, use its RFC 4918 privilege mapper instead of inventing
   per-module role-to-privilege tables. Audit integrations should use its
   delegated-access audit detail builder so logs carry normalized principal,
-  role, decision, and privilege fields without free-form reason cardinality.
+  role, decision, and privilege fields without free-form reason cardinality,
+  or its delegated-access audit log builder when they need the full standard
+  audit envelope.
 - CalDAV principal discovery now exposes Directory primary email addresses via
   RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:

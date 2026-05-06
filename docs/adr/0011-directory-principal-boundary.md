@@ -65,7 +65,9 @@ booking policy, and scheduling semantics are implemented explicitly.
   at product boundaries. Its WebDAV privilege mapper is intentionally shared so
   CalDAV and CardDAV do not grow incompatible role-to-privilege tables, and its
   audit detail builder keeps delegated-access log records normalized with fixed
-  reason enums instead of caller-supplied strings.
+  reason enums instead of caller-supplied strings. Its delegated-access audit
+  log builder also fixes the audit category, action, target, actor, and result
+  envelope for future product adapters.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.
