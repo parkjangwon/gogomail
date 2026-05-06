@@ -135,6 +135,9 @@ Current state:
 - S3-compatible `Content-Length` parsing requires unsigned decimal digits for
   `HEAD` metadata and range-response validation, rejecting signed values such
   as `+5` instead of normalizing them as valid sizes.
+- S3-compatible `Content-Range` start, end, and total-size numbers reuse that
+  unsigned decimal parser, rejecting signed values such as `bytes +1-3/5` or
+  `bytes 1-3/+5` before range metadata can be normalized.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

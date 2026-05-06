@@ -71,6 +71,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `Content-Length` parsing now requires unsigned decimal digits
   for `HEAD` metadata and range-response validation, rejecting signed values
   such as `+5`.
+- S3-compatible `Content-Range` start, end, and total-size numbers now reuse
+  the unsigned decimal parser, rejecting signed values such as
+  `bytes +1-3/5` or `bytes 1-3/+5`.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
