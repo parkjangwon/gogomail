@@ -32,6 +32,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   gogomail prefix after bucket/storage-prefix stripping, so overly broad
   provider pages cannot leak sibling keys into Drive/lifecycle listings or
   `DeletePrefix` cleanup deletes.
+- Shared storage object paths and prefixes reject encoded separators such as
+  `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preventing
+  configuration-only backend flips from inheriting provider-specific
+  double-decoding key semantics.
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.
@@ -1418,6 +1422,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Shared storage object path, prefix, and list-cursor validation now rejects
   invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping object
   keys, logs, URL escaping, and SigV4 canonical paths text-stable.
+- Shared storage object path and prefix validation also rejects
+  percent-encoded path separators such as `%2F` and `%5C`, keeping keys
+  portable across local/NFS, MinIO, AWS S3, and stricter compatible gateways.
 - Local/NFS and S3-compatible storage expose a shared object `Copy` contract.
   Local/NFS copies reuse atomic temporary-file commits, and S3-compatible
   copies use signed server-side copy requests with escaped `x-amz-copy-source`
@@ -1503,9 +1510,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   S3 request paths preserve literal `+` characters as `%2B` so object identity
   and SigV4 canonical paths do not drift for plus-bearing mail object keys or
   plus-bearing endpoint base paths.
-  Endpoint base paths reject encoded path separators such as `%2F` and `%5C`;
-  bucket names must start and end with a letter or digit, matching AWS S3 naming
-  rules before adapter construction. Seekable PUT
+  Endpoint base paths, configured object prefixes, and object keys reject
+  encoded path separators such as `%2F` and `%5C`; bucket names must start and
+  end with a letter or digit, matching AWS S3 naming rules before adapter
+  construction. Seekable PUT
   bodies also get deterministic `Content-Length` values without object
   buffering, improving S3-compatible provider behavior for file-backed mail and
   attachment writes. S3-compatible deletes treat `404 Not Found` as
