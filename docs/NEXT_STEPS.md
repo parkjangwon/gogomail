@@ -1562,6 +1562,9 @@ Current state:
   `VEVENT`/`VTODO` duration/end combinations before storage. Supported calendar
   components now also reject duplicated singleton time/status properties before
   malformed `.ics` resources can enter repository state.
+- CalDAV REPORT `calendar-data` requests now reject unsupported `content-type`
+  and non-`2.0` `version` attributes, keeping projection requests aligned with
+  advertised `supported-calendar-data`.
 - CalDAV WebDAV response groundwork now has a reusable `multistatus` builder
   with per-property `propstat` statuses and discovery properties for
   principals, calendar homes, calendar collections, and calendar objects.

@@ -2556,6 +2556,9 @@ The platform hardening sprint completed the following:
   as `DTSTART`, `DTEND`, `DUE`, `DURATION`, `STATUS`, `TRANSP`,
   `RECURRENCE-ID`, and `DTSTAMP` are rejected when duplicated on supported
   calendar components.
+- CalDAV REPORT `calendar-data` parsing now rejects unsupported
+  `content-type` and non-`2.0` `version` attributes instead of silently
+  projecting data for media variants the server does not advertise.
 - CalDAV now has a WebDAV `multistatus` response builder for future PROPFIND
   and REPORT handlers. It renders per-property `propstat` statuses, principal
   discovery properties, calendar-home hints, calendar collection metadata

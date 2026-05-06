@@ -415,6 +415,31 @@ func TestParseReportCollectsCalendarDataProjection(t *testing.T) {
 	}
 }
 
+func TestParseReportRejectsUnsupportedCalendarDataMediaAttributes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"content_type": `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><C:calendar-data content-type="application/calendar+json"/></D:prop>
+  <D:href>/caldav/calendars/user/work/event.ics</D:href>
+</C:calendar-multiget>`,
+		"version": `<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><C:calendar-data content-type="text/calendar" version="1.0"/></D:prop>
+  <D:href>/caldav/calendars/user/work/event.ics</D:href>
+</C:calendar-multiget>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseReport(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseReport error = nil, want unsupported calendar-data media rejection")
+			}
+		})
+	}
+}
+
 func TestParseReportCollectsCalendarQueryTimeRange(t *testing.T) {
 	t.Parallel()
 
