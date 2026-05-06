@@ -141,6 +141,9 @@ Current state:
 - S3-compatible `ListObjectsV2` object-size parsing now also requires unsigned
   decimal digits, rejecting signed `<Size>` values such as `+5` before list
   metadata reaches cleanup, Drive, or reconciliation callers.
+- S3-compatible `ListObjectsV2` object entries reject missing or blank `<Key>`
+  elements instead of silently skipping malformed provider entries before
+  prefix mapping and cleanup scans.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

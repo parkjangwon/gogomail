@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list object-size digit hardening)
+Last updated: 2026-05-07 (updated after S3 list object-key required hardening)
 
 ## Current phase
 
@@ -124,6 +124,9 @@ or `bytes 1-3/+5` before range metadata can be normalized.
 S3-compatible `ListObjectsV2` object-size parsing now also requires unsigned
 decimal digits, rejecting signed `<Size>` values such as `+5` before list
 metadata reaches cleanup, Drive, or reconciliation callers.
+S3-compatible `ListObjectsV2` object entries now reject missing or blank
+`<Key>` elements instead of silently skipping malformed provider entries before
+prefix mapping and cleanup scans.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

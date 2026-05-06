@@ -76,6 +76,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `bytes +1-3/5` or `bytes 1-3/+5`.
 - S3-compatible `ListObjectsV2` object-size parsing now also requires unsigned
   decimal digits, rejecting signed `<Size>` values such as `+5`.
+- S3-compatible `ListObjectsV2` object entries now reject missing or blank
+  `<Key>` elements before prefix mapping and cleanup scans.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
