@@ -269,6 +269,29 @@ func TestStorageCapabilitiesForConfigDescribesS3CompatibleBackend(t *testing.T) 
 	}
 }
 
+func TestStorageCapabilitiesForConfigUsesPathStyleForLocalS3Endpoints(t *testing.T) {
+	t.Parallel()
+
+	for _, endpoint := range []string{"http://localhost:19000", "http://127.0.0.1:19000", "http://[::1]:19000"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+
+			capabilities := storageCapabilitiesForConfig(config.Config{
+				StorageBackend:    "s3",
+				StorageS3Endpoint: endpoint,
+				StorageS3Region:   "us-east-1",
+				StorageS3Bucket:   "gogomail",
+			})
+			if !capabilities.S3Compatible || !capabilities.PathStyleAddressing {
+				t.Fatalf("capabilities = %+v", capabilities)
+			}
+			if capabilities.EndpointOrigin != endpoint {
+				t.Fatalf("endpoint origin = %q, want %q", capabilities.EndpointOrigin, endpoint)
+			}
+		})
+	}
+}
+
 func TestObjectStoreForConfigBuildsS3Backend(t *testing.T) {
 	t.Parallel()
 
