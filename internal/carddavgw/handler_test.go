@@ -205,6 +205,14 @@ func (s fakeCardDAVDiscoveryStore) UpsertContactObject(_ context.Context, req Up
 	if err != nil {
 		return ContactObject{}, err
 	}
+	for _, object := range s.objects {
+		if object.UserID == req.UserID &&
+			object.AddressBookID == req.AddressBookID &&
+			object.ObjectName != req.ObjectName &&
+			object.UID == req.UID {
+			return ContactObject{}, errors.New("CardDAV contact object UID already exists")
+		}
+	}
 	createdAt := time.Date(2026, 5, 6, 7, 8, 9, 0, time.UTC)
 	return ContactObject{
 		UserID:        req.UserID,
@@ -315,6 +323,21 @@ func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T)
 	conflict := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body, ifNoneMatch)
 	if conflict.Code != http.StatusPreconditionFailed {
 		t.Fatalf("If-None-Match status = %d, want %d", conflict.Code, http.StatusPreconditionFailed)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsDuplicateUID(t *testing.T) {
+	t.Parallel()
+
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Duplicate Contact\r\nEND:VCARD\r\n"
+	rec := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/duplicate.vcf", body, http.Header{
+		"Content-Type": []string{"text/vcard"},
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "UID") {
+		t.Fatalf("duplicate UID response missing UID context: %s", rec.Body.String())
 	}
 }
 
@@ -1131,6 +1154,7 @@ func testCardDAVDiscoveryStore(t *testing.T) fakeCardDAVDiscoveryStore {
 			UserID:        "user-1",
 			AddressBookID: "personal",
 			ObjectName:    "contact-1.vcf",
+			UID:           "contact-1",
 			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEMAIL;TYPE=home:contact-one@example.com\r\nEND:VCARD\r\n"),
 			ETag:          `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
 			Size:          64,
@@ -1140,6 +1164,7 @@ func testCardDAVDiscoveryStore(t *testing.T) fakeCardDAVDiscoveryStore {
 			UserID:        "user-1",
 			AddressBookID: "personal",
 			ObjectName:    "contact-2.vcf",
+			UID:           "contact-2",
 			VCard:         []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-2\r\nFN:Other Person\r\nEMAIL;TYPE=work:other@example.com\r\nEND:VCARD\r\n"),
 			ETag:          `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`,
 			Size:          65,

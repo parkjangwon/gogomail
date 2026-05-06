@@ -2430,6 +2430,10 @@ Implementation order:
       address-book collection has been deleted by reading durable change rows
       and returning the latest deletion sync token without requiring the
       collection to remain active.
+1129. CardDAV contact-object writes now preflight duplicate active vCard UIDs
+      within the same address book before SQL upsert, returning a predictable
+      repository/handler error while the PostgreSQL partial unique index stays
+      as the final concurrency guard.
 
 ## Deferred until backend contracts stabilize
 
