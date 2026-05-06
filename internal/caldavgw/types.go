@@ -124,3 +124,17 @@ func AdvertisedDAVTokens(includeScheduling bool) []string {
 	}
 	return tokens
 }
+
+func ImplementedMethods() []string {
+	return []string{
+		MethodOptions,
+		MethodPropfind,
+		MethodProppatch,
+		MethodReport,
+		MethodMkcalendar,
+		MethodGet,
+		MethodHead,
+		MethodPut,
+		MethodDelete,
+	}
+}

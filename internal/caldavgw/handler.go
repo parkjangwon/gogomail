@@ -1128,15 +1128,5 @@ func xmlEscapeText(value string) string {
 }
 
 func calDAVAllowHeader() string {
-	return strings.Join([]string{
-		MethodOptions,
-		MethodPropfind,
-		MethodProppatch,
-		MethodReport,
-		MethodMkcalendar,
-		MethodGet,
-		MethodHead,
-		MethodPut,
-		MethodDelete,
-	}, ", ")
+	return strings.Join(ImplementedMethods(), ", ")
 }

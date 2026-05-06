@@ -133,3 +133,16 @@ func TestAdvertisedDAVTokens(t *testing.T) {
 		t.Fatalf("Standards = %v, want RFC coverage list", Standards())
 	}
 }
+
+func TestImplementedMethodsExcludeFutureMove(t *testing.T) {
+	t.Parallel()
+
+	methods := ImplementedMethods()
+	want := []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodMkcalendar, MethodGet, MethodHead, MethodPut, MethodDelete}
+	if strings.Join(methods, ",") != strings.Join(want, ",") {
+		t.Fatalf("ImplementedMethods = %v, want %v", methods, want)
+	}
+	if strings.Contains(strings.Join(methods, ","), MethodMove) {
+		t.Fatalf("ImplementedMethods advertised future MOVE method: %v", methods)
+	}
+}

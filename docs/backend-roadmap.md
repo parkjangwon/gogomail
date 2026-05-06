@@ -2531,6 +2531,10 @@ Implementation order:
       principals into CalDAV principals, rejecting organization, group, and
       resource principals until delegated/shared calendar and resource-booking
       semantics have real policy and storage boundaries.
+1156. CalDAV `Allow` headers now come from an explicit implemented-method list
+      shared by `OPTIONS` and 405 responses, so future constants such as `MOVE`
+      do not leak into native-client capability discovery before handler
+      semantics exist.
 
 ## Deferred until backend contracts stabilize
 

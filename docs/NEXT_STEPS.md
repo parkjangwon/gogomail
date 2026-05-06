@@ -1515,6 +1515,9 @@ Current state:
   `current-user-principal` and `principal-collection-set`. Principal-only
   properties such as `calendar-home-set` remain on the principal resource so
   clients do not mistake the service root for an authenticated user principal.
+- CalDAV `OPTIONS` and unsupported-method responses now use one implemented
+  method list for `Allow`, keeping future-only method names such as `MOVE`
+  hidden until their WebDAV behavior is actually implemented.
 - CalDAV `PROPFIND /caldav/principals/` now resolves the advertised principal
   collection path, returning collection metadata at `Depth: 0` and the
   authenticated principal as a `Depth: 1` child without exposing other users.

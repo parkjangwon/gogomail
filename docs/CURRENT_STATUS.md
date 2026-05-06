@@ -2257,6 +2257,9 @@ The platform hardening sprint completed the following:
   is intentionally modeled as a read-only collection discovery anchor rather
   than as the user principal, so principal-only properties such as
   `calendar-home-set` stay on the principal resource.
+- CalDAV `OPTIONS` and 405 responses now share an explicit implemented-method
+  list so `Allow` stays tied to real gateway handlers. Future-only methods such
+  as `MOVE` remain unadvertised until their WebDAV semantics exist.
 - CalDAV calendar-home discovery now keeps WebDAV `current-user-principal` and
   `owner` anchored to the canonical principal URL instead of the calendar-home
   collection, keeping principal discovery semantics aligned with delegated and

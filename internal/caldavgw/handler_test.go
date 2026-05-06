@@ -35,6 +35,46 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	}
 }
 
+func TestHandlerOptionsAdvertisesOnlyImplementedMethods(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(&fakeDiscoveryStore{}, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodOptions, "/caldav/calendars/user-1/work/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	want := strings.Join(ImplementedMethods(), ", ")
+	if got := rec.Header().Get("Allow"); got != want {
+		t.Fatalf("Allow header = %q, want %q", got, want)
+	}
+	if strings.Contains(rec.Header().Get("Allow"), MethodMove) {
+		t.Fatalf("Allow header advertised unimplemented MOVE: %q", rec.Header().Get("Allow"))
+	}
+}
+
+func TestHandlerUnsupportedMethodReturnsAllowWithoutMove(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(&fakeDiscoveryStore{}, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodMove, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	want := strings.Join(ImplementedMethods(), ", ")
+	if got := rec.Header().Get("Allow"); got != want {
+		t.Fatalf("Allow header = %q, want %q", got, want)
+	}
+	if strings.Contains(rec.Header().Get("Allow"), MethodMove) {
+		t.Fatalf("Allow header advertised unimplemented MOVE: %q", rec.Header().Get("Allow"))
+	}
+}
+
 func TestHandlerWellKnownCalDAVRedirectsToServiceRoot(t *testing.T) {
 	t.Parallel()
 
