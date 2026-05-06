@@ -2498,6 +2498,10 @@ Implementation order:
 1147. IMAP server coverage now verifies literalized `LOGIN` commands with
       separate synchronizing user-name and password literals, including the
       reconstructed credentials delivered to backend authentication.
+1148. CalDAV calendar-home discovery now returns WebDAV
+      `current-user-principal` and `owner` hrefs anchored to the canonical
+      principal URL, keeping principal semantics ready for future
+      Directory/Identity-backed delegated and shared calendars.
 
 ## Deferred until backend contracts stabilize
 

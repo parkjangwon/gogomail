@@ -103,7 +103,7 @@ func TestHandlerPropfindCalendarHomeDepthOne(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:displayname/><D:resourcetype/><C:supported-calendar-component-set/></D:prop></D:propfind>`))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><D:owner/><D:displayname/><D:resourcetype/><C:supported-calendar-component-set/></D:prop></D:propfind>`))
 	req.Header.Set("Depth", "1")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -117,6 +117,12 @@ func TestHandlerPropfindCalendarHomeDepthOne(t *testing.T) {
 	}
 	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/</D:href>") {
 		t.Fatalf("child calendar response missing:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>") {
+		t.Fatalf("calendar-home current-user-principal missing:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>") {
+		t.Fatalf("calendar-home owner missing:\n%s", body)
 	}
 	if !strings.Contains(body, "<C:comp name=\"VEVENT\"></C:comp>") {
 		t.Fatalf("supported component response missing:\n%s", body)

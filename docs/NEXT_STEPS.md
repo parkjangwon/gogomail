@@ -1509,6 +1509,10 @@ Current state:
 - CalDAV now supports RFC 6764-style service discovery: `/.well-known/caldav`
   redirects to `/caldav/`, and authenticated root `PROPFIND` exposes principal
   and calendar-home discovery properties.
+- CalDAV calendar-home `PROPFIND` now reports WebDAV `current-user-principal`
+  and `owner` as the canonical principal URL, preserving a clean boundary for
+  future delegated/shared calendar access instead of treating the home
+  collection as the principal.
 - CalDAV now handles WebDAV `PROPPATCH` on authenticated calendar collections
   for display name, description, and CalendarServer/Apple calendar color.
   The parser is bounded and namespace-aware, optional properties can be

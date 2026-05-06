@@ -2247,6 +2247,10 @@ The platform hardening sprint completed the following:
   unsafe infinite-depth discovery, enforces authenticated user/path scope, and
   can render principal, calendar-home, calendar-collection, and calendar-object
   multistatus responses before the public listener is enabled.
+- CalDAV calendar-home discovery now keeps WebDAV `current-user-principal` and
+  `owner` anchored to the canonical principal URL instead of the calendar-home
+  collection, keeping principal discovery semantics aligned with delegated and
+  shared calendar work still gated behind Directory/Identity.
 - The PostgreSQL CalDAV repository now satisfies the discovery store boundary,
   including active principal lookup through active user/domain/company scope and
   calendar/object list/get adapters for the internal `PROPFIND` handler.
