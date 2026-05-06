@@ -62,6 +62,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.
+- IMAP UID and message sequence-set syntax now rejects whitespace-padded
+  quoted or literal set strings such as `SEARCH " 1 "` or
+  `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now enforce
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`

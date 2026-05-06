@@ -4514,9 +4514,12 @@ func (s *Server) markFetchSeen(ctx context.Context, state *imapConnState, summar
 const maxIMAPExpandedSetItems = 10000
 
 func parseIMAPUIDSet(value string) ([]UID, bool) {
+	if strings.TrimSpace(value) != value {
+		return nil, false
+	}
 	seen := make(map[UID]struct{})
 	uids := make([]UID, 0, 1)
-	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
+	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
 		if part == "" || strings.Contains(part, "*") {
 			return nil, false
@@ -4598,8 +4601,11 @@ func (s *Server) uidsForUIDSet(ctx context.Context, state *imapConnState, value 
 }
 
 func parseIMAPUIDSetRanges(value string, maxUID UID) ([]imapUIDRange, bool) {
+	if strings.TrimSpace(value) != value {
+		return nil, false
+	}
 	ranges := make([]imapUIDRange, 0, 1)
-	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
+	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
 		if part == "" {
 			return nil, false
@@ -4705,7 +4711,9 @@ func imapSequenceSetSyntaxValid(value string) bool {
 }
 
 func imapSetSyntaxValid(value string, allowStar bool, allowDollar bool) bool {
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return false
+	}
 	if value == "" {
 		return false
 	}
@@ -4779,9 +4787,12 @@ func imapSavedSearchSequenceNumbers(state *imapConnState, maxSequence uint32) []
 }
 
 func parseIMAPBoundedNumberSet(value string, maxValue uint32, allowStar bool) ([]UID, bool) {
+	if strings.TrimSpace(value) != value {
+		return nil, false
+	}
 	seen := make(map[UID]struct{})
 	values := make([]UID, 0, 1)
-	for _, rawPart := range strings.Split(strings.TrimSpace(value), ",") {
+	for _, rawPart := range strings.Split(value, ",") {
 		part := strings.TrimSpace(rawPart)
 		if part == "" {
 			return nil, false

@@ -3761,6 +3761,9 @@ The platform hardening sprint completed the following:
 - IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an exact
   `*` token, rejecting whitespace-padded cancellation attempts as malformed
   SASL responses while keeping the session usable.
+- IMAP UID and message sequence-set syntax now rejects whitespace-padded
+  quoted or literal set strings such as `SEARCH " 1 "` or
+  `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
