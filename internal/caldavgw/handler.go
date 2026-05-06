@@ -735,6 +735,16 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 			return nil, err
 		}
 		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, PrincipalProperties(principal))}, nil
+	case ResourcePrincipalCollection:
+		principal, err := h.Store.LookupPrincipal(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		responses := []MultiStatusResponse{responseForProperties(PrincipalsPrefix+"/", propfind, PrincipalCollectionProperties(principal))}
+		if depth == DepthOne {
+			responses = append(responses, responseForProperties(principal.PrincipalPath, propfind, PrincipalProperties(principal)))
+		}
+		return responses, nil
 	case ResourcePrincipal:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
 		if err != nil {

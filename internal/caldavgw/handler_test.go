@@ -99,6 +99,32 @@ func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindPrincipalCollectionDepthOne(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:principal-collection-set/><D:resourcetype/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/principals/</D:href>",
+		"<D:href>/caldav/principals/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("principal collection discovery missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerPropfindCalendarHomeDepthOne(t *testing.T) {
 	t.Parallel()
 

@@ -2507,6 +2507,10 @@ Implementation order:
       only: principal reads, calendar-home calendar bind/unbind, collection
       object bind/unbind plus metadata property writes, and object content
       writes.
+1150. CalDAV now resolves the advertised `/caldav/principals/` principal
+      collection for `PROPFIND`, returning collection metadata at `Depth: 0`
+      and the authenticated principal as a `Depth: 1` child without exposing
+      unrelated users.
 
 ## Deferred until backend contracts stabilize
 

@@ -257,6 +257,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.
+- CalDAV now resolves the advertised `/caldav/principals/` principal collection
+  for `PROPFIND`, including `Depth: 1` discovery of the authenticated principal
+  without listing unrelated users.
 - CalDAV calendar-home `PROPFIND` now keeps WebDAV `current-user-principal` and
   `owner` hrefs pointed at the canonical principal URL, preserving correct
   discovery semantics for future delegated/shared calendar access.

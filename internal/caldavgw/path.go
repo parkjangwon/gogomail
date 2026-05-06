@@ -88,6 +88,9 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 	if len(segments) == 0 || segments[0] != "caldav" {
 		return ResourcePath{}, fmt.Errorf("unsupported caldav path")
 	}
+	if len(segments) == 2 && segments[1] == "principals" {
+		return ResourcePath{Kind: ResourcePrincipalCollection}, nil
+	}
 	if len(segments) == 3 && segments[1] == "principals" {
 		userID, err := validateSegment("user_id", segments[2])
 		if err != nil {
