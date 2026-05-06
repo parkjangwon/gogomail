@@ -590,6 +590,33 @@ func TestValidateRejectsInvalidDriveCleanupConfig(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidDAVSyncRetentionSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "nonpositive interval", mutate: func(cfg *Config) { cfg.DAVSyncRetentionInterval = 0 }},
+		{name: "nonpositive cutoff age", mutate: func(cfg *Config) { cfg.DAVSyncRetentionCutoffAge = 0 }},
+		{name: "nonpositive batch size", mutate: func(cfg *Config) { cfg.DAVSyncRetentionBatchSize = 0 }},
+		{name: "oversized batch size", mutate: func(cfg *Config) { cfg.DAVSyncRetentionBatchSize = maxDAVSyncRetentionBatchSize + 1 }},
+		{name: "destructive without confirm", mutate: func(cfg *Config) {
+			cfg.DAVSyncRetentionDryRun = false
+			cfg.DAVSyncRetentionConfirmReady = false
+		}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want invalid DAV sync retention config rejection")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsNonpositivePushNotificationConsumerSettings(t *testing.T) {
 	tests := []struct {
 		name   string

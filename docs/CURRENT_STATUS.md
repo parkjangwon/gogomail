@@ -52,8 +52,8 @@ native CalDAV/iCalendar clients can share a protocol-correct backend.
 CalDAV remains an experimental/backend-only release slice: useful protocol
 building blocks now exist, but the module is not yet advertised as public
 client-ready. The next compatibility gates are broader recurrence edge cases,
-scheduling semantics, retention-worker wiring and retention-age policy,
-broader native-client testing, and the platform boundaries below.
+scheduling semantics, production retention-age policy, broader native-client
+testing, and the platform boundaries below.
 CalDAV `calendar-query` and `free-busy-query` now expand bounded VEVENT
 recurrence sets from RFC 5545 `RRULE`/`EXDATE`/`RDATE` parsing when evaluating
 time ranges, so recurring events can be discovered and included in VFREEBUSY
@@ -261,10 +261,10 @@ book changes are not falsely rejected while genuinely truncating deltas still
 fail closed. CardDAV sync-change retention now also has a bounded
 `PruneAddressBookChanges` repository boundary plus a prune-order index that can
 dry-run or delete old address-book change rows while preserving the newest
-marker per address book, keeping future Contacts retention workers from
-destroying the token needed by current clients. Unknown or expired CardDAV
-sync tokens fail with DAV `valid-sync-token`; worker wiring and retention-age
-policy remain future work.
+marker per address book, and `dav-sync-retention-worker` runs that prune path
+on the same dry-run-by-default schedule as CalDAV. Unknown or expired CardDAV
+sync tokens fail with DAV `valid-sync-token`; deployment retention-age policy
+and native-client expiry testing remain future work.
 Initial address-book sync snapshots now use a sync-specific
 bounded object list path as well, so a large address book cannot be clipped by
 the generic repository list default and then reported as fully synchronized.
@@ -2811,10 +2811,12 @@ The platform hardening sprint completed the following:
   the calendar row is gone. CalDAV now also has a bounded
   `PruneCalendarSyncChanges` repository boundary plus a prune-order index that
   can dry-run or delete old sync-change rows while preserving the newest marker
-  per calendar, so future retention workers can expire history without
-  destroying the token needed for current clients. Unknown or expired tokens
-  still fail with DAV `valid-sync-token`; retention-worker wiring and
-  deployment retention-age policy remain future work.
+  per calendar, so retention workers can expire history without destroying the
+  token needed for current clients. The `dav-sync-retention-worker` now runs
+  that CalDAV prune path on an interval or once-and-exit, dry-run by default
+  and guarded by explicit confirmation before destructive runs. Unknown or
+  expired tokens still fail with DAV `valid-sync-token`; deployment
+  retention-age policy and native-client expiry testing remain future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

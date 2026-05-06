@@ -16,6 +16,7 @@ const (
 	ModeDeliveryWorker    Mode = "delivery-worker"
 	ModeAttachmentCleanup Mode = "attachment-cleanup-worker"
 	ModeDriveCleanup      Mode = "drive-cleanup-worker"
+	ModeDAVSyncRetention  Mode = "dav-sync-retention-worker"
 	ModeSearchIndexWorker Mode = "search-index-worker"
 	ModeAPIMeteringWorker Mode = "api-metering-worker"
 	ModeAPIUsageRetention Mode = "api-usage-retention-worker"
@@ -39,6 +40,7 @@ var knownModes = map[Mode]struct{}{
 	ModeDeliveryWorker:    {},
 	ModeAttachmentCleanup: {},
 	ModeDriveCleanup:      {},
+	ModeDAVSyncRetention:  {},
 	ModeSearchIndexWorker: {},
 	ModeAPIMeteringWorker: {},
 	ModeAPIUsageRetention: {},

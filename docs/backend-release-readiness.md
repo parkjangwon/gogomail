@@ -294,8 +294,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   or expired tokens still produce DAV `valid-sync-token`; collection-deleted
   tokens can now produce a valid top-level sync token after the collection row
   is gone. Sync-change retention now has a bounded repository prune boundary
-  that preserves the newest marker per calendar, but worker wiring and an
-  operator-selected retention-age policy remain incomplete.
+  that preserves the newest marker per calendar, and
+  `dav-sync-retention-worker` runs that path dry-run by default. An
+  operator-selected retention-age policy remains incomplete.
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.
@@ -424,13 +425,15 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   rejected while truly truncating deltas still fail closed.
 - CalDAV sync-change retention pruning now has repository groundwork:
   bounded dry-run/delete calls preserve the newest sync marker per calendar and
-  use a dedicated prune-order index. Public-ready status still requires
-  operator/worker wiring and documented token-retention policy.
+  use a dedicated prune-order index. `dav-sync-retention-worker` runs the
+  CalDAV/CardDAV prune paths on an interval or once-and-exit, dry-run by
+  default and guarded by explicit confirmation before destructive runs.
+  Public-ready status still requires documented token-retention policy.
 - CardDAV sync-change retention pruning now mirrors that boundary for address
   books: bounded dry-run/delete calls preserve the newest sync marker per
   address book and use a dedicated prune-order index. Public-ready Contacts
-  sync still requires operator/worker wiring and documented token-retention
-  policy.
+  sync still requires documented token-retention policy and native-client
+  expiry testing.
 - CalDAV initial `sync-collection` snapshots now use a sync-specific
   one-extra-object repository list path, preventing omitted-limit snapshots
   from being clipped by generic list defaults while still returning the current

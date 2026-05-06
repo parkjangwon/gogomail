@@ -105,6 +105,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runAttachmentCleanupWorker(ctx, cfg, logger)
 	case ModeDriveCleanup:
 		return runDriveCleanupWorker(ctx, cfg, logger)
+	case ModeDAVSyncRetention:
+		return runDAVSyncRetentionWorker(ctx, cfg, logger)
 	case ModeDeliveryWorker:
 		return runDeliveryWorker(ctx, cfg, logger)
 	case ModeOutboundMTA:
@@ -138,6 +140,29 @@ type driveCleanupResult struct {
 
 type apiUsageRetentionRunner interface {
 	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
+}
+
+type calDAVSyncRetentionRunner interface {
+	PruneCalendarSyncChanges(ctx context.Context, req caldavgw.PruneCalendarSyncChangesRequest) (caldavgw.CalendarSyncChangePruneResult, error)
+}
+
+type cardDAVSyncRetentionRunner interface {
+	PruneAddressBookChanges(ctx context.Context, req carddavgw.PruneAddressBookChangesRequest) (carddavgw.AddressBookChangePruneResult, error)
+}
+
+type davSyncRetentionRunners struct {
+	CalDAV  calDAVSyncRetentionRunner
+	CardDAV cardDAVSyncRetentionRunner
+}
+
+type davSyncRetentionResult struct {
+	Cutoff         time.Time
+	Limit          int
+	DryRun         bool
+	CalCandidates  int64
+	CalDeleted     int64
+	CardCandidates int64
+	CardDeleted    int64
 }
 
 type apiUsageRetentionResult struct {
@@ -462,6 +487,38 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 	return runDriveCleanupLoop(ctx, service, cfg.DriveCleanupInterval, cfg.DriveCleanupBatchSize, logger)
 }
 
+func runDAVSyncRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	runners := davSyncRetentionRunners{
+		CalDAV:  caldavgw.NewRepository(db),
+		CardDAV: carddavgw.NewRepository(db),
+	}
+	if cfg.DAVSyncRetentionRunOnce {
+		_, err := runDAVSyncRetentionOnce(ctx, runners, time.Now, cfg, logger)
+		return err
+	}
+	if _, err := runDAVSyncRetentionOnce(ctx, runners, time.Now, cfg, logger); err != nil && logger != nil {
+		logger.Error("DAV sync retention failed", "error", err)
+	}
+	ticker := time.NewTicker(cfg.DAVSyncRetentionInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if _, err := runDAVSyncRetentionOnce(ctx, runners, time.Now, cfg, logger); err != nil && logger != nil {
+				logger.Error("DAV sync retention failed", "error", err)
+			}
+		}
+	}
+}
+
 func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *drive.Service {
 	return drive.NewService(drive.NewRepository(db), storageStoresForConfig(cfg, store))
 }
@@ -560,6 +617,65 @@ func runAPIUsageRetentionOnce(ctx context.Context, runner apiUsageRetentionRunne
 			"candidates", result.CandidateCount,
 			"limited", result.LimitedCount,
 			"deleted", result.DeletedCount,
+		)
+	}
+	return result, nil
+}
+
+func runDAVSyncRetentionOnce(ctx context.Context, runners davSyncRetentionRunners, now func() time.Time, cfg config.Config, logger *slog.Logger) (davSyncRetentionResult, error) {
+	if runners.CalDAV == nil {
+		return davSyncRetentionResult{}, fmt.Errorf("CalDAV sync retention runner is required")
+	}
+	if runners.CardDAV == nil {
+		return davSyncRetentionResult{}, fmt.Errorf("CardDAV sync retention runner is required")
+	}
+	if now == nil {
+		now = time.Now
+	}
+	if cfg.DAVSyncRetentionCutoffAge <= 0 {
+		return davSyncRetentionResult{}, fmt.Errorf("DAV sync retention cutoff age must be positive")
+	}
+	if cfg.DAVSyncRetentionBatchSize <= 0 {
+		return davSyncRetentionResult{}, fmt.Errorf("DAV sync retention batch size must be positive")
+	}
+	if !cfg.DAVSyncRetentionDryRun && !cfg.DAVSyncRetentionConfirmReady {
+		return davSyncRetentionResult{}, fmt.Errorf("DAV sync retention confirm_ready is required when dry-run is disabled")
+	}
+	cutoff := now().UTC().Add(-cfg.DAVSyncRetentionCutoffAge)
+	calResult, err := runners.CalDAV.PruneCalendarSyncChanges(ctx, caldavgw.PruneCalendarSyncChangesRequest{
+		Cutoff: cutoff,
+		Limit:  cfg.DAVSyncRetentionBatchSize,
+		DryRun: cfg.DAVSyncRetentionDryRun,
+	})
+	if err != nil {
+		return davSyncRetentionResult{}, err
+	}
+	cardResult, err := runners.CardDAV.PruneAddressBookChanges(ctx, carddavgw.PruneAddressBookChangesRequest{
+		Cutoff: cutoff,
+		Limit:  cfg.DAVSyncRetentionBatchSize,
+		DryRun: cfg.DAVSyncRetentionDryRun,
+	})
+	if err != nil {
+		return davSyncRetentionResult{}, err
+	}
+	result := davSyncRetentionResult{
+		Cutoff:         cutoff,
+		Limit:          cfg.DAVSyncRetentionBatchSize,
+		DryRun:         cfg.DAVSyncRetentionDryRun,
+		CalCandidates:  calResult.CandidateCount,
+		CalDeleted:     calResult.DeletedCount,
+		CardCandidates: cardResult.CandidateCount,
+		CardDeleted:    cardResult.DeletedCount,
+	}
+	if logger != nil {
+		logger.Info("DAV sync retention completed",
+			"cutoff", result.Cutoff,
+			"limit", result.Limit,
+			"dry_run", result.DryRun,
+			"caldav_candidates", result.CalCandidates,
+			"caldav_deleted", result.CalDeleted,
+			"carddav_candidates", result.CardCandidates,
+			"carddav_deleted", result.CardDeleted,
 		)
 	}
 	return result, nil
