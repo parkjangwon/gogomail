@@ -74,6 +74,32 @@ func TestDelegatedAccessPolicyDeniesCrossCompanyPrincipals(t *testing.T) {
 	}
 }
 
+func TestDelegatedAccessPolicyDeniesMissingPrincipals(t *testing.T) {
+	t.Parallel()
+
+	checker := &fakeEffectiveDelegationChecker{allowedRoles: map[string]bool{directory.DelegationRoleRead: true}}
+	policy := DelegatedAccessPolicy{
+		Directory: fakeDirectoryResolver{
+			"owner-1": {ID: "owner-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"},
+		},
+		Authorizer: accesspolicy.DelegatedAccessAuthorizer{Checker: checker, AuditRepository: &fakeDelegationAuditRepository{}},
+	}
+	decision, err := policy.AuthorizeCalendarAccess(context.Background(), AccessRequest{
+		ActorUserID:  "missing-actor",
+		OwnerUserID:  "owner-1",
+		RequiredRole: CalendarAccessRoleRead,
+	})
+	if err != nil {
+		t.Fatalf("AuthorizeCalendarAccess returned error: %v", err)
+	}
+	if decision.Allowed {
+		t.Fatal("Allowed = true, want false")
+	}
+	if len(checker.calls) != 0 {
+		t.Fatalf("delegation checker was called: %+v", checker.calls)
+	}
+}
+
 func TestDelegatedAccessPolicyReturnsHighestGrantedCalendarPrivileges(t *testing.T) {
 	t.Parallel()
 
@@ -110,7 +136,11 @@ func TestDelegatedAccessPolicyReturnsHighestGrantedCalendarPrivileges(t *testing
 type fakeDirectoryResolver map[string]directory.Principal
 
 func (r fakeDirectoryResolver) ResolvePrincipal(_ context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error) {
-	return r[req.ID], nil
+	principal, ok := r[req.ID]
+	if !ok {
+		return directory.Principal{}, directory.ErrPrincipalNotFound
+	}
+	return principal, nil
 }
 
 type fakeEffectiveDelegationChecker struct {

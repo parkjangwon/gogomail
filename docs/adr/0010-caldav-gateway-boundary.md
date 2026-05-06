@@ -249,11 +249,14 @@ using owner-scoped storage. Runtime `caldav` mode wires the authorizer through
 Directory active principal resolution, `accesspolicy.DelegatedAccessAuthorizer`,
 and the shared audit repository. This is not a product-specific sharing table
 inside CalDAV; it is the protocol gateway consuming the platform delegation and
-audit model. Delegated `PROPFIND` privilege discovery also consumes that access
-policy boundary, deriving `DAV:current-user-privilege-set` from the mapped
-read/write/manage decision instead of advertising owner-level static
-privileges. Public shared-calendar behavior still requires write/manage UX
-semantics, scheduling/resource policy, and compatibility tests.
+audit model. Delegated `PROPFIND`, REPORT, and sync privilege discovery also
+consume that access policy boundary, deriving
+`DAV:current-user-privilege-set` from the mapped read/write/manage decision
+instead of advertising owner-level static privileges. Missing Directory
+principals fail closed as authorization denial, while infrastructure and
+audit-path failures remain explicit server errors. Public shared-calendar
+behavior still requires write/manage UX semantics, scheduling/resource policy,
+and compatibility tests.
 
 ## Consequences
 

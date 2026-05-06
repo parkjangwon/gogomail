@@ -346,9 +346,12 @@ func TestHandlerReportCalendarMultigetAllowsDelegatedRead(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
-	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{
+		allowedRoles: map[string]bool{CalendarAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
 	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
-  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:prop><D:getetag/><D:current-user-privilege-set/><C:calendar-data/></D:prop>
   <D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>
 </C:calendar-multiget>`))
 	rec := httptest.NewRecorder()
@@ -363,6 +366,14 @@ func TestHandlerReportCalendarMultigetAllowsDelegatedRead(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") || !strings.Contains(body, "UID:event-1@example.com") {
 		t.Fatalf("delegated calendar-multiget missing owner object:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated calendar-multiget missing read-only privileges:\n%s", body)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(body, denied) {
+			t.Fatalf("delegated calendar-multiget advertised %s:\n%s", denied, body)
+		}
 	}
 }
 
@@ -727,6 +738,39 @@ func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("sync-collection missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerReportSyncCollectionAllowsDelegatedReadOnlyPrivileges(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{
+		allowedRoles: map[string]bool{CalendarAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><D:current-user-privilege-set/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") {
+		t.Fatalf("delegated sync missing owner object:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated sync missing read-only privileges:\n%s", body)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(body, denied) {
+			t.Fatalf("delegated sync advertised %s:\n%s", denied, body)
 		}
 	}
 }
