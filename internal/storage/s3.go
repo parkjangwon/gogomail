@@ -174,7 +174,7 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 			drainAndCloseS3Body(resp.Body)
 			return nil, err
 		}
-		if err := validateS3PartialRangeContentLength(resp, validated); err != nil {
+		if err := validateS3RangeContentLength(resp, validated); err != nil {
 			drainAndCloseS3Body(resp.Body)
 			return nil, err
 		}
@@ -637,7 +637,10 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 
 func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequest) error {
 	if strings.TrimSpace(resp.Header.Get("Content-Range")) != "" {
-		return validateS3ContentRange(resp.Header.Get("Content-Range"), req)
+		if err := validateS3ContentRange(resp.Header.Get("Content-Range"), req); err != nil {
+			return err
+		}
+		return validateS3RangeContentLength(resp, req)
 	}
 	if req.Offset != 0 {
 		return fmt.Errorf("get range s3 object: status 200 without content-range for non-zero offset")
@@ -666,7 +669,7 @@ func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 	return -1, fmt.Errorf("get range s3 object: content length is required")
 }
 
-func validateS3PartialRangeContentLength(resp *http.Response, req RangeRequest) error {
+func validateS3RangeContentLength(resp *http.Response, req RangeRequest) error {
 	value := strings.TrimSpace(resp.Header.Get("Content-Length"))
 	if value == "" {
 		return nil

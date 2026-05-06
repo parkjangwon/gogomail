@@ -65,6 +65,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `Content-Range` parsing now rejects internal whitespace inside
   the `start-end/size` byte-range grammar, preserving strict range metadata
   validation for AWS S3, MinIO, and compatible providers.
+- S3-compatible `200 OK` range compatibility responses with a matching
+  `Content-Range` now also validate any present `Content-Length` against the
+  requested window before exposing a bounded reader.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
