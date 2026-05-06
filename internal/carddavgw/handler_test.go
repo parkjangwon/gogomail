@@ -509,6 +509,26 @@ func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T)
 	}
 }
 
+func TestHandlerPutContactObjectIfMatchStarCarriesObservedETag(t *testing.T) {
+	t.Parallel()
+
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1@example.com\r\nFN:Updated Contact\r\nEND:VCARD\r\n"
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
 func TestHandlerPutContactObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 	t.Parallel()
 
@@ -653,6 +673,24 @@ func TestHandlerDeleteContactObjectHonorsIfMatch(t *testing.T) {
 	})
 	if ok.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, body = %s", ok.Code, ok.Body.String())
+	}
+}
+
+func TestHandlerDeleteContactObjectIfMatchStarCarriesObservedETag(t *testing.T) {
+	t.Parallel()
+
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastDelete.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("delete observed etag = %q", store.lastDelete.ObservedETag)
 	}
 }
 

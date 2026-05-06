@@ -354,7 +354,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
 			return
 		}
-		observedETag = ""
+		observedETag = existing.ETag
 	} else if observedETag != "" && !existed {
 		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
 		return
@@ -458,7 +458,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 			return
 		}
-		if ifMatch != "" && strings.TrimSpace(ifMatch) != "*" {
+		if ifMatch != "" {
 			observedETag = object.ETag
 		}
 		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {

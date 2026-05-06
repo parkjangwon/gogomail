@@ -3667,6 +3667,10 @@ Implementation order:
       destination directories one segment at a time and verifies existing
       components with `Lstat`, so mounted deployments cannot follow
       host-specific symlink parents outside the configured object root.
+1355. CalDAV and CardDAV object `PUT`/`DELETE` now pass observed strong ETags
+      into repository mutation guards when `If-Match: *` succeeds, preserving
+      existing-resource WebDAV semantics while rechecking the exact object
+      looked up by the handler before durable write or delete mutation.
 
 ## Deferred until backend contracts stabilize
 

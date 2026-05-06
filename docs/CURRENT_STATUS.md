@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after local/NFS symlinked parent hardening)
+Last updated: 2026-05-07 (updated after DAV If-Match star mutation hardening)
 
 ## Current phase
 
@@ -52,6 +52,10 @@ CalDAV and CardDAV request paths and absolute REPORT hrefs now reject encoded
 path separators such as `%2F` and `%5C` before URL decoding, preventing
 calendar/address-book/object identifiers from changing path shape at the
 segment validation boundary.
+CalDAV and CardDAV object `PUT`/`DELETE` now carry the currently observed
+strong object ETag into repository mutation guards even when `If-Match: *`
+matches an existing resource, so existence-only DAV preconditions still
+recheck the exact object observed by the handler before durable mutation.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can
@@ -386,10 +390,10 @@ first wire header. Date-based CalDAV conditionals now reject repeated
 `If-Modified-Since` or `If-Unmodified-Since` headers before object reads,
 object writes, object deletes, or collection precondition checks, avoiding
 ambiguous timestamp guards that used to depend on the first header value.
-CalDAV object `DELETE` also carries matched strong `If-Match` ETags into the
-repository request and revalidates them inside the delete transaction before
-soft deletion, closing the stale-write window between handler preflight and
-durable mutation.
+CalDAV object `PUT` and `DELETE` also carry observed strong ETags into the
+repository request when `If-Match` succeeds, including the existing-resource
+`If-Match: *` form, and revalidate them inside mutation transactions before
+write or soft deletion.
 CalDAV mutating repository paths now enqueue a transactional `dav.event`
 outbox row whenever they append a durable calendar sync-change row. The v1
 `calendar.changed` payload carries the DAV kind, action, owner user, actor
@@ -620,9 +624,10 @@ same address book before the SQL upsert path, while the PostgreSQL partial
 unique index remains the final concurrency guard. Repository error mapping also
 turns final unique-index races into predictable duplicate UID/name failures
 instead of leaking raw driver details.
-CardDAV contact-object `DELETE` now carries observed strong ETags into the
-repository transaction so `If-Match` deletes are rechecked under the address-book
-lock before the active object row is removed.
+CardDAV contact-object `PUT` and `DELETE` now carry observed strong ETags into
+the repository transaction when `If-Match` succeeds, including
+`If-Match: *`, so contact writes and deletes are rechecked under the
+address-book lock before the active object row is changed.
 CardDAV now has its first explicit delegated contacts access integration point:
 handler authorization distinguishes authenticated actor and address-book owner,
 uses the owner store when a delegated read/write/manage decision allows access,

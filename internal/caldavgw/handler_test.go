@@ -1841,6 +1841,26 @@ func TestHandlerPutRejectsIfMatchStarForMissingObject(t *testing.T) {
 	}
 }
 
+func TestHandlerPutIfMatchStarCarriesObservedETag(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
 func TestHandlerPutRejectsFailedETagPreconditions(t *testing.T) {
 	t.Parallel()
 
@@ -2387,6 +2407,24 @@ func TestHandlerDeleteRejectsIfMatchStarForMissingObject(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteIfMatchStarCarriesObservedETag(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastDelete.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("delete observed etag = %q", store.lastDelete.ObservedETag)
 	}
 }
 
