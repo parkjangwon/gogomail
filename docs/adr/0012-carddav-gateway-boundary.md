@@ -47,8 +47,10 @@ and requires contact-object discovery to use `Depth: 0`.
 
 Internal REPORT execution now covers the parsed `addressbook-multiget`,
 `addressbook-query`, and `sync-collection` shapes. Multiget scopes hrefs to the
-requested home or collection, and query execution evaluates bounded CardDAV
-filters over parsed unfolded vCard property values. The text-match evaluator
+requested home or collection and requires an explicit `Depth` header before
+resolving hrefs, while accepting common Depth 0/1 client shapes. Query
+execution evaluates bounded CardDAV filters over parsed unfolded vCard property
+values. The text-match evaluator
 supports the RFC 6352 default `i;unicode-casemap` collation, `equals`,
 `contains`, `starts-with`, `ends-with`, and `negate-condition`, while rejecting
 unsupported collations rather than pretending a different matching semantic is

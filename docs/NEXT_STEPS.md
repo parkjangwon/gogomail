@@ -1614,6 +1614,8 @@ Next:
   can also project returned vCards to requested property names and rejects
   unsupported requested address-data content types or versions; returned
   address-data also carries explicit `text/vcard` 4.0 attributes.
+  `addressbook-multiget` requires an explicit `Depth` header before resolving
+  requested hrefs, while accepting common Depth 0/1 client shapes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
