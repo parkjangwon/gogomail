@@ -75,14 +75,17 @@ Recent release-readiness work also includes:
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
-  validation, sync report discovery gated by runtime change-log support, and
+  validation, sync report discovery gated by runtime change-log support,
+  WebDAV conditional mutation guards that recheck observed strong ETags even
+  for `If-Match: *`, and
   Directory/Identity, delegation, Notification & Sync, search, policy, and
   audit boundaries treated as platform prerequisites
 - backend-only CardDAV foundations for contacts interoperability, with
   address-book principal/object boundaries, vCard validation, sync discovery,
   RFC-shaped query filtering, sync report discovery gated by runtime
-  change-log support, and native-client compatibility gates kept separate from
-  future UI work
+  change-log support, WebDAV conditional mutation guards that recheck observed
+  strong ETags even for `If-Match: *`, and native-client compatibility gates
+  kept separate from future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
   public share-link metadata/download with exact bearer-token path semantics,
