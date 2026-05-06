@@ -1802,9 +1802,13 @@ Next:
 - Audited group membership role updates now exist as
   `PATCH /admin/v1/directory/group-memberships/{id}/role`, backed by
   `UpdateGroupMembershipRoleWithAudit`, so operators can promote or demote
-  group-backed access without delete/recreate churn. Next group-membership work
-  should add reassign flows before product modules depend on group membership
-  as public authorization UX.
+  group-backed access without delete/recreate churn.
+- Audited group membership reassignment now exists as
+  `PATCH /admin/v1/directory/group-memberships/{id}/assignment`, backed by
+  `ReassignGroupMembershipWithAudit`, so operators can move active memberships
+  between group/member assignments while preserving role and audit continuity.
+  Next group-membership work should focus on product-facing policy integration,
+  not raw membership table access.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and

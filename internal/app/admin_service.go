@@ -50,6 +50,7 @@ type adminService struct {
 		ListDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
 		ListGroupMemberships(ctx context.Context, req directory.ListGroupMembershipsRequest) ([]directory.GroupMembership, error)
 		ResolveAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
+		ReassignGroupMembershipWithAudit(ctx context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error)
 		SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 		UpdateGroupMembershipRoleWithAudit(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
 	}
@@ -359,6 +360,13 @@ func (s adminService) UpdateDirectoryGroupMembershipRole(ctx context.Context, re
 		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
 	}
 	return s.directory.UpdateGroupMembershipRoleWithAudit(ctx, req)
+}
+
+func (s adminService) ReassignDirectoryGroupMembership(ctx context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error) {
+	if s.directory == nil {
+		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.ReassignGroupMembershipWithAudit(ctx, req)
 }
 
 func (s adminService) SearchDirectoryPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {

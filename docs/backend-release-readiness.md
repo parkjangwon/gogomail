@@ -463,6 +463,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Audited group membership role updates are available through
   `PATCH /admin/v1/directory/group-memberships/{id}/role`, committing
   `directory_group_membership.role_update` with the role change.
+  Audited group membership reassignment is available through
+  `PATCH /admin/v1/directory/group-memberships/{id}/assignment`, committing
+  `directory_group_membership.reassign` with same-company, cycle, and duplicate
+  guards.
   Directory principal search is now also available to operators through
   `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
   coverage for bounded company, domain, organization, kind, query, active-only,

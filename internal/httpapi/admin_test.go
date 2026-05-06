@@ -7565,6 +7565,85 @@ func TestAdminUpdateDirectoryGroupMembershipRoleHandlerRejectsUnsafeInput(t *tes
 	}
 }
 
+func TestAdminReassignDirectoryGroupMembershipHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryGroupMembership: directory.GroupMembership{
+			ID:         "membership-1",
+			GroupID:    "group-2",
+			CompanyID:  "company-1",
+			MemberKind: directory.PrincipalKindUser,
+			MemberID:   "user-2",
+			Role:       directory.GroupMembershipRoleOwner,
+			Status:     "active",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/directory/group-memberships/%20membership-1%20/assignment", bytes.NewReader([]byte(`{"group_id":"group-2","member_kind":"user","member_id":"user-2"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Membership directory.GroupMembership `json:"directory_group_membership"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Membership.ID != "membership-1" || response.Membership.GroupID != "group-2" || response.Membership.MemberID != "user-2" {
+		t.Fatalf("directory_group_membership = %+v", response.Membership)
+	}
+	if service.lastDirectoryGroupMembershipReassign.ID != "membership-1" ||
+		service.lastDirectoryGroupMembershipReassign.GroupID != "group-2" ||
+		service.lastDirectoryGroupMembershipReassign.MemberKind != directory.PrincipalKindUser ||
+		service.lastDirectoryGroupMembershipReassign.MemberID != "user-2" {
+		t.Fatalf("lastDirectoryGroupMembershipReassign = %+v", service.lastDirectoryGroupMembershipReassign)
+	}
+}
+
+func TestAdminReassignDirectoryGroupMembershipHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+		ct   string
+	}{
+		{name: "bad path value", path: "/admin/v1/directory/group-memberships/membership%0Abad/assignment", body: `{"group_id":"group-2","member_kind":"user","member_id":"user-2"}`, ct: "application/json"},
+		{name: "unknown query", path: "/admin/v1/directory/group-memberships/membership-1/assignment?dry_run=true", body: `{"group_id":"group-2","member_kind":"user","member_id":"user-2"}`, ct: "application/json"},
+		{name: "bad content type", path: "/admin/v1/directory/group-memberships/membership-1/assignment", body: `{"group_id":"group-2","member_kind":"user","member_id":"user-2"}`, ct: "text/plain"},
+		{name: "unknown json field", path: "/admin/v1/directory/group-memberships/membership-1/assignment", body: `{"group_id":"group-2","member_kind":"user","member_id":"user-2","extra":true}`, ct: "application/json"},
+		{name: "self group", path: "/admin/v1/directory/group-memberships/membership-1/assignment", body: `{"group_id":"group-2","member_kind":"group","member_id":"group-2"}`, ct: "application/json"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPatch, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", tc.ct)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryGroupMembershipReassign.ID != "" {
+				t.Fatalf("dispatched request %+v", service.lastDirectoryGroupMembershipReassign)
+			}
+		})
+	}
+}
+
 type fakeAdminService struct {
 	companies                                   []maildb.CompanyView
 	domains                                     []maildb.DomainView
@@ -7688,6 +7767,7 @@ type fakeAdminService struct {
 	lastDirectoryGroupMembershipList            directory.ListGroupMembershipsRequest
 	lastDirectoryGroupMembershipDeleteID        string
 	lastDirectoryGroupMembershipRoleUpdate      directory.UpdateGroupMembershipRoleRequest
+	lastDirectoryGroupMembershipReassign        directory.ReassignGroupMembershipRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
 	lastDriveUsage                              drive.GetUsageSummaryRequest
@@ -7973,6 +8053,15 @@ func (f *fakeAdminService) UpdateDirectoryGroupMembershipRole(_ context.Context,
 		return directory.GroupMembership{}, err
 	}
 	f.lastDirectoryGroupMembershipRoleUpdate = normalized
+	return f.directoryGroupMembership, nil
+}
+
+func (f *fakeAdminService) ReassignDirectoryGroupMembership(_ context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error) {
+	normalized, err := directory.NormalizeReassignGroupMembershipRequest(req)
+	if err != nil {
+		return directory.GroupMembership{}, err
+	}
+	f.lastDirectoryGroupMembershipReassign = normalized
 	return f.directoryGroupMembership, nil
 }
 
