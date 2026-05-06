@@ -7095,6 +7095,28 @@ func TestServerHandlesUIDFetchChangedSinceAfterSelect(t *testing.T) {
 	}
 }
 
+func TestIMAPFetchChangedSinceRejectsPaddedModSeq(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		items []string
+	}{
+		{name: "leading padded value", items: []string{"(FLAGS)", "(CHANGEDSINCE", " 17)"}},
+		{name: "trailing padded value", items: []string{"(FLAGS)", "(CHANGEDSINCE", "17 )"}},
+		{name: "quoted padded value", items: []string{"(FLAGS)", "(CHANGEDSINCE", " 17 )"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			message, ok := imapFetchDataItemsSyntaxError(tc.items)
+			if !ok || message != "FETCH CHANGEDSINCE modifier is invalid" {
+				t.Fatalf("syntax error = %q, %v; want CHANGEDSINCE invalid", message, ok)
+			}
+		})
+	}
+}
+
 func TestServerHandlesUIDFetchSetAfterSelect(t *testing.T) {
 	t.Parallel()
 
@@ -9693,6 +9715,28 @@ func TestServerStoreUnchangedSinceReturnsSequenceModified(t *testing.T) {
 	_, _ = reader.ReadString('\n')
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestIMAPStoreUnchangedSinceRejectsPaddedModSeq(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		fields []string
+	}{
+		{name: "leading padded value", fields: []string{"(UNCHANGEDSINCE", " 27)", "+FLAGS", "(\\Seen)"}},
+		{name: "trailing padded value", fields: []string{"(UNCHANGEDSINCE", "27 )", "+FLAGS", "(\\Seen)"}},
+		{name: "quoted padded value", fields: []string{"(UNCHANGEDSINCE", " 27 )", "+FLAGS", "(\\Seen)"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, _, ok := imapStoreUnchangedSince(tc.fields)
+			if ok {
+				t.Fatal("imapStoreUnchangedSince accepted padded modifier value")
+			}
+		})
 	}
 }
 

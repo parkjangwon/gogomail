@@ -576,6 +576,9 @@ Current state:
   `mod-sequence-value` contexts reject zero, while `UNCHANGEDSINCE 0` remains
   a real zero-allowed conditional guard instead of being treated as no
   modifier.
+- IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` and `STORE`/`UID STORE`
+  `UNCHANGEDSINCE` modifier values now reject whitespace-padded numeric atoms
+  instead of trimming them into valid CONDSTORE thresholds.
 - IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
   signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
 - IMAP UID and message sequence-set numbers now also reject leading-zero
