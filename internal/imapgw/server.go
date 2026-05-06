@@ -3700,6 +3700,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 	state.selectedNoModSeq = false
 	state.permanentFlags = nil
 	state.readOnly = false
+	state.savedSearch = nil
 	state.closeSubscription()
 	_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
 	return false, err

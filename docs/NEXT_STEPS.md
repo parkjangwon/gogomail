@@ -167,6 +167,9 @@ Current state:
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
   reuse after `SEARCH RETURN (SAVE)`. Saved `$` criteria are also
   regression-covered through `SORT`, `UID SORT`, `THREAD`, and `UID THREAD`.
+- IMAP `CLOSE` now clears saved SEARCHRES `$` state as part of selected-mailbox
+  teardown, keeping saved results scoped to the same selection lifecycle as
+  `SELECT`, `EXAMINE`, and `UNSELECT`.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

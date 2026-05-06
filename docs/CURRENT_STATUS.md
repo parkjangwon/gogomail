@@ -160,7 +160,10 @@ SEARCHRES `$` is now accepted as a bare `SEARCH` sequence-set criterion, so
 clients can reuse saved search results through both `SEARCH $` and
 `UID SEARCH $ ...` forms instead of being limited to `FETCH $` or explicit
 `UID $` criteria. The same saved-result reuse is regression-covered through
-`SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria.
+`SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria. IMAP `CLOSE`
+now also clears the selected-session saved SEARCHRES `$` state while tearing
+down selected mailbox state, keeping saved results scoped to the mailbox
+selection lifecycle just like `SELECT`, `EXAMINE`, and `UNSELECT`.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
