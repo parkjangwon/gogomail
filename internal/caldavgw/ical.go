@@ -42,6 +42,9 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 	if err := validateICalendarBounds(cal.Component); err != nil {
 		return ICalendarObject{}, err
 	}
+	if err := validateICalendarRootSemantics(cal.Component); err != nil {
+		return ICalendarObject{}, err
+	}
 	var found []calendarComponentObject
 	for _, child := range cal.Children {
 		component := strings.ToUpper(strings.TrimSpace(child.Name))
@@ -75,6 +78,30 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 		}
 	}
 	return found[0].ICalendarObject, nil
+}
+
+func validateICalendarRootSemantics(root *ical.Component) error {
+	if len(root.Props[ical.PropVersion]) != 1 {
+		return fmt.Errorf("VCALENDAR must contain exactly one VERSION property")
+	}
+	version, err := root.Props[ical.PropVersion][0].Text()
+	if err != nil {
+		return fmt.Errorf("decode VCALENDAR VERSION: %w", err)
+	}
+	if strings.TrimSpace(version) != "2.0" {
+		return fmt.Errorf("VCALENDAR VERSION must be 2.0")
+	}
+	if len(root.Props[ical.PropProductID]) != 1 {
+		return fmt.Errorf("VCALENDAR must contain exactly one PRODID property")
+	}
+	productID, err := root.Props[ical.PropProductID][0].Text()
+	if err != nil {
+		return fmt.Errorf("decode VCALENDAR PRODID: %w", err)
+	}
+	if strings.TrimSpace(productID) == "" {
+		return fmt.Errorf("VCALENDAR PRODID must not be empty")
+	}
+	return nil
 }
 
 type calendarComponentObject struct {

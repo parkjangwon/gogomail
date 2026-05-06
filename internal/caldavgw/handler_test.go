@@ -1374,7 +1374,7 @@ func TestHandlerPutCalendarObjectCreatesAndUpdates(t *testing.T) {
 
 	store := newFakeDiscoveryStore()
 	handler := NewHandler(store, fixedUser("user-1"))
-	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
 	req.Header.Set("If-None-Match", "*")
@@ -1415,7 +1415,7 @@ func TestHandlerPutCalendarObjectRejectsUnsupportedContentType(t *testing.T) {
 func TestHandlerPutCalendarObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 	t.Parallel()
 
-	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
 	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{allowedRoles: map[string]bool{CalendarAccessRoleRead: true}}
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
@@ -1456,7 +1456,7 @@ func TestHandlerPutRejectsIfMatchStarForMissingObject(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-2@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-2.ics", strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/calendar")
 	req.Header.Set("If-Match", "*")
@@ -1485,7 +1485,7 @@ func TestHandlerPutRejectsFailedETagPreconditions(t *testing.T) {
 			t.Parallel()
 
 			handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-			body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+			body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 			req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
 			req.Header.Set("Content-Type", "text/calendar")
 			req.Header.Set(tc.header, tc.value)
@@ -1504,7 +1504,7 @@ func TestHandlerPutRejectsFailedIfUnmodifiedSince(t *testing.T) {
 	store := newFakeDiscoveryStore()
 	store.objects[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
 	handler := NewHandler(store, fixedUser("user-1"))
-	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/calendar")
 	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
@@ -1766,7 +1766,7 @@ func TestHandlerPutRejectsFailedPreconditions(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
 	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
 	req.Header.Set("If-None-Match", "*")
 	rec := httptest.NewRecorder()

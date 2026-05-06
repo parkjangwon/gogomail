@@ -2962,6 +2962,10 @@ Implementation order:
       `DURATION`, `STATUS`, `TRANSP`, and `RECURRENCE-ID` on supported
       calendar components, keeping stored `.ics` objects deterministic for
       future native-client sync and scheduling semantics.
+1209. CalDAV iCalendar object validation now enforces RFC 5545 `VCALENDAR`
+      root shape by requiring exactly one `VERSION:2.0` and exactly one
+      non-empty `PRODID`, rejecting legacy, missing, or duplicated root
+      identity properties before calendar objects can be persisted.
 
 ## Deferred until backend contracts stabilize
 

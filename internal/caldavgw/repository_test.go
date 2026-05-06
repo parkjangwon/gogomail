@@ -181,7 +181,7 @@ func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 func TestValidateUpsertObjectRequest(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	etag, err := StrongETag(body)
 	if err != nil {
 		t.Fatalf("StrongETag returned error: %v", err)
@@ -215,7 +215,7 @@ func TestValidateUpsertObjectRequest(t *testing.T) {
 func TestValidateUpsertObjectRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
-	validBody := []byte("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	validBody := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	tests := []UpsertObjectRequest{
 		{CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid", ICS: validBody},
 		{UserID: "user-1", ObjectName: "event.ics", UID: "uid", ICS: validBody},
