@@ -50,7 +50,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   and testable outside CalDAV.
 - Principal search is now shared and bounded, giving calendar, contacts,
   shared inbox, Drive, and admin surfaces one predictable contract for
-  user/group/resource lookup without product-local search semantics.
+  user/group/resource lookup without product-local search semantics. The admin
+  backend API may expose this boundary for operator search and autocomplete,
+  but product modules should still consume Directory principal search instead
+  of inventing incompatible lookup endpoints.
 - Alias-to-principal lookup is now shared and can be reused by mail routing,
   attendee resolution, admin consoles, and future shared inbox flows.
 - Direct group-membership checks are now shared and auditable before recursive

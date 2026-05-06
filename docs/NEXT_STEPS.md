@@ -1776,6 +1776,12 @@ Next:
   mutation workflows only after policy semantics, audit envelopes, and UX
   expectations are explicit; do not let CalDAV, Drive, or shared inbox modules
   create their own delegation CRUD surfaces.
+- Directory principal search is also exposed through
+  `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
+  Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and
+  admin console screens should reuse this contract or the underlying
+  `SearchPrincipals` boundary rather than adding product-local principal search
+  semantics.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

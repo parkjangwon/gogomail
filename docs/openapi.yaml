@@ -1521,6 +1521,50 @@ paths:
           $ref: "#/components/responses/AuditLog"
         default:
           $ref: "#/components/responses/Error"
+  /directory/principals:
+    get:
+      operationId: listAdminDirectoryPrincipals
+      summary: Search Directory principals for admin and product diagnostics
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required company scope for principal search.
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: organization_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: kinds
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: "Optional comma-separated principal kinds: user, organization, group, resource."
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Optional bounded display-name, email, slug, or resource-type search text.
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryPrincipalList"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/delegations:
     get:
       operationId: listAdminDirectoryDelegations
@@ -3640,6 +3684,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AuditLogIntegrityEnvelope"
+    DirectoryPrincipalList:
+      description: Directory principal search envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryPrincipalListEnvelope"
     DirectoryDelegationList:
       description: Directory delegation list envelope
       content:
@@ -5773,7 +5823,7 @@ components:
               type: boolean
         operations:
           type: object
-          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
+          required: [queue_stats, outbox_events, audit_logs, audit_integrity, backpressure, attachment_cleanup, attachment_upload_sessions, directory_principals, directory_delegations, drive_upload_sessions, drive_nodes, drive_node_detail, drive_usage_summary, drive_upload_cleanup, drive_cleanup_failures, drive_cleanup_failure_retry, quota_reconciliation, delivery_attempts, delivery_routes, trusted_relays, suppression_list, push_notification_triage, api_usage, api_usage_export, imap_uid_backfill]
           properties:
             queue_stats:
               type: boolean
@@ -5788,6 +5838,8 @@ components:
             attachment_cleanup:
               type: boolean
             attachment_upload_sessions:
+              type: boolean
+            directory_principals:
               type: boolean
             directory_delegations:
               type: boolean
@@ -6093,6 +6145,38 @@ components:
       properties:
         audit_log_integrity:
           $ref: "#/components/schemas/AuditLogIntegrity"
+    DirectoryPrincipal:
+      type: object
+      required: [id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [user, organization, group, resource]
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        organization_id:
+          type: string
+        display_name:
+          type: string
+        primary_email:
+          type: string
+        status:
+          type: string
+        resource_type:
+          type: string
+          enum: ["", room, equipment, vehicle, other]
+    DirectoryPrincipalListEnvelope:
+      type: object
+      required: [directory_principals]
+      properties:
+        directory_principals:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectoryPrincipal"
     DirectoryDelegation:
       type: object
       required: [id, company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role, status]

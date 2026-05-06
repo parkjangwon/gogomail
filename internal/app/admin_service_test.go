@@ -244,6 +244,32 @@ func TestAdminServiceListDirectoryDelegationsDelegatesToDirectory(t *testing.T) 
 	}
 }
 
+func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		principals: []directory.Principal{{ID: "user-1", Kind: directory.PrincipalKindUser, CompanyID: "company-1"}},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.SearchPrincipalsRequest{
+		CompanyID:  " company-1 ",
+		Kinds:      []string{directory.PrincipalKindUser, directory.PrincipalKindResource},
+		Query:      " Alice ",
+		ActiveOnly: true,
+		Limit:      5,
+	}
+	principals, err := service.SearchDirectoryPrincipals(t.Context(), req)
+	if err != nil {
+		t.Fatalf("SearchDirectoryPrincipals returned error: %v", err)
+	}
+	if len(principals) != 1 || principals[0].ID != "user-1" {
+		t.Fatalf("principals = %+v", principals)
+	}
+	if fmt.Sprintf("%+v", directoryStore.lastSearchReq) != fmt.Sprintf("%+v", req) {
+		t.Fatalf("lastSearchReq = %+v, want %+v", directoryStore.lastSearchReq, req)
+	}
+}
+
 func TestAdminServiceListDriveNodesDelegatesToDrive(t *testing.T) {
 	t.Parallel()
 
@@ -526,13 +552,20 @@ type fakeAdminDrive struct {
 }
 
 type fakeAdminDirectory struct {
-	delegations []directory.Delegation
-	lastReq     directory.ListDelegationsRequest
+	delegations   []directory.Delegation
+	principals    []directory.Principal
+	lastReq       directory.ListDelegationsRequest
+	lastSearchReq directory.SearchPrincipalsRequest
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
 	f.lastReq = req
 	return f.delegations, nil
+}
+
+func (f *fakeAdminDirectory) SearchPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {
+	f.lastSearchReq = req
+	return f.principals, nil
 }
 
 func (f *fakeAdminDrive) GetNode(_ context.Context, req drive.GetNodeRequest) (drive.Node, error) {

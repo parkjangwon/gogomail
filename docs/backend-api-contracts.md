@@ -756,6 +756,15 @@ Admin operational read models also keep explicit envelope keys:
   supports `limit` and RFC3339 `since`, recomputes each row hash, checks
   in-window `prev_hash` continuity, and returns typed break records without
   mutating audit rows.
+- `GET /admin/v1/directory/principals` returns
+  `{"directory_principals":[...]}` for company-scoped Directory principal
+  search across users, organizations, groups, and resources. It supports
+  bounded `limit`, required `company_id`, optional `domain_id`,
+  `organization_id`, comma-separated `kinds`, `q`, and `active_only` filters.
+  `active_only` defaults to `true`; text filters reject CR/LF-bearing or
+  oversized values before service dispatch, and the Directory boundary
+  normalizes principal kinds, query length, wildcard escaping, and result
+  limits before SQL execution.
 - `GET /admin/v1/directory/delegations` returns
   `{"directory_delegations":[...]}` for admin diagnostics over Directory-owned
   delegation relationships. It supports bounded `limit`, required `company_id`,

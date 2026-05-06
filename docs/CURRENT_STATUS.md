@@ -266,6 +266,13 @@ The admin backend API now exposes that read boundary as
 `{"directory_delegations":[...]}` with bounded company, owner, delegate, scope,
 role, active-only, and limit filters. This is intentionally an operator/admin
 diagnostic surface, not a public CalDAV sharing UX.
+Admin APIs also expose bounded Directory principal search through
+`GET /admin/v1/directory/principals`, returning
+`{"directory_principals":[...]}` for company-scoped user, organization, group,
+and resource lookup. This gives the future admin console, CalDAV attendee and
+resource lookup, Contacts/CardDAV autocomplete, Drive sharing, and shared inbox
+targeting one contract-first principal discovery path instead of product-local
+search endpoints.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.
@@ -2687,6 +2694,11 @@ The platform hardening sprint completed the following:
   coverage for the response envelope and bounded filter set. This gives future
   admin console work a contract-first path for shared-calendar/resource access
   diagnostics while CalDAV itself remains experimental.
+- Admin APIs now expose Directory principal search through
+  `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
+  coverage for company/domain/organization/kind/query/active-only filters. This
+  moves admin console and future product autocomplete flows onto the shared
+  Directory/Identity boundary.
 - `internal/accesspolicy` now provides a small effective-delegation evaluator
   that normalizes principal/scope/role inputs, forces active principal checks,
   and returns explicit allow/deny decisions. It is deliberately product-neutral

@@ -88,7 +88,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Tenancy.Companies || !got.Tenancy.Domains || !got.Tenancy.Users || !got.Tenancy.DNSChecks || !got.Tenancy.DKIMKeys {
 		t.Fatalf("tenancy capabilities = %#v", got.Tenancy)
 	}
-	if !got.Operations.AuditLogs || !got.Operations.DirectoryDelegations || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
+	if !got.Operations.AuditLogs || !got.Operations.DirectoryPrincipals || !got.Operations.DirectoryDelegations || !got.Operations.DeliveryRoutes || !got.Operations.APIUsageExport || !got.Operations.IMAPUIDBackfill || !got.Operations.DriveUploadSessions || !got.Operations.DriveNodes || !got.Operations.DriveNodeDetail || !got.Operations.DriveUsageSummary || !got.Operations.DriveUploadCleanup || !got.Operations.DriveCleanupFailures || !got.Operations.DriveCleanupFailureRetry {
 		t.Fatalf("operation capabilities = %#v", got.Operations)
 	}
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
@@ -482,6 +482,97 @@ func TestAdminDirectoryDelegationsHandler(t *testing.T) {
 		service.lastDirectoryDelegationList.Role != directory.DelegationRoleWrite ||
 		service.lastDirectoryDelegationList.ActiveOnly {
 		t.Fatalf("lastDirectoryDelegationList = %+v", service.lastDirectoryDelegationList)
+	}
+}
+
+func TestAdminDirectoryPrincipalsHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryPrincipals: []directory.Principal{{
+			ID:           "user-1",
+			Kind:         directory.PrincipalKindUser,
+			CompanyID:    "company-1",
+			DomainID:     "domain-1",
+			DisplayName:  "Alice",
+			PrimaryEmail: "alice@example.com",
+			Status:       "active",
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/principals?limit=10&company_id=%20company-1%20&domain_id=domain-1&organization_id=org-1&kinds=user,resource&q=%20Alice%20&active_only=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Principals []directory.Principal `json:"directory_principals"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Principals) != 1 || body.Principals[0].ID != "user-1" {
+		t.Fatalf("directory_principals = %+v", body.Principals)
+	}
+	if service.lastDirectoryPrincipalSearch.Limit != 10 ||
+		service.lastDirectoryPrincipalSearch.CompanyID != "company-1" ||
+		service.lastDirectoryPrincipalSearch.DomainID != "domain-1" ||
+		service.lastDirectoryPrincipalSearch.OrganizationID != "org-1" ||
+		strings.Join(service.lastDirectoryPrincipalSearch.Kinds, ",") != "user,resource" ||
+		service.lastDirectoryPrincipalSearch.Query != "Alice" ||
+		service.lastDirectoryPrincipalSearch.ActiveOnly {
+		t.Fatalf("lastDirectoryPrincipalSearch = %+v", service.lastDirectoryPrincipalSearch)
+	}
+}
+
+func TestAdminDirectoryPrincipalsHandlerDefaultsActiveOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/principals?company_id=company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastDirectoryPrincipalSearch.ActiveOnly {
+		t.Fatalf("lastDirectoryPrincipalSearch.ActiveOnly = false, want default true")
+	}
+}
+
+func TestAdminDirectoryPrincipalsHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/principals?company_id=company%0Abad",
+		"/admin/v1/directory/principals?company_id=company-1&kinds=calendar",
+		"/admin/v1/directory/principals?company_id=company-1&q=" + strings.Repeat("x", directory.MaxPrincipalSearchBytes+1),
+		"/admin/v1/directory/principals?company_id=company-1&active_only=maybe",
+		"/admin/v1/directory/principals?company_id=company-1&cursor=opaque",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryPrincipalSearch.CompanyID != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryPrincipalSearch)
+		}
 	}
 }
 
@@ -6691,6 +6782,7 @@ type fakeAdminService struct {
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
+	directoryPrincipals                         []directory.Principal
 	directoryDelegations                        []directory.Delegation
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
@@ -6772,6 +6864,7 @@ type fakeAdminService struct {
 	lastAttachmentSessionCleanupListBefore      time.Time
 	lastAttachmentSessionCleanupListLimit       int
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
+	lastDirectoryPrincipalSearch                directory.SearchPrincipalsRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -6977,6 +7070,14 @@ func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.Aud
 func (f *fakeAdminService) CheckAuditLogIntegrity(_ context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error) {
 	f.lastAuditLogIntegrity = req
 	return f.auditLogIntegrity, nil
+}
+
+func (f *fakeAdminService) SearchDirectoryPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {
+	if _, err := directory.NormalizeSearchPrincipalsRequest(req); err != nil {
+		return nil, err
+	}
+	f.lastDirectoryPrincipalSearch = req
+	return f.directoryPrincipals, nil
 }
 
 func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
