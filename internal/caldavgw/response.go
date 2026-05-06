@@ -31,6 +31,7 @@ var (
 	PropSyncToken                     = XMLName{Space: DAVNamespace, Local: "sync-token"}
 	PropSupportedReportSet            = XMLName{Space: DAVNamespace, Local: "supported-report-set"}
 	PropCalendarHomeSet               = XMLName{Space: CalDAVNamespace, Local: "calendar-home-set"}
+	PropCalendarUserAddressSet        = XMLName{Space: CalDAVNamespace, Local: "calendar-user-address-set"}
 	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
@@ -100,6 +101,7 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 		{Name: PropPrincipalURL, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropCalendarHomeSet, Value: PropertyValue{Hrefs: []string{principal.CalendarHomePath}}, Found: true},
+		{Name: PropCalendarUserAddressSet, Value: PropertyValue{Hrefs: append([]string(nil), principal.CalendarUserAddresses...)}, Found: len(principal.CalendarUserAddresses) > 0},
 	}
 }
 

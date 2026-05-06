@@ -1667,6 +1667,12 @@ Next:
   `read`/`write`/`manage` role hierarchy. Next CalDAV work should connect it
   only through explicit policy decisions and WebDAV privilege semantics, not by
   ad-hoc calendar-specific sharing columns.
+- CalDAV principal discovery now exposes Directory primary email addresses via
+  RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
+  next scheduling work on this standards-shaped principal/address boundary:
+  attendee resolution should connect through Directory plus Contacts/CardDAV,
+  and public scheduling/resource booking should wait for explicit policy and
+  audit decisions.
 - Continue Contacts/CardDAV as a standards-first module: the current
   `internal/carddavgw` path/href, storage metadata, address-book/contact
   repository, bounded vCard 4.0 semantic validation, REPORT parsing,

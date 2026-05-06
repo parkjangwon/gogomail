@@ -3,8 +3,10 @@ package caldavgw
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/directory"
+	"github.com/gogomail/gogomail/internal/mail"
 )
 
 var _ DiscoveryStore = (*Repository)(nil)
@@ -47,6 +49,13 @@ func calDAVPrincipalFromDirectory(resolved directory.Principal) (Principal, erro
 	}
 	principal.PrincipalPath = principalPath
 	principal.CalendarHomePath = homePath
+	if strings.TrimSpace(resolved.PrimaryEmail) != "" {
+		address, err := mail.NormalizeAddress(resolved.PrimaryEmail)
+		if err != nil {
+			return Principal{}, fmt.Errorf("caldav principal primary email: %w", err)
+		}
+		principal.CalendarUserAddresses = []string{"mailto:" + address}
+	}
 	return principal, nil
 }
 

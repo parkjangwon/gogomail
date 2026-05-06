@@ -128,7 +128,7 @@ func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><C:calendar-home-set/></D:prop></D:propfind>`))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:prop><D:current-user-principal/><C:calendar-home-set/><C:calendar-user-address-set/></D:prop></D:propfind>`))
 	req.Header.Set("Depth", "0")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -140,6 +140,7 @@ func TestHandlerPropfindPrincipalDiscovery(t *testing.T) {
 	for _, want := range []string{
 		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
 		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
+		"<C:calendar-user-address-set><D:href>mailto:user.one@example.com</D:href></C:calendar-user-address-set>",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("principal discovery missing %q:\n%s", want, body)
@@ -1577,10 +1578,11 @@ func newFakeDiscoveryStore() *fakeDiscoveryStore {
 	eventICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	return &fakeDiscoveryStore{
 		principal: Principal{
-			UserID:           "user-1",
-			DisplayName:      "User One",
-			CalendarHomePath: "/caldav/calendars/user-1/",
-			PrincipalPath:    "/caldav/principals/user-1/",
+			UserID:                "user-1",
+			DisplayName:           "User One",
+			CalendarHomePath:      "/caldav/calendars/user-1/",
+			PrincipalPath:         "/caldav/principals/user-1/",
+			CalendarUserAddresses: []string{"mailto:user.one@example.com"},
 		},
 		calendars: []Calendar{{
 			ID:          "work",

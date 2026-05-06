@@ -2578,6 +2578,11 @@ Implementation order:
       link/node/request metadata and byte-range intent without raw tokens or
       storage backend/path values, so Admin audit-log filters can inspect
       public-link activity before a dedicated activity dashboard exists.
+1166. CalDAV principal discovery now exposes the Directory primary email as an
+      RFC 4791 `calendar-user-address-set` `mailto:` href when available,
+      giving future organizer/attendee and scheduling work a standards-shaped
+      principal-address boundary without prematurely enabling public scheduling
+      or delegated/shared calendar semantics.
 
 ## Deferred until backend contracts stabilize
 

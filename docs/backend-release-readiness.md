@@ -282,6 +282,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bind/unbind, collection object bind/unbind plus metadata property writes, and
   object content writes. ACL and delegation privileges stay unadvertised until
   their semantics are implemented.
+- CalDAV principal `PROPFIND` can now return RFC 4791
+  `calendar-user-address-set` values sourced from the Directory primary email
+  as normalized `mailto:` hrefs. This improves native-client principal
+  discovery and prepares organizer/attendee resolution while leaving
+  scheduling, resource booking, and delegated/shared calendar access
+  experimental.
 - CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar collection
   metadata (`displayname`, `calendar-description`, CalendarServer/Apple
   `calendar-color`) with bounded namespace-aware XML parsing, transactional
