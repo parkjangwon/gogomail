@@ -2966,6 +2966,10 @@ Implementation order:
       root shape by requiring exactly one `VERSION:2.0` and exactly one
       non-empty `PRODID`, rejecting legacy, missing, or duplicated root
       identity properties before calendar objects can be persisted.
+1210. CalDAV iCalendar object validation now rejects stored `VCALENDAR`
+      `METHOD` properties for calendar object resources, matching RFC 4791
+      storage rules while preserving server-generated `METHOD:REPLY` free-busy
+      responses outside the object-write path.
 
 ## Deferred until backend contracts stabilize
 
