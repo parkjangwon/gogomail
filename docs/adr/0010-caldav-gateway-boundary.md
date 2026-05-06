@@ -211,6 +211,11 @@ gateway semantics. The gateway advertises only `calendar-query`,
 timezone, delegation, or other future reports must not be exposed through
 discovery until their RFC behavior, storage model, and policy boundaries are
 implemented.
+Calendar collection `PROPFIND Depth: 1` child discovery follows the same
+bounded collection-scan rule as REPORT handlers: the gateway asks the storage
+adapter for the default limit plus one object and fails explicitly if the result
+would be partial. Until continuation or paging semantics are designed, returning
+an incomplete WebDAV multistatus would mislead native-client caches.
 Likewise, HTTP `Allow` headers must stay bound to implemented gateway methods.
 Future WebDAV method constants such as `MOVE` may exist as roadmap markers, but
 they must not appear in `OPTIONS` or 405 capability surfaces until the gateway
