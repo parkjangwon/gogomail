@@ -3151,6 +3151,11 @@ Implementation order:
       `confirm_ready` before destructive runs, turning the DAV retention
       repository boundaries into an operationally safe worker without making
       token-expiry policy public/client-ready yet.
+1247. S3-compatible `ListObjectsV2` request queries now use SigV4 canonical
+      URI encoding instead of form-style query escaping, so prefixes and opaque
+      continuation tokens containing spaces, literal `+`, `/`, `=`, or `@`
+      characters are signed and transmitted consistently across AWS S3, MinIO,
+      and strict compatible providers.
 
 ## Deferred until backend contracts stabilize
 

@@ -357,6 +357,10 @@ Current state:
 - S3-compatible `ListObjectsV2` object-size validation now runs after canonical
   prefix mapping, so foreign bucket-prefix entries are skipped before their
   metadata can fail a valid gogomail object listing.
+- S3-compatible `ListObjectsV2` request queries now use SigV4 canonical URI
+  encoding instead of form-style query escaping, preserving spaces, literal
+  `+`, `/`, `=`, and `@` characters in signed prefixes and opaque continuation
+  tokens for AWS S3, MinIO, and stricter compatible providers.
 - Shared storage list cursors reject leading/trailing whitespace and control
   characters instead of trimming opaque provider tokens, keeping local/NFS and
   S3-compatible pagination identity exact for Drive, lifecycle, and

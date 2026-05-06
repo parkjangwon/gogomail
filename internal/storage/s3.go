@@ -424,7 +424,7 @@ func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, 
 		return nil, err
 	}
 	target := s.bucketURL()
-	query := target.Query()
+	query := url.Values{}
 	query.Set("list-type", "2")
 	query.Set("max-keys", strconv.Itoa(limit))
 	listPrefix := ""
@@ -439,7 +439,7 @@ func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, 
 	if cursor != "" {
 		query.Set("continuation-token", cursor)
 	}
-	target.RawQuery = query.Encode()
+	target.RawQuery = encodeS3CanonicalQuery(query)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create s3 list request: %w", err)
@@ -799,6 +799,25 @@ func sortedHeaderNames(headers map[string]string) []string {
 	return names
 }
 
+func encodeS3CanonicalQuery(values url.Values) string {
+	if len(values) == 0 {
+		return ""
+	}
+	pairs := make([]string, 0)
+	for name, values := range values {
+		encodedName := escapeS3QueryComponent(name)
+		if len(values) == 0 {
+			pairs = append(pairs, encodedName+"=")
+			continue
+		}
+		for _, value := range values {
+			pairs = append(pairs, encodedName+"="+escapeS3QueryComponent(value))
+		}
+	}
+	sort.Strings(pairs)
+	return strings.Join(pairs, "&")
+}
+
 func normalizeS3Prefix(prefix string) (string, error) {
 	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
 	if prefix == "" {
@@ -952,6 +971,23 @@ func escapeS3BasePath(basePath string) string {
 		return ""
 	}
 	return "/" + escapeS3Key(basePath)
+}
+
+func escapeS3QueryComponent(value string) string {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if (c >= 'A' && c <= 'Z') ||
+			(c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') ||
+			c == '-' || c == '.' || c == '_' || c == '~' {
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte('%')
+		b.WriteString(strings.ToUpper(hex.EncodeToString([]byte{c})))
+	}
+	return b.String()
 }
 
 func escapeS3Segment(segment string) string {
