@@ -999,7 +999,9 @@ Current state:
   implicitly adding `MODSEQ` attributes.
 - Sessions now become CONDSTORE-aware after `FETCH MODSEQ`,
   `FETCH CHANGEDSINCE`, `SEARCH MODSEQ`, or `STATUS HIGHESTMODSEQ`; subsequent
-  flag `FETCH` event/STORE echo responses include `MODSEQ`.
+  flag `FETCH` event/STORE echo responses include `MODSEQ`. The
+  `STATUS HIGHESTMODSEQ` path is regression-covered across a following
+  `SELECT` and `UID STORE` so awareness survives mailbox selection.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and UID/sequence `[MODIFIED ...]`

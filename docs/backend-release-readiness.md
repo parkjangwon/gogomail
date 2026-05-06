@@ -148,6 +148,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP SEARCHRES `$` reuse is accepted as a bare `SEARCH` sequence-set
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
   after `SEARCH RETURN (SAVE)`, plus `SORT`/`THREAD` criteria coverage.
+- IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is covered across a
+  following `SELECT` and `UID STORE`, verifying MODSEQ echo behavior after
+  mailbox selection.
 - Storage profile smoke tests now verify the NFS YAML profile's
   `storage_root` and explicit `local` compatibility label through both config
   loading and CLI `--config` handoff.

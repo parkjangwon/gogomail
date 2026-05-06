@@ -3394,6 +3394,10 @@ Implementation order:
       its `storage_root` and explicit `local` compatibility label through both
       config-loader parsing and CLI `--config` handoff, strengthening the
       config-only local/NFS flip contract.
+1298. IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is now
+      regression-covered through a following `SELECT` and `UID STORE`, proving
+      MODSEQ-aware STORE echo responses survive mailbox selection after the
+      initial status probe.
 
 ## Deferred until backend contracts stabilize
 
