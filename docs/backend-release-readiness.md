@@ -1035,6 +1035,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP flag-list parsing for `APPEND`, `STORE`, and `UID STORE` now rejects
   unparenthesized or unbalanced lists before backend mutation, preserving
   stricter protocol syntax for client compatibility.
+- IMAP `APPEND` now resolves destination mailbox names to canonical mailbox IDs
+  before mutation dispatch and rejects appends to the currently
+  `EXAMINE`-selected read-only mailbox without calling backend storage,
+  preserving RFC-shaped read-only selected-state behavior.
 - IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
   `date-day-fixed` syntax, accepting zero-padded or space-padded days while
   rejecting bare one-digit dates such as `"5-May-2026 ..."`.

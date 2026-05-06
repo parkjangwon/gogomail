@@ -3470,6 +3470,11 @@ Implementation order:
       including no-store/nosniff, range, content-disposition, content-length,
       and optional SHA-256 headers plus runtime coverage for portable `HEAD`
       metadata.
+1312. IMAP `APPEND` now resolves destination mailbox names to canonical
+      mailbox IDs before mutation dispatch and rejects appends to the currently
+      `EXAMINE`-selected read-only mailbox without calling backend append,
+      extending read-only selected-state protection to the append path while
+      preserving syntax-before-state validation.
 
 ## Deferred until backend contracts stabilize
 
