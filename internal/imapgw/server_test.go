@@ -1020,7 +1020,8 @@ func TestServerHandlesLoginThroughBackend(t *testing.T) {
 func TestServerLoginAcceptsMultipleSynchronizingLiterals(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	authBackend := literalLoginBackend{creds: make(chan [2]string, 1)}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: authBackend, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -1053,11 +1054,23 @@ func TestServerLoginAcceptsMultipleSynchronizingLiterals(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK LOGIN completed\r\n" {
 		t.Fatalf("literal login = %q err = %v", line, err)
 	}
+	select {
+	case got := <-authBackend.creds:
+		if got != [2]string{"user@example.com", "secret"} {
+			t.Fatalf("Authenticate credentials = %#v", got)
+		}
+	default:
+		t.Fatalf("Authenticate was not called")
+	}
 	if _, err := client.Write([]byte("a2 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
-	_, _ = reader.ReadString('\n')
-	_, _ = reader.ReadString('\n')
+	if line, err := reader.ReadString('\n'); err != nil || line != "* BYE gogomail IMAP4rev1 server logging out\r\n" {
+		t.Fatalf("logout bye = %q err = %v", line, err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK LOGOUT completed\r\n" {
+		t.Fatalf("logout completion = %q err = %v", line, err)
+	}
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
@@ -9689,6 +9702,16 @@ func (b *eventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan Mai
 		b.canceled = true
 	}
 	return b.events, cancel, nil
+}
+
+type literalLoginBackend struct {
+	fakeBackend
+	creds chan [2]string
+}
+
+func (b literalLoginBackend) Authenticate(_ context.Context, username, password string) (Session, error) {
+	b.creds <- [2]string{username, password}
+	return Session{UserID: "user-1", Username: username}, nil
 }
 
 type canonicalMailboxBackend struct {

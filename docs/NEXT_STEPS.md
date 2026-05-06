@@ -1039,6 +1039,9 @@ Current state:
   positions and multiple literals in one command, so literalized credentials,
   mailbox names, and search strings are no longer constrained to terminal
   APPEND-style framing.
+- IMAP server coverage now verifies `LOGIN` commands that carry both the user
+  name and password as separate synchronizing literals, including the
+  credentials delivered to the backend auth boundary.
 - IMAP command and IDLE line reads now enforce the command-line byte cap while
   reading from the socket instead of after an unbounded line allocation.
 - `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing

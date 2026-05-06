@@ -1276,6 +1276,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command framing now supports bounded literals in non-final command
   positions and multiple literals in one command, keeping literalized
   credentials and string arguments compatible with RFC-shaped clients.
+- IMAP server coverage verifies literalized `LOGIN` commands with separate
+  synchronizing user-name and password literals, including the reconstructed
+  credentials delivered to backend authentication.
 - IMAP command and IDLE line reads enforce the command-line byte cap while
   reading from the socket, keeping malformed clients from accumulating
   oversized lines in memory before syntax rejection.
@@ -1870,8 +1873,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   modified UTF-7 mailbox names before authentication errors, while valid
   unauthenticated appends still consume the RFC literal and return
   `NO authentication required` before backend storage.
-- IMAP literalized `LOGIN` and other string-taking commands should be verified
-  with clients that send multiple synchronizing literals in one command.
+- IMAP literalized `LOGIN` is covered end-to-end with multiple synchronizing
+  literals in one command; extend the same fixture shape as more string-taking
+  commands graduate to the public compatibility surface.
 - IMAP `ENABLE` validates missing capability arguments before authentication
   errors, while valid unauthenticated enable attempts still return
   `NO authentication required` without mutating session feature state.
