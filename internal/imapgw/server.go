@@ -3040,7 +3040,9 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 }
 
 func parseIMAPSearchSize(value string) (int64, bool) {
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return 0, false
+	}
 	if !imapNumberAtomRFC3501(value) {
 		return 0, false
 	}
@@ -3069,7 +3071,9 @@ func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {
 }
 
 func parseIMAPModSeqValue(value string) (uint64, bool) {
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return 0, false
+	}
 	if !imapNumberAtomDigitsOnly(value) {
 		return 0, false
 	}
@@ -3081,7 +3085,9 @@ func parseIMAPModSeqValue(value string) (uint64, bool) {
 }
 
 func parseIMAPModSeqValzer(value string) (uint64, bool) {
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return 0, false
+	}
 	if !imapNumberAtomDigitsOnly(value) {
 		return 0, false
 	}

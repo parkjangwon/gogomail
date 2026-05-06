@@ -3879,6 +3879,9 @@ Implementation order:
 1403. IMAP `AUTHENTICATE PLAIN` continuation cancellation now requires an
       exact `*` token, rejecting whitespace-padded cancellation attempts as
       malformed SASL responses while keeping the session usable.
+1404. IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
+      whitespace-padded numeric strings such as `LARGER " 20 "` or
+      `MODSEQ " 20 "` instead of trimming them into valid number atoms.
 
 ## Deferred until backend contracts stabilize
 
