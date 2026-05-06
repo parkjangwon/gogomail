@@ -475,7 +475,9 @@ Current state:
 - `internal/drive.CleanupDeletedObjects` consumes those object references,
   validates backend/path safety, de-duplicates repeats, honors cancellation,
   and deletes objects through the configured storage stores with
-  progress-preserving errors.
+  progress-preserving errors. Partial cleanup failures now expose the failed
+  object and every not-yet-attempted object so committed permanent-delete
+  metadata cannot leave trailing storage objects outside the retry queue.
 - `internal/drive.Service.PermanentDeleteNode` now composes repository
   permanent-delete with backend object cleanup and returns cleanup progress
   alongside the committed metadata/quota result.
@@ -483,9 +485,10 @@ Current state:
   objects, and user cleanup prefixes under `drive/users/{user_id}/...`, with
   path-segment-safe ID checks before storage paths are emitted.
 - Drive object cleanup failures now have a PostgreSQL retry record boundary:
-  structured cleanup errors can be recorded with user/node/object context,
-  pending failures are de-duplicated per backend/path, repeated failures
-  increment attempts, object paths must stay under the owning user's
+  structured cleanup errors can be recorded with user/node/object context for
+  every object not proven deleted after a committed permanent delete, pending
+  failures are de-duplicated per backend/path, repeated failures increment
+  attempts, object paths must stay under the owning user's
   `drive/users/{user_id}/...` prefix, and error text is one-line/UTF-8 bounded.
 - Drive cleanup-failure records now have bounded repository list and resolve
   methods with status/user filters, oldest-first pending ordering, limit caps,
