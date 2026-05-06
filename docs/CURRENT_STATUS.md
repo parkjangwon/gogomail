@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 final-page cursor compatibility)
+Last updated: 2026-05-07 (updated after IMAP connection limiting)
 
 ## Current phase
 
@@ -114,6 +114,12 @@ now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
 `.` while still rejecting empty, space/control-bearing, colon-suffixed, or
 non-ASCII field names. This keeps custom header probes from being falsely
 rejected at the IMAP parser boundary.
+IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
+cap, passed from YAML/env config into the protocol server. When the cap is
+positive, accepted sessions hold a bounded slot for the lifetime of
+`ServeConn`; excess clients receive an initial `BYE [ALERT]` and close instead
+of creating unbounded goroutines, while the default `0` remains unlimited for
+small or externally rate-limited deployments.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

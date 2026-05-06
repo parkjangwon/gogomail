@@ -179,7 +179,10 @@ extensions currently backed by tests and service semantics; continue treating
 RFC correctness and client compatibility as release gates for every advertised
 capability. IMAP is intentionally service-backed and advanced, but public
 client readiness remains gated by RFC-shaped syntax, state, UID, MODSEQ, and
-literal/framing regressions.
+literal/framing regressions. `GOGOMAIL_IMAP_MAX_CONNECTIONS` can set a
+process-local concurrent session cap; `0` keeps the listener unlimited for
+development or externally limited deployments, while capped deployments reject
+excess clients with an initial IMAP `BYE [ALERT]` response.
 
 `all-in-one` serves health, Mail API, and Admin API routes from one HTTP
 process for small deployments and local release smoke tests.

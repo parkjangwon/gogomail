@@ -1068,6 +1068,10 @@ Current state:
 - `GOGOMAIL_IMAP_TLS_CERT_FILE`, `GOGOMAIL_IMAP_TLS_KEY_FILE`, and
   `GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH` are loaded and validated so production
   IMAP auth cannot be enabled with cleartext credential policy.
+- `GOGOMAIL_IMAP_MAX_CONNECTIONS` is now loaded from env/YAML and validated as
+  a non-negative optional listener cap. Positive values bound concurrent
+  `ServeConn` sessions and reject excess clients with an initial IMAP
+  `BYE [ALERT]` instead of allowing unbounded connection goroutines.
 - IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
   files with TLS 1.2 minimum and derive the server name from the IMAP listener
   host before falling back to `GOGOMAIL_SMTP_DOMAIN`.

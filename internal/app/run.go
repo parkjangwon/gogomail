@@ -198,6 +198,7 @@ type imapServerOptions struct {
 	Backend           imapgw.Backend
 	TLSConfig         *tls.Config
 	AllowInsecureAuth bool
+	MaxConnections    int
 }
 
 func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator) imapGatewayRuntime {
@@ -221,6 +222,7 @@ func imapServerOptionsForConfig(cfg config.Config, backend imapgw.Backend) (imap
 		Backend:           backend,
 		TLSConfig:         tlsConfig,
 		AllowInsecureAuth: cfg.IMAPAllowInsecureAuth,
+		MaxConnections:    cfg.IMAPMaxConnections,
 	}, nil
 }
 
@@ -230,6 +232,7 @@ func newIMAPServer(opts imapServerOptions) (*imapgw.Server, error) {
 		Backend:           opts.Backend,
 		TLSConfig:         opts.TLSConfig,
 		AllowInsecureAuth: opts.AllowInsecureAuth,
+		MaxConnections:    opts.MaxConnections,
 	})
 }
 

@@ -475,6 +475,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "inbound nonnumeric port", mutate: func(cfg *Config) { cfg.InboundSMTPAddr = "127.0.0.1:notaport" }},
 		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
+		{name: "imap max connections negative", mutate: func(cfg *Config) { cfg.IMAPMaxConnections = -1 }},
 		{name: "caldav missing port", mutate: func(cfg *Config) { cfg.CalDAVAddr = "localhost" }},
 		{name: "caldav newline", mutate: func(cfg *Config) { cfg.CalDAVAddr = ":8081\nbad" }},
 		{name: "carddav missing port", mutate: func(cfg *Config) { cfg.CardDAVAddr = "localhost" }},

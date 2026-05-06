@@ -32,6 +32,7 @@ type ServerOptions struct {
 	Backend           Backend
 	TLSConfig         *tls.Config
 	AllowInsecureAuth bool
+	MaxConnections    int
 }
 
 type Server struct {
@@ -59,6 +60,9 @@ func NewServer(opts ServerOptions) (*Server, error) {
 	if !opts.AllowInsecureAuth && opts.TLSConfig == nil {
 		return nil, fmt.Errorf("imap TLS config is required when insecure auth is disabled")
 	}
+	if opts.MaxConnections < 0 {
+		return nil, fmt.Errorf("imap max connections must not be negative")
+	}
 	opts.Addr = addr
 	return &Server{options: opts}, nil
 }
@@ -77,6 +81,10 @@ func (s *Server) Serve(listener net.Listener) error {
 	if listener == nil {
 		return fmt.Errorf("imap listener is required")
 	}
+	var slots chan struct{}
+	if s.options.MaxConnections > 0 {
+		slots = make(chan struct{}, s.options.MaxConnections)
+	}
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -85,10 +93,40 @@ func (s *Server) Serve(listener net.Listener) error {
 			}
 			return err
 		}
-		go func() {
+		if !acquireIMAPConnectionSlot(slots) {
+			rejectIMAPConnectionLimit(conn)
+			continue
+		}
+		go func(conn net.Conn) {
+			defer releaseIMAPConnectionSlot(slots)
 			_ = s.ServeConn(conn)
-		}()
+		}(conn)
 	}
+}
+
+func acquireIMAPConnectionSlot(slots chan struct{}) bool {
+	if slots == nil {
+		return true
+	}
+	select {
+	case slots <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func releaseIMAPConnectionSlot(slots chan struct{}) {
+	if slots == nil {
+		return
+	}
+	<-slots
+}
+
+func rejectIMAPConnectionLimit(conn net.Conn) {
+	defer conn.Close()
+	_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_, _ = io.WriteString(conn, "* BYE [ALERT] gogomail IMAP4rev1 server connection limit reached\r\n")
 }
 
 func (s *Server) ListenAndServe() error {

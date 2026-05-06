@@ -22,6 +22,7 @@ type Config struct {
 	IMAPTLSCertFile                     string
 	IMAPTLSKeyFile                      string
 	IMAPAllowInsecureAuth               bool
+	IMAPMaxConnections                  int
 	IMAPNotifyConsumerGroup             string
 	IMAPNotifyConsumerName              string
 	IMAPNotifyConsumerCount             int
@@ -213,6 +214,7 @@ func Load() Config {
 		IMAPTLSCertFile:                     envOrDefault("GOGOMAIL_IMAP_TLS_CERT_FILE", ""),
 		IMAPTLSKeyFile:                      envOrDefault("GOGOMAIL_IMAP_TLS_KEY_FILE", ""),
 		IMAPAllowInsecureAuth:               boolEnvOrDefault("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		IMAPMaxConnections:                  intEnvOrDefault("GOGOMAIL_IMAP_MAX_CONNECTIONS", 0),
 		IMAPNotifyConsumerGroup:             envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "gogomail.imap-gateway"),
 		IMAPNotifyConsumerName:              envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "imap-gateway-1"),
 		IMAPNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", 50),

@@ -59,6 +59,8 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.IMAPTLSKeyFile, key)
 	case "imap_allow_insecure_auth":
 		return setYAMLBool(value, &cfg.IMAPAllowInsecureAuth, key)
+	case "imap_max_connections":
+		return setYAMLInt(value, &cfg.IMAPMaxConnections, key)
 	case "caldav_addr":
 		return setYAMLString(value, &cfg.CalDAVAddr, key)
 	case "caldav_allow_insecure_auth":

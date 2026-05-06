@@ -3734,6 +3734,12 @@ Implementation order:
       pages and clears final-page cursors, so ignored or malformed
       `NextContinuationToken` values on `IsTruncated=false` provider responses
       do not break final-page listings.
+1370. IMAP listener concurrency can now be bounded with
+      `GOGOMAIL_IMAP_MAX_CONNECTIONS` or `imap_max_connections` in YAML. The
+      protocol server holds one slot per active `ServeConn` session and sends
+      an initial `BYE [ALERT]` to excess clients, keeping IMAP deployment
+      goroutine growth operator-controlled without changing the default
+      unlimited development behavior.
 
 ## Deferred until backend contracts stabilize
 

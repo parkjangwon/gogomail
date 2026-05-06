@@ -37,6 +37,7 @@ delivery_farm_concurrency:
   bulk: 10
 delivery_domain_concurrency: example.com=5,example.net=3
 attachment_scan_timeout: 3s
+imap_max_connections: 512
 `)
 
 	cfg, err := LoadFile(path)
@@ -66,6 +67,9 @@ attachment_scan_timeout: 3s
 	}
 	if cfg.AttachmentScanTimeout != 3*time.Second {
 		t.Fatalf("AttachmentScanTimeout = %s, want 3s", cfg.AttachmentScanTimeout)
+	}
+	if cfg.IMAPMaxConnections != 512 {
+		t.Fatalf("IMAPMaxConnections = %d, want 512", cfg.IMAPMaxConnections)
 	}
 }
 
