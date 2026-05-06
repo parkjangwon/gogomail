@@ -74,7 +74,9 @@ booking policy, and scheduling semantics are implemented explicitly.
   `ListDelegations`, with company scope, optional owner/delegate filters,
   scope, role, active-only state, and result limits normalized before query
   execution, instead of issuing product-local SQL against
-  `directory_delegations`.
+  `directory_delegations`. The admin backend API may expose this read boundary
+  for operator diagnostics, but product modules should still avoid owning
+  separate delegation list semantics or mutation flows.
 - Product modules should consume delegated access through policy adapters, not
   by branching directly on Directory rows. The initial `internal/accesspolicy`
   adapter turns effective delegation into a normalized allow/deny decision so

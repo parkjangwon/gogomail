@@ -12,6 +12,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -104,6 +105,7 @@ type AdminService interface {
 	CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 	ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	ListAttachmentUploadSessions(ctx context.Context, req maildb.AttachmentUploadSessionListRequest) ([]maildb.AttachmentUploadSession, error)
+	ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
 	ListDriveUploadSessions(ctx context.Context, req drive.ListUploadSessionsRequest) ([]drive.UploadSession, error)
 	ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 	GetDriveNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
@@ -217,6 +219,7 @@ type adminConsoleOperationCapabilities struct {
 	Backpressure             bool `json:"backpressure"`
 	AttachmentCleanup        bool `json:"attachment_cleanup"`
 	AttachmentUploadSession  bool `json:"attachment_upload_sessions"`
+	DirectoryDelegations     bool `json:"directory_delegations"`
 	DriveUploadSessions      bool `json:"drive_upload_sessions"`
 	DriveNodes               bool `json:"drive_nodes"`
 	DriveNodeDetail          bool `json:"drive_node_detail"`
@@ -272,6 +275,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			Backpressure:             true,
 			AttachmentCleanup:        true,
 			AttachmentUploadSession:  true,
+			DirectoryDelegations:     true,
 			DriveUploadSessions:      true,
 			DriveNodes:               true,
 			DriveNodeDetail:          true,
@@ -945,6 +949,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "owner_kind", "owner_id", "delegate_kind", "delegate_id", "scope", "role", "active_only") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseDirectoryDelegationListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		delegations, err := service.ListDirectoryDelegations(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"directory_delegations": delegations})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -2905,6 +2929,56 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 		ActorID:    actorID,
 		TargetID:   targetID,
 		Since:      since,
+	}, true
+}
+
+func parseDirectoryDelegationListRequest(w http.ResponseWriter, r *http.Request, limit int) (directory.ListDelegationsRequest, bool) {
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	ownerKind, ok := parseBoundedAdminQuery(w, r, "owner_kind")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	ownerID, ok := parseBoundedAdminQuery(w, r, "owner_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	delegateKind, ok := parseBoundedAdminQuery(w, r, "delegate_kind")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	delegateID, ok := parseBoundedAdminQuery(w, r, "delegate_id")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	scope, ok := parseBoundedAdminQuery(w, r, "scope")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	role, ok := parseBoundedAdminQuery(w, r, "role")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	activeOnlyValue, ok := parseOptionalBoolQuery(w, r, "active_only")
+	if !ok {
+		return directory.ListDelegationsRequest{}, false
+	}
+	activeOnly := true
+	if activeOnlyValue != nil {
+		activeOnly = *activeOnlyValue
+	}
+	return directory.ListDelegationsRequest{
+		CompanyID:    companyID,
+		OwnerKind:    ownerKind,
+		OwnerID:      ownerID,
+		DelegateKind: delegateKind,
+		DelegateID:   delegateID,
+		Scope:        scope,
+		Role:         role,
+		ActiveOnly:   activeOnly,
+		Limit:        limit,
 	}, true
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
 )
@@ -38,7 +39,10 @@ type adminService struct {
 	exportManifestSigner        apimeter.ExportManifestSigner
 	exportManifestSignerBackend string
 	exportManifestVerifier      apimeter.ExportManifestSignatureVerifier
-	drive                       interface {
+	directory                   interface {
+		ListDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error)
+	}
+	drive interface {
 		ListNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
 		GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 		GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
@@ -295,6 +299,13 @@ func (s adminService) ListDriveUploadSessions(ctx context.Context, req drive.Lis
 		return nil, err
 	}
 	return s.drive.ListUploadSessions(ctx, req)
+}
+
+func (s adminService) ListDirectoryDelegations(ctx context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
+	if s.directory == nil {
+		return nil, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.ListDelegations(ctx, req)
 }
 
 func (s adminService) ListDriveNodes(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {

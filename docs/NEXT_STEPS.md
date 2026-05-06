@@ -1771,6 +1771,11 @@ Next:
   need the same observable relationship read model. Next API work should expose
   it through contract-first admin endpoints rather than letting products query
   `directory_delegations` directly.
+- That first contract-first admin endpoint now exists as
+  `GET /admin/v1/directory/delegations`. Next management work should add
+  mutation workflows only after policy semantics, audit envelopes, and UX
+  expectations are explicit; do not let CalDAV, Drive, or shared inbox modules
+  create their own delegation CRUD surfaces.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

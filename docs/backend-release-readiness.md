@@ -440,6 +440,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   management, Drive shares, shared inboxes, and future Contacts/CardDAV
   delegation one observable relationship read model. This does not make shared
   calendars, resource booking, or delegated access public-release ready yet.
+  The same boundary is now available to operators through
+  `GET /admin/v1/directory/delegations`, with OpenAPI and backend contract
+  coverage for bounded company, owner, delegate, scope, role, active-only, and
+  limit filters.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

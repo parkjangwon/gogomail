@@ -1744,6 +1744,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			exportManifestSigner:        apiUsageExportManifestSigner(cfg),
 			exportManifestSignerBackend: cfg.APIUsageExportManifestSignerBackend,
 			exportManifestVerifier:      apiUsageExportManifestVerifier(cfg),
+			directory:                   directory.NewRepository(db),
 			drive:                       driveServiceForConfig(db, cfg, store),
 			attachmentCleanup:           mailservice.New(repository, store),
 		}, cfg.AdminToken)
