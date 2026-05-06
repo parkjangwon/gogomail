@@ -64,6 +64,7 @@ const (
 	maxS3SessionTokenBytes    = 8192
 	maxS3ContentTypeBytes     = 1024
 	maxS3ETagBytes            = 1024
+	s3XMLNamespace            = "http://s3.amazonaws.com/doc/2006-03-01/"
 )
 
 func NewS3Store(opts S3Options) (*S3Store, error) {
@@ -1231,6 +1232,9 @@ func validateS3CopyResponse(body io.Reader) error {
 	}
 	switch response.XMLName.Local {
 	case "CopyObjectResult":
+		if !s3XMLNamespaceAllowed(response.XMLName.Space) {
+			return fmt.Errorf("copy s3 object: unexpected response namespace")
+		}
 		return nil
 	case "Error":
 		preview := s3ErrorPreview(response.Code, response.Message)
@@ -1241,6 +1245,10 @@ func validateS3CopyResponse(body io.Reader) error {
 	default:
 		return fmt.Errorf("copy s3 object: unexpected response %q", response.XMLName.Local)
 	}
+}
+
+func s3XMLNamespaceAllowed(value string) bool {
+	return value == "" || value == s3XMLNamespace
 }
 
 func s3ErrorPreview(code string, message string) string {

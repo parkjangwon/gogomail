@@ -148,6 +148,9 @@ Current state:
   canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
   value, rejecting missing or non-canonical forms before deciding whether a
   page is final.
+- S3-compatible `CopyObject` success XML accepts namespace-free or AWS S3
+  namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
+  unexpected namespaces before copy/move is reported successful.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

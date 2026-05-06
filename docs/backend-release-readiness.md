@@ -81,6 +81,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` pagination control now requires an explicit
   canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
   value before deciding whether a page is final.
+- S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
+  namespace `CopyObjectResult` roots only, rejecting unexpected namespaces
+  before copy/move is reported successful.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
