@@ -217,7 +217,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `storage_root` and explicit `local` compatibility label through both config
   loading and CLI `--config` handoff. MinIO and AWS S3 profile smoke coverage
   also verifies region, bucket, prefix, and credential fields so reviewed
-  config-only flips cannot pass with incomplete object-storage settings.
+  config-only flips cannot pass with incomplete object-storage settings. The
+  command `--config` handoff tests assert the same fields before app startup.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

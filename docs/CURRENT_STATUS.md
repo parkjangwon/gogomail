@@ -219,7 +219,9 @@ backward-compatible.
 Storage profile smoke coverage now also verifies MinIO and AWS S3 profile
 region, bucket, prefix, and credential fields, so reviewed profile edits cannot
 silently drop required object-storage settings while still passing endpoint-only
-checks.
+checks. The CLI `--config` profile handoff coverage now asserts the same S3
+profile fields, preventing command startup tests from accepting incomplete
+MinIO/AWS S3 profile data.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as

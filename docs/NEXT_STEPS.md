@@ -213,7 +213,8 @@ Current state:
   config-loader parsing and CLI `--config` handoff. MinIO and AWS S3 profile
   smoke coverage now also verifies region, bucket, prefix, and credential
   fields so config-only storage flips cannot lose required object-storage
-  settings unnoticed.
+  settings unnoticed. The CLI `--config` profile handoff path asserts the same
+  fields before app startup.
 - YAML config overlays accept `storage_root` as the file-level alias for the
   local/NFS object root, matching `GOGOMAIL_STORAGE_ROOT`; `mailstore_root`
   remains supported for backward compatibility.
