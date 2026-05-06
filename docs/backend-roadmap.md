@@ -2716,6 +2716,13 @@ Implementation order:
        address parser and keeps active-only lookup explicit, giving mail
        routing diagnostics, attendee resolution, shared inbox targeting, and
        admin consoles one address-to-principal contract.
+1175e. Directory/Identity now exposes a bounded `ListAliases` repository
+       boundary for alias inspection. Requests validate company/domain scope,
+       optional target principal filters, text query length, active-only state,
+       and result limits before SQL execution, then resolve each returned alias
+       through the shared principal resolver so shared inbox management,
+       mail-routing diagnostics, and admin alias screens do not query
+       `directory_aliases` directly.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

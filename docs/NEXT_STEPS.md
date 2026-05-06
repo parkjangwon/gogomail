@@ -1787,6 +1787,10 @@ Next:
   attendee resolution, shared inbox targeting, and admin console screens should
   use this address-to-principal contract instead of re-parsing addresses or
   querying `directory_aliases` directly.
+- Directory alias listing now has a bounded repository boundary. Next admin API
+  work can expose it for alias management screens, but product modules should
+  keep using `ListAliases`/`ResolveAlias` instead of reaching into
+  `directory_aliases` directly.
 - The first `internal/accesspolicy` adapter wraps Directory effective
   delegation into a normalized allow/deny decision. Next integrations should
   add product-specific policy/audit adapters around it before exposing shared

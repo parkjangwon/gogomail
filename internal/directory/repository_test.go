@@ -110,6 +110,71 @@ func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
 	}
 }
 
+func TestNormalizeListAliasesRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListAliasesRequest(ListAliasesRequest{
+		CompanyID:  " company-1 ",
+		DomainID:   " domain-1 ",
+		TargetKind: " GROUP ",
+		TargetID:   " group-1 ",
+		Query:      "  Ops   Alias  ",
+		ActiveOnly: true,
+		Limit:      5,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListAliasesRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.DomainID != "domain-1" ||
+		got.TargetKind != PrincipalKindGroup ||
+		got.TargetID != "group-1" ||
+		got.Query != "Ops Alias" ||
+		!got.ActiveOnly ||
+		got.Limit != 5 {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeListAliasesRequestDefaultsLimit(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListAliasesRequest(ListAliasesRequest{CompanyID: "company-1"})
+	if err != nil {
+		t.Fatalf("NormalizeListAliasesRequest returned error: %v", err)
+	}
+	if got.Limit != DefaultAliasListLimit {
+		t.Fatalf("limit = %d, want %d", got.Limit, DefaultAliasListLimit)
+	}
+}
+
+func TestNormalizeListAliasesRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListAliasesRequest{
+		{Query: "ops"},
+		{CompanyID: "company\n1"},
+		{CompanyID: "company-1", DomainID: "domain\n1"},
+		{CompanyID: "company-1", TargetKind: "calendar"},
+		{CompanyID: "company-1", TargetID: "group-1"},
+		{CompanyID: "company-1", TargetKind: PrincipalKindGroup, TargetID: "group\n1"},
+		{CompanyID: "company-1", Query: "ops\nalias"},
+		{CompanyID: "company-1", Query: strings.Repeat("x", MaxAliasSearchBytes+1)},
+		{CompanyID: "company-1", Limit: -1},
+		{CompanyID: "company-1", Limit: MaxAliasListLimit + 1},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.Query, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeListAliasesRequest(req); err == nil {
+				t.Fatalf("NormalizeListAliasesRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeSearchPrincipalsRequest(t *testing.T) {
 	t.Parallel()
 
@@ -439,6 +504,15 @@ func TestRepositoryResolveAliasRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewRepository(nil).ResolveAlias(context.Background(), ResolveAliasRequest{Address: "ops@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryListAliasesRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ListAliases(context.Background(), ListAliasesRequest{CompanyID: "company-1"})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)
 	}

@@ -34,6 +34,9 @@ const (
 	MaxPrincipalSearchBytes     = 200
 	DefaultPrincipalSearchLimit = 20
 	MaxPrincipalSearchLimit     = 100
+	MaxAliasSearchBytes         = 200
+	DefaultAliasListLimit       = 50
+	MaxAliasListLimit           = 200
 	DefaultDelegationListLimit  = 50
 	MaxDelegationListLimit      = 200
 )
@@ -81,6 +84,16 @@ type Alias struct {
 type ResolveAliasRequest struct {
 	Address    string
 	ActiveOnly bool
+}
+
+type ListAliasesRequest struct {
+	CompanyID  string
+	DomainID   string
+	TargetKind string
+	TargetID   string
+	Query      string
+	ActiveOnly bool
+	Limit      int
 }
 
 type CheckGroupMembershipRequest struct {
@@ -410,6 +423,61 @@ func NormalizeResolveAliasRequest(req ResolveAliasRequest) (ResolveAliasRequest,
 		return ResolveAliasRequest{}, fmt.Errorf("alias address must not contain line breaks")
 	}
 	req.Address = address
+	return req, nil
+}
+
+func NormalizeListAliasesRequest(req ListAliasesRequest) (ListAliasesRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return ListAliasesRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	req.CompanyID = companyID
+	if strings.TrimSpace(req.DomainID) != "" {
+		domainID, err := NormalizePrincipalID(req.DomainID)
+		if err != nil {
+			return ListAliasesRequest{}, fmt.Errorf("domain id: %w", err)
+		}
+		req.DomainID = domainID
+	}
+	if strings.TrimSpace(req.TargetKind) != "" {
+		targetKind, err := NormalizePrincipalKind(req.TargetKind)
+		if err != nil {
+			return ListAliasesRequest{}, fmt.Errorf("target kind: %w", err)
+		}
+		req.TargetKind = targetKind
+	}
+	if strings.TrimSpace(req.TargetID) != "" {
+		if req.TargetKind == "" {
+			return ListAliasesRequest{}, fmt.Errorf("target kind is required when target id is set")
+		}
+		targetID, err := NormalizePrincipalID(req.TargetID)
+		if err != nil {
+			return ListAliasesRequest{}, fmt.Errorf("target id: %w", err)
+		}
+		req.TargetID = targetID
+	}
+	if strings.ContainsAny(req.Query, "\r\n") {
+		return ListAliasesRequest{}, fmt.Errorf("alias search query must not contain line breaks")
+	}
+	query := strings.Join(strings.Fields(req.Query), " ")
+	if len(query) > MaxAliasSearchBytes {
+		return ListAliasesRequest{}, fmt.Errorf("alias search query is too long")
+	}
+	for _, r := range query {
+		if unicode.IsControl(r) {
+			return ListAliasesRequest{}, fmt.Errorf("alias search query must not contain control characters")
+		}
+	}
+	req.Query = query
+	if req.Limit < 0 {
+		return ListAliasesRequest{}, fmt.Errorf("alias list limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultAliasListLimit
+	}
+	if req.Limit > MaxAliasListLimit {
+		return ListAliasesRequest{}, fmt.Errorf("alias list limit is too large")
+	}
 	return req, nil
 }
 

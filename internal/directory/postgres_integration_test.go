@@ -217,6 +217,61 @@ func TestPostgresSearchPrincipalsFindsUsersResourcesAndGroups(t *testing.T) {
 	}
 }
 
+func TestPostgresListAliasesFiltersTargetDomainAndQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO directory_aliases (company_id, domain_id, alias_address, alias_address_ace, target_kind, target_id)
+VALUES
+  ($1::uuid, $2::uuid, 'ops@example.com', 'ops@example.com', 'group', $3::uuid),
+  ($1::uuid, $2::uuid, 'projector@example.com', 'projector@example.com', 'resource', $4::uuid),
+  ($1::uuid, $2::uuid, 'old-ops@example.com', 'old-ops@example.com', 'group', $3::uuid)`,
+		seed.companyID, seed.domainID, seed.teamID, seed.equipmentID); err != nil {
+		t.Fatalf("seed directory aliases: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE directory_aliases SET status = 'deleted' WHERE alias_address_ace = 'old-ops@example.com'`); err != nil {
+		t.Fatalf("delete old alias: %v", err)
+	}
+
+	aliases, err := repo.ListAliases(ctx, ListAliasesRequest{
+		CompanyID:  seed.companyID,
+		DomainID:   seed.domainID,
+		TargetKind: PrincipalKindGroup,
+		TargetID:   seed.teamID,
+		Query:      "ops",
+		ActiveOnly: true,
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("ListAliases group returned error: %v", err)
+	}
+	if len(aliases) != 1 ||
+		aliases[0].Address != "ops@example.com" ||
+		aliases[0].TargetKind != PrincipalKindGroup ||
+		aliases[0].TargetPrincipal.ID != seed.teamID ||
+		aliases[0].TargetPrincipal.Kind != PrincipalKindGroup {
+		t.Fatalf("group aliases = %+v", aliases)
+	}
+
+	aliases, err = repo.ListAliases(ctx, ListAliasesRequest{
+		CompanyID:  seed.companyID,
+		Query:      "old",
+		ActiveOnly: true,
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("ListAliases active returned error: %v", err)
+	}
+	if len(aliases) != 0 {
+		t.Fatalf("active alias list returned deleted rows: %+v", aliases)
+	}
+}
+
 func TestPostgresListDelegationsFiltersOwnerDelegateAndScope(t *testing.T) {
 	t.Parallel()
 
