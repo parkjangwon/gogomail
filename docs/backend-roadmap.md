@@ -2648,6 +2648,10 @@ Implementation order:
       header substring criteria. Empty search strings remain syntactically
       valid substring searches instead of being normalized into guaranteed
       no-match results.
+1179. CalDAV `REPORT sync-collection` now enforces HTTP `Depth: 0` before
+      repository lookup or change-log work, aligning the gateway with RFC
+      6578 request-scope semantics and the existing CardDAV behavior while
+      keeping child traversal controlled by the required body `sync-level`.
 
 ## Deferred until backend contracts stabilize
 

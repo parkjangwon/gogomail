@@ -545,6 +545,27 @@ func TestHandlerReportSyncCollectionCurrentTokenReturnsOnlyToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionRejectsNonZeroHTTPDepth(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "sync-collection requires Depth: 0") {
+		t.Fatalf("response did not explain Depth rejection: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsStaleToken(t *testing.T) {
 	t.Parallel()
 

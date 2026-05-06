@@ -615,6 +615,10 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	var responses []MultiStatusResponse
 	if report.Kind == ReportSyncCollection {
+		if depth != DepthZero {
+			http.Error(w, "sync-collection requires Depth: 0", http.StatusBadRequest)
+			return
+		}
 		var syncToken string
 		responses, syncToken, err = h.syncCollectionReport(r.Context(), userID, resource, report)
 		if err != nil {
