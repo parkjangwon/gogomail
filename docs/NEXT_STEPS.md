@@ -502,6 +502,9 @@ Current state:
   `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
   RFC 3501 `nz-number` grammar. Partial fetch tokens also reject trailing
   characters after the closing `>`.
+- IMAP partial fetch offsets now reject leading-zero RFC `number` atoms such
+  as `BODY.PEEK[]<00.34>` or `<012.34>` instead of normalizing them to valid
+  offsets, while preserving the valid zero-offset form `<0.count>`.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized. Unsupported charsets

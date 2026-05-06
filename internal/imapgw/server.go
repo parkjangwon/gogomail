@@ -3101,6 +3101,13 @@ func imapNZNumberAtomDigitsOnly(value string) bool {
 	return value[0] != '0'
 }
 
+func imapNumberAtomRFC3501(value string) bool {
+	if !imapNumberAtomDigitsOnly(value) {
+		return false
+	}
+	return value == "0" || value[0] != '0'
+}
+
 func imapSearchSizeResults(messages []MessageSummary, uidMode bool, criterion string, size int64) []uint32 {
 	results := make([]uint32, 0, len(messages))
 	for i, summary := range messages {
@@ -5125,7 +5132,7 @@ func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 	if !ok {
 		return imapPartialBodyRequest{}, false
 	}
-	if !imapNumberAtomDigitsOnly(offsetText) || !imapNZNumberAtomDigitsOnly(countText) {
+	if !imapNumberAtomRFC3501(offsetText) || !imapNZNumberAtomDigitsOnly(countText) {
 		return imapPartialBodyRequest{}, false
 	}
 	offset, err := strconv.ParseUint(offsetText, 10, 63)
