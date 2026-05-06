@@ -48,9 +48,10 @@ func TestCalDAVPrincipalFromDirectoryAcceptsUserPrincipal(t *testing.T) {
 	t.Parallel()
 
 	principal, err := calDAVPrincipalFromDirectory(directory.Principal{
-		ID:          "user-1",
-		Kind:        directory.PrincipalKindUser,
-		DisplayName: "User One",
+		ID:           "user-1",
+		Kind:         directory.PrincipalKindUser,
+		DisplayName:  "User One",
+		PrimaryEmail: " User.One@Example.COM ",
 	})
 	if err != nil {
 		t.Fatalf("calDAVPrincipalFromDirectory returned error: %v", err)
@@ -63,6 +64,22 @@ func TestCalDAVPrincipalFromDirectoryAcceptsUserPrincipal(t *testing.T) {
 	}
 	if principal.CalendarHomePath != "/caldav/calendars/user-1/" {
 		t.Fatalf("CalendarHomePath = %q", principal.CalendarHomePath)
+	}
+	if len(principal.CalendarUserAddresses) != 1 || principal.CalendarUserAddresses[0] != "mailto:user.one@example.com" {
+		t.Fatalf("CalendarUserAddresses = %+v", principal.CalendarUserAddresses)
+	}
+}
+
+func TestCalDAVPrincipalFromDirectoryRejectsMalformedPrimaryEmail(t *testing.T) {
+	t.Parallel()
+
+	_, err := calDAVPrincipalFromDirectory(directory.Principal{
+		ID:           "user-1",
+		Kind:         directory.PrincipalKindUser,
+		PrimaryEmail: "user@example.com\r\nbcc@example.net",
+	})
+	if err == nil || !strings.Contains(err.Error(), "primary email") {
+		t.Fatalf("error = %v, want primary email rejection", err)
 	}
 }
 

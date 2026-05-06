@@ -269,10 +269,11 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 	t.Parallel()
 
 	props := PrincipalProperties(Principal{
-		UserID:           "user-1",
-		DisplayName:      "User One",
-		CalendarHomePath: "/caldav/calendars/user-1/",
-		PrincipalPath:    "/caldav/principals/user-1/",
+		UserID:                "user-1",
+		DisplayName:           "User One",
+		CalendarHomePath:      "/caldav/calendars/user-1/",
+		PrincipalPath:         "/caldav/principals/user-1/",
+		CalendarUserAddresses: []string{"mailto:user.one@example.com"},
 	})
 	stats := SelectPropfindProperties(PropfindRequest{
 		Kind: PropfindProp,
@@ -283,6 +284,7 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 			PropPrincipalURL,
 			PropOwner,
 			PropCalendarHomeSet,
+			PropCalendarUserAddressSet,
 		},
 	}, props)
 	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/principals/user-1/", PropStats: stats}})
@@ -298,10 +300,33 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 		"<D:principal-URL><D:href>/caldav/principals/user-1/</D:href></D:principal-URL>",
 		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
 		"<C:calendar-home-set><D:href>/caldav/calendars/user-1/</D:href></C:calendar-home-set>",
+		"<C:calendar-user-address-set><D:href>mailto:user.one@example.com</D:href></C:calendar-user-address-set>",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("principal XML missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestPrincipalPropertiesOmitCalendarUserAddressSetWhenUnknown(t *testing.T) {
+	t.Parallel()
+
+	props := PrincipalProperties(Principal{
+		UserID:           "user-1",
+		DisplayName:      "User One",
+		CalendarHomePath: "/caldav/calendars/user-1/",
+		PrincipalPath:    "/caldav/principals/user-1/",
+	})
+	stats := SelectPropfindProperties(PropfindRequest{
+		Kind:       PropfindProp,
+		Properties: []XMLName{PropCalendarUserAddressSet},
+	}, props)
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/principals/user-1/", PropStats: stats}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	if text := string(body); !strings.Contains(text, "<D:status>HTTP/1.1 404 Not Found</D:status>") || !strings.Contains(text, "<C:calendar-user-address-set></C:calendar-user-address-set>") {
+		t.Fatalf("empty calendar-user-address-set should be reported missing:\n%s", text)
 	}
 }
 

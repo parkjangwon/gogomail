@@ -54,12 +54,13 @@ type ResourcePath struct {
 }
 
 type Principal struct {
-	UserID             string
-	DisplayName        string
-	CalendarHomePath   string
-	PrincipalPath      string
-	ScheduleInboxPath  string
-	ScheduleOutboxPath string
+	UserID                string
+	DisplayName           string
+	CalendarHomePath      string
+	PrincipalPath         string
+	CalendarUserAddresses []string
+	ScheduleInboxPath     string
+	ScheduleOutboxPath    string
 }
 
 type Calendar struct {
