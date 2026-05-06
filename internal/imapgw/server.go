@@ -3031,7 +3031,7 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 
 func parseIMAPSearchSize(value string) (int64, bool) {
 	value = strings.TrimSpace(value)
-	if !imapNumberAtomDigitsOnly(value) {
+	if !imapNumberAtomRFC3501(value) {
 		return 0, false
 	}
 	size, err := strconv.ParseInt(value, 10, 64)

@@ -3782,6 +3782,10 @@ Implementation order:
       `nz-number` spelling, rejecting leading-zero values such as
       `FETCH 01 FLAGS` and `UID FETCH 1:02 FLAGS` before set expansion instead
       of normalizing them to `1` or `2`.
+1380. IMAP `SEARCH` and `UID SEARCH` size criteria now enforce RFC 3501
+      `number` spelling for `LARGER` and `SMALLER`, rejecting leading-zero
+      values such as `SEARCH LARGER 020` before command execution while
+      preserving valid zero-size searches.
 
 ## Deferred until backend contracts stabilize
 

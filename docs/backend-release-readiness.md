@@ -49,6 +49,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
   spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
   `UID FETCH 1:02 FLAGS` before expansion.
+- IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now enforce
+  RFC 3501 `number` spelling, rejecting leading-zero values such as
+  `SEARCH LARGER 020` before command execution while preserving valid `0`
+  size atoms.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
@@ -1320,8 +1324,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and non-synchronizing string literals inside the parenthesized field/value
   list, while missing or unused literal payloads remain syntax errors.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
-  digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
-  instead of silently treating them as valid sizes.
+  RFC 3501 `number` atoms, rejecting signed values such as `+20` and
+  leading-zero values such as `020` instead of silently treating them as valid
+  sizes.
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.

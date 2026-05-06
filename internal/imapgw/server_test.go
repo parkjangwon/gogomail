@@ -7760,7 +7760,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH LARGER 20\r\na4 UID SEARCH SMALLER 20\r\na5 SEARCH LARGER +20\r\na6 UID SEARCH SMALLER +20\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH LARGER 20\r\na4 UID SEARCH SMALLER 20\r\na5 SEARCH LARGER +20\r\na6 UID SEARCH SMALLER +20\r\na7 SEARCH LARGER 020\r\na8 UID SEARCH SMALLER 020\r\n")); err != nil {
 		t.Fatalf("write size search: %v", err)
 	}
 	want := []string{
@@ -7770,6 +7770,8 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 		"a4 OK UID SEARCH completed\r\n",
 		"a5 BAD SEARCH criteria are unsupported\r\n",
 		"a6 BAD SEARCH criteria are unsupported\r\n",
+		"a7 BAD SEARCH criteria are unsupported\r\n",
+		"a8 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -7780,7 +7782,7 @@ func TestServerHandlesSizeSearchAfterSelect(t *testing.T) {
 			t.Fatalf("size search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -9953,6 +9955,29 @@ func TestParseIMAPSequenceSetAcceptsClientScaleStarRanges(t *testing.T) {
 	}
 	if _, ok := parseIMAPSequenceSet("1:*", 10001); ok {
 		t.Fatal("parseIMAPSequenceSet accepted range above expansion cap")
+	}
+}
+
+func TestParseIMAPSearchSize(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		value string
+		want  int64
+	}{
+		{value: "0", want: 0},
+		{value: "20", want: 20},
+		{value: " 20 ", want: 20},
+	} {
+		got, ok := parseIMAPSearchSize(tc.value)
+		if !ok || got != tc.want {
+			t.Fatalf("parseIMAPSearchSize(%q) = %d, %v; want %d, true", tc.value, got, ok, tc.want)
+		}
+	}
+	for _, value := range []string{"+20", "-1", "00", "020", "20x"} {
+		if got, ok := parseIMAPSearchSize(value); ok {
+			t.Fatalf("parseIMAPSearchSize(%q) = %d, true; want rejection", value, got)
+		}
 	}
 }
 
