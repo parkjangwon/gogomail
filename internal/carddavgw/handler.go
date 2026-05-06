@@ -442,7 +442,9 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
 		return
 	}
-	depth, err := ParseDepth(r.Header.Get("Depth"), DepthZero)
+	depthHeader := r.Header.Get("Depth")
+	depthHeaderPresent := strings.TrimSpace(depthHeader) != ""
+	depth, err := ParseDepth(depthHeader, DepthZero)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -470,7 +472,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		}
 		body, err = BuildSyncCollectionXML(responses, syncToken)
 	} else {
-		responses, err := h.reportResponses(r.Context(), userID, resource, report)
+		responses, err := h.reportResponses(r.Context(), userID, resource, depth, depthHeaderPresent, report)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -717,7 +719,7 @@ func proppatchResponse(href string, book AddressBook, properties []XMLName) Mult
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
 }
 
-func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, depthHeaderPresent bool, report ReportRequest) ([]MultiStatusResponse, error) {
 	switch report.Kind {
 	case ReportAddressBookMulti:
 		if resource.Kind != ResourceAddressBookCollection && resource.Kind != ResourceAddressBookHome {
@@ -727,6 +729,12 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 	case ReportAddressBookQuery:
 		if resource.Kind != ResourceAddressBookCollection {
 			return nil, fmt.Errorf("addressbook-query requires an address-book collection resource")
+		}
+		if !depthHeaderPresent {
+			return nil, fmt.Errorf("addressbook-query requires a Depth header")
+		}
+		if depth == DepthZero {
+			return nil, nil
 		}
 		return h.addressBookQueryResponses(ctx, userID, resource, report)
 	case ReportSyncCollection:

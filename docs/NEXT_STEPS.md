@@ -1618,7 +1618,10 @@ Next:
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
   that hot path. Address-data projection failures are explicit errors rather
-  than silent full-body fallbacks. PROPFIND responses now expose conservative
+  than silent full-body fallbacks. RFC 6352 `addressbook-query` now requires an
+  explicit `Depth` header; `Depth: 1` scans address-object children and
+  `Depth: 0` remains collection-scoped without returning child objects.
+  PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`
   can create child collections and collection `DELETE` can remove them,
