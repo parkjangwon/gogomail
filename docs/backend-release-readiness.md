@@ -240,10 +240,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   time-range filtering through the RFC 5545 parser. Scheduling, recurrence
   expansion, and broader device/client compatibility tests remain incomplete.
 - CalDAV now handles conservative RFC 6578 `REPORT sync-collection` requests:
-  empty-token initial sync returns active objects and the current collection
-  sync token, current-token sync returns no resource responses, stale tokens
-  produce a DAV `valid-sync-token` precondition error, and truncating limits are
-  rejected until continuation or tombstone/change-log semantics are added.
+  explicit empty-token initial sync returns active objects and the current
+  collection sync token, current-token sync returns no resource responses,
+  stale tokens produce a DAV `valid-sync-token` precondition error, and
+  truncating limits are rejected until continuation or tombstone/change-log
+  semantics are added.
 - CalDAV now handles RFC 4791-shaped `REPORT free-busy-query` for authenticated
   calendar collections, returning `200 OK` `text/calendar` `VFREEBUSY` bodies
   for `Depth: 1` child VEVENT busy periods. It clips to the requested UTC
@@ -369,6 +370,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `Depth: 0` request scope before repository lookup or change-log work, keeping
   WebDAV sync traversal governed by the request-body `sync-level` and matching
   the CardDAV sync contract.
+- CalDAV `REPORT sync-collection` also requires the request body to include an
+  explicit `DAV:sync-token` element, accepting an empty value for initial sync
+  while rejecting omitted sync-token anchors before repository work.
 - CalDAV `REPORT calendar-query` now keeps child calendar-object scans behind
   explicit `Depth: 1`; default/explicit `Depth: 0` collection queries return no
   child object matches, preserving WebDAV request-scope semantics for native

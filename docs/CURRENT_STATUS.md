@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV sync Depth hardening)
+Last updated: 2026-05-06 (updated after CalDAV sync-token shape hardening)
 
 ## Current phase
 
@@ -39,6 +39,9 @@ traversal controlled by the request body's `sync-level` rather than accidentally
 mixing in a broader HTTP `Depth: 1` traversal. CalDAV `calendar-query` now also
 honors HTTP `Depth: 0` by not scanning child calendar objects unless the client
 uses `Depth: 1`, keeping query scope explicit for native client compatibility.
+CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
+element while preserving empty-token initial sync semantics, avoiding ambiguous
+requests that omit the sync state anchor entirely.
 
 Calendar product features must not grow as isolated CRUD. Before delegated
 calendars, shared ownership, attendees, resource booking, reminders, or
@@ -2382,8 +2385,10 @@ The platform hardening sprint completed the following:
 - CalDAV REPORT parsing now validates more protocol shape before handlers run:
   `calendar-query` requires a filter and extracts nested CalDAV time ranges,
   `calendar-multiget` requires bounded hrefs, `free-busy-query` requires a UTC
-  single time range, and `sync-collection` requires supported `sync-level=1`
-  plus a requested property set and bounded optional `limit`.
+  single time range, and `sync-collection` requires an explicit `sync-token`
+  element, supported `sync-level=1`, a requested property set, and a bounded
+  optional `limit` while keeping empty sync-token elements valid for initial
+  sync.
 - CalDAV now implements a first `REPORT calendar-multiget` handler for
   authenticated calendar collections, returning multistatus object metadata and
   requested `calendar-data` bodies while representing missing hrefs through
