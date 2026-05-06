@@ -3054,6 +3054,13 @@ Implementation order:
       a CONDSTORE-aware selection has no persistent mailbox mod-sequence
       baseline, keeping advertised CONDSTORE behavior explicit for clients
       that use `SELECT ... (CONDSTORE)` or prior `ENABLE CONDSTORE`.
+1233. CardDAV delegated contacts access now consumes the shared
+      Directory/accesspolicy/audit boundary instead of inventing a
+      contacts-local sharing model. Cross-user address-book and contact-object
+      paths require the matching `contacts` read/write/manage delegation role,
+      execute against the owner store when allowed, and derive delegated
+      `DAV:current-user-privilege-set` discovery and REPORT responses from the
+      same policy decision.
 
 ## Deferred until backend contracts stabilize
 

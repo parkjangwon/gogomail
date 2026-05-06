@@ -332,6 +332,26 @@ func TestHandlerGetAndHeadContactObject(t *testing.T) {
 	}
 }
 
+func TestHandlerGetContactObjectAllowsDelegatedRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleRead: true}}
+	req := httptest.NewRequest(MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleRead {
+		t.Fatalf("access request = %+v", got)
+	}
+	if !strings.Contains(rec.Body.String(), "FN:Contact One") {
+		t.Fatalf("delegated GET missing owner vCard:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerGetContactObjectHonorsCachePreconditions(t *testing.T) {
 	t.Parallel()
 
@@ -380,6 +400,44 @@ func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T)
 	conflict := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body, ifNoneMatch)
 	if conflict.Code != http.StatusPreconditionFailed {
 		t.Fatalf("If-None-Match status = %d, want %d", conflict.Code, http.StatusPreconditionFailed)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleRead: true}}
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:new-contact\r\nFN:New Contact\r\nEND:VCARD\r\n"
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/new-contact.vcf", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/vcard")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleWrite {
+		t.Fatalf("access request = %+v", got)
+	}
+}
+
+func TestHandlerPutContactObjectAllowsDelegatedWrite(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleWrite: true}}
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:new-contact\r\nFN:New Contact\r\nEND:VCARD\r\n"
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/new-contact.vcf", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/vcard")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleWrite {
+		t.Fatalf("access request = %+v", got)
 	}
 }
 
@@ -489,6 +547,27 @@ func TestHandlerDeleteAddressBookCollectionDeletesObjects(t *testing.T) {
 	}
 	if len(store.objects) != 0 {
 		t.Fatalf("objects after address book delete = %+v", store.objects)
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionAllowsDelegatedManage(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleManage: true}}
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleManage {
+		t.Fatalf("access request = %+v", got)
+	}
+	if len(store.books) != 0 {
+		t.Fatalf("address books after delete = %+v", store.books)
 	}
 }
 
@@ -804,6 +883,37 @@ func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("multiget REPORT missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestHandlerReportAddressBookMultigetAllowsDelegatedReadOnlyPrivileges(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{
+		allowedRoles: map[string]bool{ContactsAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	body := `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
+  <D:prop><D:getetag/><D:current-user-privilege-set/></D:prop>
+</C:addressbook-multiget>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated multiget missing read-only privileges:\n%s", text)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(text, denied) {
+			t.Fatalf("delegated multiget advertised %s:\n%s", denied, text)
 		}
 	}
 }
@@ -1211,6 +1321,41 @@ func TestHandlerReportSyncCollectionReturnsFullSnapshotAndToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionAllowsDelegatedReadOnlyPrivileges(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{
+		allowedRoles: map[string]bool{ContactsAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><D:current-user-privilege-set/></D:prop>
+</D:sync-collection>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthZero))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>") {
+		t.Fatalf("delegated sync missing owner object:\n%s", text)
+	}
+	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated sync missing read-only privileges:\n%s", text)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(text, denied) {
+			t.Fatalf("delegated sync advertised %s:\n%s", denied, text)
+		}
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsDefaultSnapshotTruncation(t *testing.T) {
 	t.Parallel()
 
@@ -1500,6 +1645,39 @@ func TestHandlerPropfindAddressBookHomeDepthOneListsCollections(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{
+		allowedRoles: map[string]bool{ContactsAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:owner/><D:current-user-privilege-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleRead {
+		t.Fatalf("access request = %+v", got)
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/</D:href>") || !strings.Contains(text, "<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>") {
+		t.Fatalf("delegated propfind did not use owner resource:\n%s", text)
+	}
+	if !strings.Contains(text, "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>") {
+		t.Fatalf("delegated propfind missing read-only privileges:\n%s", text)
+	}
+	for _, denied := range []string{"<D:bind>", "<D:unbind>", "<D:write-properties>", "<D:write-content>"} {
+		if strings.Contains(text, denied) {
+			t.Fatalf("delegated read propfind advertised %s:\n%s", denied, text)
+		}
+	}
+}
+
 func TestHandlerPropfindCollectionDepthOneListsObjects(t *testing.T) {
 	t.Parallel()
 
@@ -1627,6 +1805,21 @@ func runCardDAVObjectRequest(t *testing.T, method string, path string, body stri
 	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
 	handler.ServeHTTP(rec, req)
 	return rec
+}
+
+type fakeCardDAVAccessAuthorizer struct {
+	allowedRoles map[string]bool
+	privileges   []XMLName
+	last         AccessRequest
+	err          error
+}
+
+func (a *fakeCardDAVAccessAuthorizer) AuthorizeAddressBookAccess(_ context.Context, req AccessRequest) (AccessDecision, error) {
+	a.last = req
+	if a.err != nil {
+		return AccessDecision{}, a.err
+	}
+	return AccessDecision{Allowed: a.allowedRoles[req.RequiredRole], Privileges: append([]XMLName(nil), a.privileges...)}, nil
 }
 
 func testCardDAVDiscoveryStore(t *testing.T) fakeCardDAVDiscoveryStore {

@@ -34,10 +34,33 @@ type AddressBookDeleter interface {
 
 type UserResolver func(*http.Request) (string, error)
 
+const (
+	ContactsAccessRoleRead   = "read"
+	ContactsAccessRoleWrite  = "write"
+	ContactsAccessRoleManage = "manage"
+)
+
+type AccessRequest struct {
+	ActorUserID  string
+	OwnerUserID  string
+	Resource     ResourcePath
+	RequiredRole string
+}
+
+type AccessDecision struct {
+	Allowed    bool
+	Privileges []XMLName
+}
+
+type AccessAuthorizer interface {
+	AuthorizeAddressBookAccess(ctx context.Context, req AccessRequest) (AccessDecision, error)
+}
+
 type Handler struct {
-	Store       DiscoveryStore
-	ResolveUser UserResolver
-	IncludeSync bool
+	Store            DiscoveryStore
+	ResolveUser      UserResolver
+	AccessAuthorizer AccessAuthorizer
+	IncludeSync      bool
 }
 
 type SyncChangeStore interface {
@@ -158,10 +181,11 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "MKCOL requires an address-book collection path", http.StatusConflict)
 		return
 	}
-	if resource.UserID != userID {
-		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, ContactsAccessRoleManage)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	if _, err := h.Store.LookupPrincipal(r.Context(), userID); err != nil {
 		http.Error(w, "carddav address-book home not found", http.StatusConflict)
 		return
@@ -201,7 +225,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
+	userID, resource, ok := h.resolveResourceRequest(w, r, ContactsAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -259,7 +283,7 @@ func (h *Handler) serveOptions(w http.ResponseWriter) {
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -294,7 +318,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r)
+	userID, resource, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -375,11 +399,30 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
-	if !ok {
+	if h.Store == nil {
+		http.Error(w, "carddav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	if resource.Kind == ResourceAddressBookCollection {
+		ownerID, _, ok := h.authorizeResource(w, r, userID, resource, ContactsAccessRoleManage)
+		if !ok {
+			return
+		}
+		userID = ownerID
 		h.deleteAddressBookCollection(w, r, userID, resource)
 		return
 	}
@@ -387,6 +430,11 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "DELETE requires an address-book collection or contact object path", http.StatusForbidden)
 		return
 	}
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, ContactsAccessRoleWrite)
+	if !ok {
+		return
+	}
+	userID = ownerID
 	store, ok := h.Store.(ObjectStore)
 	if !ok {
 		http.Error(w, "carddav object store is not configured", http.StatusNotImplemented)
@@ -468,10 +516,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if resource.UserID != "" && resource.UserID != userID {
-		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, ContactsAccessRoleRead)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	depthHeader, err := depthHeaderValue(r.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -513,7 +562,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "sync-collection requires Depth: 0", http.StatusBadRequest)
 			return
 		}
-		responses, syncToken, err := h.syncCollectionReport(r.Context(), userID, resource, report)
+		responses, syncToken, err := h.syncCollectionReport(r.Context(), userID, resource, report, decision.Privileges)
 		if err != nil {
 			var invalidSyncToken InvalidSyncTokenError
 			if errors.As(err, &invalidSyncToken) {
@@ -525,7 +574,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		}
 		body, err = BuildSyncCollectionXML(responses, syncToken)
 	} else {
-		responses, err := h.reportResponses(r.Context(), userID, resource, depth, depthHeaderPresent, report)
+		responses, err := h.reportResponses(r.Context(), userID, resource, depth, depthHeaderPresent, report, decision.Privileges)
 		if err != nil {
 			var unsupportedFilter UnsupportedFilterError
 			if errors.As(err, &unsupportedFilter) {
@@ -567,10 +616,11 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if resource.UserID != "" && resource.UserID != userID {
-		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+	ownerID, decision, ok := h.authorizeResource(w, r, userID, resource, ContactsAccessRoleRead)
+	if !ok {
 		return
 	}
+	userID = ownerID
 	depth, err := parseDepthHeader(r.Header, DepthInfinity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -585,7 +635,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind)
+	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind, decision.Privileges)
 	if err != nil {
 		var truncated TruncatedResultsError
 		if errors.As(err, &truncated) {
@@ -607,7 +657,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(body)
 }
 
-func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	switch resource.Kind {
 	case ResourceRoot:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
@@ -640,6 +690,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceAddressBookHome, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(home, propfind, props)}
 		if depth == DepthOne {
 			books, err := h.Store.ListAddressBookCollections(ctx, userID)
@@ -655,6 +706,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 				if err != nil {
 					return nil, err
 				}
+				props = withCurrentUserPrivileges(props, ResourceAddressBookCollection, currentUserPrivileges)
 				responses = append(responses, responseForProperties(href, propfind, props))
 			}
 		}
@@ -672,6 +724,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceAddressBookCollection, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
 			objects, err := h.listAddressBookObjectsBounded(ctx, userID, book.ID, MaxWebDAVReportLimit+1)
@@ -690,6 +743,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 				if err != nil {
 					return nil, err
 				}
+				props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 				responses = append(responses, responseForProperties(href, propfind, props))
 			}
 		}
@@ -710,6 +764,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported CardDAV resource")
@@ -740,8 +795,8 @@ func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter,
 	return true
 }
 
-func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
-	userID, resource, ok := h.resolveResourceRequest(w, r)
+func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
+	userID, resource, ok := h.resolveResourceRequest(w, r, requiredRole)
 	if !ok {
 		return "", ResourcePath{}, false
 	}
@@ -752,7 +807,7 @@ func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request) (
 	return userID, resource, true
 }
 
-func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request) (string, ResourcePath, bool) {
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
 	if h.Store == nil {
 		http.Error(w, "carddav store is not configured", http.StatusInternalServerError)
 		return "", ResourcePath{}, false
@@ -771,11 +826,91 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return "", ResourcePath{}, false
 	}
-	if resource.UserID != "" && resource.UserID != userID {
-		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
+	if !ok {
 		return "", ResourcePath{}, false
 	}
-	return userID, resource, true
+	return ownerID, resource, true
+}
+
+func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, AccessDecision, bool) {
+	ownerID := strings.TrimSpace(resource.UserID)
+	if ownerID == "" {
+		return actorID, AccessDecision{Allowed: true}, true
+	}
+	if ownerID == actorID {
+		return ownerID, AccessDecision{Allowed: true}, true
+	}
+	if h.AccessAuthorizer == nil {
+		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+		return "", AccessDecision{}, false
+	}
+	decision, err := h.AccessAuthorizer.AuthorizeAddressBookAccess(r.Context(), AccessRequest{
+		ActorUserID:  actorID,
+		OwnerUserID:  ownerID,
+		Resource:     resource,
+		RequiredRole: requiredRole,
+	})
+	if err != nil {
+		http.Error(w, "carddav access policy unavailable", http.StatusInternalServerError)
+		return "", AccessDecision{}, false
+	}
+	if !decision.Allowed {
+		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+		return "", AccessDecision{}, false
+	}
+	return ownerID, decision, true
+}
+
+func withCurrentUserPrivileges(props []PropertyResult, kind ResourceKind, privileges []XMLName) []PropertyResult {
+	if len(privileges) == 0 {
+		return props
+	}
+	privileges = currentUserPrivilegesForResource(kind, privileges)
+	if len(privileges) == 0 {
+		return props
+	}
+	next := append([]PropertyResult(nil), props...)
+	for i := range next {
+		if next[i].Name == PropCurrentUserPrivileges {
+			next[i].Value.Privileges = append([]XMLName(nil), privileges...)
+			next[i].Found = true
+			return next
+		}
+	}
+	return next
+}
+
+func currentUserPrivilegesForResource(kind ResourceKind, privileges []XMLName) []XMLName {
+	role := ContactsAccessRoleRead
+	for _, privilege := range privileges {
+		if privilege == PrivilegeBind || privilege == PrivilegeUnbind {
+			role = ContactsAccessRoleManage
+			break
+		}
+		if privilege == PrivilegeWriteContent || privilege == PrivilegeWriteProperties {
+			role = ContactsAccessRoleWrite
+		}
+	}
+	switch kind {
+	case ResourceAddressBookHome:
+		if role == ContactsAccessRoleManage {
+			return addressBookHomePrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceAddressBookCollection:
+		if role == ContactsAccessRoleWrite || role == ContactsAccessRoleManage {
+			return addressBookCollectionPrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceContactObject:
+		if role == ContactsAccessRoleWrite || role == ContactsAccessRoleManage {
+			return writableObjectPrivileges()
+		}
+		return readOnlyPrivileges()
+	default:
+		return readOnlyPrivileges()
+	}
 }
 
 func responseForProperties(href string, propfind PropfindRequest, props []PropertyResult) MultiStatusResponse {
@@ -814,7 +949,7 @@ func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {
 	return ParseDepth(value, fallback)
 }
 
-func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, depthHeaderPresent bool, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, depthHeaderPresent bool, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	switch report.Kind {
 	case ReportAddressBookMulti:
 		if resource.Kind != ResourceAddressBookCollection && resource.Kind != ResourceAddressBookHome {
@@ -823,7 +958,7 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if !depthHeaderPresent {
 			return nil, fmt.Errorf("addressbook-multiget requires a Depth header")
 		}
-		return h.addressBookMultigetResponses(ctx, userID, resource, report)
+		return h.addressBookMultigetResponses(ctx, userID, resource, report, currentUserPrivileges)
 	case ReportAddressBookQuery:
 		if resource.Kind != ResourceAddressBookCollection {
 			return nil, fmt.Errorf("addressbook-query requires an address-book collection resource")
@@ -837,19 +972,19 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if depth == DepthZero {
 			return nil, nil
 		}
-		return h.addressBookQueryResponses(ctx, userID, resource, report)
+		return h.addressBookQueryResponses(ctx, userID, resource, report, currentUserPrivileges)
 	case ReportSyncCollection:
 		if resource.Kind != ResourceAddressBookCollection {
 			return nil, fmt.Errorf("sync-collection requires an address-book collection resource")
 		}
-		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report)
+		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report, currentUserPrivileges)
 		return responses, err
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
 }
 
-func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
 	for _, href := range report.Hrefs {
@@ -867,6 +1002,7 @@ func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID strin
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
@@ -894,9 +1030,9 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 	}
 }
 
-func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	if walker, ok := h.Store.(ObjectWalker); ok {
-		return h.walkAddressBookQueryResponses(ctx, walker, userID, resource, report)
+		return h.walkAddressBookQueryResponses(ctx, walker, userID, resource, report, currentUserPrivileges)
 	}
 	objects, err := h.Store.ListAddressBookObjects(ctx, userID, resource.AddressBookID)
 	if err != nil {
@@ -919,6 +1055,7 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
@@ -935,7 +1072,7 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	return responses, nil
 }
 
-func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker ObjectWalker, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker ObjectWalker, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	limit := report.Limit
 	if limit <= 0 {
@@ -953,6 +1090,7 @@ func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker Obje
 		if err != nil {
 			return false, err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
@@ -1142,7 +1280,7 @@ func normalizeTextMatchValue(value string, collation string) string {
 	return strings.ToLower(value)
 }
 
-func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
 	if resource.Kind != ResourceAddressBookCollection {
 		return nil, "", fmt.Errorf("sync-collection requires an address-book collection resource")
 	}
@@ -1151,7 +1289,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		if report.SyncToken == "" {
 			return nil, "", err
 		}
-		responses, syncToken, changeErr := h.syncChangeResponses(ctx, userID, resource, report)
+		responses, syncToken, changeErr := h.syncChangeResponses(ctx, userID, resource, report, currentUserPrivileges)
 		if changeErr != nil {
 			return nil, "", changeErr
 		}
@@ -1159,7 +1297,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	}
 	if report.SyncToken != "" {
 		if report.SyncToken != book.SyncToken {
-			responses, syncToken, err := h.syncChangeResponses(ctx, userID, resource, report)
+			responses, syncToken, err := h.syncChangeResponses(ctx, userID, resource, report, currentUserPrivileges)
 			if err != nil {
 				return nil, "", err
 			}
@@ -1185,6 +1323,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 		if err != nil {
 			return nil, "", err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
@@ -1208,7 +1347,7 @@ func (h *Handler) listAddressBookObjectsBounded(ctx context.Context, userID stri
 	return h.Store.ListAddressBookObjects(ctx, userID, addressBookID)
 }
 
-func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
 	store, ok := h.Store.(SyncChangeStore)
 	if !ok {
 		return nil, "", InvalidSyncTokenError{Token: report.SyncToken}
@@ -1257,6 +1396,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		if err != nil {
 			return nil, "", err
 		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
 		if containsXMLName(report.Properties, PropAddressData) {
 			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
 			if err != nil {
