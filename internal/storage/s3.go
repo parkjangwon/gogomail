@@ -608,15 +608,21 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 	if !ok {
 		return fmt.Errorf("get range s3 object: invalid content-range")
 	}
-	start, err := strconv.ParseInt(strings.TrimSpace(startText), 10, 64)
+	if startText == "" || endText == "" || strings.TrimSpace(startText) != startText || strings.TrimSpace(endText) != endText {
+		return fmt.Errorf("get range s3 object: invalid content-range")
+	}
+	start, err := strconv.ParseInt(startText, 10, 64)
 	if err != nil || start < 0 {
 		return fmt.Errorf("get range s3 object: invalid content-range")
 	}
-	end, err := strconv.ParseInt(strings.TrimSpace(endText), 10, 64)
+	end, err := strconv.ParseInt(endText, 10, 64)
 	if err != nil || end < start {
 		return fmt.Errorf("get range s3 object: invalid content-range")
 	}
 	if size := strings.TrimSpace(sizePart); size != "*" {
+		if size == "" || size != sizePart {
+			return fmt.Errorf("get range s3 object: invalid content-range")
+		}
 		total, err := strconv.ParseInt(size, 10, 64)
 		if err != nil || total <= end {
 			return fmt.Errorf("get range s3 object: invalid content-range")
