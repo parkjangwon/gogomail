@@ -536,7 +536,7 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID STORE 7 +FLAGS \\Seen)\r\na7 UID FETCH +7 (FLAGS)\r\na8 UID STORE +7 +FLAGS (\\Seen)\r\na9 UID EXPUNGE +7\r\na10 UID COPY +7 Archive\r\na11 UID MOVE +7 Archive\r\na12 UID EXPUNGE\r\na13 UID COPY 7 &Jjo!\r\na14 UID MOVE 7 &Jjo!\r\na15 UID FETCH 7 (FLAGS)\r\na16 UID FETCH 7 ((FLAGS))\r\na17 UID SEARCH\r\na18 UID SEARCH RETURN (COUNT)\r\na19 UID SEARCH CHARSET UTF-8\r\na20 UID SORT (DATE) UTF-8\r\na21 UID SORT DATE UTF-8 ALL\r\na22 UID THREAD ORDEREDSUBJECT UTF-8\r\na23 UID THREAD REFERENCES UTF-8 ALL\r\na24 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na25 UID SEARCH ALL\r\na26 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 UID\r\na2 UID FETCH]\r\na3 UID BOGUS\r\na4 UID FETCH\r\na5 UID STORE\r\na6 UID STORE 7 +FLAGS \\Seen)\r\na7 UID FETCH +7 (FLAGS)\r\na8 UID STORE +7 +FLAGS (\\Seen)\r\na9 UID EXPUNGE +7\r\na10 UID COPY +7 Archive\r\na11 UID MOVE +7 Archive\r\na12 UID EXPUNGE\r\na13 UID COPY 7 &Jjo!\r\na14 UID MOVE 7 &Jjo!\r\na15 UID FETCH 7 (FLAGS)\r\na16 UID FETCH 7 ((FLAGS))\r\na17 UID SEARCH\r\na18 UID SEARCH RETURN (COUNT)\r\na19 UID SEARCH CHARSET UTF-8\r\na20 UID SORT (DATE) UTF-8\r\na21 UID SORT DATE UTF-8 ALL\r\na22 UID THREAD ORDEREDSUBJECT UTF-8\r\na23 UID THREAD REFERENCES UTF-8 ALL\r\na24 UID THREAD ORDEREDSUBJECT UTF-8 ALL\r\na25 UID SEARCH ALL\r\na26 UID ESEARCH RETURN (COUNT) ALL\r\na27 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write uid auth commands: %v", err)
 	}
 	want := []string{
@@ -565,8 +565,9 @@ func TestServerValidatesUIDSubcommandBeforeAuthentication(t *testing.T) {
 		"a23 BAD THREAD algorithm is unsupported\r\n",
 		"a24 NO authentication required\r\n",
 		"a25 NO authentication required\r\n",
+		"a26 BAD ESEARCH command requires MULTISEARCH capability\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a26 OK LOGOUT completed\r\n",
+		"a27 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -612,7 +613,7 @@ func TestServerRejectsMultisearchCommandWithoutCapability(t *testing.T) {
 	}
 	want := []string{
 		"a1 BAD ESEARCH command requires MULTISEARCH capability\r\n",
-		"a2 BAD UID command not implemented\r\n",
+		"a2 BAD ESEARCH command requires MULTISEARCH capability\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a3 OK LOGOUT completed\r\n",
 	}

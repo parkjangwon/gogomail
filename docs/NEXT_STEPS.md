@@ -1273,9 +1273,10 @@ Current state:
   their normal arguments, save successful matched results for `$` reuse, clear
   the saved result on save-requested tagged `NO`, and leave tagged `BAD`
   malformed save attempts non-mutating.
-- Direct `ESEARCH` commands remain outside the advertised surface until RFC
-  7377 `MULTISEARCH` is intentionally implemented; they now return a targeted
-  `BAD` diagnostic instead of looking like an ordinary unknown command.
+- Direct `ESEARCH` and `UID ESEARCH` commands remain outside the advertised
+  surface until RFC 7377 `MULTISEARCH` is intentionally implemented; they now
+  return a targeted `BAD` diagnostic instead of looking like ordinary unknown
+  commands.
 - `SEARCH RETURN (SAVE)` now clears the selected-session `$` result when the
   save-requested search fails with tagged `NO`, while tagged `BAD` searches
   leave the previous result untouched as required by RFC 5182.
