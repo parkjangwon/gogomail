@@ -506,11 +506,13 @@ Current state:
   addressing deterministic.
 - S3-compatible request construction automatically switches dotted bucket names
   on HTTPS endpoints to path-style addressing, avoiding AWS S3 virtual-hosted
-  TLS wildcard certificate mismatches without changing ordinary bucket defaults.
+  TLS wildcard certificate mismatches without changing ordinary bucket defaults;
+  this behavior is regression-covered at the request URL level.
 - S3-compatible request construction also switches localhost and IP-address
   endpoints to path-style addressing, avoiding `bucket.localhost` or
   `bucket.127.0.0.1` drift for local MinIO and other local compatible stores
-  even when the generic `s3` backend is used.
+  even when the generic `s3` backend is used; this behavior is also
+  regression-covered for localhost, IPv4, and IPv6 endpoints.
 - S3-compatible object key escaping preserves literal `+` characters as `%2B`
   in segment-escaped request paths, keeping object identity and SigV4 canonical
   request paths aligned for AWS S3, MinIO, and strict compatible providers.
