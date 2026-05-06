@@ -751,6 +751,11 @@ Implementation order:
      `PUT`/`GET`/`DELETE` round trips against MinIO or AWS S3 when
      `GOGOMAIL_TEST_S3_ENDPOINT`, bucket, and credential environment variables
      are configured.
+678a. Drive runtime storage wiring now supports explicit compatibility labels
+      through `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS`, allowing staged
+      local/NFS-to-S3-compatible migrations to serve historical
+      `storage_backend` row labels through the active store only when
+      operators intentionally opt into that label map.
 679. ADR 0008 now records IMAP authentication and session semantics: protocol
      auth should use a dedicated adapter over local user password hashes, JWT
      stays HTTP-only, production auth requires TLS policy review, and

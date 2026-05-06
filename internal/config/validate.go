@@ -118,6 +118,11 @@ func (c Config) Validate() error {
 		return err
 	}
 	storageBackend := strings.ToLower(strings.TrimSpace(c.StorageBackend))
+	for _, label := range c.StorageBackendCompatLabels {
+		if err := validateEnum("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS", label, "local", "s3", "minio"); err != nil {
+			return err
+		}
+	}
 	if storageBackend == "local" {
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_MAILSTORE_ROOT", c.MailstoreRoot, 4096); err != nil {
 			return err

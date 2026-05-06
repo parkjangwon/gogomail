@@ -668,6 +668,11 @@ owner/resource target without scanning unrelated audit history.
   labels as aliases for the configured S3-compatible store, so deployments can
   flip between local MinIO and AWS S3-style configuration without stranding
   existing Drive/upload rows solely because their stored backend label differs.
+- Drive runtime wiring can now opt into explicit storage-backend compatibility
+  labels with `GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS`. This lets operators
+  perform staged local/NFS-to-S3-compatible Drive migrations after object bytes
+  have been copied while keeping the default behavior fail-closed for legacy
+  labels that were not intentionally mapped to the active store.
 - S3-compatible runtime option construction is now isolated and covered by app
   tests, pinning MinIO to path-style requests while preserving virtual-hosted
   S3 defaults unless `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` is set.

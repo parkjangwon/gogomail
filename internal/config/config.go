@@ -48,6 +48,7 @@ type Config struct {
 	DatabaseURL                         string
 	RedisAddr                           string
 	StorageBackend                      string
+	StorageBackendCompatLabels          []string
 	StorageS3Endpoint                   string
 	StorageS3Region                     string
 	StorageS3Bucket                     string
@@ -230,6 +231,7 @@ func Load() Config {
 		DatabaseURL:                         envOrDefault("GOGOMAIL_DATABASE_URL", "postgres://gogomail:gogomail@localhost:5432/gogomail?sslmode=disable"),
 		RedisAddr:                           envOrDefault("GOGOMAIL_REDIS_ADDR", "localhost:6379"),
 		StorageBackend:                      envOrDefault("GOGOMAIL_STORAGE_BACKEND", "local"),
+		StorageBackendCompatLabels:          splitCSV(os.Getenv("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS")),
 		StorageS3Endpoint:                   envOrDefault("GOGOMAIL_STORAGE_S3_ENDPOINT", ""),
 		StorageS3Region:                     envOrDefault("GOGOMAIL_STORAGE_S3_REGION", "us-east-1"),
 		StorageS3Bucket:                     envOrDefault("GOGOMAIL_STORAGE_S3_BUCKET", ""),

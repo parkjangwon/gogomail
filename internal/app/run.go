@@ -455,7 +455,14 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 }
 
 func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *drive.Service {
+	return drive.NewService(drive.NewRepository(db), storageStoresForConfig(cfg, store))
+}
+
+func storageStoresForConfig(cfg config.Config, store storage.Store) map[string]storage.Store {
 	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
+	if backend == "" {
+		backend = "local"
+	}
 	stores := map[string]storage.Store{
 		backend: store,
 	}
@@ -463,7 +470,14 @@ func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *
 		stores["s3"] = store
 		stores["minio"] = store
 	}
-	return drive.NewService(drive.NewRepository(db), stores)
+	for _, label := range cfg.StorageBackendCompatLabels {
+		label = strings.ToLower(strings.TrimSpace(label))
+		if label == "" {
+			continue
+		}
+		stores[label] = store
+	}
+	return stores
 }
 
 func runAPIUsageRetentionWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
