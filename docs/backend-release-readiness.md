@@ -26,6 +26,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Compatibility labels are extensible bounded tokens in the Admin API contract;
   unknown future labels can be surfaced without changing the envelope shape but
   do not activate support booleans until recognized by the support matrix.
+  OpenAPI marks active labels as non-empty and unique, and storage operations
+  as unique, matching runtime normalization for generated admin clients.
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.

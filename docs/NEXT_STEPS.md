@@ -45,7 +45,9 @@ Current state:
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API
   contract, sorted/de-duplicated by runtime while unknown labels do not
-  activate support booleans.
+  activate support booleans. OpenAPI now also marks active labels as non-empty
+  and unique, and storage operations as unique, with runtime coverage for the
+  default advertised operation list.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.

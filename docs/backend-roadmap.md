@@ -3565,6 +3565,10 @@ Implementation order:
       mailbox before attempting the new selection, matching RFC 3501 selection
       lifecycle semantics so failed selections leave no stale selected mailbox
       for later selected-state commands.
+1329. Admin storage capability OpenAPI now models `active_labels` as a
+      non-empty unique safe-token list and `operations` as a unique primitive
+      list, with runtime coverage pinning the default advertised storage
+      operation set for generated admin consoles.
 
 ## Deferred until backend contracts stabilize
 
