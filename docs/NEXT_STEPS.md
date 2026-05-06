@@ -210,7 +210,10 @@ Current state:
   matrix before local/NFS, MinIO, or AWS S3 backend flips.
 - Storage profile smoke coverage now checks that the NFS YAML profile's
   `storage_root` and explicit `local` compatibility label survive both
-  config-loader parsing and CLI `--config` handoff.
+  config-loader parsing and CLI `--config` handoff. MinIO and AWS S3 profile
+  smoke coverage now also verifies region, bucket, prefix, and credential
+  fields so config-only storage flips cannot lose required object-storage
+  settings unnoticed.
 - YAML config overlays accept `storage_root` as the file-level alias for the
   local/NFS object root, matching `GOGOMAIL_STORAGE_ROOT`; `mailstore_root`
   remains supported for backward compatibility.

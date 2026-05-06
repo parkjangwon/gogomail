@@ -216,6 +216,10 @@ dependent on manual review. YAML overlays now also accept `storage_root` as the
 storage-focused alias for the local/NFS object root, matching the existing
 `GOGOMAIL_STORAGE_ROOT` environment alias while keeping `mailstore_root`
 backward-compatible.
+Storage profile smoke coverage now also verifies MinIO and AWS S3 profile
+region, bucket, prefix, and credential fields, so reviewed profile edits cannot
+silently drop required object-storage settings while still passing endpoint-only
+checks.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
