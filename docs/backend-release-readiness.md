@@ -96,6 +96,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation
   callers.
+- S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+  per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before
+  XML unmarshalling can collapse conflicting provider values into one listed
+  object.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

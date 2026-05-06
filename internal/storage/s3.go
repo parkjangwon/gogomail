@@ -1233,6 +1233,11 @@ func validateS3ListControlCardinality(data []byte) error {
 	var rootDepth int
 	var isTruncatedSeen bool
 	var continuationTokenSeen bool
+	var inContent bool
+	var keySeen bool
+	var sizeSeen bool
+	var etagSeen bool
+	var lastModifiedSeen bool
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1244,22 +1249,54 @@ func validateS3ListControlCardinality(data []byte) error {
 		switch token := token.(type) {
 		case xml.StartElement:
 			rootDepth++
-			if rootDepth != 2 {
-				continue
-			}
-			switch token.Name.Local {
-			case "IsTruncated":
-				if isTruncatedSeen {
-					return fmt.Errorf("list s3 objects: duplicate IsTruncated value")
+			switch {
+			case rootDepth == 2:
+				switch token.Name.Local {
+				case "IsTruncated":
+					if isTruncatedSeen {
+						return fmt.Errorf("list s3 objects: duplicate IsTruncated value")
+					}
+					isTruncatedSeen = true
+				case "NextContinuationToken":
+					if continuationTokenSeen {
+						return fmt.Errorf("list s3 objects: duplicate continuation token")
+					}
+					continuationTokenSeen = true
+				case "Contents":
+					inContent = true
+					keySeen = false
+					sizeSeen = false
+					etagSeen = false
+					lastModifiedSeen = false
 				}
-				isTruncatedSeen = true
-			case "NextContinuationToken":
-				if continuationTokenSeen {
-					return fmt.Errorf("list s3 objects: duplicate continuation token")
+			case inContent && rootDepth == 3:
+				switch token.Name.Local {
+				case "Key":
+					if keySeen {
+						return fmt.Errorf("list s3 objects: duplicate object key")
+					}
+					keySeen = true
+				case "Size":
+					if sizeSeen {
+						return fmt.Errorf("list s3 objects: duplicate object size")
+					}
+					sizeSeen = true
+				case "ETag":
+					if etagSeen {
+						return fmt.Errorf("list s3 objects: duplicate object etag")
+					}
+					etagSeen = true
+				case "LastModified":
+					if lastModifiedSeen {
+						return fmt.Errorf("list s3 objects: duplicate object last-modified")
+					}
+					lastModifiedSeen = true
 				}
-				continuationTokenSeen = true
 			}
 		case xml.EndElement:
+			if inContent && rootDepth == 2 && token.Name.Local == "Contents" {
+				inContent = false
+			}
 			if rootDepth > 0 {
 				rootDepth--
 			}
