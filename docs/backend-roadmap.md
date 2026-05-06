@@ -3030,10 +3030,20 @@ Implementation order:
       well as leading/trailing whitespace, keeping opaque provider pagination
       tokens safe for S3 query forwarding, local/NFS cleanup cursors, and
       operational logs.
+1227. CalDAV `calendar-query` parsing now rejects component filters that omit
+      the RFC 4791 `name` attribute or use a non-`VCALENDAR` top-level
+      component filter, preventing malformed native-client search requests from
+      silently widening into whole-calendar scans.
 
 ## Deferred until backend contracts stabilize
 
-- Next.js shell/webmail/admin apps
+- Web Frontend modules: Next.js TypeScript apps for webmail, Drive UI,
+  calendar UI, contacts UI, admin console, and shared inbox UI, using
+  shadcn/ui and `DESIGN.md` with a Notion Mail-like product feel after the
+  frontend start gate is explicitly opened.
+- Mobile apps for mail, Drive, calendar, contacts, push, and offline sync.
+- Desktop/power-user experience for keyboard-driven workflows, multi-pane
+  productivity, bulk triage, advanced search, and drag/drop actions.
 - Kafka
 - OpenSearch as the default/mandatory search backend
 - etcd

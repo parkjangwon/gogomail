@@ -428,6 +428,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   explicit `Depth: 1`; default/explicit `Depth: 0` collection queries return no
   child object matches, preserving WebDAV request-scope semantics for native
   clients.
+- CalDAV `calendar-query` parsing now requires RFC 4791-shaped component
+  filters with explicit `name` attributes and a top-level `VCALENDAR`
+  component, rejecting malformed search filters before they can widen into
+  whole-calendar matches.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs from native
   clients by normalizing only the URI path through the existing CalDAV scope
   checks, while rejecting userinfo-bearing authorities, query, fragment,

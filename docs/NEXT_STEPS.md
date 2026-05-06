@@ -1802,6 +1802,10 @@ Current state:
   child calendar-object matches for collection-scoped queries unless clients
   explicitly send `Depth: 1`, keeping WebDAV request scope from silently
   widening during event searches.
+- CalDAV `calendar-query` filter parsing now enforces RFC 4791-shaped
+  component filter grammar by requiring `comp-filter name` and a top-level
+  `VCALENDAR` filter, preventing malformed native-client queries from being
+  treated as broad whole-calendar searches.
 - CalDAV `calendar-query` and `free-busy-query` now evaluate bounded VEVENT
   recurrence sets through the RFC 5545 parser, including `RRULE`, `EXDATE`,
   and `RDATE` support from the shared iCalendar library. Dense or unbounded
@@ -1826,6 +1830,12 @@ Next:
   collection-deletion deltas, slug/path-alias support for friendlier
   MKCALENDAR clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
+- Keep frontend implementation behind the explicit start gate, but preserve
+  the product target in backend/API planning: future Next.js TypeScript +
+  shadcn/ui webmail, Drive, calendar, contacts, admin console, and shared inbox
+  surfaces should follow `DESIGN.md` and a Notion Mail-like workflow model,
+  with mobile mail/Drive/calendar/contacts/push/offline sync and desktop
+  power-user flows planned as first-class clients.
 - Before public shared/delegated calendar or resource-booking features,
   extend the initial `internal/directory` user/organization/group/resource
   principal resolver plus alias lookup and group/alias/resource schema into the
