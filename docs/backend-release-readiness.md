@@ -401,7 +401,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
   adding a second versioning model. Address-book collection discovery also
-  returns RFC 6352 `addressbook-description` from stored metadata.
+  returns RFC 6352 `addressbook-description` from stored metadata. WebDAV
+  `PROPPATCH` can update authenticated address-book collection `displayname`
+  and `addressbook-description` through bounded XML parsing and a small
+  repository boundary that refreshes sync state and records an
+  `addressbook-updated` change.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

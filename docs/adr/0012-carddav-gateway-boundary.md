@@ -78,6 +78,11 @@ WebDAV `sync-token`, keeping legacy client change detection tied to the
 gateway's single collection-version model.
 It returns RFC 6352 `addressbook-description` from stored address-book metadata
 so protocol discovery and repository state do not drift.
+WebDAV `PROPPATCH` now updates address-book collection `DAV:displayname` and
+RFC 6352 `addressbook-description` through bounded namespace-aware XML parsing
+and a small repository mutation boundary. The mutation refreshes the address
+book sync token and records an `addressbook-updated` change row; contact-object
+I/O stays on separate `PUT`/`DELETE` paths.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

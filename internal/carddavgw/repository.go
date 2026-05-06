@@ -64,6 +64,13 @@ type DeleteContactObjectRequest struct {
 	ObjectName    string
 }
 
+type UpdateAddressBookRequest struct {
+	UserID        string
+	AddressBookID string
+	Name          *string
+	Description   *string
+}
+
 type ListAddressBookChangesSinceRequest struct {
 	UserID        string
 	AddressBookID string
@@ -186,6 +193,70 @@ WHERE user_id = $1::uuid
 			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
 		}
 		return AddressBook{}, fmt.Errorf("get CardDAV address book: %w", err)
+	}
+	return book, nil
+}
+
+func (r *Repository) UpdateAddressBookProperties(ctx context.Context, req UpdateAddressBookRequest) (AddressBook, error) {
+	if r == nil || r.db == nil {
+		return AddressBook{}, fmt.Errorf("database handle is required")
+	}
+	req, normalizedName, syncToken, err := ValidateUpdateAddressBookRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AddressBook{}, fmt.Errorf("begin CardDAV address book update: %w", err)
+	}
+	defer tx.Rollback()
+	if err := lockActiveAddressBook(ctx, tx, req.UserID, req.AddressBookID); err != nil {
+		return AddressBook{}, err
+	}
+	nameValue, nameSet := optionalStringArg(req.Name)
+	descriptionValue, descriptionSet := optionalStringArg(req.Description)
+	const query = `
+UPDATE carddav_addressbooks
+SET
+  name = CASE WHEN $3 THEN $4 ELSE name END,
+  normalized_name = CASE WHEN $3 THEN $5 ELSE normalized_name END,
+  description = CASE WHEN $6 THEN $7 ELSE description END,
+  sync_token = $8,
+  updated_at = now()
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+	var book AddressBook
+	err = tx.QueryRowContext(ctx, query,
+		req.UserID,
+		req.AddressBookID,
+		nameSet,
+		nameValue,
+		normalizedName,
+		descriptionSet,
+		descriptionValue,
+		syncToken,
+	).Scan(
+		&book.ID,
+		&book.UserID,
+		&book.Name,
+		&book.Description,
+		&book.SyncToken,
+		&book.CreatedAt,
+		&book.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
+		}
+		return AddressBook{}, fmt.Errorf("update CardDAV address book properties: %w", err)
+	}
+	if err := insertAddressBookChange(ctx, tx, req.UserID, req.AddressBookID, syncToken, "addressbook-updated", "", ""); err != nil {
+		return AddressBook{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AddressBook{}, fmt.Errorf("commit CardDAV address book update: %w", err)
 	}
 	return book, nil
 }
@@ -500,6 +571,43 @@ func ValidateGetAddressBookRequest(req GetAddressBookRequest) (GetAddressBookReq
 	return GetAddressBookRequest{UserID: userID, AddressBookID: bookID, Status: status}, nil
 }
 
+func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddressBookRequest, string, string, error) {
+	userID, err := validateCardDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return UpdateAddressBookRequest{}, "", "", err
+	}
+	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, true)
+	if err != nil {
+		return UpdateAddressBookRequest{}, "", "", err
+	}
+	if req.Name == nil && req.Description == nil {
+		return UpdateAddressBookRequest{}, "", "", fmt.Errorf("at least one address book property is required")
+	}
+	var normalizedName string
+	var name *string
+	if req.Name != nil {
+		value, err := ValidateAddressBookName(*req.Name)
+		if err != nil {
+			return UpdateAddressBookRequest{}, "", "", err
+		}
+		normalizedName, err = NormalizeAddressBookName(value)
+		if err != nil {
+			return UpdateAddressBookRequest{}, "", "", err
+		}
+		name = &value
+	}
+	var description *string
+	if req.Description != nil {
+		value, err := ValidateAddressBookDescription(*req.Description)
+		if err != nil {
+			return UpdateAddressBookRequest{}, "", "", err
+		}
+		description = &value
+	}
+	syncToken := AddressBookSyncToken(userID, bookID, "addressbook-update", time.Now().UTC().Format(time.RFC3339Nano))
+	return UpdateAddressBookRequest{UserID: userID, AddressBookID: bookID, Name: name, Description: description}, normalizedName, syncToken, nil
+}
+
 func ValidateUpsertContactObjectRequest(req UpsertContactObjectRequest) (UpsertContactObjectRequest, string, string, error) {
 	userID, err := validateCardDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -625,6 +733,13 @@ INSERT INTO carddav_addressbook_changes (
 		return fmt.Errorf("insert CardDAV address book change: %w", err)
 	}
 	return nil
+}
+
+func optionalStringArg(value *string) (string, bool) {
+	if value == nil {
+		return "", false
+	}
+	return *value, true
 }
 
 func lockActiveAddressBook(ctx context.Context, tx *sql.Tx, userID string, addressBookID string) error {
