@@ -191,8 +191,30 @@ func TestNormalizeCheckDelegationRequest(t *testing.T) {
 		got.DelegateID != "team-1" ||
 		got.Scope != DelegationScopeCalendar ||
 		got.RequiredRole != DelegationRoleWrite ||
-		!got.ActiveOnly {
+		!got.ActiveOnly ||
+		got.MaxDepth != DefaultMembershipMaxDepth {
 		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCheckDelegationRequestHonorsExplicitDepth(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCheckDelegationRequest(CheckDelegationRequest{
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		RequiredRole: DelegationRoleRead,
+		MaxDepth:     3,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCheckDelegationRequest returned error: %v", err)
+	}
+	if got.MaxDepth != 3 {
+		t.Fatalf("max depth = %d, want 3", got.MaxDepth)
 	}
 }
 
@@ -209,6 +231,8 @@ func TestNormalizeCheckDelegationRequestRejectsUnsafeInput(t *testing.T) {
 		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "owner-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead},
 		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: "files", RequiredRole: DelegationRoleRead},
 		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: "owner"},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead, MaxDepth: -1},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate-1", Scope: DelegationScopeCalendar, RequiredRole: DelegationRoleRead, MaxDepth: MaxGroupMembershipDepth + 1},
 	}
 	for _, req := range tests {
 		req := req
@@ -302,6 +326,23 @@ func TestRepositoryCheckDelegationRequiresDatabase(t *testing.T) {
 		OwnerID:      "room-1",
 		DelegateKind: PrincipalKindGroup,
 		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		RequiredRole: DelegationRoleRead,
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryCheckEffectiveDelegationRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).CheckEffectiveDelegation(context.Background(), CheckDelegationRequest{
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   "user-1",
 		Scope:        DelegationScopeCalendar,
 		RequiredRole: DelegationRoleRead,
 	})

@@ -97,6 +97,7 @@ type CheckDelegationRequest struct {
 	Scope        string
 	RequiredRole string
 	ActiveOnly   bool
+	MaxDepth     int
 }
 
 func NormalizePrincipalKind(kind string) (string, error) {
@@ -201,6 +202,15 @@ func NormalizeCheckDelegationRequest(req CheckDelegationRequest) (CheckDelegatio
 	req.DelegateKind = delegateKind
 	if req.OwnerKind == req.DelegateKind && req.OwnerID == req.DelegateID {
 		return CheckDelegationRequest{}, fmt.Errorf("delegation owner and delegate must differ")
+	}
+	if req.MaxDepth < 0 {
+		return CheckDelegationRequest{}, fmt.Errorf("delegation max depth must not be negative")
+	}
+	if req.MaxDepth == 0 {
+		req.MaxDepth = DefaultMembershipMaxDepth
+	}
+	if req.MaxDepth > MaxGroupMembershipDepth {
+		return CheckDelegationRequest{}, fmt.Errorf("delegation max depth is too large")
 	}
 	req.Scope = scope
 	req.RequiredRole = role

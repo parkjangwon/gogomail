@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV principal address discovery)
+Last updated: 2026-05-06 (updated after Directory effective delegation)
 
 ## Current phase
 
@@ -190,7 +190,11 @@ scope (`calendar`, `contacts`, `drive`, or `mailbox`), and hierarchical role
 (`read`, `write`, `manage`). This is intentionally not wired into public
 CalDAV sharing yet; it gives future shared calendars, resource calendars,
 shared inboxes, Drive shares, and Contacts delegation one auditable principal
-relationship model instead of each module inventing a separate one.
+relationship model instead of each module inventing a separate one. Effective
+delegation can now expand group delegates through bounded nested membership, so
+a group-granted delegation can satisfy user, organization, group, or resource
+members while preserving active-only filtering, role hierarchy, depth caps, and
+cycle guards.
 
 ## Completed or materially advanced
 
@@ -2519,6 +2523,12 @@ The platform hardening sprint completed the following:
   with `read`/`write`/`manage` role hierarchy checks. CalDAV shared/delegated
   calendars remain experimental gates until this boundary is connected to
   protocol semantics and policy/audit decisions.
+- Directory/Identity effective delegation now expands group delegates through
+  bounded nested group membership, preserving direct delegation semantics,
+  cycle/depth guardrails, active-only filtering, and `manage >= write >= read`
+  role satisfaction. This prepares shared calendars, resource calendars, Drive
+  shares, shared inboxes, and Contacts delegation without adding product-local
+  access models.
 - CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`, which
   owns RFC/WebDAV/CardDAV standards names, DAV capability tokens, canonical
   principal/address-book/contact-object paths, `.vcf` resource validation, and
