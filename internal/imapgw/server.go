@@ -988,6 +988,9 @@ func imapSearchHasNonAtomSequenceSetArgument(line string, fields []string, crite
 		if imapSearchCriterionLooksLikeSequenceSet(field) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
 			return true
 		}
+		if imapSearchFieldRequiresAtomNumeric(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
+			return true
+		}
 	}
 	return false
 }
@@ -1001,6 +1004,36 @@ func imapSearchFieldRequiresAtomSet(fields []string, index int, criteriaStart in
 	}
 	if index > criteriaStart+1 && strings.EqualFold(fields[index-2], "HEADER") {
 		return false
+	}
+	return true
+}
+
+func imapSearchFieldRequiresAtomNumeric(fields []string, index int, criteriaStart int) bool {
+	if index > criteriaStart {
+		switch strings.ToUpper(fields[index-1]) {
+		case "LARGER", "SMALLER":
+			return true
+		case "MODSEQ":
+			return imapDecimalToken(fields[index])
+		}
+	}
+	if index > criteriaStart+1 && strings.EqualFold(fields[index-2], "MODSEQ") {
+		return true
+	}
+	if index > criteriaStart+2 && strings.EqualFold(fields[index-3], "MODSEQ") {
+		return true
+	}
+	return false
+}
+
+func imapDecimalToken(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
 	}
 	return true
 }

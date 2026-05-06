@@ -133,6 +133,7 @@ Recent release-readiness work also includes:
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and
   SEARCH/SORT/THREAD set operands,
   partial windows, SEARCH size criteria,
+  atom-only search numeric operands,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, RFC 2971 `ID` including bare no-argument probes, `NIL`, and
   bounded field/value parameter lists, rejection of whitespace-padded numeric

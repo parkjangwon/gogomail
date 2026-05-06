@@ -3967,6 +3967,10 @@ The platform hardening sprint completed the following:
   sequence-set criteria now use that same raw atom-only set boundary, rejecting
   quoted or command-literal set operands before authentication or selected
   mailbox state.
+- IMAP search-family numeric operands now also require raw atom tokens:
+  `LARGER`, `SMALLER`, simple `MODSEQ` thresholds, and `MODSEQ` entry-type/
+  threshold operands reject quoted or command-literal strings while preserving
+  the RFC string-shaped `MODSEQ` entry-name operand such as `"/flags/\\Seen"`.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
