@@ -6588,6 +6588,53 @@ func TestServerListSupportsSpecialUseSelectionAndReturn(t *testing.T) {
 	}
 }
 
+func TestServerRejectsStringListControlListsBeforeState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LIST \"(SPECIAL-USE)\" \"\" *\r\na2 LIST {13+}\r\n(SPECIAL-USE) \"\" *\r\na3 LIST \"\" * RETURN \"(SPECIAL-USE)\"\r\na4 LIST \"\" * RETURN {13+}\r\n(SPECIAL-USE)\r\na5 LIST \"\" * RETURN \"(STATUS (MESSAGES))\"\r\na6 LIST \"\" * \"RETURN\" (SPECIAL-USE)\r\na7 LIST \"\" * {6+}\r\nRETURN (SPECIAL-USE)\r\na8 LIST \"\" (\"INBOX\" \"Sent\")\r\na9 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string list control lists: %v", err)
+	}
+	want := []string{
+		"a1 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"a2 BAD LIST requires reference and mailbox pattern atoms\r\n",
+		"a3 BAD LIST requires parenthesized return options\r\n",
+		"a4 BAD LIST requires parenthesized return options\r\n",
+		"a5 BAD LIST requires parenthesized return options\r\n",
+		"a6 BAD LIST requires return options atom\r\n",
+		"a7 BAD LIST requires return options atom\r\n",
+		"a8 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a9 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string list control-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string list control-list response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerListSupportsStatusReturnOption(t *testing.T) {
 	t.Parallel()
 

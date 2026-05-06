@@ -729,6 +729,10 @@ Current state:
 - IMAP `SELECT` and `EXAMINE` optional `CONDSTORE` select parameters now also
   reject quoted or command-literal `(CONDSTORE)` lists while preserving normal
   mailbox string/astring handling.
+- IMAP `LIST` selection option-lists, `RETURN` introducers, and `RETURN`
+  option-lists now reject quoted or command-literal controls such as
+  `"(SPECIAL-USE)"`, `"RETURN"`, and `"(STATUS (MESSAGES))"` while preserving
+  valid parenthesized mailbox pattern lists.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.
