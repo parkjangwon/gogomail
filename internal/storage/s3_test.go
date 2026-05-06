@@ -836,37 +836,52 @@ func TestS3StoreStatAllowsLastModifiedOWS(t *testing.T) {
 	}
 }
 
-func TestS3StoreStatDropsUnsafeMetadata(t *testing.T) {
+func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode:    http.StatusOK,
-				Header:        http.Header{"Content-Type": []string{"message/rfc822\r\nx-bad"}, "ETag": []string{`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`}},
-				ContentLength: 5,
-				Body:          io.NopCloser(strings.NewReader("")),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
-	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
-	if err != nil {
-		t.Fatalf("Stat returned error: %v", err)
-	}
-	if info.Path != "messages/msg-1.eml" || info.Size != 5 {
-		t.Fatalf("object info identity = %+v", info)
-	}
-	if info.ContentType != "" || info.ETag != "" {
-		t.Fatalf("unsafe metadata was not dropped: %+v", info)
+	for _, tc := range []struct {
+		name   string
+		header http.Header
+		want   string
+	}{
+		{
+			name:   "content type with newline",
+			header: http.Header{"Content-Type": []string{"message/rfc822\r\nx-bad"}},
+			want:   "invalid content-type",
+		},
+		{
+			name:   "oversized etag",
+			header: http.Header{"ETag": []string{`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`}},
+			want:   "invalid etag",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode:    http.StatusOK,
+						Header:        tc.header,
+						ContentLength: 5,
+						Body:          io.NopCloser(strings.NewReader("")),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Stat err = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 

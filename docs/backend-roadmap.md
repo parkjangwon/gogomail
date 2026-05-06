@@ -4042,6 +4042,10 @@ Implementation order:
       and routes it to backend authentication, returning
       `[AUTHENTICATIONFAILED]` for rejected credentials instead of classifying
       the command as malformed protocol input.
+1446. S3-compatible `HEAD`/`Stat` metadata now rejects non-empty malformed
+      `ETag` and `Content-Type` headers instead of silently dropping them,
+      keeping object identity and MIME metadata fail-closed at the storage
+      adapter boundary.
 
 ## Deferred until backend contracts stabilize
 

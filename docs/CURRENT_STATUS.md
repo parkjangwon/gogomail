@@ -136,7 +136,9 @@ into whichever value the HTTP library returns first. Duplicate `ETag` headers
 are now rejected for the same reason: object identity metadata must not depend
 on first-header collapse. Duplicate `Content-Type` metadata on `HEAD`/`Stat`
 also fails closed so preview/download MIME decisions do not depend on
-first-header collapse.
+first-header collapse. Non-empty malformed `ETag` and `Content-Type` metadata
+now also fails closed instead of being silently dropped, keeping object
+identity and MIME metadata explicit at the S3-compatible adapter boundary.
 S3-compatible full-object `GET` now applies the same exact `Content-Length`
 header validation when present and wraps known-length successful bodies in a
 bounded reader, so truncated compatible-provider full reads surface
