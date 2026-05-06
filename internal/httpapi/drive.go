@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/gogomail/gogomail/internal/storage"
 )
 
 type DriveService interface {
@@ -33,6 +34,10 @@ type DriveService interface {
 	CreateShareLink(ctx context.Context, req drive.CreateShareLinkRequest) (drive.ShareLink, error)
 	ListShareLinks(ctx context.Context, req drive.ListShareLinksRequest) ([]drive.ShareLink, error)
 	RevokeShareLink(ctx context.Context, req drive.RevokeShareLinkRequest) (drive.ShareLink, error)
+	ResolveShareLink(ctx context.Context, req drive.ResolveShareLinkRequest) (drive.ResolvedShareLink, error)
+	OpenSharedFile(ctx context.Context, req drive.ResolveShareLinkRequest) (drive.FileDownload, error)
+	OpenSharedFileRange(ctx context.Context, req drive.ResolveShareLinkRequest, rangeReq storage.RangeRequest) (drive.FileDownload, error)
+	StatSharedFile(ctx context.Context, req drive.ResolveShareLinkRequest) (drive.FileMetadata, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RestoreNode(ctx context.Context, req drive.RestoreNodeRequest) (drive.Node, int64, error)
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
@@ -685,6 +690,96 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		writeJSON(w, http.StatusOK, map[string]any{"drive_share_links": links})
 	})
 
+	mux.HandleFunc("GET /api/v1/drive/share-links/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		token, ok := parseDriveShareTokenPathValue(w, r)
+		if !ok {
+			return
+		}
+		resolved, err := service.ResolveShareLink(r.Context(), drive.ResolveShareLinkRequest{Token: token})
+		if err != nil {
+			writeDriveShareLinkError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"drive_shared_file": driveSharedFileMetadata(resolved)})
+	})
+
+	mux.HandleFunc("GET /api/v1/drive/share-links/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		token, ok := parseDriveShareTokenPathValue(w, r)
+		if !ok {
+			return
+		}
+		rangeHeader, ok := singleHTTPHeaderValue(w, r, "Range", maxHTTPAuthHeaderBytes)
+		if !ok {
+			return
+		}
+		if rangeHeader != "" {
+			metadata, err := service.StatSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
+			if err != nil {
+				writeDriveShareLinkError(w, err)
+				return
+			}
+			byteRange, err := parseSingleHTTPByteRange(rangeHeader, metadata.Object.Size)
+			if err != nil {
+				writeDriveRangeError(w, metadata.Object.Size, err.Error())
+				return
+			}
+			download, err := service.OpenSharedFileRange(r.Context(), drive.ResolveShareLinkRequest{Token: token}, storage.RangeRequest{
+				Offset: byteRange.Offset,
+				Length: byteRange.Length,
+			})
+			if err != nil {
+				writeDriveShareLinkError(w, err)
+				return
+			}
+			defer download.Body.Close()
+			writeDriveFilePartialDownloadHeaders(w, driveNodeWithStatSize(download.Node, metadata.Object.Size), byteRange)
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = io.Copy(w, download.Body)
+			return
+		}
+		download, err := service.OpenSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
+		if err != nil {
+			writeDriveShareLinkError(w, err)
+			return
+		}
+		defer download.Body.Close()
+		writeDriveFileDownloadHeaders(w, download.Node)
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, download.Body)
+	})
+
+	mux.HandleFunc("HEAD /api/v1/drive/share-links/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		token, ok := parseDriveShareTokenPathValue(w, r)
+		if !ok {
+			return
+		}
+		metadata, err := service.StatSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
+		if err != nil {
+			writeDriveShareLinkError(w, err)
+			return
+		}
+		writeDriveFileDownloadHeaders(w, driveNodeWithStatSize(metadata.Node, metadata.Object.Size))
+		w.WriteHeader(http.StatusOK)
+	})
+
 	mux.HandleFunc("DELETE /api/v1/drive/share-links/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
@@ -726,6 +821,59 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_delete": result})
 	})
+}
+
+type driveSharedFileMetadataResponse struct {
+	NodeID         string    `json:"node_id"`
+	Name           string    `json:"name"`
+	MIMEType       string    `json:"mime_type,omitempty"`
+	Size           int64     `json:"size"`
+	ChecksumSHA256 string    `json:"checksum_sha256,omitempty"`
+	Permission     string    `json:"permission"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func driveSharedFileMetadata(resolved drive.ResolvedShareLink) driveSharedFileMetadataResponse {
+	return driveSharedFileMetadataResponse{
+		NodeID:         resolved.Node.ID,
+		Name:           resolved.Node.Name,
+		MIMEType:       resolved.Node.MIMEType,
+		Size:           resolved.Node.Size,
+		ChecksumSHA256: safeSHA256Header(resolved.Node.ChecksumSHA256),
+		Permission:     resolved.ShareLink.Permission,
+		ExpiresAt:      resolved.ShareLink.ExpiresAt,
+		UpdatedAt:      resolved.Node.UpdatedAt,
+	}
+}
+
+func parseDriveShareTokenPathValue(w http.ResponseWriter, r *http.Request) (string, bool) {
+	value := strings.TrimSpace(r.PathValue("id"))
+	if value == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return "", false
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		writeError(w, http.StatusBadRequest, "id must not contain CR or LF")
+		return "", false
+	}
+	if len(value) > drive.MaxShareLinkTokenBytes {
+		writeError(w, http.StatusBadRequest, "id is too long")
+		return "", false
+	}
+	return value, true
+}
+
+func writeDriveShareLinkError(w http.ResponseWriter, err error) {
+	if errors.Is(err, drive.ErrShareLinkPermissionDenied) {
+		writeError(w, http.StatusForbidden, err.Error())
+		return
+	}
+	if strings.Contains(err.Error(), "not found") {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeError(w, http.StatusBadRequest, err.Error())
 }
 
 func writeDriveServiceError(w http.ResponseWriter, err error) {

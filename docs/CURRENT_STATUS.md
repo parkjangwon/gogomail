@@ -2244,6 +2244,11 @@ The platform hardening sprint completed the following:
   `drive_share_links` stores user/file-scoped token hashes, bounded suffixes,
   permissions, status, and expiry; Mail API routes can create, list, and revoke
   links while returning raw share tokens only in the create response.
+- Drive share links now have public metadata resolution plus `GET`/`HEAD`
+  download routes that resolve tokens by SHA-256 hash, enforce expiry,
+  revocation, active owner/domain/node checks, keep storage internals out of
+  metadata responses, and reuse the Drive no-store/range-download header
+  contract for `download`-permission links.
 - CalDAV work has started with ADR 0010, a `caldav` runtime scaffold, and an
   `internal/caldavgw` boundary for RFC/WebDAV standards, DAV tokens, principal
   paths, calendar-home paths, calendar collections, and `.ics` object paths.

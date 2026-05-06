@@ -66,6 +66,44 @@ func TestValidateCreateShareLinkRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestValidateResolveShareLinkRequest(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	req, tokenHash, err := ValidateResolveShareLinkRequest(ResolveShareLinkRequest{
+		Token: strings.Repeat("a", 40),
+		Now:   now,
+	})
+	if err != nil {
+		t.Fatalf("ValidateResolveShareLinkRequest returned error: %v", err)
+	}
+	if req.Token != strings.Repeat("a", 40) || !req.Now.Equal(now) {
+		t.Fatalf("request = %+v, want token/now preserved", req)
+	}
+	if len(tokenHash) != 64 {
+		t.Fatalf("token hash length = %d, want 64", len(tokenHash))
+	}
+}
+
+func TestValidateResolveShareLinkRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	for _, token := range []string{
+		"short",
+		strings.Repeat("a", MaxShareLinkTokenBytes+1),
+		strings.Repeat("a", 40) + "\n",
+	} {
+		token := token
+		t.Run(token[:min(len(token), 8)], func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, err := ValidateResolveShareLinkRequest(ResolveShareLinkRequest{Token: token}); err == nil {
+				t.Fatalf("ValidateResolveShareLinkRequest(%q) error = nil, want rejection", token)
+			}
+		})
+	}
+}
+
 func TestValidateListShareLinksRequest(t *testing.T) {
 	t.Parallel()
 
@@ -104,5 +142,14 @@ func TestShareLinkRepositoryAndServiceRequireDependencies(t *testing.T) {
 	}
 	if _, err := (*Service)(nil).RevokeShareLink(context.Background(), RevokeShareLinkRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
 		t.Fatalf("service RevokeShareLink err = %v, want repository rejection", err)
+	}
+	if _, err := (*Service)(nil).ResolveShareLink(context.Background(), ResolveShareLinkRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("service ResolveShareLink err = %v, want repository rejection", err)
+	}
+	if _, err := (*Service)(nil).OpenSharedFile(context.Background(), ResolveShareLinkRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("service OpenSharedFile err = %v, want repository rejection", err)
+	}
+	if _, err := (*Service)(nil).StatSharedFile(context.Background(), ResolveShareLinkRequest{}); err == nil || !strings.Contains(err.Error(), "drive repository is required") {
+		t.Fatalf("service StatSharedFile err = %v, want repository rejection", err)
 	}
 }

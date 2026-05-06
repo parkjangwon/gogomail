@@ -259,6 +259,22 @@ or development `user_id` fallback path as webmail mail routes:
   `{"drive_share_links":[...]}` with bounded `node_id`, `status=active|revoked`,
   and `limit` filters for authenticated users. List responses never return raw
   share tokens.
+- `GET /api/v1/drive/share-links/{token}` is a public, unauthenticated
+  resolution route for active, unexpired Drive share links. It performs a
+  SHA-256 token-hash lookup, rejects revoked/expired links and inactive owner
+  accounts/domains/nodes, and returns `{"drive_shared_file":{...}}` with only
+  client-safe file metadata (`node_id`, name, MIME type, size, optional
+  checksum, permission, expiry, updated timestamp). It never exposes storage
+  backends, storage paths, user ids, or raw tokens.
+- `GET /api/v1/drive/share-links/{token}/download` and
+  `HEAD /api/v1/drive/share-links/{token}/download` stream or describe an
+  active shared Drive file through the configured storage backend only when the
+  link permission is `download`. They reuse the authenticated Drive download
+  header contract (`Content-Disposition`, `Cache-Control: no-store`,
+  `X-Content-Type-Options: nosniff`, `Accept-Ranges: bytes`, optional
+  `X-Gogomail-Drive-SHA256`) and the same single-range `Range:
+  bytes=start-end` parser, while mapping view-only links to HTTP 403 and
+  missing/revoked/expired links to HTTP 404.
 - `DELETE /api/v1/drive/share-links/{id}` revokes an active authenticated-user
   share link and returns `{"drive_share_link":{...}}` with `status=revoked`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,

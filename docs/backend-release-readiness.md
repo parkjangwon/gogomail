@@ -171,6 +171,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Mail API create/list/revoke routes, with raw bearer tokens returned only on
   creation and persisted state limited to token hashes, suffixes, permissions,
   expiry, and revoke status.
+- Drive share-link public resolution/download routes now resolve only active,
+  unexpired token hashes, hide storage internals from public metadata, enforce
+  `download` permission before streaming bytes, and reuse Drive no-store,
+  checksum, HEAD, and single-range download semantics.
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
   principal/calendar/object path parsing before WebDAV handlers are advertised.
