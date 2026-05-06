@@ -1626,7 +1626,10 @@ func validateS3CopyResponse(body io.Reader) error {
 		if !s3XMLNamespaceAllowed(response.XMLName.Space) {
 			return fmt.Errorf("copy s3 object: unexpected response namespace")
 		}
-		if response.ETag != "" && cleanS3ETag(response.ETag) == "" {
+		if strings.TrimSpace(response.ETag) == "" {
+			return fmt.Errorf("copy s3 object: etag is required")
+		}
+		if cleanS3ETag(response.ETag) == "" {
 			return fmt.Errorf("copy s3 object: invalid etag")
 		}
 		if _, ok := parseS3ListTime(response.LastModified); !ok {

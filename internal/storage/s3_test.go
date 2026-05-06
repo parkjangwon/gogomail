@@ -3302,11 +3302,13 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
 		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
 		{name: "unexpected_child_namespace", status: http.StatusOK, body: `<CopyObjectResult><x:ETag xmlns:x="urn:not-s3">"a"</x:ETag></CopyObjectResult>`, want: "unexpected response namespace"},
+		{name: "missing_etag", status: http.StatusOK, body: `<CopyObjectResult/>`, want: "etag is required"},
+		{name: "blank_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>  </ETag></CopyObjectResult>`, want: "etag is required"},
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
 		{name: "invalid_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"bad&#xA;etag"</ETag></CopyObjectResult>`, want: "invalid etag"},
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
-		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
-		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
+		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
+		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>copy throttled
 try later</Message><RequestId>req-copy-1</RequestId><HostId>host-copy-1</HostId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1: host-id=host-copy-1"},
 	} {

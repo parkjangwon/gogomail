@@ -188,7 +188,9 @@ nested standard S3 error details as bounded one-line diagnostics with
 request-id and host-id context instead of collapsing provider-side copy
 failures into a successful copy/move result. Top-level and nested copy
 `Error` bodies share the same capped streaming XML field parser as status
-errors.
+errors. Successful `CopyObjectResult` bodies now also require a non-blank
+bounded `ETag`, so copy/move durability is not reported when provider success
+metadata omits object identity.
 S3-compatible `ListObjectsV2` response XML now applies the same namespace
 boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
 roots only before pagination, prefix filtering, cleanup, or Drive callers see
