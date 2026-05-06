@@ -1592,6 +1592,10 @@ Implementation order:
       verification object and compare canonical key plus byte size before
       cleanup, catching broken filesystem metadata or S3 `HEAD` paths before
       the instance reports ready.
+922b. Local/NFS and S3-compatible readiness probes now also issue a short
+      `GetRange` against the verification object, catching broken filesystem
+      seek/range handling or S3 `Range` response compatibility before partial
+      Drive, attachment, or IMAP object workflows report ready.
 923. S3-compatible `PUT`, failed `GET`, and `DELETE` responses now drain a
      small bounded response-body window before close, improving HTTP connection
      reuse for ordinary S3/MinIO responses while preventing oversized bodies

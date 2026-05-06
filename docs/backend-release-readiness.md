@@ -1038,6 +1038,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Local/NFS and S3-compatible readiness probes also verify probe-object `Stat`
   metadata, catching broken filesystem metadata or S3 `HEAD` paths before an
   instance reports ready.
+- Local/NFS and S3-compatible readiness probes also verify a short `GetRange`
+  against the probe object, catching broken filesystem seek/range handling or
+  S3 `Range` response compatibility before partial-read workflows report ready.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object

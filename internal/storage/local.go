@@ -387,6 +387,25 @@ func (s *LocalStore) Check(ctx context.Context) error {
 		_ = s.Delete(ctx, objectPath)
 		return fmt.Errorf("readiness probe metadata mismatch")
 	}
+	rangeCloser, err := s.GetRange(ctx, objectPath, RangeRequest{Offset: 0, Length: int64(len("gogomail"))})
+	if err != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("range readiness probe: %w", err)
+	}
+	rangeGot, rangeReadErr := readStorageCheckBody(rangeCloser, len("gogomail"))
+	rangeCloseErr := rangeCloser.Close()
+	if rangeReadErr != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("read range readiness probe body: %w", rangeReadErr)
+	}
+	if rangeCloseErr != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("close range readiness probe body: %w", rangeCloseErr)
+	}
+	if string(rangeGot) != "gogomail" {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("readiness probe range body mismatch")
+	}
 	if err := s.Delete(ctx, objectPath); err != nil {
 		return fmt.Errorf("delete readiness probe: %w", err)
 	}

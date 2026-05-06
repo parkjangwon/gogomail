@@ -254,6 +254,10 @@ Current state:
 - Local/NFS and S3-compatible readiness probes now also verify `Stat` metadata
   for the probe object, catching broken filesystem metadata or S3 `HEAD` paths
   before an instance reports ready.
+- Local/NFS and S3-compatible readiness probes now also verify a short
+  `GetRange` against the probe object, catching broken filesystem seek/range
+  handling or S3 `Range` response compatibility before partial-read workflows
+  report ready.
 - The storage interface is backend-neutral (`Put`, `Get`, `Stat`, `Copy`,
   `Move`, `List`, `Delete`) and object paths share strict canonical key
   validation before adapter use, including valid UTF-8 object paths, prefixes,
