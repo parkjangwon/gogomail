@@ -78,6 +78,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   decimal digits, rejecting signed `<Size>` values such as `+5`.
 - S3-compatible `ListObjectsV2` object entries now reject missing or blank
   `<Key>` elements before prefix mapping and cleanup scans.
+- S3-compatible `ListObjectsV2` pagination control now requires an explicit
+  canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
+  value before deciding whether a page is final.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list object-key required hardening)
+Last updated: 2026-05-07 (updated after S3 list IsTruncated hardening)
 
 ## Current phase
 
@@ -127,6 +127,10 @@ metadata reaches cleanup, Drive, or reconciliation callers.
 S3-compatible `ListObjectsV2` object entries now reject missing or blank
 `<Key>` elements instead of silently skipping malformed provider entries before
 prefix mapping and cleanup scans.
+S3-compatible `ListObjectsV2` pagination control now requires an explicit
+canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
+value, rejecting missing or non-canonical forms before deciding whether a page
+is final.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling
