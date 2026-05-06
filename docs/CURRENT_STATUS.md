@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after storage profile config overlays)
+Last updated: 2026-05-06 (updated after IMAP LSUB extension-option guard)
 
 ## Current phase
 
@@ -62,7 +62,12 @@ authentication or selected-mailbox checks, keeping client charset fallback
 behavior deterministic even during capability probing. IMAP `STATUS` and
 advertised `LIST-STATUS` now distinguish duplicated status data items from
 unknown/unsupported items, including before authentication state checks, so
-client diagnostics remain precise at the status-item grammar boundary.
+client diagnostics remain precise at the status-item grammar boundary. IMAP
+`LSUB` now also rejects LIST-EXTENDED-style option probes such as
+`(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication with a
+dedicated tagged `BAD`, keeping subscribed-mailbox discovery on the RFC 3501
+reference/pattern command shape while leaving extended `LIST` behavior
+separate.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
