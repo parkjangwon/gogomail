@@ -3677,7 +3677,12 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 			return false, err
 		}
 	}
-	return s.writeMovedExpungeResponses(writer, tag, state, imapMoveSourceSummaries(summaries), completionCommand, copyUID)
+	if copyUID != "" {
+		if _, err := writer.WriteString("* OK [" + copyUID + "] " + completionCommand + " copied UIDs\r\n"); err != nil {
+			return false, err
+		}
+	}
+	return s.writeMovedExpungeResponses(writer, tag, state, imapMoveSourceSummaries(summaries), completionCommand, "")
 }
 
 func (s *Server) writeExpungeResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, completionCommand string) (bool, error) {

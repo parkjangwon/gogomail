@@ -117,6 +117,9 @@ Current state:
 - IMAP `MOVE`/`UID MOVE` UIDPLUS response codes now derive source UID sets
   from returned move results rather than the requested UID slice, matching the
   explicit source/destination contract already present on `MoveMessageResult`.
+- IMAP `MOVE`/`UID MOVE` now emit UIDPLUS `COPYUID` in an untagged `OK`
+  before source `EXPUNGE` responses, preserving RFC 6851-compatible ordering
+  for clients that need the UID map before sequence numbers are removed.
 - IMAP UID set response rendering now compacts contiguous ascending runs into
   RFC sequence-set ranges, reducing bulk `COPYUID`, ESEARCH, and SEARCHRES
   response size without reordering non-contiguous UID lists.
@@ -133,7 +136,8 @@ Current state:
   sequence numbers, so `$` references remain aligned after batch expunges.
 - IMAP SEARCHRES `$` is now accepted as a bare `SEARCH` sequence-set
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
-  reuse after `SEARCH RETURN (SAVE)`.
+  reuse after `SEARCH RETURN (SAVE)`. Saved `$` criteria are also
+  regression-covered through `SORT`, `UID SORT`, `THREAD`, and `UID THREAD`.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

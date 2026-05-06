@@ -90,6 +90,10 @@ from the requested UID slice. Sparse UID copy/move probes such as
 `UID COPY 7,999 Archive` and repository-level missing-UID move inputs are
 regression-covered so nonexistent UIDs are ignored without polluting response
 codes.
+MOVE `COPYUID` response codes are now emitted as untagged `OK` responses
+before `EXPUNGE` lines instead of being delayed until the tagged final `OK`,
+matching RFC 6851's UIDPLUS interoperability guidance so clients receive the
+source-to-destination UID mapping before source sequence numbers disappear.
 IMAP sequence-set response rendering now compacts ascending UID runs such as
 `7,8,9` into `7:9`, keeping UIDPLUS `COPYUID`, ESEARCH, and saved-search
 response payloads smaller and closer to the RFC sequence-set grammar during
@@ -112,7 +116,8 @@ later message sequence numbers.
 SEARCHRES `$` is now accepted as a bare `SEARCH` sequence-set criterion, so
 clients can reuse saved search results through both `SEARCH $` and
 `UID SEARCH $ ...` forms instead of being limited to `FETCH $` or explicit
-`UID $` criteria.
+`UID $` criteria. The same saved-result reuse is regression-covered through
+`SORT`, `UID SORT`, `THREAD`, and `UID THREAD` search criteria.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

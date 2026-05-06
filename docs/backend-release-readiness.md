@@ -130,6 +130,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `MOVE`/`UID MOVE` UIDPLUS responses now derive source UID sets from the
   returned move results, avoiding requested-slice inference for partial or
   sparse move operations.
+- IMAP `MOVE`/`UID MOVE` UIDPLUS `COPYUID` responses are emitted as untagged
+  `OK` responses before source `EXPUNGE` lines, matching RFC 6851-compatible
+  client processing order.
 - IMAP UID sequence-set response rendering now compacts contiguous runs into
   RFC range syntax, keeping bulk UIDPLUS/ESEARCH/SEARCHRES payloads smaller.
 - IMAP UIDPLUS `COPYUID` response codes are suppressed for destination
@@ -144,7 +147,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   emitted `EXPUNGE` lines.
 - IMAP SEARCHRES `$` reuse is accepted as a bare `SEARCH` sequence-set
   criterion, with protocol coverage for `SEARCH $` and `UID SEARCH $ ...`
-  after `SEARCH RETURN (SAVE)`.
+  after `SEARCH RETURN (SAVE)`, plus `SORT`/`THREAD` criteria coverage.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.
