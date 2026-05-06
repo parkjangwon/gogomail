@@ -1993,7 +1993,9 @@ The platform hardening sprint completed the following:
   ambiguous tagged replies for invalid client command tags.
 - IMAP command parsing now rejects control characters inside unquoted atoms,
   aligning atom parsing with the existing quoted-string control-character
-  guardrail before command dispatch.
+  guardrail before command dispatch. Parser failures now return tagged `BAD`
+  when a syntactically valid command tag can still be recovered, while malformed
+  tags continue to receive untagged `BAD`.
 - IMAP supports `STARTTLS` on plaintext listeners with configured TLS and stops
   advertising it after upgrade.
 - IMAP `STARTTLS` completion includes an updated `[CAPABILITY ...]` response

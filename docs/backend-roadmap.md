@@ -2932,6 +2932,11 @@ Implementation order:
       contain colons without causing valid contact objects to fail validation.
       This improves native-client compatibility while preserving bounded line
       and body validation.
+1202. IMAP malformed-command parsing now returns tagged `BAD` responses when a
+      syntactically valid command tag can still be recovered from the line,
+      while preserving untagged `BAD` for malformed or missing tags. This keeps
+      RFC-shaped clients able to correlate tokenizer failures with the command
+      they issued.
 
 ## Deferred until backend contracts stabilize
 
