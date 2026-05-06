@@ -1391,7 +1391,7 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
 			return true, false, err
 		}
-		_, searchFields, _, ok := imapSortCommandArguments(fields[3:])
+		_, searchFields, charsetOK, ok := imapSortCommandArguments(fields[3:])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
 			return true, false, err
@@ -1400,12 +1400,18 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD SORT requires search criteria\r\n")
 			return true, false, err
 		}
+		if charsetOK {
+			if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+				_, err := writer.WriteString(tag + " BAD SORT " + strings.TrimPrefix(message, "SEARCH ") + "\r\n")
+				return true, false, err
+			}
+		}
 	case "THREAD":
 		if len(fields) < 6 {
 			_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
 			return true, false, err
 		}
-		_, searchFields, _, ok := imapThreadCommandArguments(fields[3:])
+		_, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[3:])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
 			return true, false, err
@@ -1413,6 +1419,12 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 		if len(searchFields) == 0 {
 			_, err := writer.WriteString(tag + " BAD THREAD requires search criteria\r\n")
 			return true, false, err
+		}
+		if charsetOK {
+			if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+				_, err := writer.WriteString(tag + " BAD THREAD " + strings.TrimPrefix(message, "SEARCH ") + "\r\n")
+				return true, false, err
+			}
 		}
 	case "STORE":
 		if len(fields) < 6 {
@@ -1581,6 +1593,12 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
 		return false, err
 	}
+	if charsetOK {
+		if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+			_, err := writer.WriteString(tag + " BAD SORT " + strings.TrimPrefix(message, "SEARCH ") + "\r\n")
+			return false, err
+		}
+	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
@@ -1640,6 +1658,12 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
 		return false, err
+	}
+	if charsetOK {
+		if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+			_, err := writer.WriteString(tag + " BAD THREAD " + strings.TrimPrefix(message, "SEARCH ") + "\r\n")
+			return false, err
+		}
 	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")

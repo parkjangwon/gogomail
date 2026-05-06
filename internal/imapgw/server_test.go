@@ -718,7 +718,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH ALL\r\na12 SORT (DATE) UTF-8 ALL\r\na13 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na14 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH ALL\r\na12 SORT (DATE) UTF-8 +1\r\na13 THREAD ORDEREDSUBJECT UTF-8 +1\r\na14 SORT (DATE) UTF-8 ALL\r\na15 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na16 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -733,10 +733,12 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a9 BAD SEARCH criteria are unsupported\r\n",
 		"a10 BAD SEARCH criteria are unsupported\r\n",
 		"a11 NO authentication required\r\n",
-		"a12 NO authentication required\r\n",
-		"a13 NO authentication required\r\n",
+		"a12 BAD SORT criteria are unsupported\r\n",
+		"a13 BAD THREAD criteria are unsupported\r\n",
+		"a14 NO authentication required\r\n",
+		"a15 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a14 OK LOGOUT completed\r\n",
+		"a16 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5728,7 +5730,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SORT (SUBJECT) UTF-8 ALL\r\na4 SORT (REVERSE DATE) UTF-8 ALL\r\na5 UID SORT (SIZE) US-ASCII ALL\r\na6 SORT (SUBJECT) UTF-8 SUBJECT Archive\r\na7 SORT (ARRIVAL) ISO-8859-1 ALL\r\na8 SORT (BOGUS) UTF-8 ALL\r\na9 SORT (SUBJECT) UTF-8\" ALL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SORT (SUBJECT) UTF-8 ALL\r\na4 SORT (REVERSE DATE) UTF-8 ALL\r\na5 UID SORT (SIZE) US-ASCII ALL\r\na6 SORT (SUBJECT) UTF-8 SUBJECT Archive\r\na7 SORT (ARRIVAL) ISO-8859-1 ALL\r\na8 SORT (BOGUS) UTF-8 ALL\r\na9 SORT (SUBJECT) UTF-8\" ALL\r\na10 SORT (SUBJECT) UTF-8 +1\r\n")); err != nil {
 		t.Fatalf("write sort: %v", err)
 	}
 	want := []string{
@@ -5743,6 +5745,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 		"a7 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
 		"a8 BAD SORT arguments are unsupported\r\n",
 		"a9 BAD malformed command\r\n",
+		"a10 BAD SORT criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5753,7 +5756,7 @@ func TestServerHandlesSortAfterSelect(t *testing.T) {
 			t.Fatalf("sort response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a11 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -5809,7 +5812,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na4 UID THREAD ORDEREDSUBJECT US-ASCII SUBJECT Project\r\na5 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na6 THREAD REFERENCES UTF-8 ALL\r\na7 THREAD ORDEREDSUBJECT UTF-8\" ALL\r\na8 THREAD ORDEREDSUBJECT\" UTF-8 ALL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na4 UID THREAD ORDEREDSUBJECT US-ASCII SUBJECT Project\r\na5 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na6 THREAD REFERENCES UTF-8 ALL\r\na7 THREAD ORDEREDSUBJECT UTF-8\" ALL\r\na8 THREAD ORDEREDSUBJECT\" UTF-8 ALL\r\na9 THREAD ORDEREDSUBJECT UTF-8 +1\r\n")); err != nil {
 		t.Fatalf("write thread commands: %v", err)
 	}
 	want := []string{
@@ -5821,6 +5824,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 		"a6 BAD THREAD algorithm is unsupported\r\n",
 		"a7 BAD malformed command\r\n",
 		"a8 BAD malformed command\r\n",
+		"a9 BAD THREAD criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5831,7 +5835,7 @@ func TestServerHandlesOrderedSubjectThreadAfterSelect(t *testing.T) {
 			t.Fatalf("thread response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a9 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a10 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
