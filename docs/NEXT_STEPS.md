@@ -35,6 +35,9 @@ Current state:
   when the runtime store implements the relevant sync change-log interface.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims.
+- Admin console capability OpenAPI security now models both `X-Admin-Token`
+  and bearer-token auth alternatives, with runtime coverage for ambiguous
+  credential rejection.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.

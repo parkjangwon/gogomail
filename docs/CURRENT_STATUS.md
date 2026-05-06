@@ -41,6 +41,9 @@ Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can
 actually serve.
+Admin console capability OpenAPI security now explicitly documents both
+`X-Admin-Token` and bearer-token alternatives, with runtime coverage that the
+bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

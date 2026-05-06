@@ -307,7 +307,10 @@ contracts so chunk ordering, retry windows, and frontend upload ergonomics can
 be documented precisely before exposure.
 
 `GET /admin/v1/console/capabilities` is the authenticated Admin API bootstrap
-surface for future production operator consoles. It returns
+surface for future production operator consoles. OpenAPI documents both
+`X-Admin-Token` and bearer-token security alternatives for this route, matching
+the runtime `adminAuth` boundary that rejects ambiguous mixed credentials. It
+returns
 `{"admin_console_capabilities":{...}}` with the backend contract version,
 available mail/admin/Drive modules, common list and
 cleanup/retention limits, tenant/domain/user control availability, operational

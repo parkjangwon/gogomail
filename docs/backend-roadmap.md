@@ -3457,6 +3457,10 @@ Implementation order:
       active backend labels instead of hard-coded `true` values, so local/NFS,
       MinIO, and AWS/S3-compatible deployments advertise only the storage-label
       families they can serve.
+1309. Admin console capability discovery now documents both `X-Admin-Token`
+      and bearer-token OpenAPI security alternatives and has runtime coverage
+      that the bootstrap endpoint accepts each form while rejecting ambiguous
+      mixed credentials.
 
 ## Deferred until backend contracts stabilize
 
