@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -2097,14 +2099,22 @@ func objectStoreForConfig(cfg config.Config) (configuredObjectStore, error) {
 	case "local", "nfs":
 		return storage.NewLocalStore(cfg.MailstoreRoot), nil
 	case "s3", "minio":
-		return storage.NewS3Store(s3OptionsForConfig(cfg, backend))
+		opts, err := s3OptionsForConfig(cfg, backend)
+		if err != nil {
+			return nil, err
+		}
+		return storage.NewS3Store(opts)
 	default:
 		return nil, fmt.Errorf("unsupported storage backend %q", cfg.StorageBackend)
 	}
 }
 
-func s3OptionsForConfig(cfg config.Config, backend string) storage.S3Options {
+func s3OptionsForConfig(cfg config.Config, backend string) (storage.S3Options, error) {
 	backend = strings.ToLower(strings.TrimSpace(backend))
+	client, err := s3HTTPClientForConfig(cfg)
+	if err != nil {
+		return storage.S3Options{}, err
+	}
 	return storage.S3Options{
 		Endpoint:        cfg.StorageS3Endpoint,
 		Region:          cfg.StorageS3Region,
@@ -2114,7 +2124,38 @@ func s3OptionsForConfig(cfg config.Config, backend string) storage.S3Options {
 		SecretAccessKey: cfg.StorageS3SecretAccessKey,
 		SessionToken:    cfg.StorageS3SessionToken,
 		ForcePathStyle:  cfg.StorageS3ForcePathStyle || backend == "minio",
+		HTTPClient:      client,
+	}, nil
+}
+
+func s3HTTPClientForConfig(cfg config.Config) (*http.Client, error) {
+	caCertFile := strings.TrimSpace(cfg.StorageS3CACertFile)
+	if caCertFile == "" && !cfg.StorageS3InsecureSkipVerify {
+		return nil, nil
 	}
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil || rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+	if caCertFile != "" {
+		data, err := os.ReadFile(caCertFile)
+		if err != nil {
+			return nil, fmt.Errorf("read S3 CA certificate file: %w", err)
+		}
+		if !rootCAs.AppendCertsFromPEM(data) {
+			return nil, fmt.Errorf("S3 CA certificate file must contain at least one PEM-encoded certificate")
+		}
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		RootCAs:            rootCAs,
+		InsecureSkipVerify: cfg.StorageS3InsecureSkipVerify,
+	}
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}, nil
 }
 
 func storageReadinessCheck(name string, store interface {

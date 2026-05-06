@@ -57,6 +57,8 @@ type Config struct {
 	StorageS3SecretAccessKey            string
 	StorageS3SessionToken               string
 	StorageS3ForcePathStyle             bool
+	StorageS3CACertFile                 string
+	StorageS3InsecureSkipVerify         bool
 	MigrationDir                        string
 	SMTPDomain                          string
 	SMTPReadTimeout                     time.Duration
@@ -246,6 +248,8 @@ func Load() Config {
 		StorageS3SecretAccessKey:            os.Getenv("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY"),
 		StorageS3SessionToken:               os.Getenv("GOGOMAIL_STORAGE_S3_SESSION_TOKEN"),
 		StorageS3ForcePathStyle:             boolEnvOrDefault("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", false),
+		StorageS3CACertFile:                 envOrDefault("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", ""),
+		StorageS3InsecureSkipVerify:         boolEnvOrDefault("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", false),
 		MigrationDir:                        envOrDefault("GOGOMAIL_MIGRATION_DIR", "migrations"),
 		SMTPDomain:                          envOrDefault("GOGOMAIL_SMTP_DOMAIN", "localhost"),
 		SMTPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_SMTP_READ_TIMEOUT", 30*time.Second),

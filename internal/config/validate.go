@@ -2,11 +2,13 @@ package config
 
 import (
 	"crypto/ed25519"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"net"
 	"net/mail"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -174,6 +176,17 @@ func (c Config) Validate() error {
 		}
 		if err := validateS3CredentialNoWhitespace("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", c.StorageS3SessionToken, 8192, false); err != nil {
 			return err
+		}
+		if err := validateBoundedNoCRLF("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", c.StorageS3CACertFile, 4096); err != nil {
+			return err
+		}
+		if strings.TrimSpace(c.StorageS3CACertFile) != "" {
+			if err := validateCACertFile("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", c.StorageS3CACertFile); err != nil {
+				return err
+			}
+		}
+		if production && c.StorageS3InsecureSkipVerify {
+			return fmt.Errorf("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY must be false in production")
 		}
 	}
 	if err := validateEnum("GOGOMAIL_DEDUP_BACKEND", c.DedupBackend, "none", "redis"); err != nil {
@@ -719,6 +732,18 @@ func validateS3CredentialNoWhitespace(name string, value string, maxBytes int, r
 	}
 	if len(value) > maxBytes {
 		return fmt.Errorf("%s is too long", name)
+	}
+	return nil
+}
+
+func validateCACertFile(name string, path string) error {
+	data, err := os.ReadFile(strings.TrimSpace(path))
+	if err != nil {
+		return fmt.Errorf("%s cannot be read: %w", name, err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(data) {
+		return fmt.Errorf("%s must contain at least one PEM-encoded certificate", name)
 	}
 	return nil
 }

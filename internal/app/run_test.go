@@ -5,8 +5,10 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -402,13 +404,16 @@ func TestStorageStoresForConfigDoesNotBridgeLocalWithoutCompatLabel(t *testing.T
 func TestS3OptionsForConfigPinsMinIOPathStyle(t *testing.T) {
 	t.Parallel()
 
-	opts := s3OptionsForConfig(config.Config{
+	opts, err := s3OptionsForConfig(config.Config{
 		StorageS3Endpoint:        "http://localhost:9000",
 		StorageS3Region:          "us-east-1",
 		StorageS3Bucket:          "gogomail",
 		StorageS3AccessKeyID:     "access",
 		StorageS3SecretAccessKey: "secret",
 	}, " minio ")
+	if err != nil {
+		t.Fatalf("s3OptionsForConfig returned error: %v", err)
+	}
 	if !opts.ForcePathStyle {
 		t.Fatal("minio backend should force path-style requests")
 	}
@@ -417,18 +422,21 @@ func TestS3OptionsForConfigPinsMinIOPathStyle(t *testing.T) {
 func TestS3OptionsForConfigPreservesS3PathStyleOverride(t *testing.T) {
 	t.Parallel()
 
-	opts := s3OptionsForConfig(config.Config{
+	opts, err := s3OptionsForConfig(config.Config{
 		StorageS3Endpoint:        "https://s3.us-east-1.amazonaws.com",
 		StorageS3Region:          "us-east-1",
 		StorageS3Bucket:          "gogomail",
 		StorageS3AccessKeyID:     "access",
 		StorageS3SecretAccessKey: "secret",
 	}, "s3")
+	if err != nil {
+		t.Fatalf("s3OptionsForConfig returned error: %v", err)
+	}
 	if opts.ForcePathStyle {
 		t.Fatal("s3 backend should preserve virtual-hosted addressing by default")
 	}
 
-	opts = s3OptionsForConfig(config.Config{
+	opts, err = s3OptionsForConfig(config.Config{
 		StorageS3Endpoint:        "https://s3.us-east-1.amazonaws.com",
 		StorageS3Region:          "us-east-1",
 		StorageS3Bucket:          "gogomail",
@@ -436,8 +444,55 @@ func TestS3OptionsForConfigPreservesS3PathStyleOverride(t *testing.T) {
 		StorageS3SecretAccessKey: "secret",
 		StorageS3ForcePathStyle:  true,
 	}, "s3")
+	if err != nil {
+		t.Fatalf("s3OptionsForConfig with override returned error: %v", err)
+	}
 	if !opts.ForcePathStyle {
 		t.Fatal("s3 backend should honor explicit path-style override")
+	}
+}
+
+func TestS3OptionsForConfigWiresTLSOverrides(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+	certFile := t.TempDir() + "/s3-ca.pem"
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(certFile, certPEM, 0o600); err != nil {
+		t.Fatalf("write CA file: %v", err)
+	}
+
+	opts, err := s3OptionsForConfig(config.Config{
+		StorageS3Endpoint:           "https://s3.internal.example",
+		StorageS3Region:             "us-east-1",
+		StorageS3Bucket:             "gogomail",
+		StorageS3AccessKeyID:        "access",
+		StorageS3SecretAccessKey:    "secret",
+		StorageS3CACertFile:         certFile,
+		StorageS3InsecureSkipVerify: true,
+	}, "s3")
+	if err != nil {
+		t.Fatalf("s3OptionsForConfig returned error: %v", err)
+	}
+	if opts.HTTPClient == nil {
+		t.Fatal("HTTPClient = nil, want custom S3 transport")
+	}
+	transport, ok := opts.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("HTTPClient.Transport = %T, want *http.Transport", opts.HTTPClient.Transport)
+	}
+	if transport.TLSClientConfig == nil {
+		t.Fatal("TLSClientConfig = nil, want S3 TLS overrides")
+	}
+	if !transport.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("InsecureSkipVerify = false, want configured override")
+	}
+	if transport.TLSClientConfig.MinVersion != tls.VersionTLS12 {
+		t.Fatalf("MinVersion = %x, want TLS 1.2", transport.TLSClientConfig.MinVersion)
+	}
+	if len(transport.TLSClientConfig.RootCAs.Subjects()) == 0 {
+		t.Fatal("RootCAs is empty, want custom CA bundle appended")
 	}
 }
 

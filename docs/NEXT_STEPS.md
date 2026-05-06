@@ -346,6 +346,11 @@ Current state:
   `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so operators
   can audit the object-store target directly while development/test configs can
   still derive AWS endpoints from region.
+- S3-compatible runtime wiring now supports private object-store TLS trust via
+  `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, validates that the file contains a PEM
+  certificate, and injects a dedicated TLS 1.2+ HTTP client into the existing
+  storage adapter. `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` is accepted
+  only outside production for local/self-signed compatibility testing.
 - Drive runtime wiring now registers the configured S3-compatible store under
   both `s3` and `minio` labels, so rows created under local MinIO can still be
   served after an AWS S3-style backend flip and vice versa when object keys and
