@@ -330,8 +330,10 @@ pagination metadata.
 `PutObject` and `DeleteObject` success responses also reject top-level
 standard S3 `<Error>` bodies before reporting completed writes or cleanup, so
 compatible-provider throttling, auth, or policy failures cannot cross the
-shared storage contract as false success. If a provider includes an `ETag`
-header on a successful `PutObject`, gogomail requires that header to be
+shared storage contract as false success. Apart from whitespace, those success
+bodies must otherwise be empty; arbitrary provider text or XML is rejected
+instead of being treated as a standard empty success. If a provider includes an
+`ETag` header on a successful `PutObject`, gogomail requires that header to be
 singular and a bounded safe single-line value; providers that omit the optional
 header remain compatible.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical

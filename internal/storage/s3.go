@@ -1360,6 +1360,9 @@ func validateS3EmptySuccessResponse(operation string, body io.Reader) error {
 		}
 		return fmt.Errorf("%s s3 object: embedded error: %s", operation, preview)
 	}
+	if strings.TrimSpace(string(data)) != "" {
+		return fmt.Errorf("%s s3 object: unexpected success response body", operation)
+	}
 	return nil
 }
 
