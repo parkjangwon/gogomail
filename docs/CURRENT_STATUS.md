@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after API usage export manifest OpenAPI admin pinning)
+Last updated: 2026-05-07 (updated after core admin OpenAPI route pinning)
 
 ## Current phase
 
@@ -99,6 +99,10 @@ operator-only routes.
 API usage export manifest digest and manifest signature operations now also
 pin the Admin API server and admin-auth alternatives in OpenAPI, keeping
 audit/export proof material aligned with the runtime operator-only boundary.
+Core operator routes for queue stats, delivery route counters, and IMAP UID
+backfill now also pin the Admin API server and admin-auth alternatives in
+OpenAPI, preventing generated clients from treating operational repair and
+diagnostic calls as public Mail API routes.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

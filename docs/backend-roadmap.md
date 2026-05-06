@@ -3608,6 +3608,9 @@ Implementation order:
 1341. API usage export manifest digest/signature OpenAPI operations now pin
       `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated audit/export proof routes.
+1342. Core queue stats, delivery route counters, and IMAP UID backfill OpenAPI
+      operations now pin `/admin/v1` and admin-token/bearer auth alternatives,
+      matching their runtime admin-authenticated diagnostics/repair routes.
 
 ## Deferred until backend contracts stabilize
 

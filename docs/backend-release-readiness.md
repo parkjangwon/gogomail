@@ -49,6 +49,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API usage export manifest digest/signature OpenAPI operations now also pin
   the Admin API server and admin-token/bearer auth alternatives, matching
   their operator-only runtime `adminAuth` routes.
+- Core queue stats, delivery route counters, and IMAP UID backfill OpenAPI
+  operations now also pin the Admin API server and admin-token/bearer auth
+  alternatives, matching their runtime diagnostics/repair `adminAuth` routes.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff
