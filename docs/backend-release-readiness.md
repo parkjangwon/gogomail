@@ -110,6 +110,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH` and `UID FETCH` data-item controls now reject exact quoted or
   command-literal fetch attribute atoms such as `"FLAGS"` or literal `FLAGS`
   before authentication or selected-mailbox state.
+- IMAP `ENABLE` capability operands now reject quoted or command-literal
+  `CONDSTORE` probes before authentication, preserving capability negotiation
+  as atom-only syntax.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`

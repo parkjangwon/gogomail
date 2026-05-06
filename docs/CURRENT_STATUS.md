@@ -3987,6 +3987,9 @@ The platform hardening sprint completed the following:
   command-literal data item atoms such as `"FLAGS"` or literal `FLAGS` instead
   of dequoting them into valid fetch attributes before authentication or
   mailbox state checks.
+- IMAP `ENABLE` capability operands now require raw atom tokens, rejecting
+  quoted or command-literal `CONDSTORE` probes before authentication while
+  preserving valid atom capability probes and unsupported atom ignore behavior.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

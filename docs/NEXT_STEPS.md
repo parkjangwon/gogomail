@@ -715,6 +715,9 @@ Current state:
   command-literal data item atoms such as `"FLAGS"` or literal `FLAGS`, while
   preserving the existing diagnostics for whitespace-padded malformed fetch
   item lists.
+- IMAP `ENABLE` capability operands now reject quoted or command-literal
+  values such as `"CONDSTORE"` or literal `CONDSTORE`, keeping capability
+  negotiation on the RFC atom boundary before authentication.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.
