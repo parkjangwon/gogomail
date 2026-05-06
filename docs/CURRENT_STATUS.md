@@ -177,6 +177,10 @@ instead of reaching fetch/search/store execution.
 failures: a newly opened mailbox event subscription is canceled unless it has
 been installed into connection state, preventing leaked event listeners on
 broken clients.
+When `RENAME` is applied to the currently selected mailbox and the backend
+returns a new canonical mailbox ID, the IMAP session now moves selected state
+and mailbox event subscription to that returned ID while preserving saved
+SEARCHRES sequence results for the still-selected mailbox.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

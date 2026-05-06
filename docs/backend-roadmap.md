@@ -3505,6 +3505,9 @@ Implementation order:
       mailbox event subscription if response writing fails before the
       subscription is installed into connection state, avoiding leaked event
       listeners on broken-client or network-failure paths.
+1320. IMAP selected-mailbox `RENAME` now tracks a backend-returned canonical
+      mailbox ID and refreshes the mailbox event subscription to that ID while
+      preserving same-selection SEARCHRES sequence results.
 
 ## Deferred until backend contracts stabilize
 
