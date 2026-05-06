@@ -430,8 +430,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   clients.
 - CalDAV `calendar-query` parsing now requires RFC 4791-shaped component
   filters with explicit `name` attributes and a top-level `VCALENDAR`
-  component, rejecting malformed search filters before they can widen into
-  whole-calendar matches.
+  component, and rejects missing or repeated top-level component filters before
+  malformed search filters can widen into whole-calendar matches.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs from native
   clients by normalizing only the URI path through the existing CalDAV scope
   checks, while rejecting userinfo-bearing authorities, query, fragment,

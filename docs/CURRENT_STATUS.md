@@ -52,10 +52,11 @@ CalDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers before
 request-body parsing, keeping WebDAV traversal scope deterministic across
 native clients and intermediaries.
 CalDAV `calendar-query` parsing now rejects malformed RFC 4791 component
-filters that omit the required `name` attribute or use a non-`VCALENDAR`
-top-level component, so native-client search/filter requests fail at the
-protocol grammar boundary instead of being silently widened to whole-calendar
-matches.
+filters that omit the required `name` attribute, use a non-`VCALENDAR`
+top-level component, omit the top-level component filter, or send multiple
+top-level component filters, so native-client search/filter requests fail at
+the protocol grammar boundary instead of being silently widened to
+whole-calendar matches.
 CalDAV object and collection preconditions now evaluate repeated `If-Match`
 and `If-None-Match` headers as a single ETag list, so cache validation and
 write guards match HTTP field-combination semantics instead of depending on the
