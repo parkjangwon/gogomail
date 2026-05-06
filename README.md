@@ -2,11 +2,16 @@
 
 <img width="1456" height="720" alt="1777874812592" src="https://github.com/user-attachments/assets/3e222678-51be-465f-b37d-58d2390ba40d" />
 
-Go-first backend implementation for the gogomail webmail/mail-server platform.
+Go-first backend implementation for the gogomail webmail/mail-server platform:
+a standards-first, backend-contract-first mail platform designed for RFC
+correctness, high-throughput operation, and generated-client friendly APIs.
 
 ## Current scope
 
-This repository is currently in the backend platform hardening phase.
+This repository is currently in the backend platform hardening phase. The goal
+is a production mail platform, not a demo server: protocol capabilities should
+be advertised only when runtime behavior, tests, and client compatibility are
+ready to back them.
 
 The SMTP engine is materially advanced, and current work is broadening into
 tenant/domain operations, Admin API, Mail API contracts, delivery routing,
@@ -14,6 +19,14 @@ DNS/DKIM onboarding, quota/policy enforcement, and OpenAPI drift prevention.
 
 Recent release-readiness work also includes:
 
+- Mail API readiness for production webmail chrome, including mailbox
+  overview, folder/message/thread lists, previews, bounded bulk actions,
+  restore flows, attachment access, draft/send flows, and capability discovery
+  that exposes only runtime-backed filters and limits
+- Admin API readiness for future operator consoles, including capability
+  bootstrap under `/admin/v1`, tenant/domain/user operations, queue/outbox and
+  delivery triage, audit/backpressure/quota/DKIM/API-usage surfaces, strict
+  request-boundary validation, and OpenAPI/runtime drift tests
 - storage portability across local filesystem, explicit NFS mounts, local
   MinIO, and AWS/S3-compatible object storage through the shared storage
   interface and validated `configs/storage.*.yaml` profiles
@@ -21,20 +34,27 @@ Recent release-readiness work also includes:
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
   namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
-  workflows, SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal
-  framing coverage
-- backend-only CalDAV/CardDAV foundations for standards-first calendar and
-  contacts interoperability, with Directory/Identity, delegation,
-  Notification & Sync, search, policy, audit boundaries, and RFC-shaped
-  calendar-query behavior treated as platform prerequisites rather than
-  UI-only features
+  workflows, CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
+  SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal framing coverage
+- backend-only CalDAV foundations for standards-first calendar
+  interoperability, with real gateway/runtime mode work, Basic-auth protected
+  DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
+  validation, and Directory/Identity, delegation, Notification & Sync, search,
+  policy, and audit boundaries treated as platform prerequisites
+- backend-only CardDAV foundations for contacts interoperability, with
+  address-book principal/object boundaries, vCard validation, sync discovery,
+  and native-client compatibility gates kept separate from future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
-  contract without starting frontend implementation
-- webmail capability discovery that advertises only runtime-backed search
-  filters, so generated clients do not call unsupported query shapes
+  contract for metadata, upload/finalize, rename/move, delete, range download,
+  and cleanup readiness without starting frontend implementation
+- OpenAPI drift prevention for generated clients, including root-vs-API server
+  pins for health/service metadata, `/admin/v1` pins for operator bootstrap
+  routes, and documented admin auth alternatives for capability discovery
 
 The Next.js web apps will be added after the backend contracts stabilize and
-after the user provides frontend-specific guidance.
+after the user provides frontend-specific guidance. Planned frontend surfaces
+include webmail, Drive UI, calendar UI, contacts UI, admin console, and shared
+inbox UI.
 
 When frontend implementation starts, use Next.js with TypeScript, shadcn/ui,
 `DESIGN.md`, and a Notion Mail-like product feel. Do not create substantial
@@ -109,10 +129,30 @@ auth adapter, mailbox event broker, and live `mail.stored` notification
 consumer for IDLE/NOOP update delivery. The gateway advertises only the IMAP
 extensions currently backed by tests and service semantics; continue treating
 RFC correctness and client compatibility as release gates for every advertised
-capability.
+capability. IMAP is intentionally service-backed and advanced, but public
+client readiness remains gated by RFC-shaped syntax, state, UID, MODSEQ, and
+literal/framing regressions.
 
 `all-in-one` serves health, Mail API, and Admin API routes from one HTTP
 process for small deployments and local release smoke tests.
+
+`mail-api` serves the user-scoped HTTP backend for future webmail and Drive UI
+clients under `/api/v1`. The API contract is documented in
+`docs/openapi.yaml`; handlers and the OpenAPI draft should move together so
+generated clients do not learn unsupported routes, filters, limits, or response
+envelopes.
+
+`admin-api` serves operator and administrator surfaces under `/admin/v1`,
+including console capability discovery, tenant/domain/user control,
+operational triage, retention/export readiness, storage capability reporting,
+and no-store authenticated JSON responses. Admin routes document the accepted
+`X-Admin-Token` and bearer-token alternatives where applicable and reject
+ambiguous mixed credentials at the shared auth boundary.
+
+`caldav` and `carddav` start the backend-only DAV gateways for calendar and
+contacts interoperability. They are real protocol modules, but they should
+remain release-gated until native-client behavior, principal resolution,
+delegation, sync, policy, audit, and storage semantics are proven together.
 
 `push-notification-worker` stays disabled until
 `GOGOMAIL_PUSH_NOTIFICATION_BACKEND=slog` or
@@ -258,7 +298,7 @@ pre-release smoke matrix.
 
 ## Receive mail locally
 
-Start the current SMTP receive MVP:
+Start the local SMTP receive boundary:
 
 ```bash
 GOGOMAIL_SMTP_ADDR=127.0.0.1:2525 \
