@@ -655,6 +655,9 @@ Current state:
   syntax-only search-key validation before authentication or selected-mailbox
   checks, keeping malformed embedded search criteria consistent across the
   search/sort/thread command family.
+- IMAP `SORT`, `UID SORT`, `THREAD`, and `UID THREAD` embedded search
+  sequence-set criteria now also reject quoted or literal-framed set operands
+  such as `SORT (DATE) UTF-8 "1"` or `THREAD ORDEREDSUBJECT UTF-8 {1+}\r\n1`.
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.

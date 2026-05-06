@@ -3963,6 +3963,10 @@ The platform hardening sprint completed the following:
   command-literal set values such as `SEARCH "1"` or `UID SEARCH UID {1+}`
   are rejected as unsupported criteria instead of being dequoted into valid
   sets.
+- IMAP `SORT`/`UID SORT` and `THREAD`/`UID THREAD` embedded search
+  sequence-set criteria now use that same raw atom-only set boundary, rejecting
+  quoted or command-literal set operands before authentication or selected
+  mailbox state.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

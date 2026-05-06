@@ -4144,6 +4144,9 @@ Implementation order:
 1470. IMAP SEARCH sequence-set criteria and UID SEARCH UID set operands now
       reject quoted-string or command-literal set values, preserving atom-only
       set semantics without weakening string operands for text/header search.
+1471. IMAP SORT/UID SORT and THREAD/UID THREAD embedded search criteria now
+      apply the same atom-only sequence-set boundary to quoted and
+      literal-framed set operands before state checks.
 
 ## Deferred until backend contracts stabilize
 
