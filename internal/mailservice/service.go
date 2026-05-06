@@ -877,9 +877,9 @@ func sanitizeStoragePathSegment(value string) string {
 	return out
 }
 
-func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.MessageSummary, error) {
+func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.CopyMessageResult, error) {
 	repo, ok := s.repository.(interface {
-		CopyIMAPMessages(context.Context, string, string, string, []imapgw.UID) ([]imapgw.MessageSummary, error)
+		CopyIMAPMessages(context.Context, string, string, string, []imapgw.UID) ([]imapgw.CopyMessageResult, error)
 	})
 	if !ok {
 		return nil, fmt.Errorf("imap copy repository is required")
@@ -903,7 +903,7 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 	if err != nil {
 		return nil, err
 	}
-	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, userID, summaries)
+	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, userID, imapCopyDestinationSummaries(summaries))
 	return summaries, nil
 }
 
@@ -983,6 +983,14 @@ func imapMoveSourceSummaries(results []imapgw.MoveMessageResult) []imapgw.Messag
 	summaries := make([]imapgw.MessageSummary, 0, len(results))
 	for _, result := range results {
 		summaries = append(summaries, result.Source)
+	}
+	return summaries
+}
+
+func imapCopyDestinationSummaries(results []imapgw.CopyMessageResult) []imapgw.MessageSummary {
+	summaries := make([]imapgw.MessageSummary, 0, len(results))
+	for _, result := range results {
+		summaries = append(summaries, result.Destination)
 	}
 	return summaries
 }

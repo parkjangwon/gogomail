@@ -124,6 +124,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST`/`LSUB` prepares mailbox-pattern matchers once per command and
   reuses them across row scans, keeping folder hierarchy discovery more
   allocation-aware under large mailbox trees.
+- IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
+  summary mappings from the backend copy result, with sparse UID COPY/MOVE
+  regression coverage and PostgreSQL coverage for ignored missing UID members.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

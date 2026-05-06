@@ -89,8 +89,8 @@ func (fakeComposedBackend) SelectMailbox(context.Context, SelectMailboxRequest) 
 	}, nil
 }
 
-func (fakeComposedBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]MessageSummary, error) {
-	return []MessageSummary{{ID: "message-copy-1", MailboxID: "archive", UID: 2}}, nil
+func (fakeComposedBackend) CopyMessages(context.Context, CopyMessagesRequest) ([]CopyMessageResult, error) {
+	return []CopyMessageResult{{SourceUID: 1, Destination: MessageSummary{ID: "message-copy-1", MailboxID: "archive", UID: 2}}}, nil
 }
 
 func (fakeComposedBackend) MoveMessages(context.Context, MoveMessagesRequest) ([]MoveMessageResult, error) {

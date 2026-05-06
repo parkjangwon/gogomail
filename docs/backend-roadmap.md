@@ -3345,6 +3345,12 @@ Implementation order:
       `GOGOMAIL_STORAGE_ROOT` environment alias while keeping `mailstore_root`
       backward-compatible. The validated storage profile overlays use the
       storage-focused key so config-only local/NFS flips are clearer.
+1287. IMAP UIDPLUS `COPYUID` generation now uses explicit `CopyMessageResult`
+      source-UID to destination-summary mappings through the gateway, service,
+      and PostgreSQL repository boundary. Sparse UID copy/move probes are
+      regression-covered so nonexistent UID members are ignored without
+      contaminating response codes, and alternate backends no longer have to
+      rely on implicit result ordering to preserve COPYUID semantics.
 
 ## Deferred until backend contracts stabilize
 

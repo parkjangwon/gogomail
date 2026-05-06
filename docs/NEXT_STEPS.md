@@ -109,6 +109,11 @@ Current state:
   probes aligned with the server's root-relative mailbox store. The decoded
   pattern matcher is prepared once per `LIST`/`LSUB` command and reused across
   mailbox rows, keeping large folder-tree discovery allocation-aware.
+- IMAP UIDPLUS `COPYUID` generation now uses an explicit copy-result mapping
+  from source UID to destination message summary across the gateway, service,
+  and PostgreSQL repository boundary, so sparse UID requests and concurrent
+  source disappearance cannot force the server to guess source/destination
+  pairing from request order alone.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

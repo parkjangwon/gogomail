@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after storage_root YAML config alias)
+Last updated: 2026-05-06 (updated after IMAP COPYUID source mapping)
 
 ## Current phase
 
@@ -81,6 +81,12 @@ IMAP `LIST` and `LSUB` now compile the decoded mailbox-pattern matcher once
 per command and reuse it across mailbox rows and subscribed-parent inference,
 avoiding per-mailbox regular-expression construction on large folder trees
 without changing wildcard semantics.
+IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
+mapping through the gateway, service, and PostgreSQL repository boundary, so
+advertised UIDPLUS `COPYUID` responses are generated from the messages that
+were actually copied rather than inferred from the requested UID slice. Sparse
+UID copy/move probes such as `UID COPY 7,999 Archive` are regression-covered
+so nonexistent UIDs are ignored without polluting response codes.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

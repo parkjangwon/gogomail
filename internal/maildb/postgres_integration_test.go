@@ -1200,11 +1200,15 @@ INSERT INTO attachments (
 	if len(copied) != 1 {
 		t.Fatalf("copied summaries = %#v, want 1", copied)
 	}
-	if copied[0].ID == imapgw.MessageID(messageID) {
+	if copied[0].SourceUID != sourceUID.UID {
+		t.Fatalf("copied source UID = %d, want %d", copied[0].SourceUID, sourceUID.UID)
+	}
+	copiedSummary := copied[0].Destination
+	if copiedSummary.ID == imapgw.MessageID(messageID) {
 		t.Fatalf("copied message reused source id %q", messageID)
 	}
-	if copied[0].MailboxID != imapgw.MailboxID(seed.sentID) || copied[0].UID != 1 || copied[0].SequenceNumber != 1 {
-		t.Fatalf("copied summary mailbox/uid/seq = %q/%d/%d, want sent/1/1", copied[0].MailboxID, copied[0].UID, copied[0].SequenceNumber)
+	if copiedSummary.MailboxID != imapgw.MailboxID(seed.sentID) || copiedSummary.UID != 1 || copiedSummary.SequenceNumber != 1 {
+		t.Fatalf("copied summary mailbox/uid/seq = %q/%d/%d, want sent/1/1", copiedSummary.MailboxID, copiedSummary.UID, copiedSummary.SequenceNumber)
 	}
 
 	sourceStillThere, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, sourceUID.UID)
@@ -1214,7 +1218,7 @@ INSERT INTO attachments (
 	if string(sourceStillThere.Summary.ID) != messageID {
 		t.Fatalf("source message after copy = %q, want %q", sourceStillThere.Summary.ID, messageID)
 	}
-	copiedMessage, err := repo.GetIMAPMessage(ctx, seed.userID, seed.sentID, copied[0].UID)
+	copiedMessage, err := repo.GetIMAPMessage(ctx, seed.userID, seed.sentID, copiedSummary.UID)
 	if err != nil {
 		t.Fatalf("GetIMAPMessage copied destination returned error: %v", err)
 	}
@@ -1228,7 +1232,7 @@ INSERT INTO attachments (
 	if err := db.QueryRowContext(ctx, `
 SELECT COUNT(*), COALESCE(SUM(size), 0), COALESCE(MAX(storage_path), '')
 FROM attachments
-WHERE message_id = $1::uuid`, string(copied[0].ID)).Scan(&copiedAttachmentCount, &copiedAttachmentSize, &copiedStoragePath); err != nil {
+WHERE message_id = $1::uuid`, string(copiedSummary.ID)).Scan(&copiedAttachmentCount, &copiedAttachmentSize, &copiedStoragePath); err != nil {
 		t.Fatalf("query copied attachment: %v", err)
 	}
 	if copiedAttachmentCount != 1 || copiedAttachmentSize != 12 || copiedStoragePath != "attachments/source-report.pdf" {
@@ -1240,6 +1244,14 @@ WHERE message_id = $1::uuid`, string(copied[0].ID)).Scan(&copiedAttachmentCount,
 	}
 	if quotaAfter-quotaBefore != 112 {
 		t.Fatalf("quota delta = %d, want copied message plus attachment bytes 112", quotaAfter-quotaBefore)
+	}
+
+	sparseCopied, err := repo.CopyIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{sourceUID.UID, 999999})
+	if err != nil {
+		t.Fatalf("sparse CopyIMAPMessages returned error: %v", err)
+	}
+	if len(sparseCopied) != 1 || sparseCopied[0].SourceUID != sourceUID.UID || sparseCopied[0].Destination.UID != 2 {
+		t.Fatalf("sparse copied results = %#v, want source UID mapped to next destination UID 2", sparseCopied)
 	}
 }
 

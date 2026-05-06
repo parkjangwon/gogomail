@@ -83,7 +83,7 @@ func (a IMAPStoreAdapter) SelectMailbox(ctx context.Context, req imapgw.SelectMa
 	}, nil
 }
 
-func (a IMAPStoreAdapter) CopyMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.MessageSummary, error) {
+func (a IMAPStoreAdapter) CopyMessages(ctx context.Context, req imapgw.CopyMessagesRequest) ([]imapgw.CopyMessageResult, error) {
 	return a.service.CopyIMAPMessages(ctx, req)
 }
 
