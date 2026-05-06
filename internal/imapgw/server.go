@@ -1073,10 +1073,8 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 	if state.selectedMailbox == mailbox.ID && renamed.ID != "" && renamed.ID != state.selectedMailbox {
 		state.closeSubscription()
 		state.selectedMailbox = renamed.ID
-		if renamed.HighestModSeq > 0 {
-			state.selectedHighestModSeq = renamed.HighestModSeq
-			state.selectedNoModSeq = false
-		}
+		state.selectedHighestModSeq = renamed.HighestModSeq
+		state.selectedNoModSeq = renamed.HighestModSeq == 0 && state.condstoreAware
 		if events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, renamed.ID); err == nil {
 			state.events = events
 			state.cancelEvents = cancel

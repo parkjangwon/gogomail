@@ -3524,6 +3524,10 @@ Implementation order:
 1320. IMAP selected-mailbox `RENAME` now tracks a backend-returned canonical
       mailbox ID and refreshes the mailbox event subscription to that ID while
       preserving same-selection SEARCHRES sequence results.
+1320a. IMAP selected-mailbox `RENAME` now also refreshes selected
+       `HIGHESTMODSEQ`/`NOMODSEQ` metadata from the backend-returned mailbox,
+       preventing stale CONDSTORE state when a renamed mailbox reports no
+       persistent mod-sequences.
 1321. S3-compatible request construction now has regression coverage for
       automatic path-style addressing on HTTPS dotted buckets and
       localhost/IPv4/IPv6 endpoints, preserving AWS certificate compatibility

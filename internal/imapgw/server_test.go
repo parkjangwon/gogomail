@@ -5962,7 +5962,7 @@ func TestServerDeleteSelectedMailboxClearsSavedSearch(t *testing.T) {
 func TestServerRenameSelectedMailboxTracksReturnedID(t *testing.T) {
 	t.Parallel()
 
-	backendImpl := &renameSelectedBackend{}
+	backendImpl := &renameSelectedBackend{renamedHighestModSeq: 22}
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
@@ -6010,6 +6010,48 @@ func TestServerRenameSelectedMailboxTracksReturnedID(t *testing.T) {
 	}
 	if state.events == nil || state.cancelEvents == nil {
 		t.Fatalf("subscription after selected RENAME = events %#v cancel nil %t", state.events, state.cancelEvents == nil)
+	}
+}
+
+func TestServerRenameSelectedMailboxRefreshesNoModSeqState(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &renameSelectedBackend{renamedHighestModSeq: 0}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	var output strings.Builder
+	writer := bufio.NewWriter(&output)
+	state := &imapConnState{
+		session:               &Session{UserID: "user-1"},
+		selectedMailbox:       "archive",
+		selectedHighestModSeq: 77,
+		condstoreAware:        true,
+		savedSearch:           []imapSearchSavedMessage{{uid: 9, sequenceNumber: 2}},
+	}
+
+	done, err := server.handleRenameMailbox(writer, "a1", []string{"a1", "RENAME", "Archive", "Renamed"}, state)
+	if err != nil {
+		t.Fatalf("handleRenameMailbox returned error: %v", err)
+	}
+	if done {
+		t.Fatal("handleRenameMailbox done = true, want false")
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush rename response: %v", err)
+	}
+	if output.String() != "a1 OK RENAME completed\r\n" {
+		t.Fatalf("rename response = %q", output.String())
+	}
+	if state.selectedMailbox != "renamed" || state.selectedHighestModSeq != 0 || !state.selectedNoModSeq {
+		t.Fatalf("selected state after RENAME = mailbox %q modseq %d noModSeq %t, want renamed/0/true", state.selectedMailbox, state.selectedHighestModSeq, state.selectedNoModSeq)
+	}
+	if state.savedSearch == nil || len(state.savedSearch) != 1 || state.savedSearch[0].uid != 9 {
+		t.Fatalf("savedSearch after selected RENAME = %#v, want preserved", state.savedSearch)
+	}
+	if backendImpl.subscribed != "renamed" {
+		t.Fatalf("subscribed mailbox = %q, want renamed", backendImpl.subscribed)
 	}
 }
 
@@ -11601,9 +11643,10 @@ func (failingWriter) Write([]byte) (int, error) {
 
 type renameSelectedBackend struct {
 	fakeBackend
-	renamedFrom MailboxID
-	renamedTo   MailboxID
-	subscribed  MailboxID
+	renamedFrom          MailboxID
+	renamedTo            MailboxID
+	subscribed           MailboxID
+	renamedHighestModSeq uint64
 }
 
 func (renameSelectedBackend) GetMailbox(_ context.Context, _ UserID, mailboxID MailboxID) (Mailbox, error) {
@@ -11616,7 +11659,7 @@ func (renameSelectedBackend) GetMailbox(_ context.Context, _ UserID, mailboxID M
 func (b *renameSelectedBackend) RenameMailbox(_ context.Context, _ UserID, source MailboxID, dest MailboxID) (Mailbox, error) {
 	b.renamedFrom = source
 	b.renamedTo = dest
-	return Mailbox{ID: "renamed", Name: string(dest), UIDValidity: 2, UIDNext: 5, HighestModSeq: 22}, nil
+	return Mailbox{ID: "renamed", Name: string(dest), UIDValidity: 2, UIDNext: 5, HighestModSeq: b.renamedHighestModSeq}, nil
 }
 
 func (b *renameSelectedBackend) Subscribe(_ context.Context, _ UserID, mailboxID MailboxID) (<-chan MailboxEvent, func(), error) {

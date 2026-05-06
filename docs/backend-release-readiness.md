@@ -198,7 +198,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preventing listener leaks during broken-client handshakes.
 - IMAP selected-mailbox `RENAME` now follows backend-returned canonical mailbox
   IDs and refreshes event subscription state without discarding same-selection
-  SEARCHRES results.
+  SEARCHRES results. The same handoff refreshes selected
+  `HIGHESTMODSEQ`/`NOMODSEQ` metadata, keeping RFC 7162 MODSEQ-dependent
+  command guards aligned with the renamed mailbox.
 - IMAP mailbox event publishing now avoids send-on-closed-channel races during
   concurrent subscription cancellation while keeping slow-subscriber delivery
   non-blocking.
