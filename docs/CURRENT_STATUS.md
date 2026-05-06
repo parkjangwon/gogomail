@@ -128,7 +128,9 @@ storage interface.
 S3-compatible `HEAD`/`Stat` now also validates the raw `Content-Length` header
 when Go has already populated `Response.ContentLength`, rejecting malformed or
 contradictory provider metadata instead of trusting the normalized struct
-field alone.
+field alone. Duplicate `Last-Modified` headers are rejected before timestamp
+parsing so provider metadata cannot collapse multiple object modification times
+into whichever value the HTTP library returns first.
 S3-compatible full-object `GET` now applies the same exact `Content-Length`
 header validation when present and wraps known-length successful bodies in a
 bounded reader, so truncated compatible-provider full reads surface

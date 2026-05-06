@@ -140,7 +140,8 @@ Current state:
   bounded reader or object metadata.
 - S3-compatible `HEAD`/`Stat` now validates the raw `Content-Length` header
   even when the HTTP response already has a populated `ContentLength` field,
-  rejecting malformed or contradictory provider metadata.
+  rejecting malformed or contradictory provider metadata. Duplicate
+  `Last-Modified` headers now also fail closed before timestamp parsing.
 - S3-compatible full-object `GET` now validates present `Content-Length`
   headers with the same exact unsigned decimal grammar and returns a bounded
   reader for known-length bodies, reporting `io.ErrUnexpectedEOF` on truncated

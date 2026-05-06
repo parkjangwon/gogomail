@@ -83,7 +83,8 @@ Recent release-readiness work also includes:
   logical prefix, object sizes and full/range content lengths use exact unsigned
   decimal grammar without whitespace padding, duplicate `Content-Length`
   headers fail closed, `HEAD`/`Stat` rejects malformed or contradictory
-  `Content-Length`/`Last-Modified` metadata, truncated
+  `Content-Length`/`Last-Modified` metadata including duplicate
+  `Last-Modified` headers, truncated
   pages require canonical continuation state, malformed list entries fail
   closed, non-empty malformed listed ETags fail closed, and
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
