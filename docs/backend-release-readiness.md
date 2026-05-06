@@ -454,6 +454,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   coverage for address normalization and active-only target-principal lookup.
   This prepares mail-routing diagnostics, attendee resolution, and shared inbox
   targeting without duplicating address parsing in product modules.
+  Directory alias listing now also has a bounded repository boundary with
+  company/domain, target-principal, text query, active-only, and result-limit
+  validation, preparing admin alias management without exposing raw
+  `directory_aliases` queries.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

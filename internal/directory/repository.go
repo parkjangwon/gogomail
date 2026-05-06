@@ -90,6 +90,79 @@ WHERE lower(a.alias_address_ace) = $1
 	return alias, nil
 }
 
+func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListAliasesRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	pattern := principalSearchPattern(req.Query)
+	const query = `
+SELECT a.id::text,
+       a.company_id::text,
+       a.domain_id::text,
+       a.alias_address,
+       a.alias_address_ace,
+       a.target_kind,
+       a.target_id::text,
+       a.status
+FROM directory_aliases a
+JOIN domains d ON d.id = a.domain_id
+JOIN companies c ON c.id = a.company_id AND c.id = d.company_id
+WHERE a.company_id = $1::uuid
+  AND ($2 = '' OR a.domain_id = NULLIF($2, '')::uuid)
+  AND ($3 = '' OR a.target_kind = $3)
+  AND ($4 = '' OR a.target_id = NULLIF($4, '')::uuid)
+  AND ($5 = '' OR lower(a.alias_address) LIKE $5 ESCAPE '\' OR lower(a.alias_address_ace) LIKE $5 ESCAPE '\')
+  AND ($6::boolean = false OR (a.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+ORDER BY lower(a.alias_address_ace), a.id
+LIMIT $7`
+	rows, err := r.db.QueryContext(ctx, query,
+		req.CompanyID,
+		req.DomainID,
+		req.TargetKind,
+		req.TargetID,
+		pattern,
+		req.ActiveOnly,
+		req.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list directory aliases: %w", err)
+	}
+	defer rows.Close()
+	aliases := make([]Alias, 0, req.Limit)
+	for rows.Next() {
+		var alias Alias
+		if err := rows.Scan(
+			&alias.ID,
+			&alias.CompanyID,
+			&alias.DomainID,
+			&alias.Address,
+			&alias.AddressACE,
+			&alias.TargetKind,
+			&alias.TargetID,
+			&alias.Status,
+		); err != nil {
+			return nil, fmt.Errorf("scan directory alias list result: %w", err)
+		}
+		alias.TargetPrincipal, err = r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+			ID:         alias.TargetID,
+			Kind:       alias.TargetKind,
+			ActiveOnly: req.ActiveOnly,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("resolve directory alias list target: %w", err)
+		}
+		aliases = append(aliases, alias)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list directory alias rows: %w", err)
+	}
+	return aliases, nil
+}
+
 func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsRequest) ([]Principal, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")

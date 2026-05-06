@@ -261,6 +261,12 @@ relationship model instead of forcing product modules to query
 `directory_delegations` directly. The CalDAV release tier should therefore stay
 experimental while the platform-level Directory/Identity, Contacts/CardDAV,
 Notification & Sync, Search, and Policy/Audit foundations continue to close.
+Directory alias listing is now a bounded repository boundary as well:
+`ListAliases` validates company/domain scope, target principal filters, query
+size, active-only state, and result limits before querying, then resolves each
+bounded alias row back to its target principal. This prepares shared inbox
+management, mail-routing diagnostics, and admin alias screens without exposing
+raw `directory_aliases` SQL to product modules.
 The admin backend API now exposes that read boundary as
 `GET /admin/v1/directory/delegations`, returning
 `{"directory_delegations":[...]}` with bounded company, owner, delegate, scope,
@@ -2694,6 +2700,10 @@ The platform hardening sprint completed the following:
   principal filters, delegation scope, role, active-only state, and result
   limits before querying, giving admin consoles and shared resource management
   a reusable read path without product-specific SQL.
+- Directory/Identity alias inspection now has a bounded repository boundary.
+  `ListAliases` validates company/domain scope, optional target principal
+  filters, text query, active-only state, and result limits before querying,
+  then resolves target principals through the shared resolver.
 - Admin APIs now expose Directory delegation inspection through
   `GET /admin/v1/directory/delegations`, with OpenAPI and backend contract
   coverage for the response envelope and bounded filter set. This gives future
