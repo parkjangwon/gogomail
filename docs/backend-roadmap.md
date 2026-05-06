@@ -2970,6 +2970,9 @@ Implementation order:
       `METHOD` properties for calendar object resources, matching RFC 4791
       storage rules while preserving server-generated `METHOD:REPLY` free-busy
       responses outside the object-write path.
+1211. CalDAV object `PUT` now rejects explicit non-`2.0` `text/calendar`
+      media-version parameters before body parsing, aligning the HTTP media
+      contract with the advertised `supported-calendar-data` version.
 
 ## Deferred until backend contracts stabilize
 
