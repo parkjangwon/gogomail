@@ -1120,6 +1120,10 @@ owner/resource target without scanning unrelated audit history.
   `ListObjectsV2` now require exact `200 OK` responses so accepted/deferred
   writes, unexpected partial-content, or other non-OK 2xx statuses cannot
   masquerade as durable or complete backend-neutral object results.
+- S3-compatible request construction now has explicit regression coverage for
+  automatic path-style addressing on HTTPS dotted buckets and local/IP
+  endpoints, preserving AWS S3 certificate compatibility and MinIO-style local
+  behavior even when the generic `s3` backend is used.
 - Local/NFS and S3-compatible readiness probes now read the verification object
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.

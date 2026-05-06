@@ -1249,6 +1249,68 @@ func TestS3StoreUsesVirtualHostedStyleByDefault(t *testing.T) {
 	}
 }
 
+func TestS3StoreAutoPathStyleForDottedHTTPSBucket(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "https://s3.us-east-1.amazonaws.com/base",
+		Region:          "us-east-1",
+		Bucket:          "mail.example.com",
+		Prefix:          "mail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	store.now = func() time.Time { return time.Date(2026, 5, 5, 12, 0, 0, 0, time.UTC) }
+
+	req, err := store.newRequest(context.Background(), http.MethodGet, "messages/msg 1.eml", nil)
+	if err != nil {
+		t.Fatalf("newRequest returned error: %v", err)
+	}
+	if req.URL.Host != "s3.us-east-1.amazonaws.com" {
+		t.Fatalf("request host = %q, want path-style endpoint host", req.URL.Host)
+	}
+	if got, want := req.URL.EscapedPath(), "/base/mail.example.com/mail/messages/msg%201.eml"; got != want {
+		t.Fatalf("request path = %q, want %q", got, want)
+	}
+}
+
+func TestS3StoreAutoPathStyleForLocalEndpoints(t *testing.T) {
+	t.Parallel()
+
+	for _, endpoint := range []string{"http://localhost:19000", "http://127.0.0.1:19000", "http://[::1]:19000"} {
+		endpoint := endpoint
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        endpoint,
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			req, err := store.newRequest(context.Background(), http.MethodHead, "messages/msg.eml", nil)
+			if err != nil {
+				t.Fatalf("newRequest returned error: %v", err)
+			}
+			if strings.HasPrefix(req.URL.Host, "gogomail.") {
+				t.Fatalf("request host = %q, want local path-style host", req.URL.Host)
+			}
+			if !strings.Contains(req.URL.EscapedPath(), "/gogomail/mail/messages/msg.eml") {
+				t.Fatalf("request path = %q, want bucket in path", req.URL.EscapedPath())
+			}
+		})
+	}
+}
+
 func TestS3StoreEscapesPlusInObjectKeys(t *testing.T) {
 	t.Parallel()
 

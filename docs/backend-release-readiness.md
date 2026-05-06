@@ -1380,7 +1380,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` remains an explicit S3 override.
   Localhost and IP-address endpoints also switch to path-style addressing
   automatically, avoiding `bucket.localhost`/`bucket.127.0.0.1` drift for local
-  S3-compatible stores even when `GOGOMAIL_STORAGE_BACKEND=s3` is used.
+  S3-compatible stores even when `GOGOMAIL_STORAGE_BACKEND=s3` is used. HTTPS
+  dotted buckets and localhost/IPv4/IPv6 endpoint fallbacks are
+  regression-covered at the request URL level.
   Drive runtime wiring registers the active S3-compatible store under both
   `s3` and `minio` labels, keeping existing Drive/upload rows reachable across
   MinIO-to-AWS S3-style backend flips when object keys and bucket contents have
