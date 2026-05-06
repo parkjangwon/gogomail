@@ -3356,6 +3356,10 @@ Implementation order:
       UID slice, keeping MOVE's already explicit source/destination contract
       aligned with COPY and preserving correct `COPYUID` semantics when missing
       UID members are ignored.
+1289. IMAP UID sequence-set response rendering now compacts contiguous
+      ascending runs into RFC sequence-set ranges, reducing bulk UIDPLUS,
+      ESEARCH, and SEARCHRES response size while preserving non-contiguous
+      response order.
 
 ## Deferred until backend contracts stabilize
 

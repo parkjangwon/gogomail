@@ -3528,7 +3528,7 @@ func TestServerHandlesCopyCommands(t *testing.T) {
 		t.Fatalf("write copy commands: %v", err)
 	}
 	want := []string{
-		"a3 OK [COPYUID 2 7,8 9,10] COPY completed\r\n",
+		"a3 OK [COPYUID 2 7:8 9:10] COPY completed\r\n",
 		"a4 OK [COPYUID 2 7 11] UID COPY completed\r\n",
 		"a5 OK [COPYUID 2 7 12] UID COPY completed\r\n",
 	}
@@ -8523,6 +8523,17 @@ func TestParseIMAPUIDSet(t *testing.T) {
 		if got, ok := parseIMAPUIDSet(value); ok {
 			t.Fatalf("parseIMAPUIDSet(%q) = %v true, want rejection", value, got)
 		}
+	}
+}
+
+func TestIMAPUIDSetResponseCompactsAscendingRuns(t *testing.T) {
+	t.Parallel()
+
+	if got := imapUIDSetResponse([]UID{7, 8, 9, 11, 13, 14}); got != "7:9,11,13:14" {
+		t.Fatalf("imapUIDSetResponse compacted = %q, want 7:9,11,13:14", got)
+	}
+	if got := imapUIDSetResponse([]UID{9, 7, 8, 12}); got != "9,7:8,12" {
+		t.Fatalf("imapUIDSetResponse preserves non-contiguous order = %q, want 9,7:8,12", got)
 	}
 }
 

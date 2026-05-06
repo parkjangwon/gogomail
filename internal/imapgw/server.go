@@ -3871,8 +3871,20 @@ func imapMoveHighestModSeq(results []MoveMessageResult) uint64 {
 
 func imapUIDSetResponse(uids []UID) string {
 	parts := make([]string, 0, len(uids))
-	for _, uid := range uids {
-		parts = append(parts, strconv.FormatUint(uint64(uid), 10))
+	for i := 0; i < len(uids); {
+		start := uids[i]
+		end := start
+		j := i + 1
+		for j < len(uids) && uids[j] == end+1 {
+			end = uids[j]
+			j++
+		}
+		if end > start {
+			parts = append(parts, fmt.Sprintf("%d:%d", start, end))
+		} else {
+			parts = append(parts, strconv.FormatUint(uint64(start), 10))
+		}
+		i = j
 	}
 	return strings.Join(parts, ",")
 }
