@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after CardDAV Depth infinity REPORT gate)
+Last updated: 2026-05-07 (updated after IMAP quoted COPY/MOVE mailbox coverage)
 
 ## Current phase
 
@@ -3939,6 +3939,10 @@ The platform hardening sprint completed the following:
 - IMAP UID and message sequence-set syntax now rejects whitespace-padded
   quoted or literal set strings such as `SEARCH " 1 "` or
   `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
+- IMAP `COPY`/`UID COPY` and `UID MOVE` now have regression coverage for
+  quoted destination mailbox names containing spaces, preserving RFC 3501
+  quoted-string tokenization through mailbox lookup and service-backed backend
+  mutation requests instead of splitting folder names at whitespace.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

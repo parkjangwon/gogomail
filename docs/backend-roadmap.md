@@ -4126,6 +4126,10 @@ Implementation order:
       bodies, keeping `addressbook-query` traversal bounded to explicit
       `Depth: 0` or `Depth: 1` client semantics until native-client
       compatibility for broader traversal is proven.
+1466. IMAP `COPY`/`UID COPY` and `UID MOVE` now have regression coverage for
+      quoted destination mailbox names with spaces, preserving RFC 3501
+      quoted-string tokenization through canonical mailbox lookup and
+      service-backed mutation requests.
 
 ## Deferred until backend contracts stabilize
 
