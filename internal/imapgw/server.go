@@ -845,8 +845,8 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " OK " + command + " completed\r\n")
 		return false, err
 	}
-	if subscribed {
-		return s.writeSubscribedListResponses(writer, tag, state, pattern, command)
+	if subscribed || listOptions.subscribedOnly {
+		return s.writeSubscribedListResponses(writer, tag, state, pattern, command, listOptions)
 	}
 	matcher, ok := imapMailboxPatternMatcher(pattern)
 	if !ok {
@@ -858,6 +858,15 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 		return false, writeErr
 	}
+	subscribedNames := map[string]struct{}{}
+	if listOptions.subscribedReturn {
+		var err error
+		subscribedNames, err = s.subscribedMailboxWireNames(context.Background(), state)
+		if err != nil {
+			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
+			return false, writeErr
+		}
+	}
 	children := imapMailboxChildren(mailboxes)
 	for _, mailbox := range mailboxes {
 		displayName := imapMailboxWireName(imapMailboxDisplayName(mailbox))
@@ -866,6 +875,9 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 		}
 		wireDisplayName := imapEncodeMailboxName(displayName)
 		attributes := imapMailboxListAttributes(mailbox, children[mailbox.ID])
+		if _, ok := subscribedNames[strings.ToLower(displayName)]; ok {
+			attributes = append(attributes, `\Subscribed`)
+		}
 		if listOptions.specialUseOnly && len(attributes) == 1 {
 			continue
 		}
@@ -882,7 +894,7 @@ func (s *Server) handleList(writer *bufio.Writer, tag string, fields []string, s
 	return false, err
 }
 
-func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, pattern string, command string) (bool, error) {
+func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, state *imapConnState, pattern string, command string, listOptions imapListOptions) (bool, error) {
 	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(context.Background(), ListMailboxesRequest{UserID: state.session.UserID})
 	if err != nil {
 		_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
@@ -930,12 +942,39 @@ func (s *Server) writeSubscribedListResponses(writer *bufio.Writer, tag string, 
 		if subscription.Exists {
 			attributes = imapMailboxListAttributes(subscription.Mailbox, children[subscription.Mailbox.ID])
 		}
+		if listOptions.subscribedReturn {
+			attributes = append(attributes, `\Subscribed`)
+		}
 		if _, err := writer.WriteString("* " + command + " " + imapFlagList(attributes) + ` "/" ` + imapQuotedString(imapEncodeMailboxName(displayName)) + "\r\n"); err != nil {
 			return false, err
+		}
+		if subscription.Exists && len(listOptions.statusItems) > 0 {
+			if _, err := writer.WriteString(fmt.Sprintf("* STATUS %s (%s)\r\n", imapQuotedString(imapEncodeMailboxName(displayName)), imapStatusData(subscription.Mailbox, listOptions.statusItems))); err != nil {
+				return false, err
+			}
 		}
 	}
 	_, err = writer.WriteString(tag + " OK " + command + " completed\r\n")
 	return false, err
+}
+
+func (s *Server) subscribedMailboxWireNames(ctx context.Context, state *imapConnState) (map[string]struct{}, error) {
+	subscriptions, err := s.options.Backend.ListSubscribedMailboxes(ctx, ListMailboxesRequest{UserID: state.session.UserID})
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[string]struct{}, len(subscriptions))
+	for _, subscription := range subscriptions {
+		displayName := imapMailboxWireName(subscription.Name)
+		if subscription.Exists {
+			displayName = imapMailboxWireName(imapMailboxDisplayName(subscription.Mailbox))
+		}
+		if displayName == "" {
+			continue
+		}
+		names[strings.ToLower(displayName)] = struct{}{}
+	}
+	return names, nil
 }
 
 func imapLSubParentName(name string, pattern string, matcher func(string) bool) string {
@@ -6648,9 +6687,11 @@ func imapMailboxParentWireName(wireName string) (string, bool) {
 }
 
 type imapListOptions struct {
-	fields         []string
-	specialUseOnly bool
-	statusItems    []string
+	fields           []string
+	specialUseOnly   bool
+	subscribedOnly   bool
+	subscribedReturn bool
+	statusItems      []string
 }
 
 func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, string, bool) {
@@ -6666,10 +6707,19 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	options := imapListOptions{}
 	if len(fields) > 0 && strings.HasPrefix(strings.TrimSpace(fields[0]), "(") {
 		tokens := imapFetchNormalizedTokens([]string{fields[0]})
-		if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SPECIAL-USE") {
+		if len(tokens) == 0 {
 			return imapListOptions{}, "", false
 		}
-		options.specialUseOnly = true
+		for _, token := range tokens {
+			switch strings.ToUpper(token) {
+			case "SPECIAL-USE":
+				options.specialUseOnly = true
+			case "SUBSCRIBED":
+				options.subscribedOnly = true
+			default:
+				return imapListOptions{}, "", false
+			}
+		}
 		fields = fields[1:]
 	}
 	if len(fields) < 2 {
@@ -6695,10 +6745,13 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 			i++
 		case "SPECIAL-USE":
 			i++
+		case "SUBSCRIBED":
+			options.subscribedReturn = true
+			i++
 		case "STATUS":
 			i++
 			start := i
-			for i < len(tokens) && !strings.EqualFold(tokens[i], "CHILDREN") && !strings.EqualFold(tokens[i], "SPECIAL-USE") {
+			for i < len(tokens) && !strings.EqualFold(tokens[i], "CHILDREN") && !strings.EqualFold(tokens[i], "SPECIAL-USE") && !strings.EqualFold(tokens[i], "SUBSCRIBED") {
 				i++
 			}
 			if start == i {

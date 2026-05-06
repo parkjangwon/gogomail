@@ -3642,6 +3642,11 @@ Implementation order:
       `admin.go` and require every matching operation to pin `/admin/v1` plus
       admin-token/bearer auth alternatives, preventing future admin route
       additions from silently drifting to ambiguous generated-client contracts.
+1350. IMAP `LIST-EXTENDED` now supports RFC 5258 `SUBSCRIBED` selection and
+      `RETURN (SUBSCRIBED)`, routing `LIST (SUBSCRIBED) ...` through the
+      subscribed mailbox store, emitting `\Subscribed` only when requested, and
+      preserving `CHILDREN`, `SPECIAL-USE`, and `LIST-STATUS` combinations for
+      standards-aware clients.
 
 ## Deferred until backend contracts stabilize
 

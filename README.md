@@ -63,7 +63,8 @@ Recent release-readiness work also includes:
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
-  namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
+  namespace compatibility, RFC 5258 `SUBSCRIBED` selection and return-option
+  support, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
   workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   SEARCH/SORT/THREAD diagnostics, IDLE recovery, selected-state event draining
