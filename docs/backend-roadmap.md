@@ -3940,6 +3940,10 @@ Implementation order:
 1421. IMAP `FETCH`/`UID FETCH` data-item parsing now rejects whitespace-padded
       quoted or literal values such as `" (FLAGS) "` or `" FLAGS "` instead
       of trimming them into valid fetch attributes.
+1422. S3-compatible `ListObjectsV2` object `ETag` metadata now fails closed
+      when a non-empty provider value is malformed, line-bearing, empty after
+      quote cleanup, or larger than the bounded metadata limit, instead of
+      silently dropping suspect listed-object metadata.
 
 ## Deferred until backend contracts stabilize
 

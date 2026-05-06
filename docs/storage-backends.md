@@ -387,8 +387,9 @@ rechecked against the requested logical prefix, preserving local/NFS
 sibling-prefix isolation even if a compatible provider returns an overly broad
 page. Size and returned ETag metadata are validated only after that canonical
 prefix mapping succeeds; object sizes must be exact unsigned decimal digits,
-and ETags use the same bounded metadata cleanup as `Stat`. Non-empty
-`LastModified` values must parse as exact S3/RFC-compatible timestamps;
+and non-empty ETags must remain valid after the same bounded metadata cleanup
+as `Stat` instead of being silently dropped. Non-empty `LastModified` values
+must parse as exact S3/RFC-compatible timestamps;
 malformed or whitespace-padded values are rejected instead of being silently
 exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 `LastModified` elements must be singular, so conflicting duplicate metadata is

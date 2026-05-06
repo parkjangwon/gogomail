@@ -1207,7 +1207,7 @@ func TestS3StoreListFiltersLogicalPrefixAfterCanonicalMapping(t *testing.T) {
 	}
 }
 
-func TestS3StoreListDropsUnsafeETagMetadata(t *testing.T) {
+func TestS3StoreListRejectsUnsafeETagMetadata(t *testing.T) {
 	t.Parallel()
 
 	store, err := NewS3Store(S3Options{
@@ -1231,15 +1231,9 @@ func TestS3StoreListDropsUnsafeETagMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
-	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err != nil {
-		t.Fatalf("List returned error: %v", err)
-	}
-	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-1.eml" || page.Objects[0].Size != 5 {
-		t.Fatalf("list objects = %+v", page.Objects)
-	}
-	if page.Objects[0].ETag != "" {
-		t.Fatalf("unsafe list etag = %q, want dropped", page.Objects[0].ETag)
+	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err == nil || !strings.Contains(err.Error(), "invalid object etag") {
+		t.Fatalf("List err = %v, want invalid object etag", err)
 	}
 }
 
@@ -1386,6 +1380,49 @@ func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
 			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
 			if err == nil || !strings.Contains(err.Error(), "invalid last-modified") {
 				t.Fatalf("List err = %v, want invalid last-modified", err)
+			}
+		})
+	}
+}
+
+func TestS3StoreListRejectsInvalidETag(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		`"bad&#xA;etag"`,
+		`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`,
+		`""`,
+	}
+	for _, etag := range tests {
+		etag := etag
+		t.Run(strconv.Itoa(len(etag)), func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><ETag>` + etag + `</ETag></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "invalid object etag") {
+				t.Fatalf("List err = %v, want invalid object etag", err)
 			}
 		})
 	}
