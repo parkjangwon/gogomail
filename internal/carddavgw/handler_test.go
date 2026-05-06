@@ -1791,6 +1791,35 @@ func TestHandlerPropfindAddressBookHomeDepthOneListsCollections(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindAddressBookCollectionOmitsSyncReportWithoutSyncStore(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:propfind xmlns:D="DAV:"><D:prop><D:supported-report-set/></D:prop></D:propfind>`
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthZero))
+	rec := httptest.NewRecorder()
+	store := noSyncCardDAVDiscoveryStore{store: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:supported-report-set>",
+		"<C:addressbook-query></C:addressbook-query>",
+		"<C:addressbook-multiget></C:addressbook-multiget>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("supported reports response missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "<D:sync-collection>") {
+		t.Fatalf("supported reports advertised sync-collection without SyncChangeStore:\n%s", text)
+	}
+}
+
 func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	t.Parallel()
 

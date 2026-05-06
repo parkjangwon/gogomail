@@ -413,6 +413,34 @@ func TestHandlerPropfindCalendarCollectionReportsSupportedReports(t *testing.T) 
 	}
 }
 
+func TestHandlerPropfindCalendarCollectionOmitsSyncReportWithoutSyncStore(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(&noSyncCalendarDiscoveryStore{store: *newFakeDiscoveryStore()}, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:supported-report-set/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:supported-report-set>",
+		"<C:calendar-query></C:calendar-query>",
+		"<C:calendar-multiget></C:calendar-multiget>",
+		"<C:free-busy-query></C:free-busy-query>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("supported reports response missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "<D:sync-collection>") {
+		t.Fatalf("supported reports advertised sync-collection without SyncChangeStore:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarMultiget(t *testing.T) {
 	t.Parallel()
 

@@ -158,7 +158,7 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		SyncToken:   "sync-123",
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,
-	})
+	}, true)
 	if err != nil {
 		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 func TestSupportedCalendarReportsMatchesImplementedReportHandlers(t *testing.T) {
 	t.Parallel()
 
-	reports := SupportedCalendarReports()
+	reports := SupportedCalendarReports(true)
 	want := []XMLName{
 		{Space: CalDAVNamespace, Local: "calendar-query"},
 		{Space: CalDAVNamespace, Local: "calendar-multiget"},
@@ -215,6 +215,13 @@ func TestSupportedCalendarReportsMatchesImplementedReportHandlers(t *testing.T) 
 	for i := range want {
 		if reports[i] != want[i] {
 			t.Fatalf("reports[%d] = %+v, want %+v", i, reports[i], want[i])
+		}
+	}
+
+	reports = SupportedCalendarReports(false)
+	for _, report := range reports {
+		if report.Space == DAVNamespace && report.Local == "sync-collection" {
+			t.Fatalf("reports without sync support advertised sync-collection: %+v", reports)
 		}
 	}
 }
@@ -410,7 +417,7 @@ func TestCalendarCollectionPropertiesExposeImplementedPrivileges(t *testing.T) {
 		UserID:    "user-1",
 		Name:      "Work",
 		SyncToken: "sync-1",
-	})
+	}, true)
 	if err != nil {
 		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
 	}

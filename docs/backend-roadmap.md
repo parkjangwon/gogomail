@@ -2200,6 +2200,10 @@ Implementation order:
       `calendar-query`, `calendar-multiget`, `free-busy-query`, and
       `sync-collection`. Future scheduling/timezone reports remain
       unadvertised until their full RFC semantics and backend boundaries exist.
+1060a. CalDAV collection discovery now includes the `sync-collection`
+       supported-report only when the runtime store implements the sync-change
+       interface, matching the DAV header token gate and avoiding false
+       native-client sync discovery on limited stores.
 1061. CalDAV `REPORT calendar-query` now applies simple top-level
       `comp-filter` component selection using stored object `component_type`
       metadata before time-range/body matching, so requests for `VTODO`,
@@ -2409,6 +2413,10 @@ Implementation order:
       first text-match filter, and sync responses emit the current collection
       sync token while returning full snapshots or bounded change rows,
       including 404 responses for deleted contact objects.
+1106a. CardDAV address-book collection discovery now includes the
+       `sync-collection` supported-report only when the runtime store
+       implements the sync-change interface, matching OPTIONS DAV token
+       advertising and keeping native-client feature discovery honest.
 1107. CardDAV now handles internal contact-object `GET`, `HEAD`, `PUT`, and
       `DELETE` paths with `text/vcard` content negotiation, bounded body reads,
       strong ETag and Last-Modified response headers, HTTP cache/precondition

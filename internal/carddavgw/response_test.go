@@ -302,7 +302,7 @@ func TestAddressBookCollectionPropertiesExposeCardDAVDiscovery(t *testing.T) {
 		SyncToken:   "sync-123",
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,
-	})
+	}, true)
 	if err != nil {
 		t.Fatalf("AddressBookCollectionProperties returned error: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestContactObjectPropertiesExposeObjectMetadata(t *testing.T) {
 func TestSupportedAddressBookReportsMatchesParsedReports(t *testing.T) {
 	t.Parallel()
 
-	reports := SupportedAddressBookReports()
+	reports := SupportedAddressBookReports(true)
 	want := []XMLName{
 		{Space: CardDAVNamespace, Local: "addressbook-query"},
 		{Space: CardDAVNamespace, Local: "addressbook-multiget"},
@@ -396,6 +396,13 @@ func TestSupportedAddressBookReportsMatchesParsedReports(t *testing.T) {
 	for i := range want {
 		if reports[i] != want[i] {
 			t.Fatalf("reports[%d] = %+v, want %+v", i, reports[i], want[i])
+		}
+	}
+
+	reports = SupportedAddressBookReports(false)
+	for _, report := range reports {
+		if report.Space == DAVNamespace && report.Local == "sync-collection" {
+			t.Fatalf("reports without sync support advertised sync-collection: %+v", reports)
 		}
 	}
 }

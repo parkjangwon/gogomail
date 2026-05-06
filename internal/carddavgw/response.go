@@ -200,7 +200,7 @@ func AddressBookHomeProperties(userID string) ([]PropertyResult, error) {
 	}, nil
 }
 
-func AddressBookCollectionProperties(userID string, book AddressBook) ([]PropertyResult, error) {
+func AddressBookCollectionProperties(userID string, book AddressBook, includeSyncCollection bool) ([]PropertyResult, error) {
 	if _, err := AddressBookCollectionPath(userID, book.ID); err != nil {
 		return nil, err
 	}
@@ -234,16 +234,19 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
 		{Name: PropGetCTag, Value: PropertyValue{Text: book.SyncToken}, Found: true},
-		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedAddressBookReports()}, Found: true},
+		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: SupportedAddressBookReports(includeSyncCollection)}, Found: true},
 	}, nil
 }
 
-func SupportedAddressBookReports() []XMLName {
-	return []XMLName{
+func SupportedAddressBookReports(includeSyncCollection bool) []XMLName {
+	reports := []XMLName{
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookQuery)},
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookMulti)},
-		{Space: DAVNamespace, Local: string(ReportSyncCollection)},
 	}
+	if includeSyncCollection {
+		reports = append(reports, XMLName{Space: DAVNamespace, Local: string(ReportSyncCollection)})
+	}
+	return reports
 }
 
 func ContactObjectProperties(userID string, object ContactObject) ([]PropertyResult, error) {
