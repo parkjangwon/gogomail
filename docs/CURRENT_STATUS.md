@@ -41,6 +41,9 @@ deltas. CalDAV and CardDAV `REPORT` parsing now also rejects duplicate
 `DAV:limit` controls and duplicate nested `DAV:nresults` controls, avoiding
 ambiguous client pagination semantics before bounded object or change-list
 work begins.
+The same `sync-collection` parser path now rejects duplicate `DAV:sync-token`
+and `DAV:sync-level` controls so later XML elements cannot silently convert a
+delta sync request into a different sync anchor or initial-sync shape.
 CalDAV and CardDAV object `GET`/`HEAD` conditional handling now honors ETag
 precedence by ignoring `If-Modified-Since` whenever `If-None-Match` is present,
 so stale client validators cannot accidentally receive `304 Not Modified` for

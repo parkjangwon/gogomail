@@ -37,6 +37,9 @@ Current state:
 - CalDAV and CardDAV `REPORT` parsing now rejects duplicate `DAV:limit`
   controls and duplicate nested `DAV:nresults` controls, keeping bounded
   query/sync pagination semantics deterministic before backend scans begin.
+- CalDAV and CardDAV `sync-collection` parsing now also rejects duplicate
+  `DAV:sync-token` and `DAV:sync-level` controls, keeping sync anchors
+  unambiguous before snapshot or change-log work begins.
 - CalDAV and CardDAV object `GET`/`HEAD` handling now ignores
   `If-Modified-Since` whenever `If-None-Match` is present, preserving HTTP
   conditional precedence for native DAV clients caching `.ics` and `.vcf`

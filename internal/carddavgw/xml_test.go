@@ -407,8 +407,20 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
 		"sync missing level":     `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"sync unsupported level": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>infinity</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"sync missing prop":      `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level></D:sync-collection>`,
-		"limit too high":         `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"duplicate limit":        `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>25</D:nresults></D:limit><D:limit><D:nresults>50</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"duplicate sync-token": `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-1</D:sync-token>
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`,
+		"duplicate sync-level": `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`,
+		"limit too high":  `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>1001</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"duplicate limit": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>25</D:nresults></D:limit><D:limit><D:nresults>50</D:nresults></D:limit><D:prop><D:getetag/></D:prop></D:sync-collection>`,
 		"duplicate nresults": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit>
   <D:nresults>25</D:nresults>
   <D:nresults>50</D:nresults>

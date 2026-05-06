@@ -570,10 +570,22 @@ func TestParseReportRejectsInvalidShapes(t *testing.T) {
   <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
   <C:time-range start="20260508T000000Z" end="20260509T000000Z"/>
 </C:free-busy-query>`,
-		"sync no token":   `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"sync no level":   `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:prop><D:getetag/></D:prop></D:sync-collection>`,
-		"sync bad level":  `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>infinity</D:sync-level></D:sync-collection>`,
-		"sync no prop":    `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level></D:sync-collection>`,
+		"sync no token":  `<D:sync-collection xmlns:D="DAV:"><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync no level":  `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:prop><D:getetag/></D:prop></D:sync-collection>`,
+		"sync bad level": `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>infinity</D:sync-level></D:sync-collection>`,
+		"sync no prop":   `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level></D:sync-collection>`,
+		"duplicate sync-token": `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-1</D:sync-token>
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`,
+		"duplicate sync-level": `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
+  <D:sync-level>1</D:sync-level>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`,
 		"bad range order": `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260507T000000Z" end="20260506T000000Z"/></C:free-busy-query>`,
 		"bad range utc":   `<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav"><C:time-range start="20260506T000000" end="20260507T000000Z"/></C:free-busy-query>`,
 		"bad limit":       `<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:limit><D:nresults>0</D:nresults></D:limit></D:sync-collection>`,

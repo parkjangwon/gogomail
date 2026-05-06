@@ -334,6 +334,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 		return ReportRequest{}, err
 	}
 	hasLimit := false
+	hasSyncLevel := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -365,6 +366,9 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				}
 				req.Hrefs = append(req.Hrefs, strings.TrimSpace(href))
 			case sameXMLName(tok.Name, DAVNamespace, "sync-token"):
+				if req.HasSyncToken {
+					return ReportRequest{}, fmt.Errorf("REPORT must not contain duplicate sync-token elements")
+				}
 				token, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
@@ -372,11 +376,15 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 				req.SyncToken = strings.TrimSpace(token)
 				req.HasSyncToken = true
 			case sameXMLName(tok.Name, DAVNamespace, "sync-level"):
+				if hasSyncLevel {
+					return ReportRequest{}, fmt.Errorf("REPORT must not contain duplicate sync-level elements")
+				}
 				level, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
 					return ReportRequest{}, err
 				}
 				req.SyncLevel = strings.TrimSpace(level)
+				hasSyncLevel = true
 			case sameXMLName(tok.Name, DAVNamespace, "limit"):
 				if hasLimit {
 					return ReportRequest{}, fmt.Errorf("REPORT must not contain duplicate limit elements")
