@@ -252,7 +252,9 @@ resource lookup, retention, admin controls, and traceable access decisions.
 CalDAV therefore emits transactional `dav.event` outbox rows from the same
 repository boundary that appends durable calendar sync-change rows, but it does
 not decide reminder delivery, mobile push, or indexing behavior inside the
-protocol gateway.
+protocol gateway. A generic event-worker instance can consume `dav.event` for
+payload validation and audit recording; later Notification & Sync consumers
+should attach behind the same stream boundary.
 Until these boundaries exist, shared calendars, delegated access, resource
 booking, attendee auto-complete, and reminder delivery remain release gates
 rather than isolated CalDAV CRUD features.

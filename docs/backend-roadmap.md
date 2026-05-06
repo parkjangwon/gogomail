@@ -3223,6 +3223,11 @@ Implementation order:
       DAV kind, action, user, collection, object, ETag, sync token, and changed
       timestamp fields, giving Notification & Sync, search indexing, reminders,
       and mobile delta fan-out a clean asynchronous boundary.
+1260. `event-worker` now registers DAV change audit handlers for
+      `calendar.changed` and `contacts.changed`. Deployments can point a worker
+      instance at `GOGOMAIL_EVENT_STREAM=dav.event` to validate DAV event
+      payloads and persist audit rows before public reminder, push, indexing,
+      or mobile sync consumers are enabled.
 
 ## Deferred until backend contracts stabilize
 

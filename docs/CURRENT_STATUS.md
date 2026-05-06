@@ -94,6 +94,10 @@ object name, ETag, sync token, and changed timestamp, giving future
 Notification & Sync, search indexing, reminders, and mobile delta fan-out a
 clean event-stream boundary without making CalDAV call push/vendor adapters
 directly.
+The generic event worker now has `calendar.changed` and `contacts.changed`
+audit handlers, so a worker instance pointed at `GOGOMAIL_EVENT_STREAM=dav.event`
+can validate those payloads and write durable DAV audit rows without coupling
+reminder, push, or indexing decisions into the protocol gateway.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.
