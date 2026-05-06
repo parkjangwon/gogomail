@@ -63,7 +63,9 @@ booking policy, and scheduling semantics are implemented explicitly.
   adapter turns effective delegation into a normalized allow/deny decision so
   protocol-specific WebDAV privilege mapping and audit logging can be attached
   at product boundaries. Its WebDAV privilege mapper is intentionally shared so
-  CalDAV and CardDAV do not grow incompatible role-to-privilege tables.
+  CalDAV and CardDAV do not grow incompatible role-to-privilege tables, and its
+  audit detail builder keeps delegated-access log records normalized with fixed
+  reason enums instead of caller-supplied strings.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.

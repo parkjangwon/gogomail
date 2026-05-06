@@ -199,7 +199,11 @@ filtering, role hierarchy, depth caps, and cycle guards. The first
 allow/deny decision boundary so CalDAV, CardDAV, Drive, mailbox sharing, and
 admin APIs do not need to branch directly on Directory rows. It also provides
 an RFC 4918-shaped WebDAV privilege mapper for delegated read/write/manage
-decisions before those privileges are exposed by protocol modules.
+decisions before those privileges are exposed by protocol modules. The same
+boundary now emits bounded delegated-access audit detail JSON with normalized
+company, owner, actor, scope, role, decision, reason, and WebDAV privilege
+fields; reasons are fixed enum values so operational logs stay predictable
+instead of accumulating caller-supplied strings.
 
 ## Completed or materially advanced
 

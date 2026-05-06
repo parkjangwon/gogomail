@@ -1677,7 +1677,9 @@ Next:
   add product-specific policy/audit adapters around it before exposing shared
   calendars, delegated address books, Drive shares, or shared inbox actions.
   For WebDAV protocols, use its RFC 4918 privilege mapper instead of inventing
-  per-module role-to-privilege tables.
+  per-module role-to-privilege tables. Audit integrations should use its
+  delegated-access audit detail builder so logs carry normalized principal,
+  role, decision, and privilege fields without free-form reason cardinality.
 - CalDAV principal discovery now exposes Directory primary email addresses via
   RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:
