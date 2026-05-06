@@ -45,8 +45,9 @@ Current state:
   conditional precedence for native DAV clients caching `.ics` and `.vcf`
   bodies.
 - CalDAV and CardDAV path/href parsing now rejects encoded path separators
-  before URL decoding, preventing `%2F` or `%5C` from remapping principal,
-  collection, or object boundaries inside request paths and REPORT hrefs.
+  before URL decoding, preventing `%2F`, `%5C`, `%252F`, or `%255C` from
+  remapping principal, collection, or object boundaries inside request paths
+  and REPORT hrefs.
 - CalDAV and CardDAV object `PUT`/`DELETE` now carry the observed strong
   object ETag into repository mutation guards even for successful
   `If-Match: *` existing-resource preconditions, reducing stale mutation races
