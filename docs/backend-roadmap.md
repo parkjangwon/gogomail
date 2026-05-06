@@ -3306,6 +3306,10 @@ Implementation order:
       organization, group, and resource principals out of user-owned
       address-book discovery until their CardDAV semantics are deliberately
       designed.
+1278. IMAP `SEARCH`, `SORT`, and `THREAD` now return RFC-shaped
+      `[BADCHARSET (US-ASCII UTF-8)]` diagnostics for unsupported charset
+      probes before authentication or selected-mailbox state checks, keeping
+      charset fallback behavior consistent during client capability probing.
 
 ## Deferred until backend contracts stabilize
 

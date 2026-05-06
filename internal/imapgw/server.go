@@ -1538,19 +1538,19 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 		return false, err
 	}
-	if state.session == nil {
-		if returnOptions.save {
-			state.savedSearch = nil
-		}
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	criteria, charsetOK := imapSearchCriteria(searchFields)
 	if !charsetOK {
 		if returnOptions.save {
 			state.savedSearch = nil
 		}
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		if returnOptions.save {
+			state.savedSearch = nil
+		}
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if len(criteria) == 0 {
@@ -1628,12 +1628,12 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 			return false, err
 		}
 	}
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if !charsetOK {
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if len(searchFields) == 0 {
@@ -1698,12 +1698,12 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
 		return false, err
 	}
-	if state.session == nil {
-		_, err := writer.WriteString(tag + " NO authentication required\r\n")
-		return false, err
-	}
 	if !charsetOK {
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n")
+		return false, err
+	}
+	if state.session == nil {
+		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if len(searchFields) == 0 {
