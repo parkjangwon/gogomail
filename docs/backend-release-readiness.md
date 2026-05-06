@@ -1008,6 +1008,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce compatible client auth
   round trips.
+- IMAP `LOGIN` and SASL PLAIN decoded credentials reject blank, CR/LF-bearing,
+  or oversized authentication identities and oversized or CR/LF-bearing
+  passwords at the protocol boundary before backend auth work.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence

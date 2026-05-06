@@ -387,6 +387,10 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
 			return false, err
 		}
+		if !imapAuthCredentialsValid(fields[2], fields[3]) {
+			_, err := writer.WriteString(tag + " BAD LOGIN credentials are malformed\r\n")
+			return false, err
+		}
 		if !s.authAllowed(state) {
 			_, err := writer.WriteString(tag + " NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n")
 			return false, err
@@ -1186,7 +1190,21 @@ func decodeSASLPlain(value string) (string, string, bool) {
 	if parts[0] != "" && parts[0] != parts[1] {
 		return "", "", false
 	}
+	if !imapAuthCredentialsValid(parts[1], parts[2]) {
+		return "", "", false
+	}
 	return parts[1], parts[2], true
+}
+
+func imapAuthCredentialsValid(username string, password string) bool {
+	if strings.ContainsAny(username, "\r\n") || strings.ContainsAny(password, "\r\n") {
+		return false
+	}
+	username = strings.TrimSpace(username)
+	if username == "" || len(username) > maxIMAPAuthIdentityBytes || len(password) > maxIMAPAuthPasswordBytes {
+		return false
+	}
+	return true
 }
 
 func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string, state *imapConnState) (bool, error) {
@@ -2546,6 +2564,8 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 
 const (
 	maxIMAPCommandLineBytes    = 8192
+	maxIMAPAuthIdentityBytes   = 1024
+	maxIMAPAuthPasswordBytes   = 4096
 	maxIMAPSearchLiteralBytes  = 1 << 20
 	maxIMAPCommandLiteralBytes = 10 << 20
 )
