@@ -490,6 +490,9 @@ Current state:
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`.
 - IMAP UID and message sequence-set numbers require digit-only atoms, rejecting
   signed values such as `UID FETCH +7` and `FETCH +1` before command execution.
+- IMAP UID and message sequence-set numbers now also reject leading-zero
+  `nz-number` spellings such as `FETCH 01 FLAGS` or `UID FETCH 1:02 FLAGS`
+  instead of normalizing them during range expansion.
 - IMAP UID and message sequence-set expansion accepts common client-scale
   ranges such as `1:1000` and `1:*` while still enforcing an explicit expansion
   cap, reducing false `BAD` responses during mailbox synchronization.

@@ -46,6 +46,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP partial fetch offsets now enforce RFC 3501 `number` syntax, rejecting
   leading-zero forms such as `BODY.PEEK[]<00.34>` before command execution
   while keeping valid zero-offset partial windows available for clients.
+- IMAP UID and message sequence-set numbers now enforce RFC `nz-number`
+  spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` and
+  `UID FETCH 1:02 FLAGS` before expansion.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
