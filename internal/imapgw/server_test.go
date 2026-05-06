@@ -3284,6 +3284,59 @@ func TestServerAppendSuccessReturnsAppendUID(t *testing.T) {
 	}
 }
 
+func TestServerAppendOmitsAppendUIDForUIDNotStickyResult(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{
+		result: AppendMessageResult{
+			Summary:      MessageSummary{ID: "message-42", MailboxID: "inbox", UID: 42},
+			UIDValidity:  99,
+			UIDNotSticky: true,
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 APPEND inbox {11}\r\n")); err != nil {
+		t.Fatalf("write append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write append literal body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK APPEND completed\r\n" {
+		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAppendSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) {
 	t.Parallel()
 
@@ -6245,22 +6298,26 @@ func TestServerSearchResSavesAndReusesResults(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) UNSEEN\r\na4 FETCH $ (FLAGS)\r\na5 UID SEARCH UID $ SMALLER 50\r\na6 UID SEARCH RETURN (SAVE MIN) ALL\r\na7 UID FETCH $ (FLAGS)\r\na8 UID SEARCH RETURN (SAVE COUNT) DELETED\r\na9 FETCH $ (FLAGS)\r\na10 SELECT inbox\r\na11 FETCH $ (FLAGS)\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH RETURN (SAVE) UNSEEN\r\na4 SEARCH $\r\na5 UID SEARCH $ SMALLER 50\r\na6 FETCH $ (FLAGS)\r\na7 UID SEARCH UID $ SMALLER 50\r\na8 UID SEARCH RETURN (SAVE MIN) ALL\r\na9 UID FETCH $ (FLAGS)\r\na10 UID SEARCH RETURN (SAVE COUNT) DELETED\r\na11 FETCH $ (FLAGS)\r\na12 SELECT inbox\r\na13 FETCH $ (FLAGS)\r\n")); err != nil {
 		t.Fatalf("write searchres commands: %v", err)
 	}
 	want := []string{
 		"a3 OK SEARCH completed\r\n",
-		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
-		"a4 OK FETCH completed\r\n",
+		"* SEARCH 2\r\n",
+		"a4 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a5 OK UID SEARCH completed\r\n",
-		"* ESEARCH (TAG \"a6\") UID MIN 7\r\n",
-		"a6 OK UID SEARCH completed\r\n",
-		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
-		"a7 OK UID FETCH completed\r\n",
-		"* ESEARCH (TAG \"a8\") UID COUNT 0\r\n",
+		"* 2 FETCH (UID 8 FLAGS (\\Seen \\Flagged) RFC822.SIZE 41)\r\n",
+		"a6 OK FETCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a7 OK UID SEARCH completed\r\n",
+		"* ESEARCH (TAG \"a8\") UID MIN 7\r\n",
 		"a8 OK UID SEARCH completed\r\n",
-		"a9 OK FETCH completed\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a9 OK UID FETCH completed\r\n",
+		"* ESEARCH (TAG \"a10\") UID COUNT 0\r\n",
+		"a10 OK UID SEARCH completed\r\n",
+		"a11 OK FETCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -6276,10 +6333,10 @@ func TestServerSearchResSavesAndReusesResults(t *testing.T) {
 			t.Fatalf("read reselect response: %v", err)
 		}
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a11 OK FETCH completed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a13 OK FETCH completed\r\n" {
 		t.Fatalf("fetch after select reset = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a12 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a14 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

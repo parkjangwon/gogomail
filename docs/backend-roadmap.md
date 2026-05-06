@@ -3372,6 +3372,15 @@ Implementation order:
       sequence-number semantics when removing expunged messages, preserving
       `$` search-result correctness after batch `EXPUNGE`, `UID EXPUNGE`, or
       MOVE-driven expunge responses.
+1293. IMAP `APPEND` results now carry `UIDNotSticky`, allowing alternate
+      backends to suppress UIDPLUS `APPENDUID` response codes for non-sticky
+      UID stores even when append storage returns UID metadata. This aligns
+      append UIDPLUS behavior with the existing COPY/MOVE `UIDNOTSTICKY`
+      response-code boundary.
+1294. IMAP SEARCHRES `$` reuse now passes the search-criterion validator as a
+      bare sequence-set atom, so RFC 5182-style `SEARCH $` and
+      `UID SEARCH $ ...` probes work after `SEARCH RETURN (SAVE)` instead of
+      being rejected before execution.
 
 ## Deferred until backend contracts stabilize
 

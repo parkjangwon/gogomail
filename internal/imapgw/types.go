@@ -108,8 +108,9 @@ type AppendMessageRequest struct {
 }
 
 type AppendMessageResult struct {
-	Summary     MessageSummary
-	UIDValidity uint32
+	Summary      MessageSummary
+	UIDValidity  uint32
+	UIDNotSticky bool
 }
 
 type StoreFlagsMode string
