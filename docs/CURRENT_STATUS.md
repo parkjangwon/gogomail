@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after nested IMAP header-field partial coverage)
+Last updated: 2026-05-06 (updated after IMAP SEARCH HEADER field-name validation)
 
 ## Current phase
 
@@ -49,7 +49,11 @@ such as `BODY.PEEK[HEADER.FIELDS ()]<0.1>` and
 clients get deterministic bounded literals. Nested `message/rfc822`
 header-field partial fetches are also regression-covered for forwarded-message
 previews, including non-empty `HEADER.FIELDS`, empty `HEADER.FIELDS`, and
-empty `HEADER.FIELDS.NOT` windows on attached messages.
+empty `HEADER.FIELDS.NOT` windows on attached messages. IMAP `SEARCH HEADER`
+now validates RFC-shaped header field names before authentication or selected
+mailbox state, rejecting empty names, names with spaces, and colon-suffixed
+field labels as syntax errors instead of treating them as successful empty
+searches.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
@@ -1182,6 +1186,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` applies the same empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` semantics to `message/rfc822` MIME-part sections such
   as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]`.
+- IMAP `SEARCH HEADER` validates RFC-shaped header field names before state
+  checks, rejecting empty, space-bearing, or colon-suffixed field-name
+  arguments as malformed criteria.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

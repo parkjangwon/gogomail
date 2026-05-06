@@ -264,6 +264,9 @@ Current state:
   coverage for forwarded-message previews, including non-empty
   `HEADER.FIELDS`, empty `HEADER.FIELDS`, and empty `HEADER.FIELDS.NOT`
   windows on attached messages.
+- IMAP `SEARCH HEADER` now rejects malformed header field names before
+  authentication or selected-mailbox state, so broken criteria such as empty
+  field names, `Bad Field`, or `Subject:` do not masquerade as empty searches.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.
