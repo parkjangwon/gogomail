@@ -1021,6 +1021,9 @@ func imapSearchHasNonAtomSequenceSetArgument(line string, fields []string, crite
 		if imapSearchFieldRequiresAtomCharset(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
 			return true
 		}
+		if imapSearchFieldRequiresAtomKeyword(fields, i, criteriaStart) && !imapRawFieldIsAtom(line, rawCriteriaStart+i-criteriaStart) {
+			return true
+		}
 	}
 	return false
 }
@@ -1070,6 +1073,18 @@ func imapSearchFieldRequiresAtomDate(fields []string, index int, criteriaStart i
 
 func imapSearchFieldRequiresAtomCharset(fields []string, index int, criteriaStart int) bool {
 	return index > criteriaStart && strings.EqualFold(fields[index-1], "CHARSET")
+}
+
+func imapSearchFieldRequiresAtomKeyword(fields []string, index int, criteriaStart int) bool {
+	if index <= criteriaStart {
+		return false
+	}
+	switch strings.ToUpper(fields[index-1]) {
+	case "KEYWORD", "UNKEYWORD":
+		return true
+	default:
+		return false
+	}
 }
 
 func imapDecimalToken(value string) bool {
