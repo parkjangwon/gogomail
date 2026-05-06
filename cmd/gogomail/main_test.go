@@ -45,6 +45,45 @@ storage_s3_secret_access_key: secret
 	}
 }
 
+func TestRunAcceptsStorageProfileConfigs(t *testing.T) {
+	tests := []struct {
+		path        string
+		backend     string
+		endpoint    string
+		environment string
+	}{
+		{path: "configs/storage.local.yaml", backend: "local"},
+		{path: "configs/storage.nfs.yaml", backend: "nfs"},
+		{path: "configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000"},
+		{path: "configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", environment: "production"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.backend, func(t *testing.T) {
+			var gotConfig config.Config
+			exitCode := run([]string{"--config", "../../" + tt.path, "--mode", "batch-worker"}, &bytes.Buffer{}, &bytes.Buffer{}, func(ctx context.Context, mode app.Mode, cfg config.Config, logger *slog.Logger) error {
+				if mode != app.ModeBatchWorker {
+					t.Fatalf("mode = %q, want batch-worker", mode)
+				}
+				gotConfig = cfg
+				return nil
+			})
+			if exitCode != 0 {
+				t.Fatalf("run exit code = %d, want 0", exitCode)
+			}
+			if gotConfig.StorageBackend != tt.backend {
+				t.Fatalf("StorageBackend = %q, want %q", gotConfig.StorageBackend, tt.backend)
+			}
+			if gotConfig.StorageS3Endpoint != tt.endpoint {
+				t.Fatalf("StorageS3Endpoint = %q, want %q", gotConfig.StorageS3Endpoint, tt.endpoint)
+			}
+			if tt.environment != "" && gotConfig.Environment != tt.environment {
+				t.Fatalf("Environment = %q, want %q", gotConfig.Environment, tt.environment)
+			}
+		})
+	}
+}
+
 func TestRunRejectsInvalidYAMLConfigBeforeAppStart(t *testing.T) {
 	configFile := writeCommandConfig(t, "storage_backend: minio\n")
 	var stderr bytes.Buffer

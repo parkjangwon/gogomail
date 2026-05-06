@@ -81,9 +81,10 @@ Validated config overlays live under `configs/` for common storage profiles:
 - `configs/storage.minio.yaml`
 - `configs/storage.s3.yaml`
 
-Each profile is parsed and validated by the config loader test suite. Operators
-can use them as reviewed `--config=<path>` starting points, replacing secrets,
-bucket names, prefixes, and roots while keeping backend-specific knobs explicit.
+Each profile is parsed, validated, and passed through the CLI `--config` handoff
+by the test suite. Operators can use them as reviewed `--config=<path>` starting
+points, replacing secrets, bucket names, prefixes, and roots while keeping
+backend-specific knobs explicit.
 
 ## Local filesystem or NFS
 

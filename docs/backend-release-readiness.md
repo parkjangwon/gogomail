@@ -102,7 +102,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   overlay, and the example config documents storage backend/S3 fields so local,
   NFS, MinIO, and AWS S3 profiles can be switched by config file. Dedicated
   validated overlays now exist for local, NFS, MinIO, and S3 storage profiles
-  under `configs/storage.*.yaml`.
+  under `configs/storage.*.yaml`, with both config-loader and CLI handoff
+  coverage.
 - CLI startup regression coverage verifies `--config` handoff and fail-fast
   invalid config/mode behavior before component startup.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and
