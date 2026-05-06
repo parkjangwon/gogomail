@@ -101,7 +101,10 @@ Current state:
   `NO authentication required`. `LSUB` now explicitly rejects LIST-EXTENDED
   option probes such as `(SPECIAL-USE)` prefixes or `RETURN (...)` tails with
   an `LSUB`-specific tagged `BAD`, keeping subscribed-mailbox discovery
-  separate from advertised extended `LIST` semantics. `LIST` and `LSUB` also
+  separate from advertised extended `LIST` semantics. `CAPABILITY` now
+  advertises RFC 5258 `LIST-EXTENDED` alongside RFC 5819 `LIST-STATUS`, so
+  clients can legally send the extended `LIST` selection and return options
+  already implemented by the gateway. `LIST` and `LSUB` also
   normalize leading hierarchy delimiters in mailbox patterns as root-absolute
   selectors before matching internal root-relative mailbox names. `LIST`
   reference names with a leading hierarchy delimiter are normalized the same
@@ -933,7 +936,8 @@ Current state:
   storage metadata, and extended
   `LIST (SPECIAL-USE)`, `RETURN (SPECIAL-USE)`, and no-op
   `RETURN (CHILDREN)` forms are accepted.
-- `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
+- `CAPABILITY` now advertises RFC 5258 `LIST-EXTENDED` and RFC 5819
+  `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits the requested `STATUS` data directly
   after each matching selectable mailbox to reduce client folder-list round
   trips, can be combined with `RETURN (CHILDREN)`, and rejects malformed

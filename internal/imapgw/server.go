@@ -5958,7 +5958,7 @@ func maxInt64(a int64, b int64) int64 {
 }
 
 func (s *Server) imapCapabilities(state *imapConnState) []string {
-	capabilities := []string{"IMAP4rev1", "LITERAL+", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT", "THREAD=ORDEREDSUBJECT"}
+	capabilities := []string{"IMAP4rev1", "LITERAL+", "IDLE", "ID", "NAMESPACE", "CHILDREN", "UNSELECT", "UIDPLUS", "MOVE", "CONDSTORE", "ENABLE", "SPECIAL-USE", "LIST-EXTENDED", "LIST-STATUS", "ESEARCH", "SEARCHRES", "STATUS=SIZE", "SORT", "THREAD=ORDEREDSUBJECT"}
 	if state != nil && state.session == nil && !state.tlsActive && s != nil && s.options.TLSConfig != nil {
 		capabilities = append(capabilities, "STARTTLS")
 	}
