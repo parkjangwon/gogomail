@@ -38,6 +38,8 @@ Current state:
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.
+- API usage export capability discovery now has the same Admin API server and
+  admin-auth OpenAPI metadata plus runtime auth coverage.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.

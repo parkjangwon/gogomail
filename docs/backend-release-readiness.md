@@ -26,6 +26,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.
+- API usage export capability discovery now pins the Admin API server and
+  `X-Admin-Token`/bearer-token security alternatives in OpenAPI, with matching
+  runtime auth coverage for generated operator clients.
 - Webmail capability discovery now advertises only the message-search filters
   implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
   and `has_attachment`), keeping generated clients from calling unsupported
