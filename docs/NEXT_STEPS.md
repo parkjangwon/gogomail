@@ -79,6 +79,9 @@ Current state:
 - API usage ledger list/export/stats OpenAPI operations now also pin
   `/admin/v1` and explicit admin-token/bearer auth alternatives, matching the
   runtime `adminAuth` route boundary for generated operator clients.
+- API usage daily/monthly aggregate OpenAPI operations now use the same
+  `/admin/v1` server pin and admin-token/bearer auth alternatives as their
+  runtime admin-authenticated routes.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

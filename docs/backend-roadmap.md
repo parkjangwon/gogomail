@@ -3595,6 +3595,9 @@ Implementation order:
 1337. API usage ledger list, NDJSON export, and stats OpenAPI operations now
       pin `/admin/v1` plus admin-token/bearer auth alternatives, matching the
       runtime `adminAuth` boundary for generated operator clients.
+1338. API usage daily and monthly aggregate OpenAPI operations now also pin
+      `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated analytics routes.
 
 ## Deferred until backend contracts stabilize
 

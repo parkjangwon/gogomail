@@ -2308,6 +2308,12 @@ paths:
     get:
       operationId: listAdminAPIUsageDaily
       summary: Admin daily API usage aggregates
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: tenant_id
@@ -2362,6 +2368,12 @@ paths:
     get:
       operationId: listAdminAPIUsageMonthly
       summary: Admin monthly API usage aggregates
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: tenant_id
