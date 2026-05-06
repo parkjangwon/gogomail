@@ -2286,6 +2286,10 @@ Implementation order:
       atom validator, rejecting literal markers, response specials, wildcard
       specials, quoted specials, and controls consistently with command/tag
       atom handling.
+1085a. IMAP RFC 2971 `ID` parameter-list parsing now accepts bounded
+       synchronizing and non-synchronizing string literals inside the
+       parenthesized field/value list, while missing or unused literal payloads
+       remain syntax errors.
 1086. Shared storage object path, prefix, and list-cursor validation now rejects
       invalid UTF-8 before local/NFS or S3-compatible adapter use, keeping
       object keys, S3 URLs, SigV4 canonical paths, logs, and cleanup cursors

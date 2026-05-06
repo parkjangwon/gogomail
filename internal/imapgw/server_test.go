@@ -1375,6 +1375,56 @@ func TestServerHandlesIDParameterList(t *testing.T) {
 	}
 }
 
+func TestServerHandlesIDParameterListLiterals(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 ID (\"name\" {13}\r\n")); err != nil {
+		t.Fatalf("write id literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("gogomail test \"version\" {5+}\r\n1.2.3)\r\n")); err != nil {
+		t.Fatalf("write id literal body: %v", err)
+	}
+	want := []string{
+		"* ID (\"name\" \"gogomail\")\r\n",
+		"a1 OK ID completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read id literal response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("id literal response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsMalformedIDArguments(t *testing.T) {
 	t.Parallel()
 
@@ -1462,6 +1512,15 @@ func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
 	}
 	if !imapIDArgumentsValid(`("name" "Project \"Q2\"")`) {
 		t.Fatal("imapIDArgumentsValid rejected escaped quoted-special")
+	}
+	if !imapIDArgumentsValidWithLiterals(`("name" {5} "version" {3})`, []string{"Apple", "1.0"}) {
+		t.Fatal("imapIDArgumentsValidWithLiterals rejected literal ID strings")
+	}
+	if imapIDArgumentsValidWithLiterals(`("name" {5})`, nil) {
+		t.Fatal("imapIDArgumentsValidWithLiterals accepted missing literal")
+	}
+	if imapIDArgumentsValidWithLiterals(`("name" "client")`, []string{"unused"}) {
+		t.Fatal("imapIDArgumentsValidWithLiterals accepted unused literal")
 	}
 }
 

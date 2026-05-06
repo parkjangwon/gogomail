@@ -898,6 +898,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP RFC 2971 `ID` unquoted field/value tokens now reuse the same atom
   validator as command tags and atoms, rejecting literal markers, response
   specials, wildcard specials, quoted specials, and controls consistently.
+- IMAP RFC 2971 `ID` parameter-list parsing now accepts bounded synchronizing
+  and non-synchronizing string literals inside the parenthesized field/value
+  list, while still rejecting missing or unused literal payloads.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
   instead of silently treating them as valid sizes.
