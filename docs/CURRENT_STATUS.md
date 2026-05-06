@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after retention admin OpenAPI route pinning)
+Last updated: 2026-05-07 (updated after delivery observability admin OpenAPI route pinning)
 
 ## Current phase
 
@@ -122,6 +122,11 @@ API usage ledger retention run and DAV sync retention run administration
 operations now also pin the Admin API server and admin-auth alternatives in
 OpenAPI, keeping destructive or audit-recorded retention workflows generated
 under operator-only routes after readiness checks.
+Quota reconciliation, delivery attempt, exhausted delivery attempt, and push
+notification attempt/statistics administration operations now also pin the
+Admin API server and admin-auth alternatives in OpenAPI, keeping operational
+observability and provider outcome updates generated under operator-only
+routes.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

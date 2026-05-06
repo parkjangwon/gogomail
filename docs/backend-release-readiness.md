@@ -69,6 +69,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - API usage ledger retention run and DAV sync retention run OpenAPI operations
   now also pin the Admin API server and admin-token/bearer auth alternatives,
   matching their runtime destructive/audited retention `adminAuth` routes.
+- Quota reconciliation, delivery attempt, exhausted delivery attempt, and push
+  notification attempt/statistics OpenAPI operations now also pin the Admin API
+  server and admin-token/bearer auth alternatives, matching their runtime
+  observability and provider outcome `adminAuth` routes.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff

@@ -414,6 +414,10 @@ API usage ledger retention run and DAV sync retention run routes also carry
 operation-level Admin API base/auth metadata. These routes are operator-only
 destructive or audit-recorded retention workflows under `/admin/v1`, separate
 from the readiness probes that preview candidate impact before mutation.
+Quota reconciliation, delivery attempt, exhausted delivery attempt, and push
+notification attempt/statistics routes also carry operation-level Admin API
+base/auth metadata. These routes are operator-only observability and provider
+outcome update surfaces under `/admin/v1`.
 
 ## Pagination
 
