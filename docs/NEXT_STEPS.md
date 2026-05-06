@@ -60,6 +60,9 @@ Current state:
 - `LOGIN` and `AUTHENTICATE` validate malformed argument shape or unsupported
   mechanisms before plaintext `[PRIVACYREQUIRED]` responses on TLS-required
   listeners.
+- Successful `LOGIN` and `AUTHENTICATE PLAIN` responses now include the
+  authenticated `[CAPABILITY ...]` response code, keeping post-auth capability
+  discovery explicit for RFC-shaped clients.
 - Mailbox management and subscription commands validate malformed `LIST`,
   `LSUB`, `CREATE`, `DELETE`, `RENAME`, `SUBSCRIBE`, and `UNSUBSCRIBE`
   argument shape or modified UTF-7 mailbox names before authentication
