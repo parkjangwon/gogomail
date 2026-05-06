@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Repository struct {
@@ -313,6 +315,9 @@ func (r *Repository) UpsertObject(ctx context.Context, req UpsertObjectRequest) 
 			return CalendarObject{}, err
 		}
 	}
+	if err := ensureCalendarObjectUIDAvailable(ctx, tx, req.UserID, req.CalendarID, req.ObjectName, req.UID); err != nil {
+		return CalendarObject{}, err
+	}
 	const query = `
 INSERT INTO caldav_calendar_objects (
   user_id, calendar_id, object_name, uid, component_type, etag, size, ics
@@ -350,7 +355,7 @@ RETURNING id::text, user_id::text, calendar_id::text, object_name, uid, componen
 		&object.UpdatedAt,
 	)
 	if err != nil {
-		return CalendarObject{}, fmt.Errorf("upsert CalDAV object: %w", err)
+		return CalendarObject{}, mapCalendarObjectUpsertError(err)
 	}
 	if err := updateCalendarSyncToken(ctx, tx, req.UserID, req.CalendarID, syncToken); err != nil {
 		return CalendarObject{}, err
@@ -978,6 +983,39 @@ FOR UPDATE`, userID, calendarID).Scan(&id)
 		return fmt.Errorf("lock CalDAV calendar: %w", err)
 	}
 	return nil
+}
+
+func ensureCalendarObjectUIDAvailable(ctx context.Context, tx *sql.Tx, userID string, calendarID string, objectName string, uid string) error {
+	var existingObject string
+	err := tx.QueryRowContext(ctx, `
+SELECT object_name
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND uid = $3
+  AND object_name <> $4
+  AND status = 'active'
+LIMIT 1`, userID, calendarID, uid, objectName).Scan(&existingObject)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("read CalDAV calendar object UID: %w", err)
+	}
+	return fmt.Errorf("CalDAV calendar object UID %q already exists as %q", uid, existingObject)
+}
+
+func mapCalendarObjectUpsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_caldav_calendar_objects_active_uid":
+			return fmt.Errorf("CalDAV calendar object UID already exists")
+		case "idx_caldav_calendar_objects_active_name":
+			return fmt.Errorf("CalDAV calendar object already exists")
+		}
+	}
+	return fmt.Errorf("upsert CalDAV object: %w", err)
 }
 
 func ensureObjectETag(ctx context.Context, tx *sql.Tx, userID string, calendarID string, objectName string, etag string) error {
