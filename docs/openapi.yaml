@@ -1761,6 +1761,24 @@ paths:
           $ref: "#/components/responses/DirectoryDelegation"
         default:
           $ref: "#/components/responses/Error"
+  /directory/delegations/{id}/assignment:
+    patch:
+      operationId: reassignAdminDirectoryDelegation
+      summary: Reassign an audited Directory delegation relationship
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryDelegationReassign"
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryDelegation"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/group-memberships:
     get:
       operationId: listAdminDirectoryGroupMemberships
@@ -4596,6 +4614,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryDelegationRoleUpdateRequest"
+    DirectoryDelegationReassign:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryDelegationReassignRequest"
     DirectoryGroupMembershipCreate:
       required: true
       content:
@@ -6617,6 +6641,25 @@ components:
         role:
           type: string
           enum: [read, write, manage]
+    DirectoryDelegationReassignRequest:
+      type: object
+      required: [owner_kind, owner_id, delegate_kind, delegate_id, scope]
+      properties:
+        owner_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        owner_id:
+          type: string
+          maxLength: 1024
+        delegate_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        delegate_id:
+          type: string
+          maxLength: 1024
+        scope:
+          type: string
+          enum: [calendar, contacts, drive, mailbox]
     DirectoryGroupMembership:
       type: object
       required: [id, group_id, company_id, member_kind, member_id, role, status]

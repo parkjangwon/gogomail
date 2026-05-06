@@ -1650,6 +1650,152 @@ func directoryDelegationRoleUpdateAuditDetail(delegation Delegation, previousRol
 	return detail, nil
 }
 
+func (r *Repository) ReassignDelegationWithAudit(ctx context.Context, req ReassignDelegationRequest) (Delegation, error) {
+	if r == nil || r.db == nil {
+		return Delegation{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeReassignDelegationRequest(req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	companyID, err := r.ensureDelegationReassignPrincipalsActive(ctx, req)
+	if err != nil {
+		return Delegation{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Delegation{}, fmt.Errorf("begin reassign directory delegation transaction: %w", err)
+	}
+	defer tx.Rollback()
+	delegation, previous, err := r.reassignDelegationTx(ctx, tx, req, companyID)
+	if err != nil {
+		return Delegation{}, err
+	}
+	detail, err := directoryDelegationReassignAuditDetail(delegation, previous)
+	if err != nil {
+		return Delegation{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  delegation.CompanyID,
+		Category:   "admin",
+		Action:     "directory_delegation.reassign",
+		TargetType: "directory_delegation",
+		TargetID:   delegation.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return Delegation{}, fmt.Errorf("record directory delegation reassign audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Delegation{}, fmt.Errorf("commit reassign directory delegation transaction: %w", err)
+	}
+	return delegation, nil
+}
+
+func (r *Repository) reassignDelegationTx(ctx context.Context, tx *sql.Tx, req ReassignDelegationRequest, companyID string) (Delegation, Delegation, error) {
+	const query = `
+WITH current_delegation AS (
+  SELECT d.id,
+         d.company_id,
+         d.owner_kind,
+         d.owner_id,
+         d.delegate_kind,
+         d.delegate_id,
+         d.scope,
+         d.role
+  FROM directory_delegations d
+  JOIN companies c ON c.id = d.company_id
+  WHERE d.id = $1::uuid
+    AND d.status = 'active'
+    AND d.company_id = $7::uuid
+    AND c.status = 'active'
+  FOR UPDATE OF d
+)
+UPDATE directory_delegations AS d
+SET owner_kind = $2,
+    owner_id = $3::uuid,
+    delegate_kind = $4,
+    delegate_id = $5::uuid,
+    scope = $6,
+    updated_at = now()
+FROM current_delegation AS current
+WHERE d.id = current.id
+RETURNING d.id::text,
+          d.company_id::text,
+          d.owner_kind,
+          d.owner_id::text,
+          d.delegate_kind,
+          d.delegate_id::text,
+          d.scope,
+          d.role,
+          d.status,
+          current.owner_kind,
+          current.owner_id::text,
+          current.delegate_kind,
+          current.delegate_id::text,
+          current.scope,
+          current.role`
+	var delegation Delegation
+	var previous Delegation
+	if err := tx.QueryRowContext(ctx, query,
+		req.ID,
+		req.OwnerKind,
+		req.OwnerID,
+		req.DelegateKind,
+		req.DelegateID,
+		req.Scope,
+		companyID,
+	).Scan(
+		&delegation.ID,
+		&delegation.CompanyID,
+		&delegation.OwnerKind,
+		&delegation.OwnerID,
+		&delegation.DelegateKind,
+		&delegation.DelegateID,
+		&delegation.Scope,
+		&delegation.Role,
+		&delegation.Status,
+		&previous.OwnerKind,
+		&previous.OwnerID,
+		&previous.DelegateKind,
+		&previous.DelegateID,
+		&previous.Scope,
+		&previous.Role,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Delegation{}, Delegation{}, fmt.Errorf("directory delegation not found")
+		}
+		return Delegation{}, Delegation{}, mapDirectoryDelegationUpdateError(err)
+	}
+	previous.ID = delegation.ID
+	previous.CompanyID = delegation.CompanyID
+	previous.Status = "active"
+	return delegation, previous, nil
+}
+
+func directoryDelegationReassignAuditDetail(delegation Delegation, previous Delegation) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"delegation_id":          delegation.ID,
+		"company_id":             delegation.CompanyID,
+		"previous_owner_kind":    previous.OwnerKind,
+		"owner_kind":             delegation.OwnerKind,
+		"previous_owner_id":      previous.OwnerID,
+		"owner_id":               delegation.OwnerID,
+		"previous_delegate_kind": previous.DelegateKind,
+		"delegate_kind":          delegation.DelegateKind,
+		"previous_delegate_id":   previous.DelegateID,
+		"delegate_id":            delegation.DelegateID,
+		"previous_scope":         previous.Scope,
+		"scope":                  delegation.Scope,
+		"role":                   delegation.Role,
+		"status":                 delegation.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory delegation reassign audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func (r *Repository) DeleteDelegationWithAudit(ctx context.Context, id string) (Delegation, error) {
 	if r == nil || r.db == nil {
 		return Delegation{}, fmt.Errorf("database handle is required")
@@ -1848,6 +1994,29 @@ func (r *Repository) ensureDelegationPrincipalsActive(ctx context.Context, req C
 		return fmt.Errorf("directory delegation principals must be active and belong to the same company")
 	}
 	return nil
+}
+
+func (r *Repository) ensureDelegationReassignPrincipalsActive(ctx context.Context, req ReassignDelegationRequest) (string, error) {
+	owner, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.OwnerID,
+		Kind:       req.OwnerKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve active delegation owner: %w", err)
+	}
+	delegate, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
+		ID:         req.DelegateID,
+		Kind:       req.DelegateKind,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve active delegation delegate: %w", err)
+	}
+	if owner.CompanyID == "" || owner.CompanyID != delegate.CompanyID {
+		return "", fmt.Errorf("directory delegation principals must belong to the same company")
+	}
+	return owner.CompanyID, nil
 }
 
 func (r *Repository) checkDelegationPrincipalsActive(ctx context.Context, req CheckDelegationRequest) (bool, error) {

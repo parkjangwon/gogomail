@@ -1935,9 +1935,15 @@ Next:
   `PATCH /admin/v1/directory/delegations/{id}/role`, backed by
   `UpdateDelegationRoleWithAudit`. The endpoint changes active grants under
   active companies while committing `directory_delegation.role_update` with
-  previous/new role detail. Next delegation work should add reassign flows with
-  the same audit shape before CalDAV, Drive, or shared inbox modules expose
-  product-facing delegation UX.
+  previous/new role detail.
+- Audited delegation reassignment now exists as
+  `PATCH /admin/v1/directory/delegations/{id}/assignment`, backed by
+  `ReassignDelegationWithAudit`. The endpoint moves an active grant to a new
+  owner/delegate/scope while preserving its role, validates active same-company
+  new principals, and commits `directory_delegation.reassign`. Next delegation
+  work should connect these admin lifecycle boundaries into product-facing
+  CalDAV, Drive, Contacts/CardDAV, and shared inbox policy checks only after
+  each module has its protocol-specific semantics and UX gate.
 - Audited group membership creation now exists as
   `POST /admin/v1/directory/group-memberships`, backed by
   `CreateGroupMembershipWithAudit`. It validates active same-company group and

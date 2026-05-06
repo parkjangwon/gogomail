@@ -7569,6 +7569,93 @@ func TestAdminUpdateDirectoryDelegationRoleHandlerRejectsUnsafeInput(t *testing.
 	}
 }
 
+func TestAdminReassignDirectoryDelegationHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryDelegation: directory.Delegation{
+			ID:           "delegation-1",
+			CompanyID:    "company-1",
+			OwnerKind:    directory.PrincipalKindResource,
+			OwnerID:      "room-2",
+			DelegateKind: directory.PrincipalKindUser,
+			DelegateID:   "user-1",
+			Scope:        directory.DelegationScopeDrive,
+			Role:         directory.DelegationRoleWrite,
+			Status:       "active",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/directory/delegations/%20delegation-1%20/assignment", bytes.NewReader([]byte(`{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"drive"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Delegation directory.Delegation `json:"directory_delegation"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Delegation.ID != "delegation-1" ||
+		response.Delegation.OwnerID != "room-2" ||
+		response.Delegation.DelegateID != "user-1" ||
+		response.Delegation.Scope != directory.DelegationScopeDrive {
+		t.Fatalf("directory_delegation = %+v", response.Delegation)
+	}
+	if service.lastDirectoryDelegationReassign.ID != "delegation-1" ||
+		service.lastDirectoryDelegationReassign.OwnerKind != directory.PrincipalKindResource ||
+		service.lastDirectoryDelegationReassign.OwnerID != "room-2" ||
+		service.lastDirectoryDelegationReassign.DelegateKind != directory.PrincipalKindUser ||
+		service.lastDirectoryDelegationReassign.DelegateID != "user-1" ||
+		service.lastDirectoryDelegationReassign.Scope != directory.DelegationScopeDrive {
+		t.Fatalf("lastDirectoryDelegationReassign = %+v", service.lastDirectoryDelegationReassign)
+	}
+}
+
+func TestAdminReassignDirectoryDelegationHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+		ct   string
+	}{
+		{name: "bad path value", path: "/admin/v1/directory/delegations/delegation%0Abad/assignment", body: `{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"drive"}`, ct: "application/json"},
+		{name: "unknown query", path: "/admin/v1/directory/delegations/delegation-1/assignment?dry_run=true", body: `{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"drive"}`, ct: "application/json"},
+		{name: "bad content type", path: "/admin/v1/directory/delegations/delegation-1/assignment", body: `{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"drive"}`, ct: "text/plain"},
+		{name: "unknown json field", path: "/admin/v1/directory/delegations/delegation-1/assignment", body: `{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"drive","extra":true}`, ct: "application/json"},
+		{name: "self delegation", path: "/admin/v1/directory/delegations/delegation-1/assignment", body: `{"owner_kind":"user","owner_id":"user-1","delegate_kind":"user","delegate_id":"user-1","scope":"drive"}`, ct: "application/json"},
+		{name: "bad scope", path: "/admin/v1/directory/delegations/delegation-1/assignment", body: `{"owner_kind":"resource","owner_id":"room-2","delegate_kind":"user","delegate_id":"user-1","scope":"files"}`, ct: "application/json"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPatch, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", tc.ct)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryDelegationReassign.ID != "" {
+				t.Fatalf("dispatched request %+v", service.lastDirectoryDelegationReassign)
+			}
+		})
+	}
+}
+
 func TestAdminUpdateDirectoryGroupMembershipRoleHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7845,6 +7932,7 @@ type fakeAdminService struct {
 	lastDirectoryDelegationDeleteID             string
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDirectoryDelegationRoleUpdate           directory.UpdateDelegationRoleRequest
+	lastDirectoryDelegationReassign             directory.ReassignDelegationRequest
 	lastDirectoryGroupMembershipCreate          directory.CreateGroupMembershipRequest
 	lastDirectoryGroupMembershipList            directory.ListGroupMembershipsRequest
 	lastDirectoryGroupMembershipDeleteID        string
@@ -8145,6 +8233,15 @@ func (f *fakeAdminService) ReassignDirectoryGroupMembership(_ context.Context, r
 	}
 	f.lastDirectoryGroupMembershipReassign = normalized
 	return f.directoryGroupMembership, nil
+}
+
+func (f *fakeAdminService) ReassignDirectoryDelegation(_ context.Context, req directory.ReassignDelegationRequest) (directory.Delegation, error) {
+	normalized, err := directory.NormalizeReassignDelegationRequest(req)
+	if err != nil {
+		return directory.Delegation{}, err
+	}
+	f.lastDirectoryDelegationReassign = normalized
+	return f.directoryDelegation, nil
 }
 
 func (f *fakeAdminService) DeleteDirectoryDelegation(_ context.Context, id string) (directory.Delegation, error) {

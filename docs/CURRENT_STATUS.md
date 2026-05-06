@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after single active Directory delegation grants)
+Last updated: 2026-05-06 (updated after audited Directory delegation reassignment)
 
 ## Current phase
 
@@ -357,6 +357,12 @@ The Directory delegation schema now enforces one active grant per
 company/owner/delegate/scope, independent of role, so role changes are true
 mutations of a single relationship rather than parallel active grants with
 conflicting privilege semantics.
+Directory delegation reassignment now has the same lifecycle shape:
+`ReassignDelegationWithAudit` verifies the new owner/delegate principals are
+active in the same company, preserves the existing role, maps duplicate active
+grants to the stable duplicate-delegation error, records
+`directory_delegation.reassign`, and is exposed as
+`PATCH /admin/v1/directory/delegations/{id}/assignment`.
 Directory group membership creation now follows that same platform boundary:
 `CreateGroupMembershipWithAudit` normalizes membership roles
 (`member|manager|owner`), verifies the active group and member principal belong
@@ -2958,6 +2964,12 @@ The platform hardening sprint completed the following:
   `directory_delegation.role_update` with previous/new role detail, preparing
   shared calendar, Drive, Contacts/CardDAV, and shared inbox access management
   without product-local role mutation semantics.
+- Directory/Identity delegation reassignment now has an audited repository and
+  admin API boundary. `PATCH /admin/v1/directory/delegations/{id}/assignment`
+  moves an active grant to a new owner/delegate/scope while preserving its role
+  and commits `directory_delegation.reassign`, giving shared calendar, Drive,
+  Contacts/CardDAV, and shared inbox modules a complete create/update/reassign/
+  revoke delegation lifecycle before product-facing sharing UX starts.
 - Directory/Identity alias inspection now has a bounded repository boundary.
   `ListAliases` validates company/domain scope, optional target principal
   filters, text query, active-only state, and result limits before querying,

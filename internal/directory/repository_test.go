@@ -558,6 +558,41 @@ func TestDirectoryDelegationRoleUpdateAuditDetail(t *testing.T) {
 	}
 }
 
+func TestDirectoryDelegationReassignAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryDelegationReassignAuditDetail(Delegation{
+		ID:           "delegation-1",
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-2",
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   "user-1",
+		Scope:        DelegationScopeCalendar,
+		Role:         DelegationRoleWrite,
+		Status:       "active",
+	}, Delegation{
+		ID:           "delegation-1",
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeContacts,
+		Role:         DelegationRoleWrite,
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("directoryDelegationReassignAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"previous_owner_id":"room-1"`) ||
+		!strings.Contains(string(detail), `"owner_id":"room-2"`) ||
+		!strings.Contains(string(detail), `"previous_scope":"contacts"`) ||
+		!strings.Contains(string(detail), `"scope":"calendar"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestDirectoryDelegationDeleteAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -929,6 +964,55 @@ func TestNormalizeUpdateDelegationRoleRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestNormalizeReassignDelegationRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeReassignDelegationRequest(ReassignDelegationRequest{
+		ID:           " delegation-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-2 ",
+		DelegateKind: " USER ",
+		DelegateID:   " user-1 ",
+		Scope:        " Drive ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReassignDelegationRequest returned error: %v", err)
+	}
+	if got.ID != "delegation-1" ||
+		got.OwnerKind != PrincipalKindResource ||
+		got.OwnerID != "room-2" ||
+		got.DelegateKind != PrincipalKindUser ||
+		got.DelegateID != "user-1" ||
+		got.Scope != DelegationScopeDrive {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeReassignDelegationRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ReassignDelegationRequest{
+		{},
+		{ID: "delegation\n1", OwnerKind: PrincipalKindResource, OwnerID: "room-1", DelegateKind: PrincipalKindUser, DelegateID: "user-1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: "calendar", OwnerID: "room-1", DelegateKind: PrincipalKindUser, DelegateID: "user-1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: PrincipalKindResource, OwnerID: "room\n1", DelegateKind: PrincipalKindUser, DelegateID: "user-1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: PrincipalKindResource, OwnerID: "room-1", DelegateKind: "calendar", DelegateID: "user-1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: PrincipalKindResource, OwnerID: "room-1", DelegateKind: PrincipalKindUser, DelegateID: "user\n1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: PrincipalKindUser, OwnerID: "user-1", DelegateKind: PrincipalKindUser, DelegateID: "user-1", Scope: DelegationScopeCalendar},
+		{ID: "delegation-1", OwnerKind: PrincipalKindResource, OwnerID: "room-1", DelegateKind: PrincipalKindUser, DelegateID: "user-1", Scope: "files"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ID+"/"+req.OwnerID+"/"+req.DelegateID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeReassignDelegationRequest(req); err == nil {
+				t.Fatalf("NormalizeReassignDelegationRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeCheckDelegationRequestHonorsExplicitDepth(t *testing.T) {
 	t.Parallel()
 
@@ -1207,6 +1291,22 @@ func TestRepositoryUpdateDelegationRoleRequiresDatabase(t *testing.T) {
 	_, err := NewRepository(nil).UpdateDelegationRoleWithAudit(context.Background(), UpdateDelegationRoleRequest{
 		ID:   "delegation-1",
 		Role: DelegationRoleManage,
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryReassignDelegationRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ReassignDelegationWithAudit(context.Background(), ReassignDelegationRequest{
+		ID:           "delegation-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-2",
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   "user-1",
+		Scope:        DelegationScopeDrive,
 	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)
