@@ -316,7 +316,9 @@ Missing-object reads also preserve the local/NFS error contract: `Get`,
 Standard S3 `<Error>` response bodies are rendered as bounded one-line
 `Code: Message` diagnostics with request-id and host-id context when supplied
 instead of raw XML, while non-XML provider bodies fall back to the same
-sanitized preview path.
+sanitized preview path. XML error previewing is streaming and best-effort, so
+truncated provider error bodies can still expose parsed S3 fields without
+falling back to raw XML snippets.
 The same embedded-error handling applies to `ListObjectsV2` responses that
 arrive as `200 OK` with a top-level standard S3 `<Error>` body, so throttling,
 auth, or provider-side list failures cannot be misreported as malformed

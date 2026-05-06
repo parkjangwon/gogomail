@@ -3985,6 +3985,10 @@ Implementation order:
       top-level status errors, `ListObjectsV2` embedded errors, and nested
       `CopyObjectResult` errors, improving AWS supportability without exposing
       raw XML bodies.
+1432. S3-compatible standard `<Error>` diagnostics now parse XML error fields
+      through a streaming best-effort decoder, so bounded or truncated
+      provider error bodies still surface parsed `Code`/`Message` context
+      instead of falling back to raw XML snippets.
 
 ## Deferred until backend contracts stabilize
 

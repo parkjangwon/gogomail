@@ -3369,6 +3369,17 @@ later</Message>
 	}
 }
 
+func TestS3StoreFormatsTruncatedXMLStatusErrorPreview(t *testing.T) {
+	t.Parallel()
+
+	preview := s3ErrorBodyPreview(strings.NewReader(`<Error>
+  <Code>SlowDown</Code>
+  <Message>`+strings.Repeat("retry ", 128)), 96)
+	if preview == "" || !strings.Contains(preview, "SlowDown") || !strings.Contains(preview, "retry") || strings.Contains(preview, "<Error>") || strings.ContainsAny(preview, "\r\n") {
+		t.Fatalf("preview = %q, want bounded XML error fields without raw XML", preview)
+	}
+}
+
 func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	endpoint := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_ENDPOINT"))
 	bucket := strings.TrimSpace(os.Getenv("GOGOMAIL_TEST_S3_BUCKET"))
