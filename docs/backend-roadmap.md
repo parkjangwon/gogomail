@@ -1219,6 +1219,11 @@ Implementation order:
      `LIST ... RETURN (STATUS (...))` emits requested `STATUS` data after each
      matching selectable mailbox, reducing standards-aware client folder-list
      round trips.
+824a. IMAP extended `LIST` now accepts no-op `RETURN (CHILDREN)` requests and
+      combinations such as `RETURN (CHILDREN STATUS (...))`, keeping clients
+      that explicitly request advertised CHILDREN metadata compatible while
+      preserving existing `\HasChildren` / `\HasNoChildren` response
+      attributes.
 825. IMAP `CAPABILITY` now advertises RFC 4731 `ESEARCH`; `SEARCH RETURN (...)`
      and `UID SEARCH RETURN (...)` return single untagged `ESEARCH` responses
      with requested `MIN`, `MAX`, compact `ALL`, `COUNT`, UID indicators, and

@@ -737,12 +737,14 @@ Current state:
   plus RFC 6154 special-use attributes for system folders such as Drafts, Sent,
   Trash, Junk, Archive, All, and Flagged when those folder roles are present in
   storage metadata, and extended
-  `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms are accepted.
+  `LIST (SPECIAL-USE)`, `RETURN (SPECIAL-USE)`, and no-op
+  `RETURN (CHILDREN)` forms are accepted.
 - `CAPABILITY` now advertises RFC 5819 `LIST-STATUS`; extended
   `LIST ... RETURN (STATUS (...))` emits the requested `STATUS` data directly
   after each matching selectable mailbox to reduce client folder-list round
-  trips, and rejects malformed `RETURN (STATUS MESSAGES)` style status item
-  lists before mailbox listing work.
+  trips, can be combined with `RETURN (CHILDREN)`, and rejects malformed
+  `RETURN (STATUS MESSAGES)` style status item lists before mailbox listing
+  work.
 - `CAPABILITY` now advertises RFC 8438 `STATUS=SIZE`; `STATUS` and
   `LIST-STATUS` can return active message octet totals per mailbox without
   fetching every message's `RFC822.SIZE`.
