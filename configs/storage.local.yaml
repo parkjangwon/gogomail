@@ -1,6 +1,6 @@
 # Local development or single-node filesystem storage profile.
 storage_backend: local
-mailstore_root: var/mailstore
+storage_root: var/mailstore
 storage_backend_compat_labels: []
 storage_s3_endpoint: ""
 storage_s3_region: us-east-1

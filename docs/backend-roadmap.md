@@ -3340,6 +3340,11 @@ Implementation order:
       wildcard matcher once per command and reuses it across mailbox rows and
       subscribed-parent inference, reducing repeated regular-expression
       construction during large mailbox hierarchy discovery.
+1286. YAML config overlays now accept `storage_root` as the file-level alias
+      for the local/NFS object root, matching the existing
+      `GOGOMAIL_STORAGE_ROOT` environment alias while keeping `mailstore_root`
+      backward-compatible. The validated storage profile overlays use the
+      storage-focused key so config-only local/NFS flips are clearer.
 
 ## Deferred until backend contracts stabilize
 

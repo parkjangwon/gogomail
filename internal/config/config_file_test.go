@@ -68,6 +68,23 @@ attachment_scan_timeout: 3s
 	}
 }
 
+func TestLoadFileAcceptsStorageRootAlias(t *testing.T) {
+	t.Setenv("GOGOMAIL_MAILSTORE_ROOT", "/env/mailstore")
+
+	path := writeYAMLConfig(t, `
+storage_backend: nfs
+storage_root: /mnt/gogomail-storage
+`)
+
+	cfg, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile returned error: %v", err)
+	}
+	if cfg.StorageBackend != "nfs" || cfg.MailstoreRoot != "/mnt/gogomail-storage" {
+		t.Fatalf("storage alias overlay = backend:%q root:%q", cfg.StorageBackend, cfg.MailstoreRoot)
+	}
+}
+
 func TestLoadFileRejectsUnsupportedKey(t *testing.T) {
 	path := writeYAMLConfig(t, "storage_backend: local\nsurprise: true\n")
 

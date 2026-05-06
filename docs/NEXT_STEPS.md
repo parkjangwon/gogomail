@@ -131,6 +131,9 @@ Current state:
   special but canonical object keys and the full object lifecycle across local
   storage and optional S3-compatible integration coverage; use it as the smoke
   matrix before local/NFS, MinIO, or AWS S3 backend flips.
+- YAML config overlays accept `storage_root` as the file-level alias for the
+  local/NFS object root, matching `GOGOMAIL_STORAGE_ROOT`; `mailstore_root`
+  remains supported for backward compatibility.
 - `LIST`/`LSUB` CHILDREN attributes infer immediate parents from nested
   `FullPath` values when backend rows do not carry `ParentID`, preserving
   `\HasChildren` metadata for deeper hierarchies such as `Projects/2026/Jan`.

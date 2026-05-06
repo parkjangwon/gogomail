@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP LIST matcher reuse)
+Last updated: 2026-05-06 (updated after storage_root YAML config alias)
 
 ## Current phase
 
@@ -109,7 +109,10 @@ Validated storage profile overlays now exist for local filesystem, explicit
 NFS, local MinIO, and AWS S3-style deployments under `configs/storage.*.yaml`,
 with config-loader and CLI `--config` handoff coverage ensuring each profile
 parses and passes startup validation before operators use it as a config-file
-starting point.
+starting point. YAML overlays now also accept `storage_root` as the
+storage-focused alias for the local/NFS object root, matching the existing
+`GOGOMAIL_STORAGE_ROOT` environment alias while keeping `mailstore_root`
+backward-compatible.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
