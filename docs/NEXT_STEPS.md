@@ -45,7 +45,9 @@ Current state:
   parenthesized status data-item lists as explicit status-data-item errors,
   keeping malformed `STATUS inbox ()`, `STATUS inbox ( )`, and
   `LIST "" * RETURN (STATUS ())` requests distinct from unsupported,
-  duplicate, or malformed-return status item handling.
+  duplicate, or malformed-return status item handling. Duplicate status data
+  items are now diagnosed separately from unknown/unsupported status items,
+  including before authentication checks.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.

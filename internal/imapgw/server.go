@@ -627,9 +627,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD STATUS requires status data items\r\n")
 			return false, err
 		}
-		statusItems, ok := imapStatusItems(fields[3:])
+		statusItems, statusErr, ok := imapStatusItems(fields[3:])
 		if !ok {
-			_, err := writer.WriteString(tag + " BAD STATUS item is unsupported\r\n")
+			_, err := writer.WriteString(tag + " BAD " + statusErr + "\r\n")
 			return false, err
 		}
 		mailboxName, ok := imapDecodeMailboxName(fields[2])
@@ -6439,9 +6439,9 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 			if start == i {
 				return imapListOptions{}, "LIST requires status data items", false
 			}
-			statusItems, ok := imapStatusItems(tokens[start:i])
+			statusItems, statusErr, ok := imapStatusItems(tokens[start:i])
 			if !ok {
-				return imapListOptions{}, "LIST status item is unsupported", false
+				return imapListOptions{}, strings.Replace(statusErr, "STATUS item", "LIST status item", 1), false
 			}
 			options.statusItems = statusItems
 		default:
@@ -6693,7 +6693,7 @@ func imapMailboxMatchesPattern(name string, pattern string) bool {
 	return err == nil && matched
 }
 
-func imapStatusItems(items []string) ([]string, bool) {
+func imapStatusItems(items []string) ([]string, string, bool) {
 	out := make([]string, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
 	for _, raw := range items {
@@ -6702,16 +6702,19 @@ func imapStatusItems(items []string) ([]string, bool) {
 			switch item {
 			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ", "SIZE":
 				if _, ok := seen[item]; ok {
-					return nil, false
+					return nil, "STATUS item is duplicated", false
 				}
 				seen[item] = struct{}{}
 				out = append(out, item)
 			default:
-				return nil, false
+				return nil, "STATUS item is unsupported", false
 			}
 		}
 	}
-	return out, len(out) > 0
+	if len(out) == 0 {
+		return nil, "STATUS requires status data items", false
+	}
+	return out, "", true
 }
 
 func imapStatusItemListIsParenthesized(items []string) bool {

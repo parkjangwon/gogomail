@@ -4541,7 +4541,7 @@ func TestServerListSupportsStatusReturnOption(t *testing.T) {
 		"a3 OK LIST completed\r\n",
 		"a4 BAD LIST requires parenthesized status item list\r\n",
 		"a5 BAD LIST requires parenthesized status item list\r\n",
-		"a6 BAD LIST status item is unsupported\r\n",
+		"a6 BAD LIST status item is duplicated\r\n",
 		"* LIST (\\HasNoChildren) \"/\" \"INBOX\"\r\n",
 		"* STATUS \"INBOX\" (MESSAGES 17)\r\n",
 		"* LIST (\\HasNoChildren \\Sent) \"/\" \"Sent\"\r\n",
@@ -5123,7 +5123,7 @@ func TestServerValidatesSelectedMailboxSyntaxBeforeAuthentication(t *testing.T) 
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 NAMESPACE extra\r\na2 SELECT\r\na3 SELECT &Jjo!\r\na4 EXAMINE inbox (QRESYNC)\r\na5 STATUS\r\na6 STATUS inbox MESSAGES\r\na7 STATUS inbox (BADITEM)\r\na8 STATUS &Jjo! (MESSAGES)\r\na9 SELECT inbox CONDSTORE\r\na10 EXAMINE inbox ((CONDSTORE))\r\na11 SELECT inbox\r\na12 STATUS inbox (MESSAGES)\r\na13 NAMESPACE\r\na14 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 NAMESPACE extra\r\na2 SELECT\r\na3 SELECT &Jjo!\r\na4 EXAMINE inbox (QRESYNC)\r\na5 STATUS\r\na6 STATUS inbox MESSAGES\r\na7 STATUS inbox (BADITEM)\r\na8 STATUS &Jjo! (MESSAGES)\r\na9 SELECT inbox CONDSTORE\r\na10 EXAMINE inbox ((CONDSTORE))\r\na11 SELECT inbox\r\na12 STATUS inbox (MESSAGES)\r\na13 STATUS inbox (MESSAGES MESSAGES)\r\na14 NAMESPACE\r\na15 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write selected mailbox syntax commands: %v", err)
 	}
 	want := []string{
@@ -5139,9 +5139,10 @@ func TestServerValidatesSelectedMailboxSyntaxBeforeAuthentication(t *testing.T) 
 		"a10 BAD EXAMINE requires a mailbox atom and optional CONDSTORE parameter\r\n",
 		"a11 NO authentication required\r\n",
 		"a12 NO authentication required\r\n",
-		"a13 NO authentication required\r\n",
+		"a13 BAD STATUS item is duplicated\r\n",
+		"a14 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a14 OK LOGOUT completed\r\n",
+		"a15 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5370,7 +5371,7 @@ func TestServerHandlesRequestedStatusItemsOnly(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "a4 BAD STATUS requires parenthesized item list\r\n" {
 		t.Fatalf("unparenthesized status line = %q err = %v", line, err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a5 BAD STATUS item is unsupported\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a5 BAD STATUS item is duplicated\r\n" {
 		t.Fatalf("duplicate status item line = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a6 BAD STATUS requires status data items\r\n" {

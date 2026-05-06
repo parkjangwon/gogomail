@@ -417,9 +417,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   MinIO, and AWS S3-style backends.
 - IMAP `STATUS` and LIST-STATUS now reject duplicate status data items before
   mailbox metadata lookup, avoiding ambiguous duplicate status pairs in
-  client-visible responses. LIST-STATUS also reports empty, unparenthesized, or
-  unsupported status return lists with specific tagged `BAD` diagnostics
-  instead of generic LIST arity failures.
+  client-visible responses. Duplicate status data items now receive explicit
+  duplicate diagnostics instead of being folded into unsupported-item failures.
+  LIST-STATUS also reports empty, unparenthesized, or unsupported status return
+  lists with specific tagged `BAD` diagnostics instead of generic LIST arity
+  failures.
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading the
   XML request body when no active collection exists at that path, preserving
   the UUID-only creation contract without extra parse work.
