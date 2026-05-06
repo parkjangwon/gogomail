@@ -484,7 +484,10 @@ avoiding per-mailbox regular-expression construction on large folder trees
 without changing wildcard semantics. RFC 5258 `LIST-EXTENDED` now also
 accepts parenthesized mailbox pattern lists, applies `RETURN` options such as
 `STATUS` and `SUBSCRIBED` to the union of matching folders, and de-duplicates
-overlapping pattern results before writing responses.
+overlapping pattern results before writing responses. The pattern-list parser
+now also preserves quoted mailbox patterns containing spaces, so probes such as
+`LIST "" ("Archive 2026" "INBOX") RETURN (STATUS (MESSAGES))` reach the
+normal matcher/status path instead of failing during command field splitting.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
 mapping through the gateway, service, and PostgreSQL repository boundary, and
 `MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned
