@@ -7251,7 +7251,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\na26 UID SEARCH UID 1:*\r\na27 UID SEARCH UID 999:*\r\na28 SEARCH (ALL)\r\na29 SEARCH ()\r\na30 SEARCH MODSEQ 20\"\r\na31 SEARCH MODSEQ \"/flags/\\\\Seen\" all\" 17\r\na32 SEARCH MODSEQ +20\r\na33 SEARCH CHARSET UTF-8\" ALL\r\na34 SEARCH +1\r\na35 UID SEARCH UID +7\r\na36 SEARCH MODSEQ 0\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\na26 UID SEARCH UID 1:*\r\na27 UID SEARCH UID 999:*\r\na28 SEARCH (ALL)\r\na29 SEARCH ()\r\na30 SEARCH MODSEQ 20\"\r\na31 SEARCH MODSEQ \"/flags/\\\\Seen\" all\" 17\r\na32 SEARCH MODSEQ +20\r\na33 SEARCH CHARSET UTF-8\" ALL\r\na34 SEARCH +1\r\na35 UID SEARCH UID +7\r\na36 SEARCH MODSEQ 0\r\na37 SEARCH LARGER \" 20 \"\r\na38 SEARCH MODSEQ \" 20 \"\r\n")); err != nil {
 		t.Fatalf("write search: %v", err)
 	}
 	want := []string{
@@ -7312,6 +7312,8 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"a34 BAD SEARCH criteria are unsupported\r\n",
 		"a35 BAD SEARCH criteria are unsupported\r\n",
 		"a36 BAD SEARCH criteria are unsupported\r\n",
+		"a37 BAD SEARCH criteria are unsupported\r\n",
+		"a38 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -7322,7 +7324,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a37 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a39 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -10081,14 +10083,13 @@ func TestParseIMAPSearchSize(t *testing.T) {
 	}{
 		{value: "0", want: 0},
 		{value: "20", want: 20},
-		{value: " 20 ", want: 20},
 	} {
 		got, ok := parseIMAPSearchSize(tc.value)
 		if !ok || got != tc.want {
 			t.Fatalf("parseIMAPSearchSize(%q) = %d, %v; want %d, true", tc.value, got, ok, tc.want)
 		}
 	}
-	for _, value := range []string{"+20", "-1", "00", "020", "20x"} {
+	for _, value := range []string{"+20", "-1", "00", "020", "20x", " 20 "} {
 		if got, ok := parseIMAPSearchSize(value); ok {
 			t.Fatalf("parseIMAPSearchSize(%q) = %d, true; want rejection", value, got)
 		}
@@ -10101,7 +10102,7 @@ func TestParseIMAPModSeqValueAndValzer(t *testing.T) {
 	if got, ok := parseIMAPModSeqValue("17"); !ok || got != 17 {
 		t.Fatalf("parseIMAPModSeqValue(17) = %d, %v; want 17, true", got, ok)
 	}
-	for _, value := range []string{"", "0", "+17", "17x"} {
+	for _, value := range []string{"", "0", "+17", "17x", " 17 "} {
 		if got, ok := parseIMAPModSeqValue(value); ok {
 			t.Fatalf("parseIMAPModSeqValue(%q) = %d, true; want rejection", value, got)
 		}
@@ -10118,7 +10119,7 @@ func TestParseIMAPModSeqValueAndValzer(t *testing.T) {
 			t.Fatalf("parseIMAPModSeqValzer(%q) = %d, %v; want %d, true", tc.value, got, ok, tc.want)
 		}
 	}
-	for _, value := range []string{"", "+17", "17x"} {
+	for _, value := range []string{"", "+17", "17x", " 17 "} {
 		if got, ok := parseIMAPModSeqValzer(value); ok {
 			t.Fatalf("parseIMAPModSeqValzer(%q) = %d, true; want rejection", value, got)
 		}

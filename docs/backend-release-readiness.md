@@ -66,6 +66,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`
   size atoms.
+- IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
+  whitespace-padded numeric strings such as `LARGER " 20 "` or
+  `MODSEQ " 20 "` instead of trimming them into valid number atoms.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
