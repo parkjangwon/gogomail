@@ -2179,6 +2179,12 @@ paths:
     get:
       operationId: listAdminQuotaUsage
       summary: Admin domain and user quota usage pressure list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: scope
@@ -2212,6 +2218,12 @@ paths:
     post:
       operationId: listAdminAttachmentCleanupCandidates
       summary: Preview stale attachment upload cleanup candidates
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/AttachmentCleanupRun"
       responses:
@@ -2223,6 +2235,12 @@ paths:
     get:
       operationId: listAdminAttachmentUploadSessions
       summary: Admin inspect attachment upload sessions
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: user_id
@@ -2252,6 +2270,12 @@ paths:
     get:
       operationId: listAdminDriveUploadSessions
       summary: Admin inspect Drive upload sessions
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: user_id
@@ -2276,6 +2300,12 @@ paths:
     get:
       operationId: listAdminDriveNodes
       summary: Admin inspect Drive nodes for a user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: user_id
@@ -2332,6 +2362,12 @@ paths:
     get:
       operationId: getAdminDriveNode
       summary: Admin inspect one Drive node for a user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
         - name: user_id
@@ -2357,6 +2393,12 @@ paths:
     get:
       operationId: getAdminDriveUsageSummary
       summary: Admin inspect Drive usage summary for a user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: user_id
           in: query
@@ -2374,6 +2416,12 @@ paths:
     post:
       operationId: listAdminDriveUploadCleanupCandidates
       summary: Preview stale Drive upload session cleanup candidates
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/AttachmentCleanupRun"
       responses:
@@ -2385,6 +2433,12 @@ paths:
     post:
       operationId: runAdminDriveUploadCleanup
       summary: Run stale Drive upload session cleanup once
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/AttachmentCleanupRun"
       responses:
@@ -2396,6 +2450,12 @@ paths:
     get:
       operationId: listAdminDriveCleanupFailures
       summary: Admin inspect Drive object cleanup failures
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: user_id
@@ -2419,6 +2479,12 @@ paths:
     post:
       operationId: retryAdminDriveCleanupFailures
       summary: Retry pending Drive object cleanup failures once
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DriveCleanupRetryRun"
       responses:
@@ -2430,6 +2496,12 @@ paths:
     post:
       operationId: resolveAdminDriveCleanupFailure
       summary: Resolve a pending Drive object cleanup failure
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -2441,6 +2513,12 @@ paths:
     post:
       operationId: runAdminAttachmentCleanup
       summary: Run stale attachment upload cleanup once
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/AttachmentCleanupRun"
       responses:

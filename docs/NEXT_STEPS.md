@@ -101,6 +101,11 @@ Current state:
   membership, and SMTP backpressure OpenAPI operations now also pin
   `/admin/v1` and admin-token/bearer auth alternatives, matching their runtime
   operator forensics, identity, delegated-access, and flow-control boundary.
+- Quota pressure, attachment upload cleanup, Drive upload session, Drive node,
+  Drive usage, and Drive cleanup failure OpenAPI operations now also pin
+  `/admin/v1` and admin-token/bearer auth alternatives, matching their runtime
+  operator storage/Drive boundary across local, NFS, MinIO, and S3-compatible
+  deployments.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

@@ -3620,6 +3620,11 @@ Implementation order:
       and admin-token/bearer auth alternatives, matching their runtime
       admin-authenticated forensics, identity, delegated-access, and
       flow-control routes.
+1345. Quota pressure, attachment upload cleanup, Drive upload session, Drive
+      node, Drive usage, and Drive cleanup failure OpenAPI operations now pin
+      `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated storage/Drive routes across local, NFS,
+      MinIO, and S3-compatible deployments.
 
 ## Deferred until backend contracts stabilize
 

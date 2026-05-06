@@ -405,6 +405,11 @@ membership, and backpressure routes also carry operation-level Admin API
 base/auth metadata. These routes are operator-only surfaces for operational
 forensics, principal resolution, delegated access, group membership management,
 and SMTP flow-control state under `/admin/v1`.
+Quota pressure, attachment upload cleanup, Drive upload session, Drive node,
+Drive usage, and Drive object cleanup failure routes also carry operation-level
+Admin API base/auth metadata. These routes are operator-only storage and Drive
+operations under `/admin/v1`, including deployments backed by local filesystems,
+explicit NFS mounts, MinIO, and S3-compatible object storage.
 
 ## Pagination
 
