@@ -20,6 +20,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   only when the runtime store implements the corresponding sync change-log
   interface, avoiding false native-client sync capability discovery on limited
   backends.
+- Admin storage capability support flags are derived from active backend labels
+  instead of hard-coded booleans, so operator consoles see accurate local/NFS,
+  MinIO, and AWS/S3-compatible support claims for the configured backend.
 - Webmail capability discovery now advertises only the message-search filters
   implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
   and `has_attachment`), keeping generated clients from calling unsupported

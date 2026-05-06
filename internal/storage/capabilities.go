@@ -1,5 +1,7 @@
 package storage
 
+import "strings"
+
 type BackendCapabilities struct {
 	ContractVersion       string   `json:"contract_version"`
 	ConfiguredBackend     string   `json:"configured_backend"`
@@ -21,4 +23,20 @@ type BackendCapabilities struct {
 	SupportsMinIO         bool     `json:"supports_minio"`
 	SupportsAWSCompatible bool     `json:"supports_aws_compatible"`
 	RequiresByteMigration bool     `json:"requires_byte_migration"`
+}
+
+func SupportMatrixForLabels(labels []string) (supportsLocalNFS bool, supportsMinIO bool, supportsAWSCompatible bool) {
+	for _, label := range labels {
+		label = strings.ToLower(strings.TrimSpace(label))
+		switch label {
+		case "local", "nfs":
+			supportsLocalNFS = true
+		case "minio":
+			supportsMinIO = true
+			supportsAWSCompatible = true
+		case "s3":
+			supportsAWSCompatible = true
+		}
+	}
+	return supportsLocalNFS, supportsMinIO, supportsAWSCompatible
 }

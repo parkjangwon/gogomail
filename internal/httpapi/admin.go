@@ -349,11 +349,13 @@ func storageCapabilitiesFromRouteConfig(cfg adminRouteConfig) storage.BackendCap
 	if cfg.storageCapabilities != nil {
 		return *cfg.storageCapabilities
 	}
+	activeLabels := []string{"local"}
+	supportsLocalNFS, supportsMinIO, supportsAWSCompatible := storage.SupportMatrixForLabels(activeLabels)
 	return storage.BackendCapabilities{
 		ContractVersion:       BackendContractVersion,
 		ConfiguredBackend:     "local",
 		BackendClass:          "local",
-		ActiveLabels:          []string{"local"},
+		ActiveLabels:          activeLabels,
 		Operations:            []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
 		LocalFilesystem:       true,
 		S3Compatible:          false,
@@ -362,9 +364,9 @@ func storageCapabilitiesFromRouteConfig(cfg adminRouteConfig) storage.BackendCap
 		ReadinessProbe:        true,
 		SecretsRedacted:       true,
 		SupportsBackendSwitch: true,
-		SupportsLocalNFS:      true,
-		SupportsMinIO:         true,
-		SupportsAWSCompatible: true,
+		SupportsLocalNFS:      supportsLocalNFS,
+		SupportsMinIO:         supportsMinIO,
+		SupportsAWSCompatible: supportsAWSCompatible,
 		RequiresByteMigration: true,
 	}
 }

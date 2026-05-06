@@ -583,6 +583,7 @@ func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities
 		activeLabels = append(activeLabels, label)
 	}
 	sort.Strings(activeLabels)
+	supportsLocalNFS, supportsMinIO, supportsAWSCompatible := storage.SupportMatrixForLabels(activeLabels)
 
 	capabilities := storage.BackendCapabilities{
 		ContractVersion:       httpapi.BackendContractVersion,
@@ -597,9 +598,9 @@ func storageCapabilitiesForConfig(cfg config.Config) storage.BackendCapabilities
 		ReadinessProbe:        true,
 		SecretsRedacted:       true,
 		SupportsBackendSwitch: true,
-		SupportsLocalNFS:      true,
-		SupportsMinIO:         true,
-		SupportsAWSCompatible: true,
+		SupportsLocalNFS:      supportsLocalNFS,
+		SupportsMinIO:         supportsMinIO,
+		SupportsAWSCompatible: supportsAWSCompatible,
 		RequiresByteMigration: true,
 	}
 	if capabilities.S3Compatible {
