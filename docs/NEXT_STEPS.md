@@ -337,6 +337,9 @@ Current state:
 - IMAP IDLE recovery now has regression coverage for unexpected command input:
   non-`DONE` lines such as `NOOP` or `DONE NOW` return a tagged `BAD` for the
   pending IDLE command, leave idle state, and keep the session usable.
+- IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
+  token, rejecting leading/trailing whitespace variants as malformed
+  termination instead of silently ending the idle state.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.

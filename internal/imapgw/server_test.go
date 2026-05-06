@@ -4909,7 +4909,19 @@ func TestServerRejectsUnexpectedCommandDuringIdleAndContinuesSession(t *testing.
 	if line, err := reader.ReadString('\n'); err != nil || line != "a6 OK NOOP completed\r\n" {
 		t.Fatalf("noop after malformed done = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a7 IDLE\r\n")); err != nil {
+		t.Fatalf("write third idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("third idle continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte(" DONE\r\n")); err != nil {
+		t.Fatalf("write space-padded done: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a7 BAD IDLE terminated by unexpected command\r\n" {
+		t.Fatalf("space-padded done response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a8 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
