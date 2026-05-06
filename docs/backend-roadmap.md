@@ -2738,6 +2738,12 @@ Implementation order:
          the same transaction. This keeps shared-calendar, Drive,
          Contacts/CardDAV, and shared inbox role semantics in one platform
          boundary.
+1175b2b. Directory/Identity now enforces a single active delegation grant per
+         company/owner/delegate/scope at the database boundary, independent of
+         role. Role changes are therefore auditable mutations of one
+         relationship instead of parallel active grants with conflicting
+         privilege semantics; create and update uniqueness races map to the
+         same stable duplicate-delegation error.
 1175b3. Directory/Identity now exposes audited group membership creation
         through `CreateGroupMembershipWithAudit` and
         `POST /admin/v1/directory/group-memberships`, returning a

@@ -1626,7 +1626,7 @@ RETURNING d.id::text,
 		if errors.Is(err, sql.ErrNoRows) {
 			return Delegation{}, "", fmt.Errorf("directory delegation not found")
 		}
-		return Delegation{}, "", fmt.Errorf("update directory delegation role: %w", err)
+		return Delegation{}, "", mapDirectoryDelegationUpdateError(err)
 	}
 	return delegation, previousRole, nil
 }
@@ -1744,6 +1744,14 @@ func directoryDelegationDeleteAuditDetail(delegation Delegation) (json.RawMessag
 }
 
 func mapDirectoryDelegationInsertError(err error) error {
+	return mapDirectoryDelegationWriteError("create directory delegation", err)
+}
+
+func mapDirectoryDelegationUpdateError(err error) error {
+	return mapDirectoryDelegationWriteError("update directory delegation", err)
+}
+
+func mapDirectoryDelegationWriteError(operation string, err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		switch pgErr.ConstraintName {
@@ -1751,7 +1759,7 @@ func mapDirectoryDelegationInsertError(err error) error {
 			return fmt.Errorf("%w", ErrDelegationAlreadyExists)
 		}
 	}
-	return fmt.Errorf("create directory delegation: %w", err)
+	return fmt.Errorf("%s: %w", operation, err)
 }
 
 func (r *Repository) ListDelegations(ctx context.Context, req ListDelegationsRequest) ([]Delegation, error) {

@@ -194,6 +194,18 @@ func TestMapDirectoryDelegationInsertErrorMapsActiveGrantUniqueIndex(t *testing.
 	}
 }
 
+func TestMapDirectoryDelegationUpdateErrorMapsActiveGrantUniqueIndex(t *testing.T) {
+	t.Parallel()
+
+	err := mapDirectoryDelegationUpdateError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_directory_delegations_active_grant",
+	})
+	if !errors.Is(err, ErrDelegationAlreadyExists) {
+		t.Fatalf("mapped error = %v, want ErrDelegationAlreadyExists", err)
+	}
+}
+
 func TestMapDirectoryGroupMembershipInsertErrorMapsActiveMemberUniqueIndex(t *testing.T) {
 	t.Parallel()
 
