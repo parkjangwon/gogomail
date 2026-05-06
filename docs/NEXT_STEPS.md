@@ -59,6 +59,10 @@ Current state:
   and `THREAD` argument shape, return options, and sort/thread argument lists
   before authentication failures, while well-formed unauthenticated commands
   still return `NO authentication required`.
+- IMAP `THREAD` and `UID THREAD` now reject unsupported algorithms before
+  authentication or selected-mailbox state checks, keeping advertised
+  `THREAD=ORDEREDSUBJECT` capability behavior explicit for clients that probe
+  `REFERENCES` or future algorithms.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.
