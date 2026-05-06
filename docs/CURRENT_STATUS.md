@@ -2487,11 +2487,13 @@ The platform hardening sprint completed the following:
   by normalized remote address plus share token, returns HTTP 429 with
   `Retry-After` on quota exhaustion, and fails open on transient limiter errors
   after startup.
-- Drive public share metadata/download successes now emit best-effort
+- Drive public share metadata/download successes, denied token/permission
+  checks, and rate-limited requests now emit best-effort
   hash-chain audit rows (`category=drive`, `share_link.resolve`,
   `share_link.download`, `share_link.download_head`) with link/node identity,
-  normalized remote address, user agent, token suffix, status, and byte range
-  when present, without recording raw tokens or storage backend/path values.
+  when available plus normalized remote address, user agent, token suffix,
+  result/status, and byte range when present, without recording raw tokens or
+  storage backend/path values.
 - CalDAV work has started with ADR 0010, a `caldav` runtime scaffold, and an
   `internal/caldavgw` boundary for RFC/WebDAV standards, DAV tokens, principal
   paths, calendar-home paths, calendar collections, and `.ics` object paths.

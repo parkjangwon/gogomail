@@ -282,11 +282,12 @@ or development `user_id` fallback path as webmail mail routes:
   transient limiter storage errors fail open so public download availability is
   not coupled to Redis after startup.
   Successful public share metadata, `GET` download, and `HEAD` download
-  accesses are also recorded as best-effort hash-chain audit rows under
-  `category=drive` with actions `share_link.resolve`, `share_link.download`,
-  and `share_link.download_head`. Audit details include node id, permission,
-  token suffix, status, and requested byte range when present, but never raw
-  tokens or storage backend/path values.
+  accesses, denied token/permission checks, and rate-limited requests are also
+  recorded as best-effort hash-chain audit rows under `category=drive` with
+  actions `share_link.resolve`, `share_link.download`, and
+  `share_link.download_head`. Audit details include node id and permission when
+  available plus token suffix, result, status, and requested byte range when
+  present, but never raw tokens or storage backend/path values.
 - `DELETE /api/v1/drive/share-links/{id}` revokes an active authenticated-user
   share link and returns `{"drive_share_link":{...}}` with `status=revoked`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,

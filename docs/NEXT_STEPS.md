@@ -1515,10 +1515,12 @@ Current state:
   buckets normalized remote address plus token, returns 429/`Retry-After` when
   the per-minute quota is exhausted, and keeps limiter runtime errors fail-open
   so storage availability does not become a hidden public-download dependency.
-- Drive public share-link successful metadata/download accesses now write
-  best-effort hash-chain audit rows with sanitized link/node/request metadata,
-  giving Admin audit-log filters immediate visibility into public-link access
-  without blocking downloads on audit persistence.
+- Drive public share-link successful metadata/download accesses, denied
+  token/permission checks, and rate-limited requests now write best-effort
+  hash-chain audit rows with sanitized link/node/request metadata when
+  available plus token suffix, result, status, and remote request metadata.
+  This gives Admin audit-log filters immediate visibility into public-link
+  access attempts without blocking downloads on audit persistence.
 - CalDAV module work has started: ADR 0010 records the standards-first gateway
   boundary, `gogomail --mode=caldav` is a runtime scaffold, and
   `internal/caldavgw` owns RFC/WebDAV method tokens plus principal, calendar
