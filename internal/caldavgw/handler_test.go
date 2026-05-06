@@ -2436,6 +2436,24 @@ func TestHandlerDeleteRejectsIfMatchStarForMissingObject(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteRejectsMatchingIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendarObject(context.Background(), "user-1", "work", "event-1.ics"); err != nil {
+		t.Fatalf("object was deleted despite If-None-Match precondition: %v", err)
+	}
+}
+
 func TestHandlerDeleteIfMatchStarCarriesObservedETag(t *testing.T) {
 	t.Parallel()
 

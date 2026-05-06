@@ -20,6 +20,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collection `supported-report-set` sync reports only when the runtime store
   implements the corresponding sync change-log interface, avoiding false
   native-client sync capability discovery on limited backends.
+- CalDAV and CardDAV object `DELETE` now honors `If-None-Match`
+  preconditions, returning HTTP 412 for `*` or matching object ETags before
+  mutating `.ics` or `.vcf` resources.
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.

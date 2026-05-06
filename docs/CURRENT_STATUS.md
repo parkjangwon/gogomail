@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after local exact-object list parity)
+Last updated: 2026-05-07 (updated after DAV delete If-None-Match preconditions)
 
 ## Current phase
 
@@ -57,6 +57,10 @@ CalDAV and CardDAV object `PUT`/`DELETE` now carry the currently observed
 strong object ETag into repository mutation guards even when `If-Match: *`
 matches an existing resource, so existence-only DAV preconditions still
 recheck the exact object observed by the handler before durable mutation.
+CalDAV and CardDAV object `DELETE` now also evaluate `If-None-Match` before
+mutation, so `If-None-Match: *` or a matching ETag receives HTTP 412 and leaves
+the `.ics` or `.vcf` object intact instead of silently deleting an existing
+representation.
 CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new

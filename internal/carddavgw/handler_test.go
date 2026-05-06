@@ -702,6 +702,24 @@ func TestHandlerDeleteContactObjectHonorsIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteContactObjectRejectsMatchingIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil)
+	req.Header.Set("If-None-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupContactObject(context.Background(), "user-1", "personal", "contact-1.vcf"); err != nil {
+		t.Fatalf("contact object was deleted despite If-None-Match precondition: %v", err)
+	}
+}
+
 func TestHandlerDeleteContactObjectIfMatchStarCarriesObservedETag(t *testing.T) {
 	t.Parallel()
 

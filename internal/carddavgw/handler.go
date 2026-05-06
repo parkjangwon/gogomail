@@ -476,28 +476,36 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	observedETag := ""
-	if ifMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupContactObject(r.Context(), userID, resource.AddressBookID, resource.ObjectName)
 		if err != nil {
-			http.Error(w, "carddav contact object not found", http.StatusPreconditionFailed)
-			return
-		}
-		if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
-			http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
-			return
-		}
-		if ifMatch != "" {
-			observedETag = object.ETag
-		}
-		if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
-			http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
-			return
+			if ifMatch != "" || ifUnmodifiedSince != "" {
+				http.Error(w, "carddav contact object not found", http.StatusPreconditionFailed)
+				return
+			}
+		} else {
+			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, object.ETag) {
+				http.Error(w, "carddav contact object if-none-match precondition failed", http.StatusPreconditionFailed)
+				return
+			}
+			if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
+				http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
+				return
+			}
+			if ifMatch != "" {
+				observedETag = object.ETag
+			}
+			if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
+				http.Error(w, "carddav contact object modified since precondition", http.StatusPreconditionFailed)
+				return
+			}
 		}
 	}
 	if _, err := store.DeleteContactObject(r.Context(), DeleteContactObjectRequest{
