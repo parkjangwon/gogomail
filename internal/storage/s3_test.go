@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -756,6 +757,54 @@ func TestS3StoreCheckBoundsReadinessBody(t *testing.T) {
 	}
 	if deletes != 1 {
 		t.Fatalf("delete calls = %d, want cleanup after mismatch", deletes)
+	}
+}
+
+func TestS3StoreCheckProbesReadinessMetadata(t *testing.T) {
+	t.Parallel()
+
+	var sawHead bool
+	var deletes int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			_, _ = w.Write([]byte("gogomail storage readiness\n"))
+		case http.MethodHead:
+			sawHead = true
+			w.Header().Set("Content-Length", strconv.Itoa(len("gogomail storage readiness\n")+1))
+			w.WriteHeader(http.StatusOK)
+		case http.MethodDelete:
+			deletes++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("method = %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "readiness probe metadata mismatch") {
+		t.Fatalf("Check err = %v, want metadata mismatch", err)
+	}
+	if !sawHead {
+		t.Fatal("Check did not issue HEAD metadata probe")
+	}
+	if deletes != 1 {
+		t.Fatalf("delete calls = %d, want cleanup after metadata mismatch", deletes)
 	}
 }
 

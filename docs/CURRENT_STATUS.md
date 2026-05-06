@@ -751,6 +751,10 @@ owner/resource target without scanning unrelated audit history.
 - Local/NFS and S3-compatible readiness probes now read the verification object
   through a tight expected-size bound, so malformed or proxy-inflated probe
   responses cannot allocate unbounded memory during `/health/ready` checks.
+- Local/NFS and S3-compatible readiness probes now also `Stat` the verification
+  object and compare its canonical key and byte size before cleanup, catching
+  broken filesystem metadata or S3 `HEAD` paths during readiness instead of
+  later Drive/mail object workflows.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, CalDAV scaffold, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object

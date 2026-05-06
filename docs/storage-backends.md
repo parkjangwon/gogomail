@@ -54,10 +54,12 @@ contract against the target backend:
 - `storage.DeletePrefix` removes a bounded page of remaining objects under the
   prefix without touching sibling prefixes.
 
-`TestLocalStorePortabilityContract` always runs this contract for local/NFS
-semantics. `TestS3StoreIntegrationRoundTrip` reuses the same contract when
-`GOGOMAIL_TEST_S3_*` variables are set, giving MinIO and AWS S3 deployments a
-single smoke test before a storage backend flip.
+Runtime readiness also writes, reads, stats, and deletes a short probe object,
+so both object bytes and metadata paths are checked before an instance reports
+ready. `TestLocalStorePortabilityContract` always runs this contract for
+local/NFS semantics. `TestS3StoreIntegrationRoundTrip` reuses the same contract
+when `GOGOMAIL_TEST_S3_*` variables are set, giving MinIO and AWS S3
+deployments a single smoke test before a storage backend flip.
 
 ## Local filesystem or NFS
 

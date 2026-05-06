@@ -378,6 +378,15 @@ func (s *LocalStore) Check(ctx context.Context) error {
 		_ = s.Delete(ctx, objectPath)
 		return fmt.Errorf("readiness probe body mismatch")
 	}
+	info, err := s.Stat(ctx, objectPath)
+	if err != nil {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("stat readiness probe: %w", err)
+	}
+	if info.Path != objectPath || info.Size != int64(len(body)) {
+		_ = s.Delete(ctx, objectPath)
+		return fmt.Errorf("readiness probe metadata mismatch")
+	}
 	if err := s.Delete(ctx, objectPath); err != nil {
 		return fmt.Errorf("delete readiness probe: %w", err)
 	}

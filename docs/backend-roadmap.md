@@ -1588,6 +1588,10 @@ Implementation order:
      preventing malformed or proxy-inflated probe responses from allocating
      unbounded memory during health checks while still detecting body
      mismatches.
+922a. Local/NFS and S3-compatible readiness probes now also `Stat` the
+      verification object and compare canonical key plus byte size before
+      cleanup, catching broken filesystem metadata or S3 `HEAD` paths before
+      the instance reports ready.
 923. S3-compatible `PUT`, failed `GET`, and `DELETE` responses now drain a
      small bounded response-body window before close, improving HTTP connection
      reuse for ordinary S3/MinIO responses while preventing oversized bodies
