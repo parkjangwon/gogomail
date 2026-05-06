@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -72,6 +73,7 @@ type adminService struct {
 		RetryObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
 	}
 	davSyncRetention interface {
+		RecordRun(ctx context.Context, record davsyncretention.RunRecord) (davsyncretention.RunRecord, error)
 		ListRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 		GetRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	}
@@ -741,6 +743,91 @@ func (s adminService) GetDAVSyncRetentionReadiness(ctx context.Context, req davs
 		CardDAVCandidates:  cardResult.CandidateCount,
 		DestructiveGuarded: true,
 	}, nil
+}
+
+func (s adminService) RunDAVSyncRetention(ctx context.Context, req davsyncretention.RunRequest) (davsyncretention.RunRecord, error) {
+	req, err := davsyncretention.NormalizeRunRequest(req, time.Now)
+	if err != nil {
+		return davsyncretention.RunRecord{}, err
+	}
+	if s.davSyncRetention == nil {
+		return davsyncretention.RunRecord{}, fmt.Errorf("DAV sync retention repository is not configured")
+	}
+	if s.calDAVSyncRetention == nil {
+		return davsyncretention.RunRecord{}, fmt.Errorf("CalDAV sync retention repository is not configured")
+	}
+	if s.cardDAVSyncRetention == nil {
+		return davsyncretention.RunRecord{}, fmt.Errorf("CardDAV sync retention repository is not configured")
+	}
+	if !req.DryRun {
+		readiness, err := s.GetDAVSyncRetentionReadiness(ctx, davsyncretention.ReadinessRequest{
+			Cutoff: req.Cutoff,
+			Limit:  req.Limit,
+		})
+		if err != nil {
+			return davsyncretention.RunRecord{}, err
+		}
+		if !readiness.Ready {
+			record, recordErr := s.davSyncRetention.RecordRun(ctx, davsyncretention.RunRecord{
+				Cutoff:            req.Cutoff,
+				Limit:             req.Limit,
+				DryRun:            req.DryRun,
+				ConfirmReady:      req.ConfirmReady,
+				Status:            davsyncretention.RunStatusFailed,
+				ErrorMessage:      "DAV sync retention readiness is truncated",
+				CalDAVCandidates:  readiness.CalDAVCandidates,
+				CardDAVCandidates: readiness.CardDAVCandidates,
+			})
+			return record, errors.Join(fmt.Errorf("DAV sync retention readiness is truncated"), recordErr)
+		}
+	}
+	calResult, err := s.calDAVSyncRetention.PruneCalendarSyncChanges(ctx, caldavgw.PruneCalendarSyncChangesRequest{
+		Cutoff: req.Cutoff,
+		Limit:  req.Limit,
+		DryRun: req.DryRun,
+	})
+	if err != nil {
+		record, recordErr := s.davSyncRetention.RecordRun(ctx, davsyncretention.RunRecord{
+			Cutoff:       req.Cutoff,
+			Limit:        req.Limit,
+			DryRun:       req.DryRun,
+			ConfirmReady: req.ConfirmReady,
+			Status:       davsyncretention.RunStatusFailed,
+			ErrorMessage: err.Error(),
+		})
+		return record, errors.Join(err, recordErr)
+	}
+	cardResult, err := s.cardDAVSyncRetention.PruneAddressBookChanges(ctx, carddavgw.PruneAddressBookChangesRequest{
+		Cutoff: req.Cutoff,
+		Limit:  req.Limit,
+		DryRun: req.DryRun,
+	})
+	if err != nil {
+		record, recordErr := s.davSyncRetention.RecordRun(ctx, davsyncretention.RunRecord{
+			Cutoff:            req.Cutoff,
+			Limit:             req.Limit,
+			DryRun:            req.DryRun,
+			ConfirmReady:      req.ConfirmReady,
+			Status:            davsyncretention.RunStatusFailed,
+			ErrorMessage:      err.Error(),
+			CalDAVCandidates:  calResult.CandidateCount,
+			CalDAVDeleted:     calResult.DeletedCount,
+			CardDAVCandidates: cardResult.CandidateCount,
+			CardDAVDeleted:    cardResult.DeletedCount,
+		})
+		return record, errors.Join(err, recordErr)
+	}
+	return s.davSyncRetention.RecordRun(ctx, davsyncretention.RunRecord{
+		Cutoff:            req.Cutoff,
+		Limit:             req.Limit,
+		DryRun:            req.DryRun,
+		ConfirmReady:      req.ConfirmReady,
+		Status:            davsyncretention.RunStatusCompleted,
+		CalDAVCandidates:  calResult.CandidateCount,
+		CalDAVDeleted:     calResult.DeletedCount,
+		CardDAVCandidates: cardResult.CandidateCount,
+		CardDAVDeleted:    cardResult.DeletedCount,
+	})
 }
 
 func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bool) {

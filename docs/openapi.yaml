@@ -2464,6 +2464,16 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /dav-sync/retention-runs:
+    post:
+      operationId: runAdminDAVSyncRetention
+      summary: Run DAV sync retention with dry-run or confirmed destructive semantics
+      requestBody:
+        $ref: "#/components/requestBodies/DAVSyncRetentionRun"
+      responses:
+        "200":
+          $ref: "#/components/responses/DAVSyncRetentionRun"
+        default:
+          $ref: "#/components/responses/Error"
     get:
       operationId: listAdminDAVSyncRetentionRuns
       summary: List DAV sync retention worker run audit records
@@ -4568,6 +4578,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerRetentionRunRequest"
+    DAVSyncRetentionRun:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DAVSyncRetentionRunRequest"
     MessageMove:
       required: true
       content:
@@ -7431,6 +7447,26 @@ components:
       properties:
         dav_sync_retention_readiness:
           $ref: "#/components/schemas/DAVSyncRetentionReadiness"
+    DAVSyncRetentionRunRequest:
+      type: object
+      required: [cutoff]
+      properties:
+        cutoff:
+          type: string
+          format: date-time
+          description: Exclusive RFC3339 changed-at upper bound for DAV sync retention candidates; future cutoffs are rejected.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          default: 1000
+        dry_run:
+          type: boolean
+          default: false
+        confirm_ready:
+          type: boolean
+          default: false
+          description: Required when dry_run is false. Destructive runs are blocked when readiness is truncated.
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]

@@ -286,6 +286,7 @@ and compatibility tests.
 - Admin API now has a read-only DAV sync retention-readiness preview that calls
   the CalDAV and CardDAV retention repositories with dry-run semantics and
   returns bounded candidate counts plus truncation status. This is an operator
-  safety gate, not a public destructive retention contract; token-retention
-  age policy and native-client expired-token behavior still define the release
-  gate.
+  safety gate; destructive Admin retention runs now require explicit
+  confirmation, reuse that preview, and fail closed when the probe is
+  truncated. Token-retention age policy and native-client expired-token
+  behavior still define the release gate.

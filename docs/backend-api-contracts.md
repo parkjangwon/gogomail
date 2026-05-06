@@ -560,6 +560,14 @@ CalDAV-specific, and CardDAV-specific candidate counts plus `truncated`,
 `ready`, and `destructive_guarded` flags. The route performs dry-run repository
 probes only; it does not execute destructive retention and remains a preview
 gate until deployment token-retention policy is finalized.
+`POST /admin/v1/dav-sync/retention-runs` accepts a JSON body with required
+non-future RFC3339 `cutoff`, optional `limit` capped at 10000, `dry_run`, and
+`confirm_ready`. Destructive requests require `confirm_ready=true` and are
+blocked when the readiness preview is truncated. Successful dry-run or
+destructive runs return `{ "dav_sync_retention_run": ... }` and persist an
+audit/read-model row with cutoff, limit, dry-run/confirmation flags, status,
+bounded error text, and CalDAV/CardDAV candidate/deleted counts. Blocked
+destructive attempts are recorded as failed runs with deleted counts at zero.
 Admin bodyless command/delete routes reject unknown query parameter names as
 well, including IMAP UID backfill, DKIM DNS verify, outbox retry, DKIM
 deactivation, suppression deletion, trusted-relay deletion, and delivery-route
@@ -1191,6 +1199,13 @@ API call metering can now emit durable usage events:
   `caldav_candidate_count`, `carddav_candidate_count`, `truncated`, `ready`,
   and `destructive_guarded`; `ready=false` when the dry-run probe hit the limit
   and a larger or staged operational run is needed.
+- `POST /admin/v1/dav-sync/retention-runs` returns
+  `{ "dav_sync_retention_run": ... }` after running the same CalDAV/CardDAV
+  prune boundaries used by the worker. The JSON body requires `cutoff`; `limit`
+  defaults to 1000 and is capped at 10000. `dry_run=true` records candidate
+  counts without deleting sync-change rows. Destructive runs require
+  `confirm_ready=true`, first reuse the readiness preview, and fail closed when
+  either DAV backend hits the probe limit.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals. The

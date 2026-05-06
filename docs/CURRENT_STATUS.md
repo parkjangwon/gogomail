@@ -2832,12 +2832,15 @@ The platform hardening sprint completed the following:
   `GET /admin/v1/dav-sync/retention-readiness` as a read-only dry-run preview:
   operators must provide a non-future cutoff, optional per-backend probe limit,
   and receive aggregate plus CalDAV/CardDAV candidate counts with `truncated`,
-  `ready`, and `destructive_guarded` status. Optional PostgreSQL integration
-  coverage applies release migrations and round-trips completed/failed DAV
-  retention run rows, including sanitized failure text and status-window list
-  filters. Unknown or expired tokens still fail with DAV `valid-sync-token`;
-  deployment retention-age policy, public destructive Admin API retention runs,
-  and native-client expiry testing remain future work.
+  `ready`, and `destructive_guarded` status. Admin API can now also run
+  DAV sync retention through `POST /admin/v1/dav-sync/retention-runs`: dry-run
+  requests persist candidate counts, destructive requests require
+  `confirm_ready=true`, reuse the readiness preview, and fail closed if either
+  DAV backend hits the probe limit. Optional PostgreSQL integration coverage
+  applies release migrations and round-trips completed/failed DAV retention run
+  rows, including sanitized failure text and status-window list filters.
+  Unknown or expired tokens still fail with DAV `valid-sync-token`; deployment
+  retention-age policy and native-client expiry testing remain future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

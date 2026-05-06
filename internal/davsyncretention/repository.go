@@ -48,6 +48,13 @@ type RunListRequest struct {
 	CreatedTo   time.Time
 }
 
+type RunRequest struct {
+	Cutoff       time.Time
+	Limit        int
+	DryRun       bool
+	ConfirmReady bool
+}
+
 type ReadinessRequest struct {
 	Cutoff time.Time
 	Limit  int
@@ -204,6 +211,32 @@ func NormalizeReadinessRequest(req ReadinessRequest, now func() time.Time) (Read
 	}
 	if req.Limit > MaxReadinessLimit {
 		return ReadinessRequest{}, fmt.Errorf("limit must be at most %d", MaxReadinessLimit)
+	}
+	return req, nil
+}
+
+func NormalizeRunRequest(req RunRequest, now func() time.Time) (RunRequest, error) {
+	if now == nil {
+		now = time.Now
+	}
+	if req.Cutoff.IsZero() {
+		return RunRequest{}, fmt.Errorf("cutoff is required")
+	}
+	req.Cutoff = req.Cutoff.UTC()
+	if req.Cutoff.After(now().UTC()) {
+		return RunRequest{}, fmt.Errorf("cutoff must not be in the future")
+	}
+	if req.Limit < 0 {
+		return RunRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultReadinessLimit
+	}
+	if req.Limit > MaxReadinessLimit {
+		return RunRequest{}, fmt.Errorf("limit must be at most %d", MaxReadinessLimit)
+	}
+	if !req.DryRun && !req.ConfirmReady {
+		return RunRequest{}, fmt.Errorf("confirm_ready is required for destructive retention runs")
 	}
 	return req, nil
 }
