@@ -64,6 +64,9 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 	if strings.ContainsAny(raw, "\r\n") {
 		return ResourcePath{}, fmt.Errorf("caldav path must not contain line breaks")
 	}
+	if containsEncodedPathSeparator(raw) {
+		return ResourcePath{}, fmt.Errorf("caldav path must not contain encoded path separators")
+	}
 	parsed, err := url.PathUnescape(raw)
 	if err != nil {
 		return ResourcePath{}, fmt.Errorf("decode caldav path: %w", err)
@@ -160,6 +163,11 @@ func splitPathSegments(value string) []string {
 		return nil
 	}
 	return strings.Split(value, "/")
+}
+
+func containsEncodedPathSeparator(value string) bool {
+	value = strings.ToLower(value)
+	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
 }
 
 func validateICSObjectName(value string) (string, error) {

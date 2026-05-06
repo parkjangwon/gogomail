@@ -44,6 +44,9 @@ Current state:
   `If-Modified-Since` whenever `If-None-Match` is present, preserving HTTP
   conditional precedence for native DAV clients caching `.ics` and `.vcf`
   bodies.
+- CalDAV and CardDAV path/href parsing now rejects encoded path separators
+  before URL decoding, preventing `%2F` or `%5C` from remapping principal,
+  collection, or object boundaries inside request paths and REPORT hrefs.
 - Drive JSON mutation handlers now have regression coverage for required
   `application/json` content type, unknown-field rejection, and trailing-token
   rejection before service dispatch.

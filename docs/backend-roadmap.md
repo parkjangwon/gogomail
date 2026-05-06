@@ -3583,6 +3583,9 @@ Implementation order:
 1333. IMAP selected-state sequence-set commands now drain queued mailbox
       events before dispatch, ensuring live `EXISTS`/`EXPUNGE` updates shape
       `*`, range, search, and mutation resolution before backend work begins.
+1334. CalDAV and CardDAV request paths and absolute REPORT hrefs now reject
+      encoded path separators before URL decoding, preventing `%2F` or `%5C`
+      from remapping principal, collection, or object boundaries.
 
 ## Deferred until backend contracts stabilize
 
