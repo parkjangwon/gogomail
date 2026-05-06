@@ -391,6 +391,12 @@ func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 	if got := rec.Header().Get("Allow"); got != want {
 		t.Fatalf("Allow = %q, want %q", got, want)
 	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
 }
 
 func TestHandlerGetAndHeadContactObject(t *testing.T) {

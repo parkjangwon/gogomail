@@ -143,6 +143,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveMkcol(w, r)
 	default:
 		w.Header().Set("Allow", cardDAVDiscoveryAllowHeader())
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

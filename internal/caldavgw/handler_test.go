@@ -96,6 +96,12 @@ func TestHandlerUnsupportedMethodReturnsAllowWithoutMove(t *testing.T) {
 	if strings.Contains(rec.Header().Get("Allow"), MethodMove) {
 		t.Fatalf("Allow header advertised unimplemented MOVE: %q", rec.Header().Get("Allow"))
 	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	}
 }
 
 func TestHandlerWellKnownCalDAVRedirectsToServiceRoot(t *testing.T) {

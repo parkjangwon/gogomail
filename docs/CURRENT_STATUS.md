@@ -3410,8 +3410,9 @@ The platform hardening sprint completed the following:
   list so `Allow` stays tied to real gateway handlers. Future-only methods such
   as `MOVE` remain unadvertised until their WebDAV semantics exist. `OPTIONS`
   discovery also returns `Cache-Control: no-store` and
-  `X-Content-Type-Options: nosniff`, matching the CardDAV discovery surface so
-  native clients and intermediaries do not retain stale capability headers.
+  `X-Content-Type-Options: nosniff`; 405 method-probe responses now carry the
+  same safety headers, matching the CardDAV discovery surface so native clients
+  and intermediaries do not retain stale capability headers.
 - CalDAV calendar-home discovery now keeps WebDAV `current-user-principal` and
   `owner` anchored to the canonical principal URL instead of the calendar-home
   collection, keeping principal discovery semantics aligned with delegated and
@@ -3806,7 +3807,9 @@ The platform hardening sprint completed the following:
   compatibility tests are still pending.
 - CardDAV `OPTIONS` and 405 responses now share an explicit implemented-method
   list, keeping `Allow` aligned with actual address book handlers instead of
-  future WebDAV method ambitions.
+  future WebDAV method ambitions. Unsupported-method discovery responses also
+  return `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, so
+  native client method probes follow the same safety contract as `OPTIONS`.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
   content length, no-store headers, and `Last-Modified`, while honoring
