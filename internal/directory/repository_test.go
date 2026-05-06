@@ -522,6 +522,30 @@ func TestDirectoryDelegationCreateAuditDetail(t *testing.T) {
 	}
 }
 
+func TestDirectoryDelegationRoleUpdateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryDelegationRoleUpdateAuditDetail(Delegation{
+		ID:           "delegation-1",
+		CompanyID:    "company-1",
+		OwnerKind:    PrincipalKindResource,
+		OwnerID:      "room-1",
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   "team-1",
+		Scope:        DelegationScopeCalendar,
+		Role:         DelegationRoleManage,
+		Status:       "active",
+	}, DelegationRoleRead)
+	if err != nil {
+		t.Fatalf("directoryDelegationRoleUpdateAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"previous_role":"read"`) ||
+		!strings.Contains(string(detail), `"role":"manage"`) ||
+		!strings.Contains(string(detail), `"delegation_id":"delegation-1"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
 func TestDirectoryDelegationDeleteAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -858,6 +882,41 @@ func TestNormalizeCreateDelegationRequest(t *testing.T) {
 	}
 }
 
+func TestNormalizeUpdateDelegationRoleRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeUpdateDelegationRoleRequest(UpdateDelegationRoleRequest{
+		ID:   " delegation-1 ",
+		Role: " MANAGE ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeUpdateDelegationRoleRequest returned error: %v", err)
+	}
+	if got.ID != "delegation-1" || got.Role != DelegationRoleManage {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeUpdateDelegationRoleRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []UpdateDelegationRoleRequest{
+		{},
+		{ID: "delegation\n1", Role: DelegationRoleManage},
+		{ID: "delegation-1", Role: "owner"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ID+"/"+req.Role, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeUpdateDelegationRoleRequest(req); err == nil {
+				t.Fatalf("NormalizeUpdateDelegationRoleRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestNormalizeCheckDelegationRequestHonorsExplicitDepth(t *testing.T) {
 	t.Parallel()
 
@@ -1124,6 +1183,18 @@ func TestRepositoryCheckEffectiveDelegationRequiresDatabase(t *testing.T) {
 		DelegateID:   "user-1",
 		Scope:        DelegationScopeCalendar,
 		RequiredRole: DelegationRoleRead,
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryUpdateDelegationRoleRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).UpdateDelegationRoleWithAudit(context.Background(), UpdateDelegationRoleRequest{
+		ID:   "delegation-1",
+		Role: DelegationRoleManage,
 	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)

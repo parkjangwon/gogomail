@@ -192,6 +192,11 @@ type CreateDelegationRequest struct {
 	Role         string `json:"role"`
 }
 
+type UpdateDelegationRoleRequest struct {
+	ID   string `json:"-"`
+	Role string `json:"role"`
+}
+
 type ListDelegationsRequest struct {
 	CompanyID    string
 	OwnerKind    string
@@ -419,6 +424,20 @@ func NormalizeCreateDelegationRequest(req CreateDelegationRequest) (CreateDelega
 		Scope:        check.Scope,
 		Role:         check.RequiredRole,
 	}, nil
+}
+
+func NormalizeUpdateDelegationRoleRequest(req UpdateDelegationRoleRequest) (UpdateDelegationRoleRequest, error) {
+	id, err := NormalizePrincipalID(req.ID)
+	if err != nil {
+		return UpdateDelegationRoleRequest{}, fmt.Errorf("delegation id: %w", err)
+	}
+	role, err := NormalizeDelegationRole(req.Role)
+	if err != nil {
+		return UpdateDelegationRoleRequest{}, err
+	}
+	req.ID = id
+	req.Role = role
+	return req, nil
 }
 
 func NormalizeListDelegationsRequest(req ListDelegationsRequest) (ListDelegationsRequest, error) {
