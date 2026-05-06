@@ -1092,9 +1092,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` object-size validation now runs after provider
   keys map back to the requested canonical gogomail prefix, so out-of-scope
   bucket entries are skipped before their metadata can fail a valid listing.
-- Shared storage list cursors reject leading/trailing whitespace instead of
-  trimming opaque provider tokens, keeping local/NFS and S3-compatible
-  pagination identity exact for Drive, lifecycle, and reconciliation scans.
+- Shared storage list cursors reject leading/trailing whitespace and control
+  characters instead of trimming opaque provider tokens, keeping local/NFS and
+  S3-compatible pagination identity exact for Drive, lifecycle, and
+  reconciliation scans.
 - S3-compatible `ListObjectsV2` pages reject provider responses that return
   more matching objects than the requested bounded page size, keeping S3,
   MinIO, and local/NFS pagination under the same storage contract.

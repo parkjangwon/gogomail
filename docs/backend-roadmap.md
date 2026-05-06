@@ -3026,6 +3026,10 @@ Implementation order:
       syntax-only search-key validation before authentication or selected-state
       checks, keeping malformed embedded criteria consistent across the
       search/sort/thread command family.
+1226. Shared storage list cursors now reject embedded control characters as
+      well as leading/trailing whitespace, keeping opaque provider pagination
+      tokens safe for S3 query forwarding, local/NFS cleanup cursors, and
+      operational logs.
 
 ## Deferred until backend contracts stabilize
 

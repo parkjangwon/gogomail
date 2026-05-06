@@ -130,6 +130,9 @@ func TestValidateListCursorRejectsUnsafeCursor(t *testing.T) {
 	if _, err := ValidateListCursor("cursor\n2"); err == nil {
 		t.Fatal("ValidateListCursor accepted newline-bearing cursor")
 	}
+	if _, err := ValidateListCursor("cursor\t2"); err == nil {
+		t.Fatal("ValidateListCursor accepted tab-bearing cursor")
+	}
 	if _, err := ValidateListCursor(strings.Repeat("x", MaxListCursorBytes+1)); err == nil {
 		t.Fatal("ValidateListCursor accepted oversized cursor")
 	}
