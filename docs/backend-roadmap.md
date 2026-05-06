@@ -3633,6 +3633,11 @@ Implementation order:
       push notification attempt/statistics OpenAPI operations now pin
       `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated observability and provider outcome routes.
+1348. Suppression list, trusted relay, delivery route, DKIM key/DNS
+      verification, and outbox retry OpenAPI operations now pin `/admin/v1`
+      and admin-token/bearer auth alternatives, matching their runtime
+      admin-authenticated outbound mail operations, relay trust, domain
+      signing, and retry-control routes.
 
 ## Deferred until backend contracts stabilize
 
