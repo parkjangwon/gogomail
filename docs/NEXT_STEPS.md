@@ -1731,6 +1731,11 @@ Current state:
   child calendar-object matches for collection-scoped queries unless clients
   explicitly send `Depth: 1`, keeping WebDAV request scope from silently
   widening during event searches.
+- CalDAV `calendar-query` and `free-busy-query` now evaluate bounded VEVENT
+  recurrence sets through the RFC 5545 parser, including `RRULE`, `EXDATE`,
+  and `RDATE` support from the shared iCalendar library. Dense or unbounded
+  rules are capped per object so native-client time-range scans cannot turn
+  one stored event into unbounded gateway work.
 - Admin Drive node listing now accepts `all_parents=true` for whole-user Drive
   search/list views while rejecting ambiguous `parent_id` combinations.
 - Drive file finalize, upload-session cleanup/retry-body replacement,
@@ -1741,9 +1746,9 @@ Current state:
 Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
-  gates are closed: recurrence-aware calendar-query/free-busy expansion,
-  sync retention and collection-deletion deltas, slug/path-alias support for
-  friendlier MKCALENDAR clients, scheduling semantics, and broader
+  gates are closed: broader recurrence semantics such as detached overridden
+  instances, sync retention and collection-deletion deltas, slug/path-alias
+  support for friendlier MKCALENDAR clients, scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Before public shared/delegated calendar or resource-booking features,
   extend the initial `internal/directory` user/organization/group/resource

@@ -172,6 +172,58 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=10\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260506T000000Z"),
+		End:   mustCalDAVTime(t, "20260506T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want recurring occurrence match")
+	}
+	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260520T000000Z"),
+		End:   mustCalDAVTime(t, "20260520T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true outside recurring COUNT window")
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:rdate@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRDATE:20260506T010000Z\r\nEXDATE:20260501T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260501T000000Z"),
+		End:   mustCalDAVTime(t, "20260501T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true for EXDATE-excluded DTSTART")
+	}
+	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+		Start: mustCalDAVTime(t, "20260506T000000Z"),
+		End:   mustCalDAVTime(t, "20260506T030000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want RDATE occurrence match")
+	}
+}
+
 func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
 	t.Parallel()
 
@@ -191,6 +243,41 @@ func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
 	}
 	if got := periods[0].End.Format("20060102T150405Z"); got != "20260506T020000Z" {
 		t.Fatalf("period end = %s", got)
+	}
+}
+
+func TestCalendarObjectBusyPeriodsExpandsRecurringEvent(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=5\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260502T000000Z"),
+		End:   mustCalDAVTime(t, "20260504T000000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 2 {
+		t.Fatalf("period count = %d, want 2: %#v", len(periods), periods)
+	}
+	if got := periods[0].Start.Format("20060102T150405Z"); got != "20260502T010000Z" {
+		t.Fatalf("first period start = %s", got)
+	}
+	if got := periods[1].Start.Format("20060102T150405Z"); got != "20260503T010000Z" {
+		t.Fatalf("second period start = %s", got)
+	}
+}
+
+func TestCalendarObjectBusyPeriodsBoundsRecurrenceExpansion(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:secondly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T000000Z\r\nDTEND:20260501T000001Z\r\nRRULE:FREQ=SECONDLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	_, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260501T000000Z"),
+		End:   mustCalDAVTime(t, "20260502T000000Z"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "recurrence expansion exceeds") {
+		t.Fatalf("CalendarObjectBusyPeriods error = %v, want bounded recurrence rejection", err)
 	}
 }
 
