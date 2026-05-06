@@ -808,6 +808,60 @@ func TestS3StoreCheckProbesReadinessMetadata(t *testing.T) {
 	}
 }
 
+func TestS3StoreCheckProbesReadinessRange(t *testing.T) {
+	t.Parallel()
+
+	var sawRange bool
+	var deletes int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			if r.Header.Get("Range") == "bytes=0-7" {
+				sawRange = true
+				w.Header().Set("Content-Range", "bytes 0-7/27")
+				w.WriteHeader(http.StatusPartialContent)
+				_, _ = w.Write([]byte("gogomail"))
+				return
+			}
+			_, _ = w.Write([]byte("gogomail storage readiness\n"))
+		case http.MethodHead:
+			w.Header().Set("Content-Length", strconv.Itoa(len("gogomail storage readiness\n")))
+			w.WriteHeader(http.StatusOK)
+		case http.MethodDelete:
+			deletes++
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("method = %s", r.Method)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        server.URL,
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient:      server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Check(context.Background()); err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if !sawRange {
+		t.Fatal("Check did not issue range readiness probe")
+	}
+	if deletes != 1 {
+		t.Fatalf("delete calls = %d, want cleanup after successful probe", deletes)
+	}
+}
+
 func TestDrainAndCloseS3BodyIsBounded(t *testing.T) {
 	t.Parallel()
 

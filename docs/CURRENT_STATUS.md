@@ -755,6 +755,10 @@ owner/resource target without scanning unrelated audit history.
   object and compare its canonical key and byte size before cleanup, catching
   broken filesystem metadata or S3 `HEAD` paths during readiness instead of
   later Drive/mail object workflows.
+- Local/NFS and S3-compatible readiness probes now issue a short `GetRange`
+  verification against the same object, catching broken filesystem seek/range
+  handling or S3 `Range` response compatibility before partial-read workflows
+  report ready.
 - SMTP, Submission, Delivery, Event, Search Index, IMAP scaffold, attachment
   cleanup, CalDAV scaffold, and HTTP runtimes now share storage backend validation and factory
   wiring for local filesystem/NFS-style storage plus S3-compatible object
