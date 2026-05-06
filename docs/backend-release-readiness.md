@@ -56,6 +56,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Admin API server and admin-token/bearer auth alternatives, matching their
   runtime organization identity, domain policy, DNS, quota, and user lifecycle
   `adminAuth` routes.
+- Outbox event, audit log, Directory principal/alias/delegation/group
+  membership, and SMTP backpressure OpenAPI operations now also pin the Admin
+  API server and admin-token/bearer auth alternatives, matching their runtime
+  operator forensics, identity, delegated-access, and flow-control `adminAuth`
+  routes.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff

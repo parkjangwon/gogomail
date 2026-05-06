@@ -400,6 +400,11 @@ Tenant, domain, and user administration routes carry the same operation-level
 Admin API base/auth metadata. This includes company list/detail/quota, domain
 list/create/detail/stats/DNS/status/quota/policy, and user
 list/create/detail/status/quota/password-hash operations under `/admin/v1`.
+Outbox event, audit log, Directory principal/alias/delegation/group
+membership, and backpressure routes also carry operation-level Admin API
+base/auth metadata. These routes are operator-only surfaces for operational
+forensics, principal resolution, delegated access, group membership management,
+and SMTP flow-control state under `/admin/v1`.
 
 ## Pagination
 

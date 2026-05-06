@@ -1531,6 +1531,12 @@ paths:
     get:
       operationId: listAdminOutboxEvents
       summary: Admin outbox event list without payload bodies
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: topic
@@ -1564,6 +1570,12 @@ paths:
     get:
       operationId: getAdminOutboxEvent
       summary: Admin outbox event metadata detail without payload body
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -1575,6 +1587,12 @@ paths:
     get:
       operationId: listAdminAuditLogs
       summary: Admin audit log list for operational forensics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: category
@@ -1643,6 +1661,12 @@ paths:
     get:
       operationId: checkAdminAuditLogIntegrity
       summary: Check recent audit log hash-chain integrity
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: since
@@ -1660,6 +1684,12 @@ paths:
     get:
       operationId: getAdminAuditLog
       summary: Admin audit log detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -1671,6 +1701,12 @@ paths:
     get:
       operationId: listAdminDirectoryPrincipals
       summary: Search Directory principals for admin and product diagnostics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: company_id
@@ -1715,6 +1751,12 @@ paths:
     get:
       operationId: resolveAdminDirectoryAlias
       summary: Resolve a Directory email alias to its target principal
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: address
           in: query
@@ -1737,6 +1779,12 @@ paths:
     get:
       operationId: listAdminDirectoryAliases
       summary: List Directory aliases for admin diagnostics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: company_id
@@ -1780,6 +1828,12 @@ paths:
     post:
       operationId: createAdminDirectoryAlias
       summary: Create an audited Directory alias
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DirectoryAliasCreate"
       responses:
@@ -1791,6 +1845,12 @@ paths:
     delete:
       operationId: deleteAdminDirectoryAlias
       summary: Delete an audited Directory alias
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1807,6 +1867,12 @@ paths:
     get:
       operationId: listAdminDirectoryDelegations
       summary: List Directory delegation relationships for admin diagnostics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: company_id
@@ -1860,6 +1926,12 @@ paths:
     post:
       operationId: createAdminDirectoryDelegation
       summary: Create an audited Directory delegation relationship
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DirectoryDelegationCreate"
       responses:
@@ -1871,6 +1943,12 @@ paths:
     delete:
       operationId: deleteAdminDirectoryDelegation
       summary: Delete an audited Directory delegation relationship
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1887,6 +1965,12 @@ paths:
     patch:
       operationId: updateAdminDirectoryDelegationRole
       summary: Update an audited Directory delegation role
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1905,6 +1989,12 @@ paths:
     patch:
       operationId: reassignAdminDirectoryDelegation
       summary: Reassign an audited Directory delegation relationship
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1923,6 +2013,12 @@ paths:
     get:
       operationId: listAdminDirectoryGroupMemberships
       summary: List Directory group memberships for admin diagnostics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: company_id
@@ -1965,6 +2061,12 @@ paths:
     post:
       operationId: createAdminDirectoryGroupMembership
       summary: Create an audited Directory group membership
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DirectoryGroupMembershipCreate"
       responses:
@@ -1976,6 +2078,12 @@ paths:
     delete:
       operationId: deleteAdminDirectoryGroupMembership
       summary: Delete an audited Directory group membership
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1992,6 +2100,12 @@ paths:
     patch:
       operationId: updateAdminDirectoryGroupMembershipRole
       summary: Update an audited Directory group membership role
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2010,6 +2124,12 @@ paths:
     patch:
       operationId: reassignAdminDirectoryGroupMembership
       summary: Reassign an audited Directory group membership
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2028,6 +2148,12 @@ paths:
     get:
       operationId: getAdminBackpressure
       summary: Admin inspect SMTP backpressure state
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/Backpressure"
@@ -2036,6 +2162,12 @@ paths:
     patch:
       operationId: updateAdminBackpressure
       summary: Admin update SMTP backpressure state
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/BackpressureUpdate"
       responses:
