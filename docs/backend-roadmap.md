@@ -3461,6 +3461,10 @@ Implementation order:
       and bearer-token OpenAPI security alternatives and has runtime coverage
       that the bootstrap endpoint accepts each form while rejecting ambiguous
       mixed credentials.
+1310. API usage export capability discovery now pins the Admin API server and
+      `X-Admin-Token`/bearer-token OpenAPI security alternatives, with runtime
+      coverage that the readiness bootstrap accepts each documented credential
+      form and rejects ambiguous mixed credentials.
 
 ## Deferred until backend contracts stabilize
 

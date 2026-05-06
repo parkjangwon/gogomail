@@ -3701,6 +3701,56 @@ func TestAdminGetAPIUsageExportCapabilitiesHandler(t *testing.T) {
 	}
 }
 
+func TestAdminGetAPIUsageExportCapabilitiesHandlerAcceptsDocumentedAdminAuth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		header string
+		value  string
+	}{
+		{name: "admin token header", header: "X-Admin-Token", value: "secret"},
+		{name: "bearer token", header: "Authorization", value: "Bearer secret"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "secret")
+
+			req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-capabilities", nil)
+			req.Header.Set(tt.header, tt.value)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestAdminGetAPIUsageExportCapabilitiesHandlerRejectsAmbiguousAdminAuth(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/api-usage/export-capabilities", nil)
+	req.Header.Set("X-Admin-Token", "secret")
+	req.Header.Set("Authorization", "Bearer secret")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminGetAPIUsageExportHandoffReadinessHandler(t *testing.T) {
 	t.Parallel()
 

@@ -2629,6 +2629,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportCapabilities
       summary: Inspect API usage export signing and verification capabilities
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       responses:
         "200":
           $ref: "#/components/responses/APIUsageExportCapabilities"

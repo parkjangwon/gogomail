@@ -44,6 +44,9 @@ actually serve.
 Admin console capability OpenAPI security now explicitly documents both
 `X-Admin-Token` and bearer-token alternatives, with runtime coverage that the
 bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.
+API usage export capability discovery now carries the same explicit Admin API
+server and admin-auth OpenAPI metadata, with runtime coverage for both accepted
+credential forms and ambiguous mixed-credential rejection.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
