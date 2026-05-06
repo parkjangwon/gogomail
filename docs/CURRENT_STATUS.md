@@ -90,8 +90,10 @@ CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 address-book collections now also advertise `DAV:write-properties` because
 collection `PROPPATCH` semantics exist. Contact objects advertise
 `DAV:write-content` because object `PUT`/`DELETE` semantics exist. ACL,
-bind, unbind, and broader collection write privileges remain unadvertised until
-their exact WebDAV semantics are implemented.
+unbind, and broader collection write privileges remain unadvertised until their
+exact WebDAV semantics are implemented. Address-book homes advertise
+`DAV:bind` because extended `MKCOL` can now create child address-book
+collections there.
 Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable sync token used for WebDAV
 `sync-token`, improving legacy native-client change detection without adding a

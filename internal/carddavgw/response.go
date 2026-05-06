@@ -39,6 +39,7 @@ var (
 	ResourceTypePrincipal    = XMLName{Space: DAVNamespace, Local: "principal"}
 	ResourceTypeAddressBook  = XMLName{Space: CardDAVNamespace, Local: "addressbook"}
 	PrivilegeRead            = XMLName{Space: DAVNamespace, Local: "read"}
+	PrivilegeBind            = XMLName{Space: DAVNamespace, Local: "bind"}
 	PrivilegeWriteContent    = XMLName{Space: DAVNamespace, Local: "write-content"}
 	PrivilegeWriteProperties = XMLName{Space: DAVNamespace, Local: "write-properties"}
 )
@@ -154,7 +155,7 @@ func AddressBookHomeProperties(userID string) ([]PropertyResult, error) {
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Address Books"}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
 		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
-		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: readOnlyPrivileges()}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: addressBookHomePrivileges()}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 	}, nil
 }
@@ -218,6 +219,10 @@ func ContactObjectProperties(userID string, object ContactObject) ([]PropertyRes
 
 func readOnlyPrivileges() []XMLName {
 	return []XMLName{PrivilegeRead}
+}
+
+func addressBookHomePrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeBind}
 }
 
 func addressBookCollectionPrivileges() []XMLName {
