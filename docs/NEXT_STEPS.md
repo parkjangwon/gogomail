@@ -1665,6 +1665,9 @@ Current state:
   lookup or change-log work, matching the RFC 6578 request-scope model and the
   existing CardDAV behavior while leaving child traversal to the required
   request-body `sync-level`.
+- CalDAV `REPORT sync-collection` now requires the request body to carry an
+  explicit `DAV:sync-token` element, accepting an empty element for initial
+  sync but rejecting omitted sync-token anchors before repository work.
 - CalDAV `REPORT calendar-query` now honors HTTP `Depth: 0` by returning no
   child calendar-object matches for collection-scoped queries unless clients
   explicitly send `Depth: 1`, keeping WebDAV request scope from silently

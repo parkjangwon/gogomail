@@ -2664,6 +2664,11 @@ Implementation order:
       parameters to arrive as a single RFC-shaped parenthesized select-param
       list, rejecting bare `CONDSTORE` and over-parenthesized
       `((CONDSTORE))` before authentication or backend mailbox lookup.
+1183. CalDAV `REPORT sync-collection` now requires an explicit
+      `DAV:sync-token` element in the request body, accepting an empty element
+      for initial sync while rejecting omitted sync-token anchors before
+      repository work. This keeps RFC 6578 sync state transitions aligned with
+      the existing CardDAV behavior.
 
 ## Deferred until backend contracts stabilize
 

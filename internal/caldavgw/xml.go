@@ -487,16 +487,17 @@ const (
 )
 
 type ReportRequest struct {
-	Kind       ReportKind
-	Properties []XMLName
-	Hrefs      []string
-	SyncToken  string
-	SyncLevel  string
-	Limit      int
-	TimeRange  *TimeRange
-	TimeRanges int
-	HasFilter  bool
-	Component  string
+	Kind         ReportKind
+	Properties   []XMLName
+	Hrefs        []string
+	SyncToken    string
+	HasSyncToken bool
+	SyncLevel    string
+	Limit        int
+	TimeRange    *TimeRange
+	TimeRanges   int
+	HasFilter    bool
+	Component    string
 }
 
 type TimeRange struct {
@@ -565,6 +566,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 					return ReportRequest{}, err
 				}
 				req.SyncToken = strings.TrimSpace(token)
+				req.HasSyncToken = true
 			case sameXMLName(tok.Name, DAVNamespace, "sync-level"):
 				level, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
@@ -629,6 +631,9 @@ func validateReportRequest(req ReportRequest) error {
 			return fmt.Errorf("free-busy-query REPORT requires exactly one time-range")
 		}
 	case ReportSyncCollection:
+		if !req.HasSyncToken {
+			return fmt.Errorf("sync-collection REPORT requires sync-token")
+		}
 		if req.SyncLevel == "" {
 			return fmt.Errorf("sync-collection REPORT requires sync-level")
 		}

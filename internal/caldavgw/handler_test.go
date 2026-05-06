@@ -522,6 +522,7 @@ func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
 	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:sync-token/>
   <D:sync-level>1</D:sync-level>
   <D:prop><D:getetag/><C:calendar-data/></D:prop>
 </D:sync-collection>`))
@@ -541,6 +542,25 @@ func TestHandlerReportSyncCollectionInitialSyncReturnsObjectsAndToken(t *testing
 		if !strings.Contains(body, want) {
 			t.Fatalf("sync-collection missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsMissingSyncTokenElement(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "sync-token") {
+		t.Fatalf("missing sync-token response lacks context: %s", rec.Body.String())
 	}
 }
 
@@ -693,6 +713,7 @@ func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
 
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token/>
   <D:sync-level>1</D:sync-level>
   <D:limit><D:nresults>1</D:nresults></D:limit>
   <D:prop><D:getetag/></D:prop>
