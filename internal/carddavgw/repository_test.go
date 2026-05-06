@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -232,6 +233,48 @@ func TestValidateListAddressBookChangesSinceRequest(t *testing.T) {
 	}
 	if _, err := ValidateListAddressBookChangesSinceRequest(ListAddressBookChangesSinceRequest{UserID: "user-1", AddressBookID: "book-1", SyncToken: "bad\nsync"}); err == nil {
 		t.Fatal("ValidateListAddressBookChangesSinceRequest accepted unsafe sync token")
+	}
+}
+
+func TestValidatePruneAddressBookChangesRequest(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().Add(-24 * time.Hour).Truncate(time.Second)
+	req, err := ValidatePruneAddressBookChangesRequest(PruneAddressBookChangesRequest{
+		Cutoff:        cutoff,
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		Limit:         2000,
+		DryRun:        true,
+	})
+	if err != nil {
+		t.Fatalf("ValidatePruneAddressBookChangesRequest returned error: %v", err)
+	}
+	if !req.Cutoff.Equal(cutoff.UTC()) || req.UserID != "user-1" || req.AddressBookID != "book-1" || req.Limit != MaxWebDAVReportLimit+1 || !req.DryRun {
+		t.Fatalf("prune request = %+v", req)
+	}
+}
+
+func TestValidatePruneAddressBookChangesRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	past := time.Now().Add(-time.Hour)
+	future := time.Now().Add(time.Hour)
+	tests := []PruneAddressBookChangesRequest{
+		{UserID: "user-1"},
+		{Cutoff: future},
+		{Cutoff: past, UserID: "bad\nuser"},
+		{Cutoff: past, AddressBookID: "bad\nbook"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.UserID+"/"+req.AddressBookID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ValidatePruneAddressBookChangesRequest(req); err == nil {
+				t.Fatalf("ValidatePruneAddressBookChangesRequest(%+v) error = nil, want rejection", req)
+			}
+		})
 	}
 }
 

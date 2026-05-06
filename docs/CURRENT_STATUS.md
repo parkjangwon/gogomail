@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV sync-change retention pruning groundwork)
+Last updated: 2026-05-06 (updated after DAV sync-change retention pruning groundwork)
 
 ## Current phase
 
@@ -258,7 +258,14 @@ work. `sync-collection` parsing also distinguishes an empty initial
 the required token element. Stale-token change delta handling now probes one
 row beyond bounded `limit/nresults`, matching CalDAV so exact-limit address
 book changes are not falsely rejected while genuinely truncating deltas still
-fail closed. Initial address-book sync snapshots now use a sync-specific
+fail closed. CardDAV sync-change retention now also has a bounded
+`PruneAddressBookChanges` repository boundary plus a prune-order index that can
+dry-run or delete old address-book change rows while preserving the newest
+marker per address book, keeping future Contacts retention workers from
+destroying the token needed by current clients. Unknown or expired CardDAV
+sync tokens fail with DAV `valid-sync-token`; worker wiring and retention-age
+policy remain future work.
+Initial address-book sync snapshots now use a sync-specific
 bounded object list path as well, so a large address book cannot be clipped by
 the generic repository list default and then reported as fully synchronized.
 CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the

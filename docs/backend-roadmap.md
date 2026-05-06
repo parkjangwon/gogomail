@@ -2502,6 +2502,12 @@ Implementation order:
       address-book collection has been deleted by reading durable change rows
       and returning the latest deletion sync token without requiring the
       collection to remain active.
+1128a. CardDAV sync-change retention now has a bounded repository prune
+       boundary and prune-order migration index. `PruneAddressBookChanges` can
+       dry-run or delete old RFC 6578 address-book change rows without removing
+       the newest marker per address book, so future Contacts retention workers
+       can expire history while preserving current-token continuity; unknown or
+       expired client tokens continue to fail with DAV `valid-sync-token`.
 1129. CardDAV contact-object writes now preflight duplicate active vCard UIDs
       within the same address book before SQL upsert, returning a predictable
       repository/handler error while the PostgreSQL partial unique index stays

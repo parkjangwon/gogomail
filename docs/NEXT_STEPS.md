@@ -2118,6 +2118,11 @@ Next:
   `sync-collection` snapshots use the same one-extra-object probe through a
   sync-specific repository list path, avoiding silent partial address-book
   snapshots when the generic list default would otherwise cap results.
+  CardDAV sync-change retention now has repository groundwork:
+  `PruneAddressBookChanges` can dry-run or delete bounded old change rows while
+  preserving the newest marker per address book, backed by a prune-order
+  migration index. Next, wire an operator/worker path with an explicit
+  retention-age policy before treating CardDAV token expiry as production-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
   within the same calendar before the SQL upsert path, keeping repository
   errors predictable while the PostgreSQL partial unique index remains the

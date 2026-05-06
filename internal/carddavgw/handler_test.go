@@ -1509,7 +1509,7 @@ func TestHandlerReportSyncCollectionRejectsInvalidSyncTokenWithDAVPrecondition(t
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
 	}
 	text := rec.Body.String()
-	for _, want := range []string{"<D:error", "<D:valid-sync-token/>", "<D:responsedescription>CardDAV sync-token is no longer valid</D:responsedescription>"} {
+	for _, want := range []string{"<D:error", "<D:valid-sync-token/>", "<D:responsedescription>CardDAV sync-token is unknown or expired</D:responsedescription>"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("invalid sync response missing %q:\n%s", want, text)
 		}

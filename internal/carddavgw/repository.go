@@ -93,6 +93,24 @@ type ListAddressBookChangesSinceRequest struct {
 	Limit         int
 }
 
+type PruneAddressBookChangesRequest struct {
+	Cutoff        time.Time
+	UserID        string
+	AddressBookID string
+	Limit         int
+	DryRun        bool
+}
+
+type AddressBookChangePruneResult struct {
+	Cutoff         time.Time
+	UserID         string
+	AddressBookID  string
+	Limit          int
+	DryRun         bool
+	CandidateCount int64
+	DeletedCount   int64
+}
+
 func (r *Repository) CreateAddressBook(ctx context.Context, req CreateAddressBookRequest) (AddressBook, error) {
 	if r == nil || r.db == nil {
 		return AddressBook{}, fmt.Errorf("database handle is required")
@@ -673,6 +691,73 @@ SELECT EXISTS (
 	return changes, nil
 }
 
+func (r *Repository) PruneAddressBookChanges(ctx context.Context, req PruneAddressBookChangesRequest) (AddressBookChangePruneResult, error) {
+	if r == nil || r.db == nil {
+		return AddressBookChangePruneResult{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidatePruneAddressBookChangesRequest(req)
+	if err != nil {
+		return AddressBookChangePruneResult{}, err
+	}
+	result := AddressBookChangePruneResult{
+		Cutoff:        req.Cutoff,
+		UserID:        req.UserID,
+		AddressBookID: req.AddressBookID,
+		Limit:         req.Limit,
+		DryRun:        req.DryRun,
+	}
+	if req.DryRun {
+		const query = `
+WITH candidates AS (
+  SELECT c.id
+  FROM carddav_addressbook_changes c
+  WHERE c.changed_at < $1
+    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR c.addressbook_id = NULLIF($3, '')::uuid)
+    AND EXISTS (
+      SELECT 1
+      FROM carddav_addressbook_changes newer
+      WHERE newer.addressbook_id = c.addressbook_id
+        AND newer.id > c.id
+    )
+  ORDER BY c.id ASC
+  LIMIT $4
+)
+SELECT count(*)::bigint FROM candidates`
+		if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.AddressBookID, req.Limit).Scan(&result.CandidateCount); err != nil {
+			return AddressBookChangePruneResult{}, fmt.Errorf("check CardDAV sync change prune candidates: %w", err)
+		}
+		return result, nil
+	}
+	const query = `
+WITH candidates AS (
+  SELECT c.id
+  FROM carddav_addressbook_changes c
+  WHERE c.changed_at < $1
+    AND ($2 = '' OR c.user_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR c.addressbook_id = NULLIF($3, '')::uuid)
+    AND EXISTS (
+      SELECT 1
+      FROM carddav_addressbook_changes newer
+      WHERE newer.addressbook_id = c.addressbook_id
+        AND newer.id > c.id
+    )
+  ORDER BY c.id ASC
+  LIMIT $4
+),
+deleted AS (
+  DELETE FROM carddav_addressbook_changes c
+  USING candidates
+  WHERE c.id = candidates.id
+  RETURNING c.id
+)
+SELECT (SELECT count(*)::bigint FROM candidates), (SELECT count(*)::bigint FROM deleted)`
+	if err := r.db.QueryRowContext(ctx, query, req.Cutoff, req.UserID, req.AddressBookID, req.Limit).Scan(&result.CandidateCount, &result.DeletedCount); err != nil {
+		return AddressBookChangePruneResult{}, fmt.Errorf("prune CardDAV sync changes: %w", err)
+	}
+	return result, nil
+}
+
 func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddressBookRequest, string, string, error) {
 	userID, err := validateCardDAVID("user_id", req.UserID, true)
 	if err != nil {
@@ -922,6 +1007,31 @@ func ValidateListAddressBookChangesSinceRequest(req ListAddressBookChangesSinceR
 		return ListAddressBookChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
 	}
 	return ListAddressBookChangesSinceRequest{UserID: userID, AddressBookID: bookID, SyncToken: syncToken, Limit: normalizeCardDAVChangeLimit(req.Limit)}, nil
+}
+
+func ValidatePruneAddressBookChangesRequest(req PruneAddressBookChangesRequest) (PruneAddressBookChangesRequest, error) {
+	if req.Cutoff.IsZero() {
+		return PruneAddressBookChangesRequest{}, fmt.Errorf("cutoff is required")
+	}
+	cutoff := req.Cutoff.UTC()
+	if cutoff.After(time.Now().UTC()) {
+		return PruneAddressBookChangesRequest{}, fmt.Errorf("cutoff must not be in the future")
+	}
+	userID, err := validateCardDAVID("user_id", req.UserID, false)
+	if err != nil {
+		return PruneAddressBookChangesRequest{}, err
+	}
+	bookID, err := validateCardDAVID("addressbook_id", req.AddressBookID, false)
+	if err != nil {
+		return PruneAddressBookChangesRequest{}, err
+	}
+	return PruneAddressBookChangesRequest{
+		Cutoff:        cutoff,
+		UserID:        userID,
+		AddressBookID: bookID,
+		Limit:         normalizeCardDAVChangeLimit(req.Limit),
+		DryRun:        req.DryRun,
+	}, nil
 }
 
 type addressBookChangeExecer interface {
