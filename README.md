@@ -12,8 +12,28 @@ The SMTP engine is materially advanced, and current work is broadening into
 tenant/domain operations, Admin API, Mail API contracts, delivery routing,
 DNS/DKIM onboarding, quota/policy enforcement, and OpenAPI drift prevention.
 
+Recent release-readiness work also includes:
+
+- storage portability across local filesystem, explicit NFS mounts, local
+  MinIO, and AWS/S3-compatible object storage through the shared storage
+  interface and validated `configs/storage.*.yaml` profiles
+- service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
+  behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, LIST/LSUB namespace
+  compatibility, SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal
+  framing coverage
+- backend-only CalDAV/CardDAV foundations for standards-first calendar and
+  contacts interoperability, with Directory/Identity, delegation,
+  Notification & Sync, search, policy, and audit boundaries treated as platform
+  prerequisites rather than UI-only features
+- Drive backend groundwork and APIs that reuse the shared storage/quota
+  contract without starting frontend implementation
+
 The Next.js web apps will be added after the backend contracts stabilize and
 after the user provides frontend-specific guidance.
+
+When frontend implementation starts, use Next.js with TypeScript, shadcn/ui,
+`DESIGN.md`, and a Notion Mail-like product feel. Do not create substantial
+frontend apps or screens before that frontend-specific start gate is opened.
 
 ## Agent handoff
 
@@ -81,7 +101,10 @@ go run ./cmd/gogomail --mode=admin-api
 
 `imap` starts the service-backed IMAP gateway with the TCP listener, protocol
 auth adapter, mailbox event broker, and live `mail.stored` notification
-consumer for IDLE/NOOP update delivery.
+consumer for IDLE/NOOP update delivery. The gateway advertises only the IMAP
+extensions currently backed by tests and service semantics; continue treating
+RFC correctness and client compatibility as release gates for every advertised
+capability.
 
 `all-in-one` serves health, Mail API, and Admin API routes from one HTTP
 process for small deployments and local release smoke tests.
@@ -212,6 +235,21 @@ The config file uses the same runtime validation as environment variables.
 Storage can be flipped between `local`, `nfs`, `minio`, and `s3` by changing
 the `storage_*` keys, while secrets may still be supplied by environment
 variables when they are omitted from the file.
+
+Reviewed storage profile starting points live under `configs/`:
+
+```bash
+go run ./cmd/gogomail --config=configs/storage.local.yaml --mode=all-in-one
+go run ./cmd/gogomail --config=configs/storage.nfs.yaml --mode=all-in-one
+go run ./cmd/gogomail --config=configs/storage.minio.yaml --mode=all-in-one
+go run ./cmd/gogomail --config=configs/storage.s3.yaml --mode=all-in-one
+```
+
+Use `storage_root` for local/NFS roots in YAML. The older `mailstore_root`
+key remains accepted for compatibility, while `GOGOMAIL_STORAGE_ROOT` is the
+matching environment variable alias. See `docs/storage-backends.md` for the
+object contract, S3-compatible TLS options, backend label compatibility, and
+pre-release smoke matrix.
 
 ## Receive mail locally
 
