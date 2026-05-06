@@ -3690,6 +3690,11 @@ Implementation order:
       partial full-message literals, preserve the `RFC822<offset>` response
       atom instead of normalizing it to `BODY[]`, and apply the same `\Seen`
       mutation semantics as full `RFC822` body fetches.
+1360. Shared storage object path and prefix validation now rejects
+      double-encoded path separators such as `%252F` and `%255C`, and
+      S3-compatible storage now delegates separator checks to the shared
+      validator so local/NFS, MinIO, AWS S3, and compatible gateways keep the
+      same key-boundary semantics under proxy or provider double-decoding.
 
 ## Deferred until backend contracts stabilize
 

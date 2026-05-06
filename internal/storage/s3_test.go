@@ -1055,7 +1055,7 @@ func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
 func TestNewS3StoreRejectsEncodedSeparatorPrefix(t *testing.T) {
 	t.Parallel()
 
-	for _, prefix := range []string{"mail/%2Ftenant", "mail/%5ctenant"} {
+	for _, prefix := range []string{"mail/%2Ftenant", "mail/%5ctenant", "mail/%252Ftenant", "mail/%255ctenant"} {
 		prefix := prefix
 		t.Run(prefix, func(t *testing.T) {
 			t.Parallel()

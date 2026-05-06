@@ -22,6 +22,8 @@ func TestValidateObjectPathRejectsUnsafeKeys(t *testing.T) {
 		"mailstore/message.eml/",
 		"mailstore/%2Fmessage.eml",
 		"mailstore/%5cmessage.eml",
+		"mailstore/%252Fmessage.eml",
+		"mailstore/%255cmessage.eml",
 	}
 	for _, objectPath := range tests {
 		if _, err := ValidateObjectPath(objectPath); err == nil {
@@ -112,6 +114,8 @@ func TestValidateObjectPrefixRejectsUnsafePrefixes(t *testing.T) {
 		"drive/   /user-1",
 		"drive/%2Fuser-1",
 		"drive/%5Cuser-1",
+		"drive/%252fuser-1",
+		"drive/%255Cuser-1",
 	} {
 		if _, err := ValidateObjectPrefix(prefix); err == nil {
 			t.Fatalf("ValidateObjectPrefix accepted unsafe prefix %q", prefix)
