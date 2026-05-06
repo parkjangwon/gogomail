@@ -103,6 +103,58 @@ func TestDelegationEvaluatorRequiresChecker(t *testing.T) {
 	}
 }
 
+func TestWebDAVPrivilegesForDecisionMapsRoles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		decision Decision
+		want     []string
+	}{
+		{
+			name:     "denied",
+			decision: Decision{Allowed: false, RequiredRole: directory.DelegationRoleManage},
+		},
+		{
+			name:     "read",
+			decision: Decision{Allowed: true, RequiredRole: directory.DelegationRoleRead},
+			want:     []string{WebDAVPrivilegeRead},
+		},
+		{
+			name:     "write",
+			decision: Decision{Allowed: true, RequiredRole: directory.DelegationRoleWrite},
+			want:     []string{WebDAVPrivilegeRead, WebDAVPrivilegeWriteContent, WebDAVPrivilegeWriteProperties},
+		},
+		{
+			name:     "manage",
+			decision: Decision{Allowed: true, RequiredRole: directory.DelegationRoleManage},
+			want: []string{
+				WebDAVPrivilegeRead,
+				WebDAVPrivilegeBind,
+				WebDAVPrivilegeUnbind,
+				WebDAVPrivilegeWriteContent,
+				WebDAVPrivilegeWriteProperties,
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := WebDAVPrivilegesForDecision(tc.decision)
+			if len(got) != len(tc.want) {
+				t.Fatalf("privileges = %+v, want %+v", got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Fatalf("privileges = %+v, want %+v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
 type fakeDelegationChecker struct {
 	allowed bool
 	err     error

@@ -2594,6 +2594,10 @@ Implementation order:
       principal checks and giving CalDAV/CardDAV/Drive/mailbox/admin modules a
       product-neutral policy adapter surface before public sharing semantics
       are wired to protocol privileges or audit logs.
+1169. `internal/accesspolicy` now maps allowed delegation decisions to RFC
+      4918 WebDAV privilege names, giving CalDAV/CardDAV a single
+      read/write/manage-to-privilege translation point before shared calendar
+      or delegated address-book privileges are advertised.
 
 ## Deferred until backend contracts stabilize
 
