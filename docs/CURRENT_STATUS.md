@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after LIST-STATUS duplicate return-option rejection)
+Last updated: 2026-05-07 (updated after local/NFS symlinked parent hardening)
 
 ## Current phase
 
@@ -65,6 +65,12 @@ S3-compatible `List` now rechecks provider-returned keys against the requested
 logical gogomail prefix after stripping the configured bucket/storage prefix,
 so malformed or overly broad S3-compatible list responses cannot leak sibling
 keys into caller listings or `DeletePrefix` cleanup work.
+Local/NFS storage now rejects symlinked intermediate path components for
+object reads, range reads, metadata probes, deletes, copies, moves, writes, and
+prefix listings, while continuing to hide final-object symlinks from list
+pages. This keeps local disk and mounted storage deployments confined to the
+configured object root instead of following host-specific links outside the
+storage contract.
 Drive JSON mutation handlers share the strict backend JSON contract and now
 have regression coverage for required `application/json` content type,
 unknown-field rejection, and trailing-token rejection before service dispatch.
@@ -3009,10 +3015,12 @@ The platform hardening sprint completed the following:
   reports `io.ErrUnexpectedEOF` for short object windows so partial-read
   behavior stays aligned when operators switch storage backends.
 - Local/NFS storage now rejects filesystem symbolic links for object reads,
-  range reads, metadata probes, deletes, and source moves, hides symlinks from
-  list pages, and rejects direct directory deletes. Local and NFS-backed
-  deployments therefore keep object-key semantics instead of accidentally
-  following host-specific links or treating filesystem folders as objects.
+  range reads, metadata probes, deletes, copies, moves, writes, and prefix
+  listings, including symlinked intermediate directories. Final-object
+  symlinks remain hidden from list pages, and direct directory deletes are
+  rejected. Local and NFS-backed deployments therefore keep object-key
+  semantics instead of accidentally following host-specific links or treating
+  filesystem folders as objects.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

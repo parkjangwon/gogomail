@@ -32,7 +32,7 @@ func (s *LocalStore) Put(ctx context.Context, path string, body io.Reader) error
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+	if err := s.ensureObjectParentDir(path); err != nil {
 		return fmt.Errorf("create storage directory: %w", err)
 	}
 
@@ -88,6 +88,9 @@ func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
+	if err := s.rejectSymlinkParentComponents(path); err != nil {
+		return nil, err
+	}
 	if _, err := localObjectInfo(fullPath); err != nil {
 		return nil, fmt.Errorf("open storage object: %w", err)
 	}
@@ -110,6 +113,9 @@ func (s *LocalStore) GetRange(ctx context.Context, path string, req RangeRequest
 
 	fullPath, err := s.safePath(path)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.rejectSymlinkParentComponents(path); err != nil {
 		return nil, err
 	}
 	if _, err := localObjectInfo(fullPath); err != nil {
@@ -175,6 +181,9 @@ func (s *LocalStore) Stat(ctx context.Context, path string) (ObjectInfo, error) 
 	if err != nil {
 		return ObjectInfo{}, err
 	}
+	if err := s.rejectSymlinkParentComponents(objectPath); err != nil {
+		return ObjectInfo{}, err
+	}
 	info, err := localObjectInfo(fullPath)
 	if err != nil {
 		return ObjectInfo{}, fmt.Errorf("stat storage object: %w", err)
@@ -233,6 +242,9 @@ func (s *LocalStore) Move(ctx context.Context, sourcePath string, destPath strin
 	if err != nil {
 		return err
 	}
+	if err := s.rejectSymlinkParentComponents(sourceObjectPath); err != nil {
+		return err
+	}
 	if _, err := localObjectInfo(sourceFullPath); err != nil {
 		return fmt.Errorf("move source storage object: %w", err)
 	}
@@ -240,7 +252,7 @@ func (s *LocalStore) Move(ctx context.Context, sourcePath string, destPath strin
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(destFullPath), 0o755); err != nil {
+	if err := s.ensureObjectParentDir(destObjectPath); err != nil {
 		return fmt.Errorf("create destination storage directory: %w", err)
 	}
 	if err := os.Rename(sourceFullPath, destFullPath); err != nil {
@@ -267,11 +279,23 @@ func (s *LocalStore) List(ctx context.Context, opts ListOptions) (ObjectListPage
 	if prefix != "" {
 		root = filepath.Join(s.root, filepath.FromSlash(prefix))
 	}
-	if _, err := os.Stat(root); err != nil {
+	if prefix != "" {
+		if err := s.rejectSymlinkPathComponents(prefix); err != nil {
+			if os.IsNotExist(err) {
+				return ObjectListPage{Objects: []ObjectInfo{}}, nil
+			}
+			return ObjectListPage{}, fmt.Errorf("stat storage prefix: %w", err)
+		}
+	}
+	if info, err := os.Lstat(root); err != nil {
 		if os.IsNotExist(err) {
 			return ObjectListPage{Objects: []ObjectInfo{}}, nil
 		}
 		return ObjectListPage{}, fmt.Errorf("stat storage prefix: %w", err)
+	} else if info.Mode()&os.ModeSymlink != 0 {
+		return ObjectListPage{}, fmt.Errorf("stat storage prefix: storage path component is a symbolic link")
+	} else if !info.IsDir() {
+		return ObjectListPage{}, fmt.Errorf("stat storage prefix: storage prefix is not a directory")
 	}
 
 	page := ObjectListPage{Objects: make([]ObjectInfo, 0, limit)}
@@ -335,6 +359,12 @@ func (s *LocalStore) Delete(ctx context.Context, path string) error {
 
 	fullPath, err := s.safePath(path)
 	if err != nil {
+		return err
+	}
+	if err := s.rejectSymlinkParentComponents(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -441,4 +471,80 @@ func (s *LocalStore) safePath(path string) (string, error) {
 		return "", fmt.Errorf("unsafe storage path %q", path)
 	}
 	return fullPath, nil
+}
+
+func (s *LocalStore) ensureObjectParentDir(objectPath string) error {
+	objectPath, err := ValidateObjectPath(objectPath)
+	if err != nil {
+		return fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
+	}
+	segments := strings.Split(objectPath, "/")
+	current := s.root
+	for _, segment := range segments[:len(segments)-1] {
+		current = filepath.Join(current, segment)
+		info, err := os.Lstat(current)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("storage path component is a symbolic link")
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("storage path component is not a directory")
+			}
+			continue
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.Mkdir(current, 0o755); err != nil {
+			if !os.IsExist(err) {
+				return err
+			}
+		}
+		info, err = os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("storage path component is a symbolic link")
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("storage path component is not a directory")
+		}
+	}
+	return nil
+}
+
+func (s *LocalStore) rejectSymlinkPathComponents(objectPath string) error {
+	objectPath, err := ValidateObjectPath(objectPath)
+	if err != nil {
+		return fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
+	}
+	return s.rejectSymlinkComponents(strings.Split(objectPath, "/"))
+}
+
+func (s *LocalStore) rejectSymlinkParentComponents(objectPath string) error {
+	objectPath, err := ValidateObjectPath(objectPath)
+	if err != nil {
+		return fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
+	}
+	segments := strings.Split(objectPath, "/")
+	if len(segments) <= 1 {
+		return nil
+	}
+	return s.rejectSymlinkComponents(segments[:len(segments)-1])
+}
+
+func (s *LocalStore) rejectSymlinkComponents(segments []string) error {
+	current := s.root
+	for _, segment := range segments {
+		current = filepath.Join(current, segment)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("storage path component is a symbolic link")
+		}
+	}
+	return nil
 }

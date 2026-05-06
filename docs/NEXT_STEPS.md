@@ -508,11 +508,12 @@ Current state:
   window extends beyond the available object bytes, matching the S3-compatible
   range-reader corruption signal instead of silently returning a short range.
 - Local/NFS storage no longer treats filesystem symbolic links as storage
-  objects: reads, range reads, metadata probes, deletes, and source moves
-  reject them, while list pages hide them so mounted storage cannot escape
-  object-key semantics through host-specific link behavior. Local/NFS direct
-  deletes also reject directories instead of treating filesystem folders as
-  object keys.
+  objects or path parents: reads, range reads, metadata probes, deletes,
+  copies, moves, writes, and prefix listings reject symlinked intermediate
+  directories, while list pages still hide final-object symlinks. Mounted
+  storage therefore cannot escape object-key semantics through host-specific
+  link behavior. Local/NFS direct deletes also reject directories instead of
+  treating filesystem folders as object keys.
 - Local and S3-compatible storage writes reject nil `Put` bodies before
   filesystem or HTTP request work, keeping empty object creation explicit and
   adapter behavior consistent.
