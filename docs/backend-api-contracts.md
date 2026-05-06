@@ -816,6 +816,12 @@ Admin operational read models also keep explicit envelope keys:
   delegation grant. The path id uses bounded admin identifier validation, and
   the backend records `directory_delegation.delete` in the same transaction as
   the grant status change.
+- `PATCH /admin/v1/directory/delegations/{id}/role` accepts
+  `{role}` with `role=read|write|manage` and returns
+  `{"directory_delegation":{...}}` after updating an active Directory
+  delegation grant role. The path id and JSON body are bounded before service
+  dispatch, and the backend records `directory_delegation.role_update` in the
+  same transaction as the role change.
 - `GET /admin/v1/directory/group-memberships` returns
   `{"directory_group_memberships":[...]}` for admin diagnostics over
   Directory-owned group membership relationships. It supports bounded `limit`,

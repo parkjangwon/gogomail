@@ -7490,6 +7490,85 @@ func TestAdminRoutesRequireTokenWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestAdminUpdateDirectoryDelegationRoleHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryDelegation: directory.Delegation{
+			ID:           "delegation-1",
+			CompanyID:    "company-1",
+			OwnerKind:    directory.PrincipalKindResource,
+			OwnerID:      "room-1",
+			DelegateKind: directory.PrincipalKindGroup,
+			DelegateID:   "team-1",
+			Scope:        directory.DelegationScopeCalendar,
+			Role:         directory.DelegationRoleManage,
+			Status:       "active",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin/v1/directory/delegations/%20delegation-1%20/role", bytes.NewReader([]byte(`{"role":"manage"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Delegation directory.Delegation `json:"directory_delegation"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Delegation.ID != "delegation-1" || response.Delegation.Role != directory.DelegationRoleManage {
+		t.Fatalf("directory_delegation = %+v", response.Delegation)
+	}
+	if service.lastDirectoryDelegationRoleUpdate.ID != "delegation-1" ||
+		service.lastDirectoryDelegationRoleUpdate.Role != directory.DelegationRoleManage {
+		t.Fatalf("lastDirectoryDelegationRoleUpdate = %+v", service.lastDirectoryDelegationRoleUpdate)
+	}
+}
+
+func TestAdminUpdateDirectoryDelegationRoleHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		body string
+		ct   string
+	}{
+		{name: "bad path value", path: "/admin/v1/directory/delegations/delegation%0Abad/role", body: `{"role":"manage"}`, ct: "application/json"},
+		{name: "unknown query", path: "/admin/v1/directory/delegations/delegation-1/role?dry_run=true", body: `{"role":"manage"}`, ct: "application/json"},
+		{name: "bad content type", path: "/admin/v1/directory/delegations/delegation-1/role", body: `{"role":"manage"}`, ct: "text/plain"},
+		{name: "unknown json field", path: "/admin/v1/directory/delegations/delegation-1/role", body: `{"role":"manage","extra":true}`, ct: "application/json"},
+		{name: "bad role", path: "/admin/v1/directory/delegations/delegation-1/role", body: `{"role":"owner"}`, ct: "application/json"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodPatch, tc.path, bytes.NewReader([]byte(tc.body)))
+			req.Header.Set("Content-Type", tc.ct)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryDelegationRoleUpdate.ID != "" {
+				t.Fatalf("dispatched request %+v", service.lastDirectoryDelegationRoleUpdate)
+			}
+		})
+	}
+}
+
 func TestAdminUpdateDirectoryGroupMembershipRoleHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7765,6 +7844,7 @@ type fakeAdminService struct {
 	lastDirectoryDelegationCreate               directory.CreateDelegationRequest
 	lastDirectoryDelegationDeleteID             string
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
+	lastDirectoryDelegationRoleUpdate           directory.UpdateDelegationRoleRequest
 	lastDirectoryGroupMembershipCreate          directory.CreateGroupMembershipRequest
 	lastDirectoryGroupMembershipList            directory.ListGroupMembershipsRequest
 	lastDirectoryGroupMembershipDeleteID        string
@@ -8081,6 +8161,15 @@ func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req direc
 	}
 	f.lastDirectoryDelegationList = req
 	return f.directoryDelegations, nil
+}
+
+func (f *fakeAdminService) UpdateDirectoryDelegationRole(_ context.Context, req directory.UpdateDelegationRoleRequest) (directory.Delegation, error) {
+	normalized, err := directory.NormalizeUpdateDelegationRoleRequest(req)
+	if err != nil {
+		return directory.Delegation{}, err
+	}
+	f.lastDirectoryDelegationRoleUpdate = normalized
+	return f.directoryDelegation, nil
 }
 
 func (f *fakeAdminService) GetBackpressure(context.Context) (backpressure.State, error) {

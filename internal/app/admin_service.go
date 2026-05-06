@@ -52,6 +52,7 @@ type adminService struct {
 		ResolveAlias(ctx context.Context, req directory.ResolveAliasRequest) (directory.Alias, error)
 		ReassignGroupMembershipWithAudit(ctx context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error)
 		SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
+		UpdateDelegationRoleWithAudit(ctx context.Context, req directory.UpdateDelegationRoleRequest) (directory.Delegation, error)
 		UpdateGroupMembershipRoleWithAudit(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error)
 	}
 	drive interface {
@@ -353,6 +354,13 @@ func (s adminService) DeleteDirectoryGroupMembership(ctx context.Context, id str
 		return directory.GroupMembership{}, fmt.Errorf("directory backend is not configured")
 	}
 	return s.directory.DeleteGroupMembershipWithAudit(ctx, id)
+}
+
+func (s adminService) UpdateDirectoryDelegationRole(ctx context.Context, req directory.UpdateDelegationRoleRequest) (directory.Delegation, error) {
+	if s.directory == nil {
+		return directory.Delegation{}, fmt.Errorf("directory backend is not configured")
+	}
+	return s.directory.UpdateDelegationRoleWithAudit(ctx, req)
 }
 
 func (s adminService) UpdateDirectoryGroupMembershipRole(ctx context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error) {

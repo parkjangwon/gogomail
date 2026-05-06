@@ -2731,12 +2731,13 @@ Implementation order:
         transaction so shared-calendar, Drive, Contacts/CardDAV, and shared
         inbox access can be revoked through one platform boundary.
 1175b2a. Directory/Identity now exposes audited delegation role updates through
-         `UpdateDelegationRoleWithAudit`, changing active grants under active
-         companies in-place and committing
+         `UpdateDelegationRoleWithAudit` and
+         `PATCH /admin/v1/directory/delegations/{id}/role`, changing active
+         grants under active companies in-place and committing
          `directory_delegation.role_update` with previous/new role detail in
          the same transaction. This keeps shared-calendar, Drive,
          Contacts/CardDAV, and shared inbox role semantics in one platform
-         boundary while the public/admin HTTP contract is added deliberately.
+         boundary.
 1175b3. Directory/Identity now exposes audited group membership creation
         through `CreateGroupMembershipWithAudit` and
         `POST /admin/v1/directory/group-memberships`, returning a

@@ -1931,12 +1931,12 @@ Next:
   `DELETE /admin/v1/directory/delegations/{id}`, backed by
   `DeleteDelegationWithAudit`, so admins can revoke grants with a
   transaction-coupled `directory_delegation.delete` audit row.
-- Audited delegation role updates now exist in the Directory repository as
-  `UpdateDelegationRoleWithAudit`, changing active grants under active
-  companies while committing `directory_delegation.role_update` with
-  previous/new role detail. Next delegation work should expose the role update
-  through a contract-first admin endpoint and then add reassign flows with the
-  same audit shape before CalDAV, Drive, or shared inbox modules expose
+- Audited delegation role updates now exist as
+  `PATCH /admin/v1/directory/delegations/{id}/role`, backed by
+  `UpdateDelegationRoleWithAudit`. The endpoint changes active grants under
+  active companies while committing `directory_delegation.role_update` with
+  previous/new role detail. Next delegation work should add reassign flows with
+  the same audit shape before CalDAV, Drive, or shared inbox modules expose
   product-facing delegation UX.
 - Audited group membership creation now exists as
   `POST /admin/v1/directory/group-memberships`, backed by
