@@ -1033,6 +1033,8 @@ func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
   <IsTruncated>false</IsTruncated>
   <Contents><Key>mail/messages/msg-1.eml </Key><Size>5</Size></Contents>
   <Contents><Key> mail/messages/msg-2.eml</Key><Size>7</Size></Contents>
+  <Contents><Key>mail/messages/%2Fsecret.eml</Key><Size>11</Size></Contents>
+  <Contents><Key>mail/messages/%5Csecret.eml</Key><Size>13</Size></Contents>
   <Contents><Key>mail/messages/msg-3.eml</Key><Size>9</Size></Contents>
 </ListBucketResult>`)),
 			},
@@ -1047,6 +1049,30 @@ func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
 	}
 	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-3.eml" {
 		t.Fatalf("list objects = %+v, want only exact canonical key", page.Objects)
+	}
+}
+
+func TestNewS3StoreRejectsEncodedSeparatorPrefix(t *testing.T) {
+	t.Parallel()
+
+	for _, prefix := range []string{"mail/%2Ftenant", "mail/%5ctenant"} {
+		prefix := prefix
+		t.Run(prefix, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          prefix,
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+			})
+			if err == nil {
+				t.Fatalf("NewS3Store accepted encoded-separator prefix %q", prefix)
+			}
+		})
 	}
 }
 
@@ -1711,29 +1737,40 @@ func TestS3StoreRejectsUnsafeObjectPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
-	if err := store.Put(context.Background(), "../bad", strings.NewReader("bad")); err == nil {
-		t.Fatal("Put accepted unsafe object path")
-	}
-	if _, err := store.Stat(context.Background(), "../bad"); err == nil {
-		t.Fatal("Stat accepted unsafe object path")
-	}
-	if _, err := store.GetRange(context.Background(), "../bad", RangeRequest{Offset: 0, Length: 1}); err == nil {
-		t.Fatal("GetRange accepted unsafe object path")
-	}
-	if err := store.Copy(context.Background(), "../bad", "messages/good.eml"); err == nil {
-		t.Fatal("Copy accepted unsafe source object path")
-	}
-	if err := store.Copy(context.Background(), "messages/good.eml", "../bad"); err == nil {
-		t.Fatal("Copy accepted unsafe destination object path")
-	}
-	if err := store.Move(context.Background(), "../bad", "messages/good.eml"); err == nil {
-		t.Fatal("Move accepted unsafe source object path")
-	}
-	if err := store.Move(context.Background(), "messages/good.eml", "../bad"); err == nil {
-		t.Fatal("Move accepted unsafe destination object path")
-	}
-	if _, err := store.List(context.Background(), ListOptions{Prefix: "../bad"}); err == nil {
-		t.Fatal("List accepted unsafe object prefix")
+
+	for _, unsafePath := range []string{"../bad", "messages/%2Fsecret.eml", "messages/%5csecret.eml"} {
+		unsafePath := unsafePath
+		t.Run(unsafePath, func(t *testing.T) {
+			t.Parallel()
+
+			if err := store.Put(context.Background(), unsafePath, strings.NewReader("bad")); err == nil {
+				t.Fatal("Put accepted unsafe object path")
+			}
+			if _, err := store.Get(context.Background(), unsafePath); err == nil {
+				t.Fatal("Get accepted unsafe object path")
+			}
+			if _, err := store.Stat(context.Background(), unsafePath); err == nil {
+				t.Fatal("Stat accepted unsafe object path")
+			}
+			if _, err := store.GetRange(context.Background(), unsafePath, RangeRequest{Offset: 0, Length: 1}); err == nil {
+				t.Fatal("GetRange accepted unsafe object path")
+			}
+			if err := store.Copy(context.Background(), unsafePath, "messages/good.eml"); err == nil {
+				t.Fatal("Copy accepted unsafe source object path")
+			}
+			if err := store.Copy(context.Background(), "messages/good.eml", unsafePath); err == nil {
+				t.Fatal("Copy accepted unsafe destination object path")
+			}
+			if err := store.Move(context.Background(), unsafePath, "messages/good.eml"); err == nil {
+				t.Fatal("Move accepted unsafe source object path")
+			}
+			if err := store.Move(context.Background(), "messages/good.eml", unsafePath); err == nil {
+				t.Fatal("Move accepted unsafe destination object path")
+			}
+			if _, err := store.List(context.Background(), ListOptions{Prefix: unsafePath}); err == nil {
+				t.Fatal("List accepted unsafe object prefix")
+			}
+		})
 	}
 }
 

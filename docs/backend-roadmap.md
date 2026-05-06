@@ -3671,6 +3671,11 @@ Implementation order:
       into repository mutation guards when `If-Match: *` succeeds, preserving
       existing-resource WebDAV semantics while rechecking the exact object
       looked up by the handler before durable write or delete mutation.
+1356. S3-compatible storage now rejects percent-encoded path separators in
+      configured prefixes, object-key requests, list prefixes, copy/move
+      endpoints, and provider-returned list keys, keeping object identity and
+      prefix isolation portable across AWS S3, MinIO, and compatible gateways
+      with different URL-decoding behavior.
 
 ## Deferred until backend contracts stabilize
 
