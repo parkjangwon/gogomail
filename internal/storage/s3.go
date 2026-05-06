@@ -332,8 +332,12 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err != nil {
 		return ObjectListPage{}, err
 	}
+	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
+	if !ok {
+		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid IsTruncated value")
+	}
 	nextCursor := ""
-	if result.IsTruncated {
+	if isTruncated {
 		var err error
 		nextCursor, err = ValidateListCursor(result.NextContinuationToken)
 		if err != nil {
@@ -346,7 +350,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	page := ObjectListPage{
 		Objects:    make([]ObjectInfo, 0, len(result.Contents)),
 		NextCursor: nextCursor,
-		HasMore:    result.IsTruncated,
+		HasMore:    isTruncated,
 	}
 	for _, item := range result.Contents {
 		if strings.TrimSpace(item.Key) == "" {
@@ -594,6 +598,17 @@ func parseS3NonNegativeDecimal(value string) (int64, bool) {
 func parseS3ListObjectSize(value string) (int64, bool) {
 	value = strings.TrimSpace(value)
 	return parseS3NonNegativeDecimal(value)
+}
+
+func parseS3ListIsTruncated(value string) (bool, bool) {
+	switch value {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 func cleanS3MetadataValue(value string, maxBytes int) string {
@@ -1157,7 +1172,7 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 
 type s3ListObjectsResult struct {
 	XMLName               xml.Name              `xml:"ListBucketResult"`
-	IsTruncated           bool                  `xml:"IsTruncated"`
+	IsTruncated           string                `xml:"IsTruncated"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Contents              []s3ListObjectContent `xml:"Contents"`
 }

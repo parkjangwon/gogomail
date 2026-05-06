@@ -3820,6 +3820,10 @@ Implementation order:
 1388. S3-compatible `ListObjectsV2` object entries now reject missing or blank
       `<Key>` elements instead of silently skipping malformed provider entries
       before prefix mapping and cleanup scans.
+1389. S3-compatible `ListObjectsV2` pagination control now requires an explicit
+      canonical `<IsTruncated>true</IsTruncated>` or
+      `<IsTruncated>false</IsTruncated>` value, rejecting missing or
+      non-canonical forms before deciding whether a page is final.
 
 ## Deferred until backend contracts stabilize
 
