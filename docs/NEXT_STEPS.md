@@ -1856,6 +1856,10 @@ Current state:
   should consume those domain events for reminder, device, mobile delta, and
   search/index fan-out instead of coupling push delivery into the CalDAV
   protocol gateway.
+- `event-worker` now registers DAV change audit handlers. Operators can run a
+  dedicated worker instance with `GOGOMAIL_EVENT_STREAM=dav.event` to validate
+  `calendar.changed`/`contacts.changed` payloads and persist audit rows while
+  later Notification & Sync consumers are developed.
 - CalDAV initial `sync-collection` snapshots now also fetch one extra calendar
   object through a sync-specific repository list path, so omitted or exact
   `limit/nresults` requests cannot silently return a partial snapshot with the

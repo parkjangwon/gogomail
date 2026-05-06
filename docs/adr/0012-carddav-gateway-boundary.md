@@ -202,6 +202,8 @@ protocol boundary foundation, not a public contacts-sharing UX.
   same repository boundary that appends durable address-book change rows,
   giving Notification & Sync and search/index workers a clean event source
   without putting push or autocomplete behavior inside the protocol gateway.
+  A generic event-worker instance can consume the stream for payload validation
+  and audit recording before product-specific consumers are enabled.
 - Future CalDAV attendee and resource lookup can depend on Directory plus
   Contacts/CardDAV without inventing private person models.
 - Public CardDAV compatibility remains out of scope until authenticated

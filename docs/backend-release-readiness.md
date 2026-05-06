@@ -469,6 +469,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   changes. `calendar.changed` and `contacts.changed` payloads are an internal
   Notification & Sync/search/mobile-delta foundation, not public reminder or
   push-delivery semantics yet.
+- `event-worker` can validate and audit DAV change events when deployed against
+  `GOGOMAIL_EVENT_STREAM=dav.event`, keeping the first DAV event consumer
+  auditable while reminder, device, search-index, and mobile delta consumers
+  remain future work.
 - CalDAV initial `sync-collection` snapshots now use a sync-specific
   one-extra-object repository list path, preventing omitted-limit snapshots
   from being clipped by generic list defaults while still returning the current

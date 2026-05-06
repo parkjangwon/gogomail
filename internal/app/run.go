@@ -1376,6 +1376,13 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}); err != nil {
 		return err
 	}
+	davAuditHandler := audit.NewDAVChangeHandler(auditRepository)
+	if err := router.Register(audit.DAVChangeEventCalendar, davAuditHandler); err != nil {
+		return err
+	}
+	if err := router.Register(audit.DAVChangeEventContacts, davAuditHandler); err != nil {
+		return err
+	}
 
 	consumer, err := eventstream.NewRedisConsumer(eventstream.RedisConsumerOptions{
 		Client:           redisClient,
