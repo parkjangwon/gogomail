@@ -2060,6 +2060,9 @@ The platform hardening sprint completed the following:
 - IMAP sessions become CONDSTORE-aware after `FETCH MODSEQ`,
   `FETCH CHANGEDSINCE`, `SEARCH MODSEQ`, or `STATUS HIGHESTMODSEQ`, and
   subsequent flag `FETCH` event/STORE echo responses include `MODSEQ`.
+  `STATUS HIGHESTMODSEQ` now has end-to-end regression coverage through a
+  following `SELECT` and `UID STORE`, so the awareness state is verified
+  across mailbox selection rather than only on the immediate STATUS response.
 - IMAP `STORE`/`UID STORE` supports RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, applying
   passing updates and returning `[MODIFIED uid-set]` / `[MODIFIED sequence-set]`
