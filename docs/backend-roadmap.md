@@ -4153,6 +4153,9 @@ Implementation order:
 1473. IMAP search-family charset and date controls now reject quoted values,
       keeping CHARSET and date keys atom-only while preserving string-capable
       text/header search operands.
+1474. IMAP KEYWORD and UNKEYWORD search operands now reject quoted
+      flag-keyword values, preserving RFC atom semantics for flag names before
+      authentication or selected-mailbox state.
 
 ## Deferred until backend contracts stabilize
 

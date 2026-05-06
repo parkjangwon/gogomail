@@ -3975,6 +3975,10 @@ The platform hardening sprint completed the following:
   tokens: quoted `CHARSET`, `SORT`/`THREAD` charset, `SINCE`, `BEFORE`, `ON`,
   `SENTSINCE`, `SENTBEFORE`, and `SENTON` values are rejected instead of being
   dequoted into command controls.
+- IMAP `KEYWORD` and `UNKEYWORD` search operands now require raw atom tokens,
+  so quoted flag-keyword strings such as `KEYWORD "custom"` or
+  `UNKEYWORD "custom"` are rejected instead of being dequoted into valid flag
+  keywords.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
