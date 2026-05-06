@@ -17,6 +17,14 @@ RFC-sensitive core, but current work should balance:
 - quota and policy enforcement
 - OpenAPI drift prevention
 
+Webmail capability discovery now advertises only runtime-backed `GET
+/api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and
+`has_attachment`). The runtime response, OpenAPI enum, and regression test are
+aligned so future generated clients do not attempt unsupported `since`,
+`before`, `read`, or `starred` search filters; read/starred filtering remains
+available on the message/thread list endpoints where it is actually
+implemented.
+
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
 including spaced forms such as `( )`, with explicit tagged `BAD` diagnostics

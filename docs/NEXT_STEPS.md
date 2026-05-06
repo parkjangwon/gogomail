@@ -22,6 +22,9 @@ Before changing code, read:
 
 Current state:
 
+- Webmail capability discovery now limits advertised message-search filters to
+  the runtime-supported `q`, `folder_id`, `from`, `subject`, and
+  `has_attachment` query keys, with OpenAPI and regression coverage aligned.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.

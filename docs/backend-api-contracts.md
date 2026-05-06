@@ -13,6 +13,11 @@ in the same commit.
 The draft must remain parseable OpenAPI YAML and must not expose routes that are
 not registered by the Go HTTP mux, so generated clients cannot be built from a
 syntactically invalid or stale endpoint contract.
+Capability discovery must also advertise only runtime-backed filters and modes.
+For example, webmail search capabilities currently expose `q`, `folder_id`,
+`from`, `subject`, and `has_attachment`; read/starred state filters belong to
+the message and thread list contracts until the search endpoint implements
+equivalent semantics.
 
 For generated-client stability, every documented operation has a stable
 lower-camel `operationId`, protected/mutable operations reuse the default

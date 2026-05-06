@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -395,6 +396,10 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	}
 	if got.Compose.MaxRecipients != mailservice.MaxComposeRecipients || got.Compose.MaxAttachmentIDs != mailservice.MaxComposeAttachments {
 		t.Fatalf("compose caps = %#v", got.Compose)
+	}
+	wantSearchFilters := []string{"q", "folder_id", "from", "subject", "has_attachment"}
+	if !slices.Equal(got.Search.Filters, wantSearchFilters) {
+		t.Fatalf("search filters = %#v, want %#v", got.Search.Filters, wantSearchFilters)
 	}
 	if !got.Attachments.UploadSessions || got.Attachments.MaxAttachmentBytes != mailservice.MaxAttachmentUploadBytes {
 		t.Fatalf("attachment caps = %#v", got.Attachments)

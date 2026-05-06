@@ -9,6 +9,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   clients can discover backend contract version, available/planned modules,
   supported flags/actions, and compose/search/attachment/push limits without
   hard-coded frontend constants.
+- Webmail capability discovery now advertises only the message-search filters
+  implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
+  and `has_attachment`), keeping generated clients from calling unsupported
+  `since`, `before`, `read`, or `starred` search parameters.
 - Mail API exposes `GET /api/v1/mailbox/overview` so production webmail chrome
   can render total/unread/starred/size badges and system-folder shortcuts from
   one user-scoped bootstrap read.

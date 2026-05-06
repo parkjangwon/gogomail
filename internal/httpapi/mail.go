@@ -267,7 +267,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		Search: webmailSearchCapabilities{
 			Messages:       true,
 			Drafts:         true,
-			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment", "since", "before", "read", "starred"},
+			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment"},
 			Highlights:     true,
 			OpaqueCursors:  true,
 			MaxQueryBytes:  maxHTTPQueryBytes,

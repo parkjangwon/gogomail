@@ -3436,6 +3436,11 @@ Implementation order:
       `STORE`/`UID STORE` `UNCHANGEDSINCE`. This aligns non-persistent
       mod-sequence stores with RFC 7162 instead of returning synthetic
       `MODSEQ (0)` data or dispatching conditional flag mutations.
+1304. Webmail capability discovery now advertises only runtime-backed
+      `GET /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and
+      `has_attachment`) and locks the OpenAPI enum plus regression coverage to
+      that list, preventing generated clients from sending unsupported
+      `since`, `before`, `read`, or `starred` search parameters.
 
 ## Deferred until backend contracts stabilize
 
