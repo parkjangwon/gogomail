@@ -32,6 +32,10 @@ type SyncChangeStore interface {
 	ListAddressBookChangesSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChange, error)
 }
 
+type AddressBookUpdater interface {
+	UpdateAddressBookProperties(ctx context.Context, req UpdateAddressBookRequest) (AddressBook, error)
+}
+
 type ObjectStore interface {
 	UpsertContactObject(ctx context.Context, req UpsertContactObjectRequest) (ContactObject, error)
 	DeleteContactObject(ctx context.Context, req DeleteContactObjectRequest) (ContactObject, error)
@@ -78,6 +82,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveOptions(w)
 	case MethodPropfind:
 		h.servePropfind(w, r)
+	case MethodProppatch:
+		h.serveProppatch(w, r)
 	case MethodReport:
 		h.serveReport(w, r)
 	case MethodGet, MethodHead:
@@ -100,6 +106,52 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", target)
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusMovedPermanently)
+}
+
+func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
+	userID, resource, ok := h.resolveResourceRequest(w, r)
+	if !ok {
+		return
+	}
+	if resource.Kind != ResourceAddressBookCollection {
+		http.Error(w, "PROPPATCH requires an address-book collection path", http.StatusForbidden)
+		return
+	}
+	store, ok := h.Store.(AddressBookUpdater)
+	if !ok {
+		http.Error(w, "carddav address-book updater is not configured", http.StatusNotImplemented)
+		return
+	}
+	patch, err := ParseProppatch(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	book, err := store.UpdateAddressBookProperties(r.Context(), UpdateAddressBookRequest{
+		UserID:        userID,
+		AddressBookID: resource.AddressBookID,
+		Name:          patch.Name,
+		Description:   patch.Description,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	href, err := AddressBookCollectionPath(userID, book.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchResponse(href, book, patch.Properties)})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusMultiStatus)
+	_, _ = w.Write(body)
 }
 
 func (h *Handler) serveOptions(w http.ResponseWriter) {
@@ -508,6 +560,19 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request)
 
 func responseForProperties(href string, propfind PropfindRequest, props []PropertyResult) MultiStatusResponse {
 	return MultiStatusResponse{Href: href, PropStats: SelectPropfindProperties(propfind, props)}
+}
+
+func proppatchResponse(href string, book AddressBook, properties []XMLName) MultiStatusResponse {
+	results := make([]PropertyResult, 0, len(properties))
+	for _, prop := range properties {
+		switch prop {
+		case PropDisplayName:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Name}, Found: true})
+		case PropAddressBookDescription:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Description}, Found: true})
+		}
+	}
+	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
 }
 
 func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
@@ -1029,5 +1094,5 @@ func readBoundedContactObjectBody(r io.Reader) ([]byte, error) {
 }
 
 func cardDAVDiscoveryAllowHeader() string {
-	return strings.Join([]string{MethodOptions, MethodPropfind, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete}, ", ")
+	return strings.Join([]string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete}, ", ")
 }

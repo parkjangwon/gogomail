@@ -71,6 +71,12 @@ type PropfindRequest struct {
 	Include    []XMLName
 }
 
+type ProppatchRequest struct {
+	Name        *string
+	Description *string
+	Properties  []XMLName
+}
+
 type ReportKind string
 
 const (
@@ -179,6 +185,59 @@ func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 	}
 }
 
+func ParseProppatch(r io.Reader) (ProppatchRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return ProppatchRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return ProppatchRequest{}, fmt.Errorf("PROPPATCH body is required")
+	}
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return ProppatchRequest{}, err
+	}
+	if !sameXMLName(root.Name, DAVNamespace, "propertyupdate") {
+		return ProppatchRequest{}, fmt.Errorf("unsupported PROPPATCH root {%s}%s", root.Name.Space, root.Name.Local)
+	}
+	var req ProppatchRequest
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return ProppatchRequest{}, fmt.Errorf("unterminated PROPPATCH body")
+		}
+		if err != nil {
+			return ProppatchRequest{}, fmt.Errorf("decode PROPPATCH body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "set"):
+				if err := parseProppatchSet(dec, tok.Name, &req); err != nil {
+					return ProppatchRequest{}, err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "remove"):
+				if err := parseProppatchRemove(dec, tok.Name, &req); err != nil {
+					return ProppatchRequest{}, err
+				}
+			default:
+				return ProppatchRequest{}, fmt.Errorf("unsupported PROPPATCH element {%s}%s", tok.Name.Space, tok.Name.Local)
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if err := rejectTrailingXML(dec); err != nil {
+					return ProppatchRequest{}, err
+				}
+				if len(req.Properties) == 0 {
+					return ProppatchRequest{}, fmt.Errorf("PROPPATCH must include at least one supported property")
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
 func ParseReport(r io.Reader) (ReportRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -265,6 +324,116 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 					return ReportRequest{}, err
 				}
 				return req, nil
+			}
+		}
+	}
+}
+
+func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated PROPPATCH set element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode PROPPATCH set: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if err := parseProppatchProp(dec, tok.Name, true, req); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, setName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchRequest) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated PROPPATCH remove element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode PROPPATCH remove: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if err := parseProppatchProp(dec, tok.Name, false, req); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, removeName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *ProppatchRequest) error {
+	properties := 0
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated PROPPATCH prop element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode PROPPATCH prop: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			properties++
+			if properties > MaxWebDAVProperties {
+				return fmt.Errorf("too many PROPPATCH properties")
+			}
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
+				if !set {
+					return fmt.Errorf("displayname cannot be removed from a CardDAV address book collection")
+				}
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				value := strings.TrimSpace(text)
+				req.Name = &value
+				req.Properties = append(req.Properties, PropDisplayName)
+			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
+				value := ""
+				if set {
+					text, err := readSimpleElementText(dec, tok.Name)
+					if err != nil {
+						return err
+					}
+					value = strings.TrimSpace(text)
+				} else if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+				req.Description = &value
+				req.Properties = append(req.Properties, PropAddressBookDescription)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return nil
 			}
 		}
 	}

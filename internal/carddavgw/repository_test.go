@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+func stringPtr(value string) *string {
+	return &value
+}
+
 func TestValidateCreateAddressBookRequest(t *testing.T) {
 	t.Parallel()
 
@@ -72,6 +76,58 @@ func TestValidateAddressBookReadRequests(t *testing.T) {
 	}
 	if get.UserID != "user-1" || get.AddressBookID != "book-1" || get.Status != AddressBookStatusDeleted {
 		t.Fatalf("get request = %+v", get)
+	}
+}
+
+func TestValidateUpdateAddressBookRequest(t *testing.T) {
+	t.Parallel()
+
+	name := " Team "
+	description := " Launch contacts "
+	req, normalizedName, syncToken, err := ValidateUpdateAddressBookRequest(UpdateAddressBookRequest{
+		UserID:        " user-1 ",
+		AddressBookID: " book-1 ",
+		Name:          &name,
+		Description:   &description,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateAddressBookRequest returned error: %v", err)
+	}
+	if req.UserID != "user-1" || req.AddressBookID != "book-1" {
+		t.Fatalf("request = %+v", req)
+	}
+	if req.Name == nil || *req.Name != "Team" || req.Description == nil || *req.Description != "Launch contacts" {
+		t.Fatalf("properties = %+v", req)
+	}
+	if normalizedName != "team" {
+		t.Fatalf("normalized name = %q", normalizedName)
+	}
+	if !strings.HasPrefix(syncToken, "sync-") {
+		t.Fatalf("sync token = %q", syncToken)
+	}
+}
+
+func TestValidateUpdateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	badName := "bad\nname"
+	badDescription := "bad\nline"
+	tests := []UpdateAddressBookRequest{
+		{UserID: "user-1", AddressBookID: "book-1"},
+		{UserID: "", AddressBookID: "book-1", Name: stringPtr("Team")},
+		{UserID: "user-1", AddressBookID: "", Name: stringPtr("Team")},
+		{UserID: "user-1", AddressBookID: "book-1", Name: &badName},
+		{UserID: "user-1", AddressBookID: "book-1", Description: &badDescription},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.UserID+"/"+req.AddressBookID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, _, _, err := ValidateUpdateAddressBookRequest(req); err == nil {
+				t.Fatalf("ValidateUpdateAddressBookRequest(%+v) error = nil, want rejection", req)
+			}
+		})
 	}
 }
 

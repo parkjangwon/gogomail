@@ -108,6 +108,28 @@ func (s fakeCardDAVDiscoveryStore) ListAddressBookChangesSince(_ context.Context
 	return changes, nil
 }
 
+func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Context, req UpdateAddressBookRequest) (AddressBook, error) {
+	req, _, syncToken, err := ValidateUpdateAddressBookRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	for i, book := range s.books {
+		if book.UserID == req.UserID && book.ID == req.AddressBookID {
+			if req.Name != nil {
+				book.Name = *req.Name
+			}
+			if req.Description != nil {
+				book.Description = *req.Description
+			}
+			book.SyncToken = syncToken
+			book.UpdatedAt = time.Date(2026, 5, 6, 8, 9, 10, 0, time.UTC)
+			s.books[i] = book
+			return book, nil
+		}
+	}
+	return AddressBook{}, errFakeCardDAVNotFound
+}
+
 func (s fakeCardDAVDiscoveryStore) UpsertContactObject(_ context.Context, req UpsertContactObjectRequest) (ContactObject, error) {
 	req, etag, _, err := ValidateUpsertContactObjectRequest(req)
 	if err != nil {
@@ -146,7 +168,7 @@ func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
 	}
-	for _, want := range []string{MethodOptions, MethodPropfind, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete} {
+	for _, want := range []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete} {
 		if !strings.Contains(rec.Header().Get("Allow"), want) {
 			t.Fatalf("Allow = %q, missing %q", rec.Header().Get("Allow"), want)
 		}
@@ -256,6 +278,101 @@ func TestHandlerDeleteContactObjectHonorsIfMatch(t *testing.T) {
 	})
 	if ok.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, body = %s", ok.Code, ok.Body.String())
+	}
+}
+
+func TestHandlerProppatchUpdatesAddressBookCollectionProperties(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:displayname>Team Contacts</D:displayname>
+      <C:addressbook-description>People for launch work</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Team Contacts" || book.Description != "People for launch work" {
+		t.Fatalf("address book = %+v", book)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/addressbooks/user-1/personal/</D:href>",
+		"<D:displayname>Team Contacts</D:displayname>",
+		"<C:addressbook-description>People for launch work</C:addressbook-description>",
+		"HTTP/1.1 200 OK",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].Description = "People"
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:remove><D:prop><C:addressbook-description/></D:prop></D:remove>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Description != "" {
+		t.Fatalf("address book description = %q, want empty", book.Description)
+	}
+}
+
+func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		userID string
+		target string
+		body   string
+		want   int
+	}{
+		{name: "cross user", userID: "user-2", target: "/carddav/addressbooks/user-1/personal/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
+		{name: "object target", userID: "user-1", target: "/carddav/addressbooks/user-1/personal/contact-1.vcf", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
+		{name: "home target", userID: "user-1", target: "/carddav/addressbooks/user-1/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
+		{name: "invalid body", userID: "user-1", target: "/carddav/addressbooks/user-1/personal/", body: `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`, want: http.StatusBadRequest},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := testCardDAVDiscoveryStore(t)
+			handler := NewHandler(&store, func(*http.Request) (string, error) { return tc.userID, nil })
+			req := httptest.NewRequest(MethodProppatch, tc.target, strings.NewReader(tc.body))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, tc.want, rec.Body.String())
+			}
+		})
 	}
 }
 

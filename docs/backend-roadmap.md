@@ -2394,6 +2394,11 @@ Implementation order:
 1121. CardDAV address-book collection PROPFIND now returns RFC 6352
       `addressbook-description` from stored address-book metadata, keeping
       client-visible collection discovery aligned with the repository model.
+1122. CardDAV now handles WebDAV `PROPPATCH` for authenticated address-book
+      collections, parsing bounded namespace-aware `propertyupdate` bodies for
+      `DAV:displayname` and RFC 6352 `addressbook-description`, updating the
+      repository through a small collection-metadata boundary, refreshing the
+      durable sync token, and appending an `addressbook-updated` change row.
 
 ## Deferred until backend contracts stabilize
 

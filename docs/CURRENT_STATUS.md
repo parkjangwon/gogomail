@@ -97,6 +97,12 @@ second collection-version source of truth.
 It also returns RFC 6352 `addressbook-description` from the stored address-book
 metadata so client-visible collection discovery stays aligned with repository
 state.
+CardDAV now handles WebDAV `PROPPATCH` for authenticated address-book
+collection metadata, parsing bounded namespace-aware `propertyupdate` bodies
+for `DAV:displayname` and RFC 6352 `addressbook-description`. Updates flow
+through a small repository boundary, refresh the durable sync token, append an
+`addressbook-updated` change row, reject unsafe targets, and keep contact-object
+I/O separate from collection metadata mutation.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

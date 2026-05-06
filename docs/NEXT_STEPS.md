@@ -1625,7 +1625,10 @@ Next:
   from the same durable sync token used for WebDAV `sync-token`, keeping
   legacy change detection and RFC 6578 sync anchored to one collection version.
   RFC 6352 `addressbook-description` is now returned from stored address-book
-  metadata.
+  metadata. WebDAV `PROPPATCH` now updates authenticated address-book
+  collection `DAV:displayname` and `addressbook-description` through a bounded
+  parser and repository mutation that refreshes sync state and appends an
+  `addressbook-updated` change row.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
