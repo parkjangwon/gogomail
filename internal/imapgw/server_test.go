@@ -8837,6 +8837,52 @@ func TestServerRejectsStringSortCriterionListsBeforeAuthentication(t *testing.T)
 	}
 }
 
+func TestServerRejectsStringThreadAlgorithmBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 THREAD \"ORDEREDSUBJECT\" UTF-8 ALL\r\na2 THREAD {14+}\r\nORDEREDSUBJECT UTF-8 ALL\r\na3 UID THREAD \"ORDEREDSUBJECT\" UTF-8 ALL\r\na4 UID THREAD {14+}\r\nORDEREDSUBJECT UTF-8 ALL\r\na5 THREAD RETURN (SAVE) \"ORDEREDSUBJECT\" UTF-8 ALL\r\na6 UID THREAD RETURN (SAVE) {14+}\r\nORDEREDSUBJECT UTF-8 ALL\r\na7 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string thread algorithms: %v", err)
+	}
+	want := []string{
+		"a1 BAD THREAD algorithm is unsupported\r\n",
+		"a2 BAD THREAD algorithm is unsupported\r\n",
+		"a3 BAD THREAD algorithm is unsupported\r\n",
+		"a4 BAD THREAD algorithm is unsupported\r\n",
+		"a5 BAD THREAD algorithm is unsupported\r\n",
+		"a6 BAD THREAD algorithm is unsupported\r\n",
+		"a7 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a8 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string thread algorithm response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string thread algorithm response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 

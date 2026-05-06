@@ -4184,6 +4184,9 @@ Implementation order:
 1483. IMAP SORT and UID SORT criterion lists now reject exact quoted or
       command-literal parenthesized lists before authentication or selected
       state, keeping RFC 5256 sort criteria as raw list controls.
+1484. IMAP THREAD and UID THREAD algorithm controls now reject exact quoted or
+      command-literal ORDEREDSUBJECT values before state checks, keeping
+      advertised RFC 5256 thread algorithms atom-only.
 
 ## Deferred until backend contracts stabilize
 

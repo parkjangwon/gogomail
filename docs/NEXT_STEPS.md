@@ -369,6 +369,9 @@ Current state:
 - IMAP `SORT` and `UID SORT` criterion lists now also reject exact quoted or
   command-literal parenthesized lists such as `"(DATE)"` and `{6+}\r\n(DATE)`
   before state checks, preserving raw RFC list framing for sort controls.
+- IMAP `THREAD` and `UID THREAD` algorithm controls now reject exact quoted or
+  command-literal `ORDEREDSUBJECT` values before state checks, preserving RFC
+  atom framing for advertised THREAD algorithms.
 - IMAP `SEARCH RETURN (...)` and `SORT`/`THREAD` `RETURN (SAVE)` option lists
   now reject whitespace-padded quoted or literal list values such as
   `RETURN " (COUNT) "` or `RETURN " (SAVE) "` instead of trimming them into
