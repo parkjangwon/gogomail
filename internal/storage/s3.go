@@ -1574,6 +1574,7 @@ func validateS3ListControlCardinality(data []byte) error {
 	var sizeSeen bool
 	var etagSeen bool
 	var lastModifiedSeen bool
+	var simpleObjectMetadata string
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1613,6 +1614,7 @@ func validateS3ListControlCardinality(data []byte) error {
 					sizeSeen = false
 					etagSeen = false
 					lastModifiedSeen = false
+					simpleObjectMetadata = ""
 				}
 			case inContent && rootDepth == 3:
 				switch token.Name.Local {
@@ -1624,6 +1626,7 @@ func validateS3ListControlCardinality(data []byte) error {
 						return fmt.Errorf("list s3 objects: duplicate object key")
 					}
 					keySeen = true
+					simpleObjectMetadata = token.Name.Local
 				case "Size":
 					if !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
@@ -1632,6 +1635,7 @@ func validateS3ListControlCardinality(data []byte) error {
 						return fmt.Errorf("list s3 objects: duplicate object size")
 					}
 					sizeSeen = true
+					simpleObjectMetadata = token.Name.Local
 				case "ETag":
 					if !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
@@ -1640,6 +1644,7 @@ func validateS3ListControlCardinality(data []byte) error {
 						return fmt.Errorf("list s3 objects: duplicate object etag")
 					}
 					etagSeen = true
+					simpleObjectMetadata = token.Name.Local
 				case "LastModified":
 					if !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
@@ -1648,11 +1653,18 @@ func validateS3ListControlCardinality(data []byte) error {
 						return fmt.Errorf("list s3 objects: duplicate object last-modified")
 					}
 					lastModifiedSeen = true
+					simpleObjectMetadata = token.Name.Local
 				}
+			case inContent && rootDepth > 3 && simpleObjectMetadata != "":
+				return fmt.Errorf("list s3 objects: object %s metadata contains nested element %q", simpleObjectMetadata, token.Name.Local)
 			}
 		case xml.EndElement:
+			if inContent && rootDepth == 3 && simpleObjectMetadata == token.Name.Local {
+				simpleObjectMetadata = ""
+			}
 			if inContent && rootDepth == 2 && token.Name.Local == "Contents" {
 				inContent = false
+				simpleObjectMetadata = ""
 			}
 			if rootDepth > 0 {
 				rootDepth--
@@ -1714,6 +1726,7 @@ func validateS3CopyResultShape(data []byte) error {
 	var rootDepth int
 	var etagSeen bool
 	var lastModifiedSeen bool
+	var simpleCopyMetadata string
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1729,6 +1742,9 @@ func validateS3CopyResultShape(data []byte) error {
 				rootName = token.Name
 				continue
 			}
+			if rootDepth > 2 && rootName.Local == "CopyObjectResult" && simpleCopyMetadata != "" {
+				return fmt.Errorf("copy s3 object: %s metadata contains nested element %q", simpleCopyMetadata, token.Name.Local)
+			}
 			if rootDepth != 2 || rootName.Local != "CopyObjectResult" {
 				continue
 			}
@@ -1741,6 +1757,7 @@ func validateS3CopyResultShape(data []byte) error {
 					return fmt.Errorf("copy s3 object: duplicate etag")
 				}
 				etagSeen = true
+				simpleCopyMetadata = token.Name.Local
 			case "LastModified":
 				if !s3XMLNamespaceAllowed(token.Name.Space) {
 					return fmt.Errorf("copy s3 object: unexpected response namespace")
@@ -1749,10 +1766,12 @@ func validateS3CopyResultShape(data []byte) error {
 					return fmt.Errorf("copy s3 object: duplicate last-modified")
 				}
 				lastModifiedSeen = true
+				simpleCopyMetadata = token.Name.Local
 			case "Error":
 				if !s3XMLNamespaceAllowed(token.Name.Space) {
 					return fmt.Errorf("copy s3 object: unexpected response namespace")
 				}
+				simpleCopyMetadata = ""
 				response, err := parseS3XMLErrorElement(decoder, token)
 				if err != nil {
 					return fmt.Errorf("decode s3 copy response: %w", err)
@@ -1769,6 +1788,9 @@ func validateS3CopyResultShape(data []byte) error {
 				return fmt.Errorf("copy s3 object: unexpected response child %q", token.Name.Local)
 			}
 		case xml.EndElement:
+			if rootDepth == 2 && simpleCopyMetadata == token.Name.Local {
+				simpleCopyMetadata = ""
+			}
 			if rootDepth > 0 {
 				rootDepth--
 			}

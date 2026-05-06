@@ -407,7 +407,9 @@ is required in successful copy metadata and uses the same bounded safe
 single-line validation as `Stat` and `List`. Non-empty `LastModified` values
 in successful copy metadata must parse as exact S3/RFC-compatible timestamps;
 malformed or whitespace-padded values are rejected instead of being treated as
-a trustworthy copy success.
+a trustworthy copy success. Nested child elements inside simple
+`CopyObjectResult` metadata fields are rejected before XML unmarshalling can
+turn structured provider data into apparently valid string metadata.
 S3-compatible `Move` is intentionally documented as a copy-then-delete
 operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable
@@ -438,7 +440,9 @@ must parse as exact S3/RFC-compatible timestamps;
 malformed or whitespace-padded values are rejected instead of being silently
 exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 `LastModified` elements must be singular, so conflicting duplicate metadata is
-rejected before XML unmarshalling can overwrite earlier values. Provider
+rejected before XML unmarshalling can overwrite earlier values. Those simple
+metadata fields also reject nested child elements before XML unmarshalling can
+turn structured provider data into apparently valid object metadata. Provider
 responses that return more matching objects than requested are rejected,
 keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded

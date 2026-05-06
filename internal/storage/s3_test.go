@@ -1386,6 +1386,68 @@ func TestS3StoreListRejectsDuplicateObjectMetadata(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsNestedObjectMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		contents string
+		want     string
+	}{
+		{
+			name:     "key",
+			contents: `<Key><Value>messages/msg-1.eml</Value></Key><Size>5</Size>`,
+			want:     `object Key metadata contains nested element "Value"`,
+		},
+		{
+			name:     "size",
+			contents: `<Key>messages/msg-1.eml</Key><Size><Value>5</Value></Size>`,
+			want:     `object Size metadata contains nested element "Value"`,
+		},
+		{
+			name:     "etag",
+			contents: `<Key>messages/msg-1.eml</Key><Size>5</Size><ETag><Value>"a"</Value></ETag>`,
+			want:     `object ETag metadata contains nested element "Value"`,
+		},
+		{
+			name:     "last_modified",
+			contents: `<Key>messages/msg-1.eml</Key><Size>5</Size><LastModified><Value>2026-05-05T12:00:00Z</Value></LastModified>`,
+			want:     `object LastModified metadata contains nested element "Value"`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents>` + tc.contents + `</Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreDeletePrefixUsesContinuationCursor(t *testing.T) {
 	t.Parallel()
 
@@ -3529,6 +3591,8 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
+		{name: "nested_etag_metadata", status: http.StatusOK, body: `<CopyObjectResult><ETag><Value>"etag-1"</Value></ETag></CopyObjectResult>`, want: `ETag metadata contains nested element "Value"`},
+		{name: "nested_last_modified_metadata", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified><Value>2026-05-05T12:00:00Z</Value></LastModified></CopyObjectResult>`, want: `LastModified metadata contains nested element "Value"`},
 		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>copy throttled
 try later</Message><RequestId>req-copy-1</RequestId><HostId>host-copy-1</HostId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1: host-id=host-copy-1"},
 	} {

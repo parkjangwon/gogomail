@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after CalDAV future method advertising guard)
+Last updated: 2026-05-07 (updated after S3 XML metadata nesting hardening)
 
 ## Current phase
 
@@ -194,11 +194,14 @@ namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
 unexpected namespaces before copy/move is reported successful.
 S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
 `ETag` or `LastModified` metadata, nested `Error` elements, and unknown
-top-level success children, formatting nested standard S3 error details as
-bounded one-line diagnostics with request-id and host-id context instead of
-collapsing provider-side copy failures or ambiguous copy metadata into a
-successful copy/move result. Top-level and nested copy `Error` bodies share
-the same capped streaming XML field parser as status errors. Successful
+top-level success children. Nested child elements inside simple copy metadata
+fields are also rejected, so provider XML cannot smuggle structured
+`ETag`/`LastModified` data through string unmarshalling. Nested standard S3
+error details are formatted as bounded one-line diagnostics with request-id
+and host-id context instead of collapsing provider-side copy failures or
+ambiguous copy metadata into a successful copy/move result. Top-level and
+nested copy `Error` bodies share the same capped streaming XML field parser as
+status errors. Successful
 `CopyObjectResult` bodies now also require a non-blank bounded `ETag`, so
 copy/move durability is not reported when provider success metadata omits
 object identity.
@@ -217,6 +220,8 @@ dropping suspect list metadata.
 S3-compatible `ListObjectsV2` object metadata now rejects duplicate
 per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before XML
 unmarshalling can collapse conflicting provider values into one listed object.
+Nested child elements inside those simple object metadata fields are also
+rejected before list results reach cleanup, Drive, or reconciliation callers.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling
