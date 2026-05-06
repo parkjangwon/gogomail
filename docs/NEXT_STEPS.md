@@ -907,8 +907,10 @@ Current state:
   stale UIDs out of successful `FETCH` echoes and mailbox flag notifications.
 - `SELECT` and `EXAMINE` now accept the RFC 4551-shaped `(CONDSTORE)`
   parameter and mark the session CONDSTORE-aware.
-- `FETCH`/`UID FETCH` now return a conservative single-part `BODYSTRUCTURE`
-  response while richer MIME tree serialization remains future work.
+- `FETCH`/`UID FETCH` keep a conservative single-part `BODYSTRUCTURE` fallback
+  when only message headers are available, while metadata-only structure
+  fetches now reopen the bounded raw message stream for richer MIME tree
+  serialization.
 - Single-part `BODY`/`BODYSTRUCTURE` responses now derive content type,
   parameters, content-transfer-encoding, ID, and description from bounded raw
   message headers instead of always reporting text/plain defaults.

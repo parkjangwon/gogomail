@@ -861,9 +861,10 @@ Implementation order:
 710. IMAP `FETCH`/`UID FETCH` can now include `INTERNALDATE` and RFC-shaped
      `ENVELOPE` attributes from the service-backed message summary, giving
      clients enough structured metadata for mailbox list rendering.
-711. IMAP `FETCH`/`UID FETCH` can now return a conservative single-part
-     `BODYSTRUCTURE` response, unblocking clients that request body structure
-     metadata before richer MIME tree serialization is wired.
+711. IMAP `FETCH`/`UID FETCH` now keep a conservative single-part
+     `BODYSTRUCTURE` fallback when only message headers are available, while
+     metadata-only structure fetches can reopen the bounded raw message stream
+     for richer MIME tree serialization.
 712. IMAP `FETCH`/`UID FETCH` can now stream bounded header-only literals for
      `BODY[HEADER]`, `BODY.PEEK[HEADER]`, and `RFC822.HEADER`, stopping at the
      RFC message header/body separator instead of returning the full message.
