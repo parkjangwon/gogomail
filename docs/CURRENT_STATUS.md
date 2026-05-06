@@ -592,7 +592,10 @@ visible in config without changing object-key semantics. Production `s3`
 runtime configuration now requires an explicit
 `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so release
 configs show the object-storage target directly while development/test configs
-can still use region-based endpoint derivation. S3-compatible runtime wiring
+can still use region-based endpoint derivation. Production `s3` endpoints must
+also use HTTPS, keeping SigV4 `UNSIGNED-PAYLOAD` request signing behind
+transport integrity for AWS/S3-compatible object stores while local MinIO
+development can still use the explicit `minio` backend with HTTP. S3-compatible runtime wiring
 now also accepts a deployment-scoped custom CA bundle through
 `GOGOMAIL_STORAGE_S3_CA_CERT_FILE` and a development-only
 `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY` escape hatch, constructing a

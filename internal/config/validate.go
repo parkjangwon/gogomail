@@ -150,6 +150,9 @@ func (c Config) Validate() error {
 			if _, err := storage.ValidateS3Endpoint(c.StorageS3Endpoint); err != nil {
 				return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT: %w", err)
 			}
+			if production && storageBackend == "s3" && !strings.HasPrefix(strings.ToLower(strings.TrimSpace(c.StorageS3Endpoint)), "https://") {
+				return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT must use https in production when GOGOMAIL_STORAGE_BACKEND=s3")
+			}
 		}
 		if err := validateRequiredBoundedNoCRLF("GOGOMAIL_STORAGE_S3_REGION", c.StorageS3Region, 128); err != nil {
 			return err

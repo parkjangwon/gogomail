@@ -3156,6 +3156,10 @@ Implementation order:
       `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, keeping
       release configs auditable about the object-store target while preserving
       development/test endpoint derivation from region.
+1240a. Production `s3` storage configuration now also requires that endpoint
+       to use HTTPS, preserving transport integrity for streaming SigV4
+       `UNSIGNED-PAYLOAD` requests while keeping local HTTP MinIO on the
+       explicit non-production `minio` backend.
 1241. IMAP `STATUS` empty-list validation now also treats spaced empty item
       lists such as `STATUS inbox ( )` as `BAD STATUS requires status data
       items`, keeping equivalent malformed RFC 3501 status requests on the same
