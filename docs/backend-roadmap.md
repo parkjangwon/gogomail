@@ -2383,9 +2383,11 @@ Implementation order:
       projected response cannot be built.
 1119. CardDAV PROPFIND responses now expose conservative RFC 3744-shaped
       `current-user-privilege-set` values. Principals, homes, and address-book
-      collections advertise `DAV:read`; contact objects additionally advertise
+      collections advertise `DAV:read`; address-book collections also
+      advertise `DAV:write-properties` now that collection `PROPPATCH`
+      semantics exist; contact objects additionally advertise
       `DAV:write-content` because object `PUT`/`DELETE` semantics exist today.
-      Collection, property, ACL, bind, and unbind write privileges remain
+      ACL, bind, unbind, and broader collection write privileges remain
       unadvertised until their exact WebDAV semantics exist.
 1120. CardDAV address-book collection PROPFIND now exposes the
       CalendarServer-compatible `getctag` extension from the same durable
@@ -2403,6 +2405,10 @@ Implementation order:
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
       `PROPPATCH` requests before reading XML request bodies.
+1124. CardDAV current-user privilege discovery now tracks implemented
+      collection metadata writes: address-book collections advertise
+      `DAV:write-properties` only after `PROPPATCH` support exists, while
+      broader collection, ACL, bind, and unbind privileges remain unadvertised.
 
 ## Deferred until backend contracts stabilize
 
