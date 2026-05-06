@@ -3502,6 +3502,50 @@ func TestServerSelectRejectsUnsupportedParameter(t *testing.T) {
 	}
 }
 
+func TestServerRejectsStringSelectCondstoreParametersBeforeState(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SELECT inbox \"(CONDSTORE)\"\r\na2 EXAMINE inbox \"(CONDSTORE)\"\r\na3 SELECT inbox {11+}\r\n(CONDSTORE)\r\na4 EXAMINE inbox {11+}\r\n(CONDSTORE)\r\na5 SELECT inbox (CONDSTORE)\r\na6 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string select condstore parameters: %v", err)
+	}
+	want := []string{
+		"a1 BAD SELECT requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a2 BAD EXAMINE requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a3 BAD SELECT requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a4 BAD EXAMINE requires a mailbox atom and optional CONDSTORE parameter\r\n",
+		"a5 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a6 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string select condstore response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string select condstore response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesExamineAsReadOnlySelect(t *testing.T) {
 	t.Parallel()
 
