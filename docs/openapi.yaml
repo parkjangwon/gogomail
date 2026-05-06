@@ -6379,11 +6379,14 @@ components:
         active_labels:
           type: array
           description: Canonical lowercase backend labels active for compatibility routing. The list is sorted and de-duplicated; new safe labels may appear as storage adapters evolve, while support booleans below describe recognized capability families.
+          minItems: 1
+          uniqueItems: true
           items:
             type: string
             pattern: "^[a-z0-9._-]{1,64}$"
         operations:
           type: array
+          uniqueItems: true
           items:
             type: string
             enum: [put, get, get_range, stat, copy, move, list, delete]

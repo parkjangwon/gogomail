@@ -403,9 +403,15 @@ func TestOpenAPIDraftDocumentsAdminConsoleCapabilityLimits(t *testing.T) {
 	if strings.Contains(activeLabelsBlock, "enum: [local, nfs, s3, minio]") {
 		t.Fatal("StorageBackendCapabilities.active_labels must remain an extensible token list, not a closed backend enum")
 	}
-	for _, want := range []string{"pattern: \"^[a-z0-9._-]{1,64}$\"", "sorted and de-duplicated"} {
+	for _, want := range []string{"minItems: 1", "uniqueItems: true", "pattern: \"^[a-z0-9._-]{1,64}$\"", "sorted and de-duplicated"} {
 		if !strings.Contains(activeLabelsBlock, want) {
 			t.Fatalf("StorageBackendCapabilities.active_labels must document %q", want)
+		}
+	}
+	operationsBlock := extractOpenAPIPropertyBlock(t, storageBlock, "operations")
+	for _, want := range []string{"uniqueItems: true", "enum: [put, get, get_range, stat, copy, move, list, delete]"} {
+		if !strings.Contains(operationsBlock, want) {
+			t.Fatalf("StorageBackendCapabilities.operations must document %q", want)
 		}
 	}
 }

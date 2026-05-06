@@ -327,7 +327,10 @@ backend labels including explicit compatibility labels, backend class,
 supported object primitives, S3-compatible path-style status, sanitized
 endpoint origin/bucket/prefix/region when applicable, readiness-probe support,
 support-matrix booleans derived from active backend labels, and
-`secrets_redacted=true`. `supports_local_nfs` means the active label set can
+`secrets_redacted=true`. OpenAPI models `active_labels` as a non-empty unique
+safe-token array and `operations` as a unique primitive array so generated
+admin clients can rely on runtime normalization without closed-label enums.
+`supports_local_nfs` means the active label set can
 serve local/NFS-labelled rows, `supports_minio` means it can serve MinIO-style
 labels, and `supports_aws_compatible` means it can serve generic S3-compatible
 labels. `active_labels` are canonical lowercase tokens sorted and de-duplicated

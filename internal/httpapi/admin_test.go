@@ -99,6 +99,15 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" || !got.Storage.SupportsLocalNFS || got.Storage.SupportsMinIO || got.Storage.SupportsAWSCompatible {
 		t.Fatalf("storage capabilities = %#v", got.Storage)
 	}
+	wantStorageOperations := []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"}
+	if len(got.Storage.Operations) != len(wantStorageOperations) {
+		t.Fatalf("storage operations = %#v, want %#v", got.Storage.Operations, wantStorageOperations)
+	}
+	for i, want := range wantStorageOperations {
+		if got.Storage.Operations[i] != want {
+			t.Fatalf("storage operations = %#v, want %#v", got.Storage.Operations, wantStorageOperations)
+		}
+	}
 }
 
 func TestAdminConsoleCapabilitiesHandlerIsAdminBaseOnly(t *testing.T) {
