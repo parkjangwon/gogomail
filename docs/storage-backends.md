@@ -352,3 +352,12 @@ path-style requests:
 GOGOMAIL_TEST_S3_REGION=us-east-1
 GOGOMAIL_TEST_S3_FORCE_PATH_STYLE=false
 ```
+
+For private CA or local self-signed test endpoints, use the test-specific TLS
+variables so integration coverage exercises the same custom-client path as
+runtime storage:
+
+```sh
+GOGOMAIL_TEST_S3_CA_CERT_FILE=/etc/gogomail/s3-ca.pem
+GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY=false
+```

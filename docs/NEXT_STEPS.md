@@ -448,6 +448,11 @@ Current state:
   `GOGOMAIL_MAILSTORE_ROOT`, and the development compose stack includes
   `minio-init` to create the default `gogomail` bucket for local
   S3-compatible runs.
+- Optional S3-compatible integration coverage now accepts
+  `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
+  `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, letting operators smoke-test
+  private CA or local self-signed MinIO/S3 endpoints through the same injected
+  HTTP client path used by runtime S3 TLS configuration.
 
 Next:
 
