@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV collection mutation If-None-Match preconditions)
+Last updated: 2026-05-07 (updated after DAV collection mutation ETag rechecks)
 
 ## Current phase
 
@@ -66,6 +66,11 @@ CalDAV and CardDAV collection `DELETE` and `PROPPATCH` now apply the same
 ETags, so native DAV clients using `If-None-Match: *` or a matching collection
 validator receive HTTP 412 before recursive child deletion or metadata updates
 can mutate `.ics`/`.vcf` collection state.
+CalDAV and CardDAV collection `DELETE` and `PROPPATCH` now also pass the
+observed collection ETag into repository mutation guards after successful
+conditional preflight, including `If-Match: *`, so stale calendar/address-book
+collection races are rechecked under the storage transaction before recursive
+delete or metadata update state is committed.
 CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new

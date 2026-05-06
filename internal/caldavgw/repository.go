@@ -83,18 +83,20 @@ type DeleteObjectRequest struct {
 }
 
 type DeleteCalendarRequest struct {
-	UserID      string
-	ActorUserID string
-	CalendarID  string
+	UserID       string
+	ActorUserID  string
+	CalendarID   string
+	ObservedETag string
 }
 
 type UpdateCalendarRequest struct {
-	UserID      string
-	ActorUserID string
-	CalendarID  string
-	Name        *string
-	Color       *string
-	Description *string
+	UserID       string
+	ActorUserID  string
+	CalendarID   string
+	Name         *string
+	Color        *string
+	Description  *string
+	ObservedETag string
 }
 
 type ListChangesSinceRequest struct {
@@ -557,6 +559,11 @@ func (r *Repository) DeleteCalendar(ctx context.Context, req DeleteCalendarReque
 		return Calendar{}, fmt.Errorf("begin CalDAV calendar delete: %w", err)
 	}
 	defer tx.Rollback()
+	if req.ObservedETag != "" {
+		if err := ensureCalendarCollectionETag(ctx, tx, req.UserID, req.CalendarID, req.ObservedETag); err != nil {
+			return Calendar{}, err
+		}
+	}
 	const query = `
 UPDATE caldav_calendars
 SET status = 'deleted', deleted_at = now(), updated_at = now()
@@ -614,6 +621,11 @@ func (r *Repository) UpdateCalendarProperties(ctx context.Context, req UpdateCal
 	defer tx.Rollback()
 	if err := lockActiveCalendar(ctx, tx, req.UserID, req.CalendarID); err != nil {
 		return Calendar{}, err
+	}
+	if req.ObservedETag != "" {
+		if err := ensureCalendarCollectionETag(ctx, tx, req.UserID, req.CalendarID, req.ObservedETag); err != nil {
+			return Calendar{}, err
+		}
 	}
 	if err := ensureCalendarSyncMarker(ctx, tx, req.UserID, req.CalendarID); err != nil {
 		return Calendar{}, err
@@ -1020,7 +1032,11 @@ func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarReq
 	if err != nil {
 		return DeleteCalendarRequest{}, err
 	}
-	return DeleteCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID}, nil
+	observedETag, err := validateOptionalETag(req.ObservedETag)
+	if err != nil {
+		return DeleteCalendarRequest{}, err
+	}
+	return DeleteCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObservedETag: observedETag}, nil
 }
 
 func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarRequest, string, string, error) {
@@ -1033,6 +1049,10 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 		return UpdateCalendarRequest{}, "", "", err
 	}
 	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
+	if err != nil {
+		return UpdateCalendarRequest{}, "", "", err
+	}
+	observedETag, err := validateOptionalETag(req.ObservedETag)
 	if err != nil {
 		return UpdateCalendarRequest{}, "", "", err
 	}
@@ -1069,7 +1089,7 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 		description = &value
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, "collection-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Color: color, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, nil
 }
 
 func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {
@@ -1185,6 +1205,40 @@ FOR UPDATE`, userID, calendarID, objectName).Scan(&current)
 	}
 	if current != etag {
 		return fmt.Errorf("CalDAV object etag mismatch")
+	}
+	return nil
+}
+
+func ensureCalendarCollectionETag(ctx context.Context, tx *sql.Tx, userID string, calendarID string, etag string) error {
+	var calendar Calendar
+	err := tx.QueryRowContext(ctx, `
+SELECT id::text, user_id::text, name, color, description, sync_token, created_at, updated_at
+FROM caldav_calendars
+WHERE user_id = $1::uuid
+  AND id = $2::uuid
+  AND status = 'active'
+FOR UPDATE`, userID, calendarID).Scan(
+		&calendar.ID,
+		&calendar.UserID,
+		&calendar.Name,
+		&calendar.Color,
+		&calendar.Description,
+		&calendar.SyncToken,
+		&calendar.CreatedAt,
+		&calendar.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("CalDAV calendar not found")
+		}
+		return fmt.Errorf("read CalDAV calendar collection etag: %w", err)
+	}
+	current, err := CalendarCollectionETag(userID, calendar)
+	if err != nil {
+		return fmt.Errorf("build CalDAV calendar collection etag: %w", err)
+	}
+	if current != etag {
+		return fmt.Errorf("CalDAV calendar collection etag mismatch")
 	}
 	return nil
 }

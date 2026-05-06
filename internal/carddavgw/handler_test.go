@@ -30,10 +30,12 @@ func (r *readTrackingReader) Read(p []byte) (int, error) {
 }
 
 type fakeCardDAVDiscoveryStore struct {
-	principal Principal
-	books     []AddressBook
-	objects   []ContactObject
-	changes   []AddressBookChange
+	principal      Principal
+	books          []AddressBook
+	objects        []ContactObject
+	changes        []AddressBookChange
+	lastBookUpdate UpdateAddressBookRequest
+	lastBook       DeleteAddressBookRequest
 }
 
 type trackingCardDAVObjectStore struct {
@@ -172,8 +174,18 @@ func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Contex
 	if err != nil {
 		return AddressBook{}, err
 	}
+	s.lastBookUpdate = req
 	for i, book := range s.books {
 		if book.UserID == req.UserID && book.ID == req.AddressBookID {
+			if req.ObservedETag != "" {
+				etag, err := AddressBookCollectionETag(req.UserID, book)
+				if err != nil {
+					return AddressBook{}, err
+				}
+				if etag != req.ObservedETag {
+					return AddressBook{}, errFakeCardDAVNotFound
+				}
+			}
 			if req.Name != nil {
 				book.Name = *req.Name
 			}
@@ -218,8 +230,18 @@ func (s *fakeCardDAVDiscoveryStore) DeleteAddressBook(_ context.Context, req Del
 	if err != nil {
 		return AddressBook{}, err
 	}
+	s.lastBook = validated
 	for i, book := range s.books {
 		if book.UserID == validated.UserID && book.ID == validated.AddressBookID {
+			if validated.ObservedETag != "" {
+				etag, err := AddressBookCollectionETag(validated.UserID, book)
+				if err != nil {
+					return AddressBook{}, err
+				}
+				if etag != validated.ObservedETag {
+					return AddressBook{}, errFakeCardDAVNotFound
+				}
+			}
 			s.books = append(s.books[:i], s.books[i+1:]...)
 			var objects []ContactObject
 			for _, object := range s.objects {
@@ -880,6 +902,9 @@ func TestHandlerDeleteAddressBookCollectionAcceptsMatchingIfMatch(t *testing.T) 
 	if len(store.books) != 0 {
 		t.Fatalf("address books after delete = %+v", store.books)
 	}
+	if store.lastBook.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastBook.ObservedETag, etag)
+	}
 }
 
 func TestHandlerDeleteAddressBookCollectionRejectsHomeTarget(t *testing.T) {
@@ -1035,6 +1060,28 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	}
 	if book.Name != "Team" {
 		t.Fatalf("address book name = %q, want Team", book.Name)
+	}
+}
+
+func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastBookUpdate.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastBookUpdate.ObservedETag, etag)
 	}
 }
 

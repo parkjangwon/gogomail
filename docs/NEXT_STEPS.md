@@ -63,6 +63,10 @@ Current state:
   precondition gate before reading WebDAV XML bodies, keeping metadata
   mutations cheap and fail-closed when clients send `*` or a matching
   collection validator.
+- CalDAV and CardDAV collection `DELETE`/`PROPPATCH` now carry the observed
+  collection ETag into repository mutation guards after conditional preflight,
+  so stale `If-Match: *` collection races are rechecked inside the storage
+  transaction before recursive delete or metadata update commits.
 - CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an
