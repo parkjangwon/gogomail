@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP connection limiting)
+Last updated: 2026-05-07 (updated after local exact-object list parity)
 
 ## Current phase
 
@@ -88,6 +88,11 @@ S3-compatible `List` now validates provider continuation tokens only when
 `IsTruncated=true`; final pages always clear `NextCursor`, even if a
 compatible provider includes a whitespace-padded or otherwise unusable
 `NextContinuationToken` that callers must not reuse.
+Local/NFS `List` now matches S3 `Prefix` behavior when the requested prefix
+exactly names an existing object: it returns a single-object final page instead
+of failing with a directory expectation. The shared storage portability
+contract now pins this exact-object prefix behavior for local/NFS and optional
+S3/MinIO integration runs.
 The shared storage path/prefix validator now rejects percent-encoded path
 separators such as `%2F` and `%5C`, plus double-encoded forms such as `%252F`
 and `%255C`, keeping object keys portable across local/NFS, MinIO, AWS S3, and

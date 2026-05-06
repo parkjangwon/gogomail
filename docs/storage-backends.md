@@ -38,6 +38,10 @@ against the requested logical prefix after bucket-prefix stripping, so overly
 broad provider pages cannot expose sibling prefixes to callers. Provider
 responses must also respect the requested page size for matching objects, so a
 malformed S3-compatible service cannot bypass the shared bounded-list contract.
+Local/NFS listings now also return a single-object page when the requested
+prefix exactly names an object, matching S3 `Prefix` behavior and keeping
+config-only backend flips from turning exact-object reconciliation probes into
+"not a directory" failures.
 Future Drive and lifecycle modules should prefer `Stat` for existence/size
 checks, `GetRange` for resumable downloads and media preview windows, `Copy`
 for object duplication workflows, `Move` for file rename/relocation workflows,
@@ -76,7 +80,7 @@ contract against the target backend:
 - `List` returns only keys under the requested canonical prefix, hides any
   deployment-specific S3 bucket prefix from callers, and validates object
   metadata only after a backend key maps back to a canonical gogomail object
-  path.
+  path. Exact-object prefixes return that single object when it exists.
 - `Copy` preserves bytes at a new key; `Move` relocates through the backend's
   documented semantics while removing the old key.
 - `Delete` is idempotent for already-missing objects.

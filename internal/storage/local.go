@@ -311,7 +311,17 @@ func (s *LocalStore) List(ctx context.Context, opts ListOptions) (ObjectListPage
 	} else if info.Mode()&os.ModeSymlink != 0 {
 		return ObjectListPage{}, fmt.Errorf("stat storage prefix: storage path component is a symbolic link")
 	} else if !info.IsDir() {
-		return ObjectListPage{}, fmt.Errorf("stat storage prefix: storage prefix is not a directory")
+		if prefix == "" {
+			return ObjectListPage{}, fmt.Errorf("stat storage prefix: storage prefix is not a directory")
+		}
+		if cursor != "" && prefix <= cursor {
+			return ObjectListPage{Objects: []ObjectInfo{}}, nil
+		}
+		return ObjectListPage{Objects: []ObjectInfo{{
+			Path:         prefix,
+			Size:         info.Size(),
+			LastModified: info.ModTime(),
+		}}}, nil
 	}
 
 	page := ObjectListPage{Objects: make([]ObjectInfo, 0, limit)}

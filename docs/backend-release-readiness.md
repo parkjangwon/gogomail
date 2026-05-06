@@ -163,6 +163,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `IsTruncated=true` and always clears final-page cursors, improving
   compatibility with S3-like providers that include ignored or malformed
   `NextContinuationToken` values on non-truncated pages.
+- Local/NFS `List` now has exact-object prefix parity with S3-compatible
+  storage: if the requested prefix names an existing object, callers receive a
+  single-object final page instead of a local-only "not a directory" failure.
+  The shared portability contract now tests this behavior for local/NFS and
+  optional MinIO/AWS S3 runs.
 - Drive backend groundwork is started without frontend implementation: ADR
   0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`
