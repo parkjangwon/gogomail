@@ -302,6 +302,9 @@ Current state:
 - S3-compatible `ListObjectsV2` responses now reject `IsTruncated=true` pages
   that omit a continuation token, preventing Drive/lifecycle cleanup scans from
   accepting a page that cannot be advanced safely.
+- S3-compatible `ListObjectsV2` success bodies now must decode as
+  `ListBucketResult` XML, so unexpected success XML cannot silently become an
+  empty canonical object listing.
 - S3-compatible `ListObjectsV2` key decoding no longer trims provider-returned
   object keys before prefix/object-path validation, preventing distinct
   whitespace-bearing keys from being silently normalized into canonical
