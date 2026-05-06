@@ -151,6 +151,12 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
+	if size, known, err := s3GetObjectContentLength(resp); err != nil {
+		drainAndCloseS3Body(resp.Body)
+		return nil, err
+	} else if known {
+		return &exactReadCloser{ctx: ctx, reader: resp.Body, closer: resp.Body, remaining: size}, nil
+	}
 	return &s3ObjectReadCloser{ctx: ctx, body: resp.Body}, nil
 }
 
@@ -607,6 +613,23 @@ func s3StatContentLength(resp *http.Response) (int64, error) {
 		return resp.ContentLength, nil
 	}
 	return parseS3ContentLength("")
+}
+
+func s3GetObjectContentLength(resp *http.Response) (int64, bool, error) {
+	if value := resp.Header.Get("Content-Length"); value != "" {
+		size, ok := parseS3NonNegativeDecimal(value)
+		if !ok {
+			return -1, false, fmt.Errorf("get s3 object: invalid content length")
+		}
+		if resp.ContentLength > 0 && resp.ContentLength != size {
+			return -1, false, fmt.Errorf("get s3 object: content-length mismatch")
+		}
+		return size, true, nil
+	}
+	if resp.ContentLength > 0 {
+		return resp.ContentLength, true, nil
+	}
+	return -1, false, nil
 }
 
 func parseS3NonNegativeDecimal(value string) (int64, bool) {
