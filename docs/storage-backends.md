@@ -81,13 +81,15 @@ Validated config overlays live under `configs/` for common storage profiles:
 - `configs/storage.minio.yaml`
 - `configs/storage.s3.yaml`
 
-Each profile is parsed, validated, and passed through the CLI `--config` handoff
-by the test suite. Operators can use them as reviewed `--config=<path>` starting
-points, replacing secrets, bucket names, prefixes, and roots while keeping
-backend-specific knobs explicit. YAML config files accept `storage_root` as
-the file-level alias for the same local/NFS root controlled by
-`GOGOMAIL_STORAGE_ROOT`; legacy `mailstore_root` remains supported for
-backward compatibility.
+Each profile is parsed, validated, and passed through the CLI `--config`
+handoff by the test suite. The NFS profile smoke path also asserts that its
+`storage_root` and explicit `local` compatibility label reach runtime config,
+so local/NFS flips are covered beyond the backend name alone. Operators can use
+these files as reviewed `--config=<path>` starting points, replacing secrets,
+bucket names, prefixes, and roots while keeping backend-specific knobs
+explicit. YAML config files accept `storage_root` as the file-level alias for
+the same local/NFS root controlled by `GOGOMAIL_STORAGE_ROOT`; legacy
+`mailstore_root` remains supported for backward compatibility.
 
 ## Local filesystem or NFS
 

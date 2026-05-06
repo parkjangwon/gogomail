@@ -3390,6 +3390,10 @@ Implementation order:
       `UID SORT`, `THREAD`, and `UID THREAD`, ensuring the saved-result
       sequence-set extension flows through the full search-oriented command
       family, not just `SEARCH` and `FETCH`.
+1297. Storage profile smoke tests now assert that the NFS YAML overlay carries
+      its `storage_root` and explicit `local` compatibility label through both
+      config-loader parsing and CLI `--config` handoff, strengthening the
+      config-only local/NFS flip contract.
 
 ## Deferred until backend contracts stabilize
 

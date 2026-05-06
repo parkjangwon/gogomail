@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -50,10 +51,12 @@ func TestRunAcceptsStorageProfileConfigs(t *testing.T) {
 		path        string
 		backend     string
 		endpoint    string
+		root        string
+		compat      []string
 		environment string
 	}{
 		{path: "configs/storage.local.yaml", backend: "local"},
-		{path: "configs/storage.nfs.yaml", backend: "nfs"},
+		{path: "configs/storage.nfs.yaml", backend: "nfs", root: "/mnt/gogomail-storage", compat: []string{"local"}},
 		{path: "configs/storage.minio.yaml", backend: "minio", endpoint: "http://localhost:19000"},
 		{path: "configs/storage.s3.yaml", backend: "s3", endpoint: "https://s3.us-east-1.amazonaws.com", environment: "production"},
 	}
@@ -76,6 +79,12 @@ func TestRunAcceptsStorageProfileConfigs(t *testing.T) {
 			}
 			if gotConfig.StorageS3Endpoint != tt.endpoint {
 				t.Fatalf("StorageS3Endpoint = %q, want %q", gotConfig.StorageS3Endpoint, tt.endpoint)
+			}
+			if tt.root != "" && gotConfig.MailstoreRoot != tt.root {
+				t.Fatalf("MailstoreRoot = %q, want %q", gotConfig.MailstoreRoot, tt.root)
+			}
+			if !slices.Equal(gotConfig.StorageBackendCompatLabels, tt.compat) {
+				t.Fatalf("StorageBackendCompatLabels = %#v, want %#v", gotConfig.StorageBackendCompatLabels, tt.compat)
 			}
 			if tt.environment != "" && gotConfig.Environment != tt.environment {
 				t.Fatalf("Environment = %q, want %q", gotConfig.Environment, tt.environment)
