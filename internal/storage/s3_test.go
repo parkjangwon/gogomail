@@ -897,6 +897,33 @@ func TestS3StoreStatRejectsDuplicateETag(t *testing.T) {
 	}
 }
 
+func TestS3StoreStatRejectsDuplicateContentType(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Type": []string{"message/rfc822", "application/octet-stream"}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "duplicate content-type") {
+		t.Fatalf("Stat err = %v, want duplicate content-type rejection", err)
+	}
+}
+
 func TestS3StoreStatAndListRequireOKStatus(t *testing.T) {
 	t.Parallel()
 

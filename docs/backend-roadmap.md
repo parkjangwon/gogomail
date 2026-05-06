@@ -4028,6 +4028,9 @@ Implementation order:
       headers before object metadata is returned, preventing compatible
       provider identity ambiguity from being collapsed into a single ETag by
       HTTP header lookup.
+1442. S3-compatible `HEAD`/`Stat` metadata now rejects duplicate
+      `Content-Type` headers before exposing MIME metadata, preventing preview
+      or download handling from depending on first-header collapse.
 
 ## Deferred until backend contracts stabilize
 

@@ -132,7 +132,9 @@ field alone. Duplicate `Last-Modified` headers are rejected before timestamp
 parsing so provider metadata cannot collapse multiple object modification times
 into whichever value the HTTP library returns first. Duplicate `ETag` headers
 are now rejected for the same reason: object identity metadata must not depend
-on first-header collapse.
+on first-header collapse. Duplicate `Content-Type` metadata on `HEAD`/`Stat`
+also fails closed so preview/download MIME decisions do not depend on
+first-header collapse.
 S3-compatible full-object `GET` now applies the same exact `Content-Length`
 header validation when present and wraps known-length successful bodies in a
 bounded reader, so truncated compatible-provider full reads surface

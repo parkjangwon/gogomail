@@ -233,10 +233,14 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate etag")
 	}
+	rawContentType, ok := s3ResponseSingleHeader(resp, "Content-Type")
+	if !ok {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate content-type")
+	}
 	return ObjectInfo{
 		Path:         objectPath,
 		Size:         size,
-		ContentType:  cleanS3MetadataValue(resp.Header.Get("Content-Type"), maxS3ContentTypeBytes),
+		ContentType:  cleanS3MetadataValue(rawContentType, maxS3ContentTypeBytes),
 		ETag:         cleanS3ETag(rawETag),
 		LastModified: lastModified,
 	}, nil
