@@ -1683,7 +1683,9 @@ Next:
   or its delegated-access audit log builder when they need the full standard
   audit envelope. Admin audit-log queries now support `actor_id` and
   `target_id` filters; future delegated-sharing diagnostics should use those
-  filters instead of adding product-local audit tables.
+  filters instead of adding product-local audit tables. When product modules
+  start recording delegated decisions, use `DelegationAuditRecorder` rather
+  than inserting audit rows directly.
 - CalDAV principal discovery now exposes Directory primary email addresses via
   RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:

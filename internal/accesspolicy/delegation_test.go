@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/directory"
 )
 
@@ -347,6 +348,55 @@ func TestDelegatedAccessAuditLogRejectsMalformedRequest(t *testing.T) {
 	}
 }
 
+func TestDelegationAuditRecorderRecordsDelegatedAccess(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeAuditRepository{}
+	err := (DelegationAuditRecorder{Repository: repo}).RecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}, Decision{Allowed: false})
+	if err != nil {
+		t.Fatalf("RecordDelegatedAccess returned error: %v", err)
+	}
+	if !repo.called ||
+		repo.log.CompanyID != "company-1" ||
+		repo.log.ActorID != "user-1" ||
+		repo.log.TargetType != directory.PrincipalKindResource ||
+		repo.log.TargetID != "room-1" ||
+		repo.log.Result != AuditResultDelegationDenied {
+		t.Fatalf("recorded audit log = %+v called=%v", repo.log, repo.called)
+	}
+}
+
+func TestDelegationAuditRecorderRequiresRepository(t *testing.T) {
+	t.Parallel()
+
+	err := (DelegationAuditRecorder{}).RecordDelegatedAccess(context.Background(), DelegatedAccessRequest{}, Decision{})
+	if err == nil {
+		t.Fatal("RecordDelegatedAccess accepted nil repository")
+	}
+}
+
+func TestDelegationAuditRecorderPropagatesInsertError(t *testing.T) {
+	t.Parallel()
+
+	want := errors.New("audit database unavailable")
+	err := (DelegationAuditRecorder{Repository: &fakeAuditRepository{err: want}}).RecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}, Decision{Allowed: true})
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+}
+
 type fakeDelegationChecker struct {
 	allowed bool
 	err     error
@@ -361,4 +411,16 @@ func (f *fakeDelegationChecker) CheckEffectiveDelegation(_ context.Context, req 
 		return false, f.err
 	}
 	return f.allowed, nil
+}
+
+type fakeAuditRepository struct {
+	err    error
+	called bool
+	log    audit.Log
+}
+
+func (f *fakeAuditRepository) Insert(_ context.Context, log audit.Log) error {
+	f.called = true
+	f.log = log
+	return f.err
 }
