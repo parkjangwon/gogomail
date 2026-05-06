@@ -2285,6 +2285,10 @@ The platform hardening sprint completed the following:
   `GetRange`, `Stat`, `List`, `Copy`, `Move`, idempotent `Delete`, and bounded
   `DeletePrefix`; the local backend always runs it and the S3 integration test
   reuses it when `GOGOMAIL_TEST_S3_*` variables are present.
+- Local/NFS and S3-compatible `Get`/`GetRange` readers now honor context
+  cancellation after the object stream has opened, and local/NFS `GetRange`
+  reports `io.ErrUnexpectedEOF` for short object windows so partial-read
+  behavior stays aligned when operators switch storage backends.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

@@ -135,7 +135,7 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
-	return resp.Body, nil
+	return &contextReadCloser{ctx: ctx, closer: resp.Body}, nil
 }
 
 func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq RangeRequest) (io.ReadCloser, error) {
@@ -163,7 +163,7 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
-	return &exactReadCloser{reader: resp.Body, closer: resp.Body, remaining: validated.Length}, nil
+	return &exactReadCloser{ctx: ctx, reader: resp.Body, closer: resp.Body, remaining: validated.Length}, nil
 }
 
 func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, error) {
@@ -569,12 +569,16 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 }
 
 type exactReadCloser struct {
+	ctx       context.Context
 	reader    io.Reader
 	closer    io.Closer
 	remaining int64
 }
 
 func (r *exactReadCloser) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
 	if r.remaining <= 0 {
 		return 0, io.EOF
 	}
@@ -583,6 +587,9 @@ func (r *exactReadCloser) Read(p []byte) (int, error) {
 	}
 	n, err := r.reader.Read(p)
 	r.remaining -= int64(n)
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return n, ctxErr
+	}
 	if err == io.EOF && r.remaining > 0 {
 		return n, io.ErrUnexpectedEOF
 	}

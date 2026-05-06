@@ -103,6 +103,65 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	}
 }
 
+func TestLocalStoreGetRangeReportsShortObjects(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := NewLocalStore(t.TempDir())
+	objectPath := "mailstore/company/domain/user/short.eml"
+	if err := store.Put(ctx, objectPath, strings.NewReader("hello")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+
+	ranged, err := store.GetRange(ctx, objectPath, RangeRequest{Offset: 3, Length: 5})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	got, err := io.ReadAll(ranged)
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("ReadAll err = %v, want io.ErrUnexpectedEOF", err)
+	}
+	if string(got) != "lo" {
+		t.Fatalf("range body = %q, want lo", got)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close ranged object: %v", err)
+	}
+}
+
+func TestLocalStoreReadersHonorCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	store := NewLocalStore(t.TempDir())
+	objectPath := "mailstore/company/domain/user/message.eml"
+	if err := store.Put(context.Background(), objectPath, strings.NewReader("hello")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+
+	body, err := store.Get(ctx, objectPath)
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	ranged, err := store.GetRange(ctx, objectPath, RangeRequest{Offset: 0, Length: 5})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	cancel()
+	if _, err := io.ReadAll(body); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Get reader err = %v, want context.Canceled", err)
+	}
+	if err := body.Close(); err != nil {
+		t.Fatalf("close Get reader: %v", err)
+	}
+	if _, err := io.ReadAll(ranged); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetRange reader err = %v, want context.Canceled", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close GetRange reader: %v", err)
+	}
+}
+
 func TestLocalStoreListObjectsByPrefix(t *testing.T) {
 	t.Parallel()
 

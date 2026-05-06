@@ -262,6 +262,79 @@ func TestS3StoreRejectsCanceledContextBeforeRequest(t *testing.T) {
 	}
 }
 
+func TestS3StoreReadersHonorCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	t.Run("get", func(t *testing.T) {
+		t.Parallel()
+
+		store, err := NewS3Store(S3Options{
+			Endpoint:        "http://localhost:9000",
+			Region:          "us-east-1",
+			Bucket:          "gogomail",
+			AccessKeyID:     "access",
+			SecretAccessKey: "secret",
+			ForcePathStyle:  true,
+			HTTPClient: &http.Client{Transport: staticRoundTripper{
+				resp: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader("hello")),
+				},
+			}},
+		})
+		if err != nil {
+			t.Fatalf("NewS3Store returned error: %v", err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		body, err := store.Get(ctx, "messages/msg-1.eml")
+		if err != nil {
+			t.Fatalf("Get returned error: %v", err)
+		}
+		cancel()
+		if _, err := io.ReadAll(body); !errors.Is(err, context.Canceled) {
+			t.Fatalf("Get reader err = %v, want context.Canceled", err)
+		}
+		if err := body.Close(); err != nil {
+			t.Fatalf("close Get reader: %v", err)
+		}
+	})
+
+	t.Run("get_range", func(t *testing.T) {
+		t.Parallel()
+
+		store, err := NewS3Store(S3Options{
+			Endpoint:        "http://localhost:9000",
+			Region:          "us-east-1",
+			Bucket:          "gogomail",
+			AccessKeyID:     "access",
+			SecretAccessKey: "secret",
+			ForcePathStyle:  true,
+			HTTPClient: &http.Client{Transport: staticRoundTripper{
+				resp: &http.Response{
+					StatusCode: http.StatusPartialContent,
+					Header:     http.Header{"Content-Range": []string{"bytes 0-4/5"}},
+					Body:       io.NopCloser(strings.NewReader("hello")),
+				},
+			}},
+		})
+		if err != nil {
+			t.Fatalf("NewS3Store returned error: %v", err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		body, err := store.GetRange(ctx, "messages/msg-1.eml", RangeRequest{Offset: 0, Length: 5})
+		if err != nil {
+			t.Fatalf("GetRange returned error: %v", err)
+		}
+		cancel()
+		if _, err := io.ReadAll(body); !errors.Is(err, context.Canceled) {
+			t.Fatalf("GetRange reader err = %v, want context.Canceled", err)
+		}
+		if err := body.Close(); err != nil {
+			t.Fatalf("close GetRange reader: %v", err)
+		}
+	})
+}
+
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 
