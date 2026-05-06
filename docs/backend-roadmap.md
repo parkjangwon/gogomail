@@ -3261,6 +3261,10 @@ Implementation order:
       overlay on top of defaults/env values. The example config carries
       local/NFS/S3-compatible storage knobs, making backend flips reviewable as
       config-file changes without bypassing startup validation.
+1268. The `gogomail` CLI startup path now has focused regression coverage for
+      `--config` handoff and fail-fast invalid config/mode behavior, so config
+      file support is guarded at the binary boundary instead of only the parser
+      boundary.
 
 ## Deferred until backend contracts stabilize
 

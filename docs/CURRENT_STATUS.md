@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after YAML config-file storage overlay)
+Last updated: 2026-05-06 (updated after YAML config CLI contract coverage)
 
 ## Current phase
 
@@ -68,7 +68,9 @@ coverage can now use matching test-only TLS variables
 the same private-object-store trust shape. Runtime startup also accepts
 `--config=<path>` for a flat YAML overlay on top of the existing env/default
 configuration, so operators can flip local/NFS/MinIO/AWS S3 storage profiles
-through a reviewed config file while keeping the same startup validation.
+through a reviewed config file while keeping the same startup validation. The
+CLI startup seam now has regression coverage proving valid YAML reaches the app
+runtime and invalid config/mode input fails before any component starts.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
