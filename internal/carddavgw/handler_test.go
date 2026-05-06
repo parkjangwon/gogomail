@@ -778,6 +778,26 @@ func TestHandlerReportRejectsUnsupportedCollationWithPrecondition(t *testing.T) 
 	}
 }
 
+func TestHandlerReportRejectsUnsupportedFilterElementWithPrecondition(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:unknown-filter name="FN"/></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{"<D:error", "<C:supported-filter/>", "unknown-filter"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("unsupported filter element response missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerReportAddressBookMultigetRequiresDepthHeader(t *testing.T) {
 	t.Parallel()
 

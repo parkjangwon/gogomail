@@ -74,7 +74,9 @@ It now honors RFC 6352 `test=anyof|allof` composition on the top-level
 unsupported vCard property or parameter filters with the RFC 6352
 `CARDDAV:supported-filter` precondition instead of returning misleading empty
 success responses, even for `Depth: 0` requests that otherwise return no child
-objects. REPORT `address-data` can now
+objects. Unsupported CardDAV filter child elements use the same
+`CARDDAV:supported-filter` precondition instead of a generic bad request.
+REPORT `address-data` can now
 project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 `version` values with the RFC 6352 `CARDDAV:supported-address-data`

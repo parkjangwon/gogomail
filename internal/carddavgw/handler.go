@@ -461,6 +461,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 			writeCardDAVPreconditionError(w, http.StatusForbidden, "supported-collation", err.Error())
 			return
 		}
+		var unsupportedFilterElement UnsupportedFilterElementError
+		if errors.As(err, &unsupportedFilterElement) {
+			writeCardDAVPreconditionError(w, http.StatusForbidden, "supported-filter", err.Error())
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

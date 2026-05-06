@@ -388,7 +388,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   text-match checks. Unsupported vCard property or parameter filters fail with
   the RFC 6352 `CARDDAV:supported-filter` precondition instead of misleading
   empty success responses, including `Depth: 0` requests that otherwise return
-  no child objects. REPORT `address-data` can project returned vCards to
+  no child objects. Unsupported CardDAV filter child elements now use the same
+  `CARDDAV:supported-filter` precondition. REPORT `address-data` can project
+  returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
   Requested address-data content types and versions are validated against the
   advertised `text/vcard` 4.0 support and fail with the RFC 6352
