@@ -7358,6 +7358,23 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestParseIMAPSearchModSeqRejectsPaddedEntryTypes(t *testing.T) {
+	t.Parallel()
+
+	if threshold, consumed, ok := parseIMAPSearchModSeq([]string{"MODSEQ", "/flags/\\Seen", "ALL", "17"}); !ok || threshold != 17 || consumed != 4 {
+		t.Fatalf("valid MODSEQ entry type = threshold %d consumed %d ok %v, want 17/4/true", threshold, consumed, ok)
+	}
+	for _, criteria := range [][]string{
+		{"MODSEQ", "/flags/\\Seen", " ALL", "17"},
+		{"MODSEQ", "/flags/\\Seen", "ALL ", "17"},
+		{"MODSEQ", "/flags/\\Seen", " ALL ", "17"},
+	} {
+		if _, _, ok := parseIMAPSearchModSeq(criteria); ok {
+			t.Fatalf("parseIMAPSearchModSeq(%q) accepted padded entry type", criteria)
+		}
+	}
+}
+
 func TestServerHandlesSortAfterSelect(t *testing.T) {
 	t.Parallel()
 

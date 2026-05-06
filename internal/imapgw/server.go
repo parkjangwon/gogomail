@@ -3104,7 +3104,10 @@ func imapSearchModSeqEntryTypeValid(value string) bool {
 	if strings.Contains(value, `"`) {
 		return false
 	}
-	switch strings.ToUpper(strings.TrimSpace(value)) {
+	if strings.TrimSpace(value) != value {
+		return false
+	}
+	switch strings.ToUpper(value) {
 	case "SHARED", "PRIV", "ALL":
 		return true
 	default:

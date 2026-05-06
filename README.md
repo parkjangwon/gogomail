@@ -83,8 +83,8 @@ Recent release-readiness work also includes:
   numeric grammar checks, partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, rejection of whitespace-padded numeric and date search criteria,
-  rejection of whitespace-padded CONDSTORE modifier values, exact `IDLE`
-  `DONE` continuation handling,
+  rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
+  values, exact `IDLE` `DONE` continuation handling,
   selected-state event draining before sequence-set commands,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and

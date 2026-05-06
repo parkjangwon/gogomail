@@ -551,6 +551,9 @@ Current state:
 - IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types reject malformed atoms that
   still contain quote characters after command parsing, preventing broken
   `MODSEQ "/flags/\\Seen" all" 17` style inputs from being silently normalized.
+- IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry types now also reject
+  whitespace-padded `ALL`, `PRIV`, or `SHARED` atoms instead of trimming them
+  into valid RFC 7162 entry-type controls.
 - IMAP RFC 2971 `ID` parameter-list parsing rejects unsupported quoted escapes
   and adjacent quoted tokens without whitespace, while preserving valid escaped
   quoted-special characters inside ID strings.
