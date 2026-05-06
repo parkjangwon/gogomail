@@ -543,6 +543,12 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, writeErr := writer.WriteString(tag + " NO " + command + " failed\r\n")
 			return false, writeErr
 		}
+		subscriptionInstalled := false
+		defer func() {
+			if !subscriptionInstalled && cancel != nil {
+				cancel()
+			}
+		}()
 		if _, err := writer.WriteString("* FLAGS " + imapFlagList(mailboxState.PermanentFlags) + "\r\n"); err != nil {
 			return false, err
 		}
@@ -594,6 +600,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		state.events = events
 		state.cancelEvents = cancel
+		subscriptionInstalled = true
 		if state.readOnly {
 			if _, err := writer.WriteString("* OK [PERMANENTFLAGS ()] No permanent flags permitted\r\n"); err != nil {
 				return false, err

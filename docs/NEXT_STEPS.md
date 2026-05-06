@@ -180,6 +180,9 @@ Current state:
   persists selected `NOMODSEQ` state, so later `FETCH MODSEQ`,
   `CHANGEDSINCE`, `MODSEQ` search, and `UNCHANGEDSINCE` mutations stay behind
   the RFC 7162 persistent-mod-sequence guard.
+- IMAP `SELECT`/`EXAMINE` now cancel a newly opened mailbox event subscription
+  if response writing fails before the subscription is installed into
+  connection state, keeping broken-client paths resource-safe.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while
