@@ -1301,16 +1301,18 @@ func TestServerRejectsUnsupportedFetchDataItemsBeforeMailboxState(t *testing.T) 
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 FETCH 1 BOGUS\r\na2 LOGIN user@example.com secret\r\na3 FETCH 1 (FLAGS BOGUS)\r\na4 FETCH 1 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 FETCH 1 BOGUS\r\na2 FETCH 1 \"FLAGS\"\r\na3 UID FETCH 7 {5+}\r\nFLAGS\r\na4 LOGIN user@example.com secret\r\na5 FETCH 1 (FLAGS BOGUS)\r\na6 FETCH 1 (FLAGS)\r\na7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write unsupported fetch commands: %v", err)
 	}
 	want := []string{
 		"a1 BAD FETCH data item is unsupported\r\n",
-		"a2 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a2 BAD FETCH data item is unsupported\r\n",
 		"a3 BAD FETCH data item is unsupported\r\n",
-		"a4 NO mailbox must be selected\r\n",
+		"a4 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a5 BAD FETCH data item is unsupported\r\n",
+		"a6 NO mailbox must be selected\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a5 OK LOGOUT completed\r\n",
+		"a7 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

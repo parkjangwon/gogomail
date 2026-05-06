@@ -711,6 +711,10 @@ Current state:
   command-literal flag update mode tokens such as `"+FLAGS"` or literal
   `+FLAGS`, and quoted `UNCHANGEDSINCE` markers are rejected before mutation
   state checks.
+- IMAP `FETCH` and `UID FETCH` data-item controls now reject exact quoted or
+  command-literal data item atoms such as `"FLAGS"` or literal `FLAGS`, while
+  preserving the existing diagnostics for whitespace-padded malformed fetch
+  item lists.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.
