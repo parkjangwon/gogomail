@@ -3001,6 +3001,10 @@ Implementation order:
 1219. IMAP `SEARCH` and `UID SEARCH` now reject `CHARSET` prefixes that omit
       the required following search-key before authentication or selected-state
       checks, preserving RFC 3501 grammar semantics at the command boundary.
+1220. Shared storage list cursors now reject leading/trailing whitespace
+      instead of trimming opaque provider tokens, preserving exact pagination
+      identity across local/NFS and S3-compatible Drive, lifecycle, and
+      reconciliation scans.
 
 ## Deferred until backend contracts stabilize
 
