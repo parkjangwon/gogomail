@@ -1587,6 +1587,50 @@ paths:
           $ref: "#/components/responses/DirectoryAlias"
         default:
           $ref: "#/components/responses/Error"
+  /directory/aliases:
+    get:
+      operationId: listAdminDirectoryAliases
+      summary: List Directory aliases for admin diagnostics
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Required company scope for alias inspection.
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: target_kind
+          in: query
+          schema:
+            type: string
+            enum: [user, organization, group, resource]
+        - name: target_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Optional target principal ID. Requires target_kind when present.
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Optional bounded alias-address search text.
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryAliasList"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/delegations:
     get:
       operationId: listAdminDirectoryDelegations
@@ -3718,6 +3762,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryAliasEnvelope"
+    DirectoryAliasList:
+      description: Directory alias list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryAliasListEnvelope"
     DirectoryDelegationList:
       description: Directory delegation list envelope
       content:
@@ -6237,6 +6287,14 @@ components:
       properties:
         directory_alias:
           $ref: "#/components/schemas/DirectoryAlias"
+    DirectoryAliasListEnvelope:
+      type: object
+      required: [directory_aliases]
+      properties:
+        directory_aliases:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectoryAlias"
     DirectoryDelegation:
       type: object
       required: [id, company_id, owner_kind, owner_id, delegate_kind, delegate_id, scope, role, status]

@@ -670,6 +670,106 @@ func TestAdminDirectoryAliasResolveHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminDirectoryAliasesHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryAliases: []directory.Alias{{
+			ID:         "alias-1",
+			CompanyID:  "company-1",
+			DomainID:   "domain-1",
+			Address:    "ops@example.com",
+			AddressACE: "ops@example.com",
+			TargetKind: directory.PrincipalKindGroup,
+			TargetID:   "group-1",
+			Status:     "active",
+			TargetPrincipal: directory.Principal{
+				ID:          "group-1",
+				Kind:        directory.PrincipalKindGroup,
+				CompanyID:   "company-1",
+				DisplayName: "Ops",
+				Status:      "active",
+			},
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/aliases?limit=10&company_id=%20company-1%20&domain_id=domain-1&target_kind=group&target_id=group-1&q=%20ops%20&active_only=false", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Aliases []directory.Alias `json:"directory_aliases"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Aliases) != 1 || body.Aliases[0].ID != "alias-1" || body.Aliases[0].TargetPrincipal.ID != "group-1" {
+		t.Fatalf("directory_aliases = %+v", body.Aliases)
+	}
+	if service.lastDirectoryAliasList.Limit != 10 ||
+		service.lastDirectoryAliasList.CompanyID != "company-1" ||
+		service.lastDirectoryAliasList.DomainID != "domain-1" ||
+		service.lastDirectoryAliasList.TargetKind != directory.PrincipalKindGroup ||
+		service.lastDirectoryAliasList.TargetID != "group-1" ||
+		service.lastDirectoryAliasList.Query != "ops" ||
+		service.lastDirectoryAliasList.ActiveOnly {
+		t.Fatalf("lastDirectoryAliasList = %+v", service.lastDirectoryAliasList)
+	}
+}
+
+func TestAdminDirectoryAliasesHandlerDefaultsActiveOnly(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/directory/aliases?company_id=company-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastDirectoryAliasList.ActiveOnly {
+		t.Fatalf("lastDirectoryAliasList.ActiveOnly = false, want default true")
+	}
+}
+
+func TestAdminDirectoryAliasesHandlerRejectsUnsafeFilters(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		"/admin/v1/directory/aliases?company_id=company%0Abad",
+		"/admin/v1/directory/aliases?company_id=company-1&target_id=group-1",
+		"/admin/v1/directory/aliases?company_id=company-1&target_kind=calendar",
+		"/admin/v1/directory/aliases?company_id=company-1&q=" + strings.Repeat("x", directory.MaxAliasSearchBytes+1),
+		"/admin/v1/directory/aliases?company_id=company-1&active_only=maybe",
+		"/admin/v1/directory/aliases?company_id=company-1&cursor=opaque",
+	}
+	for _, path := range tests {
+		service := &fakeAdminService{}
+		mux := http.NewServeMux()
+		RegisterAdminRoutes(mux, service, "")
+
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s status = %d, body = %s", path, rec.Code, rec.Body.String())
+		}
+		if service.lastDirectoryAliasList.CompanyID != "" {
+			t.Fatalf("%s dispatched request %+v", path, service.lastDirectoryAliasList)
+		}
+	}
+}
+
 func TestAdminDirectoryDelegationsHandlerDefaultsActiveOnly(t *testing.T) {
 	t.Parallel()
 
@@ -6878,6 +6978,7 @@ type fakeAdminService struct {
 	attachmentUploadSessions                    []maildb.AttachmentUploadSession
 	directoryPrincipals                         []directory.Principal
 	directoryAlias                              directory.Alias
+	directoryAliases                            []directory.Alias
 	directoryDelegations                        []directory.Delegation
 	driveNode                                   drive.Node
 	driveNodes                                  []drive.Node
@@ -6961,6 +7062,7 @@ type fakeAdminService struct {
 	lastAttachmentUploadSessionList             maildb.AttachmentUploadSessionListRequest
 	lastDirectoryPrincipalSearch                directory.SearchPrincipalsRequest
 	lastDirectoryAliasResolve                   directory.ResolveAliasRequest
+	lastDirectoryAliasList                      directory.ListAliasesRequest
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
@@ -7182,6 +7284,14 @@ func (f *fakeAdminService) ResolveDirectoryAlias(_ context.Context, req director
 	}
 	f.lastDirectoryAliasResolve = req
 	return f.directoryAlias, nil
+}
+
+func (f *fakeAdminService) ListDirectoryAliases(_ context.Context, req directory.ListAliasesRequest) ([]directory.Alias, error) {
+	if _, err := directory.NormalizeListAliasesRequest(req); err != nil {
+		return nil, err
+	}
+	f.lastDirectoryAliasList = req
+	return f.directoryAliases, nil
 }
 
 func (f *fakeAdminService) ListDirectoryDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
