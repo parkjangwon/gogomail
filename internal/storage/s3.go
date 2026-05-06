@@ -995,6 +995,7 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 }
 
 type s3ListObjectsResult struct {
+	XMLName               xml.Name              `xml:"ListBucketResult"`
 	IsTruncated           bool                  `xml:"IsTruncated"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Contents              []s3ListObjectContent `xml:"Contents"`

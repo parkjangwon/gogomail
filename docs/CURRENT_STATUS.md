@@ -577,6 +577,9 @@ owner/resource target without scanning unrelated audit history.
   `List` contract for validated prefixes, giving future Drive, lifecycle, and
   reconciliation workflows a cursor-paginated way to browse object metadata
   without binding callers to filesystem walks or S3 `ListObjectsV2` directly.
+- S3-compatible `ListObjectsV2` success bodies now must decode as
+  `ListBucketResult` XML, preventing unexpected provider success XML from
+  being treated as an empty canonical object page.
 - Local/NFS and S3-compatible storage now expose a shared object `Move`
   contract for Drive-ready rename/relocation workflows. Local/NFS uses
   filesystem rename semantics, while S3-compatible storage performs signed

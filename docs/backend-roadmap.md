@@ -2980,6 +2980,10 @@ Implementation order:
 1213. CalDAV and CardDAV object `PUT` handlers now reject repeated
       `Content-Type` headers before media parsing, preventing ambiguous
       calendar/contact body interpretation at the DAV object write boundary.
+1214. S3-compatible `ListObjectsV2` decoding now requires bounded successful
+      XML bodies to use the `ListBucketResult` root, preventing unexpected
+      provider success XML from being accepted as an empty canonical object
+      page.
 
 ## Deferred until backend contracts stabilize
 

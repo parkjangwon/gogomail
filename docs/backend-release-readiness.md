@@ -1048,6 +1048,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` decoding now rejects truncated pages that omit
   a continuation token, so cleanup and reconciliation workers do not accept a
   provider response that cannot be advanced safely.
+- S3-compatible `ListObjectsV2` decoding now also requires a
+  `ListBucketResult` XML root, preventing unexpected provider success XML from
+  being accepted as an empty list page.
 - S3-compatible `ListObjectsV2` key decoding preserves provider-returned object
   key identity by rejecting keys that would require leading/trailing whitespace
   trimming before prefix/object-path validation.

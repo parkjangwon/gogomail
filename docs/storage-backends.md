@@ -252,10 +252,12 @@ user-visible Drive/file moves should treat failures after copy as recoverable
 duplicate-object cleanup work instead of assuming a single atomic transaction.
 S3-compatible `List` uses signed `ListObjectsV2` requests with validated
 prefixes, bounded `max-keys`, opaque continuation tokens, and an exact `200 OK`
-status requirement. Returned keys are normalized back to gogomail object paths
-under the configured storage prefix, so callers do not see deployment-specific
-bucket prefixes. Returned ETags use the same bounded metadata cleanup as
-`Stat`. Provider responses that return more matching objects than requested are
+status requirement. Successful list responses must decode as bounded
+`ListBucketResult` XML, so unexpected success bodies cannot masquerade as empty
+object pages. Returned keys are normalized back to gogomail object paths under
+the configured storage prefix, so callers do not see deployment-specific bucket
+prefixes. Returned ETags use the same bounded metadata cleanup as `Stat`.
+Provider responses that return more matching objects than requested are
 rejected, keeping local/NFS and S3-compatible pagination semantics aligned.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
