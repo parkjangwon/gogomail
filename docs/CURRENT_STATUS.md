@@ -1844,10 +1844,12 @@ The platform hardening sprint completed the following:
 - IMAP `EXAMINE` setup failures now return `NO EXAMINE failed` instead of
   `NO SELECT failed`, keeping tagged failure responses aligned with the command
   clients actually issued.
-- IMAP malformed `UID` subcommands now route to their specific handlers when
-  the subcommand is recognized, so incomplete `UID SEARCH`, `UID FETCH`,
-  `UID STORE`, `UID EXPUNGE`, and `UID COPY` requests receive precise tagged
-  `BAD` responses instead of a generic `UID command not implemented` failure.
+- IMAP malformed `UID` subcommands now route to their specific validators when
+  the subcommand is recognized, so incomplete or structurally invalid
+  `UID SEARCH`, `UID SORT`, `UID THREAD`, `UID FETCH`, `UID STORE`,
+  `UID EXPUNGE`, and `UID COPY` requests receive precise tagged `BAD`
+  responses before authentication or selected-mailbox state checks instead of a
+  generic `UID command not implemented` failure.
 - IMAP bare `UID` commands now return `BAD UID requires subcommand`, keeping
   missing-subcommand diagnostics separate from well-formed but unsupported UID
   subcommands.

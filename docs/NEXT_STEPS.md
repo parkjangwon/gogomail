@@ -1059,9 +1059,10 @@ Current state:
   `NO SELECT failed`, keeping tagged failure responses aligned with the command
   clients actually issued.
 - Malformed recognized `UID` subcommands now reach their command-specific
-  validators, so incomplete `UID SEARCH`, `UID FETCH`, `UID STORE`,
-  `UID EXPUNGE`, and `UID COPY` produce precise tagged `BAD` responses instead
-  of a generic UID-dispatch failure.
+  validators, so incomplete or structurally invalid `UID SEARCH`, `UID SORT`,
+  `UID THREAD`, `UID FETCH`, `UID STORE`, `UID EXPUNGE`, and `UID COPY`
+  produce precise tagged `BAD` responses before authentication/selected-state
+  checks instead of a generic UID-dispatch failure.
 - Missing-mailbox failures for `SELECT`, `EXAMINE`, `STATUS`, `DELETE`, and
   `RENAME` now return tagged `[NONEXISTENT]` response codes instead of generic
   command failures, so clients can distinguish absent folders from transient

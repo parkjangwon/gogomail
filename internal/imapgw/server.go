@@ -1343,6 +1343,48 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID FETCH requires UID set and data items\r\n")
 			return true, false, err
 		}
+	case "SEARCH":
+		if len(fields) < 4 {
+			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+			return true, false, err
+		}
+		_, searchFields, ok := imapSearchReturnOptions(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD SEARCH return options are unsupported\r\n")
+			return true, false, err
+		}
+		if len(searchFields) == 0 {
+			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+			return true, false, err
+		}
+	case "SORT":
+		if len(fields) < 6 {
+			_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
+			return true, false, err
+		}
+		_, searchFields, _, ok := imapSortCommandArguments(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
+			return true, false, err
+		}
+		if len(searchFields) == 0 {
+			_, err := writer.WriteString(tag + " BAD SORT requires search criteria\r\n")
+			return true, false, err
+		}
+	case "THREAD":
+		if len(fields) < 6 {
+			_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
+			return true, false, err
+		}
+		_, searchFields, _, ok := imapThreadCommandArguments(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+			return true, false, err
+		}
+		if len(searchFields) == 0 {
+			_, err := writer.WriteString(tag + " BAD THREAD requires search criteria\r\n")
+			return true, false, err
+		}
 	case "STORE":
 		if len(fields) < 6 {
 			_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
