@@ -123,7 +123,8 @@ Recent release-readiness work also includes:
   strict CONDSTORE select-param framing, CONDSTORE/MODSEQ-shaped behavior,
   syntax-before-state validation, atom-only command tag handling,
   exact SASL continuation cancellation, exact SASL PLAIN response token
-  handling, SASL-IR syntax-before-policy diagnostics, empty quoted `LOGIN`
+  handling, atom-only AUTHENTICATE mechanism/SASL-IR controls,
+  SASL-IR syntax-before-policy diagnostics, empty quoted `LOGIN`
   passwords routed to backend authentication failures instead of protocol
   `BAD`, strict atom-only command and UID subcommand dispatch, strict
   SEARCH/SORT/THREAD charset and thread-algorithm atoms,
