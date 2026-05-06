@@ -114,6 +114,9 @@ Current state:
   and PostgreSQL repository boundary, so sparse UID requests and concurrent
   source disappearance cannot force the server to guess source/destination
   pairing from request order alone.
+- IMAP `MOVE`/`UID MOVE` UIDPLUS response codes now derive source UID sets
+  from returned move results rather than the requested UID slice, matching the
+  explicit source/destination contract already present on `MoveMessageResult`.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

@@ -127,6 +127,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.
+- IMAP `MOVE`/`UID MOVE` UIDPLUS responses now derive source UID sets from the
+  returned move results, avoiding requested-slice inference for partial or
+  sparse move operations.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

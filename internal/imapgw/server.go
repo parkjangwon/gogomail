@@ -3665,7 +3665,7 @@ func (s *Server) writeMoveResponse(writer *bufio.Writer, tag string, state *imap
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
 	}
-	copyUID := imapMoveCopyUIDResponse(destMailbox.UIDValidity, uids, summaries)
+	copyUID := imapMoveCopyUIDResponse(destMailbox.UIDValidity, summaries)
 	if destMailbox.ID == state.selectedMailbox && len(summaries) > 0 {
 		state.selectedMessages = imapSummariesExistsCount(state.selectedMessages, imapMoveDestinationSummaries(summaries))
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", state.selectedMessages)); err != nil {
@@ -3806,15 +3806,17 @@ func imapCopyUIDResponse(uidValidity uint32, results []CopyMessageResult) string
 	return fmt.Sprintf("COPYUID %d %s %s", uidValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))
 }
 
-func imapMoveCopyUIDResponse(uidValidity uint32, sourceUIDs []UID, results []MoveMessageResult) string {
-	if uidValidity == 0 || len(sourceUIDs) == 0 || len(sourceUIDs) != len(results) {
+func imapMoveCopyUIDResponse(uidValidity uint32, results []MoveMessageResult) string {
+	if uidValidity == 0 || len(results) == 0 {
 		return ""
 	}
+	sourceUIDs := make([]UID, 0, len(results))
 	destUIDs := make([]UID, 0, len(results))
 	for _, result := range results {
-		if result.Destination.UID == 0 {
+		if result.Source.UID == 0 || result.Destination.UID == 0 {
 			return ""
 		}
+		sourceUIDs = append(sourceUIDs, result.Source.UID)
 		destUIDs = append(destUIDs, result.Destination.UID)
 	}
 	return fmt.Sprintf("COPYUID %d %s %s", uidValidity, imapUIDSetResponse(sourceUIDs), imapUIDSetResponse(destUIDs))

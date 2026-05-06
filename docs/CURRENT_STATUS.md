@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP COPYUID source mapping)
+Last updated: 2026-05-06 (updated after IMAP MOVE COPYUID source mapping)
 
 ## Current phase
 
@@ -82,11 +82,14 @@ per command and reuse it across mailbox rows and subscribed-parent inference,
 avoiding per-mailbox regular-expression construction on large folder trees
 without changing wildcard semantics.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
-mapping through the gateway, service, and PostgreSQL repository boundary, so
-advertised UIDPLUS `COPYUID` responses are generated from the messages that
-were actually copied rather than inferred from the requested UID slice. Sparse
-UID copy/move probes such as `UID COPY 7,999 Archive` are regression-covered
-so nonexistent UIDs are ignored without polluting response codes.
+mapping through the gateway, service, and PostgreSQL repository boundary, and
+`MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned
+move result source summaries. Advertised UIDPLUS response codes are therefore
+generated from messages that were actually copied or moved rather than inferred
+from the requested UID slice. Sparse UID copy/move probes such as
+`UID COPY 7,999 Archive` and repository-level missing-UID move inputs are
+regression-covered so nonexistent UIDs are ignored without polluting response
+codes.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

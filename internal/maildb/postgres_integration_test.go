@@ -1075,6 +1075,14 @@ WHERE user_id = $1::uuid
 	if folderID != seed.sentID {
 		t.Fatalf("moved folder = %q, want %q", folderID, seed.sentID)
 	}
+
+	sparseMoved, err := repo.MoveIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{999999, firstUID.UID})
+	if err != nil {
+		t.Fatalf("sparse MoveIMAPMessages returned error: %v", err)
+	}
+	if len(sparseMoved) != 1 || sparseMoved[0].Source.UID != firstUID.UID || sparseMoved[0].Destination.UID != 2 {
+		t.Fatalf("sparse moved results = %#v, want remaining source UID mapped to destination UID 2", sparseMoved)
+	}
 }
 
 func TestPostgresIMAPMoveMessagesAllowsSameMailbox(t *testing.T) {
