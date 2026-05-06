@@ -2985,8 +2985,9 @@ The platform hardening sprint completed the following:
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
   collections, listing matching `.ics` objects through WebDAV multistatus
   responses, keeping object reads behind bounded `limit/nresults` handling
-  with one-extra-row truncation detection, and applying RFC 5545-backed VEVENT
-  overlap checks when a CalDAV time-range filter is supplied. Unsupported
+  with one-extra-row truncation detection, applying RFC 5545-backed VEVENT
+  overlap checks, and matching VTODO time-ranges with RFC 4791
+  `DTSTART`/`DUE`/`DURATION`/`COMPLETED`/`CREATED` semantics. Unsupported
   CalDAV filter elements such as `prop-filter` now fail closed with a
   `CALDAV:supported-filter` precondition instead of being silently ignored and
   widening query results.

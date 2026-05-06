@@ -805,6 +805,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 				writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
 				return
 			}
+			var unsupportedFilter UnsupportedCalendarFilterError
+			if errors.As(err, &unsupportedFilter) {
+				writeCalDAVPreconditionError(w, http.StatusForbidden, "supported-filter", err.Error())
+				return
+			}
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -1243,7 +1248,7 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 		if !calendarObjectMatchesComponent(object, report.Component) {
 			continue
 		}
-		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.TimeRange)
+		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.Component, report.TimeRange)
 		if err != nil {
 			return nil, err
 		}

@@ -2941,6 +2941,10 @@ Implementation order:
       rules are capped per object so native-client time-range scans remain
       predictable while recurring events become visible in query and VFREEBUSY
       responses.
+1195a. CalDAV `calendar-query` now evaluates VTODO time-range filters with RFC
+       4791 overlap semantics for `DTSTART`, `DUE`, `DURATION`, `COMPLETED`,
+       and `CREATED`, including effective `DUE = DTSTART + DURATION`, so
+       supported VTODO objects participate in native-client range syncs.
 1196. CalDAV iCalendar object validation now accepts the common recurring-event
       storage shape of one VEVENT master plus same-UID `RECURRENCE-ID`
       detached override VEVENTs. Calendar-query and free-busy evaluation now

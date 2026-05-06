@@ -767,6 +767,70 @@ func TestHandlerReportCalendarQueryFiltersByComponent(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryFiltersVTODOByTimeRange(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	overlapICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-overlap@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T090000Z\r\nDUE:20260506T100000Z\r\nSUMMARY:Review\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	missICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-later@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260508T090000Z\r\nDUE:20260508T100000Z\r\nSUMMARY:Later\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	store.objects = append(store.objects,
+		CalendarObject{
+			ID:         "object-todo-overlap",
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "todo-overlap.ics",
+			UID:        "todo-overlap@example.com",
+			Component:  ComponentVTODO,
+			ETag:       `"2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+			Size:       int64(len(overlapICS)),
+			ICS:        overlapICS,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		},
+		CalendarObject{
+			ID:         "object-todo-later",
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "todo-later.ics",
+			UID:        "todo-later@example.com",
+			Component:  ComponentVTODO,
+			ETag:       `"3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`,
+			Size:       int64(len(missICS)),
+			ICS:        missICS,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		},
+	)
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VTODO">
+        <C:time-range start="20260506T093000Z" end="20260506T110000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "todo-overlap.ics") {
+		t.Fatalf("VTODO time-range query missing overlapping todo:\n%s", body)
+	}
+	if strings.Contains(body, "todo-later.ics") {
+		t.Fatalf("VTODO time-range query returned non-overlapping todo:\n%s", body)
+	}
+	if strings.Contains(body, "event-1.ics") {
+		t.Fatalf("VTODO time-range query returned VEVENT object:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarQueryRejectsTruncatingLimit(t *testing.T) {
 	t.Parallel()
 
