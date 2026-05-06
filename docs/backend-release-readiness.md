@@ -175,6 +175,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unexpired token hashes, hide storage internals from public metadata, enforce
   `download` permission before streaming bytes, and reuse Drive no-store,
   checksum, HEAD, and single-range download semantics.
+- Drive public share-link metadata/download routes now support an optional
+  Redis fixed-window abuse limiter with normalized remote+token bucketing and
+  HTTP 429/`Retry-After` responses, giving production deployments a first
+  anonymous-traffic guard before audit/admin download activity views are added.
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
   principal/calendar/object path parsing before WebDAV handlers are advertised.

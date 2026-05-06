@@ -42,10 +42,10 @@ func (l *RedisLimiter) Allow(ctx context.Context, key smtpd.RateLimitKey) (bool,
 }
 
 func redisKey(key smtpd.RateLimitKey) string {
-	return "ratelimit:" + string(key.Stage) + ":" + rateLimitRemoteBucket(key.RemoteAddr)
+	return "ratelimit:" + string(key.Stage) + ":" + RemoteBucket(key.RemoteAddr)
 }
 
-func rateLimitRemoteBucket(remoteAddr string) string {
+func RemoteBucket(remoteAddr string) string {
 	remoteAddr = strings.TrimSpace(remoteAddr)
 	if remoteAddr == "" {
 		return "unknown"

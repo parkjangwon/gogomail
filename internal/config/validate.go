@@ -173,11 +173,17 @@ func (c Config) Validate() error {
 	if err := validateEnum("GOGOMAIL_RATELIMIT_BACKEND", c.RateLimitBackend, "none", "redis"); err != nil {
 		return err
 	}
+	if err := validateEnum("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", c.DriveShareRateLimitBackend, "none", "redis"); err != nil {
+		return err
+	}
 	if err := validateEnum("GOGOMAIL_BACKPRESSURE_BACKEND", c.BackpressureBackend, "none", "redis"); err != nil {
 		return err
 	}
 	if c.RcptRateLimitPerMinute <= 0 {
 		return fmt.Errorf("GOGOMAIL_RCPT_RATE_LIMIT_PER_MINUTE must be positive")
+	}
+	if c.DriveShareRateLimitPerMinute <= 0 {
+		return fmt.Errorf("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE must be positive")
 	}
 	if c.OutboxRelayBatchSize <= 0 {
 		return fmt.Errorf("GOGOMAIL_OUTBOX_RELAY_BATCH_SIZE must be positive")

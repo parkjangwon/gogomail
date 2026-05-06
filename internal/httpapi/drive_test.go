@@ -14,6 +14,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/gogomail/gogomail/internal/ratelimit"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -259,6 +260,46 @@ func TestDriveSharedDownloadHandlerRejectsViewOnlyLink(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
+	t.Parallel()
+
+	limiter := &fakeDrivePublicShareLimiter{decision: ratelimit.Decision{Allowed: false, RetryAfter: 3 * time.Second}}
+	service := &fakeDriveService{resolvedShareLink: drive.ResolvedShareLink{
+		ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionDownload, ExpiresAt: time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)},
+		Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
+	}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareLimiter: limiter})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+strings.Repeat("r", 40), nil)
+	req.RemoteAddr = "192.0.2.10:12345"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Retry-After"); got != "3" {
+		t.Fatalf("Retry-After = %q, want 3", got)
+	}
+	if service.resolveShareLinkReq.Token != "" {
+		t.Fatalf("resolver ran despite limiter rejection: %+v", service.resolveShareLinkReq)
+	}
+	if len(limiter.keys) != 1 || !strings.Contains(limiter.keys[0], "remote=192.0.2.10") {
+		t.Fatalf("limiter keys = %+v, want normalized remote bucket", limiter.keys)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links?user_id=user-1", nil)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("authenticated list status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(limiter.keys) != 1 {
+		t.Fatalf("limiter keys = %+v, want authenticated share-link list unaffected", limiter.keys)
 	}
 }
 
@@ -1346,6 +1387,20 @@ func (f *fakeDriveService) PermanentDeleteNode(_ context.Context, req drive.Perm
 
 var _ DriveService = (*fakeDriveService)(nil)
 var errDriveTest = errors.New("drive test error")
+
+type fakeDrivePublicShareLimiter struct {
+	decision ratelimit.Decision
+	err      error
+	keys     []string
+}
+
+func (f *fakeDrivePublicShareLimiter) Allow(_ context.Context, key string) (ratelimit.Decision, error) {
+	f.keys = append(f.keys, key)
+	if f.err != nil {
+		return ratelimit.Decision{}, f.err
+	}
+	return f.decision, nil
+}
 
 func requestWithHeader(method string, target string, header string, value string) *http.Request {
 	req := httptest.NewRequest(method, target, strings.NewReader("body"))

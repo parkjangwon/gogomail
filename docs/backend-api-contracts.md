@@ -275,6 +275,12 @@ or development `user_id` fallback path as webmail mail routes:
   `X-Gogomail-Drive-SHA256`) and the same single-range `Range:
   bytes=start-end` parser, while mapping view-only links to HTTP 403 and
   missing/revoked/expired links to HTTP 404.
+  Public share resolution and download endpoints can be protected with the
+  optional `GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` fixed-window limiter.
+  When enabled, anonymous requests are bucketed by normalized remote address and
+  raw share token, over-limit requests return HTTP 429 with `Retry-After`, and
+  transient limiter storage errors fail open so public download availability is
+  not coupled to Redis after startup.
 - `DELETE /api/v1/drive/share-links/{id}` revokes an active authenticated-user
   share link and returns `{"drive_share_link":{...}}` with `status=revoked`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,

@@ -89,6 +89,8 @@ type Config struct {
 	DriveCleanupInterval                time.Duration
 	DriveCleanupBatchSize               int
 	DriveCleanupRunOnce                 bool
+	DriveShareRateLimitBackend          string
+	DriveShareRateLimitPerMinute        int
 	PushNotifyBackend                   string
 	PushNotifyWebhookURL                string
 	PushNotifyWebhookToken              string
@@ -269,6 +271,8 @@ func Load() Config {
 		DriveCleanupInterval:                durationEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_INTERVAL", 15*time.Minute),
 		DriveCleanupBatchSize:               intEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_BATCH_SIZE", 100),
 		DriveCleanupRunOnce:                 boolEnvOrDefault("GOGOMAIL_DRIVE_CLEANUP_RUN_ONCE", false),
+		DriveShareRateLimitBackend:          envOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND", "none"),
+		DriveShareRateLimitPerMinute:        intEnvOrDefault("GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE", 120),
 		PushNotifyBackend:                   envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_BACKEND", "none"),
 		PushNotifyWebhookURL:                envOrDefault("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_URL", ""),
 		PushNotifyWebhookToken:              os.Getenv("GOGOMAIL_PUSH_NOTIFICATION_WEBHOOK_TOKEN"),
