@@ -1570,6 +1570,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `STORE`/`UID STORE` flag-list values now reject whitespace-padded
   quoted or literal lists such as ` (\\Seen) ` while preserving exact `()`
   and parenthesized flag-list semantics.
+- IMAP APPEND/STORE flag-list parsing now rejects malformed inner list
+  whitespace such as `( \\Seen)`, `(\\Seen )`, `(\\Seen  \\Flagged)`, or
+  tab-separated flag names instead of collapsing them into valid flags.
 - IMAP selected-state commands now validate malformed message sequence-set and
   UID set syntax, including signed values such as `+1`/`+7`, before
   authentication or selected-mailbox checks while leaving selected-mailbox
