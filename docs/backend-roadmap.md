@@ -4038,6 +4038,10 @@ Implementation order:
       empty client parameter set, returning the normal server identity response
       while preserving strict `NIL` and parenthesized field/value-list
       validation.
+1445. IMAP `LOGIN` now treats an empty quoted password as syntactically valid
+      and routes it to backend authentication, returning
+      `[AUTHENTICATIONFAILED]` for rejected credentials instead of classifying
+      the command as malformed protocol input.
 
 ## Deferred until backend contracts stabilize
 

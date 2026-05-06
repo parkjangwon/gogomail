@@ -2002,10 +2002,10 @@ func TestServerPreservesQuotedLoginCredentialSpaces(t *testing.T) {
 	}
 }
 
-func TestServerRejectsEmptyLoginPassword(t *testing.T) {
+func TestServerTreatsEmptyLoginPasswordAsAuthenticationFailure(t *testing.T) {
 	t.Parallel()
 
-	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: authFailureBackend{}, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
 	}
@@ -2023,7 +2023,7 @@ func TestServerRejectsEmptyLoginPassword(t *testing.T) {
 	if _, err := client.Write([]byte("a1 LOGIN user@example.com \"\"\r\na2 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write login/logout: %v", err)
 	}
-	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD LOGIN credentials are malformed\r\n" {
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 NO [AUTHENTICATIONFAILED] LOGIN failed\r\n" {
 		t.Fatalf("empty-password login = %q err = %v", line, err)
 	}
 	_, _ = reader.ReadString('\n')
