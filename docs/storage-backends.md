@@ -314,9 +314,9 @@ Missing-object reads also preserve the local/NFS error contract: `Get`,
 `GetRange`, and `Stat` wrap `os.ErrNotExist` for compatible-provider
 `404 Not Found` responses while retaining sanitized S3 status context.
 Standard S3 `<Error>` response bodies are rendered as bounded one-line
-`Code: Message` diagnostics with request-id context when supplied instead of
-raw XML, while non-XML provider bodies fall back to the same sanitized preview
-path.
+`Code: Message` diagnostics with request-id and host-id context when supplied
+instead of raw XML, while non-XML provider bodies fall back to the same
+sanitized preview path.
 The same embedded-error handling applies to `ListObjectsV2` responses that
 arrive as `200 OK` with a top-level standard S3 `<Error>` body, so throttling,
 auth, or provider-side list failures cannot be misreported as malformed
@@ -372,8 +372,8 @@ copy responses must be exact `200 OK` responses with a bounded
 `Error` responses inside `200 OK` are rejected so provider-side copy failures
 cannot masquerade as successful object duplication; nested standard S3 error
 details are surfaced with the same bounded one-line `Code: Message` and
-request-id diagnostics as top-level provider errors. Success metadata is also
-kept singular for the core S3 fields: duplicate top-level `ETag` or
+request-id/host-id diagnostics as top-level provider errors. Success metadata
+is also kept singular for the core S3 fields: duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
 Core `CopyObjectResult` child elements must also be namespace-free or in the

@@ -182,8 +182,8 @@ Current state:
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
   `ETag` or `LastModified` metadata and nested `Error` elements, formatting
   nested standard S3 error details as bounded one-line diagnostics with
-  request-id context instead of collapsing provider-side copy failures into a
-  successful copy/move result.
+  request-id and host-id context instead of collapsing provider-side copy
+  failures into a successful copy/move result.
 - S3-compatible `ListObjectsV2` response XML applies the same namespace
   boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
   roots only before pagination, prefix filtering, cleanup, or Drive callers see
@@ -787,9 +787,9 @@ Current state:
   backend-neutral missing-object checks consistent with local/NFS storage while
   preserving sanitized S3 status diagnostics.
 - S3-compatible status-error diagnostics now format standard S3 `<Error>`
-  XML bodies as bounded one-line `Code: Message` previews with request-id
-  context, while preserving the sanitized plain-text fallback for non-XML
-  compatible-provider errors.
+  XML bodies as bounded one-line `Code: Message` previews with request-id and
+  host-id context, while preserving the sanitized plain-text fallback for
+  non-XML compatible-provider errors.
 - S3-compatible `ListObjectsV2` `200 OK` responses now fail closed when the
   body is a top-level standard S3 `<Error>` document, surfacing the same
   bounded embedded-error diagnostic instead of a generic invalid list control.
