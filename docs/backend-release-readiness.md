@@ -1273,6 +1273,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command framing now supports bounded literals in non-final command
   positions and multiple literals in one command, keeping literalized
   credentials and string arguments compatible with RFC-shaped clients.
+- IMAP command and IDLE line reads enforce the command-line byte cap while
+  reading from the socket, keeping malformed clients from accumulating
+  oversized lines in memory before syntax rejection.
 - IMAP accepts empty flag-lists where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.

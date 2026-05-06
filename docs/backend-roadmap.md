@@ -2489,6 +2489,9 @@ Implementation order:
 1144. CardDAV PROPFIND selection now keeps capability properties available
       through explicit `prop`, `include`, and `propname` discovery while
       omitting allprop-unfriendly properties from bare `allprop` responses.
+1145. IMAP command and IDLE line reads now enforce the command-line byte cap
+      while reading from the socket instead of after an unbounded line
+      allocation.
 
 ## Deferred until backend contracts stabilize
 

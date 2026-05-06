@@ -1777,6 +1777,10 @@ The platform hardening sprint completed the following:
   positions and multiple literals in one command, so RFC-shaped literalized
   credentials or string arguments parse consistently with the advertised
   `LITERAL+` capability.
+- IMAP command and IDLE line reads now enforce the command-line byte cap while
+  reading from the socket instead of after an unbounded line allocation,
+  keeping malformed clients from accumulating oversized lines in memory before
+  syntax rejection.
 - IMAP `AUTHENTICATE PLAIN` supports the standard continuation response,
   RFC-shaped tagged `BAD` cancellation, and SASL PLAIN credential decoding over
   the existing protocol auth adapter. Non-empty SASL PLAIN authorization

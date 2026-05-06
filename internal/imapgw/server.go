@@ -196,12 +196,9 @@ func (s *Server) ServeConn(conn net.Conn) error {
 }
 
 func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, []string, error) {
-	line, err := reader.ReadString('\n')
+	line, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 	if err != nil {
 		return "", nil, err
-	}
-	if len(line) > 8192 {
-		return "", nil, fmt.Errorf("imap command line is too long")
 	}
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
 		return line, nil, nil
@@ -230,17 +227,41 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 			return "", nil, err
 		}
 		literals = append(literals, string(literal))
-		suffix, err := reader.ReadString('\n')
+		suffix, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 		if err != nil {
 			return "", nil, err
 		}
 		if suffix == "\r\n" || suffix == "\n" {
 			return command.String(), literals, nil
 		}
-		if command.Len()+len(suffix) > 8192 {
+		if command.Len()+len(suffix) > maxIMAPCommandLineBytes {
 			return "", nil, fmt.Errorf("imap command line is too long")
 		}
 		command.WriteString(strings.TrimRight(suffix, "\r\n"))
+	}
+}
+
+func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {
+	if reader == nil {
+		return "", fmt.Errorf("imap reader is required")
+	}
+	if maxBytes <= 0 {
+		return "", fmt.Errorf("imap line limit is invalid")
+	}
+	var line []byte
+	for {
+		fragment, err := reader.ReadSlice('\n')
+		if len(line)+len(fragment) > maxBytes {
+			return "", fmt.Errorf("imap command line is too long")
+		}
+		line = append(line, fragment...)
+		if err == nil {
+			return string(line), nil
+		}
+		if errors.Is(err, bufio.ErrBufferFull) {
+			continue
+		}
+		return "", err
 	}
 }
 
@@ -968,7 +989,7 @@ type idleLineResult struct {
 func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) error {
 	lineCh := make(chan idleLineResult, 1)
 	go func() {
-		line, err := reader.ReadString('\n')
+		line, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 		lineCh <- idleLineResult{line: line, err: err}
 	}()
 	for state.pendingIdleTag != "" {
@@ -2524,6 +2545,7 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 }
 
 const (
+	maxIMAPCommandLineBytes    = 8192
 	maxIMAPSearchLiteralBytes  = 1 << 20
 	maxIMAPCommandLiteralBytes = 10 << 20
 )

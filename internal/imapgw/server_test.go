@@ -84,6 +84,16 @@ func TestServerListenUsesConfiguredAddress(t *testing.T) {
 	}
 }
 
+func TestReadIMAPLineRejectsOverLimitLineBeforeNewline(t *testing.T) {
+	t.Parallel()
+
+	reader := bufio.NewReaderSize(strings.NewReader(strings.Repeat("A", maxIMAPCommandLineBytes+1)), 32)
+
+	if _, err := readIMAPLine(reader, maxIMAPCommandLineBytes); err == nil || !strings.Contains(err.Error(), "command line is too long") {
+		t.Fatalf("readIMAPLine err = %v, want over-limit rejection", err)
+	}
+}
+
 func TestServerHandlesGreetingCapabilityNoopAndLogout(t *testing.T) {
 	t.Parallel()
 
