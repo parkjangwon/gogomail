@@ -179,9 +179,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Redis fixed-window abuse limiter with normalized remote+token bucketing and
   HTTP 429/`Retry-After` responses, giving production deployments a first
   anonymous-traffic guard.
-- Drive public share-link successful metadata/download accesses now write
-  best-effort immutable audit rows with sanitized link/node/request metadata,
-  letting operators inspect public-link activity through the existing Admin
+- Drive public share-link successful metadata/download accesses, denied
+  token/permission checks, and rate-limited requests now write best-effort
+  immutable audit rows with sanitized link/node/request metadata when available
+  plus token suffix, result, status, and remote request metadata, letting
+  operators inspect public-link access attempts through the existing Admin
   audit-log filters before aggregate activity dashboards are added.
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical

@@ -267,14 +267,16 @@ func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
 	t.Parallel()
 
 	limiter := &fakeDrivePublicShareLimiter{decision: ratelimit.Decision{Allowed: false, RetryAfter: 3 * time.Second}}
+	auditor := &fakeDrivePublicShareAudit{}
 	service := &fakeDriveService{resolvedShareLink: drive.ResolvedShareLink{
 		ShareLink: drive.ShareLink{ID: "link-1", NodeID: "node-1", Permission: drive.ShareLinkPermissionDownload, ExpiresAt: time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)},
 		Node:      drive.Node{ID: "node-1", UserID: "user-1", Name: "Report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 7, Status: drive.NodeStatusActive},
 	}}
 	mux := http.NewServeMux()
-	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareLimiter: limiter})
+	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareLimiter: limiter, PublicShareAudit: auditor})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+strings.Repeat("r", 40), nil)
+	token := strings.Repeat("r", 40)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token, nil)
 	req.RemoteAddr = "192.0.2.10:12345"
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -291,6 +293,19 @@ func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
 	if len(limiter.keys) != 1 || !strings.Contains(limiter.keys[0], "remote=192.0.2.10") {
 		t.Fatalf("limiter keys = %+v, want normalized remote bucket", limiter.keys)
 	}
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %+v, want rate-limited event", auditor.events)
+	}
+	event := auditor.events[0]
+	if event.Action != "resolve" || event.Result != "rate_limited" || event.Status != http.StatusTooManyRequests {
+		t.Fatalf("audit event = %+v, want rate-limited resolve", event)
+	}
+	if event.TokenSuffix != strings.Repeat("r", 8) || event.RemoteAddr != "192.0.2.10" {
+		t.Fatalf("audit public metadata = %+v, want suffix/remote", event)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", event), token) {
+		t.Fatalf("audit event leaked raw token: %+v", event)
+	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links?user_id=user-1", nil)
 	rec = httptest.NewRecorder()
@@ -300,6 +315,41 @@ func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
 	}
 	if len(limiter.keys) != 1 {
 		t.Fatalf("limiter keys = %+v, want authenticated share-link list unaffected", limiter.keys)
+	}
+}
+
+func TestDrivePublicShareAuditRecordsDeniedAccess(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("v", 40)
+	auditor := &fakeDrivePublicShareAudit{}
+	service := &fakeDriveService{err: drive.ErrShareLinkPermissionDenied}
+	mux := http.NewServeMux()
+	RegisterDriveRoutesWithOptions(mux, service, nil, DriveRouteOptions{PublicShareAudit: auditor})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/share-links/"+token+"/download", nil)
+	req.RemoteAddr = "192.0.2.12:12345"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(auditor.events) != 1 {
+		t.Fatalf("audit events = %+v, want one denied event", auditor.events)
+	}
+	event := auditor.events[0]
+	if event.Action != "download" || event.Result != "denied" || event.Status != http.StatusForbidden {
+		t.Fatalf("audit event = %+v, want denied download", event)
+	}
+	if event.TokenSuffix != strings.Repeat("v", 8) || event.RemoteAddr != "192.0.2.12" {
+		t.Fatalf("audit public metadata = %+v, want suffix/remote", event)
+	}
+	if event.LinkID != "" || event.NodeID != "" {
+		t.Fatalf("audit event = %+v, denied unresolved access should not invent link/node IDs", event)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", event), token) {
+		t.Fatalf("audit event leaked raw token: %+v", event)
 	}
 }
 

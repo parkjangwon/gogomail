@@ -735,11 +735,12 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !ok {
 			return
 		}
-		if !allowDrivePublicShareRequest(w, r, opts, token) {
+		if !allowDrivePublicShareRequest(w, r, opts, token, "resolve") {
 			return
 		}
 		resolved, err := service.ResolveShareLink(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 		if err != nil {
+			recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("resolve", "denied", driveShareLinkErrorStatus(err), token, ""))
 			writeDriveShareLinkError(w, err)
 			return
 		}
@@ -758,7 +759,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !ok {
 			return
 		}
-		if !allowDrivePublicShareRequest(w, r, opts, token) {
+		if !allowDrivePublicShareRequest(w, r, opts, token, "download") {
 			return
 		}
 		rangeHeader, ok := singleHTTPHeaderValue(w, r, "Range", maxHTTPAuthHeaderBytes)
@@ -768,6 +769,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if rangeHeader != "" {
 			metadata, err := service.StatSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 			if err != nil {
+				recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("download", "denied", driveShareLinkErrorStatus(err), token, rangeHeader))
 				writeDriveShareLinkError(w, err)
 				return
 			}
@@ -781,6 +783,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 				Length: byteRange.Length,
 			})
 			if err != nil {
+				recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("download", "denied", driveShareLinkErrorStatus(err), token, rangeHeader))
 				writeDriveShareLinkError(w, err)
 				return
 			}
@@ -793,6 +796,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		}
 		download, err := service.OpenSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 		if err != nil {
+			recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("download", "denied", driveShareLinkErrorStatus(err), token, ""))
 			writeDriveShareLinkError(w, err)
 			return
 		}
@@ -814,11 +818,12 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !ok {
 			return
 		}
-		if !allowDrivePublicShareRequest(w, r, opts, token) {
+		if !allowDrivePublicShareRequest(w, r, opts, token, "download_head") {
 			return
 		}
 		metadata, err := service.StatSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 		if err != nil {
+			recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken("download_head", "denied", driveShareLinkErrorStatus(err), token, ""))
 			writeDriveShareLinkError(w, err)
 			return
 		}
@@ -870,7 +875,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 	})
 }
 
-func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts DriveRouteOptions, token string) bool {
+func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts DriveRouteOptions, token string, action string) bool {
 	if opts.PublicShareLimiter == nil {
 		return true
 	}
@@ -887,6 +892,7 @@ func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts D
 		retryAfter = 1
 	}
 	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEventFromToken(action, "rate_limited", http.StatusTooManyRequests, token, ""))
 	writeError(w, http.StatusTooManyRequests, "drive share link rate limit exceeded")
 	return false
 }
@@ -900,13 +906,18 @@ func drivePublicShareAccessEvent(action string, result string, status int, resol
 }
 
 func drivePublicShareAccessEventFromNode(action string, result string, status int, node drive.Node, token string, rangeHeader string) DrivePublicShareAccessEvent {
+	event := drivePublicShareAccessEventFromToken(action, result, status, token, rangeHeader)
+	event.CompanyID = node.CompanyID
+	event.DomainID = node.DomainID
+	event.UserID = node.UserID
+	event.NodeID = node.ID
+	return event
+}
+
+func drivePublicShareAccessEventFromToken(action string, result string, status int, token string, rangeHeader string) DrivePublicShareAccessEvent {
 	return DrivePublicShareAccessEvent{
 		Action:      action,
 		Result:      result,
-		CompanyID:   node.CompanyID,
-		DomainID:    node.DomainID,
-		UserID:      node.UserID,
-		NodeID:      node.ID,
 		TokenSuffix: drivePublicShareTokenSuffix(token),
 		Range:       rangeHeader,
 		Status:      status,
@@ -972,15 +983,17 @@ func parseDriveShareTokenPathValue(w http.ResponseWriter, r *http.Request) (stri
 }
 
 func writeDriveShareLinkError(w http.ResponseWriter, err error) {
+	writeError(w, driveShareLinkErrorStatus(err), err.Error())
+}
+
+func driveShareLinkErrorStatus(err error) int {
 	if errors.Is(err, drive.ErrShareLinkPermissionDenied) {
-		writeError(w, http.StatusForbidden, err.Error())
-		return
+		return http.StatusForbidden
 	}
 	if strings.Contains(err.Error(), "not found") {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
+		return http.StatusNotFound
 	}
-	writeError(w, http.StatusBadRequest, err.Error())
+	return http.StatusBadRequest
 }
 
 func writeDriveServiceError(w http.ResponseWriter, err error) {

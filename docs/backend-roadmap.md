@@ -2645,6 +2645,11 @@ Implementation order:
       link/node/request metadata and byte-range intent without raw tokens or
       storage backend/path values, so Admin audit-log filters can inspect
       public-link activity before a dedicated activity dashboard exists.
+1165a. Drive public share denied token/permission checks and rate-limited
+       requests now use the same best-effort audit boundary, capturing action,
+       result, status, normalized remote address, token suffix, and available
+       link/node metadata without recording raw share tokens or storage
+       backend/path values.
 1166. CalDAV principal discovery now exposes the Directory primary email as an
       RFC 4791 `calendar-user-address-set` `mailto:` href when available,
       giving future organizer/attendee and scheduling work a standards-shaped
