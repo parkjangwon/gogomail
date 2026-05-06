@@ -4141,6 +4141,9 @@ Implementation order:
 1469. IMAP command tags now reject quoted-string or command-literal values
       before tag recovery, returning untagged malformed-command responses for
       non-atom tag probes.
+1470. IMAP SEARCH sequence-set criteria and UID SEARCH UID set operands now
+      reject quoted-string or command-literal set values, preserving atom-only
+      set semantics without weakening string operands for text/header search.
 
 ## Deferred until backend contracts stabilize
 

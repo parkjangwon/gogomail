@@ -3958,6 +3958,11 @@ The platform hardening sprint completed the following:
   command-literal tag probes such as `"a1" NOOP` or `{2}\r\na1 NOOP` receive
   untagged `BAD malformed command` responses because the server cannot trust a
   string value as a recoverable IMAP tag.
+- IMAP `SEARCH` top-level sequence-set criteria and `UID SEARCH UID`
+  sequence-set values now follow the same atom-only boundary: exact quoted or
+  command-literal set values such as `SEARCH "1"` or `UID SEARCH UID {1+}`
+  are rejected as unsupported criteria instead of being dequoted into valid
+  sets.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

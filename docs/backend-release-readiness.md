@@ -74,6 +74,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `FETCH`, `STORE`, `COPY`, `MOVE`, `UID FETCH`, `UID STORE`, `UID COPY`,
   `UID MOVE`, and `UID EXPUNGE`, preserving RFC set atom boundaries before
   authentication or selected-mailbox state checks.
+- IMAP `SEARCH` sequence-set criteria and `UID SEARCH UID` set values now
+  reject exact quoted or literal-framed set strings such as `SEARCH "1"` or
+  `UID SEARCH UID {1+}\r\n7`, keeping search set operands atom-only while
+  preserving strings for text and header search operands.
 - IMAP command names and `UID` subcommand names now reject quoted-string
   and command-literal probes such as `"NOOP"`, `{4}\r\nNOOP`, `UID "COPY"`,
   or `UID {4}\r\nCOPY` as malformed commands, preserving the distinction
