@@ -60,6 +60,10 @@ pinning the default advertised object-storage operations.
 Drive JSON mutation handlers share the strict backend JSON contract and now
 have regression coverage for required `application/json` content type,
 unknown-field rejection, and trailing-token rejection before service dispatch.
+Public Drive share-link token path values now preserve exact bearer-token
+semantics by rejecting URL-decoded surrounding whitespace, embedded whitespace,
+and non-printable ASCII before limiter or service dispatch instead of trimming
+tokens at the HTTP boundary.
 Admin console capability OpenAPI security now explicitly documents both
 `X-Admin-Token` and bearer-token alternatives, with runtime coverage that the
 bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.

@@ -3576,6 +3576,10 @@ Implementation order:
 1331. CalDAV and CardDAV `sync-collection` REPORT parsing now rejects duplicate
       `DAV:sync-token` and `DAV:sync-level` controls, preventing ambiguous sync
       anchors from silently changing snapshot or change-list semantics.
+1332. Public Drive share-link path tokens now preserve exact bearer-credential
+      semantics by rejecting URL-decoded surrounding whitespace, embedded
+      whitespace, and non-printable ASCII before rate limiting, audit, or
+      service dispatch.
 
 ## Deferred until backend contracts stabilize
 

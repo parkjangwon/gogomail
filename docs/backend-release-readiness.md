@@ -317,7 +317,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive share-link public resolution/download routes now resolve only active,
   unexpired token hashes, hide storage internals from public metadata, enforce
   `download` permission before streaming bytes, and reuse Drive no-store,
-  checksum, HEAD, and single-range download semantics.
+  checksum, HEAD, and single-range download semantics. Public token path values
+  preserve exact bearer-token semantics by rejecting URL-decoded surrounding
+  whitespace, embedded whitespace, and non-printable ASCII before limiter,
+  audit, or service dispatch.
 - Drive public share-link download OpenAPI now documents the same non-JSON
   binary/header contract for `HEAD`, full-body `200`, and byte-range `206`
   responses, with drift coverage so generated clients can safely stream public

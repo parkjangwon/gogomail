@@ -207,6 +207,43 @@ func TestDriveResolveShareLinkHandler(t *testing.T) {
 	}
 }
 
+func TestDrivePublicShareRoutesRejectWhitespaceNormalizedToken(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("s", 40)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "resolve surrounding spaces", method: http.MethodGet, path: "/api/v1/drive/share-links/%20" + token + "%20"},
+		{name: "resolve tab suffix", method: http.MethodGet, path: "/api/v1/drive/share-links/" + token + "%09"},
+		{name: "download surrounding spaces", method: http.MethodGet, path: "/api/v1/drive/share-links/%20" + token + "%20/download"},
+		{name: "download head tab suffix", method: http.MethodHead, path: "/api/v1/drive/share-links/" + token + "%09/download"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service := &fakeDriveService{}
+			mux := http.NewServeMux()
+			RegisterDriveRoutes(mux, service, nil)
+
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.resolveShareLinkReq.Token != "" || service.openSharedReq.Token != "" || service.statSharedReq.Token != "" {
+				t.Fatalf("public share token reached service: resolve=%+v open=%+v stat=%+v", service.resolveShareLinkReq, service.openSharedReq, service.statSharedReq)
+			}
+		})
+	}
+}
+
 func TestDriveSharedDownloadHandlerSupportsByteRange(t *testing.T) {
 	t.Parallel()
 
