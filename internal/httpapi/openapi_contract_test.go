@@ -750,6 +750,9 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		if route == "GET /drive/nodes/{id}/download" || route == "GET /drive/share-links/{id}/download" {
 			wants = append(wants, "name: Range", "\"206\":", "Content-Range:", "Accept-Ranges:", "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
 		}
+		if route == "GET /drive/share-links/{id}/download" {
+			wants = append(wants, "\"416\":", "Unsatisfied shared Drive file byte range", "^bytes \\\\*/[0-9]+$")
+		}
 		if route == "HEAD /drive/nodes/{id}/download" || route == "HEAD /drive/share-links/{id}/download" {
 			wants = append(wants, "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
 		}

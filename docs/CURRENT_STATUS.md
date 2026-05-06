@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV encoded-separator path hardening)
+Last updated: 2026-05-07 (updated after shared Drive range contract hardening)
 
 ## Current phase
 
@@ -68,6 +68,10 @@ Public Drive share-link token path values now preserve exact bearer-token
 semantics by rejecting URL-decoded surrounding whitespace, embedded whitespace,
 and non-printable ASCII before limiter or service dispatch instead of trimming
 tokens at the HTTP boundary.
+Public Drive shared-file downloads now have explicit invalid-range parity with
+authenticated Drive downloads: malformed or unsatisfiable single-range requests
+return HTTP 416 with `Content-Range: bytes */<size>`, avoid full/range object
+opens after stat, and record a bounded public-share audit result.
 Admin console capability OpenAPI security now explicitly documents both
 `X-Admin-Token` and bearer-token alternatives, with runtime coverage that the
 bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.

@@ -783,7 +783,13 @@ paths:
         "404":
           $ref: "#/components/responses/Error"
         "416":
-          $ref: "#/components/responses/Error"
+          description: Requested byte range is invalid or outside the shared Drive file size.
+          headers:
+            Content-Range:
+              description: Unsatisfied shared Drive file byte range with the known complete size.
+              schema:
+                type: string
+                pattern: "^bytes \\*/[0-9]+$"
         "429":
           $ref: "#/components/responses/Error"
         default:

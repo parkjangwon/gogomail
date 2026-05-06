@@ -777,6 +777,7 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 			}
 			byteRange, err := parseSingleHTTPByteRange(rangeHeader, metadata.Object.Size)
 			if err != nil {
+				recordDrivePublicShareAccess(r, opts, drivePublicShareAccessEvent("download", "invalid_range", http.StatusRequestedRangeNotSatisfiable, drive.ResolvedShareLink{ShareLink: metadata.ShareLink, Node: metadata.Node}, token, rangeHeader))
 				writeDriveRangeError(w, metadata.Object.Size, err.Error())
 				return
 			}

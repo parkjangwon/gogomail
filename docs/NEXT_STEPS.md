@@ -53,6 +53,10 @@ Current state:
 - Public Drive share-link routes now reject whitespace-normalized or
   non-printable path tokens before limiter/service dispatch, preserving exact
   bearer-token semantics for public metadata and download routes.
+- Public Drive shared download routes now reject malformed or unsatisfiable
+  byte ranges with HTTP 416 plus `Content-Range: bytes */<size>` before any
+  full/range object open, and OpenAPI pins that shared-download range error
+  contract for generated public clients.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API

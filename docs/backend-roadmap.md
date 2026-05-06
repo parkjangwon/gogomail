@@ -3586,6 +3586,9 @@ Implementation order:
 1334. CalDAV and CardDAV request paths and absolute REPORT hrefs now reject
       encoded path separators before URL decoding, preventing `%2F` or `%5C`
       from remapping principal, collection, or object boundaries.
+1335. Public Drive shared-file downloads now reject malformed or unsatisfiable
+      byte ranges with HTTP 416 and `Content-Range: bytes */<size>` before
+      object opens, while OpenAPI pins the shared-download range-error header.
 
 ## Deferred until backend contracts stabilize
 

@@ -328,6 +328,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   binary/header contract for `HEAD`, full-body `200`, and byte-range `206`
   responses, with drift coverage so generated clients can safely stream public
   shared files.
+- Drive public share-link byte-range errors now match authenticated download
+  semantics: malformed or unsatisfiable ranges return HTTP 416 with
+  `Content-Range: bytes */<size>`, skip full/range object opens after the stat
+  boundary, and emit a bounded `invalid_range` public-share audit result.
 - Drive public share-link metadata and download OpenAPI operations now opt out
   of global bearer auth, matching the unauthenticated runtime boundary for
   external recipients.

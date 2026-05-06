@@ -286,11 +286,15 @@ or development `user_id` fallback path as webmail mail routes:
   `X-Content-Type-Options: nosniff`, `Accept-Ranges: bytes`, optional
   `X-Gogomail-Drive-SHA256`) and the same single-range `Range:
   bytes=start-end` parser, while mapping view-only links to HTTP 403 and
-  missing/revoked/expired links to HTTP 404. OpenAPI documents the public
+  missing/revoked/expired links to HTTP 404. Malformed or unsatisfiable shared
+  byte ranges return HTTP 416 with `Content-Range: bytes */<size>` after a
+  metadata stat and before any full or ranged object open. OpenAPI documents
+  the public
   shared-download `HEAD`, full-body `200`, and byte-range `206` responses as
-  non-JSON binary/header contracts so generated Drive clients do not treat
-  shared file bytes as JSON envelopes, and marks those download operations as
-  unauthenticated to match the runtime public-share boundary.
+  non-JSON binary/header contracts, plus the shared-download `416`
+  `Content-Range` header, so generated Drive clients do not treat shared file
+  bytes or range errors as undocumented shapes. The download operations are
+  marked unauthenticated to match the runtime public-share boundary.
   Public share resolution and download endpoints can be protected with the
   optional `GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` fixed-window limiter.
   When enabled, anonymous requests are bucketed by normalized remote address and
