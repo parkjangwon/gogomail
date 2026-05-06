@@ -1411,6 +1411,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID STORE requires UID, mode, and flags\r\n")
 			return true, false, err
 		}
+		if message, ok := imapStoreArgumentsSyntaxError("UID STORE", fields[4:]); ok {
+			_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
+			return true, false, err
+		}
 	case "EXPUNGE":
 		if len(fields) != 4 {
 			_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires UID set\r\n")
@@ -5650,6 +5654,10 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		_, err := writer.WriteString(tag + " BAD STORE requires sequence set, mode, and flags\r\n")
 		return false, err
 	}
+	if message, ok := imapStoreArgumentsSyntaxError("STORE", fields[3:]); ok {
+		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
+		return false, err
+	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
@@ -5692,6 +5700,20 @@ func (s *Server) handleStore(writer *bufio.Writer, tag string, fields []string, 
 		return false, writeErr
 	}
 	return s.writeStoreResponses(writer, tag, state, uids, flags, mode, silent, unchangedSince, "STORE")
+}
+
+func imapStoreArgumentsSyntaxError(command string, fields []string) (string, bool) {
+	_, storeFields, ok := imapStoreUnchangedSince(fields)
+	if !ok || len(storeFields) < 2 {
+		return command + " UNCHANGEDSINCE modifier is invalid", true
+	}
+	if _, _, ok := imapStoreMode(storeFields[0]); !ok {
+		return command + " mode is unsupported", true
+	}
+	if _, _, ok := imapStoreFlagsWithNames(strings.Join(storeFields[1:], " ")); !ok {
+		return command + " flags are unsupported", true
+	}
+	return "", false
 }
 
 func (s *Server) writeStoreResponses(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, flags MessageFlags, mode StoreFlagsMode, silent bool, unchangedSince uint64, completionCommand string) (bool, error) {
