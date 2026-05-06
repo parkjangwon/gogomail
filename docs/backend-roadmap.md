@@ -2473,6 +2473,9 @@ Implementation order:
       content types or versions to the RFC 6352
       `CARDDAV:supported-address-data` precondition instead of a generic
       bad-request text error.
+1141. CardDAV `addressbook-query` now maps unsupported text-match collations to
+      the RFC 6352 `CARDDAV:supported-collation` precondition instead of a
+      generic bad-request parse failure.
 
 ## Deferred until backend contracts stabilize
 

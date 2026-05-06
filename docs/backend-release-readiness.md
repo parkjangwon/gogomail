@@ -393,6 +393,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Requested address-data content types and versions are validated against the
   advertised `text/vcard` 4.0 support and fail with the RFC 6352
   `CARDDAV:supported-address-data` precondition before handler execution.
+  Unsupported text-match collations now fail with the RFC 6352
+  `CARDDAV:supported-collation` precondition, while malformed collation syntax
+  remains a bad request.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
   `version="4.0"` attributes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
