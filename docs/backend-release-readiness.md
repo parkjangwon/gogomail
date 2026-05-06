@@ -841,6 +841,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` key decoding preserves provider-returned object
   key identity by rejecting keys that would require leading/trailing whitespace
   trimming before prefix/object-path validation.
+- S3-compatible `ListObjectsV2` pages reject provider responses that return
+  more matching objects than the requested bounded page size, keeping S3,
+  MinIO, and local/NFS pagination under the same storage contract.
 - Local/NFS-style storage deletes are idempotent for missing objects, aligning
   lifecycle cleanup behavior with S3-compatible object deletion.
 - S3-compatible storage requests reject canceled contexts before object-key

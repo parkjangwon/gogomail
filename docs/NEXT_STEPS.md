@@ -241,6 +241,9 @@ Current state:
   object keys before prefix/object-path validation, preventing distinct
   whitespace-bearing keys from being silently normalized into canonical
   gogomail object paths.
+- S3-compatible `ListObjectsV2` pages reject provider responses that return
+  more matching objects than the requested bounded page size, keeping S3,
+  MinIO, and local/NFS pagination under the same storage contract.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path
