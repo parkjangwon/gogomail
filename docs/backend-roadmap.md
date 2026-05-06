@@ -4031,6 +4031,9 @@ Implementation order:
 1442. S3-compatible `HEAD`/`Stat` metadata now rejects duplicate
       `Content-Type` headers before exposing MIME metadata, preventing preview
       or download handling from depending on first-header collapse.
+1443. IMAP `ENABLE` now has regression coverage for duplicate `CONDSTORE`
+      capability probes, keeping the untagged `ENABLED` response singular even
+      when clients retry the same capability atom with different casing.
 
 ## Deferred until backend contracts stabilize
 

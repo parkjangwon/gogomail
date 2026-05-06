@@ -518,6 +518,9 @@ Current state:
 - `ENABLE` preserves RFC 5161-compatible unknown capability handling:
   unsupported but syntactically valid capability names are ignored and can
   produce an empty `ENABLED` response when no requested capability is enabled.
+  Duplicate `CONDSTORE` capability probes are regression-covered so the
+  `ENABLED` response stays singular even when clients retry the same
+  capability atom with different casing.
 - Storage backend portability now has a shared contract test that exercises
   special but canonical object keys and the full object lifecycle across local
   storage and optional S3-compatible integration coverage; use it as the smoke

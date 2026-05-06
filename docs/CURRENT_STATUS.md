@@ -401,7 +401,9 @@ clients a deterministic close reason instead of a silent connection drop. IMAP
 mutation and rejects appends to the currently `EXAMINE`-selected read-only
 mailbox without calling the backend append path, while preserving
 syntax-before-state diagnostics for malformed appends and `[TRYCREATE]` for
-missing destinations. IMAP
+missing destinations. IMAP `ENABLE` now has regression coverage that duplicate
+`CONDSTORE` requests emit a single `ENABLED CONDSTORE` token, preserving
+RFC 5161 response stability for client capability retries. IMAP
 `FETCH` and `UID FETCH` now also treat RFC-valid empty `HEADER.FIELDS ()` and
 `HEADER.FIELDS.NOT ()` lists as real header-section requests, returning the
 blank header terminator for include-empty requests and the full header block
