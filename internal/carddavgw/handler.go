@@ -303,7 +303,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav object store is not configured", http.StatusNotImplemented)
 		return
 	}
-	contentTypeVersion, err := validateVCardPutContentType(r.Header.Get("Content-Type"))
+	contentTypeVersion, err := validateVCardPutContentTypeHeader(r.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
@@ -1404,6 +1404,17 @@ func validateVCardPutContentType(value string) (string, error) {
 		return "", fmt.Errorf("contact object content type version must be 3.0 or 4.0")
 	}
 	return version, nil
+}
+
+func validateVCardPutContentTypeHeader(header http.Header) (string, error) {
+	values := header.Values("Content-Type")
+	if len(values) > 1 {
+		return "", fmt.Errorf("contact object content type must be specified at most once")
+	}
+	if len(values) == 0 {
+		return "", nil
+	}
+	return validateVCardPutContentType(values[0])
 }
 
 func readBoundedContactObjectBody(r io.Reader) ([]byte, error) {

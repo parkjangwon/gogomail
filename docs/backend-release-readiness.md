@@ -212,9 +212,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   RFC 4791-forbidden stored `METHOD` properties, invalid `VEVENT`/`VTODO`
   duration/end property combinations, and duplicated singleton time/status
   properties on supported calendar components.
-- CalDAV object `PUT` rejects non-`text/calendar` media types and non-`2.0`
-  `text/calendar` version parameters before parsing `.ics` bodies, keeping the
-  HTTP media contract aligned with advertised supported-calendar-data.
+- CalDAV object `PUT` rejects non-`text/calendar` media types, non-`2.0`
+  `text/calendar` version parameters, and repeated `Content-Type` headers
+  before parsing `.ics` bodies, keeping the HTTP media contract aligned with
+  advertised supported-calendar-data.
 - CalDAV REPORT `calendar-data` parsing rejects unsupported `content-type` and
   non-`2.0` `version` attributes before projection work, so clients cannot ask
   for unadvertised calendar media variants and receive misleading data.
@@ -543,7 +544,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bounded vCard 4.0 and common vCard 3.0 checks for BEGIN/END structure,
   VERSION, UID, FN, folded lines, line/body caps, and nested VCARD rejection.
   Content-line parsing preserves quoted parameter values containing colons
-  before the unquoted value separator. Contact-object repository
+  before the unquoted value separator. Contact-object `PUT` rejects repeated
+  `Content-Type` headers before vCard media parsing. Contact-object repository
   methods can upsert/list/get/delete `.vcf` resources with active address-book
   scope, UID alignment, strong ETags, optional observed-ETag guards, sync-token
   refreshes, and durable change rows. REPORT parsing recognizes bounded

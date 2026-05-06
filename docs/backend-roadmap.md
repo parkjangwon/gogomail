@@ -2977,6 +2977,9 @@ Implementation order:
       `content-type` and non-`2.0` `version` attributes, keeping multiget,
       query, and sync projection requests aligned with advertised calendar-data
       support instead of silently serving an unadvertised media variant.
+1213. CalDAV and CardDAV object `PUT` handlers now reject repeated
+      `Content-Type` headers before media parsing, preventing ambiguous
+      calendar/contact body interpretation at the DAV object write boundary.
 
 ## Deferred until backend contracts stabilize
 
