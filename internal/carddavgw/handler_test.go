@@ -43,6 +43,10 @@ type trackingCardDAVObjectStore struct {
 	lastBook   DeleteAddressBookRequest
 }
 
+type noSyncCardDAVDiscoveryStore struct {
+	store fakeCardDAVDiscoveryStore
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
 	if userID != s.principal.UserID {
 		return Principal{}, errFakeCardDAVNotFound
@@ -141,6 +145,26 @@ func (s fakeCardDAVDiscoveryStore) ListAddressBookChangesSince(_ context.Context
 		changes = changes[:req.Limit]
 	}
 	return changes, nil
+}
+
+func (s noSyncCardDAVDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
+	return s.store.LookupPrincipal(ctx, userID)
+}
+
+func (s noSyncCardDAVDiscoveryStore) ListAddressBookCollections(ctx context.Context, userID string) ([]AddressBook, error) {
+	return s.store.ListAddressBookCollections(ctx, userID)
+}
+
+func (s noSyncCardDAVDiscoveryStore) LookupAddressBook(ctx context.Context, userID string, addressBookID string) (AddressBook, error) {
+	return s.store.LookupAddressBook(ctx, userID, addressBookID)
+}
+
+func (s noSyncCardDAVDiscoveryStore) ListAddressBookObjects(ctx context.Context, userID string, addressBookID string) ([]ContactObject, error) {
+	return s.store.ListAddressBookObjects(ctx, userID, addressBookID)
+}
+
+func (s noSyncCardDAVDiscoveryStore) LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error) {
+	return s.store.LookupContactObject(ctx, userID, addressBookID, objectName)
 }
 
 func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Context, req UpdateAddressBookRequest) (AddressBook, error) {
@@ -296,6 +320,22 @@ func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 		if !strings.Contains(rec.Header().Get("DAV"), want) {
 			t.Fatalf("DAV = %q, missing %q", rec.Header().Get("DAV"), want)
 		}
+	}
+}
+
+func TestHandlerOptionsDoesNotAdvertiseSyncCollectionWithoutSyncStore(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	store := noSyncCardDAVDiscoveryStore{store: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, httptest.NewRequest(MethodOptions, RootPath+"/", nil))
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("DAV"); strings.Contains(got, DAVSyncCollection) {
+		t.Fatalf("DAV = %q, should not advertise %q without SyncChangeStore", got, DAVSyncCollection)
 	}
 }
 

@@ -118,8 +118,11 @@ func Standards() []string {
 	}
 }
 
-func AdvertisedDAVTokens(includeScheduling bool) []string {
-	tokens := []string{DAVClass1, DAVClass3, DAVCalendarAccess, DAVSyncCollection}
+func AdvertisedDAVTokens(includeScheduling bool, includeSync bool) []string {
+	tokens := []string{DAVClass1, DAVClass3, DAVCalendarAccess}
+	if includeSync {
+		tokens = append(tokens, DAVSyncCollection)
+	}
 	if includeScheduling {
 		tokens = append(tokens, DAVCalendarSchedule)
 	}

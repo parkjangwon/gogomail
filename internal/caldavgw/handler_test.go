@@ -36,6 +36,22 @@ func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	}
 }
 
+func TestHandlerOptionsDoesNotAdvertiseSyncCollectionWithoutSyncStore(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(&noSyncCalendarDiscoveryStore{store: *newFakeDiscoveryStore()}, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodOptions, "/caldav/principals/user-1/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if got := rec.Header().Get("DAV"); strings.Contains(got, DAVSyncCollection) {
+		t.Fatalf("DAV header = %q, should not advertise %q without SyncChangeStore", got, DAVSyncCollection)
+	}
+}
+
 func TestHandlerOptionsAdvertisesOnlyImplementedMethods(t *testing.T) {
 	t.Parallel()
 
@@ -2436,6 +2452,30 @@ type fakeDiscoveryStore struct {
 	changes    []CalendarChange
 	lastUpsert UpsertObjectRequest
 	lastDelete DeleteObjectRequest
+}
+
+type noSyncCalendarDiscoveryStore struct {
+	store fakeDiscoveryStore
+}
+
+func (s *noSyncCalendarDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
+	return s.store.LookupPrincipal(ctx, userID)
+}
+
+func (s *noSyncCalendarDiscoveryStore) ListCalendarCollections(ctx context.Context, userID string) ([]Calendar, error) {
+	return s.store.ListCalendarCollections(ctx, userID)
+}
+
+func (s *noSyncCalendarDiscoveryStore) LookupCalendar(ctx context.Context, userID string, calendarID string) (Calendar, error) {
+	return s.store.LookupCalendar(ctx, userID, calendarID)
+}
+
+func (s *noSyncCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
+	return s.store.ListCalendarObjects(ctx, userID, calendarID)
+}
+
+func (s *noSyncCalendarDiscoveryStore) LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
+	return s.store.LookupCalendarObject(ctx, userID, calendarID, objectName)
 }
 
 type fakeCalendarAccessAuthorizer struct {

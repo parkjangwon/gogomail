@@ -121,11 +121,11 @@ func TestBuildCalDAVPaths(t *testing.T) {
 func TestAdvertisedDAVTokens(t *testing.T) {
 	t.Parallel()
 
-	withoutScheduling := AdvertisedDAVTokens(false)
-	if strings.Join(withoutScheduling, ",") != "1,3,calendar-access,sync-collection" {
-		t.Fatalf("DAV tokens without scheduling = %v", withoutScheduling)
+	withoutSync := AdvertisedDAVTokens(false, false)
+	if strings.Join(withoutSync, ",") != "1,3,calendar-access" {
+		t.Fatalf("DAV tokens without sync = %v", withoutSync)
 	}
-	withScheduling := AdvertisedDAVTokens(true)
+	withScheduling := AdvertisedDAVTokens(true, true)
 	if got := withScheduling[len(withScheduling)-1]; got != DAVCalendarSchedule {
 		t.Fatalf("last scheduling token = %q, want %q", got, DAVCalendarSchedule)
 	}
