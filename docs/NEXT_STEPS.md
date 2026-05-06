@@ -1507,7 +1507,8 @@ Current state:
 - CalDAV now records durable sync-change rows for calendar creation and object
   upsert/delete paths, allowing `REPORT sync-collection` to answer
   stale-but-known tokens with object updates and response-level 404 tombstones
-  instead of always forcing a full resync.
+  instead of always forcing a full resync. Collection-deleted tokens can now
+  return a final top-level sync token even after the calendar row is gone.
 - CalDAV now supports RFC 6764-style service discovery: `/.well-known/caldav`
   redirects to `/caldav/`, and authenticated root `PROPFIND` exposes principal
   and calendar-home discovery properties.

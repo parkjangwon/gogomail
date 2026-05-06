@@ -612,25 +612,32 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 		h.serveFreeBusyReport(w, r, userID, resource, report, depth)
 		return
 	}
-	responses, err := h.reportResponses(r.Context(), userID, resource, report)
-	if err != nil {
-		var invalidSyncToken InvalidSyncTokenError
-		if errors.As(err, &invalidSyncToken) {
-			writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
-			return
-		}
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	var body []byte
+	var responses []MultiStatusResponse
 	if report.Kind == ReportSyncCollection {
-		calendar, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID)
+		var syncToken string
+		responses, syncToken, err = h.syncCollectionReport(r.Context(), userID, resource, report)
 		if err != nil {
+			var invalidSyncToken InvalidSyncTokenError
+			if errors.As(err, &invalidSyncToken) {
+				writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
+				return
+			}
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		body, err = BuildSyncCollectionXML(responses, calendar.SyncToken)
+		body, err = BuildSyncCollectionXML(responses, syncToken)
 	} else {
+		responses, err = h.reportResponses(r.Context(), userID, resource, report)
+		if err != nil {
+			var invalidSyncToken InvalidSyncTokenError
+			if errors.As(err, &invalidSyncToken) {
+				writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
+				return
+			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		body, err = BuildMultiStatusXML(responses)
 	}
 	if err != nil {
@@ -865,10 +872,8 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		}
 		return h.calendarQueryResponses(ctx, userID, resource, report)
 	case ReportSyncCollection:
-		if resource.Kind != ResourceCalendarCollection {
-			return nil, fmt.Errorf("sync-collection requires a calendar collection resource")
-		}
-		return h.syncCollectionResponses(ctx, userID, resource, report)
+		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report)
+		return responses, err
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
@@ -985,47 +990,53 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 	return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, periods)
 }
 
-func (h *Handler) syncCollectionResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
+	if resource.Kind != ResourceCalendarCollection {
+		return nil, "", fmt.Errorf("sync-collection requires a calendar collection resource")
+	}
 	calendar, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID)
 	if err != nil {
-		return nil, err
+		if report.SyncToken == "" {
+			return nil, "", err
+		}
+		return h.syncChangeResponses(ctx, userID, resource, report)
 	}
 	if report.SyncToken != "" {
 		if report.SyncToken != calendar.SyncToken {
 			return h.syncChangeResponses(ctx, userID, resource, report)
 		}
-		return nil, nil
+		return nil, calendar.SyncToken, nil
 	}
 	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if report.Limit > 0 && report.Limit < len(objects) {
-		return nil, fmt.Errorf("sync-collection limit would truncate results")
+		return nil, "", fmt.Errorf("sync-collection limit would truncate results")
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
 		props, err := CalendarObjectProperties(userID, object)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
 			props = append(props, CalendarObjectDataProperty(object.ICS))
 		}
 		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
-	return responses, nil
+	return responses, calendar.SyncToken, nil
 }
 
-func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, error) {
+func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest) ([]MultiStatusResponse, string, error) {
 	store, ok := h.Store.(SyncChangeStore)
 	if !ok {
-		return nil, InvalidSyncTokenError{Token: report.SyncToken}
+		return nil, "", InvalidSyncTokenError{Token: report.SyncToken}
 	}
 	limit := report.Limit
 	if limit <= 0 {
@@ -1038,20 +1049,24 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		Limit:      limit,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if report.Limit > 0 && len(changes) == report.Limit {
-		return nil, fmt.Errorf("sync-collection limit may truncate change results")
+		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
 	}
+	syncToken := report.SyncToken
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(changes))
 	for _, change := range changes {
+		if strings.TrimSpace(change.SyncToken) != "" {
+			syncToken = strings.TrimSpace(change.SyncToken)
+		}
 		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
 			continue
 		}
 		href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if change.Action == "object-deleted" {
 			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
@@ -1064,14 +1079,14 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		}
 		props, err := CalendarObjectProperties(userID, object)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if containsXMLName(report.Properties, PropCalendarData) {
 			props = append(props, CalendarObjectDataProperty(object.ICS))
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
-	return responses, nil
+	return responses, syncToken, nil
 }
 
 func notFoundResponse(href string, properties []XMLName) MultiStatusResponse {

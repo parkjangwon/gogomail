@@ -552,6 +552,41 @@ func TestHandlerReportSyncCollectionReturnsDeletedObjectTombstone(t *testing.T) 
 	}
 }
 
+func TestHandlerReportSyncCollectionReturnsDeletedCollectionToken(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars = nil
+	store.objects = nil
+	store.changes = append(store.changes, CalendarChange{
+		ID:         int64(len(store.changes) + 1),
+		UserID:     "user-1",
+		CalendarID: "work",
+		Action:     "collection-deleted",
+		SyncToken:  "sync-deleted",
+		ChangedAt:  time.Date(2026, 5, 6, 10, 11, 12, 0, time.UTC),
+	})
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "<D:response>") {
+		t.Fatalf("deleted collection sync should not return object responses:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:sync-token>sync-deleted</D:sync-token>") {
+		t.Fatalf("deleted collection sync token missing:\n%s", body)
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
 	t.Parallel()
 
