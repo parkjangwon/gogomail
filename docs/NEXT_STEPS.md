@@ -876,7 +876,10 @@ Current state:
 - Production `s3` configs now require an explicit
   `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so operators
   can audit the object-store target directly while development/test configs can
-  still derive AWS endpoints from region.
+  still derive AWS endpoints from region. In production, the `s3` endpoint must
+  use HTTPS, preserving transport integrity for streaming SigV4
+  `UNSIGNED-PAYLOAD` requests while leaving local HTTP MinIO development on the
+  explicit `minio` backend.
 - S3-compatible runtime wiring now supports private object-store TLS trust via
   `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, validates that the file contains a PEM
   certificate, and injects a dedicated TLS 1.2+ HTTP client into the existing

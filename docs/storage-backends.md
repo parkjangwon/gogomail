@@ -263,7 +263,11 @@ Production `s3` deployments must set `GOGOMAIL_STORAGE_S3_ENDPOINT`
 explicitly, even when using AWS S3, so release configs clearly show which
 object-storage endpoint will receive mail, Drive, attachment, and export
 objects. Development and test configs may omit it; the adapter derives the
-standard AWS regional endpoint from `GOGOMAIL_STORAGE_S3_REGION`.
+standard AWS regional endpoint from `GOGOMAIL_STORAGE_S3_REGION`. Production
+`s3` endpoints must use HTTPS. This keeps streaming SigV4
+`UNSIGNED-PAYLOAD` requests behind transport integrity for AWS/S3-compatible
+object stores; local HTTP MinIO remains available through the explicit
+`minio` backend and development profile.
 
 Set `GOGOMAIL_STORAGE_S3_ENDPOINT` for non-AWS compatible services as well.
 Endpoints must be plain HTTP(S) origins with an optional canonical base path;

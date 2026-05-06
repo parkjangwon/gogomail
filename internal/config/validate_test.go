@@ -214,6 +214,24 @@ func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsProductionS3HTTPEndpoint(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "http://localhost:9000"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail-prod"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_STORAGE_S3_ENDPOINT must use https in production") {
+		t.Fatalf("Validate() error = %v, want production S3 HTTPS endpoint rejection", err)
+	}
+}
+
 func TestValidateRejectsProductionS3InsecureSkipVerify(t *testing.T) {
 	cfg := Load()
 	cfg.Environment = "production"

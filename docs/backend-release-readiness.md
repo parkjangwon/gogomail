@@ -345,7 +345,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible runtime configuration now supports private MinIO/S3 TLS trust
   through `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, with PEM validation and a
   dedicated TLS 1.2+ HTTP client, while rejecting
-  `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production.
+  `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production. Production
+  `s3` storage endpoints must also use HTTPS, so streaming
+  `UNSIGNED-PAYLOAD` requests rely on TLS transport integrity for AWS/S3-style
+  object stores; local HTTP MinIO remains an explicit non-production backend.
 - Optional S3-compatible integration tests can use
   `GOGOMAIL_TEST_S3_CA_CERT_FILE` and
   `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, so release smoke tests can exercise
