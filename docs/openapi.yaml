@@ -596,6 +596,8 @@ paths:
           $ref: "#/components/responses/DriveSharedFile"
         "404":
           $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     delete:
@@ -628,6 +630,8 @@ paths:
           $ref: "#/components/responses/Error"
         "404":
           $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
     get:
@@ -657,6 +661,8 @@ paths:
         "404":
           $ref: "#/components/responses/Error"
         "416":
+          $ref: "#/components/responses/Error"
+        "429":
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"

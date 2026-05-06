@@ -1452,6 +1452,11 @@ Current state:
   node state is rejected, metadata responses omit storage internals, and
   `download`-permission links reuse the Drive no-store, checksum, HEAD, and
   single-range download contract.
+- Drive public share-link abuse controls now have a configurable Redis
+  fixed-window limiter for anonymous metadata/download routes. The limiter
+  buckets normalized remote address plus token, returns 429/`Retry-After` when
+  the per-minute quota is exhausted, and keeps limiter runtime errors fail-open
+  so storage availability does not become a hidden public-download dependency.
 - CalDAV module work has started: ADR 0010 records the standards-first gateway
   boundary, `gogomail --mode=caldav` is a runtime scaffold, and
   `internal/caldavgw` owns RFC/WebDAV method tokens plus principal, calendar
@@ -1741,10 +1746,9 @@ Next:
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
-- Add Drive share-link abuse controls before broad public rollout: bounded
-  anonymous rate limiting, optional audit/event hooks, admin visibility into
-  public-link download activity, and configurable tenant policy for whether
-  `view` links can preview content beyond metadata.
+- Add Drive share-link audit/event hooks, admin visibility into public-link
+  download activity, and configurable tenant policy for whether `view` links
+  can preview content beyond metadata before broad public rollout.
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
 - Keep scheduled API usage retention dry-run in pre-production until production

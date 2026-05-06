@@ -2568,6 +2568,11 @@ Implementation order:
       storage backend/path details out of metadata responses, and reuse the
       no-store, checksum, HEAD, and single-range download contract for
       `download`-permission links.
+1164. Drive public share endpoints now have a configurable Redis-backed
+      fixed-window abuse-control boundary for anonymous metadata/download
+      traffic, bucketed by normalized remote address plus share token, returning
+      HTTP 429 with `Retry-After` on quota exhaustion while failing open on
+      transient limiter errors after startup.
 
 ## Deferred until backend contracts stabilize
 

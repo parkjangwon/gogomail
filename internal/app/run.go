@@ -1666,8 +1666,20 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 				return err
 			}
 		}
+		driveRouteOptions := httpapi.DriveRouteOptions{}
+		if strings.EqualFold(strings.TrimSpace(cfg.DriveShareRateLimitBackend), "redis") {
+			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				_ = redisClient.Close()
+				return err
+			}
+			defer redisClient.Close()
+			readinessChecks = append(readinessChecks, redisReadinessCheck("drive_share_rate_limit_redis", redisClient))
+			driveRouteOptions.PublicShareLimiter = ratelimit.NewRedisFixedWindowLimiter(redisClient, "drive_share_public", int64(cfg.DriveShareRateLimitPerMinute), time.Minute)
+			logger.Info("drive public share rate limiting enabled", "backend", "redis", "per_minute", cfg.DriveShareRateLimitPerMinute)
+		}
 		httpapi.RegisterMailRoutes(mux, service, tokenManager)
-		httpapi.RegisterDriveRoutes(mux, driveServiceForConfig(db, cfg, store), tokenManager)
+		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		logger.Info("mail api routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {

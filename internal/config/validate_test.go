@@ -272,6 +272,7 @@ func TestValidateRejectsUnknownRedisFeatureBackends(t *testing.T) {
 	}{
 		{name: "dedup", mutate: func(cfg *Config) { cfg.DedupBackend = "redsi" }},
 		{name: "rate limit", mutate: func(cfg *Config) { cfg.RateLimitBackend = "redsi" }},
+		{name: "drive share rate limit", mutate: func(cfg *Config) { cfg.DriveShareRateLimitBackend = "redsi" }},
 		{name: "backpressure", mutate: func(cfg *Config) { cfg.BackpressureBackend = "redsi" }},
 	}
 	for _, tt := range tests {
@@ -292,6 +293,7 @@ func TestValidateRejectsNonpositiveRelayOperationalLimits(t *testing.T) {
 		mutate func(*Config)
 	}{
 		{name: "rcpt rate limit", mutate: func(cfg *Config) { cfg.RcptRateLimitPerMinute = 0 }},
+		{name: "drive share rate limit", mutate: func(cfg *Config) { cfg.DriveShareRateLimitPerMinute = 0 }},
 		{name: "outbox batch size", mutate: func(cfg *Config) { cfg.OutboxRelayBatchSize = 0 }},
 		{name: "outbox poll interval", mutate: func(cfg *Config) { cfg.OutboxRelayPollInterval = -time.Second }},
 		{name: "outbox max attempts", mutate: func(cfg *Config) { cfg.OutboxRelayMaxAttempts = 0 }},

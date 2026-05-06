@@ -12,6 +12,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
+	"github.com/gogomail/gogomail/internal/ratelimit"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -46,7 +47,19 @@ type DriveService interface {
 	PermanentDeleteNode(ctx context.Context, req drive.PermanentDeleteNodeRequest) (drive.PermanentDeleteServiceResult, error)
 }
 
+type DriveRouteOptions struct {
+	PublicShareLimiter DrivePublicShareLimiter
+}
+
+type DrivePublicShareLimiter interface {
+	Allow(ctx context.Context, key string) (ratelimit.Decision, error)
+}
+
 func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager *auth.TokenManager) {
+	RegisterDriveRoutesWithOptions(mux, service, tokenManager, DriveRouteOptions{})
+}
+
+func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, tokenManager *auth.TokenManager, opts DriveRouteOptions) {
 	mux.HandleFunc("GET /api/v1/drive/nodes", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
@@ -701,6 +714,9 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		if !ok {
 			return
 		}
+		if !allowDrivePublicShareRequest(w, r, opts, token) {
+			return
+		}
 		resolved, err := service.ResolveShareLink(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 		if err != nil {
 			writeDriveShareLinkError(w, err)
@@ -718,6 +734,9 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		token, ok := parseDriveShareTokenPathValue(w, r)
 		if !ok {
+			return
+		}
+		if !allowDrivePublicShareRequest(w, r, opts, token) {
 			return
 		}
 		rangeHeader, ok := singleHTTPHeaderValue(w, r, "Range", maxHTTPAuthHeaderBytes)
@@ -771,6 +790,9 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		if !ok {
 			return
 		}
+		if !allowDrivePublicShareRequest(w, r, opts, token) {
+			return
+		}
 		metadata, err := service.StatSharedFile(r.Context(), drive.ResolveShareLinkRequest{Token: token})
 		if err != nil {
 			writeDriveShareLinkError(w, err)
@@ -821,6 +843,27 @@ func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager 
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"drive_delete": result})
 	})
+}
+
+func allowDrivePublicShareRequest(w http.ResponseWriter, r *http.Request, opts DriveRouteOptions, token string) bool {
+	if opts.PublicShareLimiter == nil {
+		return true
+	}
+	key := "remote=" + ratelimit.RemoteBucket(r.RemoteAddr) + " token=" + token
+	decision, err := opts.PublicShareLimiter.Allow(r.Context(), key)
+	if err != nil {
+		return true
+	}
+	if decision.Allowed {
+		return true
+	}
+	retryAfter := int((decision.RetryAfter + time.Second - time.Nanosecond) / time.Second)
+	if retryAfter <= 0 {
+		retryAfter = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	writeError(w, http.StatusTooManyRequests, "drive share link rate limit exceeded")
+	return false
 }
 
 type driveSharedFileMetadataResponse struct {
