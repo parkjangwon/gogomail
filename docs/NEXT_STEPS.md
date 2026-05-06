@@ -52,6 +52,10 @@ Current state:
   object ETag into repository mutation guards even for successful
   `If-Match: *` existing-resource preconditions, reducing stale mutation races
   while preserving WebDAV existence semantics.
+- CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
+  non-existent resources before reading request bodies, keeping timestamp
+  preconditions fail-closed for native DAV clients that intended to update an
+  existing `.ics` or `.vcf` representation.
 - Drive JSON mutation handlers now have regression coverage for required
   `application/json` content type, unknown-field rejection, and trailing-token
   rejection before service dispatch.

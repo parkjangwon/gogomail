@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP APPEND event-order hardening)
+Last updated: 2026-05-07 (updated after DAV If-Unmodified-Since missing-object hardening)
 
 ## Current phase
 
@@ -57,6 +57,10 @@ CalDAV and CardDAV object `PUT`/`DELETE` now carry the currently observed
 strong object ETag into repository mutation guards even when `If-Match: *`
 matches an existing resource, so existence-only DAV preconditions still
 recheck the exact object observed by the handler before durable mutation.
+CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
+missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
+state-changing WebDAV timestamp preconditions cannot accidentally create new
+resources when the client intended to guard an existing representation.
 Admin storage capability support flags are now derived from normalized active
 backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
 AWS/S3-compatible deployments advertise only the storage-label families they can

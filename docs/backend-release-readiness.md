@@ -598,6 +598,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV calendar object `PUT` and `DELETE` now honor `If-Unmodified-Since`
   against stored object update time before reading request bodies or mutating
   the repository, returning HTTP 412 for stale timestamp guards.
+- CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for missing
+  objects before reading request bodies, preserving fail-closed WebDAV
+  conditional semantics when clients try to guard updates to an existing
+  `.ics` or `.vcf` representation.
 - S3-compatible `GetRange` now returns a reader bounded to the validated
   requested byte length even if a compatible provider sends an oversized
   `206 Partial Content` body, aligning remote range reads with local/NFS

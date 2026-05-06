@@ -3704,6 +3704,10 @@ Implementation order:
       mutation responses, preserving command-order visibility for pending
       FLAGS/EXISTS/EXPUNGE updates and preventing them from being delayed until
       a later `NOOP` or selected mailbox command.
+1363. CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` for
+      missing objects with HTTP 412 before reading request bodies, keeping
+      WebDAV timestamp preconditions fail-closed when native clients intended
+      to update an existing `.ics` or `.vcf` representation.
 
 ## Deferred until backend contracts stabilize
 

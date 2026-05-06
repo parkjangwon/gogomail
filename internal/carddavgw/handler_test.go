@@ -628,6 +628,32 @@ func TestHandlerPutContactObjectRejectsRepeatedIfUnmodifiedSince(t *testing.T) {
 	}
 }
 
+func TestHandlerPutContactObjectRejectsIfUnmodifiedSinceForMissingObjectBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := &readTrackingReader{data: "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:new-contact\r\nFN:New Contact\r\nEND:VCARD\r\n"}
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/new-contact.vcf", body)
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if store.lastUpsert.ObjectName != "" {
+		t.Fatalf("unexpected upsert for missing-object precondition: %+v", store.lastUpsert)
+	}
+	if _, err := store.LookupContactObject(t.Context(), "user-1", "personal", "new-contact.vcf"); err == nil {
+		t.Fatal("missing contact object was created despite failed If-Unmodified-Since precondition")
+	}
+}
+
 func TestHandlerPutContactObjectRejectsDuplicateUID(t *testing.T) {
 	t.Parallel()
 
