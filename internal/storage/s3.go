@@ -601,7 +601,6 @@ func parseS3NonNegativeDecimal(value string) (int64, bool) {
 }
 
 func parseS3ListObjectSize(value string) (int64, bool) {
-	value = strings.TrimSpace(value)
 	return parseS3NonNegativeDecimal(value)
 }
 

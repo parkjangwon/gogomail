@@ -75,7 +75,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   the unsigned decimal parser, rejecting signed values such as
   `bytes +1-3/5` or `bytes 1-3/+5`.
 - S3-compatible `ListObjectsV2` object-size parsing now also requires unsigned
-  decimal digits, rejecting signed `<Size>` values such as `+5`.
+  decimal digits, rejecting signed or whitespace-padded `<Size>` values such
+  as `+5` or ` 5 `.
 - S3-compatible `ListObjectsV2` object entries now reject missing or blank
   `<Key>` elements before prefix mapping and cleanup scans.
 - S3-compatible `ListObjectsV2` pagination control now requires an explicit
