@@ -210,8 +210,8 @@ func ValidateVCardObject(vcard []byte) (VCardMetadata, error) {
 			}
 		}
 	}
-	if meta.Version != "4.0" {
-		return VCardMetadata{}, fmt.Errorf("vcard VERSION must be 4.0")
+	if meta.Version != "3.0" && meta.Version != "4.0" {
+		return VCardMetadata{}, fmt.Errorf("vcard VERSION must be 3.0 or 4.0")
 	}
 	if meta.UID == "" {
 		return VCardMetadata{}, fmt.Errorf("vcard UID is required")

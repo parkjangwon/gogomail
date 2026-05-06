@@ -23,7 +23,7 @@ slices own RFC names, DAV capability tokens, principal paths, address-book home
 paths, address-book collection paths, `.vcf` contact-object resource paths,
 safe relative/absolute href parsing, address-book metadata validation, contact
 object name/UID/ETag/size validation, sync-token derivation, and bounded
-vCard 4.0 semantic validation.
+vCard 3.0/4.0 semantic validation.
 
 PostgreSQL storage tables hold address books, contact objects, and
 address-book change logs. The first repository methods create/list/get
@@ -66,7 +66,7 @@ Sync execution can return
 full snapshots or bounded change rows since a stored sync token. REPORT
 `address-data` can project returned vCards to requested property names while
 preserving structural BEGIN/VERSION/END lines, and requested address-data
-content types/versions are validated against the advertised `text/vcard` 4.0
+content types/versions are validated against advertised `text/vcard` 4.0/3.0
 support with the RFC 6352 `CARDDAV:supported-address-data` precondition before
 handler execution. Unsupported text-match collations are likewise surfaced as
 the RFC 6352 `CARDDAV:supported-collation` precondition while malformed
@@ -76,7 +76,8 @@ collation syntax remains a bad request. Address-book collections advertise RFC
 collations. Capability properties that should not appear in a bare `allprop`
 response remain available through explicit `prop`, `include`, and `propname`
 discovery. Returned address-data elements carry explicit
-`content-type="text/vcard"` and `version="4.0"` attributes. Addressbook query
+`content-type="text/vcard"` plus a `version` attribute matching the stored
+vCard body. Addressbook query
 execution honors bounded `limit/nresults` values before rendering multistatus
 responses, and repository-backed execution can stream contact objects through a
 walker boundary so filtering can stop once the response cap is satisfied.

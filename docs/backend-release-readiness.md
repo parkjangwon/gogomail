@@ -531,8 +531,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   now exist for address books, contact objects, and address-book change logs.
   Address-book repository methods can create/list/get active collections while
   recording creation changes transactionally. vCard validation now performs
-  bounded vCard 4.0 checks for BEGIN/END structure, VERSION, UID, FN, folded
-  lines, line/body caps, and nested VCARD rejection. Contact-object repository
+  bounded vCard 4.0 and common vCard 3.0 checks for BEGIN/END structure,
+  VERSION, UID, FN, folded lines, line/body caps, and nested VCARD rejection.
+  Contact-object repository
   methods can upsert/list/get/delete `.vcf` resources with active address-book
   scope, UID alignment, strong ETags, optional observed-ETag guards, sync-token
   refreshes, and durable change rows. REPORT parsing recognizes bounded
@@ -568,7 +569,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
   Requested address-data content types and versions are validated against the
-  advertised `text/vcard` 4.0 support and fail with the RFC 6352
+  advertised `text/vcard` 4.0/3.0 support and fail with the RFC 6352
   `CARDDAV:supported-address-data` precondition before handler execution.
   Unsupported text-match collations now fail with the RFC 6352
   `CARDDAV:supported-collation` precondition, while malformed collation syntax
@@ -579,7 +580,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   response remain available through explicit `prop`, `include`, and `propname`
   discovery.
   Returned `address-data` also carries explicit `content-type="text/vcard"` and
-  `version="4.0"` attributes.
+  a `version` attribute matching the stored vCard body.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.
   Repository-backed query execution can stream contact objects and stop once the
   response cap is satisfied instead of materializing the whole address book.

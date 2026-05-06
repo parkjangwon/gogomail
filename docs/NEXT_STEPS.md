@@ -1888,7 +1888,7 @@ Next:
   audit decisions.
 - Continue Contacts/CardDAV as a standards-first module: the current
   `internal/carddavgw` path/href, storage metadata, address-book/contact
-  repository, bounded vCard 4.0 semantic validation, REPORT parsing,
+  repository, bounded vCard 3.0/4.0 semantic validation, REPORT parsing,
   multistatus rendering, and internal `OPTIONS`/`PROPFIND` discovery handler
   now includes internal `addressbook-query`, `addressbook-multiget`, and
   `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
@@ -1914,7 +1914,8 @@ Next:
   `i;ascii-casemap` and `i;unicode-casemap` matching. Capability properties
   that are not allprop-friendly remain available through explicit `prop`,
   `include`, and `propname`; returned
-  address-data also carries explicit `text/vcard` 4.0 attributes.
+  address-data also carries explicit `text/vcard` attributes matching the
+  stored vCard version.
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

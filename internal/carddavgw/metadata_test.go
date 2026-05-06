@@ -100,6 +100,18 @@ func TestValidateVCardObject(t *testing.T) {
 	}
 }
 
+func TestValidateVCardObjectAcceptsVCard30(t *testing.T) {
+	t.Parallel()
+
+	meta, err := ValidateVCardObject([]byte("BEGIN:VCARD\r\nVERSION:3.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"))
+	if err != nil {
+		t.Fatalf("ValidateVCardObject returned error: %v", err)
+	}
+	if meta.UID != "contact-1" || meta.Version != "3.0" || meta.FN != "Contact One" {
+		t.Fatalf("metadata = %+v", meta)
+	}
+}
+
 func TestValidateVCardObjectAcceptsFoldedFN(t *testing.T) {
 	t.Parallel()
 
@@ -118,7 +130,7 @@ func TestValidateVCardObjectRejectsMalformedCards(t *testing.T) {
 	tests := []string{
 		"",
 		"VERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
-		"BEGIN:VCARD\r\nVERSION:3.0\r\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\r\nVERSION:2.1\r\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Contact\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:bad\nuid\r\nFN:Contact\r\nEND:VCARD\r\n",

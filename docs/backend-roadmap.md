@@ -2432,10 +2432,10 @@ Implementation order:
       unrequested contact properties.
 1114. CardDAV REPORT `address-data` parsing now validates requested
       `content-type` and `version` attributes against the advertised supported
-      `text/vcard` 4.0 data type, rejecting unsupported formats before handler
+      `text/vcard` data types, rejecting unsupported formats before handler
       execution.
 1115. CardDAV REPORT `address-data` responses now emit explicit
-      `content-type="text/vcard"` and `version="4.0"` attributes, keeping
+      `content-type="text/vcard"` and `version` attributes, keeping
       returned contact data aligned with the advertised supported address-data
       type.
 1116. CardDAV `addressbook-query` execution now honors bounded
@@ -2915,6 +2915,13 @@ Implementation order:
       responses before credential splitting or backend authentication, keeping
       continuation and `SASL-IR` literal initial-response paths allocation-aware
       under the same username/password credential caps.
+1199. CardDAV contact-object validation now accepts bounded vCard 3.0 and 4.0
+      bodies, address-book discovery advertises both `text/vcard` versions, and
+      returned `address-data` carries the stored vCard body version instead of
+      assuming 4.0. This keeps the experimental CardDAV surface moving toward
+      native-client compatibility without turning contacts into a generic CRUD
+      API or introducing a separate principal model ahead of the Directory
+      boundary.
 
 ## Deferred until backend contracts stabilize
 
@@ -2933,7 +2940,7 @@ Implementation order:
 - Contacts/CardDAV broader vCard
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
-  repository, bounded vCard 4.0 validation, REPORT parsing, and multistatus
+  repository, bounded vCard 3.0/4.0 validation, REPORT parsing, and multistatus
   response boundaries
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out

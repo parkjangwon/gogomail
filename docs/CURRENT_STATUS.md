@@ -91,7 +91,7 @@ generic contacts CRUD API. The initial `internal/carddavgw` package defines
 RFC/WebDAV/CardDAV tokens, canonical principal, address-book home,
 address-book collection, and `.vcf` contact-object path/href handling, plus
 metadata validation for address books, contact object names, UIDs, strong
-ETags, size limits, sync tokens, and bounded vCard 4.0 semantic checks.
+ETags, size limits, sync tokens, and bounded vCard 3.0/4.0 semantic checks.
 PostgreSQL storage groundwork now exists for address books, contact objects,
 and address-book change logs. A first repository boundary can create/list/get
 address-book collections through active user/domain/company scope and records
@@ -132,8 +132,9 @@ Address-book collections advertise RFC 6352
 collations. Capability properties that should not appear in a bare `allprop`
 response remain available through explicit `prop`, `include`, and `propname`
 discovery.
-Returned `address-data` elements also carry explicit `content-type`
-and `version` attributes matching the advertised `text/vcard` 4.0 support.
+Address-book collections advertise `text/vcard` 4.0 and 3.0 support, and
+returned `address-data` elements carry explicit `content-type` plus the stored
+vCard `version` attribute.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so
 large address books can be queried with explicit result caps, and repository
 backends can stream contact objects through a walker interface so matching can
@@ -2832,8 +2833,8 @@ The platform hardening sprint completed the following:
   behind active user/domain/company scope, normalize names, bound list limits,
   and insert durable `addressbook-created` change rows in the create
   transaction.
-- CardDAV vCard validation now performs bounded RFC 6350-oriented checks for
-  vCard 4.0 contact objects, including BEGIN/END structure, exactly one
+- CardDAV vCard validation now performs bounded RFC-oriented checks for vCard
+  4.0 and common vCard 3.0 contact objects, including BEGIN/END structure, exactly one
   VERSION, required UID/FN, folded content-line handling, line/body caps, and
   nested VCARD rejection.
 - CardDAV contact-object repository methods now upsert/list/get/delete active
@@ -2880,8 +2881,9 @@ The platform hardening sprint completed the following:
   structural BEGIN/VERSION/END lines present while omitting unrequested contact
   properties. REPORT parsing also rejects unsupported requested address-data
   `content-type` or `version` values so the handler stays aligned with the
-  advertised supported vCard data type. Returned `address-data` elements carry
-  explicit `content-type="text/vcard"` and `version="4.0"` attributes. The
+  advertised supported vCard data types. Returned `address-data` elements carry
+  explicit `content-type="text/vcard"` and the stored vCard `version`
+  attribute. The
   query path also honors bounded `limit/nresults` values before returning
   matched responses and can use a repository walker to stream objects until the
   response cap is satisfied. Address-data projection failures surface as

@@ -47,13 +47,14 @@ var (
 )
 
 type PropertyValue struct {
-	Text             string
-	Hrefs            []string
-	ResourceTypes    []XMLName
-	Privileges       []XMLName
-	Reports          []XMLName
-	AddressDataTypes []AddressDataType
-	Collations       []string
+	Text               string
+	AddressDataVersion string
+	Hrefs              []string
+	ResourceTypes      []XMLName
+	Privileges         []XMLName
+	Reports            []XMLName
+	AddressDataTypes   []AddressDataType
+	Collations         []string
 }
 
 type PropertyResult struct {
@@ -86,6 +87,10 @@ func ContactObjectDataProperty(body []byte) PropertyResult {
 
 func ContactObjectDataPropertyWithProperties(body []byte, properties []string) (PropertyResult, error) {
 	text := string(body)
+	version, err := vCardBodyVersion(text)
+	if err != nil {
+		return PropertyResult{}, err
+	}
 	if len(properties) > 0 {
 		projected, err := projectVCardProperties(text, properties)
 		if err != nil {
@@ -95,9 +100,30 @@ func ContactObjectDataPropertyWithProperties(body []byte, properties []string) (
 	}
 	return PropertyResult{
 		Name:  PropAddressData,
-		Value: PropertyValue{Text: text},
+		Value: PropertyValue{Text: text, AddressDataVersion: version},
 		Found: len(body) > 0,
 	}, nil
+}
+
+func vCardBodyVersion(raw string) (string, error) {
+	lines, err := unfoldVCardLines(raw)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range lines {
+		parsed, err := parseVCardContentLineParts(line)
+		if err != nil {
+			return "", err
+		}
+		if parsed.Name == "VERSION" {
+			version := strings.TrimSpace(parsed.Value)
+			if version == "3.0" || version == "4.0" {
+				return version, nil
+			}
+			return "", fmt.Errorf("vcard VERSION must be 3.0 or 4.0")
+		}
+	}
+	return "", fmt.Errorf("vcard VERSION is required")
 }
 
 func projectVCardProperties(raw string, properties []string) (string, error) {
@@ -195,7 +221,15 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: addressBookCollectionPrivileges()}, Found: true},
-		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true, OmitFromAllProp: true},
+		{
+			Name: PropSupportedAddressData,
+			Value: PropertyValue{AddressDataTypes: []AddressDataType{
+				{ContentType: "text/vcard", Version: "4.0"},
+				{ContentType: "text/vcard", Version: "3.0"},
+			}},
+			Found:           true,
+			OmitFromAllProp: true,
+		},
 		{Name: PropSupportedCollationSet, Value: PropertyValue{Collations: SupportedTextMatchCollations()}, Found: true, OmitFromAllProp: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
@@ -435,9 +469,13 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 	}
 	start := xml.StartElement{Name: xml.Name{Local: name}}
 	if prop.Name == PropAddressData {
+		version := strings.TrimSpace(prop.Value.AddressDataVersion)
+		if version == "" {
+			version = "4.0"
+		}
 		start.Attr = append(start.Attr,
 			xml.Attr{Name: xml.Name{Local: "content-type"}, Value: "text/vcard"},
-			xml.Attr{Name: xml.Name{Local: "version"}, Value: "4.0"},
+			xml.Attr{Name: xml.Name{Local: "version"}, Value: version},
 		)
 	}
 	if err := enc.EncodeToken(start); err != nil {
