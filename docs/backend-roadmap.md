@@ -3592,6 +3592,9 @@ Implementation order:
 1336. Shared storage `DeletePrefix` now rejects truncated list pages that omit
       a continuation cursor before deleting listed objects, and S3-compatible
       tests verify cursor handoff across bounded cleanup pages.
+1337. API usage ledger list, NDJSON export, and stats OpenAPI operations now
+      pin `/admin/v1` plus admin-token/bearer auth alternatives, matching the
+      runtime `adminAuth` boundary for generated operator clients.
 
 ## Deferred until backend contracts stabilize
 

@@ -357,6 +357,11 @@ same `X-Admin-Token` / bearer-token alternatives in OpenAPI:
 `GET /admin/v1/dav-sync/retention-readiness`, and
 `GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness`. Generated
 operator clients should not discover these routes on the public Mail API base.
+The API usage ledger list, NDJSON export, and stats operations use that same
+Admin API base/auth contract in OpenAPI:
+`GET /admin/v1/api-usage/ledger`,
+`GET /admin/v1/api-usage/ledger/export`, and
+`GET /admin/v1/api-usage/ledger/stats`.
 
 ## Pagination
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DeletePrefix cursor contract hardening)
+Last updated: 2026-05-07 (updated after API usage ledger OpenAPI admin pinning)
 
 ## Current phase
 
@@ -82,6 +82,10 @@ Admin readiness bootstrap operations now follow that same OpenAPI contract for
 API usage ledger retention readiness, DAV sync retention readiness, and API
 usage export handoff readiness, preventing generated operator clients from
 probing the Mail API base for admin-only readiness checks.
+API usage ledger list, export, and stats operations now also pin the Admin API
+server and document both admin-token and bearer-token alternatives in OpenAPI,
+matching the runtime `adminAuth` boundary under `/admin/v1` and preventing
+generated operator clients from drifting to the public Mail API base.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,
