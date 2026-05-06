@@ -1061,13 +1061,26 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
 	}
-	if _, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, mailbox.ID, MailboxID(destName)); err != nil {
+	renamed, err := s.options.Backend.RenameMailbox(context.Background(), state.session.UserID, mailbox.ID, MailboxID(destName))
+	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
 			_, writeErr := writer.WriteString(imapMailboxNotFoundResponse(tag, "RENAME"))
 			return false, writeErr
 		}
 		_, writeErr := writer.WriteString(tag + " NO RENAME failed\r\n")
 		return false, writeErr
+	}
+	if state.selectedMailbox == mailbox.ID && renamed.ID != "" && renamed.ID != state.selectedMailbox {
+		state.closeSubscription()
+		state.selectedMailbox = renamed.ID
+		if renamed.HighestModSeq > 0 {
+			state.selectedHighestModSeq = renamed.HighestModSeq
+			state.selectedNoModSeq = false
+		}
+		if events, cancel, err := s.options.Backend.Subscribe(context.Background(), state.session.UserID, renamed.ID); err == nil {
+			state.events = events
+			state.cancelEvents = cancel
+		}
 	}
 	_, err = writer.WriteString(tag + " OK RENAME completed\r\n")
 	return false, err
