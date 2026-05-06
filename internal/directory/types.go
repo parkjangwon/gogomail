@@ -83,11 +83,11 @@ type Alias struct {
 }
 
 type CreateAliasRequest struct {
-	CompanyID  string
-	DomainID   string
-	Address    string
-	TargetKind string
-	TargetID   string
+	CompanyID  string `json:"company_id"`
+	DomainID   string `json:"domain_id"`
+	Address    string `json:"address"`
+	TargetKind string `json:"target_kind"`
+	TargetID   string `json:"target_id"`
 }
 
 type ResolveAliasRequest struct {

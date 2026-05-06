@@ -3,15 +3,21 @@ package directory
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Repository struct {
 	db *sql.DB
+}
+
+type rowQuerier interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 var ErrPrincipalNotFound = errors.New("directory principal not found")
@@ -101,7 +107,62 @@ func (r *Repository) CreateAlias(ctx context.Context, req CreateAliasRequest) (A
 	if err != nil {
 		return Alias{}, err
 	}
-	domainName, err := r.activeDomainNameACE(ctx, req.CompanyID, req.DomainID)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Alias{}, fmt.Errorf("begin create directory alias transaction: %w", err)
+	}
+	defer tx.Rollback()
+	alias, err := r.createAliasTx(ctx, tx, req)
+	if err != nil {
+		return Alias{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Alias{}, fmt.Errorf("commit create directory alias transaction: %w", err)
+	}
+	return alias, nil
+}
+
+func (r *Repository) CreateAliasWithAudit(ctx context.Context, req CreateAliasRequest) (Alias, error) {
+	if r == nil || r.db == nil {
+		return Alias{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeCreateAliasRequest(req)
+	if err != nil {
+		return Alias{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Alias{}, fmt.Errorf("begin create directory alias transaction: %w", err)
+	}
+	defer tx.Rollback()
+	alias, err := r.createAliasTx(ctx, tx, req)
+	if err != nil {
+		return Alias{}, err
+	}
+	detail, err := directoryAliasCreateAuditDetail(alias)
+	if err != nil {
+		return Alias{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  alias.CompanyID,
+		DomainID:   alias.DomainID,
+		Category:   "admin",
+		Action:     "directory_alias.create",
+		TargetType: "directory_alias",
+		TargetID:   alias.ID,
+		Result:     "created",
+		Detail:     detail,
+	}); err != nil {
+		return Alias{}, fmt.Errorf("record directory alias create audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Alias{}, fmt.Errorf("commit create directory alias transaction: %w", err)
+	}
+	return alias, nil
+}
+
+func (r *Repository) createAliasTx(ctx context.Context, tx *sql.Tx, req CreateAliasRequest) (Alias, error) {
+	domainName, err := activeDomainNameACE(ctx, tx, req.CompanyID, req.DomainID)
 	if err != nil {
 		return Alias{}, err
 	}
@@ -138,7 +199,7 @@ RETURNING id::text,
           target_id::text,
           status`
 	var alias Alias
-	if err := r.db.QueryRowContext(ctx, query,
+	if err := tx.QueryRowContext(ctx, query,
 		req.CompanyID,
 		req.DomainID,
 		req.Address,
@@ -158,6 +219,23 @@ RETURNING id::text,
 	}
 	alias.TargetPrincipal = target
 	return alias, nil
+}
+
+func directoryAliasCreateAuditDetail(alias Alias) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"alias_id":    alias.ID,
+		"company_id":  alias.CompanyID,
+		"domain_id":   alias.DomainID,
+		"address":     alias.Address,
+		"address_ace": alias.AddressACE,
+		"target_kind": alias.TargetKind,
+		"target_id":   alias.TargetID,
+		"status":      alias.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory alias create audit detail: %w", err)
+	}
+	return detail, nil
 }
 
 func (r *Repository) ListAliases(ctx context.Context, req ListAliasesRequest) ([]Alias, error) {
@@ -234,6 +312,10 @@ LIMIT $7`
 }
 
 func (r *Repository) activeDomainNameACE(ctx context.Context, companyID string, domainID string) (string, error) {
+	return activeDomainNameACE(ctx, r.db, companyID, domainID)
+}
+
+func activeDomainNameACE(ctx context.Context, q rowQuerier, companyID string, domainID string) (string, error) {
 	const query = `
 SELECT d.name_ace
 FROM domains d
@@ -243,7 +325,7 @@ WHERE c.id = $1::uuid
   AND c.status = 'active'
   AND d.status = 'active'`
 	var name string
-	if err := r.db.QueryRowContext(ctx, query, companyID, domainID).Scan(&name); err != nil {
+	if err := q.QueryRowContext(ctx, query, companyID, domainID).Scan(&name); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", fmt.Errorf("directory domain not found")
 		}

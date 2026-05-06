@@ -68,7 +68,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   guarded repository mutation boundary: it must normalize addresses, require
   active tenant/domain scope, enforce alias-address/domain alignment, resolve
   active same-company target principals, and return predictable duplicate
-  errors instead of leaking database-driver details.
+  errors instead of leaking database-driver details. Admin-facing alias
+  creation must use the audited variant so the alias row and
+  `directory_alias.create` audit row commit atomically; product modules still
+  should not grow separate alias mutation semantics.
 - Direct group-membership checks are now shared and auditable before recursive
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles

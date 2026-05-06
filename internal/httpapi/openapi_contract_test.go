@@ -414,6 +414,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /directory/principals":                                  "#/components/responses/DirectoryPrincipalList",
 		"GET /directory/aliases/resolve":                             "#/components/responses/DirectoryAlias",
 		"GET /directory/aliases":                                     "#/components/responses/DirectoryAliasList",
+		"POST /directory/aliases":                                    "#/components/responses/DirectoryAlias",
 		"GET /directory/delegations":                                 "#/components/responses/DirectoryDelegationList",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",
@@ -895,6 +896,7 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 		"PATCH /companies/{id}/quota": "#/components/requestBodies/CompanyQuotaUpdate",
 		"PATCH /domains/{id}/quota":   "#/components/requestBodies/DomainQuotaUpdate",
 		"PATCH /users/{id}/quota":     "#/components/requestBodies/UserQuotaUpdate",
+		"POST /directory/aliases":     "#/components/requestBodies/DirectoryAliasCreate",
 	} {
 		block, ok := operations[route]
 		if !ok {

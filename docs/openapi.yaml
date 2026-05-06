@@ -1631,6 +1631,16 @@ paths:
           $ref: "#/components/responses/DirectoryAliasList"
         default:
           $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminDirectoryAlias
+      summary: Create an audited Directory alias
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryAliasCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/DirectoryAlias"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/delegations:
     get:
       operationId: listAdminDirectoryDelegations
@@ -4379,6 +4389,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/UserCreateRequest"
+    DirectoryAliasCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryAliasCreateRequest"
     StatusUpdate:
       required: true
       content:
@@ -6281,6 +6297,26 @@ components:
           enum: [active, deleted]
         target_principal:
           $ref: "#/components/schemas/DirectoryPrincipal"
+    DirectoryAliasCreateRequest:
+      type: object
+      required: [company_id, domain_id, address, target_kind, target_id]
+      properties:
+        company_id:
+          type: string
+          maxLength: 1024
+        domain_id:
+          type: string
+          maxLength: 1024
+        address:
+          type: string
+          maxLength: 320
+          description: Email alias address; normalized and required to belong to the selected Directory domain.
+        target_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        target_id:
+          type: string
+          maxLength: 1024
     DirectoryAliasEnvelope:
       type: object
       required: [directory_alias]
