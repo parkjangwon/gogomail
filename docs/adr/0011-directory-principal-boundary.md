@@ -55,7 +55,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   but product modules should still consume Directory principal search instead
   of inventing incompatible lookup endpoints.
 - Alias-to-principal lookup is now shared and can be reused by mail routing,
-  attendee resolution, admin consoles, and future shared inbox flows.
+  attendee resolution, admin consoles, and future shared inbox flows. The admin
+  backend API may expose this lookup for diagnostics, but callers should still
+  go through Directory alias resolution so address normalization and active
+  target-principal checks remain centralized.
 - Direct group-membership checks are now shared and auditable before recursive
   membership expansion or policy decisions are introduced.
 - Effective membership expansion is bounded by depth and guarded against cycles
