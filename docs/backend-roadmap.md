@@ -4034,6 +4034,10 @@ Implementation order:
 1443. IMAP `ENABLE` now has regression coverage for duplicate `CONDSTORE`
       capability probes, keeping the untagged `ENABLED` response singular even
       when clients retry the same capability atom with different casing.
+1444. IMAP RFC 2971 `ID` now accepts the bare no-argument command form as an
+      empty client parameter set, returning the normal server identity response
+      while preserving strict `NIL` and parenthesized field/value-list
+      validation.
 
 ## Deferred until backend contracts stabilize
 
