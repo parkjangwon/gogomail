@@ -134,6 +134,9 @@ func (c Config) Validate() error {
 		if storageBackend == "minio" && strings.TrimSpace(c.StorageS3Endpoint) == "" {
 			return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT is required when GOGOMAIL_STORAGE_BACKEND=minio")
 		}
+		if production && storageBackend == "s3" && strings.TrimSpace(c.StorageS3Endpoint) == "" {
+			return fmt.Errorf("GOGOMAIL_STORAGE_S3_ENDPOINT is required in production when GOGOMAIL_STORAGE_BACKEND=s3")
+		}
 		if strings.TrimSpace(c.StorageS3Endpoint) != "" {
 			if err := validateHTTPURL("GOGOMAIL_STORAGE_S3_ENDPOINT", c.StorageS3Endpoint); err != nil {
 				return err

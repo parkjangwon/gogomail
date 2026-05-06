@@ -323,6 +323,10 @@ Current state:
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
   prefix, credential, and session-token settings.
+- Production `s3` configs now require an explicit
+  `GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so operators
+  can audit the object-store target directly while development/test configs can
+  still derive AWS endpoints from region.
 - Drive runtime wiring now registers the configured S3-compatible store under
   both `s3` and `minio` labels, so rows created under local MinIO can still be
   served after an AWS S3-style backend flip and vice versa when object keys and

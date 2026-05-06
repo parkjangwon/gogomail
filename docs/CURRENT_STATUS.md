@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP literal-placement regression coverage)
+Last updated: 2026-05-06 (updated after production S3 endpoint validation)
 
 ## Current phase
 
@@ -28,6 +28,12 @@ literal parsing now has regression coverage for suffixed literal markers,
 literal payloads followed by trailing atom data, and unused literal payloads so
 malformed wire input remains in the parser/framing layer instead of leaking
 into command handlers.
+
+Storage portability hardening continues across local/NFS, MinIO, and AWS S3
+deployments. Production `s3` runtime configuration now requires an explicit
+`GOGOMAIL_STORAGE_S3_ENDPOINT`, even for AWS regional endpoints, so release
+configs show the object-storage target directly while development/test configs
+can still use region-based endpoint derivation.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as

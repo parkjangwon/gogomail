@@ -155,6 +155,29 @@ func TestValidateAcceptsS3StorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = ""
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail-prod"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_STORAGE_S3_ENDPOINT is required in production") {
+		t.Fatalf("Validate() error = %v, want production S3 endpoint rejection", err)
+	}
+
+	cfg.StorageS3Endpoint = "https://s3.us-east-1.amazonaws.com"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error with explicit production S3 endpoint = %v", err)
+	}
+}
+
 func TestValidateAcceptsMinIOStorageBackend(t *testing.T) {
 	cfg := Load()
 	cfg.StorageBackend = "minio"
