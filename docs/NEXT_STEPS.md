@@ -250,6 +250,10 @@ Current state:
   `HEADER.FIELDS.NOT ()` lists. Empty include lists return the blank header
   terminator, while empty exclude lists return the full header block as RFC
   clients expect.
+- IMAP `FETCH`/`UID FETCH` now applies those empty header-field-list semantics
+  to `message/rfc822` MIME-part sections too, so forwarded-message probes such
+  as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]` behave like
+  top-level header subset fetches.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

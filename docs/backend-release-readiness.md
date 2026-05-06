@@ -1022,6 +1022,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists, preserving compatibility with clients that use
   empty include/exclude header subsets during body-section probing.
+- IMAP `FETCH`/`UID FETCH` applies those empty header-field-list semantics to
+  `message/rfc822` MIME-part sections as well, preserving nested forwarded
+  message header probes such as `BODY[1.HEADER.FIELDS ()]`.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.
