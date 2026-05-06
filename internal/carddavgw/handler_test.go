@@ -72,6 +72,17 @@ func (s fakeCardDAVDiscoveryStore) ListAddressBookObjects(_ context.Context, use
 	return objects, nil
 }
 
+func (s fakeCardDAVDiscoveryStore) ListAddressBookObjectsLimit(_ context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error) {
+	objects, err := s.ListAddressBookObjects(context.Background(), userID, addressBookID)
+	if err != nil {
+		return nil, err
+	}
+	if limit >= 0 && len(objects) > limit {
+		objects = objects[:limit]
+	}
+	return objects, nil
+}
+
 func (s fakeCardDAVDiscoveryStore) WalkAddressBookObjects(_ context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error {
 	objects, err := s.ListAddressBookObjects(context.Background(), userID, addressBookID)
 	if err != nil {
@@ -1439,6 +1450,33 @@ func TestHandlerPropfindCollectionDepthOneListsObjects(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("collection PROPFIND missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestHandlerPropfindCollectionDepthOneRejectsTruncation(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	base := store.objects[0]
+	store.objects = store.objects[:0]
+	for i := 0; i < MaxWebDAVReportLimit+1; i++ {
+		object := base
+		object.ID = fmt.Sprintf("object-%d", i)
+		object.ObjectName = fmt.Sprintf("contact-%d.vcf", i)
+		object.UID = fmt.Sprintf("contact-%d", i)
+		store.objects = append(store.objects, object)
+	}
+	body := `<D:propfind xmlns:D="DAV:"><D:prop><D:getetag/></D:prop></D:propfind>`
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil }).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "address-book collection PROPFIND would truncate results") {
+		t.Fatalf("truncating collection PROPFIND response lacks context: %s", rec.Body.String())
 	}
 }
 

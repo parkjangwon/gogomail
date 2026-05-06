@@ -1839,6 +1839,9 @@ Next:
   Address-book collections also expose CalendarServer-compatible `getctag`
   from the same durable sync token used for WebDAV `sync-token`, keeping
   legacy change detection and RFC 6578 sync anchored to one collection version.
+  Address-book collection `PROPFIND Depth: 1` child-object discovery now uses
+  the shared bounded one-extra-row probe and rejects truncating listings instead
+  of silently returning partial contact metadata.
   RFC 6352 `addressbook-description` is now returned from stored address-book
   metadata. WebDAV `PROPPATCH` now updates authenticated address-book
   collection `DAV:displayname` and `addressbook-description` through a bounded

@@ -531,7 +531,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Address-book collection PROPFIND also
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
-  adding a second versioning model. Address-book collection discovery also
+  adding a second versioning model. `PROPFIND Depth: 1` child-object discovery
+  is bounded with the shared one-extra-row truncation probe, preventing silent
+  partial contact metadata listings. Address-book collection discovery also
   returns RFC 6352 `addressbook-description` from stored metadata. WebDAV
   `PROPPATCH` can update authenticated address-book collection `displayname`
   and `addressbook-description` through bounded XML parsing and a small
