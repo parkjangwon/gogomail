@@ -3650,8 +3650,14 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					section = partialSection.section
 					literal = imapPartialLiteral(literal, partialSection.partial)
 				}
-				if requestsHeader || requestsHeaderFields || requestsHeaderFieldsNot {
+				if requestsHeader {
 					section = "HEADER"
+				}
+				if requestsHeaderFields {
+					section = imapHeaderFieldsSectionName("HEADER.FIELDS", headerFields)
+				}
+				if requestsHeaderFieldsNot {
+					section = imapHeaderFieldsSectionName("HEADER.FIELDS.NOT", headerFieldsNot)
 				}
 				partialSuffix := ""
 				if requestsPartialSection {
@@ -4098,6 +4104,17 @@ func imapSectionLiteralResponseName(items []string, section string) string {
 		}
 	}
 	return "BODY[" + section + "]"
+}
+
+func imapHeaderFieldsSectionName(marker string, fields []string) string {
+	normalized := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.ToUpper(strings.TrimSpace(field))
+		if field != "" {
+			normalized = append(normalized, field)
+		}
+	}
+	return marker + " (" + strings.Join(normalized, " ") + ")"
 }
 
 func imapExpandFetchItems(items []string) []string {

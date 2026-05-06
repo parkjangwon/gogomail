@@ -898,6 +898,10 @@ Current state:
   `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
   `BODY[HEADER.FIELDS.NOT (...)]`, and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
   reads.
+- `FETCH`/`UID FETCH` now echoes requested `HEADER.FIELDS` and
+  `HEADER.FIELDS.NOT` section names in literal response items, including
+  partial-window suffixes, instead of normalizing subset literals to
+  `BODY[HEADER]`.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS.NOT (...)]` and
   `BODY.PEEK[HEADER.FIELDS.NOT (...)]` for exclude-style header reads.
 - `SEARCH`/`UID SEARCH` now supports `SINCE`, `BEFORE`, and `ON` over message

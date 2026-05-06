@@ -1320,6 +1320,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `BODY[HEADER.FIELDS (...)]`, `BODY.PEEK[HEADER.FIELDS (...)]`,
   `BODY[HEADER.FIELDS.NOT (...)]`, and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
   literals.
+- IMAP `FETCH`/`UID FETCH` now preserves requested `HEADER.FIELDS` and
+  `HEADER.FIELDS.NOT` section names in literal response items, including
+  partial-window suffixes, instead of collapsing subset reads to
+  `BODY[HEADER]`.
 - IMAP `FETCH`/`UID FETCH` now supports bounded
   `BODY[HEADER.FIELDS.NOT (...)]` and `BODY.PEEK[HEADER.FIELDS.NOT (...)]`
   literals for exclude-style header reads.
