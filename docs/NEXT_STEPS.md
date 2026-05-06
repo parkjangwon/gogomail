@@ -404,6 +404,10 @@ Current state:
   plaintext `[PRIVACYREQUIRED]` responses on TLS-required listeners, while
   syntactically valid but unsupported SASL mechanisms return tagged `NO`
   responses so probing clients can fall back cleanly.
+- `LOGIN` now treats an empty quoted password as syntactically valid and lets
+  the backend authentication boundary reject it with
+  `[AUTHENTICATIONFAILED]`, keeping protocol syntax errors distinct from
+  ordinary credential failures.
 - `AUTHENTICATE PLAIN` SASL-IR initial responses now validate malformed PLAIN
   payloads before plaintext privacy policy checks, preserving
   syntax-before-policy diagnostics without authenticating before TLS.
@@ -1785,9 +1789,11 @@ Current state:
 - `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing
   authentication round trips for compatible IMAP clients.
 - `LOGIN` and SASL PLAIN decoded credentials now reject blank, CR/LF-bearing,
-  or oversized authentication identities plus empty, oversized, or
-  CR/LF-bearing passwords before backend auth work, while preserving
-  intentional leading/trailing spaces in RFC string credentials.
+  or oversized authentication identities plus oversized or CR/LF-bearing
+  passwords before backend auth work, while preserving intentional
+  leading/trailing spaces in RFC string credentials. SASL PLAIN still rejects
+  empty decoded passwords; `LOGIN` allows empty quoted passwords to flow into
+  backend authentication as credential failures.
 - SASL PLAIN encoded and decoded response bytes are now bounded before
   credential splitting, preventing literal initial responses from forcing
   avoidable decode allocation beyond the configured credential caps.

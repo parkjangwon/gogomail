@@ -510,7 +510,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD LOGIN requires username and password atoms\r\n")
 			return false, err
 		}
-		if !imapAuthCredentialsValid(fields[2], fields[3]) {
+		if !imapLoginCredentialsValid(fields[2], fields[3]) {
 			_, err := writer.WriteString(tag + " BAD LOGIN credentials are malformed\r\n")
 			return false, err
 		}
@@ -1457,11 +1457,19 @@ func decodeSASLPlain(value string) (string, string, bool) {
 }
 
 func imapAuthCredentialsValid(username string, password string) bool {
+	return imapAuthCredentialsValidWithEmptyPassword(username, password, false)
+}
+
+func imapLoginCredentialsValid(username string, password string) bool {
+	return imapAuthCredentialsValidWithEmptyPassword(username, password, true)
+}
+
+func imapAuthCredentialsValidWithEmptyPassword(username string, password string, allowEmptyPassword bool) bool {
 	if strings.ContainsAny(username, "\r\n") || strings.ContainsAny(password, "\r\n") {
 		return false
 	}
 	username = strings.TrimSpace(username)
-	if username == "" || password == "" || len(username) > maxIMAPAuthIdentityBytes || len(password) > maxIMAPAuthPasswordBytes {
+	if username == "" || (!allowEmptyPassword && password == "") || len(username) > maxIMAPAuthIdentityBytes || len(password) > maxIMAPAuthPasswordBytes {
 		return false
 	}
 	return true
