@@ -2329,9 +2329,9 @@ The platform hardening sprint completed the following:
   markers in the same transaction as object mutations, migrated calendars get a
   baseline marker on first object change, stale-but-known sync tokens can return
   changed object properties or response-level `404 Not Found` tombstones, and
-  unknown tokens still fail with DAV `valid-sync-token`. Collection-deletion
-  sync for already-deleted collections and long-history retention policy remain
-  future work.
+  collection-deleted tokens can return a final top-level sync token even after
+  the calendar row is gone. Unknown tokens still fail with DAV
+  `valid-sync-token`, and long-history retention policy remains future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

@@ -248,12 +248,14 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now handles `DELETE` for authenticated calendar collections, using
   one repository transaction to soft-delete the collection and active children
   while forbidding calendar-home and cross-user deletes. Deletion tombstones for
-  incremental sync remain incomplete.
+  incremental sync now carry a final collection-deleted sync token for
+  stale-token clients.
 - CalDAV now persists sync-change rows for calendar creation and object
   upsert/delete mutations, and `REPORT sync-collection` can return
   stale-but-known object updates plus response-level 404 tombstones. Unknown
-  tokens still produce DAV `valid-sync-token`; collection-deletion deltas and
-  sync retention policy remain incomplete.
+  tokens still produce DAV `valid-sync-token`; collection-deleted tokens can
+  now produce a valid top-level sync token after the collection row is gone,
+  while sync retention policy remains incomplete.
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.

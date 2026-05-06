@@ -2518,6 +2518,10 @@ Implementation order:
 1152. IMAP bare `UID` commands now return `BAD UID requires subcommand`, keeping
       missing-subcommand diagnostics distinct from unknown but well-formed UID
       subcommands.
+1153. CalDAV `REPORT sync-collection` can now return a final top-level sync
+      token for stale-token clients after a calendar collection has been
+      deleted, using the durable `collection-deleted` change row instead of
+      requiring the live calendar row to still exist.
 
 ## Deferred until backend contracts stabilize
 

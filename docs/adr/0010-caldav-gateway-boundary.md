@@ -168,9 +168,10 @@ The sync-change-log boundary is durable PostgreSQL state, not an in-memory
 gateway cache. Calendar creation and object mutation transactions append sync
 markers keyed by collection token; `sync-collection` can then turn
 stale-but-known tokens into changed object responses or response-level 404
-tombstones. Unknown tokens still fail with `valid-sync-token`, which is safer
-than fabricating an incomplete delta after retention gaps or unsupported
-history.
+tombstones, and collection-deleted markers can advance clients to the final
+deleted-collection sync token even after the live calendar row is gone. Unknown
+tokens still fail with `valid-sync-token`, which is safer than fabricating an
+incomplete delta after retention gaps or unsupported history.
 
 Service discovery starts at the gateway as well: `/.well-known/caldav` redirects
 to `/caldav/`, and root `PROPFIND` exposes the authenticated principal and
