@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -1214,6 +1215,9 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 	if len(data) > maxS3ListResponseBytes {
 		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: response body is too large")
 	}
+	if err := validateS3ListControlCardinality(data); err != nil {
+		return s3ListObjectsResult{}, err
+	}
 	var result s3ListObjectsResult
 	if err := xml.Unmarshal(data, &result); err != nil {
 		return s3ListObjectsResult{}, fmt.Errorf("decode s3 list response: %w", err)
@@ -1222,6 +1226,45 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: unexpected response namespace")
 	}
 	return result, nil
+}
+
+func validateS3ListControlCardinality(data []byte) error {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var rootDepth int
+	var isTruncatedSeen bool
+	var continuationTokenSeen bool
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("decode s3 list response: %w", err)
+		}
+		switch token := token.(type) {
+		case xml.StartElement:
+			rootDepth++
+			if rootDepth != 2 {
+				continue
+			}
+			switch token.Name.Local {
+			case "IsTruncated":
+				if isTruncatedSeen {
+					return fmt.Errorf("list s3 objects: duplicate IsTruncated value")
+				}
+				isTruncatedSeen = true
+			case "NextContinuationToken":
+				if continuationTokenSeen {
+					return fmt.Errorf("list s3 objects: duplicate continuation token")
+				}
+				continuationTokenSeen = true
+			}
+		case xml.EndElement:
+			if rootDepth > 0 {
+				rootDepth--
+			}
+		}
+	}
 }
 
 func validateS3CopyResponse(body io.Reader) error {

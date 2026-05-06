@@ -380,7 +380,10 @@ portable key-shape rule used for request paths. `ListObjectsV2` query
 parameters are encoded with SigV4 canonical URI rules instead of form-style
 query escaping, so prefixes and continuation tokens containing spaces, literal
 `+`, `/`, `=`, or `@` characters sign and round-trip consistently across AWS
-S3, MinIO, and stricter compatible providers. Continuation cursors are treated as opaque identity
+S3, MinIO, and stricter compatible providers. Top-level pagination controls
+must be singular: duplicate `IsTruncated` or `NextContinuationToken` elements
+are rejected before XML unmarshalling can collapse ambiguous final/truncated
+state or cursor identity. Continuation cursors are treated as opaque identity
 tokens: blank cursors are allowed, but nonblank cursors with leading/trailing
 whitespace or control characters are rejected instead of trimmed, so provider
 pagination tokens are not silently changed between pages or made unsafe for

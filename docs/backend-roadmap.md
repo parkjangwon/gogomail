@@ -3836,6 +3836,10 @@ Implementation order:
       non-empty malformed or whitespace-padded timestamp values instead of
       silently exposing zero timestamps to cleanup, Drive, or reconciliation
       callers, while still allowing missing values from compatible providers.
+1393. S3-compatible `ListObjectsV2` pagination controls now reject duplicate
+      top-level `<IsTruncated>` or `<NextContinuationToken>` elements before
+      XML unmarshalling can collapse ambiguous final/truncated state or cursor
+      identity.
 
 ## Deferred until backend contracts stabilize
 

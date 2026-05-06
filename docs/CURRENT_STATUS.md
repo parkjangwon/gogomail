@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list size grammar hardening)
+Last updated: 2026-05-07 (updated after S3 list pagination control hardening)
 
 ## Current phase
 
@@ -132,6 +132,10 @@ S3-compatible `ListObjectsV2` pagination control now requires an explicit
 canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
 value, rejecting missing or non-canonical forms before deciding whether a page
 is final.
+S3-compatible `ListObjectsV2` pagination controls now also reject duplicate
+top-level `<IsTruncated>` or `<NextContinuationToken>` elements, preventing
+ambiguous provider pages from silently changing final/truncated state or cursor
+identity during XML unmarshalling.
 S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
 namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
 unexpected namespaces before copy/move is reported successful.

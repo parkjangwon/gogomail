@@ -752,6 +752,64 @@ func TestS3StoreListRequiresCanonicalIsTruncated(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsDuplicatePaginationControls(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "is_truncated",
+			body: `<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <IsTruncated>true</IsTruncated>
+  <Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`,
+			want: "duplicate IsTruncated",
+		},
+		{
+			name: "continuation_token",
+			body: `<ListBucketResult>
+  <IsTruncated>true</IsTruncated>
+  <NextContinuationToken>cursor-1</NextContinuationToken>
+  <NextContinuationToken>cursor-2</NextContinuationToken>
+  <Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`,
+			want: "duplicate continuation token",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreDeletePrefixUsesContinuationCursor(t *testing.T) {
 	t.Parallel()
 
