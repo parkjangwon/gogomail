@@ -17,6 +17,28 @@ The SMTP engine is materially advanced, and current work is broadening into
 tenant/domain operations, Admin API, Mail API contracts, delivery routing,
 DNS/DKIM onboarding, quota/policy enforcement, and OpenAPI drift prevention.
 
+## Engineering posture
+
+gogomail is being built as a standards-first platform with small replaceable
+boundaries rather than one large product service. Protocol engines should stay
+RFC-correct, streaming-aware, and conservative about advertised capabilities;
+product features such as spam filtering, push delivery, indexing, retention,
+and audit should attach through explicit service, worker, event, or adapter
+boundaries.
+
+High-level design rules:
+
+- keep SMTP, IMAP, CalDAV, CardDAV, storage, search, notification, and HTTP API
+  contracts independently testable
+- prefer streaming readers and bounded scans on mail, attachment, Drive, and
+  DAV hot paths
+- expose capabilities only when the runtime, OpenAPI/docs, and regression tests
+  agree
+- preserve tenant/user/domain isolation before repository, storage, queue, and
+  event fan-out work begins
+- keep frontend implementation gated until backend contracts are stable and the
+  explicit frontend start signal is given
+
 Recent release-readiness work also includes:
 
 - Mail API readiness for production webmail chrome, including mailbox
@@ -37,9 +59,9 @@ Recent release-readiness work also includes:
   namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
   workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
-  SEARCH/SORT/THREAD diagnostics, IDLE recovery, non-blocking mailbox event
-  delivery under concurrent subscription cancellation, and literal framing
-  coverage
+  SEARCH/SORT/THREAD diagnostics, IDLE recovery, selected-state event draining
+  before sequence-set commands, non-blocking mailbox event delivery under
+  concurrent subscription cancellation, and literal framing coverage
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
@@ -53,8 +75,8 @@ Recent release-readiness work also includes:
   future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
-  public share-link metadata/download, and cleanup readiness without starting
-  frontend implementation
+  public share-link metadata/download with exact bearer-token path semantics,
+  and cleanup readiness without starting frontend implementation
 - OpenAPI drift prevention for generated clients, including root-vs-API server
   pins for health/service metadata, `/admin/v1` pins for operator bootstrap
   routes and readiness checks, public share-link unauthenticated route
