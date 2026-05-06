@@ -2589,6 +2589,11 @@ Implementation order:
       active-only owner/delegate principal checks plus group filters, and lets
       group-granted delegations satisfy effective user, organization, group, or
       resource members without adding product-local sharing models.
+1168. A new `internal/accesspolicy` boundary wraps Directory effective
+      delegation into normalized allow/deny decisions, forcing active
+      principal checks and giving CalDAV/CardDAV/Drive/mailbox/admin modules a
+      product-neutral policy adapter surface before public sharing semantics
+      are wired to protocol privileges or audit logs.
 
 ## Deferred until backend contracts stabilize
 

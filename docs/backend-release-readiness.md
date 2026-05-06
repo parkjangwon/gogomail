@@ -389,6 +389,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   anchored to canonical principal URLs, and advertises only local-user WebDAV
   privileges that are implemented today. This does not make shared calendars,
   resource booking, or delegated access public-release ready yet.
+  `internal/accesspolicy` now wraps effective delegation into explicit
+  allow/deny decisions so future protocol modules can attach product policy,
+  WebDAV privilege mapping, and audit logging without reading Directory rows
+  directly.
 - CardDAV is pre-public and backend-only. ADR 0012 and `internal/carddavgw`
   currently cover standards constants, DAV tokens, canonical principal,
   address-book home, address-book collection, and `.vcf` object path/href

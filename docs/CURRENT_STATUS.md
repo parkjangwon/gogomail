@@ -194,7 +194,10 @@ relationship model instead of each module inventing a separate one. Effective
 delegation can now expand group delegates through bounded nested membership, so
 a group-granted delegation can satisfy user, organization, group, or resource
 members while preserving active-only owner/delegate principal checks, group
-filtering, role hierarchy, depth caps, and cycle guards.
+filtering, role hierarchy, depth caps, and cycle guards. The first
+`internal/accesspolicy` adapter wraps effective delegation as an explicit
+allow/deny decision boundary so CalDAV, CardDAV, Drive, mailbox sharing, and
+admin APIs do not need to branch directly on Directory rows.
 
 ## Completed or materially advanced
 
@@ -2529,6 +2532,11 @@ The platform hardening sprint completed the following:
   filtering, and `manage >= write >= read` role satisfaction. This prepares
   shared calendars, resource calendars, Drive shares, shared inboxes, and
   Contacts delegation without adding product-local access models.
+- `internal/accesspolicy` now provides a small effective-delegation evaluator
+  that normalizes principal/scope/role inputs, forces active principal checks,
+  and returns explicit allow/deny decisions. It is deliberately product-neutral
+  so future protocol modules can integrate Directory access through policy and
+  audit adapters instead of embedding row-level sharing logic.
 - CardDAV groundwork has started with ADR 0012 and `internal/carddavgw`, which
   owns RFC/WebDAV/CardDAV standards names, DAV capability tokens, canonical
   principal/address-book/contact-object paths, `.vcf` resource validation, and
