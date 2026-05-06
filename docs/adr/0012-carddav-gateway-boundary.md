@@ -57,7 +57,9 @@ unsupported collations rather than pretending a different matching semantic is
 equivalent. Query execution parses vCard content-line parameters for
 `param-filter` existence, `is-not-defined`, or text-match checks, and composes
 multiple top-level `prop-filter` predicates plus per-property text/parameter
-predicates with RFC 6352 `test=anyof|allof` semantics. Sync execution can return
+predicates with RFC 6352 `test=anyof|allof` semantics. Unsupported vCard
+property or parameter filters fail with the RFC 6352 `CARDDAV:supported-filter`
+precondition instead of a misleading empty success response. Sync execution can return
 full snapshots or bounded change rows since a stored sync token. REPORT
 `address-data` can project returned vCards to requested property names while
 preserving structural BEGIN/VERSION/END lines, and requested address-data

@@ -385,7 +385,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `negate-condition`, while rejecting unsupported collations or malformed
   text-match attributes. Query filtering also parses vCard content-line
   parameters for `param-filter` existence, `is-not-defined`, and parameter
-  text-match checks. REPORT `address-data` can project returned vCards to
+  text-match checks. Unsupported vCard property or parameter filters fail with
+  the RFC 6352 `CARDDAV:supported-filter` precondition instead of misleading
+  empty success responses. REPORT `address-data` can project returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
   Requested address-data content types and versions are validated against the
   advertised `text/vcard` 4.0 support before handler execution.

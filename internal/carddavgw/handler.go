@@ -478,6 +478,11 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	} else {
 		responses, err := h.reportResponses(r.Context(), userID, resource, depth, depthHeaderPresent, report)
 		if err != nil {
+			var unsupportedFilter UnsupportedFilterError
+			if errors.As(err, &unsupportedFilter) {
+				writeCardDAVPreconditionError(w, http.StatusForbidden, "supported-filter", err.Error())
+				return
+			}
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -743,6 +748,9 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		if depth == DepthZero {
 			return nil, nil
 		}
+		if err := validateAddressBookQueryFilterSupport(report.Filter); err != nil {
+			return nil, err
+		}
 		return h.addressBookQueryResponses(ctx, userID, resource, report)
 	case ReportSyncCollection:
 		if resource.Kind != ResourceAddressBookCollection {
@@ -909,6 +917,44 @@ func contactObjectMatchesFilter(object ContactObject, filter AddressBookQueryFil
 		}
 	}
 	return false
+}
+
+type UnsupportedFilterError struct {
+	Name string
+}
+
+func (e UnsupportedFilterError) Error() string {
+	return fmt.Sprintf("unsupported CardDAV filter name %q", e.Name)
+}
+
+var supportedVCardFilterProperties = map[string]struct{}{
+	"ADR": {}, "ANNIVERSARY": {}, "BDAY": {}, "CALADRURI": {}, "CALURI": {},
+	"CATEGORIES": {}, "CLIENTPIDMAP": {}, "EMAIL": {}, "FBURL": {}, "FN": {},
+	"GENDER": {}, "GEO": {}, "IMPP": {}, "KEY": {}, "KIND": {}, "LANG": {},
+	"LOGO": {}, "MEMBER": {}, "N": {}, "NICKNAME": {}, "NOTE": {}, "ORG": {},
+	"PHOTO": {}, "PRODID": {}, "RELATED": {}, "REV": {}, "ROLE": {}, "SOUND": {},
+	"SOURCE": {}, "TEL": {}, "TITLE": {}, "TZ": {}, "UID": {}, "URL": {},
+	"VERSION": {}, "XML": {},
+}
+
+var supportedVCardFilterParameters = map[string]struct{}{
+	"ALTID": {}, "CALSCALE": {}, "GEO": {}, "LABEL": {}, "LANGUAGE": {},
+	"MEDIATYPE": {}, "PID": {}, "PREF": {}, "SORT-AS": {}, "TYPE": {},
+	"TZ": {}, "VALUE": {},
+}
+
+func validateAddressBookQueryFilterSupport(filter AddressBookQueryFilter) error {
+	for _, propFilter := range filter.PropFilters {
+		if _, ok := supportedVCardFilterProperties[propFilter.Name]; !ok {
+			return UnsupportedFilterError{Name: propFilter.Name}
+		}
+		for _, paramFilter := range propFilter.ParamFilters {
+			if _, ok := supportedVCardFilterParameters[paramFilter.Name]; !ok {
+				return UnsupportedFilterError{Name: paramFilter.Name}
+			}
+		}
+	}
+	return nil
 }
 
 func vCardPropFilterApplies(lines []vCardContentLine, filter CardDAVPropFilter) bool {
@@ -1138,6 +1184,20 @@ func writeDAVPreconditionError(w http.ResponseWriter, status int, precondition s
 	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>`+
 		`<D:error xmlns:D="%s"><D:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
 		DAVNamespace,
+		precondition,
+		xmlEscapeText(message),
+	)
+}
+
+func writeCardDAVPreconditionError(w http.ResponseWriter, status int, precondition string, message string) {
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>`+
+		`<D:error xmlns:D="%s" xmlns:C="%s"><C:%s/><D:responsedescription>%s</D:responsedescription></D:error>`,
+		DAVNamespace,
+		CardDAVNamespace,
 		precondition,
 		xmlEscapeText(message),
 	)

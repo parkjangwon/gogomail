@@ -70,7 +70,10 @@ the RFC 6352 default `i;unicode-casemap` collation plus `equals`, `contains`,
 `starts-with`, `ends-with`, and `negate-condition` text-match attributes, and
 evaluates nested `param-filter` entries against parsed vCard parameter values.
 It now honors RFC 6352 `test=anyof|allof` composition on the top-level
-`filter` and individual `prop-filter` elements. REPORT `address-data` can now
+`filter` and individual `prop-filter` elements. `addressbook-query` now rejects
+unsupported vCard property or parameter filters with the RFC 6352
+`CARDDAV:supported-filter` precondition instead of returning misleading empty
+success responses. REPORT `address-data` can now
 project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 `version` values instead of returning data under an unimplemented format
