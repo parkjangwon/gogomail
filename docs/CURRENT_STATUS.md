@@ -267,6 +267,13 @@ size, active-only state, and result limits before querying, then resolves each
 bounded alias row back to its target principal. This prepares shared inbox
 management, mail-routing diagnostics, and admin alias screens without exposing
 raw `directory_aliases` SQL to product modules.
+Directory alias creation now has the same repository-owned policy boundary:
+`CreateAlias` normalizes the address, requires an active company/domain,
+checks that the alias address belongs to that Directory domain, resolves an
+active target principal in the same company, and maps the active-address
+unique-index race to a stable duplicate-alias error. Admin write endpoints are
+still intentionally gated until ownership policy, audit envelope, and shared
+inbox UX semantics are explicit.
 The admin backend API now exposes that read boundary as
 `GET /admin/v1/directory/delegations`, returning
 `{"directory_delegations":[...]}` with bounded company, owner, delegate, scope,

@@ -34,6 +34,7 @@ const (
 	MaxPrincipalSearchBytes     = 200
 	DefaultPrincipalSearchLimit = 20
 	MaxPrincipalSearchLimit     = 100
+	MaxAliasAddressBytes        = 320
 	MaxAliasSearchBytes         = 200
 	DefaultAliasListLimit       = 50
 	MaxAliasListLimit           = 200
@@ -79,6 +80,14 @@ type Alias struct {
 	TargetID        string
 	Status          string
 	TargetPrincipal Principal
+}
+
+type CreateAliasRequest struct {
+	CompanyID  string
+	DomainID   string
+	Address    string
+	TargetKind string
+	TargetID   string
 }
 
 type ResolveAliasRequest struct {
@@ -416,13 +425,42 @@ func NormalizeResolveAliasRequest(req ResolveAliasRequest) (ResolveAliasRequest,
 	if err != nil {
 		return ResolveAliasRequest{}, err
 	}
-	if len(address) > 320 {
+	if len(address) > MaxAliasAddressBytes {
 		return ResolveAliasRequest{}, fmt.Errorf("alias address is too long")
 	}
 	if strings.ContainsAny(address, "\r\n") {
 		return ResolveAliasRequest{}, fmt.Errorf("alias address must not contain line breaks")
 	}
 	req.Address = address
+	return req, nil
+}
+
+func NormalizeCreateAliasRequest(req CreateAliasRequest) (CreateAliasRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return CreateAliasRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	domainID, err := NormalizePrincipalID(req.DomainID)
+	if err != nil {
+		return CreateAliasRequest{}, fmt.Errorf("domain id: %w", err)
+	}
+	addressReq, err := NormalizeResolveAliasRequest(ResolveAliasRequest{Address: req.Address})
+	if err != nil {
+		return CreateAliasRequest{}, err
+	}
+	targetKind, err := NormalizePrincipalKind(req.TargetKind)
+	if err != nil {
+		return CreateAliasRequest{}, fmt.Errorf("target kind: %w", err)
+	}
+	targetID, err := NormalizePrincipalID(req.TargetID)
+	if err != nil {
+		return CreateAliasRequest{}, fmt.Errorf("target id: %w", err)
+	}
+	req.CompanyID = companyID
+	req.DomainID = domainID
+	req.Address = addressReq.Address
+	req.TargetKind = targetKind
+	req.TargetID = targetID
 	return req, nil
 }
 

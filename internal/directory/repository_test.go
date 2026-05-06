@@ -2,8 +2,11 @@ package directory
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestNormalizeResolvePrincipalRequest(t *testing.T) {
@@ -107,6 +110,75 @@ func TestNormalizeResolveAliasRequestRejectsInvalidAddresses(t *testing.T) {
 				t.Fatalf("NormalizeResolveAliasRequest(%q) error = nil, want rejection", address)
 			}
 		})
+	}
+}
+
+func TestNormalizeCreateAliasRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeCreateAliasRequest(CreateAliasRequest{
+		CompanyID:  " company-1 ",
+		DomainID:   " domain-1 ",
+		Address:    " Gogo Ops <Ops@Example.COM> ",
+		TargetKind: " GROUP ",
+		TargetID:   " group-1 ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeCreateAliasRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.DomainID != "domain-1" ||
+		got.Address != "ops@example.com" ||
+		got.TargetKind != PrincipalKindGroup ||
+		got.TargetID != "group-1" {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeCreateAliasRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []CreateAliasRequest{
+		{DomainID: "domain-1", Address: "ops@example.com", TargetKind: PrincipalKindGroup, TargetID: "group-1"},
+		{CompanyID: "company-1", Address: "ops@example.com", TargetKind: PrincipalKindGroup, TargetID: "group-1"},
+		{CompanyID: "company-1", DomainID: "domain-1", Address: "not an address", TargetKind: PrincipalKindGroup, TargetID: "group-1"},
+		{CompanyID: "company-1", DomainID: "domain-1", Address: "ops@example.com", TargetKind: "calendar", TargetID: "group-1"},
+		{CompanyID: "company-1", DomainID: "domain-1", Address: "ops@example.com", TargetKind: PrincipalKindGroup},
+		{CompanyID: "company-1", DomainID: "domain-1", Address: "ops@example.com\nbcc@example.net", TargetKind: PrincipalKindGroup, TargetID: "group-1"},
+		{CompanyID: "company-1", DomainID: "domain-1", Address: strings.Repeat("local", 90) + "@example.com", TargetKind: PrincipalKindGroup, TargetID: "group-1"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.DomainID+"/"+req.Address, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeCreateAliasRequest(req); err == nil {
+				t.Fatalf("NormalizeCreateAliasRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
+func TestAliasAddressMatchesDomain(t *testing.T) {
+	t.Parallel()
+
+	if !aliasAddressMatchesDomain("ops@example.com", "EXAMPLE.COM") {
+		t.Fatal("aliasAddressMatchesDomain rejected matching normalized domain")
+	}
+	if aliasAddressMatchesDomain("ops@example.net", "example.com") {
+		t.Fatal("aliasAddressMatchesDomain accepted mismatched domain")
+	}
+}
+
+func TestMapDirectoryAliasInsertErrorMapsActiveAddressUniqueIndex(t *testing.T) {
+	t.Parallel()
+
+	err := mapDirectoryAliasInsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_directory_aliases_active_address",
+	})
+	if !errors.Is(err, ErrAliasAlreadyExists) {
+		t.Fatalf("mapped error = %v, want ErrAliasAlreadyExists", err)
 	}
 }
 
