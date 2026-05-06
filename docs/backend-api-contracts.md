@@ -551,6 +551,15 @@ invalid RFC3339 windows, and unknown query names are rejected before service
 dispatch. The detail route `/admin/v1/dav-sync/retention-runs/{id}` returns
 `{ "dav_sync_retention_run": ... }` for one bounded run ID and rejects
 unexpected query strings.
+`GET /admin/v1/dav-sync/retention-readiness` returns
+`{ "dav_sync_retention_readiness": ... }` for a read-only dry-run preview over
+CalDAV and CardDAV sync-change retention candidates. It requires a non-future
+RFC3339 `cutoff`, accepts an optional per-backend `limit` capped at 10000
+(default 1000), rejects unknown query names, and reports aggregate,
+CalDAV-specific, and CardDAV-specific candidate counts plus `truncated`,
+`ready`, and `destructive_guarded` flags. The route performs dry-run repository
+probes only; it does not execute destructive retention and remains a preview
+gate until deployment token-retention policy is finalized.
 Admin bodyless command/delete routes reject unknown query parameter names as
 well, including IMAP UID backfill, DKIM DNS verify, outbox retry, DKIM
 deactivation, suppression deletion, trusted-relay deletion, and delivery-route
@@ -1174,6 +1183,14 @@ API call metering can now emit durable usage events:
   CalDAV/CardDAV candidate/deleted counts. These routes are read-only; running
   retention remains worker-owned while production token-expiry policy is still
   being finalized.
+- `GET /admin/v1/dav-sync/retention-readiness` returns
+  `{ "dav_sync_retention_readiness": ... }` for a non-destructive preview of
+  CalDAV and CardDAV sync-change rows that would be retention candidates before
+  a required, non-future RFC3339 `cutoff`. Optional `limit` is capped at 10000
+  per DAV backend and defaults to 1000. The response includes `candidate_count`,
+  `caldav_candidate_count`, `carddav_candidate_count`, `truncated`, `ready`,
+  and `destructive_guarded`; `ready=false` when the dry-run probe hit the limit
+  and a larger or staged operational run is needed.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals. The

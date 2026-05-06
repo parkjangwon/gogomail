@@ -69,6 +69,10 @@ func rejectUnknownDAVSyncRetentionRunListQuery(w http.ResponseWriter, r *http.Re
 	return rejectUnknownQueryKeys(w, r, "limit", "status", "created_from", "created_to")
 }
 
+func rejectUnknownDAVSyncRetentionReadinessQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "cutoff", "limit")
+}
+
 func rejectUnknownAPIUsageExportBatchCreateQuery(w http.ResponseWriter, r *http.Request) bool {
 	return rejectUnknownQueryKeys(w, r, "tenant_id", "principal_id", "from", "to")
 }
@@ -145,6 +149,7 @@ type AdminService interface {
 	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
 	ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 	GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
+	GetDAVSyncRetentionReadiness(ctx context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error)
@@ -1994,6 +1999,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownDAVSyncRetentionReadinessQuery(w, r) {
+			return
+		}
+		req, ok := parseDAVSyncRetentionReadinessRequest(w, r)
+		if !ok {
+			return
+		}
+		readiness, err := service.GetDAVSyncRetentionReadiness(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_readiness": readiness})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownDAVSyncRetentionRunListQuery(w, r) {
 			return
@@ -3619,6 +3640,65 @@ func parseDAVSyncRetentionRunListRequest(w http.ResponseWriter, r *http.Request,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 	}, true
+}
+
+func parseDAVSyncRetentionReadinessRequest(w http.ResponseWriter, r *http.Request) (davsyncretention.ReadinessRequest, bool) {
+	cutoffRaw, ok := singleQueryValue(w, r, "cutoff")
+	if !ok {
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	cutoffRaw = strings.TrimSpace(cutoffRaw)
+	if cutoffRaw == "" {
+		writeError(w, http.StatusBadRequest, "cutoff is required")
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	cutoff, err := time.Parse(time.RFC3339, cutoffRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cutoff must be RFC3339 timestamp")
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	limit, ok := parseDAVSyncRetentionLimit(w, r)
+	if !ok {
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	req, err := davsyncretention.NormalizeReadinessRequest(davsyncretention.ReadinessRequest{
+		Cutoff: cutoff,
+		Limit:  limit,
+	}, time.Now)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return davsyncretention.ReadinessRequest{}, false
+	}
+	return req, true
+}
+
+func parseDAVSyncRetentionLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw, ok := singleQueryValue(w, r, "limit")
+	if !ok {
+		return 0, false
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, true
+	}
+	if len(raw) > maxHTTPControlBytes {
+		writeError(w, http.StatusBadRequest, "limit is too long")
+		return 0, false
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "limit must be an integer")
+		return 0, false
+	}
+	if limit <= 0 {
+		writeError(w, http.StatusBadRequest, "limit must be positive")
+		return 0, false
+	}
+	if limit > davsyncretention.MaxReadinessLimit {
+		writeError(w, http.StatusBadRequest, "limit must be at most "+strconv.Itoa(davsyncretention.MaxReadinessLimit))
+		return 0, false
+	}
+	return limit, true
 }
 
 func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit int) maildb.APIUsageLedgerListRequest {
