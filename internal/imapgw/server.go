@@ -525,6 +525,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
+		state.deselectMailbox()
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
 			UserID:    state.session.UserID,
 			MailboxID: MailboxID(mailboxName),
@@ -583,7 +584,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 				return false, err
 			}
 		}
-		state.closeSubscription()
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.selectedHighestModSeq = mailboxState.HighestModSeq
@@ -748,14 +748,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 			return false, err
 		}
-		state.selectedMailbox = ""
-		state.selectedMessages = 0
-		state.selectedHighestModSeq = 0
-		state.selectedNoModSeq = false
-		state.permanentFlags = nil
-		state.readOnly = false
-		state.savedSearch = nil
-		state.closeSubscription()
+		state.deselectMailbox()
 		_, err := writer.WriteString(tag + " OK UNSELECT completed\r\n")
 		return false, err
 	case "EXPUNGE":
@@ -1016,14 +1009,7 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		return false, writeErr
 	}
 	if state.selectedMailbox == mailbox.ID {
-		state.selectedMailbox = ""
-		state.selectedMessages = 0
-		state.selectedHighestModSeq = 0
-		state.selectedNoModSeq = false
-		state.permanentFlags = nil
-		state.readOnly = false
-		state.savedSearch = nil
-		state.closeSubscription()
+		state.deselectMailbox()
 	}
 	_, err = writer.WriteString(tag + " OK DELETE completed\r\n")
 	return false, err
@@ -1300,6 +1286,20 @@ func (state *imapConnState) closeSubscription() {
 	state.cancelEvents()
 	state.cancelEvents = nil
 	state.events = nil
+}
+
+func (state *imapConnState) deselectMailbox() {
+	if state == nil {
+		return
+	}
+	state.selectedMailbox = ""
+	state.selectedMessages = 0
+	state.selectedHighestModSeq = 0
+	state.selectedNoModSeq = false
+	state.permanentFlags = nil
+	state.readOnly = false
+	state.savedSearch = nil
+	state.closeSubscription()
 }
 
 func (s *Server) handleAuthenticatePlainResponse(writer *bufio.Writer, line string, state *imapConnState) (bool, error) {
@@ -3722,14 +3722,7 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 			return false, writeErr
 		}
 	}
-	state.selectedMailbox = ""
-	state.selectedMessages = 0
-	state.selectedHighestModSeq = 0
-	state.selectedNoModSeq = false
-	state.permanentFlags = nil
-	state.readOnly = false
-	state.savedSearch = nil
-	state.closeSubscription()
+	state.deselectMailbox()
 	_, err := writer.WriteString(tag + " OK CLOSE completed\r\n")
 	return false, err
 }

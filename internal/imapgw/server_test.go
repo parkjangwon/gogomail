@@ -1991,6 +1991,62 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerFailedSelectDeselectsCurrentMailbox(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &selectMissingAfterSelectBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 SELECT missing\r\na4 FETCH 1 (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write login/select/fetch: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+		"a3 NO [NONEXISTENT] SELECT mailbox does not exist\r\n",
+		"a4 NO mailbox must be selected\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backendImpl.canceled != 1 {
+		t.Fatalf("subscription cancel count = %d, want 1", backendImpl.canceled)
+	}
+}
+
 func TestServerSelectEmitsFirstUnseenSequence(t *testing.T) {
 	t.Parallel()
 
@@ -11611,6 +11667,27 @@ type selectModeBackend struct {
 func (b *selectModeBackend) SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error) {
 	b.readOnly = req.ReadOnly
 	return b.fakeBackend.SelectMailbox(ctx, req)
+}
+
+type selectMissingAfterSelectBackend struct {
+	fakeBackend
+	canceled int
+}
+
+func (b *selectMissingAfterSelectBackend) SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error) {
+	if req.MailboxID == "missing" {
+		return MailboxState{}, ErrMailboxNotFound
+	}
+	return b.fakeBackend.SelectMailbox(ctx, req)
+}
+
+func (b *selectMissingAfterSelectBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+	events := make(chan MailboxEvent)
+	cancel := func() {
+		b.canceled++
+		close(events)
+	}
+	return events, cancel, nil
 }
 
 type failingSubscribeBackend struct {
