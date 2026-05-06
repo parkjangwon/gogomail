@@ -1348,7 +1348,7 @@ func (state *imapConnState) deselectMailbox() {
 
 func imapCommandShouldDrainSelectedEvents(command string) bool {
 	switch strings.ToUpper(command) {
-	case "FETCH", "STORE", "COPY", "MOVE", "SEARCH", "SORT", "THREAD", "CHECK", "CLOSE", "UNSELECT", "EXPUNGE", "UID":
+	case "FETCH", "STORE", "COPY", "MOVE", "SEARCH", "SORT", "THREAD", "CHECK", "CLOSE", "UNSELECT", "EXPUNGE", "UID", "APPEND":
 		return true
 	default:
 		return false

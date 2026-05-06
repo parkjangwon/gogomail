@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV double-encoded separator hardening)
+Last updated: 2026-05-07 (updated after IMAP APPEND event-order hardening)
 
 ## Current phase
 
@@ -84,6 +84,9 @@ IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
 partial full-message fetches, preserve `RFC822<offset>` in the literal
 response item, and apply the same `\Seen` mutation semantics as full `RFC822`
 body fetches.
+IMAP `APPEND` now drains already queued selected-mailbox events before append
+mutation responses, keeping pending FLAGS/EXISTS/EXPUNGE updates ordered ahead
+of the tagged APPEND completion just like other selected mailbox commands.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

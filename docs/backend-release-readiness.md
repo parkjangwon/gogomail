@@ -1871,6 +1871,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `NOOP` now drains queued mailbox events into untagged `EXISTS`,
   `EXPUNGE`, and flag `FETCH` updates for selected mailboxes, suppressing
   stale or duplicate exact-count `EXISTS` events.
+- IMAP `APPEND` now drains queued selected-mailbox events before append
+  mutation responses, preserving command-order visibility for pending
+  FLAGS/EXISTS/EXPUNGE updates instead of delaying them until a later `NOOP`.
 - Mail API move/delete expunge notifications now carry mailbox sequence numbers
   from IMAP UID lookup, allowing selected `NOOP`/`IDLE` clients to receive
   renderable untagged `EXPUNGE` updates.
