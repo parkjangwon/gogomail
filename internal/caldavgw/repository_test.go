@@ -372,15 +372,16 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 		t.Fatalf("get request = %+v", get)
 	}
 	deleted, syncToken, err := ValidateDeleteObjectRequest(DeleteObjectRequest{
-		UserID:      " user-1 ",
-		ActorUserID: " delegate-1 ",
-		CalendarID:  " calendar-1 ",
-		ObjectName:  " event.ics ",
+		UserID:       " user-1 ",
+		ActorUserID:  " delegate-1 ",
+		CalendarID:   " calendar-1 ",
+		ObjectName:   " event.ics ",
+		ObservedETag: `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
 	})
 	if err != nil {
 		t.Fatalf("ValidateDeleteObjectRequest returned error: %v", err)
 	}
-	if deleted.ActorUserID != "delegate-1" || deleted.ObjectName != "event.ics" || !strings.HasPrefix(syncToken, "sync-") {
+	if deleted.ActorUserID != "delegate-1" || deleted.ObjectName != "event.ics" || deleted.ObservedETag != `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"` || !strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("delete request = %+v token = %q", deleted, syncToken)
 	}
 	deleteCalendar, err := ValidateDeleteCalendarRequest(DeleteCalendarRequest{

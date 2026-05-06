@@ -3283,6 +3283,10 @@ Implementation order:
       `delegated` context so delegated writes/deletes remain auditable and
       usable by future Notification & Sync, reminder, search, and mobile delta
       consumers.
+1273. CalDAV object `DELETE` now carries matched strong `If-Match` ETags into
+      `DeleteObjectRequest` and revalidates them inside the repository
+      transaction before soft deletion, aligning delete concurrency semantics
+      with the observed-ETag guard already used by `PUT`.
 
 ## Deferred until backend contracts stabilize
 

@@ -126,6 +126,10 @@ first wire header. Date-based CalDAV conditionals now reject repeated
 `If-Modified-Since` or `If-Unmodified-Since` headers before object reads,
 object writes, object deletes, or collection precondition checks, avoiding
 ambiguous timestamp guards that used to depend on the first header value.
+CalDAV object `DELETE` also carries matched strong `If-Match` ETags into the
+repository request and revalidates them inside the delete transaction before
+soft deletion, closing the stale-write window between handler preflight and
+durable mutation.
 CalDAV mutating repository paths now enqueue a transactional `dav.event`
 outbox row whenever they append a durable calendar sync-change row. The v1
 `calendar.changed` payload carries the DAV kind, action, owner user, actor
