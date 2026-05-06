@@ -90,6 +90,9 @@ func (c Config) Validate() error {
 	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_KEY_FILE", c.IMAPTLSKeyFile, 4096); err != nil {
 		return err
 	}
+	if c.IMAPMaxConnections < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_MAX_CONNECTIONS must not be negative")
+	}
 	if c.IMAPNotifyConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT must be positive")
 	}

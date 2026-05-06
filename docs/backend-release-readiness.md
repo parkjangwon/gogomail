@@ -235,6 +235,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   custom names containing `_`, `+`, or `.`, while rejecting empty,
   whitespace/control-bearing, colon-suffixed, or non-ASCII names before
   command execution.
+- IMAP listener concurrency is now operator-bounded through
+  `GOGOMAIL_IMAP_MAX_CONNECTIONS` / `imap_max_connections`; positive caps hold
+  one slot per active protocol session and reject excess clients with an
+  initial `BYE [ALERT]`, preventing unbounded connection goroutine growth
+  under client storms while leaving the default unlimited for development or
+  externally limited deployments.
 - IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
   before joining relative mailbox patterns, keeping namespace/root-style
   discovery probes compatible with root-relative mailbox storage.

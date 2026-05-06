@@ -35,6 +35,7 @@ func TestNewServerValidatesListenerOptions(t *testing.T) {
 		{name: "missing port", opts: ServerOptions{Addr: "localhost", Backend: fakeBackend{}, AllowInsecureAuth: true}},
 		{name: "missing backend", opts: ServerOptions{Addr: ":1143", AllowInsecureAuth: true}},
 		{name: "tls required", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}}},
+		{name: "negative max connections", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true, MaxConnections: -1}},
 	} {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,6 +45,94 @@ func TestNewServerValidatesListenerOptions(t *testing.T) {
 				t.Fatal("NewServer error = nil, want rejection")
 			}
 		})
+	}
+}
+
+func TestServerServeRejectsConnectionsOverLimit(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: "127.0.0.1:0", Backend: fakeBackend{}, AllowInsecureAuth: true, MaxConnections: 1})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen returned error: %v", err)
+	}
+	defer listener.Close()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(listener)
+	}()
+
+	first, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial first connection: %v", err)
+	}
+	defer first.Close()
+	if err := first.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set first deadline: %v", err)
+	}
+	firstReader := bufio.NewReader(first)
+	if line, err := firstReader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "* OK ") {
+		t.Fatalf("first greeting = %q, err = %v", line, err)
+	}
+	if err := first.SetDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear first deadline: %v", err)
+	}
+
+	second, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial second connection: %v", err)
+	}
+	defer second.Close()
+	if err := second.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set second deadline: %v", err)
+	}
+	secondReader := bufio.NewReader(second)
+	line, err := secondReader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read over-limit response: %v", err)
+	}
+	if line != "* BYE [ALERT] gogomail IMAP4rev1 server connection limit reached\r\n" {
+		t.Fatalf("over-limit response = %q", line)
+	}
+
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first connection: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		third, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial third connection: %v", err)
+		}
+		if err := third.SetDeadline(time.Now().Add(time.Second)); err != nil {
+			t.Fatalf("set third deadline: %v", err)
+		}
+		line, err := bufio.NewReader(third).ReadString('\n')
+		_ = third.Close()
+		if err != nil {
+			t.Fatalf("read third response: %v", err)
+		}
+		if strings.HasPrefix(line, "* OK ") {
+			break
+		}
+		if line != "* BYE [ALERT] gogomail IMAP4rev1 server connection limit reached\r\n" {
+			t.Fatalf("third response = %q", line)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("connection slot was not released before deadline; last response = %q", line)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
+	if err := <-errCh; !errors.Is(err, ErrServerClosed) {
+		t.Fatalf("Serve returned %v, want ErrServerClosed", err)
 	}
 }
 

@@ -647,12 +647,13 @@ func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	opts, err := imapServerOptionsForConfig(config.Config{
 		IMAPAddr:              " :1143 ",
 		IMAPAllowInsecureAuth: true,
+		IMAPMaxConnections:    256,
 		SMTPDomain:            "localhost",
 	}, runtime.backend)
 	if err != nil {
 		t.Fatalf("imapServerOptionsForConfig returned error: %v", err)
 	}
-	if opts.Addr != ":1143" || opts.Backend == nil || opts.TLSConfig != nil || !opts.AllowInsecureAuth {
+	if opts.Addr != ":1143" || opts.Backend == nil || opts.TLSConfig != nil || !opts.AllowInsecureAuth || opts.MaxConnections != 256 {
 		t.Fatalf("options = %+v", opts)
 	}
 }

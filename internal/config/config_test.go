@@ -20,6 +20,7 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_IMAP_TLS_CERT_FILE", "")
 	t.Setenv("GOGOMAIL_IMAP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", "")
+	t.Setenv("GOGOMAIL_IMAP_MAX_CONNECTIONS", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", "")
@@ -172,6 +173,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if !cfg.IMAPAllowInsecureAuth {
 		t.Fatal("IMAPAllowInsecureAuth = false, want true in development defaults")
+	}
+	if cfg.IMAPMaxConnections != 0 {
+		t.Fatalf("IMAPMaxConnections = %d, want 0 for unlimited default", cfg.IMAPMaxConnections)
 	}
 	if cfg.IMAPNotifyConsumerGroup != "gogomail.imap-gateway" {
 		t.Fatalf("IMAPNotifyConsumerGroup = %q, want gogomail.imap-gateway", cfg.IMAPNotifyConsumerGroup)
