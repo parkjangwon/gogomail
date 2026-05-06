@@ -964,6 +964,65 @@ func TestS3StoreDeleteTreatsMissingObjectAsSuccess(t *testing.T) {
 	}
 }
 
+func TestS3StoreMissingObjectErrorsWrapNotExist(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		run  func(*S3Store) error
+	}{
+		{
+			name: "get",
+			run: func(store *S3Store) error {
+				_, err := store.Get(context.Background(), "messages/missing.eml")
+				return err
+			},
+		},
+		{
+			name: "get range",
+			run: func(store *S3Store) error {
+				_, err := store.GetRange(context.Background(), "messages/missing.eml", RangeRequest{Offset: 0, Length: 1})
+				return err
+			},
+		},
+		{
+			name: "stat",
+			run: func(store *S3Store) error {
+				_, err := store.Stat(context.Background(), "messages/missing.eml")
+				return err
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusNotFound,
+						Body:       io.NopCloser(strings.NewReader("<Error><Code>NoSuchKey</Code></Error>")),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = tc.run(store)
+			if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("%s err = %v, want os.ErrNotExist", tc.name, err)
+			}
+		})
+	}
+}
+
 func TestS3StoreCopyRejectsEmbeddedErrorInOKResponse(t *testing.T) {
 	t.Parallel()
 

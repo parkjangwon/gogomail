@@ -2656,6 +2656,10 @@ Implementation order:
       no child calendar-object matches unless the client explicitly requests
       `Depth: 1`, preventing collection-scoped searches from silently widening
       their WebDAV request scope.
+1181. S3-compatible missing-object reads now wrap `os.ErrNotExist` for `GET`,
+      ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping
+      backend-neutral missing-object handling aligned with local/NFS storage
+      while retaining sanitized S3 status diagnostics.
 
 ## Deferred until backend contracts stabilize
 

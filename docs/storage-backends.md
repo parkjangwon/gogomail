@@ -171,6 +171,9 @@ compatibility while preserving streaming-first storage paths.
 Deletes are idempotent for missing objects, including `404 Not Found` responses
 from compatible providers, so lifecycle cleanup behaves consistently across
 AWS S3, MinIO-style endpoints, and local/NFS storage.
+Missing-object reads also preserve the local/NFS error contract: `Get`,
+`GetRange`, and `Stat` wrap `os.ErrNotExist` for compatible-provider
+`404 Not Found` responses while retaining sanitized S3 status context.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
