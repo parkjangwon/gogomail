@@ -221,7 +221,11 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if err != nil {
 		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", rawObjectPath, err)
 	}
-	lastModified, err := parseS3StatLastModified(resp.Header.Get("Last-Modified"))
+	rawLastModified, ok := s3ResponseSingleHeader(resp, "Last-Modified")
+	if !ok {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate last-modified")
+	}
+	lastModified, err := parseS3StatLastModified(rawLastModified)
 	if err != nil {
 		return ObjectInfo{}, err
 	}
@@ -641,14 +645,22 @@ func s3GetObjectContentLength(resp *http.Response) (int64, bool, error) {
 }
 
 func s3ResponseContentLengthHeader(resp *http.Response) (string, error) {
-	values := resp.Header.Values("Content-Length")
-	if len(values) > 1 {
+	value, ok := s3ResponseSingleHeader(resp, "Content-Length")
+	if !ok {
 		return "", fmt.Errorf("duplicate content length")
 	}
-	if len(values) == 1 {
-		return values[0], nil
+	return value, nil
+}
+
+func s3ResponseSingleHeader(resp *http.Response, name string) (string, bool) {
+	values := resp.Header.Values(name)
+	if len(values) > 1 {
+		return "", false
 	}
-	return "", nil
+	if len(values) == 1 {
+		return values[0], true
+	}
+	return "", true
 }
 
 func parseS3NonNegativeDecimal(value string) (int64, bool) {

@@ -4020,6 +4020,10 @@ Implementation order:
       safe `200 OK` range-compatibility validation, preventing ambiguous object
       length metadata from being collapsed into a bounded reader or stored
       object metadata.
+1440. S3-compatible `HEAD`/`Stat` metadata now rejects duplicate
+      `Last-Modified` headers before timestamp parsing, preventing compatible
+      provider timestamp ambiguity from being collapsed into a single object
+      modification time.
 
 ## Deferred until backend contracts stabilize
 

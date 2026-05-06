@@ -337,7 +337,8 @@ normalized; if both the raw header and normalized HTTP response length are
 available, they must agree, and duplicate `Content-Length` headers are
 rejected as ambiguous provider metadata. A non-empty malformed `Last-Modified`
 header is rejected instead of being silently exposed as a zero timestamp, while
-missing timestamps and
+duplicate `Last-Modified` headers are rejected before timestamp parsing. Missing
+timestamps and
 HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
 S3-compatible full-object `GET` validates present `Content-Length` metadata
