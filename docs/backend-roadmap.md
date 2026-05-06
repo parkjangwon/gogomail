@@ -2449,6 +2449,9 @@ Implementation order:
 1133. CardDAV `addressbook-multiget` now requires an explicit `Depth` header
       before resolving requested hrefs, preserving the REPORT's depth-scoped
       request model while accepting common Depth 0/1 native-client shapes.
+1134. CardDAV `sync-collection` now enforces RFC 6578 Depth behavior by
+      accepting the default or explicit `Depth: 0` request scope and rejecting
+      `Depth: 1` before sync lookup or change-log work.
 
 ## Deferred until backend contracts stabilize
 

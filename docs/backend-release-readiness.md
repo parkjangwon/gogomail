@@ -427,7 +427,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-deleted` change row, and rejects unsafe targets.
   `sync-collection` can answer stale-token requests after collection deletion
   by returning the latest durable deletion sync token without requiring the
-  collection to remain active.
+  collection to remain active. It also enforces RFC 6578 Depth behavior by
+  accepting default/explicit `Depth: 0` and rejecting `Depth: 1` before sync
+  lookup or change-log work.
   Contact-object writes preflight duplicate active vCard UIDs within the same
   address book before SQL upsert, keeping failures predictable while the
   PostgreSQL partial unique index remains the final concurrency guard.

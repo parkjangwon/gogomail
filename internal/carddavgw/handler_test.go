@@ -1025,6 +1025,23 @@ func TestHandlerReportSyncCollectionRejectsInvalidSyncTokenWithDAVPrecondition(t
 	}
 }
 
+func TestHandlerReportSyncCollectionRejectsDepthOne(t *testing.T) {
+	t.Parallel()
+
+	body := `<D:sync-collection xmlns:D="DAV:">
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Depth: 0") {
+		t.Fatalf("sync depth response lacks context: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportRejectsDepthInfinityAndCrossUserPath(t *testing.T) {
 	t.Parallel()
 
