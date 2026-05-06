@@ -2828,10 +2828,12 @@ The platform hardening sprint completed the following:
   ID. Admin API now exposes that read model through
   `GET /admin/v1/dav-sync/retention-runs` and
   `GET /admin/v1/dav-sync/retention-runs/{id}` with explicit response
-  envelopes and documented query allowlists. Unknown or expired tokens still
-  fail with DAV `valid-sync-token`; deployment retention-age policy, explicit
-  retention readiness semantics, and native-client expiry testing remain future
-  work.
+  envelopes and documented query allowlists. Optional PostgreSQL integration
+  coverage applies release migrations and round-trips completed/failed DAV
+  retention run rows, including sanitized failure text and status-window list
+  filters. Unknown or expired tokens still fail with DAV `valid-sync-token`;
+  deployment retention-age policy, explicit retention readiness semantics, and
+  native-client expiry testing remain future work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and
