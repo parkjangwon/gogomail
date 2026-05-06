@@ -1314,6 +1314,88 @@ func TestS3StoreDeleteTreatsMissingObjectAsSuccess(t *testing.T) {
 	}
 }
 
+func TestS3StoreDeleteRejectsAmbiguousSuccessStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		status int
+		want   string
+	}{
+		{name: "created", status: http.StatusCreated, want: "status 201"},
+		{name: "accepted", status: http.StatusAccepted, want: "status 202"},
+		{name: "partial_content", status: http.StatusPartialContent, want: "status 206"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("provider body")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: tc.status,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Delete(context.Background(), "messages/msg-1.eml")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Delete err = %v, want %q", err, tc.want)
+			}
+			if !body.closed {
+				t.Fatal("unexpected-status response body was not closed")
+			}
+		})
+	}
+}
+
+func TestS3StoreDeleteAcceptsCompatibleSuccessStatus(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		status := status
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: status,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if err := store.Delete(context.Background(), "messages/msg-1.eml"); err != nil {
+				t.Fatalf("Delete returned error: %v", err)
+			}
+			if !body.closed {
+				t.Fatal("success response body was not closed")
+			}
+		})
+	}
+}
+
 func TestS3StoreMissingObjectErrorsWrapNotExist(t *testing.T) {
 	t.Parallel()
 

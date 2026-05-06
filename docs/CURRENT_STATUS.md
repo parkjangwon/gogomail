@@ -767,6 +767,10 @@ owner/resource target without scanning unrelated audit history.
   bounded response-body window before close, improving HTTP connection reuse
   for normal S3/MinIO responses without allowing oversized bodies to stall
   cleanup.
+- S3-compatible deletes now accept completed `200 OK`/`204 No Content`
+  responses plus idempotent `404 Not Found`, while rejecting accepted/deferred
+  or other ambiguous non-OK 2xx statuses before cleanup workers can mark object
+  deletion as complete.
 - S3-compatible `PutObject`, full-object `GET`, `HEAD`/`Stat`, and
   `ListObjectsV2` now require exact `200 OK` responses so accepted/deferred
   writes, unexpected partial-content, or other non-OK 2xx statuses cannot
