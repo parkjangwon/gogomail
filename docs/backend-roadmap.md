@@ -3840,6 +3840,10 @@ Implementation order:
       top-level `<IsTruncated>` or `<NextContinuationToken>` elements before
       XML unmarshalling can collapse ambiguous final/truncated state or cursor
       identity.
+1394. S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+      per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements
+      before XML unmarshalling can collapse conflicting provider values into
+      one listed object.
 
 ## Deferred until backend contracts stabilize
 

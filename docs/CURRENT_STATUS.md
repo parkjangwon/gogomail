@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list pagination control hardening)
+Last updated: 2026-05-07 (updated after S3 list object cardinality hardening)
 
 ## Current phase
 
@@ -147,6 +147,9 @@ S3-compatible `ListObjectsV2` object `LastModified` metadata now fails closed
 when a non-empty provider value is malformed or whitespace-padded, while still
 allowing missing values for compatible providers that omit optional timestamp
 metadata.
+S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before XML
+unmarshalling can collapse conflicting provider values into one listed object.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

@@ -164,6 +164,10 @@ Current state:
   closed when a non-empty provider value is malformed or whitespace-padded,
   while still allowing missing values for compatible providers that omit
   optional timestamp metadata.
+- S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+  per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before
+  XML unmarshalling can collapse conflicting provider values into one listed
+  object.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

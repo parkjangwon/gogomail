@@ -810,6 +810,68 @@ func TestS3StoreListRejectsDuplicatePaginationControls(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsDuplicateObjectMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		contents string
+		want     string
+	}{
+		{
+			name:     "key",
+			contents: `<Key>messages/msg-1.eml</Key><Key>messages/msg-2.eml</Key><Size>5</Size>`,
+			want:     "duplicate object key",
+		},
+		{
+			name:     "size",
+			contents: `<Key>messages/msg-1.eml</Key><Size>5</Size><Size>7</Size>`,
+			want:     "duplicate object size",
+		},
+		{
+			name:     "etag",
+			contents: `<Key>messages/msg-1.eml</Key><Size>5</Size><ETag>"a"</ETag><ETag>"b"</ETag>`,
+			want:     "duplicate object etag",
+		},
+		{
+			name:     "last_modified",
+			contents: `<Key>messages/msg-1.eml</Key><Size>5</Size><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified>`,
+			want:     "duplicate object last-modified",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents>` + tc.contents + `</Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreDeletePrefixUsesContinuationCursor(t *testing.T) {
 	t.Parallel()
 
