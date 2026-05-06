@@ -6672,14 +6672,16 @@ func imapStoreFlags(value string) (MessageFlags, bool) {
 
 func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 	var flags MessageFlags
-	trimmed := strings.TrimSpace(value)
-	if trimmed != "()" && (!strings.HasPrefix(trimmed, "(") || !strings.HasSuffix(trimmed, ")")) {
+	if strings.TrimSpace(value) != value {
 		return MessageFlags{}, nil, false
 	}
-	inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "("), ")")
+	if value != "()" && (!strings.HasPrefix(value, "(") || !strings.HasSuffix(value, ")")) {
+		return MessageFlags{}, nil, false
+	}
+	inner := strings.TrimSuffix(strings.TrimPrefix(value, "("), ")")
 	tokens := strings.Fields(inner)
 	if len(tokens) == 0 {
-		return flags, nil, trimmed == "()"
+		return flags, nil, value == "()"
 	}
 	names := make([]string, 0, len(tokens))
 	for _, raw := range tokens {

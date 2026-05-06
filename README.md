@@ -86,7 +86,7 @@ Recent release-readiness work also includes:
   semantics, rejection of whitespace-padded numeric and date search criteria,
   rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
   values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
-  `UNCHANGEDSINCE` marker handling,
+  `UNCHANGEDSINCE` marker handling, strict STORE flag-list framing,
   selected-state event draining before sequence-set commands,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and

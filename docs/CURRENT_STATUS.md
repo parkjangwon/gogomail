@@ -1567,6 +1567,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `STORE`/`UID STORE` mode atoms and `UNCHANGEDSINCE` markers now reject
   whitespace-padded quoted or literal values instead of trimming them into
   valid mutation controls.
+- IMAP `STORE`/`UID STORE` flag-list values now reject whitespace-padded
+  quoted or literal lists such as ` (\\Seen) ` while preserving exact `()`
+  and parenthesized flag-list semantics.
 - IMAP selected-state commands now validate malformed message sequence-set and
   UID set syntax, including signed values such as `+1`/`+7`, before
   authentication or selected-mailbox checks while leaving selected-mailbox
