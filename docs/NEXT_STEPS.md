@@ -227,7 +227,10 @@ Current state:
   characters after the closing `>`.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
-  values such as `UTF-8"` from being silently normalized.
+  values such as `UTF-8"` from being silently normalized. Unsupported charsets
+  now return the same RFC-shaped `[BADCHARSET (US-ASCII UTF-8)]` diagnostics
+  before authentication or selected-mailbox checks, so probe clients can fall
+  back deterministically.
 - IMAP `THREAD` algorithm arguments reject malformed atoms that still contain
   quote characters after command parsing, preventing broken values such as
   `ORDEREDSUBJECT"` from being silently normalized.

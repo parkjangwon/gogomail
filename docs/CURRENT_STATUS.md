@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CardDAV principal boundary hardening)
+Last updated: 2026-05-06 (updated after IMAP pre-auth BADCHARSET handling)
 
 ## Current phase
 
@@ -56,7 +56,10 @@ field labels as syntax errors instead of treating them as successful empty
 searches. Unsupported IMAP search-key atoms such as vendor-specific
 `X-GM-RAW` probes are now also rejected before authentication or selected
 mailbox state, so unsupported criteria do not masquerade as valid stateful
-searches.
+searches. Unsupported `SEARCH`, `SORT`, and `THREAD` charset probes now return
+their RFC-shaped `[BADCHARSET (US-ASCII UTF-8)]` diagnostics before
+authentication or selected-mailbox checks, keeping client charset fallback
+behavior deterministic even during capability probing.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
