@@ -8246,7 +8246,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD forwarded\r\na15 UID SEARCH UNKEYWORD $Forwarded\r\na16 SEARCH KEYWORD bad%flag\r\na17 SEARCH KEYWORD custom\"\r\na18 UID SEARCH UNKEYWORD custom\"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH UNSEEN\r\na4 UID SEARCH FLAGGED\r\na5 SEARCH DRAFT\r\na6 UID SEARCH UNDRAFT\r\na7 SEARCH DELETED\r\na8 UID SEARCH UNDELETED\r\na9 SEARCH RECENT\r\na10 UID SEARCH OLD\r\na11 SEARCH NEW\r\na12 SEARCH KEYWORD custom\r\na13 UID SEARCH UNKEYWORD custom\r\na14 SEARCH KEYWORD forwarded\r\na15 UID SEARCH UNKEYWORD $Forwarded\r\na16 SEARCH KEYWORD bad%flag\r\na17 SEARCH KEYWORD custom\"\r\na18 UID SEARCH UNKEYWORD custom\"\r\na19 SEARCH KEYWORD \\Seen\r\na20 UID SEARCH UNKEYWORD bad]flag\r\n")); err != nil {
 		t.Fatalf("write flag search: %v", err)
 	}
 	want := []string{
@@ -8279,6 +8279,8 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 		"a16 BAD SEARCH criteria are unsupported\r\n",
 		"a17 BAD malformed command\r\n",
 		"a18 BAD malformed command\r\n",
+		"a19 BAD SEARCH criteria are unsupported\r\n",
+		"a20 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -8289,7 +8291,7 @@ func TestServerHandlesFlagSearchAfterSelect(t *testing.T) {
 			t.Fatalf("flag search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a19 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a21 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

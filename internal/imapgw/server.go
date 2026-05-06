@@ -2883,16 +2883,7 @@ func imapParseSearchPredicate(criteria []string, maxSequence uint32, maxUID UID,
 }
 
 func imapSearchKeywordValid(value string) bool {
-	if strings.Contains(value, `"`) {
-		return false
-	}
-	if strings.TrimSpace(value) == "" {
-		return false
-	}
-	if strings.ContainsAny(value, "(){ %*\r\n\t") {
-		return false
-	}
-	return true
+	return imapAtomValid(value)
 }
 
 func imapMessageMatchesKeywordSearch(summary MessageSummary, keyword string) bool {

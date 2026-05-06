@@ -1771,7 +1771,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria now reject
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
-  silently normalized.
+  silently normalized. They now share the common IMAP atom validator, so
+  system flags such as `\Seen` and response-special atoms such as `bad]flag`
+  cannot be treated as RFC `flag-keyword` search criteria.
 - IMAP command tokenization now rejects dangling quote characters at the end of
   unquoted atoms, preventing broken commands such as `SUBJECT IMAP"` and
   `LIST "" INBOX"` from reaching command-specific normalization while

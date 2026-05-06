@@ -1484,7 +1484,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` `KEYWORD` and `UNKEYWORD` criteria reject
   malformed keyword atoms that still contain quote characters after command
   parsing, preventing broken values such as `KEYWORD custom"` from being
-  silently normalized.
+  silently normalized. They now use the common IMAP atom validator, rejecting
+  system flags such as `\Seen` and response-special atoms such as `bad]flag`
+  instead of treating them as RFC `flag-keyword` search criteria.
 - IMAP search-key syntax validation now rejects unknown or unsupported
   search-key atoms such as vendor-specific `X-GM-RAW` probes before
   authentication or selected-mailbox state across `SEARCH`, `UID SEARCH`,
