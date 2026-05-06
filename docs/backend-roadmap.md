@@ -3398,6 +3398,11 @@ Implementation order:
       regression-covered through a following `SELECT` and `UID STORE`, proving
       MODSEQ-aware STORE echo responses survive mailbox selection after the
       initial status probe.
+1299. IMAP `ENABLE CONDSTORE` issued after mailbox selection now emits the
+      selected mailbox's `HIGHESTMODSEQ` or `NOMODSEQ` untagged OK response
+      before tagged completion, matching RFC 7162 first-enabling-command
+      semantics. Selected-session highest-mod-sequence state is retained from
+      SELECT and refreshed by known APPEND/COPY/MOVE/STORE/event mutations.
 
 ## Deferred until backend contracts stabilize
 

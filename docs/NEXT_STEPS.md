@@ -1002,6 +1002,10 @@ Current state:
   flag `FETCH` event/STORE echo responses include `MODSEQ`. The
   `STATUS HIGHESTMODSEQ` path is regression-covered across a following
   `SELECT` and `UID STORE` so awareness survives mailbox selection.
+- `ENABLE CONDSTORE` issued after a mailbox is already selected now emits the
+  selected mailbox's `HIGHESTMODSEQ` or `NOMODSEQ` before tagged completion,
+  satisfying RFC 7162 first-enabling-command semantics and keeping MODSEQ
+  baselines visible to late-enabling clients.
 - `STORE`/`UID STORE` now support RFC 4551-shaped `(UNCHANGEDSINCE n)`
   modifiers with transactional per-message mod-sequence checks, partial
   success for passing messages, and UID/sequence `[MODIFIED ...]`
