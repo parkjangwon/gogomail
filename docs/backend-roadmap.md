@@ -2652,6 +2652,10 @@ Implementation order:
       repository lookup or change-log work, aligning the gateway with RFC
       6578 request-scope semantics and the existing CardDAV behavior while
       keeping child traversal controlled by the required body `sync-level`.
+1180. CalDAV `REPORT calendar-query` now honors HTTP `Depth: 0` by returning
+      no child calendar-object matches unless the client explicitly requests
+      `Depth: 1`, preventing collection-scoped searches from silently widening
+      their WebDAV request scope.
 
 ## Deferred until backend contracts stabilize
 

@@ -408,6 +408,7 @@ func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
     </C:comp-filter>
   </C:filter>
 </C:calendar-query>`))
+	req.Header.Set("Depth", "1")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -427,6 +428,26 @@ func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryDepthZeroDoesNotScanChildren(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter><C:comp-filter name="VCALENDAR"/></C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "event-1.ics") {
+		t.Fatalf("Depth: 0 calendar-query scanned child objects:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportCalendarQuerySkipsNonOverlappingTimeRange(t *testing.T) {
 	t.Parallel()
 
@@ -441,6 +462,7 @@ func TestHandlerReportCalendarQuerySkipsNonOverlappingTimeRange(t *testing.T) {
     </C:comp-filter>
   </C:filter>
 </C:calendar-query>`))
+	req.Header.Set("Depth", "1")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -479,6 +501,7 @@ func TestHandlerReportCalendarQueryFiltersByComponent(t *testing.T) {
     </C:comp-filter>
   </C:filter>
 </C:calendar-query>`))
+	req.Header.Set("Depth", "1")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

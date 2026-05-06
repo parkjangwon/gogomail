@@ -36,7 +36,9 @@ native-client testing, and the platform boundaries below.
 CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
 scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
 traversal controlled by the request body's `sync-level` rather than accidentally
-mixing in a broader HTTP `Depth: 1` traversal.
+mixing in a broader HTTP `Depth: 1` traversal. CalDAV `calendar-query` now also
+honors HTTP `Depth: 0` by not scanning child calendar objects unless the client
+uses `Depth: 1`, keeping query scope explicit for native client compatibility.
 
 Calendar product features must not grow as isolated CRUD. Before delegated
 calendars, shared ownership, attendees, resource booking, reminders, or
