@@ -3601,6 +3601,10 @@ Implementation order:
 1339. API usage export batch list/create/detail/export OpenAPI operations now
       pin `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated export routes.
+1340. API usage export artifact list/create/detail/write/download/verification
+      OpenAPI operations now pin `/admin/v1` and admin-token/bearer auth
+      alternatives, matching their sensitive runtime admin-authenticated
+      artifact routes.
 
 ## Deferred until backend contracts stabilize
 

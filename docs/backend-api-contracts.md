@@ -372,6 +372,15 @@ operation-level Admin API base/auth contract in OpenAPI:
 `POST /admin/v1/api-usage/export-batches`,
 `GET /admin/v1/api-usage/export-batches/{id}`, and
 `GET /admin/v1/api-usage/export-batches/{id}/export`.
+API usage export artifact routes use the same operation-level Admin API
+base/auth contract for sensitive export object metadata and downloads:
+`GET /admin/v1/api-usage/export-batches/{id}/artifacts`,
+`POST /admin/v1/api-usage/export-batches/{id}/artifacts`,
+`GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}`,
+`POST /admin/v1/api-usage/export-batches/{id}/artifacts/write`,
+`GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download`,
+and
+`GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification`.
 
 ## Pagination
 
