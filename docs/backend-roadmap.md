@@ -3598,6 +3598,9 @@ Implementation order:
 1338. API usage daily and monthly aggregate OpenAPI operations now also pin
       `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated analytics routes.
+1339. API usage export batch list/create/detail/export OpenAPI operations now
+      pin `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated export routes.
 
 ## Deferred until backend contracts stabilize
 

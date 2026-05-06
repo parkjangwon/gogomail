@@ -366,6 +366,12 @@ The daily and monthly API usage aggregate routes also pin the Admin API server
 and admin-token/bearer auth alternatives:
 `GET /admin/v1/api-usage/daily` and
 `GET /admin/v1/api-usage/monthly`.
+API usage export batch list/create/detail/export routes also carry the
+operation-level Admin API base/auth contract in OpenAPI:
+`GET /admin/v1/api-usage/export-batches`,
+`POST /admin/v1/api-usage/export-batches`,
+`GET /admin/v1/api-usage/export-batches/{id}`, and
+`GET /admin/v1/api-usage/export-batches/{id}/export`.
 
 ## Pagination
 
