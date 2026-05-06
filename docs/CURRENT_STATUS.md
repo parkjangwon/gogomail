@@ -2291,6 +2291,10 @@ The platform hardening sprint completed the following:
   cancellation after the object stream has opened, and local/NFS `GetRange`
   reports `io.ErrUnexpectedEOF` for short object windows so partial-read
   behavior stays aligned when operators switch storage backends.
+- Local/NFS storage now rejects filesystem symbolic links for object reads,
+  range reads, metadata probes, and source moves, and hides symlinks from list
+  pages. Local and NFS-backed deployments therefore keep object-key semantics
+  instead of accidentally following host-specific links outside the store.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

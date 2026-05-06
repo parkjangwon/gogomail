@@ -347,6 +347,46 @@ func TestLocalStoreMoveHonorsCanceledContextBeforeRename(t *testing.T) {
 	}
 }
 
+func TestLocalStoreRejectsSymlinkObjects(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outsideDir := t.TempDir()
+	outsidePath := filepath.Join(outsideDir, "outside.eml")
+	if err := os.WriteFile(outsidePath, []byte("outside"), 0o644); err != nil {
+		t.Fatalf("write outside object: %v", err)
+	}
+	objectPath := "mailstore/company/domain/linked.eml"
+	linkPath := filepath.Join(root, filepath.FromSlash(objectPath))
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
+		t.Fatalf("create link parent: %v", err)
+	}
+	if err := os.Symlink(outsidePath, linkPath); err != nil {
+		t.Skipf("symlink not available on this platform: %v", err)
+	}
+
+	store := NewLocalStore(root)
+	if _, err := store.Get(context.Background(), objectPath); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("Get symlink err = %v, want symbolic link rejection", err)
+	}
+	if _, err := store.GetRange(context.Background(), objectPath, RangeRequest{Offset: 0, Length: 1}); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("GetRange symlink err = %v, want symbolic link rejection", err)
+	}
+	if _, err := store.Stat(context.Background(), objectPath); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("Stat symlink err = %v, want symbolic link rejection", err)
+	}
+	if err := store.Move(context.Background(), objectPath, "mailstore/company/domain/moved.eml"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("Move symlink err = %v, want symbolic link rejection", err)
+	}
+	page, err := store.List(context.Background(), ListOptions{Prefix: "mailstore/company/domain", Limit: 10})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 0 {
+		t.Fatalf("List objects = %+v, want symlink hidden", page.Objects)
+	}
+}
+
 func TestLocalStoreCheckReportsUnwritableStorage(t *testing.T) {
 	t.Parallel()
 

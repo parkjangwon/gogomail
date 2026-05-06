@@ -88,6 +88,9 @@ func (s *LocalStore) Get(ctx context.Context, path string) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
+	if _, err := localObjectInfo(fullPath); err != nil {
+		return nil, fmt.Errorf("open storage object: %w", err)
+	}
 
 	file, err := os.Open(fullPath)
 	if err != nil {
@@ -108,6 +111,9 @@ func (s *LocalStore) GetRange(ctx context.Context, path string, req RangeRequest
 	fullPath, err := s.safePath(path)
 	if err != nil {
 		return nil, err
+	}
+	if _, err := localObjectInfo(fullPath); err != nil {
+		return nil, fmt.Errorf("open storage object range: %w", err)
 	}
 
 	file, err := os.Open(fullPath)
@@ -169,12 +175,9 @@ func (s *LocalStore) Stat(ctx context.Context, path string) (ObjectInfo, error) 
 	if err != nil {
 		return ObjectInfo{}, err
 	}
-	info, err := os.Stat(fullPath)
+	info, err := localObjectInfo(fullPath)
 	if err != nil {
 		return ObjectInfo{}, fmt.Errorf("stat storage object: %w", err)
-	}
-	if info.IsDir() {
-		return ObjectInfo{}, fmt.Errorf("storage object is a directory")
 	}
 	return ObjectInfo{
 		Path:         objectPath,
@@ -230,6 +233,9 @@ func (s *LocalStore) Move(ctx context.Context, sourcePath string, destPath strin
 	if err != nil {
 		return err
 	}
+	if _, err := localObjectInfo(sourceFullPath); err != nil {
+		return fmt.Errorf("move source storage object: %w", err)
+	}
 	destFullPath, err := s.safePath(destObjectPath)
 	if err != nil {
 		return err
@@ -277,6 +283,9 @@ func (s *LocalStore) List(ctx context.Context, opts ListOptions) (ObjectListPage
 			return walkErr
 		}
 		if entry.IsDir() {
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
 		base := filepath.Base(path)
@@ -367,6 +376,20 @@ func (s *LocalStore) Check(ctx context.Context) error {
 		return fmt.Errorf("delete readiness probe: %w", err)
 	}
 	return nil
+}
+
+func localObjectInfo(path string) (os.FileInfo, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("storage object is a symbolic link")
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("storage object is a directory")
+	}
+	return info, nil
 }
 
 func (s *LocalStore) safePath(path string) (string, error) {
