@@ -3489,6 +3489,12 @@ paths:
     get:
       operationId: listAdminQuotaReconciliation
       summary: Admin quota ledger reconciliation report
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -3500,6 +3506,12 @@ paths:
     post:
       operationId: correctAdminQuotaReconciliation
       summary: Correct quota ledgers from message and attachment source rows
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/QuotaCorrection"
       responses:
@@ -3511,6 +3523,12 @@ paths:
     get:
       operationId: listAdminDeliveryAttempts
       summary: Admin delivery attempt list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: status
@@ -3564,6 +3582,12 @@ paths:
     get:
       operationId: getAdminDeliveryAttemptStats
       summary: Admin delivery attempt status totals
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: status
           in: query
@@ -3616,6 +3640,12 @@ paths:
     get:
       operationId: listAdminExhaustedAttempts
       summary: List delivery attempts where all retries were exhausted
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: recipient_domain
@@ -3662,6 +3692,12 @@ paths:
     get:
       operationId: listAdminPushNotificationAttempts
       summary: Admin push notification candidate and delivery attempts
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: message_id
@@ -3724,6 +3760,12 @@ paths:
     get:
       operationId: getAdminPushNotificationAttempt
       summary: Admin push notification attempt detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -3735,6 +3777,12 @@ paths:
     patch:
       operationId: updateAdminPushNotificationOutcome
       summary: Admin push notification provider outcome update
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       requestBody:
@@ -3752,6 +3800,12 @@ paths:
     get:
       operationId: getAdminPushNotificationStats
       summary: Admin push notification fan-out status summary
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: message_id
           in: query

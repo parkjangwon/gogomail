@@ -109,6 +109,10 @@ Current state:
 - API usage ledger retention run and DAV sync retention run OpenAPI operations
   now also pin `/admin/v1` and admin-token/bearer auth alternatives, matching
   their runtime operator-only destructive/audited retention boundary.
+- Quota reconciliation, delivery attempt, exhausted delivery attempt, and push
+  notification attempt/statistics OpenAPI operations now also pin `/admin/v1`
+  and admin-token/bearer auth alternatives, matching their runtime operational
+  observability and provider outcome boundary.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

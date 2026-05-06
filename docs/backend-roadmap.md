@@ -3629,6 +3629,10 @@ Implementation order:
       operations now pin `/admin/v1` and admin-token/bearer auth alternatives,
       matching their runtime admin-authenticated destructive/audited retention
       routes.
+1347. Quota reconciliation, delivery attempt, exhausted delivery attempt, and
+      push notification attempt/statistics OpenAPI operations now pin
+      `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated observability and provider outcome routes.
 
 ## Deferred until backend contracts stabilize
 
