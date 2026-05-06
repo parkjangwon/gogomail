@@ -458,6 +458,9 @@ Current state:
   typed-value mismatches, and `configs/config.example.yaml` includes the
   storage backend/S3 knobs needed to switch local/NFS/MinIO/AWS S3 profiles by
   editing config rather than code.
+- The `gogomail` CLI startup path now has focused regression coverage for
+  `--config`: valid YAML reaches the injected app runtime, while invalid YAML
+  config or mode input returns code 2 before components start.
 
 Next:
 

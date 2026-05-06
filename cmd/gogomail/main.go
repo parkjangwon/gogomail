@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,27 +16,35 @@ import (
 )
 
 func main() {
-	modeRaw := flag.String("mode", string(app.ModeAllInOne), "component mode to run")
-	runMigrations := flag.Bool("migrate", false, "run database migrations before starting")
-	configFile := flag.String("config", "", "optional YAML config file")
-	flag.Parse()
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, app.Run))
+}
+
+func run(args []string, stdout io.Writer, stderr io.Writer, runApp func(context.Context, app.Mode, config.Config, *slog.Logger) error) int {
+	flags := flag.NewFlagSet("gogomail", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	modeRaw := flags.String("mode", string(app.ModeAllInOne), "component mode to run")
+	runMigrations := flags.Bool("migrate", false, "run database migrations before starting")
+	configFile := flags.String("config", "", "optional YAML config file")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
 
 	mode, err := app.ParseMode(*modeRaw)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		fmt.Fprintln(stderr, err)
+		return 2
 	}
 
 	cfg, err := config.LoadFile(*configFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "invalid config file: %v\n", err)
-		os.Exit(2)
+		fmt.Fprintf(stderr, "invalid config file: %v\n", err)
+		return 2
 	}
 	if err := cfg.Validate(); err != nil {
-		fmt.Fprintf(os.Stderr, "invalid config: %v\n", err)
-		os.Exit(2)
+		fmt.Fprintf(stderr, "invalid config: %v\n", err)
+		return 2
 	}
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewTextHandler(stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
@@ -46,19 +55,20 @@ func main() {
 		db, err := database.Open(ctx, cfg.DatabaseURL)
 		if err != nil {
 			logger.Error("database connection failed", "error", err)
-			os.Exit(1)
+			return 1
 		}
 		defer db.Close()
 
 		if err := database.MigrateUp(ctx, db, cfg.MigrationDir); err != nil {
 			logger.Error("database migration failed", "error", err, "dir", cfg.MigrationDir)
-			os.Exit(1)
+			return 1
 		}
 		logger.Info("database migrations completed", "dir", cfg.MigrationDir)
 	}
 
-	if err := app.Run(ctx, mode, cfg, logger); err != nil {
+	if err := runApp(ctx, mode, cfg, logger); err != nil {
 		logger.Error("gogomail stopped with error", "error", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
