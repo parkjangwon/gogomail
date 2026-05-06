@@ -336,6 +336,13 @@ session tokens, or local filesystem root paths.
 Admin clients should use this endpoint to build navigation and validate local
 operator form limits instead of duplicating backend constants.
 
+Admin readiness bootstrap routes also pin the Admin API server and document the
+same `X-Admin-Token` / bearer-token alternatives in OpenAPI:
+`GET /admin/v1/api-usage/ledger/retention-readiness`,
+`GET /admin/v1/dav-sync/retention-readiness`, and
+`GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness`. Generated
+operator clients should not discover these routes on the public Mail API base.
+
 ## Pagination
 
 List endpoints that accept `limit` reject non-integer, nonpositive, and over-200 values.

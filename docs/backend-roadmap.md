@@ -3479,6 +3479,11 @@ Implementation order:
       opt out of global bearer auth in OpenAPI, with drift coverage for
       resolve, `HEAD` download, and `GET` download so generated public-share
       clients match the unauthenticated runtime boundary.
+1314. Admin readiness bootstrap operations now pin the Admin API server and
+      `X-Admin-Token`/bearer-token OpenAPI security alternatives for API usage
+      ledger retention readiness, DAV sync retention readiness, and API usage
+      export handoff readiness, keeping generated operator clients off the
+      public Mail API base for admin-only checks.
 
 ## Deferred until backend contracts stabilize
 
