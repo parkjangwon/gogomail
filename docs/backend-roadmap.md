@@ -3975,6 +3975,11 @@ Implementation order:
       same bounded `Code: Message` and request-id diagnostics, preventing
       throttling or auth failures from degrading into generic invalid list
       control errors.
+1430. S3-compatible `CopyObjectResult` bodies now format nested standard S3
+      `<Error>` details with the same bounded `Code: Message` and request-id
+      diagnostics used for top-level provider errors, so copy throttling or
+      auth failures inside `200 OK` responses remain operator-readable while
+      still failing closed before copy/move success is reported.
 
 ## Deferred until backend contracts stabilize
 

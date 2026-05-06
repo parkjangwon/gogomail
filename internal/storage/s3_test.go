@@ -3021,7 +3021,8 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
-		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code></Error></CopyObjectResult>`, want: "embedded error"},
+		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>copy throttled
+try later</Message><RequestId>req-copy-1</RequestId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -3047,6 +3048,9 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 			err = store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("Copy err = %v, want %q", err, tc.want)
+			}
+			if tc.name == "nested_error" && (strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n")) {
+				t.Fatalf("Copy err = %q, want sanitized nested error rejection", err)
 			}
 		})
 	}
