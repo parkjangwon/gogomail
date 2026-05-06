@@ -3944,6 +3944,10 @@ Implementation order:
       when a non-empty provider value is malformed, line-bearing, empty after
       quote cleanup, or larger than the bounded metadata limit, instead of
       silently dropping suspect listed-object metadata.
+1423. S3-compatible `Content-Length` parsing now rejects whitespace-padded
+      values for `HEAD` metadata, `206 Partial Content` range validation, and
+      safe `200 OK` full-range compatibility checks, keeping provider numeric
+      metadata on the same exact unsigned decimal grammar as object sizes.
 
 ## Deferred until backend contracts stabilize
 

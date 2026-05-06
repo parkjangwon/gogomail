@@ -114,10 +114,10 @@ S3-compatible `200 OK` range compatibility responses that include a matching
 `Content-Range` now also validate any present `Content-Length` against the
 requested window, keeping the compatibility path as strict as ordinary
 `206 Partial Content` responses.
-S3-compatible `Content-Length` parsing now requires unsigned decimal digits at
-the storage boundary, rejecting signed values such as `+5` for `HEAD` metadata
-and range-response length validation instead of normalizing them as valid
-sizes.
+S3-compatible `Content-Length` parsing now requires exact unsigned decimal
+digits at the storage boundary, rejecting signed or whitespace-padded values
+such as `+5` or ` 5` for `HEAD` metadata and range-response length validation
+instead of normalizing them as valid sizes.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

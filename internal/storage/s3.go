@@ -585,7 +585,6 @@ func setS3ContentLength(req *http.Request, body io.Reader) error {
 }
 
 func parseS3ContentLength(value string) (int64, error) {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		return -1, fmt.Errorf("stat s3 object: content length is required")
 	}
@@ -712,7 +711,7 @@ func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequ
 }
 
 func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
-	if value := strings.TrimSpace(resp.Header.Get("Content-Length")); value != "" {
+	if value := resp.Header.Get("Content-Length"); value != "" {
 		size, ok := parseS3NonNegativeDecimal(value)
 		if !ok {
 			return -1, fmt.Errorf("get range s3 object: invalid content length")
@@ -726,7 +725,7 @@ func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 }
 
 func validateS3RangeContentLength(resp *http.Response, req RangeRequest) error {
-	value := strings.TrimSpace(resp.Header.Get("Content-Length"))
+	value := resp.Header.Get("Content-Length")
 	if value == "" {
 		return nil
 	}

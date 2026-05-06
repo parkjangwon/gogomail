@@ -532,7 +532,7 @@ func TestS3StoreGetRejectsUnexpectedPartialContent(t *testing.T) {
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{"not-a-size", "-1", "+5"}
+	tests := []string{"not-a-size", "-1", "+5", " 5", "5 ", "\t5"}
 	for _, contentLength := range tests {
 		contentLength := contentLength
 		t.Run(contentLength, func(t *testing.T) {
@@ -1840,6 +1840,12 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 			want:   "content-length mismatch",
 		},
 		{
+			name:   "padded content length",
+			req:    RangeRequest{Offset: 0, Length: 5},
+			header: http.Header{"Content-Length": []string{" 5"}},
+			want:   "invalid content length",
+		},
+		{
 			name:   "non zero offset without content range",
 			req:    RangeRequest{Offset: 1, Length: 3},
 			header: http.Header{"Content-Length": []string{"3"}},
@@ -1897,6 +1903,9 @@ func TestS3StoreGetRangeRejectsMismatchedPartialContentLength(t *testing.T) {
 		{name: "mismatch", contentLength: "4", want: "content-length mismatch"},
 		{name: "invalid", contentLength: "not-a-size", want: "invalid content length"},
 		{name: "signed", contentLength: "+3", want: "invalid content length"},
+		{name: "leading space", contentLength: " 3", want: "invalid content length"},
+		{name: "trailing space", contentLength: "3 ", want: "invalid content length"},
+		{name: "leading tab", contentLength: "\t3", want: "invalid content length"},
 	}
 	for _, tc := range tests {
 		tc := tc
