@@ -3557,6 +3557,10 @@ Implementation order:
       elements and duplicate nested `DAV:nresults` elements, preventing
       ambiguous bounded query or sync pagination from reaching object and
       change-list repository scans.
+1327. CalDAV and CardDAV object `GET`/`HEAD` now ignore `If-Modified-Since`
+      whenever `If-None-Match` is present, preserving HTTP conditional
+      precedence so stale timestamp validators cannot mask changed `.ics` or
+      `.vcf` bodies behind a false `304 Not Modified`.
 
 ## Deferred until backend contracts stabilize
 

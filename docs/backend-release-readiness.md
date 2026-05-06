@@ -583,6 +583,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   precondition checks now reject repeated `If-Modified-Since` or
   `If-Unmodified-Since` headers before storage work, keeping timestamp
   conditionals deterministic instead of first-header-dependent.
+- CalDAV object `GET`/`HEAD` now ignores `If-Modified-Since` whenever
+  `If-None-Match` is present, preserving HTTP conditional precedence so ETag
+  validators decide cache freshness before timestamp validators.
 - CalDAV object `DELETE` now revalidates matched strong `If-Match` ETags in
   the repository transaction before soft deletion, aligning delete concurrency
   semantics with the existing observed-ETag `PUT` path.
@@ -881,9 +884,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   repeated HTTP `Depth` headers before XML body parsing, keeping address-book
   traversal scope deterministic. `REPORT` parsing also rejects duplicate
   `DAV:limit` controls and duplicate nested `DAV:nresults` controls before
-  repository scans begin. Object and collection preconditions combine repeated
-  `If-Match` and `If-None-Match` headers into one ETag list before evaluation.
-  Stale-token delta reads probe one
+  repository scans begin. Object `GET`/`HEAD` ignores `If-Modified-Since`
+  whenever `If-None-Match` is present, preserving HTTP conditional precedence
+  for cached `.vcf` bodies. Object and collection preconditions combine
+  repeated `If-Match` and `If-None-Match` headers into one ETag list before
+  evaluation. Stale-token delta reads probe one
   change-log row beyond bounded `limit/nresults`, so exact-limit responses are
   not falsely rejected while truly truncating deltas still fail closed. Initial
   snapshots use the same one-extra-object repository probe, preventing large

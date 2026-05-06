@@ -298,20 +298,23 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
-	if ifNoneMatchMatches(conditionalHeaderValue(r.Header, "If-None-Match"), object.ETag) {
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	if ifNoneMatchMatches(ifNoneMatch, object.ETag) {
 		writeCalendarObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	ifModifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Modified-Since")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
-		writeCalendarObjectNotModifiedHeaders(w, object)
-		w.WriteHeader(http.StatusNotModified)
-		return
+	if ifNoneMatch == "" {
+		ifModifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Modified-Since")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
+			writeCalendarObjectNotModifiedHeaders(w, object)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 	}
 	writeCalendarObjectHeaders(w, object)
 	w.WriteHeader(http.StatusOK)
