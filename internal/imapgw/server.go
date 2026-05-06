@@ -451,6 +451,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	if handled, done, err := imapRejectNonAtomFetchDataItemArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
+	if handled, done, err := imapRejectNonAtomEnableCapabilityArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if imapCommandShouldDrainSelectedEvents(command) {
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
@@ -972,6 +975,19 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 				_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 				return true, false, err
 			}
+		}
+	}
+	return false, false, nil
+}
+
+func imapRejectNonAtomEnableCapabilityArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	if command != "ENABLE" || len(fields) < 3 {
+		return false, false, nil
+	}
+	for i := 2; i < len(fields); i++ {
+		if !imapRawFieldIsAtom(line, i) {
+			_, err := writer.WriteString(tag + " BAD ENABLE capability is malformed\r\n")
+			return true, false, err
 		}
 	}
 	return false, false, nil

@@ -4162,6 +4162,9 @@ Implementation order:
 1476. IMAP FETCH and UID FETCH data-item controls now reject exact quoted or
       command-literal fetch attribute atoms such as FLAGS before
       authentication or selected-mailbox state.
+1477. IMAP ENABLE capability operands now reject quoted or command-literal
+      CONDSTORE probes before authentication, preserving atom-only capability
+      negotiation.
 
 ## Deferred until backend contracts stabilize
 

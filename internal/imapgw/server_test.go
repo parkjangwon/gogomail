@@ -3610,15 +3610,17 @@ func TestServerValidatesEnableSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 ENABLE\r\na2 ENABLE CONDSTORE)\r\na3 ENABLE CONDSTORE\r\na4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 ENABLE\r\na2 ENABLE CONDSTORE)\r\na3 ENABLE \"CONDSTORE\"\r\na4 ENABLE {9+}\r\nCONDSTORE\r\na5 ENABLE CONDSTORE\r\na6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write enable auth commands: %v", err)
 	}
 	want := []string{
 		"a1 BAD ENABLE requires at least one capability\r\n",
 		"a2 BAD ENABLE capability is malformed\r\n",
-		"a3 NO authentication required\r\n",
+		"a3 BAD ENABLE capability is malformed\r\n",
+		"a4 BAD ENABLE capability is malformed\r\n",
+		"a5 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a4 OK LOGOUT completed\r\n",
+		"a6 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
