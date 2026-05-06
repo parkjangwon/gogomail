@@ -2008,6 +2008,23 @@ func TestHandlerDeleteCalendarCollectionAcceptsMatchingIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerDeleteUsesDefaultUserResolver(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := &Handler{Store: store}
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.objects) != 0 {
+		t.Fatalf("objects after delete = %+v", store.objects)
+	}
+}
+
 func TestHandlerDeleteCalendarCollectionAcceptsIfMatchStar(t *testing.T) {
 	t.Parallel()
 

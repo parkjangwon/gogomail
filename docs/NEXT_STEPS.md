@@ -2157,6 +2157,10 @@ Next:
   errors predictable while the PostgreSQL partial unique index remains the
   final concurrency guard. Final unique-index races are mapped back to stable
   duplicate UID/name repository errors instead of surfacing raw driver messages.
+  CalDAV `DELETE` now uses the same default authenticated user resolver
+  fallback as object `GET`/`PUT` and WebDAV discovery/report methods, so
+  manually assembled gateway handlers stay predictable and do not panic when a
+  custom resolver is not injected.
   Contact-object `PUT` now rejects duplicate active vCard UIDs within the same
   address book before the SQL upsert path, keeping
   repository errors predictable while the PostgreSQL partial unique index
