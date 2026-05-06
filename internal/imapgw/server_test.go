@@ -3264,6 +3264,49 @@ func TestServerCloseReadOnlyMailboxDoesNotExpunge(t *testing.T) {
 	}
 }
 
+func TestServerCloseClearsSavedSearch(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &closeBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	var output strings.Builder
+	writer := bufio.NewWriter(&output)
+	state := &imapConnState{
+		session:               &Session{UserID: "user-1"},
+		selectedMailbox:       "inbox",
+		selectedMessages:      2,
+		selectedHighestModSeq: 42,
+		permanentFlags:        map[string]struct{}{FlagSeen: {}},
+		savedSearch:           []imapSearchSavedMessage{{uid: 7, sequenceNumber: 1}},
+	}
+
+	done, err := server.handleClose(writer, "a1", state)
+	if err != nil {
+		t.Fatalf("handleClose returned error: %v", err)
+	}
+	if done {
+		t.Fatal("handleClose done = true, want false")
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush close response: %v", err)
+	}
+	if output.String() != "a1 OK CLOSE completed\r\n" {
+		t.Fatalf("close response = %q", output.String())
+	}
+	if backendImpl.expungeCount != 1 || backendImpl.expungeMailboxID != "inbox" || backendImpl.expungeUserID != "user-1" {
+		t.Fatalf("close expunge = count %d user %q mailbox %q, want writable selected mailbox expunged", backendImpl.expungeCount, backendImpl.expungeUserID, backendImpl.expungeMailboxID)
+	}
+	if state.savedSearch != nil {
+		t.Fatalf("savedSearch = %#v, want nil after CLOSE", state.savedSearch)
+	}
+	if state.selectedMailbox != "" || state.selectedMessages != 0 || state.selectedHighestModSeq != 0 || state.permanentFlags != nil || state.readOnly {
+		t.Fatalf("selected state after CLOSE = mailbox %q messages %d modseq %d flags %#v readOnly %t", state.selectedMailbox, state.selectedMessages, state.selectedHighestModSeq, state.permanentFlags, state.readOnly)
+	}
+}
+
 func TestServerHandlesUnselectAfterSelect(t *testing.T) {
 	t.Parallel()
 

@@ -3484,6 +3484,10 @@ Implementation order:
       ledger retention readiness, DAV sync retention readiness, and API usage
       export handoff readiness, keeping generated operator clients off the
       public Mail API base for admin-only checks.
+1315. IMAP `CLOSE` now clears the selected-session saved SEARCHRES `$` state
+      while tearing down selected mailbox metadata, keeping RFC 5182 saved
+      results scoped to the same mailbox-selection lifecycle as `SELECT`,
+      `EXAMINE`, and `UNSELECT`.
 
 ## Deferred until backend contracts stabilize
 
