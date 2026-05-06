@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV Directory alias address discovery)
+Last updated: 2026-05-06 (updated after IMAP unsupported SEARCH-key validation)
 
 ## Current phase
 
@@ -53,6 +53,9 @@ empty `HEADER.FIELDS.NOT` windows on attached messages. IMAP `SEARCH HEADER`
 now validates RFC-shaped header field names before authentication or selected
 mailbox state, rejecting empty names, names with spaces, and colon-suffixed
 field labels as syntax errors instead of treating them as successful empty
+searches. Unsupported IMAP search-key atoms such as vendor-specific
+`X-GM-RAW` probes are now also rejected before authentication or selected
+mailbox state, so unsupported criteria do not masquerade as valid stateful
 searches.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
