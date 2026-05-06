@@ -51,6 +51,10 @@ uses `Depth: 1`, keeping query scope explicit for native client compatibility.
 CalDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers before
 request-body parsing, keeping WebDAV traversal scope deterministic across
 native clients and intermediaries.
+CalDAV object and collection preconditions now evaluate repeated `If-Match`
+and `If-None-Match` headers as a single ETag list, so cache validation and
+write guards match HTTP field-combination semantics instead of depending on the
+first wire header.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.
@@ -160,6 +164,10 @@ public/client-ready.
 CardDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers
 before request-body parsing, preventing ambiguous address-book traversal scope
 from reaching REPORT, sync, or discovery execution.
+CardDAV object and address-book collection preconditions now evaluate repeated
+`If-Match` and `If-None-Match` headers as a single ETag list, preserving HTTP
+conditional request semantics for cache validation, object writes, deletes, and
+collection metadata mutations.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,

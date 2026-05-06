@@ -1744,6 +1744,9 @@ Current state:
 - CalDAV `REPORT` and `PROPFIND` also reject repeated HTTP `Depth` headers
   before XML body parsing, keeping traversal scope deterministic before
   discovery, sync, and query execution.
+- CalDAV object and collection preconditions evaluate repeated `If-Match` and
+  `If-None-Match` headers as a single ETag list, aligning cache validation and
+  write guards with HTTP field-combination semantics.
 - CalDAV `calendar-multiget` now accepts HTTP(S) absolute URI hrefs by
   normalizing the URI path through the existing CalDAV path parser and
   preserving same-user / same-collection scope checks; userinfo-bearing
@@ -1962,6 +1965,10 @@ Next:
   CardDAV `REPORT` and `PROPFIND` reject repeated HTTP `Depth` headers before
   XML body parsing so address-book traversal scope cannot depend on header
   merge behavior in clients or intermediaries.
+  CardDAV object and collection preconditions evaluate repeated `If-Match` and
+  `If-None-Match` headers as a single ETag list, preserving conditional request
+  semantics for contact writes, deletes, cache validation, and collection
+  metadata mutations.
   PROPFIND responses now expose conservative
   RFC 3744-style current-user privileges, advertising `DAV:read` broadly and
   `DAV:bind`/`DAV:unbind` only on address-book homes where extended `MKCOL`

@@ -282,7 +282,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object not found", http.StatusNotFound)
 		return
 	}
-	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
+	if ifMatch := conditionalHeaderValue(r.Header, "If-Match"); ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
 		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
@@ -290,7 +290,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
-	if ifNoneMatchMatches(r.Header.Get("If-None-Match"), object.ETag) {
+	if ifNoneMatchMatches(conditionalHeaderValue(r.Header, "If-None-Match"), object.ETag) {
 		writeCalendarObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -321,7 +321,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
-	ifNoneMatch := strings.TrimSpace(r.Header.Get("If-None-Match"))
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	existed := false
 	var existing CalendarObject
 	if object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
@@ -332,7 +332,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
 		return
 	}
-	observedETag := strings.TrimSpace(r.Header.Get("If-Match"))
+	observedETag := conditionalHeaderValue(r.Header, "If-Match")
 	if observedETag == "*" {
 		if !existed {
 			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
@@ -345,6 +345,8 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	} else if observedETag != "" && !ifMatchMatches(observedETag, existing.ETag) {
 		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
 		return
+	} else if observedETag != "" {
+		observedETag = existing.ETag
 	}
 	if existed && objectModifiedSince(r.Header.Get("If-Unmodified-Since"), existing.UpdatedAt) {
 		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
@@ -412,7 +414,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object store is not configured", http.StatusNotImplemented)
 		return
 	}
-	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
@@ -455,7 +457,7 @@ func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, calendarID string) bool {
-	ifMatch := strings.TrimSpace(r.Header.Get("If-Match"))
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifUnmodifiedSince := strings.TrimSpace(r.Header.Get("If-Unmodified-Since"))
 	if ifMatch != "" || ifUnmodifiedSince != "" {
 		calendar, err := h.Store.LookupCalendar(r.Context(), userID, calendarID)
@@ -563,6 +565,10 @@ func writeCalendarObjectNotModifiedHeaders(w http.ResponseWriter, object Calenda
 	if !object.UpdatedAt.IsZero() {
 		w.Header().Set("Last-Modified", formatHTTPDate(object.UpdatedAt))
 	}
+}
+
+func conditionalHeaderValue(header http.Header, name string) string {
+	return strings.TrimSpace(strings.Join(header.Values(name), ","))
 }
 
 func ifNoneMatchMatches(header string, etag string) bool {
