@@ -130,6 +130,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `MOVE`/`UID MOVE` UIDPLUS responses now derive source UID sets from the
   returned move results, avoiding requested-slice inference for partial or
   sparse move operations.
+- IMAP UID sequence-set response rendering now compacts contiguous runs into
+  RFC range syntax, keeping bulk UIDPLUS/ESEARCH/SEARCHRES payloads smaller.
 - Drive upload-session storage now has a dedicated migration and validation
   contract for resumable uploads, preparing quota-reserving Drive upload APIs
   without binding the HTTP layer to a single storage backend.

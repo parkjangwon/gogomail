@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP MOVE COPYUID source mapping)
+Last updated: 2026-05-06 (updated after IMAP UID set response compaction)
 
 ## Current phase
 
@@ -90,6 +90,10 @@ from the requested UID slice. Sparse UID copy/move probes such as
 `UID COPY 7,999 Archive` and repository-level missing-UID move inputs are
 regression-covered so nonexistent UIDs are ignored without polluting response
 codes.
+IMAP sequence-set response rendering now compacts ascending UID runs such as
+`7,8,9` into `7:9`, keeping UIDPLUS `COPYUID`, ESEARCH, and saved-search
+response payloads smaller and closer to the RFC sequence-set grammar during
+bulk operations.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
