@@ -1622,7 +1622,9 @@ Next:
   `CARDDAV:supported-address-data` precondition. Unsupported text-match
   collations now fail with `CARDDAV:supported-collation`; address-book
   collections advertise `CARDDAV:supported-collation-set` with working
-  `i;ascii-casemap` and `i;unicode-casemap` matching; returned
+  `i;ascii-casemap` and `i;unicode-casemap` matching. Capability properties
+  that are not allprop-friendly remain available through explicit `prop`,
+  `include`, and `propname`; returned
   address-data also carries explicit `text/vcard` 4.0 attributes.
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.

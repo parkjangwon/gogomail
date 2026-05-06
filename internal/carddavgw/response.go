@@ -57,9 +57,10 @@ type PropertyValue struct {
 }
 
 type PropertyResult struct {
-	Name  XMLName
-	Value PropertyValue
-	Found bool
+	Name            XMLName
+	Value           PropertyValue
+	Found           bool
+	OmitFromAllProp bool
 }
 
 type AddressDataType struct {
@@ -184,8 +185,8 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: addressBookCollectionPrivileges()}, Found: true},
-		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true},
-		{Name: PropSupportedCollationSet, Value: PropertyValue{Collations: SupportedTextMatchCollations()}, Found: true},
+		{Name: PropSupportedAddressData, Value: PropertyValue{AddressDataTypes: []AddressDataType{{ContentType: "text/vcard", Version: "4.0"}}}, Found: true, OmitFromAllProp: true},
+		{Name: PropSupportedCollationSet, Value: PropertyValue{Collations: SupportedTextMatchCollations()}, Found: true, OmitFromAllProp: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxContactObjectBytes)}, Found: true},
 		{Name: PropSyncToken, Value: PropertyValue{Text: book.SyncToken}, Found: true},
 		{Name: PropGetCTag, Value: PropertyValue{Text: book.SyncToken}, Found: true},
@@ -240,22 +241,23 @@ func writableObjectPrivileges() []XMLName {
 func SelectPropfindProperties(req PropfindRequest, available []PropertyResult) []PropStatus {
 	byName := make(map[XMLName]PropertyResult, len(available))
 	var all []PropertyResult
+	var propNames []PropertyResult
 	for _, prop := range available {
 		if !prop.Found {
 			continue
 		}
 		byName[prop.Name] = prop
-		all = append(all, prop)
+		propNames = append(propNames, PropertyResult{Name: prop.Name, Found: true})
+		if !prop.OmitFromAllProp {
+			all = append(all, prop)
+		}
 	}
 	sortPropertyResults(all)
+	sortPropertyResults(propNames)
 
 	switch req.Kind {
 	case PropfindPropName:
-		names := make([]PropertyResult, 0, len(all))
-		for _, prop := range all {
-			names = append(names, PropertyResult{Name: prop.Name, Found: true})
-		}
-		return []PropStatus{{StatusCode: http.StatusOK, Properties: names}}
+		return []PropStatus{{StatusCode: http.StatusOK, Properties: propNames}}
 	case PropfindProp:
 		var found, missing []PropertyResult
 		for _, name := range req.Properties {

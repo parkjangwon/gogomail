@@ -86,7 +86,9 @@ Unsupported text-match collations now fail with the RFC 6352
 Address-book collections advertise RFC 6352
 `CARDDAV:supported-collation-set` with `i;ascii-casemap` and
 `i;unicode-casemap`, and query evaluation implements both advertised
-collations.
+collations. Capability properties that should not appear in a bare `allprop`
+response remain available through explicit `prop`, `include`, and `propname`
+discovery.
 Returned `address-data` elements also carry explicit `content-type`
 and `version` attributes matching the advertised `text/vcard` 4.0 support.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so
