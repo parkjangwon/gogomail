@@ -744,11 +744,12 @@ Admin operational read models also keep explicit envelope keys:
   event metadata and full stored `last_error`, still without returning the JSON
   payload body.
 - `GET /admin/v1/audit-logs` returns `{"audit_logs":[...]}` and supports
-  bounded `limit`, `category`, `action`, `result`, `target_type`, `company_id`,
-  `domain_id`, `user_id`, `actor_id`, `target_id`, and RFC3339 `since` filters
-  for operational forensics over persisted audit records, including delegated
-  access checks by actor or target owner principal. Text filters reject
-  CR/LF-bearing or oversized values before service dispatch.
+  bounded `limit`, `category`, exact `action`, `action_prefix`, `result`,
+  `target_type`, `company_id`, `domain_id`, `user_id`, `actor_id`,
+  `target_id`, and RFC3339 `since` filters for operational forensics over
+  persisted audit records, including delegated access checks by actor or target
+  owner principal and action families such as `share_link.`. Text filters
+  reject CR/LF-bearing or oversized values before service dispatch.
 - `GET /admin/v1/audit-logs/{id}` returns `{"audit_log":{...}}` with the stored
   scope identifiers, target metadata, result, JSON detail, hash-chain fields,
   and creation timestamp for one audit row.

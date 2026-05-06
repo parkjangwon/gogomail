@@ -13,17 +13,18 @@ import (
 )
 
 type AuditLogListRequest struct {
-	Limit      int
-	Category   string
-	Action     string
-	Result     string
-	TargetType string
-	CompanyID  string
-	DomainID   string
-	UserID     string
-	ActorID    string
-	TargetID   string
-	Since      time.Time
+	Limit        int
+	Category     string
+	Action       string
+	ActionPrefix string
+	Result       string
+	TargetType   string
+	CompanyID    string
+	DomainID     string
+	UserID       string
+	ActorID      string
+	TargetID     string
+	Since        time.Time
 }
 
 type AuditLogView struct {
@@ -102,6 +103,10 @@ FROM audit_logs`
 	if req.Action != "" {
 		args = append(args, req.Action)
 		conditions = append(conditions, fmt.Sprintf("action = $%d", len(args)))
+	}
+	if req.ActionPrefix != "" {
+		args = append(args, req.ActionPrefix)
+		conditions = append(conditions, fmt.Sprintf("LEFT(action, LENGTH($%d)) = $%d", len(args), len(args)))
 	}
 	if req.Result != "" {
 		args = append(args, req.Result)
@@ -317,6 +322,7 @@ func normalizeAuditLogListRequest(req AuditLogListRequest) AuditLogListRequest {
 	req.Limit = normalizeLimit(req.Limit)
 	req.Category = strings.TrimSpace(req.Category)
 	req.Action = strings.TrimSpace(req.Action)
+	req.ActionPrefix = strings.TrimSpace(req.ActionPrefix)
 	req.Result = strings.TrimSpace(req.Result)
 	req.TargetType = strings.TrimSpace(req.TargetType)
 	req.CompanyID = strings.TrimSpace(req.CompanyID)

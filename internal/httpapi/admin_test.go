@@ -378,7 +378,7 @@ func TestAdminAuditLogsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "")
 
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs?limit=10&category=%20admin%20&action=%20quota.reconciliation_correction%20&result=%20applied%20&target_type=%20user%20&company_id=%20company-1%20&domain_id=%20domain-1%20&user_id=%20user-1%20&actor_id=%20actor-1%20&target_id=%20target-1%20&since=2026-05-04T00:00:00Z", nil)
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/audit-logs?limit=10&category=%20admin%20&action=%20quota.reconciliation_correction%20&action_prefix=%20quota.%20&result=%20applied%20&target_type=%20user%20&company_id=%20company-1%20&domain_id=%20domain-1%20&user_id=%20user-1%20&actor_id=%20actor-1%20&target_id=%20target-1%20&since=2026-05-04T00:00:00Z", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -397,6 +397,7 @@ func TestAdminAuditLogsHandler(t *testing.T) {
 	if service.lastAuditLogList.Limit != 10 ||
 		service.lastAuditLogList.Category != "admin" ||
 		service.lastAuditLogList.Action != "quota.reconciliation_correction" ||
+		service.lastAuditLogList.ActionPrefix != "quota." ||
 		service.lastAuditLogList.Result != "applied" ||
 		service.lastAuditLogList.TargetType != "user" ||
 		service.lastAuditLogList.CompanyID != "company-1" ||
@@ -415,6 +416,7 @@ func TestAdminAuditLogsHandlerRejectsUnsafeFilters(t *testing.T) {
 	tests := []string{
 		"/admin/v1/audit-logs?category=admin%0Abad",
 		"/admin/v1/audit-logs?action=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
+		"/admin/v1/audit-logs?action_prefix=share_link.%0Abad",
 		"/admin/v1/audit-logs?actor_id=actor%0Dbad",
 		"/admin/v1/audit-logs?target_id=" + strings.Repeat("x", maxAdminQueryFilterBytes+1),
 		"/admin/v1/audit-logs?since=not-a-time",

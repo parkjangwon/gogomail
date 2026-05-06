@@ -911,7 +911,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
-		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "result", "target_type", "company_id", "domain_id", "user_id", "actor_id", "target_id", "since") {
+		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "action_prefix", "result", "target_type", "company_id", "domain_id", "user_id", "actor_id", "target_id", "since") {
 			return
 		}
 		limit, ok := parseQueryLimit(w, r)
@@ -3132,6 +3132,10 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 	if !ok {
 		return maildb.AuditLogListRequest{}, false
 	}
+	actionPrefix, ok := parseBoundedAdminQuery(w, r, "action_prefix")
+	if !ok {
+		return maildb.AuditLogListRequest{}, false
+	}
 	result, ok := parseBoundedAdminQuery(w, r, "result")
 	if !ok {
 		return maildb.AuditLogListRequest{}, false
@@ -3165,17 +3169,18 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 		return maildb.AuditLogListRequest{}, false
 	}
 	return maildb.AuditLogListRequest{
-		Limit:      limit,
-		Category:   category,
-		Action:     action,
-		Result:     result,
-		TargetType: targetType,
-		CompanyID:  companyID,
-		DomainID:   domainID,
-		UserID:     userID,
-		ActorID:    actorID,
-		TargetID:   targetID,
-		Since:      since,
+		Limit:        limit,
+		Category:     category,
+		Action:       action,
+		ActionPrefix: actionPrefix,
+		Result:       result,
+		TargetType:   targetType,
+		CompanyID:    companyID,
+		DomainID:     domainID,
+		UserID:       userID,
+		ActorID:      actorID,
+		TargetID:     targetID,
+		Since:        since,
 	}, true
 }
 
