@@ -2710,6 +2710,12 @@ paths:
     get:
       operationId: listAdminAPIUsageExportBatches
       summary: Admin API usage export batch manifests
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - in: query
@@ -2750,6 +2756,12 @@ paths:
     post:
       operationId: createAdminAPIUsageExportBatch
       summary: Create an API usage export batch manifest checkpoint
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: tenant_id
           in: query
@@ -2799,6 +2811,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportBatch
       summary: Admin API usage export batch manifest detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2844,6 +2862,12 @@ paths:
     get:
       operationId: exportAdminAPIUsageExportBatch
       summary: Export API usage ledger events from a saved batch manifest
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
