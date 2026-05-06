@@ -4361,6 +4361,67 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestServerDrainsExistsBeforeSequenceSetCommand(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &eventSequenceBackend{eventBackend: eventBackend{events: make(chan MailboxEvent, 4)}}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
+	if _, err := client.Write([]byte("a3 FETCH * (FLAGS)\r\n")); err != nil {
+		t.Fatalf("write fetch: %v", err)
+	}
+	want := []string{
+		"* 3 EXISTS\r\n",
+		"* 3 FETCH (UID 9 FLAGS (\\Answered) RFC822.SIZE 9)\r\n",
+		"a3 OK FETCH completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read fetch event response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("fetch event response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if !backendImpl.canceled {
+		t.Fatal("event subscription was not canceled")
+	}
+}
+
 func TestServerNoopIncludesModSeqForCondstoreAwareSession(t *testing.T) {
 	t.Parallel()
 
@@ -11626,6 +11687,34 @@ func (b *eventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan Mai
 		b.canceled = true
 	}
 	return b.events, cancel, nil
+}
+
+type eventSequenceBackend struct {
+	eventBackend
+}
+
+func (b *eventSequenceBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{
+		{ID: "message-1", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Read: true, Starred: true}, Size: 11},
+		{ID: "message-2", UID: 8, SequenceNumber: 2, Flags: MessageFlags{Draft: true}, Size: 42},
+		{ID: "message-3", UID: 9, SequenceNumber: 3, Flags: MessageFlags{Answered: true}, Size: 9},
+	}, nil
+}
+
+func (b *eventSequenceBackend) FetchMessage(_ context.Context, req FetchMessageRequest) (Message, error) {
+	if req.UID != 9 {
+		return (fakeBackend{}).FetchMessage(context.Background(), req)
+	}
+	return Message{
+		Summary: MessageSummary{
+			ID:             "message-3",
+			UID:            9,
+			SequenceNumber: 3,
+			Flags:          MessageFlags{Answered: true},
+			Size:           9,
+		},
+		Body: io.NopCloser(strings.NewReader("answered\n")),
+	}, nil
 }
 
 type literalLoginBackend struct {

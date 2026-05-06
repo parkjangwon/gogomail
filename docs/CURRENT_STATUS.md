@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after Mail API pagination contract hardening)
+Last updated: 2026-05-07 (updated after IMAP selected-event drain hardening)
 
 ## Current phase
 
@@ -2278,6 +2278,10 @@ The platform hardening sprint completed the following:
 - IMAP `NOOP` drains queued selected-mailbox events into untagged `EXISTS`,
   `EXPUNGE`, and flag `FETCH` updates, suppressing stale or duplicate
   exact-count `EXISTS` events relative to the selected mailbox state.
+- IMAP selected-state commands that resolve sequence sets now drain queued
+  selected-mailbox events before dispatch, so `FETCH *`, sequence ranges,
+  SEARCH/SORT/THREAD criteria, and mutation commands see the latest
+  `EXISTS`/`EXPUNGE` state instead of operating on a stale selected count.
 - IMAP advertises and accepts `IDLE`, entering continuation mode and streaming
   selected-mailbox `EXISTS`, `EXPUNGE`, and flag `FETCH` updates while waiting
   for `DONE`.
