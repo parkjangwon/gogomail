@@ -39,6 +39,13 @@ High-level design rules:
 - keep frontend implementation gated until backend contracts are stable and the
   explicit frontend start signal is given
 
+Runtime concurrency is Go-native. Network listeners, protocol sessions,
+workers, event consumers, notification fan-out, cleanup loops, and mailbox
+brokers are designed around goroutines, channels, contexts, bounded batch
+sizes, timeouts, and explicit cancellation. The goal is not merely "parallel by
+default"; hot paths should stay observable, backpressure-aware, and safe to
+split across dedicated modes as deployments grow.
+
 Recent release-readiness work also includes:
 
 - Mail API readiness for production webmail chrome, including mailbox
@@ -79,9 +86,10 @@ Recent release-readiness work also includes:
   and cleanup readiness without starting frontend implementation
 - OpenAPI drift prevention for generated clients, including root-vs-API server
   pins for health/service metadata, `/admin/v1` pins for operator bootstrap
-  routes and readiness checks, public share-link unauthenticated route
-  contracts, and documented admin auth alternatives for capability discovery,
-  export handoff readiness, and retention readiness
+  routes, readiness checks, API usage ledger/aggregate/export surfaces,
+  sensitive export artifact and manifest proof routes, core operator
+  diagnostics/repair calls, public share-link unauthenticated route contracts,
+  and documented admin auth alternatives for generated clients
 
 The Next.js web apps will be added after the backend contracts stabilize and
 after the user provides frontend-specific guidance. Planned frontend surfaces
