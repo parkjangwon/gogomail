@@ -433,8 +433,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and limit inputs plus escaped SQL `LIKE` wildcard handling. This prepares
   CalDAV attendee/resource lookup, Contacts/CardDAV autocomplete, shared inbox
   targeting, and admin consoles without putting principal search semantics in
-  product modules. This does not make shared calendars, resource booking, or
-  delegated access public-release ready yet.
+  product modules. Directory delegation inspection is also now bounded through
+  `ListDelegations`, which validates company scope, optional owner/delegate
+  principal filters, delegation scope, role, active-only state, and result
+  limits before SQL execution. This gives admin consoles, shared-calendar
+  management, Drive shares, shared inboxes, and future Contacts/CardDAV
+  delegation one observable relationship read model. This does not make shared
+  calendars, resource booking, or delegated access public-release ready yet.
   `internal/accesspolicy` now wraps effective delegation into explicit
   allow/deny decisions so future protocol modules can attach product policy,
   WebDAV privilege mapping, and audit logging without reading Directory rows

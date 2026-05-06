@@ -327,6 +327,78 @@ func TestNormalizeCheckDelegationRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestNormalizeListDelegationsRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListDelegationsRequest(ListDelegationsRequest{
+		CompanyID:    " company-1 ",
+		OwnerKind:    " Resource ",
+		OwnerID:      " room-1 ",
+		DelegateKind: " GROUP ",
+		DelegateID:   " team-1 ",
+		Scope:        " Calendar ",
+		Role:         " WRITE ",
+		ActiveOnly:   true,
+		Limit:        25,
+	})
+	if err != nil {
+		t.Fatalf("NormalizeListDelegationsRequest returned error: %v", err)
+	}
+	if got.CompanyID != "company-1" ||
+		got.OwnerKind != PrincipalKindResource ||
+		got.OwnerID != "room-1" ||
+		got.DelegateKind != PrincipalKindGroup ||
+		got.DelegateID != "team-1" ||
+		got.Scope != DelegationScopeCalendar ||
+		got.Role != DelegationRoleWrite ||
+		!got.ActiveOnly ||
+		got.Limit != 25 {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeListDelegationsRequestDefaultsLimit(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeListDelegationsRequest(ListDelegationsRequest{CompanyID: "company-1"})
+	if err != nil {
+		t.Fatalf("NormalizeListDelegationsRequest returned error: %v", err)
+	}
+	if got.Limit != DefaultDelegationListLimit {
+		t.Fatalf("limit = %d, want %d", got.Limit, DefaultDelegationListLimit)
+	}
+}
+
+func TestNormalizeListDelegationsRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ListDelegationsRequest{
+		{OwnerKind: PrincipalKindUser},
+		{CompanyID: "company\n1"},
+		{CompanyID: "company-1", OwnerKind: "calendar"},
+		{CompanyID: "company-1", OwnerID: "owner-1"},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner\n1"},
+		{CompanyID: "company-1", DelegateKind: "calendar"},
+		{CompanyID: "company-1", DelegateID: "delegate-1"},
+		{CompanyID: "company-1", DelegateKind: PrincipalKindUser, DelegateID: "delegate\n1"},
+		{CompanyID: "company-1", OwnerKind: PrincipalKindUser, OwnerID: "owner-1", DelegateKind: PrincipalKindUser, DelegateID: "owner-1"},
+		{CompanyID: "company-1", Scope: "files"},
+		{CompanyID: "company-1", Role: "owner"},
+		{CompanyID: "company-1", Limit: -1},
+		{CompanyID: "company-1", Limit: MaxDelegationListLimit + 1},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.CompanyID+"/"+req.OwnerID+"/"+req.DelegateID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeListDelegationsRequest(req); err == nil {
+				t.Fatalf("NormalizeListDelegationsRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestDelegationRoleSatisfiesHierarchy(t *testing.T) {
 	t.Parallel()
 
@@ -426,6 +498,17 @@ func TestRepositoryCheckEffectiveDelegationRequiresDatabase(t *testing.T) {
 		DelegateID:   "user-1",
 		Scope:        DelegationScopeCalendar,
 		RequiredRole: DelegationRoleRead,
+	})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryListDelegationsRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ListDelegations(context.Background(), ListDelegationsRequest{
+		CompanyID: "company-1",
 	})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("error = %v, want database handle requirement", err)

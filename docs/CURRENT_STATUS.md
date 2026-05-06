@@ -253,6 +253,14 @@ query size and result count, and escapes SQL `LIKE` wildcard input before
 querying. This is the intended foundation for CalDAV attendee/resource lookup,
 contacts auto-complete, shared inbox targeting, and admin consoles without
 letting product modules invent their own principal search semantics.
+Directory also exposes a bounded `ListDelegations` read boundary for
+owner/delegate/scope/role-filtered delegation inspection. This keeps admin
+console diagnostics, shared-calendar management, Drive sharing, shared inboxes,
+and future Contacts/CardDAV delegation on the same normalized company-scoped
+relationship model instead of forcing product modules to query
+`directory_delegations` directly. The CalDAV release tier should therefore stay
+experimental while the platform-level Directory/Identity, Contacts/CardDAV,
+Notification & Sync, Search, and Policy/Audit foundations continue to close.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.
@@ -2664,6 +2672,11 @@ The platform hardening sprint completed the following:
   filtering, and `manage >= write >= read` role satisfaction. This prepares
   shared calendars, resource calendars, Drive shares, shared inboxes, and
   Contacts delegation without adding product-local access models.
+- Directory/Identity delegation inspection now has a bounded repository
+  boundary. `ListDelegations` validates company scope, optional owner/delegate
+  principal filters, delegation scope, role, active-only state, and result
+  limits before querying, giving admin consoles and shared resource management
+  a reusable read path without product-specific SQL.
 - `internal/accesspolicy` now provides a small effective-delegation evaluator
   that normalizes principal/scope/role inputs, forces active principal checks,
   and returns explicit allow/deny decisions. It is deliberately product-neutral

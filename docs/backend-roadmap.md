@@ -2686,6 +2686,13 @@ Implementation order:
       rows on checker errors, and fails closed on audit insertion errors so
       future CalDAV/CardDAV/Drive/mailbox adapters do not permit unaudited
       delegated access.
+1175a. Directory/Identity now exposes a bounded `ListDelegations` repository
+       boundary for owner/delegate/scope/role-filtered delegation inspection.
+       Requests validate company scope, optional principal filters, active-only
+       state, and result limits before SQL execution, giving future admin
+       consoles, shared-calendar management, Drive shares, shared inboxes, and
+       Contacts/CardDAV delegation one observable relationship read model
+       instead of product-local delegation queries.
 1176. S3-compatible storage `Copy` now reads and validates bounded successful
       `CopyObject` response bodies, accepting normal `CopyObjectResult`
       responses while rejecting embedded `<Error>` XML inside `200 OK`

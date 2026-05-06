@@ -217,6 +217,75 @@ func TestPostgresSearchPrincipalsFindsUsersResourcesAndGroups(t *testing.T) {
 	}
 }
 
+func TestPostgresListDelegationsFiltersOwnerDelegateAndScope(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	delegations, err := repo.ListDelegations(ctx, ListDelegationsRequest{
+		CompanyID:  seed.companyID,
+		OwnerKind:  PrincipalKindResource,
+		OwnerID:    seed.roomID,
+		Scope:      DelegationScopeCalendar,
+		ActiveOnly: true,
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("ListDelegations owner returned error: %v", err)
+	}
+	if len(delegations) != 2 {
+		t.Fatalf("owner delegations = %+v, want 2 rows", delegations)
+	}
+
+	delegations, err = repo.ListDelegations(ctx, ListDelegationsRequest{
+		CompanyID:    seed.companyID,
+		DelegateKind: PrincipalKindGroup,
+		DelegateID:   seed.teamID,
+		Scope:        DelegationScopeCalendar,
+		Role:         DelegationRoleWrite,
+		ActiveOnly:   true,
+		Limit:        10,
+	})
+	if err != nil {
+		t.Fatalf("ListDelegations delegate returned error: %v", err)
+	}
+	if len(delegations) != 1 ||
+		delegations[0].OwnerKind != PrincipalKindResource ||
+		delegations[0].OwnerID != seed.roomID ||
+		delegations[0].DelegateKind != PrincipalKindGroup ||
+		delegations[0].DelegateID != seed.teamID ||
+		delegations[0].Scope != DelegationScopeCalendar ||
+		delegations[0].Role != DelegationRoleWrite ||
+		delegations[0].Status != "active" {
+		t.Fatalf("filtered delegation = %+v", delegations)
+	}
+
+	if _, err := db.ExecContext(ctx, `
+UPDATE directory_delegations
+SET status = 'deleted'
+WHERE company_id = $1::uuid
+  AND delegate_kind = 'user'
+  AND delegate_id = $2::uuid`, seed.companyID, seed.aliceID); err != nil {
+		t.Fatalf("delete direct user delegation: %v", err)
+	}
+	delegations, err = repo.ListDelegations(ctx, ListDelegationsRequest{
+		CompanyID:    seed.companyID,
+		DelegateKind: PrincipalKindUser,
+		DelegateID:   seed.aliceID,
+		ActiveOnly:   true,
+		Limit:        10,
+	})
+	if err != nil {
+		t.Fatalf("ListDelegations active returned error: %v", err)
+	}
+	if len(delegations) != 0 {
+		t.Fatalf("active delegation list returned deleted rows: %+v", delegations)
+	}
+}
+
 type directoryDelegationSeed struct {
 	companyID   string
 	domainID    string

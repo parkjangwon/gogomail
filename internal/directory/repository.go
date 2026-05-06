@@ -456,6 +456,74 @@ SELECT role FROM candidate_roles`
 	return false, nil
 }
 
+func (r *Repository) ListDelegations(ctx context.Context, req ListDelegationsRequest) ([]Delegation, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeListDelegationsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const query = `
+SELECT id::text,
+       company_id::text,
+       owner_kind,
+       owner_id::text,
+       delegate_kind,
+       delegate_id::text,
+       scope,
+       role,
+       status
+FROM directory_delegations
+WHERE company_id = $1::uuid
+  AND ($2 = '' OR owner_kind = $2)
+  AND ($3 = '' OR owner_id = NULLIF($3, '')::uuid)
+  AND ($4 = '' OR delegate_kind = $4)
+  AND ($5 = '' OR delegate_id = NULLIF($5, '')::uuid)
+  AND ($6 = '' OR scope = $6)
+  AND ($7 = '' OR role = $7)
+  AND ($8::boolean = false OR status = 'active')
+ORDER BY updated_at DESC, id
+LIMIT $9`
+	rows, err := r.db.QueryContext(ctx, query,
+		req.CompanyID,
+		req.OwnerKind,
+		req.OwnerID,
+		req.DelegateKind,
+		req.DelegateID,
+		req.Scope,
+		req.Role,
+		req.ActiveOnly,
+		req.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list directory delegations: %w", err)
+	}
+	defer rows.Close()
+	delegations := make([]Delegation, 0, req.Limit)
+	for rows.Next() {
+		var delegation Delegation
+		if err := rows.Scan(
+			&delegation.ID,
+			&delegation.CompanyID,
+			&delegation.OwnerKind,
+			&delegation.OwnerID,
+			&delegation.DelegateKind,
+			&delegation.DelegateID,
+			&delegation.Scope,
+			&delegation.Role,
+			&delegation.Status,
+		); err != nil {
+			return nil, fmt.Errorf("scan directory delegation list result: %w", err)
+		}
+		delegations = append(delegations, delegation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list directory delegation rows: %w", err)
+	}
+	return delegations, nil
+}
+
 func (r *Repository) checkDelegationPrincipalsActive(ctx context.Context, req CheckDelegationRequest) (bool, error) {
 	owner, err := r.ResolvePrincipal(ctx, ResolvePrincipalRequest{
 		ID:         req.OwnerID,
