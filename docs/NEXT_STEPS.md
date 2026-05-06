@@ -1649,8 +1649,9 @@ Next:
   contact objects transactionally, honors collection preconditions, and records
   an `addressbook-deleted` change row. `sync-collection` can now return the
   latest deletion sync token for stale-token requests even after the collection
-  is no longer active. Contact-object `PUT` now rejects duplicate active vCard
-  UIDs within the same address book before the SQL upsert path, keeping
+  is no longer active, and enforces RFC 6578 Depth behavior by rejecting
+  `Depth: 1` sync requests before sync work. Contact-object `PUT` now rejects
+  duplicate active vCard UIDs within the same address book before the SQL upsert path, keeping
   repository errors predictable while the PostgreSQL partial unique index
   remains the final concurrency guard. Final unique-index races are mapped back
   to stable duplicate UID/name repository errors instead of surfacing raw driver
