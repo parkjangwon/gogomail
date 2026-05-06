@@ -152,6 +152,49 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 	}
 }
 
+func TestParseMKAddressBookCollectsProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>
+      <D:displayname> Team </D:displayname>
+      <C:addressbook-description> Launch contacts </C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:mkcol>`
+	req, err := ParseMKAddressBook(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseMKAddressBook returned error: %v", err)
+	}
+	if req.DisplayName != "Team" || req.Description != "Launch contacts" {
+		t.Fatalf("request = %+v", req)
+	}
+}
+
+func TestParseMKAddressBookRejectsInvalidShapes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"wrong root":            `<C:mkaddressbook xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"missing addressbook":   `<D:mkcol xmlns:D="DAV:"><D:set><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:set></D:mkcol>`,
+		"missing collection":    `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:resourcetype><C:addressbook/></D:resourcetype></D:prop></D:set></D:mkcol>`,
+		"nested displayname":    `<D:mkcol xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:mkcol>`,
+		"multiple roots":        `<D:mkcol xmlns:D="DAV:"/><D:mkcol xmlns:D="DAV:"/>`,
+		"unsupported directive": `<!DOCTYPE mkcol><D:mkcol xmlns:D="DAV:"/>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParseMKAddressBook(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseMKAddressBook error = nil, want rejection")
+			}
+		})
+	}
+}
+
 func TestParseReportRecognizesCardDAVAndSyncReports(t *testing.T) {
 	t.Parallel()
 

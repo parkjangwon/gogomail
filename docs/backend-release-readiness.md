@@ -410,7 +410,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `addressbook-updated` change. Address-book collections derive a strong ETag
   from the durable sync token, expose it through WebDAV `getetag`, and enforce
   `If-Match`/`If-Unmodified-Since` on collection `PROPPATCH` before reading
-  XML request bodies.
+  XML request bodies. RFC 6352-style extended `MKCOL` can create authenticated
+  address-book collections at UUID request-URI paths with bounded
+  `DAV:resourcetype`, `DAV:displayname`, and `addressbook-description`
+  parsing, repository-backed sync/change state, and `201 Created` plus
+  `Location` responses.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

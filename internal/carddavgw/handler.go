@@ -20,6 +20,10 @@ type DiscoveryStore interface {
 	LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error)
 }
 
+type AddressBookCreator interface {
+	CreateAddressBookAtPath(ctx context.Context, req CreateAddressBookAtPathRequest) (AddressBook, error)
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 type Handler struct {
@@ -92,6 +96,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.servePutObject(w, r)
 	case MethodDelete:
 		h.serveDeleteObject(w, r)
+	case MethodMkcol:
+		h.serveMkcol(w, r)
 	default:
 		w.Header().Set("Allow", cardDAVDiscoveryAllowHeader())
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -106,6 +112,72 @@ func (h *Handler) serveWellKnown(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", target)
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusMovedPermanently)
+}
+
+func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
+	if h.Store == nil {
+		http.Error(w, "carddav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	store, ok := h.Store.(AddressBookCreator)
+	if !ok {
+		http.Error(w, "carddav address-book creator is not configured", http.StatusNotImplemented)
+		return
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil || resource.Kind != ResourceAddressBookCollection {
+		http.Error(w, "MKCOL requires an address-book collection path", http.StatusConflict)
+		return
+	}
+	if resource.UserID != userID {
+		http.Error(w, "carddav resource is not accessible", http.StatusForbidden)
+		return
+	}
+	if _, err := h.Store.LookupPrincipal(r.Context(), userID); err != nil {
+		http.Error(w, "carddav address-book home not found", http.StatusConflict)
+		return
+	}
+	if _, err := h.Store.LookupAddressBook(r.Context(), userID, resource.AddressBookID); err == nil {
+		http.Error(w, "carddav address book already exists", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := ValidateAddressBookPathID(resource.AddressBookID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req, err := ParseMKAddressBook(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	book, err := store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
+		UserID:        userID,
+		AddressBookID: resource.AddressBookID,
+		Name:          req.DisplayName,
+		Description:   req.Description,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	location, err := AddressBookCollectionPath(userID, book.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Location", location)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
@@ -1121,5 +1193,5 @@ func readBoundedContactObjectBody(r io.Reader) ([]byte, error) {
 }
 
 func cardDAVDiscoveryAllowHeader() string {
-	return strings.Join([]string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete}, ", ")
+	return strings.Join([]string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete, MethodMkcol}, ", ")
 }

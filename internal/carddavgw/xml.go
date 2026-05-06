@@ -77,6 +77,11 @@ type ProppatchRequest struct {
 	Properties  []XMLName
 }
 
+type MKAddressBookRequest struct {
+	DisplayName string
+	Description string
+}
+
 type ReportKind string
 
 const (
@@ -231,6 +236,53 @@ func ParseProppatch(r io.Reader) (ProppatchRequest, error) {
 				}
 				if len(req.Properties) == 0 {
 					return ProppatchRequest{}, fmt.Errorf("PROPPATCH must include at least one supported property")
+				}
+				return req, nil
+			}
+		}
+	}
+}
+
+func ParseMKAddressBook(r io.Reader) (MKAddressBookRequest, error) {
+	body, err := readBoundedXMLBody(r)
+	if err != nil {
+		return MKAddressBookRequest{}, err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return MKAddressBookRequest{}, nil
+	}
+	dec := newWebDAVXMLDecoder(body)
+	root, err := nextStart(dec)
+	if err != nil {
+		return MKAddressBookRequest{}, err
+	}
+	if !sameXMLName(root.Name, DAVNamespace, "mkcol") {
+		return MKAddressBookRequest{}, fmt.Errorf("unsupported MKCOL root {%s}%s", root.Name.Space, root.Name.Local)
+	}
+	var req MKAddressBookRequest
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return MKAddressBookRequest{}, fmt.Errorf("unterminated MKCOL body")
+		}
+		if err != nil {
+			return MKAddressBookRequest{}, fmt.Errorf("decode MKCOL body: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "set") {
+				if err := parseMKAddressBookSet(dec, tok.Name, &req); err != nil {
+					return MKAddressBookRequest{}, err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return MKAddressBookRequest{}, err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, root.Name) {
+				if err := rejectTrailingXML(dec); err != nil {
+					return MKAddressBookRequest{}, err
 				}
 				return req, nil
 			}
@@ -433,6 +485,112 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, propName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseMKAddressBookSet(dec *xml.Decoder, setName xml.Name, req *MKAddressBookRequest) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated MKCOL set element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode MKCOL set: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if err := parseMKAddressBookProp(dec, tok.Name, req); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, setName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressBookRequest) error {
+	properties := 0
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated MKCOL prop element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode MKCOL prop: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			properties++
+			if properties > MaxWebDAVProperties {
+				return fmt.Errorf("too many MKCOL properties")
+			}
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "resourcetype"):
+				if err := parseAddressBookResourceType(dec, tok.Name); err != nil {
+					return err
+				}
+			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				req.DisplayName = strings.TrimSpace(text)
+			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				req.Description = strings.TrimSpace(text)
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, propName) {
+				return nil
+			}
+		}
+	}
+}
+
+func parseAddressBookResourceType(dec *xml.Decoder, typeName xml.Name) error {
+	var hasCollection, hasAddressBook bool
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated MKCOL resourcetype element")
+		}
+		if err != nil {
+			return fmt.Errorf("decode MKCOL resourcetype: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "collection"):
+				hasCollection = true
+			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook"):
+				hasAddressBook = true
+			}
+			if err := skipElement(dec, tok.Name); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, typeName) {
+				if !hasCollection || !hasAddressBook {
+					return fmt.Errorf("MKCOL resourcetype must include DAV:collection and CARDDAV:addressbook")
+				}
 				return nil
 			}
 		}

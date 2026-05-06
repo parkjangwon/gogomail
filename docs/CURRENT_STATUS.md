@@ -108,6 +108,13 @@ I/O separate from collection metadata mutation.
 Address-book collections now derive a strong collection ETag from the durable
 sync token, expose it through PROPFIND `getetag`, and enforce `If-Match` and
 `If-Unmodified-Since` on collection `PROPPATCH` before reading request bodies.
+CardDAV now handles RFC 6352-style extended `MKCOL` for authenticated
+address-book collection creation at UUID request-URI paths. The handler parses
+bounded WebDAV creation XML for `DAV:resourcetype`, `DAV:displayname`, and
+`CARDDAV:addressbook-description`, rejects existing collections, cross-user
+paths, missing homes, and unsafe non-UUID path ids before body reads, creates
+the collection through the repository, refreshes sync state, and returns
+`201 Created` with `Location`.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

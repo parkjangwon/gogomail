@@ -88,6 +88,10 @@ I/O stays on separate `PUT`/`DELETE` paths.
 Address-book collections derive a strong WebDAV `getetag` value from the same
 durable sync token, and collection `PROPPATCH` honors `If-Match` and
 `If-Unmodified-Since` before XML request body reads.
+RFC 6352-style extended `MKCOL` can create authenticated address-book
+collections at UUID request-URI paths after bounded `DAV:resourcetype`,
+`DAV:displayname`, and `CARDDAV:addressbook-description` parsing. UUID-only
+request IDs keep path identity separate from future human-readable aliases.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

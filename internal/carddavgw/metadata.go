@@ -127,6 +127,26 @@ func ValidateContactObjectName(name string) (string, error) {
 	return name, nil
 }
 
+func ValidateAddressBookPathID(id string) (string, error) {
+	id = strings.TrimSpace(strings.ToLower(id))
+	if len(id) != 36 {
+		return "", fmt.Errorf("address book path id must be a UUID")
+	}
+	for i, r := range id {
+		switch i {
+		case 8, 13, 18, 23:
+			if r != '-' {
+				return "", fmt.Errorf("address book path id must be a UUID")
+			}
+		default:
+			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+				return "", fmt.Errorf("address book path id must be a lowercase UUID")
+			}
+		}
+	}
+	return id, nil
+}
+
 func ContactObjectETag(vcard []byte) (string, error) {
 	if len(vcard) == 0 {
 		return "", fmt.Errorf("contact object body is required")

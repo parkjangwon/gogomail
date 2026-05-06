@@ -23,6 +23,13 @@ type CreateAddressBookRequest struct {
 	Description string
 }
 
+type CreateAddressBookAtPathRequest struct {
+	UserID        string
+	AddressBookID string
+	Name          string
+	Description   string
+}
+
 type ListAddressBooksRequest struct {
 	UserID string
 	Status string
@@ -129,6 +136,68 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 			return AddressBook{}, fmt.Errorf("active user not found")
 		}
 		return AddressBook{}, fmt.Errorf("create CardDAV address book: %w", err)
+	}
+	if err := insertAddressBookChange(ctx, tx, book.UserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
+		return AddressBook{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return AddressBook{}, fmt.Errorf("commit CardDAV address book create: %w", err)
+	}
+	return book, nil
+}
+
+func (r *Repository) CreateAddressBookAtPath(ctx context.Context, req CreateAddressBookAtPathRequest) (AddressBook, error) {
+	if r == nil || r.db == nil {
+		return AddressBook{}, fmt.Errorf("database handle is required")
+	}
+	req, normalizedName, syncToken, err := ValidateCreateAddressBookAtPathRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AddressBook{}, fmt.Errorf("begin CardDAV address book create: %w", err)
+	}
+	defer tx.Rollback()
+	const query = `
+WITH active_user AS (
+  SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  JOIN companies c ON c.id = d.company_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+    AND c.status = 'active'
+)
+INSERT INTO carddav_addressbooks (
+  id, company_id, domain_id, user_id, name, normalized_name, description, sync_token
+)
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6
+FROM active_user
+RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+	var book AddressBook
+	err = tx.QueryRowContext(ctx, query,
+		req.UserID,
+		req.AddressBookID,
+		req.Name,
+		normalizedName,
+		req.Description,
+		syncToken,
+	).Scan(
+		&book.ID,
+		&book.UserID,
+		&book.Name,
+		&book.Description,
+		&book.SyncToken,
+		&book.CreatedAt,
+		&book.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AddressBook{}, fmt.Errorf("active user not found")
+		}
+		return AddressBook{}, fmt.Errorf("create CardDAV address book at path: %w", err)
 	}
 	if err := insertAddressBookChange(ctx, tx, book.UserID, book.ID, book.SyncToken, "addressbook-created", "", ""); err != nil {
 		return AddressBook{}, err
@@ -541,6 +610,35 @@ func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddre
 	}
 	syncToken := AddressBookSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
 	return CreateAddressBookRequest{UserID: userID, Name: name, Description: description}, normalizedName, syncToken, nil
+}
+
+func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) (CreateAddressBookAtPathRequest, string, string, error) {
+	userID, err := validateCardDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return CreateAddressBookAtPathRequest{}, "", "", err
+	}
+	bookID, err := ValidateAddressBookPathID(req.AddressBookID)
+	if err != nil {
+		return CreateAddressBookAtPathRequest{}, "", "", err
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = bookID
+	}
+	create, normalizedName, syncToken, err := ValidateCreateAddressBookRequest(CreateAddressBookRequest{
+		UserID:      userID,
+		Name:        name,
+		Description: req.Description,
+	})
+	if err != nil {
+		return CreateAddressBookAtPathRequest{}, "", "", err
+	}
+	return CreateAddressBookAtPathRequest{
+		UserID:        create.UserID,
+		AddressBookID: bookID,
+		Name:          create.Name,
+		Description:   create.Description,
+	}, normalizedName, syncToken, nil
 }
 
 func ValidateListAddressBooksRequest(req ListAddressBooksRequest) (ListAddressBooksRequest, error) {
