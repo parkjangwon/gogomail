@@ -37,6 +37,10 @@ CalDAV and CardDAV OPTIONS discovery now advertise `DAV: sync-collection` only
 when the runtime store implements the corresponding sync change-log interface,
 preventing native clients from enabling DAV sync against backends that cannot
 serve sync-token deltas.
+Admin storage capability support flags are now derived from normalized active
+backend labels instead of hard-coded `true` values, so local/NFS, MinIO, and
+AWS/S3-compatible deployments advertise only the storage-label families they can
+actually serve.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

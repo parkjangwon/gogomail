@@ -317,8 +317,12 @@ with the normalized configured backend (`local`, `nfs`, `s3`, or `minio`), activ
 backend labels including explicit compatibility labels, backend class,
 supported object primitives, S3-compatible path-style status, sanitized
 endpoint origin/bucket/prefix/region when applicable, readiness-probe support,
-and `secrets_redacted=true`. The storage profile never exposes access key IDs,
-secret access keys, session tokens, or local filesystem root paths.
+support-matrix booleans derived from active backend labels, and
+`secrets_redacted=true`. `supports_local_nfs` means the active label set can
+serve local/NFS-labelled rows, `supports_minio` means it can serve MinIO-style
+labels, and `supports_aws_compatible` means it can serve generic S3-compatible
+labels. The storage profile never exposes access key IDs, secret access keys,
+session tokens, or local filesystem root paths.
 
 Admin clients should use this endpoint to build navigation and validate local
 operator form limits instead of duplicating backend constants.

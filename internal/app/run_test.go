@@ -221,6 +221,9 @@ func TestStorageCapabilitiesForConfigDescribesLocalBackend(t *testing.T) {
 	if !capabilities.CompatLabelsEnabled || !capabilities.ReadinessProbe || !capabilities.SecretsRedacted || !capabilities.SupportsBackendSwitch {
 		t.Fatalf("capabilities = %+v", capabilities)
 	}
+	if !capabilities.SupportsLocalNFS || capabilities.SupportsMinIO || !capabilities.SupportsAWSCompatible {
+		t.Fatalf("support flags = local_nfs:%v minio:%v aws:%v", capabilities.SupportsLocalNFS, capabilities.SupportsMinIO, capabilities.SupportsAWSCompatible)
+	}
 }
 
 func TestStorageCapabilitiesForConfigDescribesNFSAliasBackend(t *testing.T) {
@@ -232,6 +235,9 @@ func TestStorageCapabilitiesForConfigDescribesNFSAliasBackend(t *testing.T) {
 	}
 	if len(capabilities.ActiveLabels) != 2 || capabilities.ActiveLabels[0] != "local" || capabilities.ActiveLabels[1] != "nfs" {
 		t.Fatalf("active labels = %#v", capabilities.ActiveLabels)
+	}
+	if !capabilities.SupportsLocalNFS || capabilities.SupportsMinIO || capabilities.SupportsAWSCompatible {
+		t.Fatalf("support flags = local_nfs:%v minio:%v aws:%v", capabilities.SupportsLocalNFS, capabilities.SupportsMinIO, capabilities.SupportsAWSCompatible)
 	}
 }
 
@@ -252,6 +258,9 @@ func TestStorageCapabilitiesForConfigDescribesS3CompatibleBackend(t *testing.T) 
 	}
 	if capabilities.EndpointOrigin != "https://s3.us-east-1.amazonaws.com/base+proxy" || capabilities.Bucket != "gogomail.prod" || capabilities.Prefix != "mail" || capabilities.Region != "us-east-1" {
 		t.Fatalf("sanitized S3 profile = %+v", capabilities)
+	}
+	if capabilities.SupportsLocalNFS || !capabilities.SupportsMinIO || !capabilities.SupportsAWSCompatible {
+		t.Fatalf("support flags = local_nfs:%v minio:%v aws:%v", capabilities.SupportsLocalNFS, capabilities.SupportsMinIO, capabilities.SupportsAWSCompatible)
 	}
 	for _, leaked := range []string{"AKIAEXAMPLE", "secret"} {
 		if strings.Contains(capabilities.EndpointOrigin+capabilities.Bucket+capabilities.Prefix+capabilities.Region, leaked) {

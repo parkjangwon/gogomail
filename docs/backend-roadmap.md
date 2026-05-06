@@ -3453,6 +3453,10 @@ Implementation order:
       sync-collection` only when the runtime store implements the relevant
       sync change-log interface, preventing native clients from discovering a
       sync-token capability that a limited backend cannot actually serve.
+1308. Admin storage capability support flags are now derived from normalized
+      active backend labels instead of hard-coded `true` values, so local/NFS,
+      MinIO, and AWS/S3-compatible deployments advertise only the storage-label
+      families they can serve.
 
 ## Deferred until backend contracts stabilize
 

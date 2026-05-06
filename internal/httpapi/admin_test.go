@@ -96,7 +96,7 @@ func TestAdminConsoleCapabilitiesHandler(t *testing.T) {
 	if !got.Security.AdminTokenHeader || !got.Security.BearerToken || !got.Security.RejectsAmbiguousAuth || !got.Security.NoStoreJSON {
 		t.Fatalf("security capabilities = %#v", got.Security)
 	}
-	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" {
+	if got.Storage.ConfiguredBackend != "local" || !got.Storage.LocalFilesystem || !got.Storage.SecretsRedacted || len(got.Storage.ActiveLabels) != 1 || got.Storage.ActiveLabels[0] != "local" || !got.Storage.SupportsLocalNFS || got.Storage.SupportsMinIO || got.Storage.SupportsAWSCompatible {
 		t.Fatalf("storage capabilities = %#v", got.Storage)
 	}
 }
@@ -123,16 +123,18 @@ func TestAdminConsoleCapabilitiesHandlerUsesConfiguredStorageCapabilities(t *tes
 	service := &fakeAdminService{}
 	mux := http.NewServeMux()
 	RegisterAdminRoutes(mux, service, "", WithStorageCapabilities(storage.BackendCapabilities{
-		ContractVersion:     BackendContractVersion,
-		ConfiguredBackend:   "minio",
-		BackendClass:        "s3_compatible",
-		ActiveLabels:        []string{"minio", "s3"},
-		Operations:          []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
-		S3Compatible:        true,
-		PathStyleAddressing: true,
-		EndpointOrigin:      "http://localhost:19000",
-		Bucket:              "gogomail",
-		SecretsRedacted:     true,
+		ContractVersion:       BackendContractVersion,
+		ConfiguredBackend:     "minio",
+		BackendClass:          "s3_compatible",
+		ActiveLabels:          []string{"minio", "s3"},
+		Operations:            []string{"put", "get", "get_range", "stat", "copy", "move", "list", "delete"},
+		S3Compatible:          true,
+		PathStyleAddressing:   true,
+		EndpointOrigin:        "http://localhost:19000",
+		Bucket:                "gogomail",
+		SecretsRedacted:       true,
+		SupportsMinIO:         true,
+		SupportsAWSCompatible: true,
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/v1/console/capabilities", nil)
@@ -147,7 +149,7 @@ func TestAdminConsoleCapabilitiesHandlerUsesConfiguredStorageCapabilities(t *tes
 		t.Fatalf("json.Unmarshal returned error: %v", err)
 	}
 	got := body.AdminConsoleCapabilities.Storage
-	if got.ConfiguredBackend != "minio" || got.BackendClass != "s3_compatible" || !got.S3Compatible || !got.PathStyleAddressing || got.EndpointOrigin != "http://localhost:19000" || got.Bucket != "gogomail" {
+	if got.ConfiguredBackend != "minio" || got.BackendClass != "s3_compatible" || !got.S3Compatible || !got.PathStyleAddressing || got.EndpointOrigin != "http://localhost:19000" || got.Bucket != "gogomail" || got.SupportsLocalNFS || !got.SupportsMinIO || !got.SupportsAWSCompatible {
 		t.Fatalf("storage capabilities = %#v", got)
 	}
 }
