@@ -2630,9 +2630,9 @@ Implementation order:
       resource principals until delegated/shared calendar and resource-booking
       semantics have real policy and storage boundaries.
 1156. CalDAV `Allow` headers now come from an explicit implemented-method list
-      shared by `OPTIONS` and 405 responses, so future constants such as `MOVE`
-      do not leak into native-client capability discovery before handler
-      semantics exist.
+      shared by `OPTIONS` and 405 responses, so future constants such as
+      `COPY` and `MOVE` do not leak into native-client capability discovery
+      before handler semantics exist.
 1157. CardDAV `Allow` headers now also come from an explicit implemented-method
       list shared by `OPTIONS` and 405 responses, matching the CalDAV capability
       pattern and keeping native contact clients aligned with real handlers.
@@ -4105,6 +4105,10 @@ Implementation order:
       regression-covered as unadvertised in `OPTIONS` and 405 `Allow` headers
       until the handler implements full address-book object relocation and
       duplication semantics.
+1462. CalDAV future WebDAV `COPY` and `MOVE` method constants are now
+      regression-covered as unadvertised in `OPTIONS`, 405 `Allow`, and the
+      shared implemented-method list until calendar object relocation and
+      duplication semantics exist.
 
 ## Deferred until backend contracts stabilize
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after CardDAV future method advertising guard)
+Last updated: 2026-05-07 (updated after CalDAV future method advertising guard)
 
 ## Current phase
 
@@ -3468,8 +3468,8 @@ The platform hardening sprint completed the following:
   `calendar-home-set` stay on the principal resource.
 - CalDAV `OPTIONS` and 405 responses now share an explicit implemented-method
   list so `Allow` stays tied to real gateway handlers. Future-only methods such
-  as `MOVE` remain unadvertised until their WebDAV semantics exist. `OPTIONS`
-  discovery also returns `Cache-Control: no-store` and
+  as `COPY` and `MOVE` remain unadvertised until their WebDAV semantics exist.
+  `OPTIONS` discovery also returns `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`; 405 method-probe responses now carry the
   same safety headers, matching the CardDAV discovery surface so native clients
   and intermediaries do not retain stale capability headers.

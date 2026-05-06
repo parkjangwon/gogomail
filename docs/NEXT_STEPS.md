@@ -2344,8 +2344,8 @@ Current state:
   properties such as `calendar-home-set` remain on the principal resource so
   clients do not mistake the service root for an authenticated user principal.
 - CalDAV `OPTIONS` and unsupported-method responses now use one implemented
-  method list for `Allow`, keeping future-only method names such as `MOVE`
-  hidden until their WebDAV behavior is actually implemented. `OPTIONS`
+  method list for `Allow`, keeping future-only method names such as `COPY` and
+  `MOVE` hidden until their WebDAV behavior is actually implemented. `OPTIONS`
   discovery now also emits `Cache-Control: no-store` and
   `X-Content-Type-Options: nosniff`, and 405 method-probe responses carry the
   same safety headers for native-client capability probing.

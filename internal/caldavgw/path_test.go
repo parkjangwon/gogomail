@@ -146,7 +146,7 @@ func TestAdvertisedDAVTokens(t *testing.T) {
 	}
 }
 
-func TestImplementedMethodsExcludeFutureMove(t *testing.T) {
+func TestImplementedMethodsExcludeFutureCopyMove(t *testing.T) {
 	t.Parallel()
 
 	methods := ImplementedMethods()
@@ -154,7 +154,9 @@ func TestImplementedMethodsExcludeFutureMove(t *testing.T) {
 	if strings.Join(methods, ",") != strings.Join(want, ",") {
 		t.Fatalf("ImplementedMethods = %v, want %v", methods, want)
 	}
-	if strings.Contains(strings.Join(methods, ","), MethodMove) {
-		t.Fatalf("ImplementedMethods advertised future MOVE method: %v", methods)
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(strings.Join(methods, ","), futureMethod) {
+			t.Fatalf("ImplementedMethods advertised future %s method: %v", futureMethod, methods)
+		}
 	}
 }
