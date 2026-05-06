@@ -878,8 +878,10 @@ func TestS3StoreListRejectsEmbeddedErrorInOKResponse(t *testing.T) {
   <Message>list throttled
 try later</Message>
   <RequestId>req-1</RequestId>
+  <HostId>host-
+1</HostId>
 </Error>`,
-			want: "SlowDown: list throttled try later: request-id=req-1",
+			want: "SlowDown: list throttled try later: request-id=req-1: host-id=host- 1",
 		},
 		{
 			name: "empty",
@@ -3022,7 +3024,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>copy throttled
-try later</Message><RequestId>req-copy-1</RequestId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1"},
+try later</Message><RequestId>req-copy-1</RequestId><HostId>host-copy-1</HostId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1: host-id=host-copy-1"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -3344,6 +3346,7 @@ func TestS3StoreFormatsXMLStatusErrorPreview(t *testing.T) {
 later</Message>
   <RequestId>req-
 123</RequestId>
+  <HostId>host-123</HostId>
 </Error>`))
 	}))
 	defer server.Close()
@@ -3361,7 +3364,7 @@ later</Message>
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
 	_, err = store.Get(context.Background(), "messages/msg-1.eml")
-	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "SlowDown: retry later: request-id=req- 123") || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
+	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "SlowDown: retry later: request-id=req- 123: host-id=host-123") || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
 		t.Fatalf("error = %q, want formatted XML status preview", err)
 	}
 }

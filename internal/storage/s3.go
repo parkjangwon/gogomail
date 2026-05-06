@@ -1255,7 +1255,7 @@ func s3XMLError(data []byte) (string, bool) {
 	if response.XMLName.Local != "Error" || !s3XMLNamespaceAllowed(response.XMLName.Space) {
 		return "", false
 	}
-	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID)), true
+	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID)), true
 }
 
 func s3PlainErrorPreview(value string) string {
@@ -1288,6 +1288,7 @@ type s3CopyResponse struct {
 	Code         string `xml:"Code"`
 	Message      string `xml:"Message"`
 	RequestID    string `xml:"RequestId"`
+	HostID       string `xml:"HostId"`
 	ETag         string `xml:"ETag"`
 	LastModified string `xml:"LastModified"`
 }
@@ -1456,7 +1457,7 @@ func validateS3CopyResponse(body io.Reader) error {
 		}
 		return nil
 	case "Error":
-		preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID))
+		preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID))
 		if preview == "" {
 			return fmt.Errorf("copy s3 object: embedded error")
 		}
@@ -1515,7 +1516,7 @@ func validateS3CopyResultShape(data []byte) error {
 				if err := decoder.DecodeElement(&response, &token); err != nil {
 					return fmt.Errorf("decode s3 copy response: %w", err)
 				}
-				preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID))
+				preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID))
 				if preview == "" {
 					return fmt.Errorf("copy s3 object: embedded error")
 				}

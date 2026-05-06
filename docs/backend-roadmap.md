@@ -3980,6 +3980,11 @@ Implementation order:
       diagnostics used for top-level provider errors, so copy throttling or
       auth failures inside `200 OK` responses remain operator-readable while
       still failing closed before copy/move success is reported.
+1431. S3-compatible standard `<Error>` diagnostics now also preserve bounded
+      `HostId` context as `host-id=...` alongside `request-id=...` for
+      top-level status errors, `ListObjectsV2` embedded errors, and nested
+      `CopyObjectResult` errors, improving AWS supportability without exposing
+      raw XML bodies.
 
 ## Deferred until backend contracts stabilize
 
