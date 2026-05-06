@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after API usage ledger OpenAPI admin pinning)
+Last updated: 2026-05-07 (updated after API usage aggregate OpenAPI admin pinning)
 
 ## Current phase
 
@@ -86,6 +86,9 @@ API usage ledger list, export, and stats operations now also pin the Admin API
 server and document both admin-token and bearer-token alternatives in OpenAPI,
 matching the runtime `adminAuth` boundary under `/admin/v1` and preventing
 generated operator clients from drifting to the public Mail API base.
+API usage daily and monthly aggregate operations now carry the same Admin API
+server and admin-auth metadata, keeping generated operator analytics clients
+aligned with the runtime `/admin/v1` route boundary.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

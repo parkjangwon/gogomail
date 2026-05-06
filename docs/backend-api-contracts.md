@@ -362,6 +362,10 @@ Admin API base/auth contract in OpenAPI:
 `GET /admin/v1/api-usage/ledger`,
 `GET /admin/v1/api-usage/ledger/export`, and
 `GET /admin/v1/api-usage/ledger/stats`.
+The daily and monthly API usage aggregate routes also pin the Admin API server
+and admin-token/bearer auth alternatives:
+`GET /admin/v1/api-usage/daily` and
+`GET /admin/v1/api-usage/monthly`.
 
 ## Pagination
 
