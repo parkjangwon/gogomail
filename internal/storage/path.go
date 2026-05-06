@@ -113,8 +113,10 @@ func ValidateListCursor(cursor string) (string, error) {
 	if !utf8.ValidString(cursor) {
 		return "", fmt.Errorf("storage list cursor must be valid UTF-8")
 	}
-	if strings.ContainsAny(cursor, "\r\n") {
-		return "", fmt.Errorf("storage list cursor must not contain newlines")
+	for _, r := range cursor {
+		if r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("storage list cursor must not contain control characters")
+		}
 	}
 	return cursor, nil
 }

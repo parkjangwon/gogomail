@@ -263,9 +263,10 @@ canonical prefix mapping succeeds, and ETags use the same bounded metadata
 cleanup as `Stat`. Provider responses that return more matching objects than
 requested are rejected, keeping local/NFS and S3-compatible pagination
 semantics aligned. Continuation cursors are treated as opaque identity tokens:
-blank cursors are allowed, but nonblank cursors with leading or trailing
-whitespace are rejected instead of trimmed, so provider pagination tokens are
-not silently changed between pages.
+blank cursors are allowed, but nonblank cursors with leading/trailing
+whitespace or control characters are rejected instead of trimmed, so provider
+pagination tokens are not silently changed between pages or made unsafe for
+logs and cleanup cursors.
 Prefix cleanup over S3-compatible storage intentionally remains page-based:
 callers list a bounded page, delete each canonical object key through signed
 `DELETE` requests, and continue from the returned cursor. This keeps cleanup
