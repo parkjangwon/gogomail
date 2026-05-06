@@ -126,6 +126,9 @@ Current state:
   mismatched `Content-Length` headers when present, draining the body before
   returning an error so provider metadata contradictions do not reach callers
   as apparently valid bounded readers.
+- S3-compatible `Content-Range` parsing rejects internal whitespace inside the
+  `start-end/size` byte-range grammar, keeping malformed provider metadata
+  from being normalized before range validation.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,

@@ -3797,6 +3797,10 @@ Implementation order:
       rejecting invalid or mismatched values after draining the body so
       provider metadata contradictions cannot masquerade as valid bounded
       range readers.
+1383. S3-compatible `Content-Range` validation now rejects internal whitespace
+      inside the `start-end/size` byte-range grammar, preventing malformed
+      range metadata from being normalized before AWS S3, MinIO, or compatible
+      gateway range reads are exposed to callers.
 
 ## Deferred until backend contracts stabilize
 
