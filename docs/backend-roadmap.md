@@ -2495,6 +2495,9 @@ Implementation order:
 1146. IMAP `LOGIN` and SASL PLAIN decoded credentials now reject blank,
       CR/LF-bearing, or oversized authentication identities plus oversized or
       CR/LF-bearing passwords before backend auth work.
+1147. IMAP server coverage now verifies literalized `LOGIN` commands with
+      separate synchronizing user-name and password literals, including the
+      reconstructed credentials delivered to backend authentication.
 
 ## Deferred until backend contracts stabilize
 

@@ -1777,6 +1777,9 @@ The platform hardening sprint completed the following:
   positions and multiple literals in one command, so RFC-shaped literalized
   credentials or string arguments parse consistently with the advertised
   `LITERAL+` capability.
+- IMAP server coverage now exercises `LOGIN` with multiple synchronizing
+  literals in one command and verifies the reconstructed credentials reach the
+  authentication boundary unchanged.
 - IMAP command and IDLE line reads now enforce the command-line byte cap while
   reading from the socket instead of after an unbounded line allocation,
   keeping malformed clients from accumulating oversized lines in memory before
