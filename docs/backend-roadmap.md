@@ -3896,6 +3896,9 @@ Implementation order:
 1408. IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` and `STORE`/`UID STORE`
       `UNCHANGEDSINCE` modifier parsing now rejects whitespace-padded numeric
       atoms instead of trimming them into valid CONDSTORE thresholds.
+1409. IMAP `SEARCH`/`UID SEARCH` `MODSEQ` entry-type parsing now rejects
+      whitespace-padded `ALL`, `PRIV`, or `SHARED` atoms instead of trimming
+      them into valid RFC 7162 entry-type controls.
 
 ## Deferred until backend contracts stabilize
 
