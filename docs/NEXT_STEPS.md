@@ -2758,9 +2758,9 @@ Next:
   the response cap is satisfied, avoiding whole-address-book materialization on
   that hot path. Address-data projection failures are explicit errors rather
   than silent full-body fallbacks. RFC 6352 `addressbook-query` now requires an
-  explicit `Depth` header; `Depth: 1` scans address-object children and
-  `Depth: infinity` is accepted with the same flat address-book scan semantics,
-  while `Depth: 0` remains collection-scoped without returning child objects.
+  explicit `Depth` header; `Depth: 1` scans address-object children,
+  `Depth: 0` remains collection-scoped without returning child objects, and
+  `Depth: infinity` is rejected before XML body parsing.
   CardDAV `REPORT` and `PROPFIND` reject repeated HTTP `Depth` headers before
   XML body parsing so address-book traversal scope cannot depend on header
   merge behavior in clients or intermediaries.

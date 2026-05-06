@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after Mail API OpenAPI server pinning)
+Last updated: 2026-05-07 (updated after CardDAV Depth infinity REPORT gate)
 
 ## Current phase
 
@@ -804,10 +804,10 @@ stop once the response cap is reached instead of materializing the whole
 collection. Address-data projection failures are returned as explicit errors
 instead of silently falling back to full contact bodies. RFC 6352
 `addressbook-query` now requires an explicit `Depth` header; `Depth: 1` scans
-address-object children, `Depth: infinity` is accepted with the same flat
-address-book scan semantics, and `Depth: 0` stays collection-scoped without
-returning child objects. It remains gated on broader vCard compatibility and
-native-client tests. The
+address-object children, `Depth: 0` stays collection-scoped without returning
+child objects, and `Depth: infinity` is rejected before XML body parsing so
+native-client traversal probes cannot trigger broad address-book scans. It
+remains gated on broader vCard compatibility and native-client tests. The
 handler is deliberately experimental and does not yet make CardDAV
 public/client-ready.
 CardDAV `REPORT` and `PROPFIND` now reject repeated HTTP `Depth` headers
@@ -3842,7 +3842,8 @@ The platform hardening sprint completed the following:
   principal collection, principal, address-book home, address-book collection,
   and contact-object resources.
   It rejects cross-user paths, `Depth: infinity`, malformed WebDAV XML, and
-  contact-object `PROPFIND` above `Depth: 0`; the PostgreSQL repository
+  contact-object `PROPFIND` above `Depth: 0`; CardDAV `REPORT` also rejects
+  `Depth: infinity` before XML body parsing. The PostgreSQL repository
   satisfies the discovery store by delegating active user principal lookup to
   the shared Directory resolver. This remains backend-only until auth/listener
   wiring, REPORT execution, object mutation, and native-client compatibility
