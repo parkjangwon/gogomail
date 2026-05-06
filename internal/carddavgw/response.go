@@ -40,6 +40,7 @@ var (
 	ResourceTypeAddressBook  = XMLName{Space: CardDAVNamespace, Local: "addressbook"}
 	PrivilegeRead            = XMLName{Space: DAVNamespace, Local: "read"}
 	PrivilegeBind            = XMLName{Space: DAVNamespace, Local: "bind"}
+	PrivilegeUnbind          = XMLName{Space: DAVNamespace, Local: "unbind"}
 	PrivilegeWriteContent    = XMLName{Space: DAVNamespace, Local: "write-content"}
 	PrivilegeWriteProperties = XMLName{Space: DAVNamespace, Local: "write-properties"}
 )
@@ -222,7 +223,7 @@ func readOnlyPrivileges() []XMLName {
 }
 
 func addressBookHomePrivileges() []XMLName {
-	return []XMLName{PrivilegeRead, PrivilegeBind}
+	return []XMLName{PrivilegeRead, PrivilegeBind, PrivilegeUnbind}
 }
 
 func addressBookCollectionPrivileges() []XMLName {

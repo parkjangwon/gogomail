@@ -395,12 +395,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Address-data projection failures are explicit errors rather than silent
   full-body fallbacks. PROPFIND responses expose conservative RFC 3744-style
   current-user privileges: readable resources return `DAV:read`, address-book
-  homes also return `DAV:bind` because extended `MKCOL` can create child
-  address-book collections there,
+  homes also return `DAV:bind`/`DAV:unbind` because extended `MKCOL` can create
+  child address-book collections and collection `DELETE` can remove them,
   collections also return `DAV:write-properties` because collection
   `PROPPATCH` semantics are implemented, and contact objects also return
   `DAV:write-content` because object write semantics are implemented. Broader
-  collection, unbind, and ACL write privileges remain unadvertised.
+  collection and ACL write privileges remain unadvertised.
   Address-book collection PROPFIND also
   exposes CalendarServer-compatible `getctag` from the same durable sync token
   as WebDAV `sync-token`, giving legacy clients change detection without
@@ -417,6 +417,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `DAV:resourcetype`, `DAV:displayname`, and `addressbook-description`
   parsing, repository-backed sync/change state, and `201 Created` plus
   `Location` responses.
+  Address-book collection `DELETE` soft-deletes the collection and active child
+  contact objects transactionally, honors collection preconditions, records an
+  `addressbook-deleted` change row, and rejects unsafe targets.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

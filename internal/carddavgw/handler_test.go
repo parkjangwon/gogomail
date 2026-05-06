@@ -170,6 +170,36 @@ func (s *fakeCardDAVDiscoveryStore) CreateAddressBookAtPath(_ context.Context, r
 	return book, nil
 }
 
+func (s *fakeCardDAVDiscoveryStore) DeleteAddressBook(_ context.Context, req DeleteAddressBookRequest) (AddressBook, error) {
+	validated, err := ValidateDeleteAddressBookRequest(req)
+	if err != nil {
+		return AddressBook{}, err
+	}
+	for i, book := range s.books {
+		if book.UserID == validated.UserID && book.ID == validated.AddressBookID {
+			s.books = append(s.books[:i], s.books[i+1:]...)
+			var objects []ContactObject
+			for _, object := range s.objects {
+				if object.UserID == validated.UserID && object.AddressBookID == validated.AddressBookID {
+					continue
+				}
+				objects = append(objects, object)
+			}
+			s.objects = objects
+			s.changes = append(s.changes, AddressBookChange{
+				ID:            int64(len(s.changes) + 1),
+				UserID:        validated.UserID,
+				AddressBookID: validated.AddressBookID,
+				Action:        "addressbook-deleted",
+				SyncToken:     AddressBookSyncToken(validated.UserID, validated.AddressBookID, "delete"),
+				ChangedAt:     time.Date(2026, 5, 6, 10, 11, 12, 0, time.UTC),
+			})
+			return book, nil
+		}
+	}
+	return AddressBook{}, errFakeCardDAVNotFound
+}
+
 func (s fakeCardDAVDiscoveryStore) UpsertContactObject(_ context.Context, req UpsertContactObjectRequest) (ContactObject, error) {
 	req, etag, _, err := ValidateUpsertContactObjectRequest(req)
 	if err != nil {
@@ -318,6 +348,83 @@ func TestHandlerDeleteContactObjectHonorsIfMatch(t *testing.T) {
 	})
 	if ok.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, body = %s", ok.Code, ok.Body.String())
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionDeletesObjects(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 0 {
+		t.Fatalf("address books after delete = %+v", store.books)
+	}
+	if len(store.objects) != 0 {
+		t.Fatalf("objects after address book delete = %+v", store.objects)
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionRejectsMismatchedIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	req.Header.Set("If-Match", `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 1 {
+		t.Fatalf("address books after rejected delete = %+v", store.books)
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionAcceptsMatchingIfMatch(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
+	req.Header.Set("If-Match", etag)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 0 {
+		t.Fatalf("address books after delete = %+v", store.books)
+	}
+}
+
+func TestHandlerDeleteAddressBookCollectionRejectsHomeTarget(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.books) != 1 {
+		t.Fatalf("address books after rejected delete = %+v", store.books)
 	}
 }
 
