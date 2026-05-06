@@ -3726,6 +3726,10 @@ Implementation order:
       5322-style visible custom field names containing `_`, `+`, or `.`, while
       continuing to reject empty, whitespace/control-bearing, colon-suffixed,
       or non-ASCII field names at the parser boundary.
+1368. Shared `storage.DeletePrefix` now verifies every listed object remains
+      under the requested canonical prefix before deletion, preserving completed
+      progress and returning a structured out-of-scope listing error if a
+      backend returns sibling keys during Drive or lifecycle cleanup scans.
 
 ## Deferred until backend contracts stabilize
 

@@ -155,6 +155,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   delete behavior. Truncated list pages must include a continuation cursor
   before `DeletePrefix` deletes any listed object, keeping cleanup orchestration
   fail-closed if a backend violates the shared pagination contract.
+- `storage.DeletePrefix` now also rejects safe but out-of-scope listed objects
+  before deletion, preserving completed progress and surfacing a structured
+  sibling-listing error if a backend returns keys outside the requested
+  canonical cleanup prefix.
 - Drive backend groundwork is started without frontend implementation: ADR
   0009 defines the metadata/storage/quota boundary, `drive_nodes` persists
   user-scoped file/folder metadata and lifecycle state, and `internal/drive`

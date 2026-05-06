@@ -49,6 +49,9 @@ the backend is local/NFS or S3-compatible storage.
 If a listing page is truncated, it must include a continuation cursor before
 `DeletePrefix` deletes any listed object; otherwise cleanup fails closed rather
 than risking an unresumable partial prefix delete.
+Every listed object is rechecked against the requested canonical cleanup prefix
+before deletion, so a backend that returns a safe but out-of-scope sibling key
+cannot cause shared cleanup to delete outside the caller's prefix.
 If a backend listing returns an unsafe object path, `DeletePrefix` preserves
 completed delete progress and returns a structured unsafe-listed-object error,
 letting cleanup workers distinguish corrupt listing data from provider delete

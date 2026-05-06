@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP header field-name compatibility hardening)
+Last updated: 2026-05-07 (updated after DeletePrefix out-of-scope guard)
 
 ## Current phase
 
@@ -80,6 +80,10 @@ window or, without `Content-Range`, when the request starts at offset 0 and
 `Content-Length` exactly equals the requested length. Unsafe `200 OK` range
 responses are drained and rejected, keeping provider compatibility from
 weakening bounded-read semantics.
+`storage.DeletePrefix` now revalidates every listed object against the
+requested canonical prefix before deletion, returning a structured out-of-scope
+listing error after preserving completed progress if a backend returns sibling
+keys such as `drive/user-10/...` for a `drive/user-1` cleanup request.
 The shared storage path/prefix validator now rejects percent-encoded path
 separators such as `%2F` and `%5C`, plus double-encoded forms such as `%252F`
 and `%255C`, keeping object keys portable across local/NFS, MinIO, AWS S3, and
