@@ -2494,6 +2494,10 @@ The platform hardening sprint completed the following:
   when available plus normalized remote address, user agent, token suffix,
   result/status, and byte range when present, without recording raw tokens or
   storage backend/path values.
+- Admin audit-log listing now accepts a bounded `action_prefix` filter, so
+  operators can query action families such as `share_link.` across successful,
+  denied, and rate-limited public Drive share activity without waiting for a
+  dedicated aggregate activity dashboard.
 - CalDAV work has started with ADR 0010, a `caldav` runtime scaffold, and an
   `internal/caldavgw` boundary for RFC/WebDAV standards, DAV tokens, principal
   paths, calendar-home paths, calendar collections, and `.ics` object paths.

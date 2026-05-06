@@ -1447,6 +1447,12 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: action_prefix
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Prefix match for action families such as share_link.
         - name: result
           in: query
           schema:

@@ -185,6 +185,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   plus token suffix, result, status, and remote request metadata, letting
   operators inspect public-link access attempts through the existing Admin
   audit-log filters before aggregate activity dashboards are added.
+- Admin audit-log listing now supports bounded `action_prefix` filters, so
+  operators can inspect action families such as `share_link.` across
+  successful, denied, and rate-limited public Drive share activity using the
+  existing audit surface.
 - CalDAV work now has ADR 0010, `gogomail --mode=caldav` as a runtime scaffold,
   and `internal/caldavgw` tests for standards lists, DAV tokens, and canonical
   principal/calendar/object path parsing before WebDAV handlers are advertised.

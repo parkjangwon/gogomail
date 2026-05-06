@@ -1977,9 +1977,12 @@ Next:
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
-- Add aggregate public-link activity views, denied/rate-limited access
-  eventing, and configurable tenant policy for whether `view` links can preview
-  content beyond metadata before broad public rollout.
+- Admin audit-log listing now supports bounded `action_prefix` filters, giving
+  operators a contract-level way to inspect action families such as
+  `share_link.` across successful, denied, and rate-limited public-link
+  activity before a dedicated aggregate dashboard exists. Next public-link work
+  should add aggregate activity views and configurable tenant policy for whether
+  `view` links can preview content beyond metadata before broad public rollout.
 - Add a concrete cloud KMS adapter, or deploy the remote-Ed25519 signer service,
   before invoices or hard Open API limits depend on completed export batches.
 - Keep scheduled API usage retention dry-run in pre-production until production
