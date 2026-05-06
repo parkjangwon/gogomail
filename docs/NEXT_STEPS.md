@@ -2095,8 +2095,9 @@ Next:
   the effective-delegation check and audit insertion remain one fail-closed
   operation; use `DelegationAuditRecorder` only when a product boundary has
   already made and preserved the decision separately.
-- CalDAV principal discovery now exposes Directory primary email addresses via
-  RFC 4791 `calendar-user-address-set` `mailto:` hrefs when present. Keep the
+- CalDAV principal discovery now exposes Directory primary email addresses and
+  active user-targeted Directory aliases via RFC 4791
+  `calendar-user-address-set` normalized `mailto:` hrefs when present. Keep the
   next scheduling work on this standards-shaped principal/address boundary:
   attendee resolution should connect through Directory plus Contacts/CardDAV,
   and public scheduling/resource booking should wait for explicit policy and

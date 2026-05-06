@@ -337,10 +337,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   their semantics are implemented.
 - CalDAV principal `PROPFIND` can now return RFC 4791
   `calendar-user-address-set` values sourced from the Directory primary email
-  as normalized `mailto:` hrefs. This improves native-client principal
-  discovery and prepares organizer/attendee resolution while leaving
-  scheduling, resource booking, and delegated/shared calendar access
-  experimental.
+  and active user-targeted Directory aliases as normalized deduplicated
+  `mailto:` hrefs. This improves native-client principal discovery and
+  prepares organizer/attendee resolution while leaving scheduling, resource
+  booking, and delegated/shared calendar access experimental.
 - CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar collection
   metadata (`displayname`, `calendar-description`, CalendarServer/Apple
   `calendar-color`) with bounded namespace-aware XML parsing, transactional
