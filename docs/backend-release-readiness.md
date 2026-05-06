@@ -606,6 +606,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   requested byte length even if a compatible provider sends an oversized
   `206 Partial Content` body, aligning remote range reads with local/NFS
   adapter guarantees.
+- S3-compatible `GetRange` now also accepts safe `200 OK` full-range
+  compatibility responses when `Content-Range` matches the requested byte
+  window or when offset-zero `Content-Length` exactly equals the requested
+  length. Ambiguous or mismatched `200 OK` range responses are drained and
+  rejected before exposing the body.
 - CalDAV calendar object `GET` and `HEAD` now honor `If-Unmodified-Since`
   before ETag/date cache revalidation, returning HTTP 412 when timestamp
   preconditions are stale.

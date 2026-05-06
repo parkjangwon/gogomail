@@ -1106,6 +1106,144 @@ func TestS3StoreGetRangeRequiresMatchingContentRange(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRangeAcceptsHTTP200ForFullRangeCompatibility(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("hello")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Length": []string{"5"}},
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	ranged, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 0, Length: 5})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	got, err := io.ReadAll(ranged)
+	if err != nil {
+		t.Fatalf("read range body: %v", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close range body: %v", err)
+	}
+	if string(got) != "hello" {
+		t.Fatalf("range body = %q", got)
+	}
+}
+
+func TestS3StoreGetRangeAcceptsHTTP200WithMatchingContentRangeCompatibility(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("ell")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Range": []string{"bytes 1-3/5"}},
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	ranged, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3})
+	if err != nil {
+		t.Fatalf("GetRange returned error: %v", err)
+	}
+	got, err := io.ReadAll(ranged)
+	if err != nil {
+		t.Fatalf("read range body: %v", err)
+	}
+	if err := ranged.Close(); err != nil {
+		t.Fatalf("close range body: %v", err)
+	}
+	if string(got) != "ell" {
+		t.Fatalf("range body = %q", got)
+	}
+}
+
+func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		req    RangeRequest
+		header http.Header
+		want   string
+	}{
+		{
+			name:   "content length mismatch",
+			req:    RangeRequest{Offset: 0, Length: 5},
+			header: http.Header{"Content-Length": []string{"4"}},
+			want:   "content-length mismatch",
+		},
+		{
+			name:   "non zero offset without content range",
+			req:    RangeRequest{Offset: 1, Length: 3},
+			header: http.Header{"Content-Length": []string{"3"}},
+			want:   "without content-range",
+		},
+		{
+			name:   "content range mismatch",
+			req:    RangeRequest{Offset: 1, Length: 3},
+			header: http.Header{"Content-Range": []string{"bytes 0-2/5"}},
+			want:   "content-range mismatch",
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackingReadCloser{reader: strings.NewReader("hello")}
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     tc.header,
+						Body:       body,
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if _, err := store.GetRange(context.Background(), "messages/msg-1.eml", tc.req); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("GetRange err = %v, want %q", err, tc.want)
+			}
+			if !body.closed {
+				t.Fatal("unsafe HTTP 200 response body was not closed")
+			}
+		})
+	}
+}
+
 func TestS3StoreGetRangeReportsTruncatedBody(t *testing.T) {
 	t.Parallel()
 

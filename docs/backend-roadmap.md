@@ -3708,6 +3708,11 @@ Implementation order:
       missing objects with HTTP 412 before reading request bodies, keeping
       WebDAV timestamp preconditions fail-closed when native clients intended
       to update an existing `.ics` or `.vcf` representation.
+1364. S3-compatible `GetRange` now accepts safe `200 OK` full-range
+      compatibility responses only when `Content-Range` matches the requested
+      byte window or offset-zero `Content-Length` exactly equals the requested
+      length, while draining and rejecting ambiguous range responses before
+      exposing provider bodies.
 
 ## Deferred until backend contracts stabilize
 

@@ -81,6 +81,10 @@ Current state:
   requested logical prefix after canonical bucket-prefix mapping, so
   S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes
   even if a provider returns an overly broad page.
+- S3-compatible `GetRange` now accepts safe `200 OK` full-range compatibility
+  responses only when `Content-Range` or `Content-Length` proves the body maps
+  exactly to the requested byte window, while still rejecting ambiguous
+  non-zero-offset or mismatched responses.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,
