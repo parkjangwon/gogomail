@@ -6378,9 +6378,10 @@ components:
           enum: [local, s3_compatible]
         active_labels:
           type: array
+          description: Canonical lowercase backend labels active for compatibility routing. The list is sorted and de-duplicated; new safe labels may appear as storage adapters evolve, while support booleans below describe recognized capability families.
           items:
             type: string
-            enum: [local, nfs, s3, minio]
+            pattern: "^[a-z0-9._-]{1,64}$"
         operations:
           type: array
           items:

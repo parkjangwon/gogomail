@@ -330,8 +330,13 @@ support-matrix booleans derived from active backend labels, and
 `secrets_redacted=true`. `supports_local_nfs` means the active label set can
 serve local/NFS-labelled rows, `supports_minio` means it can serve MinIO-style
 labels, and `supports_aws_compatible` means it can serve generic S3-compatible
-labels. The storage profile never exposes access key IDs, secret access keys,
-session tokens, or local filesystem root paths.
+labels. `active_labels` are canonical lowercase tokens sorted and de-duplicated
+by the backend; the schema intentionally treats them as extensible safe tokens
+rather than a closed enum so future storage adapters can add compatibility
+labels without changing the envelope shape. Unknown labels do not activate
+support booleans until the support matrix recognizes them. The storage profile
+never exposes access key IDs, secret access keys, session tokens, or local
+filesystem root paths.
 
 Admin clients should use this endpoint to build navigation and validate local
 operator form limits instead of duplicating backend constants.

@@ -399,6 +399,15 @@ func TestOpenAPIDraftDocumentsAdminConsoleCapabilityLimits(t *testing.T) {
 			t.Fatalf("StorageBackendCapabilities schema must document %q", want)
 		}
 	}
+	activeLabelsBlock := extractOpenAPIPropertyBlock(t, storageBlock, "active_labels")
+	if strings.Contains(activeLabelsBlock, "enum: [local, nfs, s3, minio]") {
+		t.Fatal("StorageBackendCapabilities.active_labels must remain an extensible token list, not a closed backend enum")
+	}
+	for _, want := range []string{"pattern: \"^[a-z0-9._-]{1,64}$\"", "sorted and de-duplicated"} {
+		if !strings.Contains(activeLabelsBlock, want) {
+			t.Fatalf("StorageBackendCapabilities.active_labels must document %q", want)
+		}
+	}
 }
 
 func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
@@ -1464,6 +1473,31 @@ func extractOpenAPIComponentBlock(t *testing.T, draft string, section string, na
 		return block.String()
 	}
 	t.Fatalf("OpenAPI component %s/%s is missing", section, name)
+	return ""
+}
+
+func extractOpenAPIPropertyBlock(t *testing.T, schemaBlock string, name string) string {
+	t.Helper()
+
+	marker := "        " + name + ":"
+	var block strings.Builder
+	inProperty := false
+	for _, line := range strings.Split(schemaBlock, "\n") {
+		if strings.HasPrefix(line, "        ") && !strings.HasPrefix(line, "          ") {
+			if inProperty {
+				return block.String()
+			}
+			inProperty = strings.TrimSuffix(strings.TrimSpace(line), ":") == name
+		}
+		if inProperty {
+			block.WriteString(line)
+			block.WriteByte('\n')
+		}
+	}
+	if inProperty {
+		return block.String()
+	}
+	t.Fatalf("OpenAPI property %s is missing", marker)
 	return ""
 }
 

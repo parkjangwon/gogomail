@@ -35,7 +35,10 @@ Current state:
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.
 - Admin storage capability support flags now come from active backend labels,
-  avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims.
+  avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
+  compatibility labels are now extensible safe tokens in the Admin API
+  contract, sorted/de-duplicated by runtime while unknown labels do not
+  activate support booleans.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.

@@ -122,7 +122,7 @@ func (c Config) Validate() error {
 	}
 	storageBackend := strings.ToLower(strings.TrimSpace(c.StorageBackend))
 	for _, label := range c.StorageBackendCompatLabels {
-		if err := validateEnum("GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS", label, "local", "nfs", "s3", "minio"); err != nil {
+		if err := validateStorageBackendCompatLabel(label); err != nil {
 			return err
 		}
 	}
@@ -601,6 +601,24 @@ func validateEnum(name string, value string, allowed ...string) error {
 		}
 	}
 	return fmt.Errorf("%s has unsupported value %q", name, value)
+}
+
+func validateStorageBackendCompatLabel(value string) error {
+	const name = "GOGOMAIL_STORAGE_BACKEND_COMPAT_LABELS"
+	label := strings.ToLower(strings.TrimSpace(value))
+	if label == "" {
+		return fmt.Errorf("%s label is required", name)
+	}
+	if len(label) > 64 {
+		return fmt.Errorf("%s label is too long", name)
+	}
+	for _, r := range label {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
+			continue
+		}
+		return fmt.Errorf("%s label %q must contain only lowercase letters, digits, dot, underscore, or hyphen", name, value)
+	}
+	return nil
 }
 
 func validateTCPAddr(name string, value string, required bool) error {
