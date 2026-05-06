@@ -135,7 +135,9 @@ book collection has been deleted by reading the durable change log and returning
 the latest deletion sync token without requiring the collection to remain active.
 It now enforces RFC 6578 Depth behavior for `sync-collection`, accepting the
 default/explicit `Depth: 0` request scope and rejecting `Depth: 1` before sync
-work.
+work. `sync-collection` parsing also distinguishes an empty initial
+`DAV:sync-token` element from a missing element and rejects requests that omit
+the required token element.
 CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the
 same address book before the SQL upsert path, while the PostgreSQL partial
 unique index remains the final concurrency guard. Repository error mapping also

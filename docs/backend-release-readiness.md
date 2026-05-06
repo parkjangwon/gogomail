@@ -429,7 +429,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   by returning the latest durable deletion sync token without requiring the
   collection to remain active. It also enforces RFC 6578 Depth behavior by
   accepting default/explicit `Depth: 0` and rejecting `Depth: 1` before sync
-  lookup or change-log work.
+  lookup or change-log work. `sync-collection` parsing distinguishes empty
+  initial `DAV:sync-token` elements from missing token elements and rejects the
+  latter before sync lookup or snapshot work.
   Contact-object writes preflight duplicate active vCard UIDs within the same
   address book before SQL upsert, keeping failures predictable while the
   PostgreSQL partial unique index remains the final concurrency guard.

@@ -96,6 +96,7 @@ type ReportRequest struct {
 	AddressDataProperties []string
 	Hrefs                 []string
 	SyncToken             string
+	HasSyncToken          bool
 	SyncLevel             string
 	Limit                 int
 	HasFilter             bool
@@ -343,6 +344,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 					return ReportRequest{}, err
 				}
 				req.SyncToken = strings.TrimSpace(token)
+				req.HasSyncToken = true
 			case sameXMLName(tok.Name, DAVNamespace, "sync-level"):
 				level, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
@@ -621,6 +623,9 @@ func validateReportRequest(req ReportRequest) error {
 			return fmt.Errorf("addressbook-multiget REPORT requires at least one href")
 		}
 	case ReportSyncCollection:
+		if !req.HasSyncToken {
+			return fmt.Errorf("sync-collection REPORT requires sync-token")
+		}
 		if req.SyncLevel == "" {
 			return fmt.Errorf("sync-collection REPORT requires sync-level")
 		}
