@@ -1678,6 +1678,63 @@ func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindDelegatedAddressBookHomeKeepsCurrentUserPrincipalAsActor(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{
+		allowedRoles: map[string]bool{ContactsAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:owner/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/addressbooks/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/carddav/principals/delegate-1/</D:href></D:current-user-principal>",
+		"<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("delegated address-book home PROPFIND missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestHandlerPropfindDelegatedPrincipalKeepsCurrentUserPrincipalAsActor(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{
+		allowedRoles: map[string]bool{ContactsAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/carddav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:owner/><D:principal-URL/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/principals/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/carddav/principals/delegate-1/</D:href></D:current-user-principal>",
+		"<D:owner><D:href>/carddav/principals/user-1/</D:href></D:owner>",
+		"<D:principal-URL><D:href>/carddav/principals/user-1/</D:href></D:principal-URL>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("delegated principal PROPFIND missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerPropfindCollectionDepthOneListsObjects(t *testing.T) {
 	t.Parallel()
 

@@ -182,6 +182,63 @@ func TestHandlerPropfindAllowsDelegatedRead(t *testing.T) {
 	}
 }
 
+func TestHandlerPropfindDelegatedCalendarHomeKeepsCurrentUserPrincipalAsActor(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{
+		allowedRoles: map[string]bool{CalendarAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:owner/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/delegate-1/</D:href></D:current-user-principal>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("delegated calendar-home PROPFIND missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerPropfindDelegatedPrincipalKeepsCurrentUserPrincipalAsActor(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("delegate-1"))
+	handler.AccessAuthorizer = &fakeCalendarAccessAuthorizer{
+		allowedRoles: map[string]bool{CalendarAccessRoleRead: true},
+		privileges:   []XMLName{PrivilegeRead},
+	}
+	req := httptest.NewRequest(MethodPropfind, "/caldav/principals/user-1/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:prop><D:current-user-principal/><D:owner/><D:principal-URL/></D:prop></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/principals/user-1/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/delegate-1/</D:href></D:current-user-principal>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
+		"<D:principal-URL><D:href>/caldav/principals/user-1/</D:href></D:principal-URL>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("delegated principal PROPFIND missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerPropfindPrincipalCollectionDepthOne(t *testing.T) {
 	t.Parallel()
 

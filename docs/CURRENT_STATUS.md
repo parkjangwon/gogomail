@@ -119,11 +119,13 @@ access authorizer instead of hard-coding every cross-user path as forbidden.
 Runtime `caldav` mode wires that authorizer through Directory active principal
 resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared audit
 repository for read/write/manage role checks. Delegated `PROPFIND` responses
-now derive `DAV:current-user-privilege-set` from the same access-policy
-boundary, so read-only delegates are not incorrectly shown bind/unbind or write
-privileges. Delegated REPORT and sync responses now use the same privilege
-shaping for calendar-object properties, and missing Directory principals fail
-closed as access denial instead of surfacing as a distinct server-error path.
+now keep `DAV:current-user-principal` anchored to the authenticated delegate
+while owner hrefs and storage lookups remain owner-scoped. They also derive
+`DAV:current-user-privilege-set` from the same access-policy boundary, so
+read-only delegates are not incorrectly shown bind/unbind or write privileges.
+Delegated REPORT and sync responses now use the same privilege shaping for
+calendar-object properties, and missing Directory principals fail closed as
+access denial instead of surfacing as a distinct server-error path.
 The delegated policy boundary also verifies that resolved owner and actor
 principals are still `user` principals before audit or delegation checks run,
 so future organization, group, and resource principals cannot accidentally flow
@@ -291,10 +293,12 @@ uses the owner store when a delegated read/write/manage decision allows access,
 and runtime `carddav` mode wires the authorizer through Directory active
 principal resolution, `accesspolicy.DelegatedAccessAuthorizer`, and the shared
 audit repository using the `contacts` delegation scope. Delegated PROPFIND
-responses derive `DAV:current-user-privilege-set` from the same policy
-boundary, so read-only delegates see read-only CardDAV/WebDAV privileges rather
-than owner-level bind/unbind/write capabilities; REPORT and sync responses use
-the same delegated privilege shaping for contact-object properties. Missing
+responses keep `DAV:current-user-principal` anchored to the authenticated
+delegate while owner hrefs and storage lookups remain owner-scoped. They also
+derive `DAV:current-user-privilege-set` from the same policy boundary, so
+read-only delegates see read-only CardDAV/WebDAV privileges rather than
+owner-level bind/unbind/write capabilities; REPORT and sync responses use the
+same delegated privilege shaping for contact-object properties. Missing
 principals fail closed as access denial instead of exposing a different
 server-error path. The CardDAV delegated policy boundary also requires resolved
 owner and actor principals to remain `user` principals before audit or

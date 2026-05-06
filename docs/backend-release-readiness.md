@@ -314,6 +314,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   checks or audit insertion. Organization, group, and resource principals remain
   Directory-owned future semantics rather than accidental personal calendar or
   address-book owners.
+- Delegated CalDAV/CardDAV `PROPFIND` discovery now preserves WebDAV identity
+  semantics: `current-user-principal` remains the authenticated delegate, while
+  resource hrefs, owner properties, and storage lookups stay owner-scoped.
 - CalDAV now returns RFC 3744-shaped `current-user-privilege-set` values for
   implemented behavior only: read-only principals, calendar-home calendar
   bind/unbind, collection object bind/unbind plus metadata property writes, and
@@ -497,8 +500,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   access can satisfy user, organization, group, or resource delegates without
   creating product-local sharing rows, but protocol modules do not use it for
   public sharing yet. CalDAV discovery delegates active user lookup
-  to this boundary, keeps calendar-home `current-user-principal` discovery
-  anchored to canonical principal URLs, and advertises only local-user WebDAV
+  to this boundary, keeps local calendar-home `current-user-principal`
+  discovery anchored to canonical principal URLs, keeps delegated
+  `current-user-principal` actor-scoped, and advertises only WebDAV
   privileges that are implemented today. Directory also exposes a bounded
   `SearchPrincipals` repository boundary for company-scoped user,
   organization, group, and resource search, with validated scope, kind, query,

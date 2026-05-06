@@ -804,7 +804,6 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	userID = ownerID
 	depth, err := parseDepthHeader(r.Header, DepthInfinity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -819,7 +818,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	responses, err := h.propfindResponses(r.Context(), userID, resource, depth, propfind, decision.Privileges)
+	responses, err := h.propfindResponses(r.Context(), ownerID, userID, resource, depth, propfind, decision.Privileges)
 	if err != nil {
 		var truncated TruncatedResultsError
 		if errors.As(err, &truncated) {
@@ -874,22 +873,34 @@ func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {
 	return ParseDepth(values[0], fallback)
 }
 
-func (h *Handler) propfindResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUserID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	switch resource.Kind {
 	case ResourceRoot:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
-		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, ServiceRootProperties(principal))}, nil
+		props, err := withCurrentUserPrincipal(ServiceRootProperties(principal), actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, props)}, nil
 	case ResourcePrincipalCollection:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
-		responses := []MultiStatusResponse{responseForProperties(PrincipalsPrefix+"/", propfind, PrincipalCollectionProperties(principal))}
+		props, err := withCurrentUserPrincipal(PrincipalCollectionProperties(principal), actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		responses := []MultiStatusResponse{responseForProperties(PrincipalsPrefix+"/", propfind, props)}
 		if depth == DepthOne {
-			responses = append(responses, responseForProperties(principal.PrincipalPath, propfind, PrincipalProperties(principal)))
+			props, err := withCurrentUserPrincipal(PrincipalProperties(principal), actorUserID)
+			if err != nil {
+				return nil, err
+			}
+			responses = append(responses, responseForProperties(principal.PrincipalPath, propfind, props))
 		}
 		return responses, nil
 	case ResourcePrincipal:
@@ -897,13 +908,21 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
-		return []MultiStatusResponse{responseForProperties(principal.PrincipalPath, propfind, PrincipalProperties(principal))}, nil
+		props, err := withCurrentUserPrincipal(PrincipalProperties(principal), actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		return []MultiStatusResponse{responseForProperties(principal.PrincipalPath, propfind, props)}, nil
 	case ResourceCalendarHome:
 		home, err := CalendarHomePath(userID)
 		if err != nil {
 			return nil, err
 		}
 		props, err := CalendarHomeProperties(userID)
+		if err != nil {
+			return nil, err
+		}
+		props, err = withCurrentUserPrincipal(props, actorUserID)
 		if err != nil {
 			return nil, err
 		}
@@ -920,6 +939,10 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 					return nil, err
 				}
 				props, err := CalendarCollectionProperties(userID, calendar)
+				if err != nil {
+					return nil, err
+				}
+				props, err = withCurrentUserPrincipal(props, actorUserID)
 				if err != nil {
 					return nil, err
 				}
@@ -941,6 +964,10 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props, err = withCurrentUserPrincipal(props, actorUserID)
+		if err != nil {
+			return nil, err
+		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarCollection, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
@@ -957,6 +984,10 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 					return nil, err
 				}
 				props, err := CalendarObjectProperties(userID, object)
+				if err != nil {
+					return nil, err
+				}
+				props, err = withCurrentUserPrincipal(props, actorUserID)
 				if err != nil {
 					return nil, err
 				}
@@ -981,11 +1012,31 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
+		props, err = withCurrentUserPrincipal(props, actorUserID)
+		if err != nil {
+			return nil, err
+		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported CalDAV resource")
 	}
+}
+
+func withCurrentUserPrincipal(props []PropertyResult, actorUserID string) ([]PropertyResult, error) {
+	principalPath, err := PrincipalPath(actorUserID)
+	if err != nil {
+		return nil, err
+	}
+	next := append([]PropertyResult(nil), props...)
+	for i := range next {
+		if next[i].Name == PropCurrentUserPrincipal {
+			next[i].Value.Hrefs = []string{principalPath}
+			next[i].Found = true
+			return next, nil
+		}
+	}
+	return next, nil
 }
 
 func withCurrentUserPrivileges(props []PropertyResult, kind ResourceKind, privileges []XMLName) []PropertyResult {

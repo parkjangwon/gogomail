@@ -3212,6 +3212,11 @@ Implementation order:
       audit insertion. Non-user Directory principals fail closed at the DAV
       policy boundary, preserving future organization/group/resource semantics
       instead of leaking them into personal calendar/address-book storage.
+1258. Delegated CalDAV and CardDAV `PROPFIND` discovery now keeps
+      `DAV:current-user-principal` anchored to the authenticated actor while
+      resource hrefs, `DAV:owner`, and repository lookups remain owner-scoped.
+      This preserves WebDAV identity semantics for native clients and avoids
+      confusing delegated access with account impersonation.
 
 ## Deferred until backend contracts stabilize
 
