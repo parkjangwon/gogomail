@@ -28,6 +28,7 @@ var (
 	PropSupportedReportSet     = XMLName{Space: DAVNamespace, Local: "supported-report-set"}
 	PropAddressBookHomeSet     = XMLName{Space: CardDAVNamespace, Local: "addressbook-home-set"}
 	PropAddressData            = XMLName{Space: CardDAVNamespace, Local: "address-data"}
+	PropAddressBookDescription = XMLName{Space: CardDAVNamespace, Local: "addressbook-description"}
 	PropSupportedAddressData   = XMLName{Space: CardDAVNamespace, Local: "supported-address-data"}
 	PropMaxResourceSize        = XMLName{Space: CardDAVNamespace, Local: "max-resource-size"}
 	PropGetCTag                = XMLName{Space: CalendarServerNamespace, Local: "getctag"}
@@ -168,6 +169,7 @@ func AddressBookCollectionProperties(userID string, book AddressBook) ([]Propert
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: book.Name}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeAddressBook}}, Found: true},
+		{Name: PropAddressBookDescription, Value: PropertyValue{Text: book.Description}, Found: true},
 		webDAVTimeProperty(PropCreationDate, book.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},

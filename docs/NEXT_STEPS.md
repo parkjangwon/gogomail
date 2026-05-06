@@ -1624,6 +1624,8 @@ Next:
   Address-book collections also expose CalendarServer-compatible `getctag`
   from the same durable sync token used for WebDAV `sync-token`, keeping
   legacy change detection and RFC 6578 sync anchored to one collection version.
+  RFC 6352 `addressbook-description` is now returned from stored address-book
+  metadata.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

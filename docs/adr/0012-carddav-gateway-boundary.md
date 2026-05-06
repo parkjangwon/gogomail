@@ -76,6 +76,8 @@ Address-book collection discovery also exposes the CalendarServer-compatible
 `getctag` extension from the same durable collection sync token used for
 WebDAV `sync-token`, keeping legacy client change detection tied to the
 gateway's single collection-version model.
+It returns RFC 6352 `addressbook-description` from stored address-book metadata
+so protocol discovery and repository state do not drift.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition

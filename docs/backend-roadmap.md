@@ -2391,6 +2391,9 @@ Implementation order:
       CalendarServer-compatible `getctag` extension from the same durable
       collection sync token used for WebDAV `sync-token`, improving native
       client change detection without introducing a second version source.
+1121. CardDAV address-book collection PROPFIND now returns RFC 6352
+      `addressbook-description` from stored address-book metadata, keeping
+      client-visible collection discovery aligned with the repository model.
 
 ## Deferred until backend contracts stabilize
 
