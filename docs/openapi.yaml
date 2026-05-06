@@ -3047,6 +3047,12 @@ paths:
     get:
       operationId: listAdminAPIUsageExportManifestDigests
       summary: List canonical API usage export manifest digests for a batch
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3063,6 +3069,12 @@ paths:
     post:
       operationId: createAdminAPIUsageExportManifestDigest
       summary: Create a canonical API usage export manifest digest
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3079,6 +3091,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportManifestDigest
       summary: API usage export manifest digest detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3096,6 +3114,12 @@ paths:
     get:
       operationId: verifyAdminAPIUsageExportManifestDigest
       summary: Verify a canonical API usage export manifest digest
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3113,6 +3137,12 @@ paths:
     get:
       operationId: listAdminAPIUsageExportManifestSignatures
       summary: List API usage export manifest signatures
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3130,6 +3160,12 @@ paths:
     post:
       operationId: createAdminAPIUsageExportManifestSignature
       summary: Sign an API usage export manifest digest
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3147,6 +3183,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportManifestSignature
       summary: API usage export manifest signature detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -3165,6 +3207,12 @@ paths:
     get:
       operationId: verifyAdminAPIUsageExportManifestSignature
       summary: Verify an API usage export manifest signature
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path

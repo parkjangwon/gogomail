@@ -381,6 +381,17 @@ base/auth contract for sensitive export object metadata and downloads:
 `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download`,
 and
 `GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification`.
+API usage export manifest digest and signature routes use the same
+operation-level Admin API base/auth contract for export proof material:
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests`,
+`POST /admin/v1/api-usage/export-batches/{id}/manifest-digests`,
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}`,
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification`,
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`,
+`POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures`,
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}`,
+and
+`GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification`.
 
 ## Pagination
 

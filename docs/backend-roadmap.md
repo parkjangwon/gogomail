@@ -3605,6 +3605,9 @@ Implementation order:
       OpenAPI operations now pin `/admin/v1` and admin-token/bearer auth
       alternatives, matching their sensitive runtime admin-authenticated
       artifact routes.
+1341. API usage export manifest digest/signature OpenAPI operations now pin
+      `/admin/v1` and admin-token/bearer auth alternatives, matching their
+      runtime admin-authenticated audit/export proof routes.
 
 ## Deferred until backend contracts stabilize
 
