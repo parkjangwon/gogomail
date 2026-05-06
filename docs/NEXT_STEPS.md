@@ -22,6 +22,9 @@ Before changing code, read:
 
 Current state:
 
+- Mail API list/search handlers now apply the documented default `limit=50`
+  when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
+  alignment for generated webmail and admin clients.
 - IMAP read-only selected-state mutation handling now validates malformed
   `STORE`, `MOVE`, `UID STORE`, `UID MOVE`, and `UID EXPUNGE` requests before
   returning read-only `NO` failures for syntactically valid mutations,

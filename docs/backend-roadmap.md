@@ -3413,6 +3413,11 @@ Implementation order:
       `SELECT ... (CONDSTORE)` or `STATUS HIGHESTMODSEQ` followed by `SELECT`,
       the server returns `ENABLED CONDSTORE` and tagged completion without
       re-emitting the selected mailbox's `HIGHESTMODSEQ`/`NOMODSEQ` baseline.
+1302. Mail API `limit` parsing now applies the documented default of 50 when
+      the query parameter is omitted or empty, and regression tests verify both
+      message listing response metadata and search-service dispatch. This
+      closes an OpenAPI/runtime drift that previously passed `0` to list/search
+      handlers despite the shared pagination contract.
 
 ## Deferred until backend contracts stabilize
 

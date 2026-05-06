@@ -700,7 +700,9 @@ owner/resource target without scanning unrelated audit history.
   `starred=true|false`, and `has_attachment=true|false` filters alongside
   folder and cursor controls, enabling production webmail quick views such as
   unread, read, starred, unstarred, and attachment-bearing messages without
-  switching to full-text search.
+  switching to full-text search. Omitted or empty `limit` query parameters now
+  resolve to the documented default of 50 before dispatch, keeping list/search
+  runtime behavior aligned with the OpenAPI pagination contract.
 - Mail API thread lists now support optional `read=true|false`,
   `starred=true|false`, and `has_attachment=true|false` filters, where
   `read=false` means conversations with at least one unread message and

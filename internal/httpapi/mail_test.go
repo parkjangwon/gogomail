@@ -80,6 +80,36 @@ func TestListMessagesHandler(t *testing.T) {
 	}
 }
 
+func TestListMessagesHandlerUsesContractDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages?user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Limit int `json:"limit"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal returned error: %v", err)
+	}
+	if body.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("response limit = %d, want %d", body.Limit, maildb.MessageListDefaultLimit)
+	}
+	if service.lastLimit != maildb.MessageListDefaultLimit {
+		t.Fatalf("lastLimit = %d, want %d", service.lastLimit, maildb.MessageListDefaultLimit)
+	}
+}
+
 func TestListMessagesHandlerSupportsReadAndStarredFilters(t *testing.T) {
 	t.Parallel()
 
@@ -910,6 +940,27 @@ func TestSearchMessagesHandler(t *testing.T) {
 	}
 	if service.lastSearch.HasAttachment == nil || !*service.lastSearch.HasAttachment {
 		t.Fatalf("HasAttachment = %+v", service.lastSearch.HasAttachment)
+	}
+}
+
+func TestSearchMessagesHandlerUsesContractDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello search"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastSearch.Limit != maildb.MessageListDefaultLimit {
+		t.Fatalf("search limit = %d, want %d", service.lastSearch.Limit, maildb.MessageListDefaultLimit)
 	}
 }
 
