@@ -3368,6 +3368,10 @@ Implementation order:
       regression-covered at protocol and PostgreSQL boundaries, ensuring
       missing UIDs and existing unmarked messages are ignored while only
       existing `\Deleted` messages are expunged.
+1292. IMAP saved SEARCHRES state now applies adjusted multi-`EXPUNGE`
+      sequence-number semantics when removing expunged messages, preserving
+      `$` search-result correctness after batch `EXPUNGE`, `UID EXPUNGE`, or
+      MOVE-driven expunge responses.
 
 ## Deferred until backend contracts stabilize
 

@@ -4160,6 +4160,49 @@ func TestMailboxExpungeEventUpdatesSavedSearchSequences(t *testing.T) {
 	}
 }
 
+func TestMovedExpungeResponsesUpdateSavedSearchForMultipleExpunges(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	writer := bufio.NewWriter(&out)
+	state := &imapConnState{
+		selectedMailbox:  "inbox",
+		selectedMessages: 4,
+		savedSearch: []imapSearchSavedMessage{
+			{uid: 7, sequenceNumber: 1},
+			{uid: 8, sequenceNumber: 2},
+			{uid: 9, sequenceNumber: 3},
+			{uid: 10, sequenceNumber: 4},
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	if _, err := server.writeMovedExpungeResponses(writer, "a1", state, []MessageSummary{
+		{UID: 7, SequenceNumber: 1},
+		{UID: 9, SequenceNumber: 3},
+	}, "UID EXPUNGE", ""); err != nil {
+		t.Fatalf("writeMovedExpungeResponses returned error: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush expunge responses: %v", err)
+	}
+	if got, want := out.String(), "* 1 EXPUNGE\r\n* 2 EXPUNGE\r\na1 OK UID EXPUNGE completed\r\n"; got != want {
+		t.Fatalf("expunge response output = %q, want %q", got, want)
+	}
+	wantSaved := []imapSearchSavedMessage{
+		{uid: 8, sequenceNumber: 1},
+		{uid: 10, sequenceNumber: 2},
+	}
+	if !reflect.DeepEqual(state.savedSearch, wantSaved) {
+		t.Fatalf("saved search = %#v, want %#v", state.savedSearch, wantSaved)
+	}
+	if state.selectedMessages != 2 {
+		t.Fatalf("selectedMessages = %d, want 2", state.selectedMessages)
+	}
+}
+
 func TestServerStreamsExpungeEventsOverIdle(t *testing.T) {
 	t.Parallel()
 

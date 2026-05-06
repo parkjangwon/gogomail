@@ -126,6 +126,8 @@ Current state:
 - IMAP `UID EXPUNGE` sparse and mixed UID-set behavior is regression-covered:
   missing UID members are ignored, existing unmarked messages remain active,
   and only existing `\Deleted` messages produce `EXPUNGE` responses.
+- IMAP saved SEARCHRES state now updates against adjusted multi-`EXPUNGE`
+  sequence numbers, so `$` references remain aligned after batch expunges.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while
