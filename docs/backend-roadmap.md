@@ -2690,6 +2690,10 @@ Implementation order:
       opened, and local/NFS `GetRange` now reports `io.ErrUnexpectedEOF` for
       short requested byte windows. This keeps canceled downloads/previews and
       partial-read failure semantics consistent across backend flips.
+1189. IMAP `LOGIN` and SASL PLAIN credential validation now rejects empty
+      passwords while preserving intentional leading/trailing spaces in quoted
+      or decoded credential values, keeping the auth boundary strict without
+      rewriting RFC string operands before backend verification.
 
 ## Deferred until backend contracts stabilize
 

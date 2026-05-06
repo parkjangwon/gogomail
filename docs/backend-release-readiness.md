@@ -1118,8 +1118,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   plaintext TLS-required sessions advertise `STARTTLS`/`LOGINDISABLED`, while
   implicit TLS sessions advertise immediate `SASL-IR`/`AUTH=PLAIN` support.
 - IMAP `LOGIN` and SASL PLAIN decoded credentials reject blank, CR/LF-bearing,
-  or oversized authentication identities and oversized or CR/LF-bearing
-  passwords at the protocol boundary before backend auth work.
+  or oversized authentication identities plus empty, oversized, or
+  CR/LF-bearing passwords at the protocol boundary before backend auth work,
+  while preserving intentional leading/trailing spaces in RFC string
+  credentials.
 - Authenticated selected-mailbox `UID FETCH` can now return UID, flags,
   RFC822 size metadata, and `BODY[]` literals streamed from the service-backed
   raw message fetch boundary. Untagged `FETCH` responses use IMAP sequence
