@@ -135,7 +135,9 @@ Current state:
 - S3-compatible `Content-Length` parsing requires exact unsigned decimal
   digits for `HEAD` metadata and range-response validation, rejecting signed
   or whitespace-padded values such as `+5` or ` 5` instead of normalizing them
-  as valid sizes.
+  as valid sizes. Duplicate `Content-Length` headers are also rejected for
+  `HEAD`/`Stat`, full-object `GET`, and range validation before callers see a
+  bounded reader or object metadata.
 - S3-compatible `HEAD`/`Stat` now validates the raw `Content-Length` header
   even when the HTTP response already has a populated `ContentLength` field,
   rejecting malformed or contradictory provider metadata.

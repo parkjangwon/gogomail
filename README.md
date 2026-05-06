@@ -81,8 +81,9 @@ Recent release-readiness work also includes:
   filesystems. The S3-compatible adapter now treats provider metadata as a
   strict contract: list pages recheck returned keys against the requested
   logical prefix, object sizes and full/range content lengths use exact unsigned
-  decimal grammar without whitespace padding, `HEAD`/`Stat` rejects malformed
-  or contradictory `Content-Length`/`Last-Modified` metadata, truncated
+  decimal grammar without whitespace padding, duplicate `Content-Length`
+  headers fail closed, `HEAD`/`Stat` rejects malformed or contradictory
+  `Content-Length`/`Last-Modified` metadata, truncated
   pages require canonical continuation state, malformed list entries fail
   closed, non-empty malformed listed ETags fail closed, and
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
