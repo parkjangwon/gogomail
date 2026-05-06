@@ -646,6 +646,48 @@ func TestNormalizeUpdateGroupMembershipRoleRequestRejectsUnsafeInput(t *testing.
 	}
 }
 
+func TestNormalizeReassignGroupMembershipRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeReassignGroupMembershipRequest(ReassignGroupMembershipRequest{
+		ID:         " membership-1 ",
+		GroupID:    " group-1 ",
+		MemberKind: " USER ",
+		MemberID:   " user-1 ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReassignGroupMembershipRequest returned error: %v", err)
+	}
+	if got.ID != "membership-1" ||
+		got.GroupID != "group-1" ||
+		got.MemberKind != PrincipalKindUser ||
+		got.MemberID != "user-1" {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeReassignGroupMembershipRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []ReassignGroupMembershipRequest{
+		{},
+		{ID: "membership\n1", GroupID: "group-1", MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{ID: "membership-1", GroupID: "group\n1", MemberKind: PrincipalKindUser, MemberID: "user-1"},
+		{ID: "membership-1", GroupID: "group-1", MemberKind: "calendar", MemberID: "user-1"},
+		{ID: "membership-1", GroupID: "group-1", MemberKind: PrincipalKindGroup, MemberID: "group-1"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ID+"/"+req.GroupID+"/"+req.MemberID, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeReassignGroupMembershipRequest(req); err == nil {
+				t.Fatalf("NormalizeReassignGroupMembershipRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -685,6 +727,38 @@ func TestDirectoryGroupMembershipRoleUpdateAuditDetail(t *testing.T) {
 	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
 		!strings.Contains(string(detail), `"previous_role":"member"`) ||
 		!strings.Contains(string(detail), `"role":"owner"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
+func TestDirectoryGroupMembershipReassignAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryGroupMembershipReassignAuditDetail(GroupMembership{
+		ID:         "membership-1",
+		GroupID:    "group-2",
+		CompanyID:  "company-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-2",
+		Role:       GroupMembershipRoleOwner,
+		Status:     "active",
+	}, GroupMembership{
+		ID:         "membership-1",
+		GroupID:    "group-1",
+		CompanyID:  "company-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+		Role:       GroupMembershipRoleOwner,
+		Status:     "active",
+	})
+	if err != nil {
+		t.Fatalf("directoryGroupMembershipReassignAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
+		!strings.Contains(string(detail), `"previous_group_id":"group-1"`) ||
+		!strings.Contains(string(detail), `"group_id":"group-2"`) ||
+		!strings.Contains(string(detail), `"previous_member_id":"user-1"`) ||
+		!strings.Contains(string(detail), `"member_id":"user-2"`) {
 		t.Fatalf("audit detail = %s", detail)
 	}
 }
@@ -992,6 +1066,20 @@ func TestRepositoryUpdateGroupMembershipRoleRequiresDatabase(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("UpdateGroupMembershipRoleWithAudit error = nil, want database handle error")
+	}
+}
+
+func TestRepositoryReassignGroupMembershipRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ReassignGroupMembershipWithAudit(context.Background(), ReassignGroupMembershipRequest{
+		ID:         "membership-1",
+		GroupID:    "group-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+	})
+	if err == nil {
+		t.Fatal("ReassignGroupMembershipWithAudit error = nil, want database handle error")
 	}
 }
 

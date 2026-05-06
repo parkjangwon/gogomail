@@ -401,6 +401,34 @@ func TestAdminServiceUpdateDirectoryGroupMembershipRoleUsesAuditedDirectoryBound
 	}
 }
 
+func TestAdminServiceReassignDirectoryGroupMembershipUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		membership: directory.GroupMembership{ID: "membership-1", GroupID: "group-2", MemberID: "user-2", Status: "active"},
+	}
+	service := adminService{directory: directoryStore}
+	req := directory.ReassignGroupMembershipRequest{
+		ID:         " membership-1 ",
+		GroupID:    "group-2",
+		MemberKind: directory.PrincipalKindUser,
+		MemberID:   "user-2",
+	}
+	membership, err := service.ReassignDirectoryGroupMembership(t.Context(), req)
+	if err != nil {
+		t.Fatalf("ReassignDirectoryGroupMembership returned error: %v", err)
+	}
+	if membership.ID != "membership-1" || membership.GroupID != "group-2" || membership.MemberID != "user-2" {
+		t.Fatalf("membership = %+v", membership)
+	}
+	if directoryStore.lastMembershipReassignReq != req {
+		t.Fatalf("lastMembershipReassignReq = %+v, want %+v", directoryStore.lastMembershipReassignReq, req)
+	}
+	if directoryStore.reassignMembershipWithAuditCalls != 1 {
+		t.Fatalf("reassignMembershipWithAuditCalls = %d, want 1", directoryStore.reassignMembershipWithAuditCalls)
+	}
+}
+
 func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -822,6 +850,7 @@ type fakeAdminDirectory struct {
 	lastMembershipListReq              directory.ListGroupMembershipsRequest
 	lastMembershipDeleteID             string
 	lastMembershipRoleUpdateReq        directory.UpdateGroupMembershipRoleRequest
+	lastMembershipReassignReq          directory.ReassignGroupMembershipRequest
 	lastAliasReq                       directory.ResolveAliasRequest
 	lastAliasCreateReq                 directory.CreateAliasRequest
 	lastAliasDeleteID                  string
@@ -834,6 +863,7 @@ type fakeAdminDirectory struct {
 	deleteMembershipWithAuditCalls     int
 	deleteAliasWithAuditCalls          int
 	updateMembershipRoleWithAuditCalls int
+	reassignMembershipWithAuditCalls   int
 }
 
 func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.ListDelegationsRequest) ([]directory.Delegation, error) {
@@ -873,6 +903,12 @@ func (f *fakeAdminDirectory) DeleteGroupMembershipWithAudit(_ context.Context, i
 func (f *fakeAdminDirectory) UpdateGroupMembershipRoleWithAudit(_ context.Context, req directory.UpdateGroupMembershipRoleRequest) (directory.GroupMembership, error) {
 	f.updateMembershipRoleWithAuditCalls++
 	f.lastMembershipRoleUpdateReq = req
+	return f.membership, nil
+}
+
+func (f *fakeAdminDirectory) ReassignGroupMembershipWithAudit(_ context.Context, req directory.ReassignGroupMembershipRequest) (directory.GroupMembership, error) {
+	f.reassignMembershipWithAuditCalls++
+	f.lastMembershipReassignReq = req
 	return f.membership, nil
 }
 

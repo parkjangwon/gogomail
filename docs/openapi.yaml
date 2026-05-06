@@ -1824,6 +1824,24 @@ paths:
           $ref: "#/components/responses/DirectoryGroupMembership"
         default:
           $ref: "#/components/responses/Error"
+  /directory/group-memberships/{id}/assignment:
+    patch:
+      operationId: reassignAdminDirectoryGroupMembership
+      summary: Reassign an audited Directory group membership
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      requestBody:
+        $ref: "#/components/requestBodies/DirectoryGroupMembershipReassign"
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryGroupMembership"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure
@@ -4560,6 +4578,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DirectoryGroupMembershipRoleUpdateRequest"
+    DirectoryGroupMembershipReassign:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DirectoryGroupMembershipReassignRequest"
     StatusUpdate:
       required: true
       content:
@@ -6601,6 +6625,19 @@ components:
         role:
           type: string
           enum: [member, manager, owner]
+    DirectoryGroupMembershipReassignRequest:
+      type: object
+      required: [group_id, member_kind, member_id]
+      properties:
+        group_id:
+          type: string
+          maxLength: 1024
+        member_kind:
+          type: string
+          enum: [user, organization, group, resource]
+        member_id:
+          type: string
+          maxLength: 1024
     DirectoryGroupMembershipEnvelope:
       type: object
       required: [directory_group_membership]

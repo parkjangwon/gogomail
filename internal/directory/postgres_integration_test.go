@@ -682,12 +682,44 @@ WHERE company_id = $1::uuid
 		t.Fatalf("directory group membership role update audit rows = %d, want 1", auditCount)
 	}
 
+	reassigned, err := repo.ReassignGroupMembershipWithAudit(ctx, ReassignGroupMembershipRequest{
+		ID:         membership.ID,
+		GroupID:    seed.nestedID,
+		MemberKind: PrincipalKindUser,
+		MemberID:   seed.aliceID,
+	})
+	if err != nil {
+		t.Fatalf("ReassignGroupMembershipWithAudit returned error: %v", err)
+	}
+	if reassigned.ID != membership.ID ||
+		reassigned.GroupID != seed.nestedID ||
+		reassigned.CompanyID != seed.companyID ||
+		reassigned.MemberKind != PrincipalKindUser ||
+		reassigned.MemberID != seed.aliceID ||
+		reassigned.Role != GroupMembershipRoleOwner ||
+		reassigned.Status != "active" {
+		t.Fatalf("reassigned membership = %+v", reassigned)
+	}
+	if err := db.QueryRowContext(ctx, `
+SELECT count(*)
+FROM audit_logs
+WHERE company_id = $1::uuid
+  AND action = 'directory_group_membership.reassign'
+  AND target_type = 'directory_group_membership'
+  AND target_id = $2
+  AND result = 'updated'`, seed.companyID, membership.ID).Scan(&auditCount); err != nil {
+		t.Fatalf("query directory group membership reassign audit log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("directory group membership reassign audit rows = %d, want 1", auditCount)
+	}
+
 	deleted, err := repo.DeleteGroupMembershipWithAudit(ctx, membership.ID)
 	if err != nil {
 		t.Fatalf("DeleteGroupMembershipWithAudit returned error: %v", err)
 	}
 	if deleted.ID != membership.ID ||
-		deleted.GroupID != seed.teamID ||
+		deleted.GroupID != seed.nestedID ||
 		deleted.CompanyID != seed.companyID ||
 		deleted.MemberKind != PrincipalKindUser ||
 		deleted.MemberID != seed.aliceID ||
@@ -710,7 +742,7 @@ WHERE company_id = $1::uuid
 	}
 	memberships, err = repo.ListGroupMemberships(ctx, ListGroupMembershipsRequest{
 		CompanyID:  seed.companyID,
-		GroupID:    seed.teamID,
+		GroupID:    seed.nestedID,
 		MemberKind: PrincipalKindUser,
 		MemberID:   seed.aliceID,
 		ActiveOnly: true,

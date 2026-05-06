@@ -2738,6 +2738,12 @@ Implementation order:
         `PATCH /admin/v1/directory/group-memberships/{id}/role`, changing
         active membership roles in-place and committing
         `directory_group_membership.role_update` with the role change.
+1175b7. Directory/Identity now exposes audited group membership reassignment
+        through `ReassignGroupMembershipWithAudit` and
+        `PATCH /admin/v1/directory/group-memberships/{id}/assignment`,
+        preserving the role while moving an active membership to a different
+        group/member assignment and committing
+        `directory_group_membership.reassign` with cycle and duplicate guards.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

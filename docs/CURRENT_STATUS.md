@@ -314,6 +314,10 @@ Audited group membership role updates are exposed through
 `PATCH /admin/v1/directory/group-memberships/{id}/role`, recording
 `directory_group_membership.role_update` with the role change in the same
 transaction.
+Audited group membership reassignment is exposed through
+`PATCH /admin/v1/directory/group-memberships/{id}/assignment`, preserving the
+role while moving the active membership to a different group/member assignment
+and recording `directory_group_membership.reassign` in the same transaction.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,

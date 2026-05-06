@@ -841,6 +841,15 @@ Admin operational read models also keep explicit envelope keys:
   dispatch, and the backend records
   `directory_group_membership.role_update` in the same transaction as the role
   change.
+- `PATCH /admin/v1/directory/group-memberships/{id}/assignment` accepts
+  `{group_id, member_kind, member_id}` and returns
+  `{"directory_group_membership":{...}}` after moving an active Directory group
+  membership to a different group/member assignment while preserving the
+  existing role. The Directory boundary verifies active same-company principals,
+  rejects self-membership and nested group cycles while excluding the current
+  membership from cycle checks, maps duplicate active memberships to a stable
+  duplicate-membership error, and records
+  `directory_group_membership.reassign` in the same transaction as the update.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

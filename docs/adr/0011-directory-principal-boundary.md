@@ -96,6 +96,11 @@ booking policy, and scheduling semantics are implemented explicitly.
   Admin role changes must use `UpdateGroupMembershipRoleWithAudit` or
   `PATCH /admin/v1/directory/group-memberships/{id}/role` so promotion and
   demotion are visible as first-class relationship events.
+- Group membership reassignment is also Directory-owned and transaction-audited.
+  Admin reassignment must use `ReassignGroupMembershipWithAudit` or
+  `PATCH /admin/v1/directory/group-memberships/{id}/assignment`, preserving the
+  existing role while moving the relationship and recording the previous and new
+  group/member assignment.
 - Delegated access now has an initial company-scoped relationship table and
   repository check boundary. Delegations are keyed by owner principal, delegate
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,

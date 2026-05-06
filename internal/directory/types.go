@@ -141,6 +141,13 @@ type UpdateGroupMembershipRoleRequest struct {
 	Role string `json:"role"`
 }
 
+type ReassignGroupMembershipRequest struct {
+	ID         string `json:"-"`
+	GroupID    string `json:"group_id"`
+	MemberKind string `json:"member_kind"`
+	MemberID   string `json:"member_id"`
+}
+
 type ListGroupMembershipsRequest struct {
 	CompanyID  string
 	GroupID    string
@@ -695,6 +702,29 @@ func NormalizeUpdateGroupMembershipRoleRequest(req UpdateGroupMembershipRoleRequ
 	}
 	req.ID = id
 	req.Role = role
+	return req, nil
+}
+
+func NormalizeReassignGroupMembershipRequest(req ReassignGroupMembershipRequest) (ReassignGroupMembershipRequest, error) {
+	id, err := NormalizePrincipalID(req.ID)
+	if err != nil {
+		return ReassignGroupMembershipRequest{}, fmt.Errorf("membership id: %w", err)
+	}
+	check, err := NormalizeCheckGroupMembershipRequest(CheckGroupMembershipRequest{
+		GroupID:    req.GroupID,
+		MemberKind: req.MemberKind,
+		MemberID:   req.MemberID,
+	})
+	if err != nil {
+		return ReassignGroupMembershipRequest{}, err
+	}
+	req.ID = id
+	req.GroupID = check.GroupID
+	req.MemberKind = check.MemberKind
+	req.MemberID = check.MemberID
+	if req.MemberKind == PrincipalKindGroup && req.GroupID == req.MemberID {
+		return ReassignGroupMembershipRequest{}, fmt.Errorf("group membership cannot include itself")
+	}
 	return req, nil
 }
 
