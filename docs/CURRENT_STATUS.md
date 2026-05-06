@@ -87,9 +87,10 @@ stop once the response cap is reached instead of materializing the whole
 collection. Address-data projection failures are returned as explicit errors
 instead of silently falling back to full contact bodies. RFC 6352
 `addressbook-query` now requires an explicit `Depth` header; `Depth: 1` scans
-address-object children and `Depth: 0` stays collection-scoped without returning
-child objects. It remains gated on broader vCard compatibility and native-client
-tests. The
+address-object children, `Depth: infinity` is accepted with the same flat
+address-book scan semantics, and `Depth: 0` stays collection-scoped without
+returning child objects. It remains gated on broader vCard compatibility and
+native-client tests. The
 handler is deliberately experimental and does not yet make CardDAV
 public/client-ready.
 `gogomail --mode=carddav` now starts a dedicated CardDAV HTTP listener with

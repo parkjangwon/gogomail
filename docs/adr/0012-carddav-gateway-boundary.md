@@ -73,8 +73,8 @@ walker boundary so filtering can stop once the response cap is satisfied.
 Address-data projection failures are surfaced as explicit handler errors rather
 than silently broadening the returned vCard body. `addressbook-query` requires
 an explicit RFC 6352 Depth header; `Depth: 1` scans child address-object
-resources, while `Depth: 0` stays collection-scoped and returns no child
-objects.
+resources, `Depth: infinity` is accepted with the same flat address-book scan
+semantics, and `Depth: 0` stays collection-scoped and returns no child objects.
 PROPFIND responses expose conservative RFC 3744 current-user privilege
 discovery: resources advertise `DAV:read`, and contact objects additionally
 advertise `DAV:write-content` because their object write paths are implemented.

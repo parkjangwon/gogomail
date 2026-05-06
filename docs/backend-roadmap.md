@@ -2466,6 +2466,9 @@ Implementation order:
       `DAV:bind`/`DAV:unbind` after contact-object `PUT`/`DELETE` support,
       aligning `current-user-privilege-set` with implemented child `.vcf`
       member creation and removal semantics.
+1139. CardDAV `addressbook-query` now accepts RFC 6352 `Depth: infinity`
+      requests, treating them with the same flat address-book scan semantics as
+      `Depth: 1` while preserving `Depth: 0` as collection-scoped.
 
 ## Deferred until backend contracts stabilize
 
