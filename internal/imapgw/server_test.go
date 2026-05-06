@@ -8062,6 +8062,8 @@ func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret\r\n")),
 		base64.StdEncoding.EncodeToString([]byte("\x00" + strings.Repeat("u", maxIMAPAuthIdentityBytes+1) + "\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00" + strings.Repeat("p", maxIMAPAuthPasswordBytes+1))),
+		strings.Repeat("A", maxIMAPSASLPlainEncodedBytes),
+		strings.Repeat("A", maxIMAPSASLPlainEncodedBytes+4),
 	} {
 		if username, password, ok := decodeSASLPlain(value); ok {
 			t.Fatalf("decodeSASLPlain(%q) = %q %q true, want rejection", value, username, password)

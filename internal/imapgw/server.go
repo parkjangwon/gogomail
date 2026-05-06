@@ -1251,8 +1251,14 @@ func decodeSASLPlain(value string) (string, string, bool) {
 	if value == "" {
 		return "", "", false
 	}
+	if len(value) > maxIMAPSASLPlainEncodedBytes {
+		return "", "", false
+	}
 	decoded, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
+		return "", "", false
+	}
+	if len(decoded) > maxIMAPSASLPlainDecodedBytes {
 		return "", "", false
 	}
 	parts := strings.Split(string(decoded), "\x00")
@@ -2683,11 +2689,13 @@ func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, quer
 }
 
 const (
-	maxIMAPCommandLineBytes    = 8192
-	maxIMAPAuthIdentityBytes   = 1024
-	maxIMAPAuthPasswordBytes   = 4096
-	maxIMAPSearchLiteralBytes  = 1 << 20
-	maxIMAPCommandLiteralBytes = 10 << 20
+	maxIMAPCommandLineBytes      = 8192
+	maxIMAPAuthIdentityBytes     = 1024
+	maxIMAPAuthPasswordBytes     = 4096
+	maxIMAPSASLPlainDecodedBytes = maxIMAPAuthIdentityBytes*2 + maxIMAPAuthPasswordBytes + 2
+	maxIMAPSASLPlainEncodedBytes = ((maxIMAPSASLPlainDecodedBytes + 2) / 3) * 4
+	maxIMAPSearchLiteralBytes    = 1 << 20
+	maxIMAPCommandLiteralBytes   = 10 << 20
 )
 
 func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {

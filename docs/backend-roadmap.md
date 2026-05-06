@@ -2911,6 +2911,10 @@ Implementation order:
       giving operators a contract-level way to inspect action families such as
       `share_link.` across successful, denied, and rate-limited public Drive
       share activity before a dedicated aggregate activity dashboard exists.
+1198. IMAP SASL PLAIN decoding now rejects oversized encoded and decoded
+      responses before credential splitting or backend authentication, keeping
+      continuation and `SASL-IR` literal initial-response paths allocation-aware
+      under the same username/password credential caps.
 
 ## Deferred until backend contracts stabilize
 
