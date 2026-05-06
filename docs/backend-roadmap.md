@@ -3700,6 +3700,10 @@ Implementation order:
       resource parsing, extending the direct `%2F`/`%5C` guard so principal,
       collection, and object identities cannot change segment shape after
       proxy or client double-decoding.
+1362. IMAP `APPEND` now drains queued selected-mailbox events before append
+      mutation responses, preserving command-order visibility for pending
+      FLAGS/EXISTS/EXPUNGE updates and preventing them from being delayed until
+      a later `NOOP` or selected mailbox command.
 
 ## Deferred until backend contracts stabilize
 

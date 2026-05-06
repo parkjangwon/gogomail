@@ -3913,6 +3913,78 @@ func TestServerAppendSelectedMailboxUsesReturnedSequenceForExists(t *testing.T) 
 	}
 }
 
+func TestServerAppendDrainsMailboxEventsBeforeCompletion(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendEventBackend{
+		appendBackend: appendBackend{
+			result: AppendMessageResult{
+				Summary:     MessageSummary{ID: "message-42", MailboxID: "inbox", UID: 42, SequenceNumber: 3},
+				UIDValidity: 99,
+			},
+		},
+		events: make(chan MailboxEvent, 2),
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
+	if _, err := client.Write([]byte("a3 APPEND inbox {11+}\r\nhello world\r\n")); err != nil {
+		t.Fatalf("write append literal+ command: %v", err)
+	}
+	want := []string{
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged))\r\n",
+		"* 3 EXISTS\r\n",
+		"a3 OK [APPENDUID 99 42] APPEND completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read append event response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("append event response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 NOOP\r\n")); err != nil {
+		t.Fatalf("write noop after append: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a4 OK NOOP completed\r\n" {
+		t.Fatalf("noop after append = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAppendToExaminedMailboxIsReadOnly(t *testing.T) {
 	t.Parallel()
 
@@ -11692,6 +11764,16 @@ func (b *appendBackend) AppendMessage(_ context.Context, req AppendMessageReques
 		return AppendMessageResult{}, b.err
 	}
 	return b.result, nil
+}
+
+type appendEventBackend struct {
+	appendBackend
+	events chan MailboxEvent
+}
+
+func (b *appendEventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan MailboxEvent, func(), error) {
+	cancel := func() {}
+	return b.events, cancel, nil
 }
 
 func (fakeBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

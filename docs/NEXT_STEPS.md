@@ -155,6 +155,10 @@ Current state:
 - IMAP selected-state sequence-set commands now drain queued mailbox events
   before command dispatch, keeping `*` and range resolution aligned with live
   `EXISTS`/`EXPUNGE` updates instead of the selection-time message count.
+- IMAP `APPEND` now joins that selected-mailbox pre-command event drain path,
+  so already queued FLAGS/EXISTS/EXPUNGE updates are emitted before APPEND
+  mutation responses and are not delayed until a later `NOOP` or selected
+  command.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.
