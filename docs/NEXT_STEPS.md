@@ -253,9 +253,10 @@ Current state:
   responses drain a small bounded response-body window before close, improving
   HTTP connection reuse for normal S3/MinIO responses without allowing
   oversized bodies to stall cleanup.
-- S3-compatible full-object `GET`, `HEAD`/`Stat`, and `ListObjectsV2` now
-  require exact `200 OK` responses, rejecting unexpected partial-content or
-  other non-OK 2xx statuses before callers can treat partial objects as
+- S3-compatible `PutObject`, full-object `GET`, `HEAD`/`Stat`, and
+  `ListObjectsV2` now require exact `200 OK` responses, rejecting
+  accepted/deferred writes, unexpected partial-content, or other non-OK 2xx
+  statuses before callers can treat ambiguous provider responses as durable or
   complete backend-neutral results.
 - S3-compatible missing-object reads now wrap `os.ErrNotExist` for `GET`,
   ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping

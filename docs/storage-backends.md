@@ -225,9 +225,10 @@ byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.
-Full-object S3-compatible `GET`, `HEAD`/`Stat`, and `ListObjectsV2` calls
-require exact `200 OK` responses; unexpected partial-content or other non-OK
-2xx statuses are rejected instead of being treated as whole-object metadata or
+S3-compatible `PutObject`, full-object `GET`, `HEAD`/`Stat`, and
+`ListObjectsV2` calls require exact `200 OK` responses; unexpected
+partial-content, accepted/deferred writes, or other non-OK 2xx statuses are
+rejected instead of being treated as durable writes, whole-object metadata, or
 body success. Successful S3-compatible full-object `GET` readers also drain a
 small bounded remainder on close, improving HTTP connection reuse for
 preview/cancel paths without allowing unbounded cleanup reads.
