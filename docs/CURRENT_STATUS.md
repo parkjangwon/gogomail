@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 full-range compatibility hardening)
+Last updated: 2026-05-07 (updated after IMAP nz-number parser hardening)
 
 ## Current phase
 
@@ -97,6 +97,10 @@ body fetches.
 IMAP `APPEND` now drains already queued selected-mailbox events before append
 mutation responses, keeping pending FLAGS/EXISTS/EXPUNGE updates ordered ahead
 of the tagged APPEND completion just like other selected mailbox commands.
+IMAP `FETCH` body-part selectors now reject leading-zero MIME part numbers
+such as `BODY[01]` or `BODY[1.02.TEXT]`, and partial fetch counts now reject
+leading-zero `nz-number` forms such as `<12.034>`, keeping body-section and
+partial-window parsing aligned with RFC 3501 number semantics.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list

@@ -214,6 +214,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   patterns as root-absolute selectors before matching root-relative mailbox
   names, preserving client compatibility for absolute mailbox discovery
   probes.
+- IMAP `FETCH` body-part selectors now reject leading-zero MIME part
+  `nz-number` forms such as `BODY[01]` and `BODY[1.02.TEXT]`, and partial
+  fetch counts reject leading-zero forms such as `<12.034>`, keeping body
+  section and partial-window parsing at the RFC-shaped syntax boundary.
 - IMAP `LIST` also normalizes leading hierarchy delimiters in reference names
   before joining relative mailbox patterns, keeping namespace/root-style
   discovery probes compatible with root-relative mailbox storage.

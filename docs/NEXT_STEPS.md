@@ -167,6 +167,10 @@ Current state:
   so already queued FLAGS/EXISTS/EXPUNGE updates are emitted before APPEND
   mutation responses and are not delayed until a later `NOOP` or selected
   command.
+- IMAP `FETCH` body-part selectors now enforce RFC-shaped `nz-number` syntax
+  for MIME part paths and partial counts, rejecting leading-zero forms such as
+  `BODY[01]`, `BODY[1.02.TEXT]`, and `BODY.PEEK[]<12.034>` at the parser
+  boundary.
 - IMAP command dispatch validates command and UID subcommand atoms before
   routing so malformed atom-special-bearing command names do not fall through
   as unknown commands.

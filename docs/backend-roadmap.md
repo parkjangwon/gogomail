@@ -3713,6 +3713,10 @@ Implementation order:
       byte window or offset-zero `Content-Length` exactly equals the requested
       length, while draining and rejecting ambiguous range responses before
       exposing provider bodies.
+1365. IMAP `FETCH` body-section parsing now enforces RFC-shaped `nz-number`
+      semantics for MIME part paths and partial counts, rejecting leading-zero
+      forms such as `BODY[01]`, `BODY[1.02.TEXT]`, and
+      `BODY.PEEK[]<12.034>` before command execution.
 
 ## Deferred until backend contracts stabilize
 
