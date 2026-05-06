@@ -3102,6 +3102,10 @@ Implementation order:
       wording with the implemented durable sync-change-log behavior: stale-token
       clients can receive object tombstones and final collection-deleted sync
       tokens, while long-history retention remains the explicit future gate.
+1244. Directory direct delegation checks now require active owner and delegate
+      principals when `ActiveOnly` is set, matching effective delegation
+      fail-closed semantics so policy callers do not honor active delegation
+      rows after either endpoint principal is suspended or deleted.
 
 ## Deferred until backend contracts stabilize
 

@@ -1900,6 +1900,10 @@ Next:
   Drive, mailbox sharing, and admin APIs should consume it through explicit
   policy/audit adapters and WebDAV privilege semantics instead of directly
   branching on directory rows in protocol handlers.
+- Direct and effective delegation checks now both require active owner and
+  delegate principals when `ActiveOnly` is set, keeping policy callers
+  fail-closed after a shared calendar, contacts, Drive, or mailbox endpoint
+  principal is suspended or deleted.
 - CardDAV now has that first deliberate integration for delegated contacts
   access. The gateway distinguishes actor and address-book owner, resolves
   allowed cross-user read/write/manage requests against the owner store through

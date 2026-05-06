@@ -1289,6 +1289,12 @@ func (r *Repository) CheckDelegation(ctx context.Context, req CheckDelegationReq
 	if err != nil {
 		return false, err
 	}
+	if req.ActiveOnly {
+		ok, err := r.checkDelegationPrincipalsActive(ctx, req)
+		if err != nil || !ok {
+			return false, err
+		}
+	}
 	const query = `
 SELECT d.role
 FROM directory_delegations d
