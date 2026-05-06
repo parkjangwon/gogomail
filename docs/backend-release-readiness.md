@@ -23,6 +23,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Admin storage capability support flags are derived from active backend labels
   instead of hard-coded booleans, so operator consoles see accurate local/NFS,
   MinIO, and AWS/S3-compatible support claims for the configured backend.
+  Compatibility labels are extensible bounded tokens in the Admin API contract;
+  unknown future labels can be surfaced without changing the envelope shape but
+  do not activate support booleans until recognized by the support matrix.
 - Admin console capability discovery now documents its `X-Admin-Token` and
   bearer-token security alternatives in OpenAPI, with runtime tests for both
   accepted forms and ambiguous mixed credentials.

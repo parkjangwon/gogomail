@@ -3541,6 +3541,10 @@ Implementation order:
       MinIO and AWS S3 profile fields as direct config loading, keeping
       file-driven storage flips auditable across endpoint, region, bucket,
       prefix, credentials, and path-style behavior.
+1323a. Storage backend compatibility labels are now validated as bounded safe
+       extensible tokens and exposed through the Admin API as sorted,
+       de-duplicated active labels rather than a closed OpenAPI enum; unknown
+       labels remain non-activating until the support matrix recognizes them.
 1324. IMAP mailbox event publishing now performs non-blocking delivery while
       holding the broker lock, eliminating the race where concurrent
       subscription cancellation could close a snapshotted channel before

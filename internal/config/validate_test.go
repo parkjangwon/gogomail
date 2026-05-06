@@ -126,17 +126,22 @@ func TestValidateAcceptsStorageBackendCompatLabels(t *testing.T) {
 	cfg.StorageS3Bucket = "gogomail"
 	cfg.StorageS3AccessKeyID = "access"
 	cfg.StorageS3SecretAccessKey = "secret"
-	cfg.StorageBackendCompatLabels = []string{" local ", "NFS", "MINIO"}
+	cfg.StorageBackendCompatLabels = []string{" local ", "NFS", "MINIO", "azure_edge-1.compat"}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
 }
 
-func TestValidateRejectsUnknownStorageBackendCompatLabel(t *testing.T) {
-	cfg := Load()
-	cfg.StorageBackendCompatLabels = []string{"swift"}
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("Validate() error = nil, want unknown storage backend compatibility label rejection")
+func TestValidateRejectsUnsafeStorageBackendCompatLabels(t *testing.T) {
+	for _, label := range []string{"", "bad label", "bad/label", "bad\nlabel", strings.Repeat("a", 65)} {
+		label := label
+		t.Run(label, func(t *testing.T) {
+			cfg := Load()
+			cfg.StorageBackendCompatLabels = []string{label}
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want unsafe storage backend compatibility label rejection")
+			}
+		})
 	}
 }
 

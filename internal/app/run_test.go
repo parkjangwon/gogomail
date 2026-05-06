@@ -226,6 +226,21 @@ func TestStorageCapabilitiesForConfigDescribesLocalBackend(t *testing.T) {
 	}
 }
 
+func TestStorageCapabilitiesForConfigPreservesExtensibleCompatLabels(t *testing.T) {
+	t.Parallel()
+
+	capabilities := storageCapabilitiesForConfig(config.Config{
+		StorageBackend:             "local",
+		StorageBackendCompatLabels: []string{" azure_edge-1.compat ", "NFS"},
+	})
+	if len(capabilities.ActiveLabels) != 3 || capabilities.ActiveLabels[0] != "azure_edge-1.compat" || capabilities.ActiveLabels[1] != "local" || capabilities.ActiveLabels[2] != "nfs" {
+		t.Fatalf("active labels = %#v", capabilities.ActiveLabels)
+	}
+	if !capabilities.SupportsLocalNFS || capabilities.SupportsMinIO || capabilities.SupportsAWSCompatible {
+		t.Fatalf("support flags = local_nfs:%v minio:%v aws:%v", capabilities.SupportsLocalNFS, capabilities.SupportsMinIO, capabilities.SupportsAWSCompatible)
+	}
+}
+
 func TestStorageCapabilitiesForConfigDescribesNFSAliasBackend(t *testing.T) {
 	t.Parallel()
 
