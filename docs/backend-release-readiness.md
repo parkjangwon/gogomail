@@ -641,8 +641,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before the active object row is deleted.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
-  bounded body reads, ETag and Last-Modified headers, cache/precondition
-  handling, and repository-backed vCard validation. CardDAV runtime wiring now provides
+  explicit 3.0/4.0 media-type version matching, bounded body reads, ETag and
+  Last-Modified headers, cache/precondition handling, and repository-backed
+  vCard validation. CardDAV runtime wiring now provides
   `gogomail --mode=carddav`, `GOGOMAIL_CARDDAV_ADDR`, and Basic-auth through
   the existing Submission authenticator, with production insecure-auth
   validation. Client-ready CardDAV remains gated on broader vCard compatibility

@@ -377,6 +377,35 @@ func TestHandlerPutContactObjectCreatesAndUpdatesWithPreconditions(t *testing.T)
 	}
 }
 
+func TestHandlerPutContactObjectValidatesContentTypeVersion(t *testing.T) {
+	t.Parallel()
+
+	v3 := "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:v3-contact\r\nFN:Version Three\r\nEND:VCARD\r\n"
+	create := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/v3-contact.vcf", v3, http.Header{
+		"Content-Type": []string{"text/vcard; version=3.0; charset=utf-8"},
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("vCard 3 create status = %d, body = %s", create.Code, create.Body.String())
+	}
+
+	badVersion := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/bad-version.vcf", v3, http.Header{
+		"Content-Type": []string{"text/vcard; version=2.1"},
+	})
+	if badVersion.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("bad content-type version status = %d, want %d", badVersion.Code, http.StatusUnsupportedMediaType)
+	}
+
+	mismatch := runCardDAVObjectRequest(t, MethodPut, "/carddav/addressbooks/user-1/personal/mismatch-version.vcf", v3, http.Header{
+		"Content-Type": []string{"text/vcard; version=4.0"},
+	})
+	if mismatch.Code != http.StatusBadRequest {
+		t.Fatalf("mismatched content-type version status = %d, want %d", mismatch.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(mismatch.Body.String(), "VERSION") {
+		t.Fatalf("mismatch response missing VERSION context: %s", mismatch.Body.String())
+	}
+}
+
 func TestHandlerPutContactObjectRejectsDuplicateUID(t *testing.T) {
 	t.Parallel()
 

@@ -1915,7 +1915,9 @@ Next:
   that are not allprop-friendly remain available through explicit `prop`,
   `include`, and `propname`; returned
   address-data also carries explicit `text/vcard` attributes matching the
-  stored vCard version.
+  stored vCard version. Contact-object `PUT` accepts explicit `text/vcard`
+  version parameters only for 3.0/4.0 and requires the media-type version to
+  match the body `VERSION` before mutating storage.
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.
   `addressbook-query` execution honors bounded `limit/nresults` response caps.

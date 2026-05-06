@@ -303,7 +303,8 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav object store is not configured", http.StatusNotImplemented)
 		return
 	}
-	if err := validateVCardPutContentType(r.Header.Get("Content-Type")); err != nil {
+	contentTypeVersion, err := validateVCardPutContentType(r.Header.Get("Content-Type"))
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
@@ -340,6 +341,17 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
 		return
+	}
+	if contentTypeVersion != "" {
+		bodyVersion, err := vCardBodyVersion(string(body))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if bodyVersion != contentTypeVersion {
+			http.Error(w, "contact object content type version does not match vcard VERSION", http.StatusBadRequest)
+			return
+		}
 	}
 	object, err := store.UpsertContactObject(r.Context(), UpsertContactObjectRequest{
 		UserID:        userID,
@@ -1369,22 +1381,29 @@ func objectModifiedSince(header string, updatedAt time.Time) bool {
 	return lastModified.After(since.UTC())
 }
 
-func validateVCardPutContentType(value string) error {
+func validateVCardPutContentType(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return nil
+		return "", nil
 	}
 	if strings.ContainsAny(value, "\r\n") {
-		return fmt.Errorf("contact object content type must not contain line breaks")
+		return "", fmt.Errorf("contact object content type must not contain line breaks")
 	}
-	mediaType, _, err := mime.ParseMediaType(value)
+	mediaType, params, err := mime.ParseMediaType(value)
 	if err != nil {
-		return fmt.Errorf("contact object content type is invalid")
+		return "", fmt.Errorf("contact object content type is invalid")
 	}
 	if !strings.EqualFold(mediaType, "text/vcard") {
-		return fmt.Errorf("contact object content type must be text/vcard")
+		return "", fmt.Errorf("contact object content type must be text/vcard")
 	}
-	return nil
+	version := strings.TrimSpace(params["version"])
+	if version == "" {
+		return "", nil
+	}
+	if version != "3.0" && version != "4.0" {
+		return "", fmt.Errorf("contact object content type version must be 3.0 or 4.0")
+	}
+	return version, nil
 }
 
 func readBoundedContactObjectBody(r io.Reader) ([]byte, error) {
