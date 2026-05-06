@@ -1,6 +1,6 @@
 # NFS-backed local filesystem storage profile.
 storage_backend: nfs
-mailstore_root: /mnt/gogomail-storage
+storage_root: /mnt/gogomail-storage
 storage_backend_compat_labels:
   - local
 storage_s3_endpoint: ""

@@ -11,4 +11,4 @@ storage_s3_session_token: ""
 storage_s3_force_path_style: true
 storage_s3_ca_cert_file: ""
 storage_s3_insecure_skip_verify: false
-mailstore_root: var/mailstore
+storage_root: var/mailstore

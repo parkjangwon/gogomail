@@ -131,7 +131,7 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.SMTPDMARCEnforcement, key)
 	case "smtp_max_dkim_verifications":
 		return setYAMLInt(value, &cfg.SMTPMaxDKIMVerifications, key)
-	case "mailstore_root":
+	case "mailstore_root", "storage_root":
 		return setYAMLString(value, &cfg.MailstoreRoot, key)
 	case "local_recipients":
 		return setYAMLStringSlice(value, &cfg.LocalRecipients, key)

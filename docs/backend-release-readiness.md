@@ -103,7 +103,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   NFS, MinIO, and AWS S3 profiles can be switched by config file. Dedicated
   validated overlays now exist for local, NFS, MinIO, and S3 storage profiles
   under `configs/storage.*.yaml`, with both config-loader and CLI handoff
-  coverage.
+  coverage. YAML overlays accept `storage_root` as the storage-focused local/NFS
+  root alias, matching the existing environment variable alias while retaining
+  `mailstore_root` compatibility.
 - CLI startup regression coverage verifies `--config` handoff and fail-fast
   invalid config/mode behavior before component startup.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and

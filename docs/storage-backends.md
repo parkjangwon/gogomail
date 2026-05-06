@@ -84,7 +84,10 @@ Validated config overlays live under `configs/` for common storage profiles:
 Each profile is parsed, validated, and passed through the CLI `--config` handoff
 by the test suite. Operators can use them as reviewed `--config=<path>` starting
 points, replacing secrets, bucket names, prefixes, and roots while keeping
-backend-specific knobs explicit.
+backend-specific knobs explicit. YAML config files accept `storage_root` as
+the file-level alias for the same local/NFS root controlled by
+`GOGOMAIL_STORAGE_ROOT`; legacy `mailstore_root` remains supported for
+backward compatibility.
 
 ## Local filesystem or NFS
 
@@ -113,8 +116,10 @@ Use local storage for development, single-node installs, or deployments where
 the mount itself provides durability and availability.
 `GOGOMAIL_STORAGE_ROOT` is the storage-focused alias for
 `GOGOMAIL_MAILSTORE_ROOT`; if both are set, `GOGOMAIL_MAILSTORE_ROOT` wins for
-backward compatibility. The effective root must be non-empty, bounded, and free
-of line breaks when the local backend is active.
+backward compatibility. YAML config overlays can use `storage_root` for the
+same value, while `mailstore_root` remains accepted for older configs. The
+effective root must be non-empty, bounded, and free of line breaks when the
+local backend is active.
 Writes are staged through unique temporary files in the destination directory
 and committed with `rename`, avoiding fixed `.tmp` collisions on local or
 NFS-style mounts while preserving atomic object replacement semantics.
