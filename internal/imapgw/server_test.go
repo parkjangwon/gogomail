@@ -8197,7 +8197,30 @@ func TestServerHandlesUIDFetchPartialBodyAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a5 BAD FETCH header field list is invalid\r\n" {
 		t.Fatalf("malformed header fields response = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a6 UID FETCH 7 RFC822<0.5>\r\n")); err != nil {
+		t.Fatalf("write uid fetch rfc822 partial body: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read rfc822 partial literal header: %v", err)
+	}
+	if line != "* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11 RFC822<0> {5}\r\n" {
+		t.Fatalf("rfc822 partial literal header = %q", line)
+	}
+	rfc822Partial := make([]byte, 5)
+	if _, err := io.ReadFull(reader, rfc822Partial); err != nil {
+		t.Fatalf("read rfc822 partial literal: %v", err)
+	}
+	if string(rfc822Partial) != "hello" {
+		t.Fatalf("rfc822 partial body = %q", rfc822Partial)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("rfc822 partial close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a6 OK UID FETCH completed\r\n" {
+		t.Fatalf("rfc822 partial completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

@@ -178,6 +178,9 @@ Current state:
   lists even when no `STATUS` return option is present, keeping `CHILDREN`,
   `SPECIAL-USE`, and `SUBSCRIBED` return controls on the same parser boundary
   as LIST-STATUS.
+- IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
+  partial full-message fetches, preserve the `RFC822<offset>` response atom,
+  and mark messages seen like ordinary `RFC822` fetches.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.

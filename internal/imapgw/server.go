@@ -4340,6 +4340,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 			}
 			attributes := imapFetchAttributes(summary, requestsEnvelope, requestsInternalDate, requestsModSeq, requestsBodyAttribute, requestsBodyStructure, bodyAttribute, bodyStructure)
 			if requestsPartialBody {
+				itemName := imapPartialBodyLiteralResponseName(items)
 				count := partial.count
 				if partial.offset >= uint64(summary.Size) {
 					count = 0
@@ -4350,7 +4351,7 @@ func (s *Server) writeFetchResponses(writer *bufio.Writer, tag string, items []s
 					_ = body.Close()
 					return false, err
 				}
-				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s BODY[]<%d> {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), partial.offset, count)); err != nil {
+				if _, err := writer.WriteString(fmt.Sprintf("* %d FETCH (%s %s<%d> {%d}\r\n", sequenceNumber, strings.Join(attributes, " "), itemName, partial.offset, count)); err != nil {
 					_ = body.Close()
 					return false, err
 				}
@@ -4764,7 +4765,7 @@ func imapFetchSetsSeen(items []string) bool {
 	for _, item := range items {
 		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
 			switch {
-			case token == "RFC822" || token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<"):
+			case token == "RFC822" || strings.HasPrefix(token, "RFC822<") || token == "RFC822.TEXT" || strings.HasPrefix(token, "RFC822.TEXT<"):
 				return true
 			case token == "RFC822.HEADER" || strings.HasPrefix(token, "RFC822.HEADER<"):
 				continue
@@ -4782,6 +4783,17 @@ func imapFullBodyLiteralResponseName(items []string) string {
 	for _, item := range items {
 		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
 			if token == "RFC822" {
+				return "RFC822"
+			}
+		}
+	}
+	return "BODY[]"
+}
+
+func imapPartialBodyLiteralResponseName(items []string) string {
+	for _, item := range items {
+		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
+			if strings.HasPrefix(token, "RFC822<") {
 				return "RFC822"
 			}
 		}
@@ -4884,7 +4896,7 @@ func (r imapPartialSectionRequest) headerLike() bool {
 func imapFetchPartialBody(items []string) (imapPartialBodyRequest, bool) {
 	for _, item := range items {
 		for _, token := range strings.Fields(strings.Trim(strings.ToUpper(strings.TrimSpace(item)), "()")) {
-			if !strings.HasPrefix(token, "BODY[]<") && !strings.HasPrefix(token, "BODY.PEEK[]<") {
+			if !strings.HasPrefix(token, "BODY[]<") && !strings.HasPrefix(token, "BODY.PEEK[]<") && !strings.HasPrefix(token, "RFC822<") {
 				continue
 			}
 			return imapParsePartialBodyToken(token)
@@ -5755,7 +5767,7 @@ func imapFetchDataItemTokenSupported(token string) bool {
 		return true
 	}
 	switch {
-	case strings.HasPrefix(token, "BODY[]<") || strings.HasPrefix(token, "BODY.PEEK[]<"):
+	case strings.HasPrefix(token, "BODY[]<") || strings.HasPrefix(token, "BODY.PEEK[]<") || strings.HasPrefix(token, "RFC822<"):
 		_, ok := imapParsePartialBodyToken(token)
 		return ok
 	case strings.HasPrefix(token, "BODY[HEADER]<") || strings.HasPrefix(token, "BODY.PEEK[HEADER]<"):
