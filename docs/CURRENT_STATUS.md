@@ -2251,6 +2251,11 @@ The platform hardening sprint completed the following:
   `owner` anchored to the canonical principal URL instead of the calendar-home
   collection, keeping principal discovery semantics aligned with delegated and
   shared calendar work still gated behind Directory/Identity.
+- CalDAV discovery now returns RFC 3744-style `current-user-privilege-set`
+  values without advertising ACL semantics: principals expose `DAV:read`,
+  calendar homes expose implemented child calendar bind/unbind, calendar
+  collections expose child object bind/unbind plus metadata write properties,
+  and calendar objects expose read plus content-write capability.
 - The PostgreSQL CalDAV repository now satisfies the discovery store boundary,
   including active principal lookup through active user/domain/company scope and
   calendar/object list/get adapters for the internal `PROPFIND` handler.

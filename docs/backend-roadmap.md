@@ -2502,6 +2502,11 @@ Implementation order:
       `current-user-principal` and `owner` hrefs anchored to the canonical
       principal URL, keeping principal semantics ready for future
       Directory/Identity-backed delegated and shared calendars.
+1149. CalDAV discovery now exposes RFC 3744-shaped
+      `current-user-privilege-set` values for implemented local-user behavior
+      only: principal reads, calendar-home calendar bind/unbind, collection
+      object bind/unbind plus metadata property writes, and object content
+      writes.
 
 ## Deferred until backend contracts stabilize
 

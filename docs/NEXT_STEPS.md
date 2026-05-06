@@ -1513,6 +1513,11 @@ Current state:
   and `owner` as the canonical principal URL, preserving a clean boundary for
   future delegated/shared calendar access instead of treating the home
   collection as the principal.
+- CalDAV `PROPFIND` now exposes RFC 3744-shaped current-user privilege sets for
+  the operations already implemented: read-only principals, calendar-home
+  calendar bind/unbind, collection object bind/unbind plus `PROPPATCH`
+  metadata writes, and object content writes. ACL and broader delegation
+  privileges remain unadvertised until their semantics exist.
 - CalDAV now handles WebDAV `PROPPATCH` on authenticated calendar collections
   for display name, description, and CalendarServer/Apple calendar color.
   The parser is bounded and namespace-aware, optional properties can be

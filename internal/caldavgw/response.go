@@ -19,6 +19,7 @@ var (
 	PropDisplayName                   = XMLName{Space: DAVNamespace, Local: "displayname"}
 	PropResourceType                  = XMLName{Space: DAVNamespace, Local: "resourcetype"}
 	PropCurrentUserPrincipal          = XMLName{Space: DAVNamespace, Local: "current-user-principal"}
+	PropCurrentUserPrivileges         = XMLName{Space: DAVNamespace, Local: "current-user-privilege-set"}
 	PropPrincipalCollectionSet        = XMLName{Space: DAVNamespace, Local: "principal-collection-set"}
 	PropPrincipalURL                  = XMLName{Space: DAVNamespace, Local: "principal-URL"}
 	PropOwner                         = XMLName{Space: DAVNamespace, Local: "owner"}
@@ -42,12 +43,18 @@ var (
 	ResourceTypeCollection = XMLName{Space: DAVNamespace, Local: "collection"}
 	ResourceTypePrincipal  = XMLName{Space: DAVNamespace, Local: "principal"}
 	ResourceTypeCalendar   = XMLName{Space: CalDAVNamespace, Local: "calendar"}
+	PrivilegeRead          = XMLName{Space: DAVNamespace, Local: "read"}
+	PrivilegeBind          = XMLName{Space: DAVNamespace, Local: "bind"}
+	PrivilegeUnbind        = XMLName{Space: DAVNamespace, Local: "unbind"}
+	PrivilegeWriteContent  = XMLName{Space: DAVNamespace, Local: "write-content"}
+	PrivilegeWriteProps    = XMLName{Space: DAVNamespace, Local: "write-properties"}
 )
 
 type PropertyValue struct {
 	Text               string
 	Hrefs              []string
 	ResourceTypes      []XMLName
+	Privileges         []XMLName
 	Reports            []XMLName
 	CalendarComponents []string
 	CalendarDataTypes  []CalendarDataType
@@ -88,6 +95,7 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 		{Name: PropDisplayName, Value: PropertyValue{Text: principal.DisplayName}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypePrincipal}}, Found: true},
 		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: readOnlyPrivileges()}, Found: true},
 		{Name: PropPrincipalCollectionSet, Value: PropertyValue{Hrefs: []string{PrincipalsPrefix + "/"}}, Found: true},
 		{Name: PropPrincipalURL, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
@@ -104,6 +112,7 @@ func CalendarHomeProperties(userID string) ([]PropertyResult, error) {
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Calendars"}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
 		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: calendarHomePrivileges()}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 	}, nil
 }
@@ -127,6 +136,7 @@ func CalendarCollectionProperties(userID string, calendar Calendar) ([]PropertyR
 		webDAVTimeProperty(PropCreationDate, calendar.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, calendar.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: calendarCollectionPrivileges()}, Found: true},
 		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description}, Found: true},
 		{Name: PropCalendarColor, Value: PropertyValue{Text: calendar.Color}, Found: calendar.Color != ""},
 		{Name: PropSupportedCalendarComponentSet, Value: PropertyValue{CalendarComponents: []string{ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY}}, Found: true},
@@ -161,8 +171,25 @@ func CalendarObjectProperties(userID string, object CalendarObject) ([]PropertyR
 		webDAVTimeProperty(PropCreationDate, object.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, object.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: writableObjectPrivileges()}, Found: true},
 		{Name: PropResourceType, Found: true},
 	}, nil
+}
+
+func readOnlyPrivileges() []XMLName {
+	return []XMLName{PrivilegeRead}
+}
+
+func calendarHomePrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeBind, PrivilegeUnbind}
+}
+
+func calendarCollectionPrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeBind, PrivilegeUnbind, PrivilegeWriteProps}
+}
+
+func writableObjectPrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeWriteContent}
 }
 
 func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {
@@ -346,6 +373,12 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 				return err
 			}
 		}
+	case len(prop.Value.Privileges) > 0:
+		for _, privilege := range prop.Value.Privileges {
+			if err := encodeCurrentUserPrivilege(enc, privilege); err != nil {
+				return err
+			}
+		}
 	case len(prop.Value.Reports) > 0:
 		for _, report := range prop.Value.Reports {
 			if err := encodeSupportedReport(enc, report); err != nil {
@@ -392,6 +425,21 @@ func encodeSupportedReport(enc *xml.Encoder, report XMLName) error {
 		return err
 	}
 	return enc.EncodeToken(supportedStart.End())
+}
+
+func encodeCurrentUserPrivilege(enc *xml.Encoder, privilege XMLName) error {
+	privilegeName, err := prefixedName(privilege)
+	if err != nil {
+		return err
+	}
+	start := xml.StartElement{Name: xml.Name{Local: "D:privilege"}}
+	if err := enc.EncodeToken(start); err != nil {
+		return err
+	}
+	if err := encodeEmptyElement(enc, privilegeName); err != nil {
+		return err
+	}
+	return enc.EncodeToken(start.End())
 }
 
 func encodeCalendarComponent(enc *xml.Encoder, component string) error {

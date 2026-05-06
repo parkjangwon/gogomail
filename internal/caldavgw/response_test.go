@@ -232,6 +232,7 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 		Kind: PropfindProp,
 		Properties: []XMLName{
 			PropCurrentUserPrincipal,
+			PropCurrentUserPrivileges,
 			PropPrincipalCollectionSet,
 			PropPrincipalURL,
 			PropOwner,
@@ -246,6 +247,7 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 	text := string(body)
 	for _, want := range []string{
 		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
 		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
 		"<D:principal-URL><D:href>/caldav/principals/user-1/</D:href></D:principal-URL>",
 		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
@@ -268,6 +270,7 @@ func TestCalendarHomePropertiesExposePrincipalOwner(t *testing.T) {
 		Kind: PropfindProp,
 		Properties: []XMLName{
 			PropCurrentUserPrincipal,
+			PropCurrentUserPrivileges,
 			PropOwner,
 		},
 	}, props)
@@ -279,6 +282,7 @@ func TestCalendarHomePropertiesExposePrincipalOwner(t *testing.T) {
 	text := string(body)
 	for _, want := range []string{
 		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:bind></D:bind></D:privilege><D:privilege><D:unbind></D:unbind></D:privilege></D:current-user-privilege-set>",
 		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
 	} {
 		if !strings.Contains(text, want) {
@@ -287,6 +291,33 @@ func TestCalendarHomePropertiesExposePrincipalOwner(t *testing.T) {
 	}
 	if strings.Contains(text, "<D:current-user-principal><D:href>/caldav/calendars/user-1/</D:href></D:current-user-principal>") {
 		t.Fatalf("calendar-home current-user-principal points at home collection:\n%s", text)
+	}
+}
+
+func TestCalendarCollectionPropertiesExposeImplementedPrivileges(t *testing.T) {
+	t.Parallel()
+
+	props, err := CalendarCollectionProperties("user-1", Calendar{
+		ID:        "work",
+		UserID:    "user-1",
+		Name:      "Work",
+		SyncToken: "sync-1",
+	})
+	if err != nil {
+		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
+	}
+	stats := SelectPropfindProperties(PropfindRequest{
+		Kind:       PropfindProp,
+		Properties: []XMLName{PropCurrentUserPrivileges},
+	}, props)
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/calendars/user-1/work/", PropStats: stats}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	want := "<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:bind></D:bind></D:privilege><D:privilege><D:unbind></D:unbind></D:privilege><D:privilege><D:write-properties></D:write-properties></D:privilege></D:current-user-privilege-set>"
+	if text := string(body); !strings.Contains(text, want) {
+		t.Fatalf("calendar collection privileges missing:\n%s", text)
 	}
 }
 
@@ -321,6 +352,7 @@ func TestCalendarObjectPropertiesExposeObjectDiscovery(t *testing.T) {
 		"<D:getetag>&#34;0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&#34;</D:getetag>",
 		"<D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>",
 		"<D:getcontentlength>128</D:getcontentlength>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege><D:privilege><D:write-content></D:write-content></D:privilege></D:current-user-privilege-set>",
 		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
 		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
