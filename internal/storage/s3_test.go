@@ -532,10 +532,24 @@ func TestS3StoreGetRejectsUnexpectedPartialContent(t *testing.T) {
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{"not-a-size", "-1", "+5", " 5", "5 ", "\t5"}
-	for _, contentLength := range tests {
-		contentLength := contentLength
-		t.Run(contentLength, func(t *testing.T) {
+	tests := []struct {
+		name          string
+		header        string
+		contentLength int64
+		want          string
+	}{
+		{name: "invalid", header: "not-a-size", contentLength: -1, want: "invalid content length"},
+		{name: "negative", header: "-1", contentLength: -1, want: "invalid content length"},
+		{name: "signed", header: "+5", contentLength: -1, want: "invalid content length"},
+		{name: "leading space", header: " 5", contentLength: -1, want: "invalid content length"},
+		{name: "trailing space", header: "5 ", contentLength: -1, want: "invalid content length"},
+		{name: "leading tab", header: "\t5", contentLength: -1, want: "invalid content length"},
+		{name: "header invalid with populated content length", header: " 5", contentLength: 5, want: "invalid content length"},
+		{name: "header mismatch", header: "5", contentLength: 4, want: "content-length mismatch"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			store, err := NewS3Store(S3Options{
@@ -548,8 +562,8 @@ func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 				HTTPClient: &http.Client{Transport: staticRoundTripper{
 					resp: &http.Response{
 						StatusCode:    http.StatusOK,
-						Header:        http.Header{"Content-Length": []string{contentLength}},
-						ContentLength: -1,
+						Header:        http.Header{"Content-Length": []string{tc.header}},
+						ContentLength: tc.contentLength,
 						Body:          io.NopCloser(strings.NewReader("")),
 					},
 				}},
@@ -557,8 +571,8 @@ func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewS3Store returned error: %v", err)
 			}
-			if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), "content length") {
-				t.Fatalf("Stat err = %v, want content length rejection", err)
+			if _, err := store.Stat(context.Background(), "messages/msg-1.eml"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Stat err = %v, want %q", err, tc.want)
 			}
 		})
 	}

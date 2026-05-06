@@ -3957,6 +3957,10 @@ Implementation order:
       tokens, including quoted SASL-IR values such as `" <base64> "`, before
       privacy-policy or backend authentication checks while still preserving
       intentional spaces inside decoded SASL PLAIN credentials.
+1426. S3-compatible `HEAD`/`Stat` now validates raw `Content-Length` metadata
+      even when the HTTP response has already populated `ContentLength`,
+      rejecting malformed or contradictory provider length metadata instead
+      of trusting normalized transport state alone.
 
 ## Deferred until backend contracts stabilize
 

@@ -136,6 +136,9 @@ Current state:
   digits for `HEAD` metadata and range-response validation, rejecting signed
   or whitespace-padded values such as `+5` or ` 5` instead of normalizing them
   as valid sizes.
+- S3-compatible `HEAD`/`Stat` now validates the raw `Content-Length` header
+  even when the HTTP response already has a populated `ContentLength` field,
+  rejecting malformed or contradictory provider metadata.
 - S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
   `Last-Modified` headers instead of silently returning zero timestamps,
   while preserving HTTP optional-whitespace compatibility around otherwise

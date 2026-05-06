@@ -206,12 +206,9 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if resp.StatusCode != http.StatusOK {
 		return ObjectInfo{}, s3StatusError("stat", resp)
 	}
-	size := resp.ContentLength
-	if size < 0 {
-		size, err = parseS3ContentLength(resp.Header.Get("Content-Length"))
-		if err != nil {
-			return ObjectInfo{}, err
-		}
+	size, err := s3StatContentLength(resp)
+	if err != nil {
+		return ObjectInfo{}, err
 	}
 	rawObjectPath := objectPath
 	objectPath, err = validateS3ObjectPath(objectPath)
@@ -593,6 +590,23 @@ func parseS3ContentLength(value string) (int64, error) {
 		return -1, fmt.Errorf("stat s3 object: invalid content length")
 	}
 	return size, nil
+}
+
+func s3StatContentLength(resp *http.Response) (int64, error) {
+	if value := resp.Header.Get("Content-Length"); value != "" {
+		size, err := parseS3ContentLength(value)
+		if err != nil {
+			return -1, err
+		}
+		if resp.ContentLength >= 0 && resp.ContentLength != size {
+			return -1, fmt.Errorf("stat s3 object: content-length mismatch")
+		}
+		return size, nil
+	}
+	if resp.ContentLength >= 0 {
+		return resp.ContentLength, nil
+	}
+	return parseS3ContentLength("")
 }
 
 func parseS3NonNegativeDecimal(value string) (int64, bool) {
