@@ -4174,6 +4174,9 @@ Implementation order:
 1480. IMAP SELECT and EXAMINE optional CONDSTORE select parameters now reject
       quoted or command-literal parenthesized lists before authentication or
       mailbox selection state.
+1481. IMAP LIST selection option-lists, RETURN introducers, and RETURN
+      option-lists now reject quoted or command-literal controls while
+      preserving RFC mailbox pattern-list operands.
 
 ## Deferred until backend contracts stabilize
 

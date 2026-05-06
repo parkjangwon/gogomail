@@ -132,7 +132,7 @@ Recent release-readiness work also includes:
   atom-only FETCH data-item controls, atom-only ENABLE capability controls,
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   STORE control-atom checks, raw parenthesized flag/status/select-param list
-  controls,
+  controls, raw LIST selection/return option-list controls,
   numeric grammar checks including rejection of quoted/literal-framed set
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and
   SEARCH/SORT/THREAD set operands,

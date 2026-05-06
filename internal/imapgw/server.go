@@ -1032,6 +1032,23 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 			_, err := writer.WriteString(tag + " BAD STATUS requires parenthesized item list\r\n")
 			return true, false, err
 		}
+	case "LIST":
+		if len(fields) >= 3 && strings.HasPrefix(fields[2], "(") && imapRawFieldIsStringLike(line, 2) {
+			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
+			return true, false, err
+		}
+		for i := 4; i+1 < len(fields); i++ {
+			if strings.EqualFold(fields[i], "RETURN") {
+				if imapRawFieldIsStringLike(line, i) {
+					_, err := writer.WriteString(tag + " BAD LIST requires return options atom\r\n")
+					return true, false, err
+				}
+				if strings.HasPrefix(fields[i+1], "(") && imapRawFieldIsStringLike(line, i+1) {
+					_, err := writer.WriteString(tag + " BAD LIST requires parenthesized return options\r\n")
+					return true, false, err
+				}
+			}
+		}
 	case "SELECT", "EXAMINE":
 		if len(fields) >= 4 && strings.HasPrefix(fields[3], "(") && imapRawFieldIsStringLike(line, 3) {
 			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")

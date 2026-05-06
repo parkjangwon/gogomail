@@ -122,6 +122,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SELECT` and `EXAMINE` optional `CONDSTORE` select parameters now
   reject quoted or command-literal `(CONDSTORE)` lists before authentication
   or mailbox selection state.
+- IMAP `LIST` selection option-lists, `RETURN` introducers, and `RETURN`
+  option-lists now reject quoted or command-literal controls before
+  authentication, while preserving RFC mailbox pattern-list operands.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
