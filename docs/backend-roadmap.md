@@ -3351,6 +3351,11 @@ Implementation order:
       regression-covered so nonexistent UID members are ignored without
       contaminating response codes, and alternate backends no longer have to
       rely on implicit result ordering to preserve COPYUID semantics.
+1288. IMAP `MOVE`/`UID MOVE` UIDPLUS response generation now builds source UID
+      sets from `MoveMessageResult.Source` rather than the originally requested
+      UID slice, keeping MOVE's already explicit source/destination contract
+      aligned with COPY and preserving correct `COPYUID` semantics when missing
+      UID members are ignored.
 
 ## Deferred until backend contracts stabilize
 
