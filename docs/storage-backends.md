@@ -6,6 +6,10 @@ configuration without changing stored object keys.
 Object paths, prefixes, and list cursors are validated as bounded valid UTF-8
 text before adapter use, keeping local/NFS paths, S3 URLs, SigV4 canonical
 paths, logs, and cleanup cursors unambiguous across backends.
+S3-compatible storage also rejects percent-encoded path separators such as
+`%2F` and `%5C` in configured prefixes, object keys, list prefixes, copy/move
+endpoints, and returned list keys so deployments do not depend on provider- or
+proxy-specific double-decoding behavior.
 
 The shared interface supports `Put`, `Get`, `GetRange`, `Stat`, `Copy`,
 `Move`, `List`, and `Delete`.
@@ -272,6 +276,10 @@ encoded as `%2B`, preserving object identity and SigV4 canonical paths across
 AWS S3, MinIO, and strict compatible providers. Endpoint base paths use the
 same segment escaping, so reverse-proxy paths such as `/base+proxy` keep their
 literal plus signs in canonical request paths.
+Configured storage prefixes and object keys must not contain encoded
+separators such as `%2F` or `%5C`; gogomail fails these values before request
+signing so the same logical object boundary is used on AWS S3, MinIO, and
+stricter S3-compatible gateways.
 For file-backed or otherwise seekable upload bodies, gogomail sets a precise
 `Content-Length` without buffering the object in memory, improving PUT
 compatibility while preserving streaming-first storage paths.
@@ -339,11 +347,13 @@ compatible provider returns an overly broad page. Size and returned ETag
 metadata are validated only after that canonical prefix mapping succeeds, and
 ETags use the same bounded metadata cleanup as `Stat`. Provider responses that
 return more matching objects than requested are rejected, keeping local/NFS and
-S3-compatible pagination semantics aligned. `ListObjectsV2` query parameters are encoded with SigV4
-canonical URI rules instead of form-style query escaping, so prefixes and
-continuation tokens containing spaces, literal `+`, `/`, `=`, or `@`
-characters sign and round-trip consistently across AWS S3, MinIO, and stricter
-compatible providers. Continuation cursors are treated as opaque identity
+S3-compatible pagination semantics aligned. Returned keys containing encoded
+separators are ignored before exposure to callers, preserving the same
+portable key-shape rule used for request paths. `ListObjectsV2` query
+parameters are encoded with SigV4 canonical URI rules instead of form-style
+query escaping, so prefixes and continuation tokens containing spaces, literal
+`+`, `/`, `=`, or `@` characters sign and round-trip consistently across AWS
+S3, MinIO, and stricter compatible providers. Continuation cursors are treated as opaque identity
 tokens: blank cursors are allowed, but nonblank cursors with leading/trailing
 whitespace or control characters are rejected instead of trimmed, so provider
 pagination tokens are not silently changed between pages or made unsafe for
