@@ -15,7 +15,9 @@ ready to back them.
 
 The SMTP engine is materially advanced, and current work is broadening into
 tenant/domain operations, Admin API, Mail API contracts, delivery routing,
-DNS/DKIM onboarding, quota/policy enforcement, and OpenAPI drift prevention.
+DNS/DKIM onboarding, quota/policy enforcement, OpenAPI drift prevention, DAV
+interoperability, and storage portability across local, NFS, MinIO, and
+AWS/S3-compatible deployments.
 
 ## Engineering posture
 
@@ -61,7 +63,12 @@ Recent release-readiness work also includes:
   interface, validated `configs/storage.*.yaml` profiles, and extensible
   compatibility labels that keep support claims conservative, with local/NFS
   symlink parent rejection preserving object-root boundaries on mounted
-  filesystems
+  filesystems. The S3-compatible adapter now treats provider metadata as a
+  strict contract: list pages recheck returned keys against the requested
+  logical prefix, object sizes and content/range lengths use unsigned decimal
+  grammar, truncated pages require canonical continuation state, malformed
+  list entries fail closed, and `CopyObject` success XML is accepted only from
+  namespace-free or AWS S3 `CopyObjectResult` roots.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
@@ -294,6 +301,11 @@ Release-oriented local verification:
 ```bash
 scripts/verify-backend-release.sh
 ```
+
+The release script runs `go test ./...`, `go mod tidy -diff`, optional
+database-gated checks when configured, and a clean-worktree check. For narrow
+changes, run the closest package test first, then the release script before
+committing and pushing.
 
 Release-oriented PostgreSQL checks are opt-in because they need a disposable
 database. They run migrations in a temporary schema and exercise draft send plus
