@@ -1576,10 +1576,11 @@ Current state:
   rejected until change-log/continuation semantics are implemented.
 - CalDAV now handles `REPORT free-busy-query` on authenticated calendar
   collections, returning RFC-shaped `text/calendar` `VFREEBUSY` responses for
-  `Depth: 1` child VEVENTs while clipping to the requested UTC time range,
-  skipping transparent/cancelled events, mapping tentative events to
-  `BUSY-TENTATIVE`, ingesting stored VFREEBUSY `FREEBUSY` source periods, and
-  coalescing same-type overlaps.
+  `Depth: 1` child VEVENTs while bounding child object scans with
+  `limit/nresults` and a one-extra-row truncation probe. It clips to the
+  requested UTC time range, skips transparent/cancelled events, maps tentative
+  events to `BUSY-TENTATIVE`, ingests stored VFREEBUSY `FREEBUSY` source
+  periods, and coalesces same-type overlaps.
 - CalDAV now handles `MKCALENDAR` on authenticated calendar collection paths
   with UUID Request-URI segments. Creation XML is bounded and namespace-aware
   for display name, description, and CalendarServer/Apple calendar color, and

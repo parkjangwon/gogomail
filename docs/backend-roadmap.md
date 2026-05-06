@@ -2760,6 +2760,11 @@ Implementation order:
       sets until continuation semantics are designed. This keeps large
       collection scans aligned with the existing sync-collection bounded
       snapshot contract.
+1193. CalDAV `REPORT free-busy-query` now uses the same bounded object limiter
+      and one-extra-row truncation probe for `Depth: 1` child-object scans,
+      honoring explicit or default `limit/nresults` caps before deriving
+      VFREEBUSY periods. This prevents large-calendar availability queries from
+      silently producing partial busy windows.
 
 ## Deferred until backend contracts stabilize
 
