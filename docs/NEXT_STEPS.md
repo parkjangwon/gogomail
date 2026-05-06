@@ -1610,9 +1610,12 @@ Next:
   `addressbook-query` filters over parsed unfolded vCard property values,
   including RFC 6352 match-type, `negate-condition`, default
   `i;unicode-casemap`, nested `param-filter`, and `test=anyof|allof`
-  composition for top-level filters and prop-filters. REPORT `address-data`
-  can also project returned vCards to requested property names and rejects
-  unsupported requested address-data content types or versions; returned
+  composition for top-level filters and prop-filters. Unsupported vCard
+  property or parameter filters now fail with the RFC 6352
+  `CARDDAV:supported-filter` precondition instead of misleading empty success
+  responses. REPORT `address-data` can also project returned vCards to
+  requested property names and rejects unsupported requested address-data
+  content types or versions; returned
   address-data also carries explicit `text/vcard` 4.0 attributes.
   `addressbook-multiget` requires an explicit `Depth` header before resolving
   requested hrefs, while accepting common Depth 0/1 client shapes.

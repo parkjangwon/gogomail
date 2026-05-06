@@ -839,6 +839,43 @@ func TestHandlerReportAddressBookQueryHonorsParamFilter(t *testing.T) {
 	}
 }
 
+func TestHandlerReportAddressBookQueryRejectsUnsupportedFilter(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="X-GOGOMAIL-PRIVATE"><C:text-match>secret</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{"<D:error", "<C:supported-filter/>", "X-GOGOMAIL-PRIVATE"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("unsupported filter response missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestHandlerReportAddressBookQueryRejectsUnsupportedParamFilter(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="EMAIL"><C:param-filter name="X-SCOPE"/></C:prop-filter></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "<C:supported-filter/>") {
+		t.Fatalf("unsupported param response missing supported-filter precondition:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerReportAddressBookQueryHonorsFilterComposition(t *testing.T) {
 	t.Parallel()
 

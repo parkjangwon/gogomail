@@ -2455,6 +2455,9 @@ Implementation order:
 1135. CardDAV `sync-collection` parsing now distinguishes an empty initial
       `DAV:sync-token` element from a missing element and rejects requests that
       omit the required token element before sync lookup or snapshot work.
+1136. CardDAV `addressbook-query` now rejects unsupported vCard property or
+      parameter filters with the RFC 6352 `CARDDAV:supported-filter`
+      precondition instead of returning misleading empty success responses.
 
 ## Deferred until backend contracts stabilize
 
