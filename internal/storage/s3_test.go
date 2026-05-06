@@ -3429,6 +3429,8 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
 		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
 		{name: "unexpected_child_namespace", status: http.StatusOK, body: `<CopyObjectResult><x:ETag xmlns:x="urn:not-s3">"a"</x:ETag></CopyObjectResult>`, want: "unexpected response namespace"},
+		{name: "unexpected_child_after_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><Foo>bar</Foo></CopyObjectResult>`, want: `unexpected response child "Foo"`},
+		{name: "unexpected_child_before_etag", status: http.StatusOK, body: `<CopyObjectResult><Foo>bar</Foo><ETag>"etag-1"</ETag></CopyObjectResult>`, want: `unexpected response child "Foo"`},
 		{name: "missing_etag", status: http.StatusOK, body: `<CopyObjectResult/>`, want: "etag is required"},
 		{name: "blank_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>  </ETag></CopyObjectResult>`, want: "etag is required"},
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},

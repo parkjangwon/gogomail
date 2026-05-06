@@ -1759,6 +1759,11 @@ func validateS3CopyResultShape(data []byte) error {
 					return fmt.Errorf("copy s3 object: embedded error")
 				}
 				return fmt.Errorf("copy s3 object: embedded error: %s", preview)
+			default:
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return fmt.Errorf("copy s3 object: unexpected response namespace")
+				}
+				return fmt.Errorf("copy s3 object: unexpected response child %q", token.Name.Local)
 			}
 		case xml.EndElement:
 			if rootDepth > 0 {

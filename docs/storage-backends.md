@@ -396,6 +396,9 @@ status errors. Success metadata is also kept singular for the core S3 fields:
 duplicate top-level `ETag` or
 `LastModified` elements and nested `Error` elements under `CopyObjectResult`
 are rejected before XML unmarshalling can collapse ambiguous provider metadata.
+Unknown top-level success children under `CopyObjectResult` are rejected for
+the same reason, keeping copy/move success metadata limited to the canonical
+S3 fields gogomail understands.
 Core `CopyObjectResult` child elements must also be namespace-free or in the
 AWS S3 XML namespace, matching the accepted root namespace boundary. `ETag`
 is required in successful copy metadata and uses the same bounded safe

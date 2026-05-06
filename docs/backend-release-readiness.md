@@ -127,9 +127,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   non-empty malformed or whitespace-padded timestamp values instead of
   accepting ambiguous successful copy metadata.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
-  `ETag` or `LastModified` metadata and nested `Error` elements before
-  provider-side copy metadata can be collapsed into a successful copy/move
-  result.
+  `ETag` or `LastModified` metadata, nested `Error` elements, and unknown
+  top-level success children before provider-side copy metadata can be
+  collapsed into a successful copy/move result.
 - S3-compatible `PutObject` and `DeleteObject` success responses now reject
   top-level standard S3 `<Error>` bodies with bounded one-line diagnostics,
   so compatible-provider throttling/auth/policy failures cannot be reported as

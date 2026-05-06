@@ -4093,6 +4093,10 @@ Implementation order:
       `ETag` headers when providers send them, rejecting duplicate or
       non-empty malformed write identity metadata while preserving compatibility
       with providers that omit the header.
+1459. S3-compatible `CopyObjectResult` success XML now rejects unknown
+      top-level success children, keeping copy/move success metadata limited to
+      canonical S3 fields instead of accepting provider-specific payload shape
+      drift as durable object duplication.
 
 ## Deferred until backend contracts stabilize
 
