@@ -2,8 +2,11 @@ package carddavgw
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func stringPtr(value string) *string {
@@ -70,6 +73,43 @@ func TestValidateCreateAddressBookAtPathRequestRejectsNonUUIDPathIDs(t *testing.
 				t.Fatal("ValidateCreateAddressBookAtPathRequest error = nil, want rejection")
 			}
 		})
+	}
+}
+
+func TestMapContactObjectUpsertErrorMapsUniqueUIDViolation(t *testing.T) {
+	t.Parallel()
+
+	err := mapContactObjectUpsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_carddav_contact_objects_active_uid",
+	})
+	if err == nil || !strings.Contains(err.Error(), "UID already exists") {
+		t.Fatalf("mapped error = %v, want duplicate UID context", err)
+	}
+}
+
+func TestMapContactObjectUpsertErrorMapsUniqueNameViolation(t *testing.T) {
+	t.Parallel()
+
+	err := mapContactObjectUpsertError(&pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "idx_carddav_contact_objects_active_name",
+	})
+	if err == nil || !strings.Contains(err.Error(), "object already exists") {
+		t.Fatalf("mapped error = %v, want duplicate object context", err)
+	}
+}
+
+func TestMapContactObjectUpsertErrorPreservesUnknownErrors(t *testing.T) {
+	t.Parallel()
+
+	base := errors.New("driver failed")
+	err := mapContactObjectUpsertError(base)
+	if !errors.Is(err, base) {
+		t.Fatalf("mapped error = %v, want wrapped driver error", err)
+	}
+	if !strings.Contains(err.Error(), "upsert CardDAV contact object") {
+		t.Fatalf("mapped error = %v, want upsert context", err)
 	}
 }
 

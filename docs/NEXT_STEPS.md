@@ -1647,7 +1647,9 @@ Next:
   is no longer active. Contact-object `PUT` now rejects duplicate active vCard
   UIDs within the same address book before the SQL upsert path, keeping
   repository errors predictable while the PostgreSQL partial unique index
-  remains the final concurrency guard.
+  remains the final concurrency guard. Final unique-index races are mapped back
+  to stable duplicate UID/name repository errors instead of surfacing raw driver
+  messages.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.

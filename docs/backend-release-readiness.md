@@ -426,6 +426,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Contact-object writes preflight duplicate active vCard UIDs within the same
   address book before SQL upsert, keeping failures predictable while the
   PostgreSQL partial unique index remains the final concurrency guard.
+  Unique-index races for active contact-object names or UIDs are mapped back to
+  stable duplicate repository errors instead of leaking raw driver diagnostics.
   Contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` now run inside the internal handler with `text/vcard` validation,
   bounded body reads, ETag and Last-Modified headers, cache/precondition

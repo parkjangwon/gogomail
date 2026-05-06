@@ -102,7 +102,9 @@ instead of requiring the collection row to be active.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
 remains the final concurrency guard, but normal handler/repository failures now
-stay predictable and developer-readable.
+stay predictable and developer-readable. Final unique-index races for active
+object names or UIDs are mapped back into stable repository errors instead of
+exposing raw database driver diagnostics.
 
 Contact-object HTTP I/O now exists behind the same internal handler:
 `GET`/`HEAD` return vCard bodies and metadata with HTTP cache/precondition
