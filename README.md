@@ -131,7 +131,7 @@ Recent release-readiness work also includes:
   SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
   numeric grammar checks including rejection of quoted/literal-framed set
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and
-  SEARCH set operands,
+  SEARCH/SORT/THREAD set operands,
   partial windows, SEARCH size criteria,
   RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
   semantics, RFC 2971 `ID` including bare no-argument probes, `NIL`, and

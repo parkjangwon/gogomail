@@ -867,6 +867,16 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 			_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 			return true, false, err
 		}
+	case "SORT":
+		if criteriaStart := imapSortSearchCriteriaStart(fields, 2); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+			_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
+			return true, false, err
+		}
+	case "THREAD":
+		if criteriaStart := imapThreadSearchCriteriaStart(fields, 2); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+			_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
+			return true, false, err
+		}
 	case "FETCH":
 		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
 			_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
@@ -897,6 +907,16 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 				_, err := writer.WriteString(tag + " BAD SEARCH criteria are unsupported\r\n")
 				return true, false, err
 			}
+		case "SORT":
+			if criteriaStart := imapSortSearchCriteriaStart(fields, 3); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+				_, err := writer.WriteString(tag + " BAD SORT criteria are unsupported\r\n")
+				return true, false, err
+			}
+		case "THREAD":
+			if criteriaStart := imapThreadSearchCriteriaStart(fields, 3); criteriaStart >= 0 && imapSearchHasNonAtomSequenceSetArgument(line, fields, criteriaStart, criteriaStart) {
+				_, err := writer.WriteString(tag + " BAD THREAD criteria are unsupported\r\n")
+				return true, false, err
+			}
 		case "FETCH":
 			if !imapRawFieldIsAtom(line, 3) {
 				_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
@@ -925,6 +945,38 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 		}
 	}
 	return false, false, nil
+}
+
+func imapSortSearchCriteriaStart(fields []string, argumentStart int) int {
+	if len(fields) <= argumentStart {
+		return -1
+	}
+	if strings.EqualFold(fields[argumentStart], "RETURN") {
+		if len(fields) <= argumentStart+4 {
+			return -1
+		}
+		return argumentStart + 4
+	}
+	if len(fields) <= argumentStart+2 {
+		return -1
+	}
+	return argumentStart + 2
+}
+
+func imapThreadSearchCriteriaStart(fields []string, argumentStart int) int {
+	if len(fields) <= argumentStart {
+		return -1
+	}
+	if strings.EqualFold(fields[argumentStart], "RETURN") {
+		if len(fields) <= argumentStart+4 {
+			return -1
+		}
+		return argumentStart + 4
+	}
+	if len(fields) <= argumentStart+2 {
+		return -1
+	}
+	return argumentStart + 2
 }
 
 func imapSearchHasNonAtomSequenceSetArgument(line string, fields []string, criteriaStart int, rawCriteriaStart int) bool {

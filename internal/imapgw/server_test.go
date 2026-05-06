@@ -1140,6 +1140,63 @@ func TestServerRejectsStringSearchSequenceSetArguments(t *testing.T) {
 	}
 }
 
+func TestServerRejectsLiteralSortThreadSequenceSetArguments(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SORT (DATE) UTF-8 {1}\r\n")); err != nil {
+		t.Fatalf("write sort literal marker: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("sort literal continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("1\r\n")); err != nil {
+		t.Fatalf("write sort literal set: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD SORT criteria are unsupported\r\n" {
+		t.Fatalf("sort literal response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 THREAD ORDEREDSUBJECT UTF-8 {1+}\r\n1\r\n")); err != nil {
+		t.Fatalf("write thread literal+ set: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 BAD THREAD criteria are unsupported\r\n" {
+		t.Fatalf("thread literal response = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	want := []string{
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a3 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read logout response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("logout response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerRejectsUnsupportedFetchDataItemsBeforeMailboxState(t *testing.T) {
 	t.Parallel()
 
@@ -1302,7 +1359,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH X-GM-RAW test\r\na15 SEARCH ALL\r\na16 SORT (DATE) UTF-8 +1\r\na17 THREAD ORDEREDSUBJECT UTF-8 +1\r\na18 SORT (DATE) UTF-8 ALL\r\na19 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na20 SEARCH CHARSET ISO-8859-1 ALL\r\na21 SORT (DATE) ISO-8859-1 ALL\r\na22 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na23 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH X-GM-RAW test\r\na15 SEARCH ALL\r\na16 SORT (DATE) UTF-8 +1\r\na17 THREAD ORDEREDSUBJECT UTF-8 +1\r\na18 SORT (DATE) UTF-8 \"1\"\r\na19 UID SORT (DATE) UTF-8 \"7\"\r\na20 THREAD ORDEREDSUBJECT UTF-8 \"1\"\r\na21 UID THREAD ORDEREDSUBJECT UTF-8 \"7\"\r\na22 SORT (DATE) UTF-8 ALL\r\na23 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na24 SEARCH CHARSET ISO-8859-1 ALL\r\na25 SORT (DATE) ISO-8859-1 ALL\r\na26 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na27 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -1323,13 +1380,17 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a15 NO authentication required\r\n",
 		"a16 BAD SORT criteria are unsupported\r\n",
 		"a17 BAD THREAD criteria are unsupported\r\n",
-		"a18 NO authentication required\r\n",
-		"a19 NO authentication required\r\n",
-		"a20 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
-		"a21 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
-		"a22 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a18 BAD SORT criteria are unsupported\r\n",
+		"a19 BAD SORT criteria are unsupported\r\n",
+		"a20 BAD THREAD criteria are unsupported\r\n",
+		"a21 BAD THREAD criteria are unsupported\r\n",
+		"a22 NO authentication required\r\n",
+		"a23 NO authentication required\r\n",
+		"a24 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
+		"a25 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
+		"a26 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a23 OK LOGOUT completed\r\n",
+		"a27 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

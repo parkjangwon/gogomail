@@ -78,6 +78,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   reject exact quoted or literal-framed set strings such as `SEARCH "1"` or
   `UID SEARCH UID {1+}\r\n7`, keeping search set operands atom-only while
   preserving strings for text and header search operands.
+- IMAP `SORT`/`UID SORT` and `THREAD`/`UID THREAD` embedded search set
+  operands now reject the same quoted or literal-framed sequence-set forms,
+  keeping all search-family set operands atom-only before state checks.
 - IMAP command names and `UID` subcommand names now reject quoted-string
   and command-literal probes such as `"NOOP"`, `{4}\r\nNOOP`, `UID "COPY"`,
   or `UID {4}\r\nCOPY` as malformed commands, preserving the distinction
