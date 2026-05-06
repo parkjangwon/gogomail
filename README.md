@@ -6,6 +6,12 @@ Go-first backend implementation for the gogomail webmail/mail-server platform:
 a standards-first, backend-contract-first mail platform designed for RFC
 correctness, high-throughput operation, and generated-client friendly APIs.
 
+gogomail is intentionally organized for agent-assisted development. The repo
+carries current status, roadmap, ADRs, OpenAPI contracts, release gates, and
+change checklists so future agents can resume work without rediscovering the
+same product direction. Treat those files as part of the product surface: code,
+tests, contracts, and docs should move together.
+
 ## Current scope
 
 This repository is currently in the backend platform hardening phase. The goal
@@ -55,6 +61,8 @@ High-level design rules:
   event fan-out work begins
 - keep frontend implementation gated until backend contracts are stable and the
   explicit frontend start signal is given
+- make release claims only after the implementation, regression tests,
+  generated-client contracts, and operator docs describe the same behavior
 
 Runtime concurrency is Go-native. Network listeners, protocol sessions,
 workers, event consumers, notification fan-out, cleanup loops, and mailbox
@@ -126,6 +134,9 @@ Recent release-readiness work also includes:
   values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
   `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing,
   rejection of whitespace-bearing sequence-set range components,
+  strict KEYWORD/UNKEYWORD atom validation,
+  case-insensitive standard SORT criteria while preserving strict criterion-list
+  framing,
   selected-state event draining before sequence-set commands,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
@@ -233,6 +244,11 @@ Agent work protocol:
 4. Run the verification commands.
 5. Commit and push to `origin/main`.
 6. Report what changed, what passed, and whether the push completed.
+
+Meaningful autonomous work should generally land as one reviewable release
+unit at a time: implement the behavior, add RFC-shaped or boundary-focused
+tests, update the relevant handoff docs, run the release verification script,
+commit with a conventional message, and push to `origin/main`.
 
 ## Backend modes
 
