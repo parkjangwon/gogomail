@@ -335,6 +335,49 @@ func TestS3StoreReadersHonorCanceledContext(t *testing.T) {
 	})
 }
 
+func TestS3StoreGetDrainsSmallRemainderOnClose(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("hello-extra")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	reader, err := store.Get(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Get returned error: %v", err)
+	}
+	prefix := make([]byte, len("hello"))
+	if _, err := io.ReadFull(reader, prefix); err != nil {
+		t.Fatalf("read get prefix: %v", err)
+	}
+	if string(prefix) != "hello" {
+		t.Fatalf("prefix = %q, want hello", prefix)
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatalf("close get body: %v", err)
+	}
+	if !body.closed {
+		t.Fatal("get body was not closed")
+	}
+	if body.readBytes != len("hello-extra") {
+		t.Fatalf("read bytes = %d, want drained %d", body.readBytes, len("hello-extra"))
+	}
+}
+
 func TestS3StoreStatRequiresValidContentLength(t *testing.T) {
 	t.Parallel()
 

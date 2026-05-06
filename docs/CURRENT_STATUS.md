@@ -2545,6 +2545,9 @@ The platform hardening sprint completed the following:
   when callers close a range reader before consuming the full requested window,
   improving connection reuse for preview/cancel paths without unbounded drain
   work.
+- S3-compatible full-object `GET` readers now also drain a small bounded
+  remainder on close, keeping preview/cancel download paths friendly to HTTP
+  connection reuse without unbounded cleanup reads.
 - IMAP `STATUS` and LIST-STATUS item parsing now rejects duplicate status data
   items before mailbox metadata lookup, avoiding ambiguous duplicate
   client-visible status pairs.

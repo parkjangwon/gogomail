@@ -135,7 +135,7 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
-	return &contextReadCloser{ctx: ctx, closer: resp.Body}, nil
+	return &s3ObjectReadCloser{ctx: ctx, body: resp.Body}, nil
 }
 
 func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq RangeRequest) (io.ReadCloser, error) {
@@ -602,6 +602,27 @@ func (r *exactReadCloser) Read(p []byte) (int, error) {
 func (r *exactReadCloser) Close() error {
 	_, _ = io.Copy(io.Discard, io.LimitReader(r.reader, maxS3ResponseDrainBytes))
 	return r.closer.Close()
+}
+
+type s3ObjectReadCloser struct {
+	ctx  context.Context
+	body io.ReadCloser
+}
+
+func (r *s3ObjectReadCloser) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	n, err := r.body.Read(p)
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return n, ctxErr
+	}
+	return n, err
+}
+
+func (r *s3ObjectReadCloser) Close() error {
+	_, _ = io.Copy(io.Discard, io.LimitReader(r.body, maxS3ResponseDrainBytes))
+	return r.body.Close()
 }
 
 func parseHTTPTime(value string) time.Time {
