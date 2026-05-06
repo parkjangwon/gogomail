@@ -4130,6 +4130,10 @@ Implementation order:
       quoted and literal destination mailbox names with spaces, plus escaped
       quotes, preserving RFC 3501 string tokenization through canonical
       mailbox lookup and service-backed mutation requests.
+1467. IMAP selected-state sequence-set and UID-set arguments now reject quoted
+      or command-literal set values for FETCH/STORE/COPY/MOVE/UID mutation
+      commands before state checks, keeping RFC set atoms distinct from IMAP
+      string values while still allowing strings for mailbox names.
 
 ## Deferred until backend contracts stabilize
 

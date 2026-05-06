@@ -430,6 +430,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return false, err
 	}
 	command := strings.ToUpper(fields[1])
+	if handled, done, err := imapRejectNonAtomSequenceSetArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if imapCommandShouldDrainSelectedEvents(command) {
 		if err := s.drainMailboxEvents(writer, state); err != nil {
 			return false, err
@@ -843,6 +846,63 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " BAD command not implemented\r\n")
 		return false, err
 	}
+}
+
+func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	switch command {
+	case "FETCH":
+		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
+			_, err := writer.WriteString(tag + " BAD FETCH requires a valid message sequence set\r\n")
+			return true, false, err
+		}
+	case "STORE":
+		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
+			_, err := writer.WriteString(tag + " BAD STORE requires a valid message sequence set\r\n")
+			return true, false, err
+		}
+	case "COPY":
+		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
+			_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
+			return true, false, err
+		}
+	case "MOVE":
+		if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
+			_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
+			return true, false, err
+		}
+	case "UID":
+		if len(fields) < 4 || !imapAtomValid(fields[2]) {
+			return false, false, nil
+		}
+		switch strings.ToUpper(fields[2]) {
+		case "FETCH":
+			if !imapRawFieldIsAtom(line, 3) {
+				_, err := writer.WriteString(tag + " BAD UID FETCH requires a positive UID set\r\n")
+				return true, false, err
+			}
+		case "STORE":
+			if !imapRawFieldIsAtom(line, 3) {
+				_, err := writer.WriteString(tag + " BAD UID STORE requires a positive UID set\r\n")
+				return true, false, err
+			}
+		case "EXPUNGE":
+			if !imapRawFieldIsAtom(line, 3) {
+				_, err := writer.WriteString(tag + " BAD UID EXPUNGE requires a positive UID set\r\n")
+				return true, false, err
+			}
+		case "COPY":
+			if !imapRawFieldIsAtom(line, 3) {
+				_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
+				return true, false, err
+			}
+		case "MOVE":
+			if !imapRawFieldIsAtom(line, 3) {
+				_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
+				return true, false, err
+			}
+		}
+	}
+	return false, false, nil
 }
 
 func imapMalformedCommandResponse(line string) string {
@@ -7632,6 +7692,93 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 		return nil, fmt.Errorf("unused imap literal")
 	}
 	return fields, nil
+}
+
+func imapRawFieldIsAtom(line string, fieldIndex int) bool {
+	kind, ok := imapRawFieldKind(line, fieldIndex)
+	return ok && kind == imapRawFieldAtom
+}
+
+type imapRawFieldKindValue int
+
+const (
+	imapRawFieldAtom imapRawFieldKindValue = iota
+	imapRawFieldQuoted
+	imapRawFieldLiteral
+	imapRawFieldList
+)
+
+func imapRawFieldKind(line string, fieldIndex int) (imapRawFieldKindValue, bool) {
+	current := 0
+	for i := 0; i < len(line); {
+		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
+			i++
+		}
+		if i >= len(line) {
+			return 0, false
+		}
+		kind := imapRawFieldAtom
+		switch line[i] {
+		case '"':
+			kind = imapRawFieldQuoted
+			i++
+			for i < len(line) {
+				if line[i] == '\\' {
+					i += 2
+					continue
+				}
+				if line[i] == '"' {
+					i++
+					break
+				}
+				i++
+			}
+		case '(':
+			kind = imapRawFieldList
+			depth := 0
+			for i < len(line) {
+				switch line[i] {
+				case '"':
+					i++
+					for i < len(line) {
+						if line[i] == '\\' {
+							i += 2
+							continue
+						}
+						if line[i] == '"' {
+							i++
+							break
+						}
+						i++
+					}
+					continue
+				case '(':
+					depth++
+				case ')':
+					depth--
+					if depth == 0 {
+						i++
+						goto fieldDone
+					}
+				}
+				i++
+			}
+		default:
+			start := i
+			for i < len(line) && line[i] != ' ' && line[i] != '\t' {
+				i++
+			}
+			if imapLooksLikeLiteral(line[start:i]) {
+				kind = imapRawFieldLiteral
+			}
+		}
+	fieldDone:
+		if current == fieldIndex {
+			return kind, true
+		}
+		current++
+	}
+	return 0, false
 }
 
 func imapParenthesizedFieldNeedsGrouping(line string, start int) bool {
