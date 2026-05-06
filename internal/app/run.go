@@ -445,11 +445,13 @@ func runDriveCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.
 }
 
 func driveServiceForConfig(db *sql.DB, cfg config.Config, store storage.Store) *drive.Service {
+	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
 	stores := map[string]storage.Store{
-		strings.ToLower(strings.TrimSpace(cfg.StorageBackend)): store,
+		backend: store,
 	}
-	if strings.EqualFold(cfg.StorageBackend, "minio") {
+	if backend == "s3" || backend == "minio" {
 		stores["s3"] = store
+		stores["minio"] = store
 	}
 	return drive.NewService(drive.NewRepository(db), stores)
 }

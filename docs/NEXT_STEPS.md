@@ -242,6 +242,10 @@ Current state:
   `GOGOMAIL_STORAGE_BACKEND=minio` uses the same adapter with path-style
   requests for local MinIO-style deployments. Both use endpoint, region, bucket,
   prefix, credential, and session-token settings.
+- Drive runtime wiring now registers the configured S3-compatible store under
+  both `s3` and `minio` labels, so rows created under local MinIO can still be
+  served after an AWS S3-style backend flip and vice versa when object keys and
+  bucket contents have been migrated.
 - App-level storage option construction now has direct coverage for MinIO
   path-style pinning, ordinary S3 virtual-hosted defaults, and the explicit
   `GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE=true` override.

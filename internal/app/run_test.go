@@ -16,6 +16,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -226,6 +227,43 @@ func TestObjectStoreForConfigBuildsMinIOBackend(t *testing.T) {
 	}
 	if _, ok := store.(*storage.S3Store); !ok {
 		t.Fatalf("store = %T, want *storage.S3Store", store)
+	}
+}
+
+func TestDriveServiceForConfigTreatsS3AndMinIOAsCompatibleLabels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		configBackend   string
+		recordedBackend string
+	}{
+		{name: "s3 serves minio rows", configBackend: "s3", recordedBackend: "minio"},
+		{name: "minio serves s3 rows", configBackend: "minio", recordedBackend: "s3"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := storage.NewLocalStore(t.TempDir())
+			service := driveServiceForConfig(nil, config.Config{StorageBackend: tt.configBackend}, store)
+			staged, err := service.StoreStagedObject(context.Background(), drive.StoreStagedObjectRequest{
+				UserID:         "user-1",
+				UploadID:       strings.ReplaceAll(tt.name, " ", "-"),
+				StorageBackend: tt.recordedBackend,
+				Body:           strings.NewReader("portable drive object"),
+			})
+			if err != nil {
+				t.Fatalf("StoreStagedObject returned error: %v", err)
+			}
+			if staged.StorageBackend != tt.recordedBackend {
+				t.Fatalf("storage backend = %q, want preserved recorded label %q", staged.StorageBackend, tt.recordedBackend)
+			}
+			if _, err := store.Stat(context.Background(), staged.StoragePath); err != nil {
+				t.Fatalf("staged object not written through compatible store: %v", err)
+			}
+		})
 	}
 }
 
