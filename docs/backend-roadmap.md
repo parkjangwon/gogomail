@@ -3046,6 +3046,10 @@ Implementation order:
       checks, while preserving supported macro, `BODY`/`BODY.PEEK`,
       `RFC822.*`, header-field-list, partial body, MIME section, and
       `CHANGEDSINCE` request shapes.
+1231. Drive permanent-delete object cleanup now records retry rows for every
+      object not proven deleted after a partial cleanup failure, including the
+      failed object and trailing unattempted objects, preventing post-commit
+      metadata deletion from leaving S3/local/NFS storage drift untracked.
 
 ## Deferred until backend contracts stabilize
 

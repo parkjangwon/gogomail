@@ -35,11 +35,14 @@ func TestCleanupDeletedObjectsDeletesEachUniqueBackendObject(t *testing.T) {
 func TestCleanupDeletedObjectsReportsProgressOnDeleteFailure(t *testing.T) {
 	t.Parallel()
 
-	store := &recordingStore{deleteErr: errors.New("boom")}
+	store := &recordingStore{failAfterDeletes: 1, deleteErr: errors.New("boom")}
 	result, err := CleanupDeletedObjects(context.Background(), map[string]storage.Store{
 		"s3": store,
 	}, []DeletedObject{
 		{StorageBackend: "s3", StoragePath: "drive/user-1/a.txt"},
+		{StorageBackend: "s3", StoragePath: "drive/user-1/b.txt"},
+		{StorageBackend: "s3", StoragePath: "drive/user-1/b.txt"},
+		{StorageBackend: "s3", StoragePath: "drive/user-1/c.txt"},
 	})
 	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("CleanupDeletedObjects err = %v, want delete failure", err)
@@ -48,11 +51,23 @@ func TestCleanupDeletedObjectsReportsProgressOnDeleteFailure(t *testing.T) {
 	if !errors.As(err, &cleanupErr) {
 		t.Fatalf("CleanupDeletedObjects err = %T, want ObjectCleanupError", err)
 	}
-	if cleanupErr.StorageBackend != "s3" || cleanupErr.StoragePath != "drive/user-1/a.txt" || cleanupErr.Deleted != 0 {
+	if cleanupErr.StorageBackend != "s3" || cleanupErr.StoragePath != "drive/user-1/b.txt" || cleanupErr.Deleted != 1 {
 		t.Fatalf("cleanup error = %+v, want failed object context", cleanupErr)
 	}
-	if result.Deleted != 0 {
-		t.Fatalf("Deleted = %d, want 0 after first-object failure", result.Deleted)
+	wantPending := []DeletedObject{
+		{StorageBackend: "s3", StoragePath: "drive/user-1/b.txt"},
+		{StorageBackend: "s3", StoragePath: "drive/user-1/c.txt"},
+	}
+	if len(cleanupErr.Pending) != len(wantPending) {
+		t.Fatalf("pending = %+v, want failed plus trailing objects", cleanupErr.Pending)
+	}
+	for i := range wantPending {
+		if cleanupErr.Pending[i] != wantPending[i] {
+			t.Fatalf("pending[%d] = %+v, want %+v", i, cleanupErr.Pending[i], wantPending[i])
+		}
+	}
+	if result.Deleted != 1 {
+		t.Fatalf("Deleted = %d, want 1 after partial failure", result.Deleted)
 	}
 }
 
@@ -116,8 +131,9 @@ func TestCleanupDeletedObjectsHonorsCanceledContext(t *testing.T) {
 }
 
 type recordingStore struct {
-	deleted   []string
-	deleteErr error
+	deleted          []string
+	failAfterDeletes int
+	deleteErr        error
 }
 
 func (s *recordingStore) Put(context.Context, string, io.Reader) error {
@@ -149,7 +165,7 @@ func (s *recordingStore) List(context.Context, storage.ListOptions) (storage.Obj
 }
 
 func (s *recordingStore) Delete(_ context.Context, path string) error {
-	if s.deleteErr != nil {
+	if s.deleteErr != nil && (s.failAfterDeletes == 0 || len(s.deleted) >= s.failAfterDeletes) {
 		return s.deleteErr
 	}
 	s.deleted = append(s.deleted, path)

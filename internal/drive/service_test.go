@@ -55,8 +55,42 @@ func TestRecordObjectCleanupFailureUsesCleanupErrorContext(t *testing.T) {
 	if recorder.calls != 1 {
 		t.Fatalf("recorder calls = %d, want 1", recorder.calls)
 	}
-	if recorder.failure.UserID != "user-1" || recorder.failure.NodeID != "node-1" || recorder.failure.StorageBackend != "s3" || recorder.failure.StoragePath != "drive/users/user-1/objects/node-1" {
-		t.Fatalf("recorded failure = %+v, want cleanup context", recorder.failure)
+	if recorder.failures[0].UserID != "user-1" || recorder.failures[0].NodeID != "node-1" || recorder.failures[0].StorageBackend != "s3" || recorder.failures[0].StoragePath != "drive/users/user-1/objects/node-1" {
+		t.Fatalf("recorded failure = %+v, want cleanup context", recorder.failures[0])
+	}
+}
+
+func TestRecordObjectCleanupFailureRecordsPendingObjects(t *testing.T) {
+	t.Parallel()
+
+	recorder := &recordingCleanupFailureRecorder{}
+	service := NewService(nil, nil).WithObjectCleanupFailureRecorder(recorder)
+	deleted := PermanentDeleteResult{
+		Root: Node{ID: "node-1", UserID: "user-1"},
+	}
+	err := service.recordObjectCleanupFailure(context.Background(), deleted, ObjectCleanupError{
+		StorageBackend: "s3",
+		StoragePath:    "drive/users/user-1/objects/node-2",
+		Pending: []DeletedObject{
+			{StorageBackend: "s3", StoragePath: "drive/users/user-1/objects/node-2"},
+			{StorageBackend: "local", StoragePath: "drive/users/user-1/objects/node-3"},
+		},
+		Err: errors.New("delete failed"),
+	})
+	if err != nil {
+		t.Fatalf("recordObjectCleanupFailure returned error: %v", err)
+	}
+	if recorder.calls != 2 {
+		t.Fatalf("recorder calls = %d, want 2", recorder.calls)
+	}
+	want := []ObjectCleanupFailure{
+		{UserID: "user-1", NodeID: "node-1", StorageBackend: "s3", StoragePath: "drive/users/user-1/objects/node-2", LastError: "delete failed"},
+		{UserID: "user-1", NodeID: "node-1", StorageBackend: "local", StoragePath: "drive/users/user-1/objects/node-3", LastError: "delete failed"},
+	}
+	for i := range want {
+		if recorder.failures[i] != want[i] {
+			t.Fatalf("recorded failure[%d] = %+v, want %+v", i, recorder.failures[i], want[i])
+		}
 	}
 }
 
@@ -85,11 +119,11 @@ func TestRecordCopiedObjectCleanupFailureUsesCopiedObjectContext(t *testing.T) {
 	if recorder.calls != 1 {
 		t.Fatalf("recorder calls = %d, want 1", recorder.calls)
 	}
-	if recorder.failure.UserID != "user-1" || recorder.failure.NodeID != "" || recorder.failure.StorageBackend != "s3" || recorder.failure.StoragePath != "drive/users/user-1/objects/copy-1" {
-		t.Fatalf("recorded copied failure = %+v, want copied object context without node id", recorder.failure)
+	if recorder.failures[0].UserID != "user-1" || recorder.failures[0].NodeID != "" || recorder.failures[0].StorageBackend != "s3" || recorder.failures[0].StoragePath != "drive/users/user-1/objects/copy-1" {
+		t.Fatalf("recorded copied failure = %+v, want copied object context without node id", recorder.failures[0])
 	}
-	if recorder.failure.LastError != "delete copied object failed" {
-		t.Fatalf("last error = %q", recorder.failure.LastError)
+	if recorder.failures[0].LastError != "delete copied object failed" {
+		t.Fatalf("last error = %q", recorder.failures[0].LastError)
 	}
 }
 
@@ -203,14 +237,14 @@ func TestRetryObjectCleanupFailuresRequiresStore(t *testing.T) {
 }
 
 type recordingCleanupFailureRecorder struct {
-	calls   int
-	failure ObjectCleanupFailure
-	err     error
+	calls    int
+	failures []ObjectCleanupFailure
+	err      error
 }
 
 func (r *recordingCleanupFailureRecorder) RecordObjectCleanupFailure(_ context.Context, failure ObjectCleanupFailure) (ObjectCleanupFailure, error) {
 	r.calls++
-	r.failure = failure
+	r.failures = append(r.failures, failure)
 	if r.err != nil {
 		return ObjectCleanupFailure{}, r.err
 	}

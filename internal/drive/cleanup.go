@@ -15,6 +15,7 @@ type ObjectCleanupError struct {
 	StorageBackend string
 	StoragePath    string
 	Deleted        int
+	Pending        []DeletedObject
 	Err            error
 }
 
@@ -40,32 +41,40 @@ func CleanupDeletedObjects(ctx context.Context, stores map[string]storage.Store,
 		return ObjectCleanupResult{}, fmt.Errorf("storage stores are required")
 	}
 
-	seen := make(map[DeletedObject]struct{}, len(objects))
-	result := ObjectCleanupResult{}
 	for _, object := range objects {
-		if err := ctx.Err(); err != nil {
-			return result, err
-		}
 		storageBackend, err := validateStorageBackend(object.StorageBackend)
 		if err != nil {
-			return result, ObjectCleanupError{StorageBackend: object.StorageBackend, StoragePath: object.StoragePath, Deleted: result.Deleted, Err: err}
+			return ObjectCleanupResult{}, ObjectCleanupError{StorageBackend: object.StorageBackend, StoragePath: object.StoragePath, Err: err}
 		}
 		storagePath, err := storage.ValidateObjectPath(object.StoragePath)
 		if err != nil {
-			return result, ObjectCleanupError{StorageBackend: storageBackend, StoragePath: object.StoragePath, Deleted: result.Deleted, Err: err}
+			return ObjectCleanupResult{}, ObjectCleanupError{StorageBackend: storageBackend, StoragePath: object.StoragePath, Err: err}
 		}
+		if stores[storageBackend] == nil {
+			return ObjectCleanupResult{}, ObjectCleanupError{StorageBackend: storageBackend, StoragePath: storagePath, Err: fmt.Errorf("storage store %q is required", storageBackend)}
+		}
+	}
+
+	seen := make(map[DeletedObject]struct{}, len(objects))
+	pending := make([]DeletedObject, 0, len(objects))
+	for _, object := range objects {
+		storageBackend, _ := validateStorageBackend(object.StorageBackend)
+		storagePath, _ := storage.ValidateObjectPath(object.StoragePath)
 		object = DeletedObject{StorageBackend: storageBackend, StoragePath: storagePath}
 		if _, ok := seen[object]; ok {
 			continue
 		}
 		seen[object] = struct{}{}
+		pending = append(pending, object)
+	}
 
-		store := stores[storageBackend]
-		if store == nil {
-			return result, ObjectCleanupError{StorageBackend: storageBackend, StoragePath: storagePath, Deleted: result.Deleted, Err: fmt.Errorf("storage store %q is required", storageBackend)}
+	result := ObjectCleanupResult{}
+	for i, object := range pending {
+		if err := ctx.Err(); err != nil {
+			return result, ObjectCleanupError{StorageBackend: object.StorageBackend, StoragePath: object.StoragePath, Deleted: result.Deleted, Pending: pending[i:], Err: err}
 		}
-		if err := store.Delete(ctx, storagePath); err != nil {
-			return result, ObjectCleanupError{StorageBackend: storageBackend, StoragePath: storagePath, Deleted: result.Deleted, Err: err}
+		if err := stores[object.StorageBackend].Delete(ctx, object.StoragePath); err != nil {
+			return result, ObjectCleanupError{StorageBackend: object.StorageBackend, StoragePath: object.StoragePath, Deleted: result.Deleted, Pending: pending[i:], Err: err}
 		}
 		result.Deleted++
 	}

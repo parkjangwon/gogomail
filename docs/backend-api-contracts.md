@@ -292,7 +292,8 @@ or development `user_id` fallback path as webmail mail routes:
   share link and returns `{"drive_share_link":{...}}` with `status=revoked`.
 - `DELETE /api/v1/drive/nodes/{id}` permanently deletes a trashed node tree,
   releases quota through the Drive service, attempts backend object cleanup,
-  records cleanup drift when needed, and returns `{"drive_delete":{...}}`.
+  records cleanup drift for every object not proven deleted when needed, and
+  returns `{"drive_delete":{...}}`.
 
 Drive chunked/resumable transfer routes remain intentionally separate future
 contracts so chunk ordering, retry windows, and frontend upload ergonomics can

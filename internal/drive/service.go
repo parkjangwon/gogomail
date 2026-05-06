@@ -728,14 +728,23 @@ func (s *Service) recordObjectCleanupFailure(ctx context.Context, deleted Perman
 	if !errors.As(cleanupErr, &objectErr) {
 		return nil
 	}
-	_, err := s.cleanupFailureRecorder.RecordObjectCleanupFailure(ctx, ObjectCleanupFailure{
-		UserID:         deleted.Root.UserID,
-		NodeID:         deleted.Root.ID,
-		StorageBackend: objectErr.StorageBackend,
-		StoragePath:    objectErr.StoragePath,
-		LastError:      objectErr.Err.Error(),
-	})
-	return err
+	pending := objectErr.Pending
+	if len(pending) == 0 && objectErr.StorageBackend != "" && objectErr.StoragePath != "" {
+		pending = []DeletedObject{{StorageBackend: objectErr.StorageBackend, StoragePath: objectErr.StoragePath}}
+	}
+	for _, object := range pending {
+		_, err := s.cleanupFailureRecorder.RecordObjectCleanupFailure(ctx, ObjectCleanupFailure{
+			UserID:         deleted.Root.UserID,
+			NodeID:         deleted.Root.ID,
+			StorageBackend: object.StorageBackend,
+			StoragePath:    object.StoragePath,
+			LastError:      objectErr.Err.Error(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) recordCopiedObjectCleanupFailure(ctx context.Context, userID string, storageBackend string, storagePath string, cleanupErr error) error {

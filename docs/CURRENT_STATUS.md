@@ -647,7 +647,10 @@ owner/resource target without scanning unrelated audit history.
 - Drive now has a backend-object cleanup helper that consumes permanent-delete
   object references, validates storage backend/path input, de-duplicates
   repeated references, honors cancellation, and deletes through the configured
-  storage stores with progress-preserving errors.
+  storage stores with progress-preserving errors. On the first cleanup
+  failure, it now carries the failed object plus every not-yet-attempted
+  object so post-commit metadata deletion cannot leave trailing storage
+  objects untracked.
 - Drive now has a small internal service layer that composes repository
   permanent-delete with backend object cleanup, preserving cleanup progress on
   post-transaction storage failures for future retry/reconciliation handling.
@@ -657,7 +660,8 @@ owner/resource target without scanning unrelated audit history.
   tenant/user scoped.
 - Drive permanent-delete cleanup failures now have a PostgreSQL retry record
   boundary. Structured cleanup errors can be recorded with user/node/object
-  context, pending failures are de-duplicated per backend/path, attempts are
+  context for every object not proven deleted after a committed permanent
+  delete, pending failures are de-duplicated per backend/path, attempts are
   incremented on repeat failures, object paths must stay under the owning
   user's `drive/users/{user_id}/...` prefix, and error text is one-line/UTF-8
   bounded for future operator and worker surfaces.
