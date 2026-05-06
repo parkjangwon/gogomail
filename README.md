@@ -29,7 +29,8 @@ Recent release-readiness work also includes:
   request-boundary validation, and OpenAPI/runtime drift tests
 - storage portability across local filesystem, explicit NFS mounts, local
   MinIO, and AWS/S3-compatible object storage through the shared storage
-  interface and validated `configs/storage.*.yaml` profiles
+  interface, validated `configs/storage.*.yaml` profiles, and extensible
+  compatibility labels that keep support claims conservative
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
@@ -42,11 +43,14 @@ Recent release-readiness work also includes:
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
-  validation, and Directory/Identity, delegation, Notification & Sync, search,
-  policy, and audit boundaries treated as platform prerequisites
+  validation, sync report discovery gated by runtime change-log support, and
+  Directory/Identity, delegation, Notification & Sync, search, policy, and
+  audit boundaries treated as platform prerequisites
 - backend-only CardDAV foundations for contacts interoperability, with
   address-book principal/object boundaries, vCard validation, sync discovery,
-  and native-client compatibility gates kept separate from future UI work
+  RFC-shaped query filtering, sync report discovery gated by runtime
+  change-log support, and native-client compatibility gates kept separate from
+  future UI work
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract for metadata, upload/finalize, rename/move, delete, range download,
   public share-link metadata/download, and cleanup readiness without starting
