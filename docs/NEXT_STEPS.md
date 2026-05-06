@@ -63,6 +63,9 @@ Current state:
   authentication or selected-mailbox state checks, keeping advertised
   `THREAD=ORDEREDSUBJECT` capability behavior explicit for clients that probe
   `REFERENCES` or future algorithms.
+- IMAP literal parsing regression coverage now locks malformed literal-marker
+  placement, trailing atom data after literal payloads, and unused literal
+  payloads to parser-level `BAD` responses before command handlers run.
 - Selected-state no-argument commands validate extra arguments on `CHECK`,
   `IDLE`, `CLOSE`, `UNSELECT`, and `EXPUNGE` before returning authentication
   or selected-mailbox state errors.

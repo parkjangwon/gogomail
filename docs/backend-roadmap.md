@@ -3082,6 +3082,10 @@ Implementation order:
       authentication or selected-mailbox checks, keeping the advertised
       `THREAD=ORDEREDSUBJECT` capability boundary explicit when clients probe
       unsupported algorithms such as `REFERENCES`.
+1239. IMAP literal parsing regression coverage now locks malformed literal
+      marker placement, trailing atom data after literal payloads, and unused
+      literal payloads to parser-level `BAD` responses before command handlers
+      can consume corrupted arguments.
 
 ## Deferred until backend contracts stabilize
 
