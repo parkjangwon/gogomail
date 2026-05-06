@@ -2204,7 +2204,10 @@ func imapSupportedCharset(value string) (string, bool) {
 	if strings.Contains(value, `"`) {
 		return "", false
 	}
-	charset := strings.ToUpper(strings.TrimSpace(value))
+	if strings.TrimSpace(value) != value {
+		return "", false
+	}
+	charset := strings.ToUpper(value)
 	switch charset {
 	case "US-ASCII", "UTF-8":
 		return charset, true
@@ -2351,7 +2354,10 @@ func imapThreadAlgorithm(value string) (string, bool) {
 	if strings.Contains(value, `"`) {
 		return "", false
 	}
-	algorithm := strings.ToUpper(strings.TrimSpace(value))
+	if strings.TrimSpace(value) != value {
+		return "", false
+	}
+	algorithm := strings.ToUpper(value)
 	if algorithm == "" {
 		return "", false
 	}

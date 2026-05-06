@@ -3918,6 +3918,10 @@ Implementation order:
 1415. IMAP `LIST RETURN` option-list parsing now rejects whitespace-padded
       quoted or literal list values such as `RETURN " (CHILDREN) "` instead
       of trimming them into valid parenthesized return controls.
+1416. IMAP `SEARCH`, `SORT`, and `THREAD` charset parsing now rejects
+      whitespace-padded quoted or literal atoms such as `CHARSET " UTF-8 "`,
+      and `THREAD` algorithm parsing rejects padded `ORDEREDSUBJECT` values
+      instead of trimming them into advertised control atoms.
 
 ## Deferred until backend contracts stabilize
 

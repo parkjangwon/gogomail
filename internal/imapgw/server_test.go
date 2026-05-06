@@ -7252,6 +7252,49 @@ func TestServerHandlesFetchSequenceSetAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerRejectsPaddedSearchCharsetsAndThreadAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SEARCH CHARSET \" UTF-8 \" ALL\r\na2 SORT (DATE) \" UTF-8 \" ALL\r\na3 THREAD ORDEREDSUBJECT \" UTF-8 \" ALL\r\na4 THREAD \" ORDEREDSUBJECT \" UTF-8 ALL\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write padded search controls: %v", err)
+	}
+	want := []string{
+		"a1 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
+		"a2 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
+		"a3 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a4 BAD THREAD algorithm is unsupported\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read padded search control response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("padded search control response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 

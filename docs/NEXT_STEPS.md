@@ -316,6 +316,10 @@ Current state:
 - IMAP `LIST RETURN` option lists now reject whitespace-padded quoted or
   literal list values such as `RETURN " (CHILDREN) "` instead of trimming them
   into valid parenthesized return controls.
+- IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject
+  whitespace-padded quoted or literal atoms such as `CHARSET " UTF-8 "` instead
+  of trimming them into supported charsets, and `THREAD` algorithm arguments
+  now reject padded `ORDEREDSUBJECT` values on the same control-atom boundary.
 - IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
   partial full-message fetches, preserve the `RFC822<offset>` response atom,
   and mark messages seen like ordinary `RFC822` fetches.
@@ -630,14 +634,15 @@ Current state:
   `{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing response before
   reading literal bytes.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
-  that still contain quote characters after command parsing, preventing broken
-  values such as `UTF-8"` from being silently normalized. Unsupported charsets
-  now return the same RFC-shaped `[BADCHARSET (US-ASCII UTF-8)]` diagnostics
-  before authentication or selected-mailbox checks, so probe clients can fall
-  back deterministically.
+  that still contain quote characters or outer whitespace after command
+  parsing, preventing broken values such as `UTF-8"` or `" UTF-8 "` from being
+  silently normalized. Unsupported charsets now return the same RFC-shaped
+  `[BADCHARSET (US-ASCII UTF-8)]` diagnostics before authentication or
+  selected-mailbox checks, so probe clients can fall back deterministically.
 - IMAP `THREAD` algorithm arguments reject malformed atoms that still contain
-  quote characters after command parsing, preventing broken values such as
-  `ORDEREDSUBJECT"` from being silently normalized.
+  quote characters or outer whitespace after command parsing, preventing broken
+  values such as `ORDEREDSUBJECT"` or `" ORDEREDSUBJECT "` from being silently
+  normalized.
 - IMAP `SEARCH`/`UID SEARCH` text, body, and header string arguments reject
   malformed atoms that still contain quote characters after command parsing,
   preventing broken values such as `SUBJECT IMAP"` from being normalized.
