@@ -2,6 +2,7 @@ package imapgw
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -104,6 +105,34 @@ func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) 
 
 	if err := broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1}); err != nil {
 		t.Fatalf("Publish after cancellation returned error: %v", err)
+	}
+}
+
+func TestMailboxEventBrokerConcurrentPublishCancelDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	for i := 0; i < 1000; i++ {
+		_, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+		if err != nil {
+			t.Fatalf("Subscribe returned error: %v", err)
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		start := make(chan struct{})
+		go func() {
+			defer wg.Done()
+			<-start
+			_ = broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1})
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			cancel()
+		}()
+		close(start)
+		wg.Wait()
 	}
 }
 

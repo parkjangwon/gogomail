@@ -95,19 +95,14 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	}
 
 	b.mu.Lock()
-	targets := make([]chan MailboxEvent, 0, len(b.subscribers))
 	for _, sub := range b.subscribers {
 		if sub.userID == event.UserID && sub.mailboxID == event.MailboxID {
-			targets = append(targets, sub.events)
+			select {
+			case sub.events <- event:
+			default:
+			}
 		}
 	}
 	b.mu.Unlock()
-
-	for _, events := range targets {
-		select {
-		case events <- event:
-		default:
-		}
-	}
 	return nil
 }

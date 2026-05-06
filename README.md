@@ -36,7 +36,9 @@ Recent release-readiness work also includes:
   namespace compatibility, SEARCHRES `$` reuse across SEARCH/SORT/THREAD
   workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
-  SEARCH/SORT/THREAD diagnostics, IDLE recovery, and literal framing coverage
+  SEARCH/SORT/THREAD diagnostics, IDLE recovery, non-blocking mailbox event
+  delivery under concurrent subscription cancellation, and literal framing
+  coverage
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar

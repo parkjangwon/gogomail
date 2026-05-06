@@ -186,6 +186,10 @@ Current state:
 - IMAP selected-mailbox `RENAME` now tracks a backend-returned canonical
   mailbox ID and resubscribes event delivery to that ID while preserving
   same-selection SEARCHRES state.
+- IMAP mailbox event publishing is now guarded against concurrent subscription
+  cancellation by delivering non-blocking updates under the broker lock,
+  preventing send-on-closed-channel panics without letting slow subscribers
+  stall publisher paths.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

@@ -181,6 +181,10 @@ When `RENAME` is applied to the currently selected mailbox and the backend
 returns a new canonical mailbox ID, the IMAP session now moves selected state
 and mailbox event subscription to that returned ID while preserving saved
 SEARCHRES sequence results for the still-selected mailbox.
+IMAP mailbox event publishing now sends to matching subscription channels
+while holding the broker lock, preserving non-blocking slow-subscriber behavior
+while closing the race where a concurrent subscription cancel could close a
+snapshotted channel before publish delivered an `EXISTS`/`EXPUNGE` update.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for

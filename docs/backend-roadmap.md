@@ -3518,9 +3518,13 @@ Implementation order:
       path-style settings, preventing config-only backend flips from silently
       losing required object-storage settings.
 1323. CLI `--config` storage profile handoff coverage now asserts the same
-      MinIO/AWS S3 region, bucket, prefix, and credential fields before app
-      startup, keeping command-level profile smoke tests aligned with the
-      config-loader checks.
+      MinIO and AWS S3 profile fields as direct config loading, keeping
+      file-driven storage flips auditable across endpoint, region, bucket,
+      prefix, credentials, and path-style behavior.
+1324. IMAP mailbox event publishing now performs non-blocking delivery while
+      holding the broker lock, eliminating the race where concurrent
+      subscription cancellation could close a snapshotted channel before
+      publish sent an `EXISTS`/`EXPUNGE` update.
 
 ## Deferred until backend contracts stabilize
 

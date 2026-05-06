@@ -199,6 +199,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP selected-mailbox `RENAME` now follows backend-returned canonical mailbox
   IDs and refreshes event subscription state without discarding same-selection
   SEARCHRES results.
+- IMAP mailbox event publishing now avoids send-on-closed-channel races during
+  concurrent subscription cancellation while keeping slow-subscriber delivery
+  non-blocking.
 - IMAP CONDSTORE awareness from `STATUS HIGHESTMODSEQ` is covered across a
   following `SELECT` and `UID STORE`, verifying MODSEQ echo behavior after
   mailbox selection.
