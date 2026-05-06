@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP SEARCH-family RETURN control hardening)
+Last updated: 2026-05-07 (updated after IMAP raw SORT criterion-list hardening)
 
 ## Current phase
 
@@ -414,7 +414,9 @@ quoted or literal control atoms such as `CHARSET " UTF-8 "`, and `THREAD`
 algorithm arguments reject padded `ORDEREDSUBJECT` values instead of trimming
 them into advertised capabilities. `SORT` criterion lists now reject leading,
 trailing, or nested parenthesized atom-list shapes such as `( DATE)`, `(DATE )`,
-and `((DATE))` before authentication or selected-mailbox checks. `SELECT` and
+and `((DATE))` before authentication or selected-mailbox checks; exact quoted
+or command-literal sort criteria such as `"(DATE)"` now also fail before state
+checks instead of being dequoted into valid RFC 5256 sort controls. `SELECT` and
 `EXAMINE` now reject whitespace-padded quoted or literal `CONDSTORE`
 select-param lists such as `" (CONDSTORE) "` instead of trimming them into
 valid RFC 4551 select parameters. `SEARCH RETURN (...)` and `SORT`/`THREAD`

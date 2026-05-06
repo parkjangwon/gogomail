@@ -8791,6 +8791,52 @@ func TestServerRejectsStringSearchReturnControlsBeforeAuthentication(t *testing.
 	}
 }
 
+func TestServerRejectsStringSortCriterionListsBeforeAuthentication(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 SORT \"(DATE)\" UTF-8 ALL\r\na2 SORT {6+}\r\n(DATE) UTF-8 ALL\r\na3 UID SORT \"(DATE)\" UTF-8 ALL\r\na4 UID SORT {6+}\r\n(DATE) UTF-8 ALL\r\na5 SORT RETURN (SAVE) \"(DATE)\" UTF-8 ALL\r\na6 UID SORT RETURN (SAVE) {6+}\r\n(DATE) UTF-8 ALL\r\na7 SORT (DATE) UTF-8 ALL\r\na8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write string sort criterion lists: %v", err)
+	}
+	want := []string{
+		"a1 BAD SORT requires parenthesized sort criteria\r\n",
+		"a2 BAD SORT requires parenthesized sort criteria\r\n",
+		"a3 BAD SORT requires parenthesized sort criteria\r\n",
+		"a4 BAD SORT requires parenthesized sort criteria\r\n",
+		"a5 BAD SORT requires parenthesized sort criteria\r\n",
+		"a6 BAD SORT requires parenthesized sort criteria\r\n",
+		"a7 NO authentication required\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a8 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read string sort criterion-list response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("string sort criterion-list response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	t.Parallel()
 

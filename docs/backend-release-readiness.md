@@ -490,6 +490,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP UIDPLUS `APPENDUID` response codes are suppressed when append results
   mark returned UID metadata as non-sticky, extending the same non-persistent
   UID boundary to APPEND.
+- IMAP `SORT`/`UID SORT` criterion lists reject exact quoted or command-literal
+  parenthesized lists before state checks, keeping RFC 5256 sort controls as
+  raw lists while preserving normal case-insensitive sort criterion atoms.
 - IMAP `UID EXPUNGE` sparse/mixed UID-set behavior is covered across protocol
   and PostgreSQL paths, preserving correct `\Deleted` filtering.
 - IMAP saved SEARCHRES state stays aligned after multi-message expunge

@@ -4181,6 +4181,9 @@ Implementation order:
       introducers and return option-lists now reject quoted or command-literal
       controls before state checks, preserving RFC atom/list boundaries for
       ESEARCH and SEARCHRES.
+1483. IMAP SORT and UID SORT criterion lists now reject exact quoted or
+      command-literal parenthesized lists before authentication or selected
+      state, keeping RFC 5256 sort criteria as raw list controls.
 
 ## Deferred until backend contracts stabilize
 
