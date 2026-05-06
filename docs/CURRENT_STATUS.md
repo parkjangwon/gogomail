@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 list IsTruncated hardening)
+Last updated: 2026-05-07 (updated after S3 copy namespace hardening)
 
 ## Current phase
 
@@ -131,6 +131,9 @@ S3-compatible `ListObjectsV2` pagination control now requires an explicit
 canonical `<IsTruncated>true</IsTruncated>` or `<IsTruncated>false</IsTruncated>`
 value, rejecting missing or non-canonical forms before deciding whether a page
 is final.
+S3-compatible `CopyObject` success XML now accepts namespace-free or AWS S3
+namespace `CopyObjectResult` roots only, rejecting same-local-name XML from
+unexpected namespaces before copy/move is reported successful.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling

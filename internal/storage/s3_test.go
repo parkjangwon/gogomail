@@ -2481,25 +2481,35 @@ try later</Message>
 func TestS3StoreCopyAcceptsCopyObjectResult(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`<CopyObjectResult><ETag>"etag-1"</ETag></CopyObjectResult>`)),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
-	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml"); err != nil {
-		t.Fatalf("Copy returned error: %v", err)
+	for _, body := range []string{
+		`<CopyObjectResult><ETag>"etag-1"</ETag></CopyObjectResult>`,
+		`<CopyObjectResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ETag>"etag-1"</ETag></CopyObjectResult>`,
+	} {
+		body := body
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml"); err != nil {
+				t.Fatalf("Copy returned error: %v", err)
+			}
+		})
 	}
 }
 
@@ -2515,6 +2525,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "no_content", status: http.StatusNoContent, body: `<CopyObjectResult/>`, want: "status 204"},
 		{name: "empty_ok", status: http.StatusOK, body: "", want: "response body is required"},
 		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
+		{name: "unexpected_namespace", status: http.StatusOK, body: `<CopyObjectResult xmlns="urn:not-s3"/>`, want: "unexpected response namespace"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

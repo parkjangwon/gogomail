@@ -3824,6 +3824,9 @@ Implementation order:
       canonical `<IsTruncated>true</IsTruncated>` or
       `<IsTruncated>false</IsTruncated>` value, rejecting missing or
       non-canonical forms before deciding whether a page is final.
+1390. S3-compatible `CopyObject` success XML now accepts namespace-free or AWS
+      S3 namespace `CopyObjectResult` roots only, rejecting same-local-name XML
+      from unexpected namespaces before copy/move is reported successful.
 
 ## Deferred until backend contracts stabilize
 
