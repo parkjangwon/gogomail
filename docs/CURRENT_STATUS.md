@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after CalDAV delegated REPORT privilege hardening)
+Last updated: 2026-05-06 (updated after IMAP STATUS empty-list validation)
 
 ## Current phase
 
@@ -16,6 +16,11 @@ RFC-sensitive core, but current work should balance:
 - DNS/DKIM/domain onboarding
 - quota and policy enforcement
 - OpenAPI drift prevention
+
+IMAP hardening continues as a release-readiness track. `STATUS` now rejects an
+empty parenthesized status data-item list with an explicit tagged `BAD` instead
+of treating `()` as a generic unsupported item, keeping RFC-shaped client
+diagnostics predictable without changing valid status item handling.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
