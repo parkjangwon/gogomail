@@ -3070,6 +3070,10 @@ Implementation order:
       server-side copy succeeds but source deletion fails, carrying source and
       destination paths so callers can distinguish recoverable duplicate-object
       cleanup from pre-copy move failures across AWS S3 and compatible stores.
+1236. Shared `DeletePrefix` now returns a structured unsafe-listed-object
+      partial-progress error when a backend listing yields a non-canonical
+      object path, separating corrupt listing data from ordinary provider
+      delete failures for lifecycle and reconciliation workers.
 
 ## Deferred until backend contracts stabilize
 

@@ -388,6 +388,9 @@ Current state:
   `List` and idempotent `Delete` contracts, giving future Drive folder
   deletion, attachment lifecycle, and reconciliation jobs a cursor-driven
   cleanup path without relying on provider-specific recursive delete behavior.
+  If a listing source returns an unsafe object path, cleanup now reports a
+  structured partial-progress error that separates listing corruption from
+  ordinary delete failures.
 - S3-compatible secret access keys and session tokens reject spaces, tabs, and
   line breaks during config validation and adapter construction, making copied
   env/config credential mistakes fail fast before runtime S3 authentication

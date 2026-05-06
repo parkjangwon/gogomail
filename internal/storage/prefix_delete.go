@@ -17,6 +17,19 @@ type DeletePrefixResult struct {
 	HasMore    bool
 }
 
+type DeletePrefixUnsafeObjectError struct {
+	ObjectPath string
+	Err        error
+}
+
+func (e DeletePrefixUnsafeObjectError) Error() string {
+	return fmt.Sprintf("storage prefix listing returned unsafe object path %q: %v", e.ObjectPath, e.Err)
+}
+
+func (e DeletePrefixUnsafeObjectError) Unwrap() error {
+	return e.Err
+}
+
 func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (DeletePrefixResult, error) {
 	if err := ctx.Err(); err != nil {
 		return DeletePrefixResult{}, err
@@ -51,7 +64,7 @@ func DeletePrefix(ctx context.Context, store Store, opts DeletePrefixOptions) (D
 	for _, object := range page.Objects {
 		objectPath, err := ValidateObjectPath(object.Path)
 		if err != nil {
-			return result, fmt.Errorf("unsafe listed storage path %q: %w", object.Path, err)
+			return result, DeletePrefixUnsafeObjectError{ObjectPath: object.Path, Err: err}
 		}
 		if err := ctx.Err(); err != nil {
 			return result, err
