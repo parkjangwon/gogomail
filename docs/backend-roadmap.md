@@ -3248,6 +3248,10 @@ Implementation order:
       requests such as `BODY.PEEK[HEADER.FIELDS ()]<0.1>` and
       `BODY.PEEK[HEADER.FIELDS.NOT ()]<0.10>` continue to return bounded
       RFC-shaped literals.
+1265. S3-compatible runtime storage wiring now supports private MinIO/S3 TLS
+      trust through `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, validates PEM CA input,
+      injects a dedicated TLS 1.2+ HTTP client into the existing S3 adapter, and
+      rejects `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production.
 
 ## Deferred until backend contracts stabilize
 

@@ -90,6 +90,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Drive download responses expose a sanitized whole-object SHA-256 header when
   metadata carries a digest, giving webmail clients a portable integrity signal
   across local/NFS, MinIO, and S3-compatible storage.
+- S3-compatible runtime configuration now supports private MinIO/S3 TLS trust
+  through `GOGOMAIL_STORAGE_S3_CA_CERT_FILE`, with PEM validation and a
+  dedicated TLS 1.2+ HTTP client, while rejecting
+  `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` in production.
 - IMAP `ENABLE` keeps RFC 5161 syntax validation ahead of authentication and
   session mutation, including malformed capability atoms.
 - Drive upload-session storage now has a dedicated migration and validation

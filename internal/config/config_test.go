@@ -53,6 +53,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_STORAGE_S3_SECRET_ACCESS_KEY", "")
 	t.Setenv("GOGOMAIL_STORAGE_S3_SESSION_TOKEN", "")
 	t.Setenv("GOGOMAIL_STORAGE_S3_FORCE_PATH_STYLE", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", "")
+	t.Setenv("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", "")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "")
 	t.Setenv("GOGOMAIL_SMTP_READ_TIMEOUT", "")
@@ -246,8 +248,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if len(cfg.StorageBackendCompatLabels) != 0 {
 		t.Fatalf("StorageBackendCompatLabels = %#v, want empty", cfg.StorageBackendCompatLabels)
 	}
-	if cfg.StorageS3Region != "us-east-1" || cfg.StorageS3Bucket != "" || cfg.StorageS3ForcePathStyle {
-		t.Fatalf("S3 storage defaults = region:%q bucket:%q force_path:%v", cfg.StorageS3Region, cfg.StorageS3Bucket, cfg.StorageS3ForcePathStyle)
+	if cfg.StorageS3Region != "us-east-1" || cfg.StorageS3Bucket != "" || cfg.StorageS3ForcePathStyle || cfg.StorageS3CACertFile != "" || cfg.StorageS3InsecureSkipVerify {
+		t.Fatalf("S3 storage defaults = region:%q bucket:%q force_path:%v ca:%q insecure:%v", cfg.StorageS3Region, cfg.StorageS3Bucket, cfg.StorageS3ForcePathStyle, cfg.StorageS3CACertFile, cfg.StorageS3InsecureSkipVerify)
 	}
 	if cfg.MigrationDir != "migrations" {
 		t.Fatalf("MigrationDir = %q, want migrations", cfg.MigrationDir)
@@ -507,6 +509,8 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_DATABASE_URL", "postgres://example")
 	t.Setenv("GOGOMAIL_REDIS_ADDR", "redis:6379")
 	t.Setenv("GOGOMAIL_STORAGE_BACKEND", "local")
+	t.Setenv("GOGOMAIL_STORAGE_S3_CA_CERT_FILE", "/etc/gogomail/s3-ca.pem")
+	t.Setenv("GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY", "true")
 	t.Setenv("GOGOMAIL_MIGRATION_DIR", "db/migrations")
 	t.Setenv("GOGOMAIL_SMTP_DOMAIN", "mail.example.com")
 	t.Setenv("GOGOMAIL_SMTP_MAX_RECIPIENTS", "50")
@@ -672,6 +676,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.StorageBackend != "local" {
 		t.Fatalf("StorageBackend = %q, want local", cfg.StorageBackend)
+	}
+	if cfg.StorageS3CACertFile != "/etc/gogomail/s3-ca.pem" {
+		t.Fatalf("StorageS3CACertFile = %q, want configured CA file", cfg.StorageS3CACertFile)
+	}
+	if !cfg.StorageS3InsecureSkipVerify {
+		t.Fatal("StorageS3InsecureSkipVerify = false, want true")
 	}
 	if cfg.MigrationDir != "db/migrations" {
 		t.Fatalf("MigrationDir = %q, want db/migrations", cfg.MigrationDir)

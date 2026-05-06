@@ -227,6 +227,21 @@ IP-address endpoints also use path-style requests automatically, so local
 MinIO or other local compatible stores do not accidentally receive
 `bucket.localhost` or `bucket.127.0.0.1` style hosts when the generic `s3`
 backend is used.
+
+Private MinIO and S3-compatible deployments that use an internal certificate
+authority can add that trust root without changing host trust globally:
+
+```sh
+GOGOMAIL_STORAGE_S3_CA_CERT_FILE=/etc/gogomail/s3-ca.pem
+```
+
+The file must be a readable PEM bundle with at least one certificate.
+gogomail appends it to the system certificate pool and uses a dedicated S3
+HTTP client with TLS 1.2 or newer. For local development against temporary
+self-signed endpoints, `GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY=true` can
+disable certificate verification, but startup validation rejects that setting
+when `GOGOMAIL_ENV=production`.
+
 Object keys are path-escaped segment by segment so literal `+` characters stay
 encoded as `%2B`, preserving object identity and SigV4 canonical paths across
 AWS S3, MinIO, and strict compatible providers. Endpoint base paths use the

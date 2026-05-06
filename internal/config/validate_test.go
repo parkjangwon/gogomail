@@ -1,6 +1,10 @@
 package config
 
 import (
+	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -164,6 +168,24 @@ func TestValidateAcceptsS3StorageBackend(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsS3CustomCAFile(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+	certFile := writeTestCACertFile(t, server)
+
+	cfg := Load()
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "https://s3.internal.example"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	cfg.StorageS3CACertFile = certFile
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
 func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
 	cfg := Load()
 	cfg.Environment = "production"
@@ -184,6 +206,25 @@ func TestValidateRequiresExplicitS3EndpointInProduction(t *testing.T) {
 	cfg.StorageS3Endpoint = "https://s3.us-east-1.amazonaws.com"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error with explicit production S3 endpoint = %v", err)
+	}
+}
+
+func TestValidateRejectsProductionS3InsecureSkipVerify(t *testing.T) {
+	cfg := Load()
+	cfg.Environment = "production"
+	cfg.SubmissionAllowInsecureAuth = false
+	cfg.IMAPAllowInsecureAuth = false
+	cfg.CalDAVAllowInsecureAuth = false
+	cfg.CardDAVAllowInsecureAuth = false
+	cfg.StorageBackend = "s3"
+	cfg.StorageS3Endpoint = "https://s3.us-east-1.amazonaws.com"
+	cfg.StorageS3Region = "us-east-1"
+	cfg.StorageS3Bucket = "gogomail-prod"
+	cfg.StorageS3AccessKeyID = "access"
+	cfg.StorageS3SecretAccessKey = "secret"
+	cfg.StorageS3InsecureSkipVerify = true
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_STORAGE_S3_INSECURE_SKIP_VERIFY must be false in production") {
+		t.Fatalf("Validate() error = %v, want production S3 insecure TLS rejection", err)
 	}
 }
 
@@ -306,6 +347,51 @@ func TestValidateRejectsUnsafeS3Prefix(t *testing.T) {
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want unsafe S3 prefix rejection")
 	}
+}
+
+func TestValidateRejectsUnsafeS3TLSConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "line break", path: "cert.pem\nbad"},
+		{name: "missing file", path: "missing-s3-ca.pem"},
+		{name: "invalid pem", path: "invalid"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Load()
+			cfg.StorageBackend = "s3"
+			cfg.StorageS3Endpoint = "https://s3.internal.example"
+			cfg.StorageS3Region = "us-east-1"
+			cfg.StorageS3Bucket = "gogomail"
+			cfg.StorageS3AccessKeyID = "access"
+			cfg.StorageS3SecretAccessKey = "secret"
+			if tt.path == "invalid" {
+				invalid := t.TempDir() + "/invalid-ca.pem"
+				if err := os.WriteFile(invalid, []byte("not a certificate"), 0o600); err != nil {
+					t.Fatalf("write invalid CA file: %v", err)
+				}
+				cfg.StorageS3CACertFile = invalid
+			} else {
+				cfg.StorageS3CACertFile = tt.path
+			}
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("Validate() error = nil, want S3 TLS config rejection")
+			}
+		})
+	}
+}
+
+func writeTestCACertFile(t *testing.T, server *httptest.Server) string {
+	t.Helper()
+	certFile := t.TempDir() + "/s3-ca.pem"
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(certFile, certPEM, 0o600); err != nil {
+		t.Fatalf("write CA file: %v", err)
+	}
+	return certFile
 }
 
 func TestValidateRejectsMinIOWithoutEndpoint(t *testing.T) {
