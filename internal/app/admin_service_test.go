@@ -325,6 +325,28 @@ func TestAdminServiceDeleteDirectoryDelegationUsesAuditedDirectoryBoundary(t *te
 	}
 }
 
+func TestAdminServiceDeleteDirectoryGroupMembershipUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		membership: directory.GroupMembership{ID: "membership-1", Status: "deleted"},
+	}
+	service := adminService{directory: directoryStore}
+	membership, err := service.DeleteDirectoryGroupMembership(t.Context(), " membership-1 ")
+	if err != nil {
+		t.Fatalf("DeleteDirectoryGroupMembership returned error: %v", err)
+	}
+	if membership.ID != "membership-1" || membership.Status != "deleted" {
+		t.Fatalf("membership = %+v", membership)
+	}
+	if directoryStore.lastMembershipDeleteID != " membership-1 " {
+		t.Fatalf("lastMembershipDeleteID = %q", directoryStore.lastMembershipDeleteID)
+	}
+	if directoryStore.deleteMembershipWithAuditCalls != 1 {
+		t.Fatalf("deleteMembershipWithAuditCalls = %d, want 1", directoryStore.deleteMembershipWithAuditCalls)
+	}
+}
+
 func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -742,6 +764,7 @@ type fakeAdminDirectory struct {
 	lastDelegationCreateReq        directory.CreateDelegationRequest
 	lastDelegationDeleteID         string
 	lastMembershipCreateReq        directory.CreateGroupMembershipRequest
+	lastMembershipDeleteID         string
 	lastAliasReq                   directory.ResolveAliasRequest
 	lastAliasCreateReq             directory.CreateAliasRequest
 	lastAliasDeleteID              string
@@ -751,6 +774,7 @@ type fakeAdminDirectory struct {
 	createDelegationWithAuditCalls int
 	createMembershipWithAuditCalls int
 	deleteDelegationWithAuditCalls int
+	deleteMembershipWithAuditCalls int
 	deleteAliasWithAuditCalls      int
 }
 
@@ -775,6 +799,12 @@ func (f *fakeAdminDirectory) DeleteDelegationWithAudit(_ context.Context, id str
 	f.deleteDelegationWithAuditCalls++
 	f.lastDelegationDeleteID = id
 	return f.delegation, nil
+}
+
+func (f *fakeAdminDirectory) DeleteGroupMembershipWithAudit(_ context.Context, id string) (directory.GroupMembership, error) {
+	f.deleteMembershipWithAuditCalls++
+	f.lastMembershipDeleteID = id
+	return f.membership, nil
 }
 
 func (f *fakeAdminDirectory) SearchPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {

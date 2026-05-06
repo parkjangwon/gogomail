@@ -301,6 +301,11 @@ and recording `directory_delegation.delete` in the same transaction.
 Audited group membership creation is exposed through
 `POST /admin/v1/directory/group-memberships`, returning
 `{"directory_group_membership":{...}}` for group-backed delegation management.
+Audited group membership deletion is exposed through
+`DELETE /admin/v1/directory/group-memberships/{id}`, soft-deleting an active
+membership and recording `directory_group_membership.delete` in the same
+transaction. This gives group-backed delegation and future shared inbox/resource
+access one auditable revoke path instead of product-local membership mutation.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,

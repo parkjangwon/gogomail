@@ -1748,6 +1748,22 @@ paths:
           $ref: "#/components/responses/DirectoryGroupMembership"
         default:
           $ref: "#/components/responses/Error"
+  /directory/group-memberships/{id}:
+    delete:
+      operationId: deleteAdminDirectoryGroupMembership
+      summary: Delete an audited Directory group membership
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 1024
+      responses:
+        "200":
+          $ref: "#/components/responses/DirectoryGroupMembership"
+        default:
+          $ref: "#/components/responses/Error"
   /backpressure:
     get:
       operationId: getAdminBackpressure

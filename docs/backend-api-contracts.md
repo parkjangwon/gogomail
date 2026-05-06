@@ -822,6 +822,11 @@ Admin operational read models also keep explicit envelope keys:
   maps duplicate active memberships to a predictable duplicate-membership
   error, and records `directory_group_membership.create` in the same
   transaction as the membership insert.
+- `DELETE /admin/v1/directory/group-memberships/{id}` returns
+  `{"directory_group_membership":{...}}` after soft-deleting an active
+  Directory group membership. The path id uses bounded admin identifier
+  validation, and the backend records `directory_group_membership.delete` in
+  the same transaction as the membership status change.
 - `GET /admin/v1/backpressure` returns `{"backpressure":{...}}`
 - `GET /admin/v1/quota-usage` returns `{"quota_usage":[...]}` with optional
   `scope=company|domain|user`, `domain_id`, `over_limit`, and

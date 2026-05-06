@@ -2720,6 +2720,13 @@ Implementation order:
         same-company group/member principals, membership role, self-membership,
         and nested group cycles, and commits
         `directory_group_membership.create` with the membership insert.
+1175b4. Directory/Identity now exposes audited group membership deletion
+        through `DeleteGroupMembershipWithAudit` and
+        `DELETE /admin/v1/directory/group-memberships/{id}`, soft-deleting
+        active memberships and committing
+        `directory_group_membership.delete` in the same transaction so
+        group-backed delegation, resource access, and shared inbox membership
+        can be revoked through one platform boundary.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

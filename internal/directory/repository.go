@@ -759,6 +759,95 @@ func directoryGroupMembershipCreateAuditDetail(membership GroupMembership) (json
 	return detail, nil
 }
 
+func (r *Repository) DeleteGroupMembershipWithAudit(ctx context.Context, id string) (GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return GroupMembership{}, fmt.Errorf("database handle is required")
+	}
+	id, err := NormalizePrincipalID(id)
+	if err != nil {
+		return GroupMembership{}, fmt.Errorf("membership id: %w", err)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GroupMembership{}, fmt.Errorf("begin delete directory group membership transaction: %w", err)
+	}
+	defer tx.Rollback()
+	membership, err := r.deleteGroupMembershipTx(ctx, tx, id)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	detail, err := directoryGroupMembershipDeleteAuditDetail(membership)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  membership.CompanyID,
+		Category:   "admin",
+		Action:     "directory_group_membership.delete",
+		TargetType: "directory_group_membership",
+		TargetID:   membership.ID,
+		Result:     "deleted",
+		Detail:     detail,
+	}); err != nil {
+		return GroupMembership{}, fmt.Errorf("record directory group membership delete audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return GroupMembership{}, fmt.Errorf("commit delete directory group membership transaction: %w", err)
+	}
+	return membership, nil
+}
+
+func (r *Repository) deleteGroupMembershipTx(ctx context.Context, tx *sql.Tx, id string) (GroupMembership, error) {
+	const query = `
+UPDATE directory_group_memberships AS m
+SET status = 'deleted',
+    updated_at = now()
+FROM directory_groups AS g
+WHERE m.id = $1::uuid
+  AND m.status = 'active'
+  AND g.id = m.group_id
+RETURNING m.id::text,
+          m.group_id::text,
+          g.company_id::text,
+          m.member_kind,
+          m.member_id::text,
+          m.role,
+          m.status`
+	var membership GroupMembership
+	if err := tx.QueryRowContext(ctx, query, id).Scan(
+		&membership.ID,
+		&membership.GroupID,
+		&membership.CompanyID,
+		&membership.MemberKind,
+		&membership.MemberID,
+		&membership.Role,
+		&membership.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GroupMembership{}, fmt.Errorf("directory group membership not found")
+		}
+		return GroupMembership{}, fmt.Errorf("delete directory group membership: %w", err)
+	}
+	return membership, nil
+}
+
+func directoryGroupMembershipDeleteAuditDetail(membership GroupMembership) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"membership_id":   membership.ID,
+		"group_id":        membership.GroupID,
+		"company_id":      membership.CompanyID,
+		"member_kind":     membership.MemberKind,
+		"member_id":       membership.MemberID,
+		"role":            membership.Role,
+		"previous_status": "active",
+		"status":          membership.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory group membership delete audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func mapDirectoryGroupMembershipInsertError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {

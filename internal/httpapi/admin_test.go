@@ -982,6 +982,75 @@ func TestAdminCreateDirectoryGroupMembershipHandlerRejectsUnsafeInput(t *testing
 	}
 }
 
+func TestAdminDeleteDirectoryGroupMembershipHandler(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		directoryGroupMembership: directory.GroupMembership{
+			ID:         "membership-1",
+			GroupID:    "group-1",
+			CompanyID:  "company-1",
+			MemberKind: directory.PrincipalKindUser,
+			MemberID:   "user-1",
+			Role:       directory.GroupMembershipRoleManager,
+			Status:     "deleted",
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodDelete, "/admin/v1/directory/group-memberships/%20membership-1%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Membership directory.GroupMembership `json:"directory_group_membership"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Membership.ID != "membership-1" || response.Membership.Status != "deleted" {
+		t.Fatalf("directory_group_membership = %+v", response.Membership)
+	}
+	if service.lastDirectoryGroupMembershipDeleteID != "membership-1" {
+		t.Fatalf("lastDirectoryGroupMembershipDeleteID = %q", service.lastDirectoryGroupMembershipDeleteID)
+	}
+}
+
+func TestAdminDeleteDirectoryGroupMembershipHandlerRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "bad path value", path: "/admin/v1/directory/group-memberships/membership%0Abad"},
+		{name: "unknown query", path: "/admin/v1/directory/group-memberships/membership-1?dry_run=true"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeAdminService{}
+			mux := http.NewServeMux()
+			RegisterAdminRoutes(mux, service, "")
+
+			req := httptest.NewRequest(http.MethodDelete, tc.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if service.lastDirectoryGroupMembershipDeleteID != "" {
+				t.Fatalf("dispatched id %q", service.lastDirectoryGroupMembershipDeleteID)
+			}
+		})
+	}
+}
+
 func TestAdminDeleteDirectoryDelegationHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7446,6 +7515,7 @@ type fakeAdminService struct {
 	lastDirectoryDelegationDeleteID             string
 	lastDirectoryDelegationList                 directory.ListDelegationsRequest
 	lastDirectoryGroupMembershipCreate          directory.CreateGroupMembershipRequest
+	lastDirectoryGroupMembershipDeleteID        string
 	lastDriveNodeGet                            drive.GetNodeRequest
 	lastDriveNodeList                           drive.ListNodesRequest
 	lastDriveUsage                              drive.GetUsageSummaryRequest
@@ -7705,6 +7775,15 @@ func (f *fakeAdminService) CreateDirectoryGroupMembership(_ context.Context, req
 		return directory.GroupMembership{}, err
 	}
 	f.lastDirectoryGroupMembershipCreate = req
+	return f.directoryGroupMembership, nil
+}
+
+func (f *fakeAdminService) DeleteDirectoryGroupMembership(_ context.Context, id string) (directory.GroupMembership, error) {
+	normalized, err := directory.NormalizePrincipalID(id)
+	if err != nil {
+		return directory.GroupMembership{}, err
+	}
+	f.lastDirectoryGroupMembershipDeleteID = normalized
 	return f.directoryGroupMembership, nil
 }
 
