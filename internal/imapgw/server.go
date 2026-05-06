@@ -1419,9 +1419,13 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
 			return true, false, err
 		}
-		_, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[3:])
+		algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[3:])
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
+			return true, false, err
+		}
+		if !imapThreadAlgorithmIsSupported(algorithm) {
+			_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
 			return true, false, err
 		}
 		if len(searchFields) == 0 {
@@ -1673,16 +1677,16 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 			return false, err
 		}
 	}
+	if !imapThreadAlgorithmIsSupported(algorithm) {
+		_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
+		return false, err
+	}
 	if state.session == nil {
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
 	if !charsetOK {
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n")
-		return false, err
-	}
-	if algorithm != "ORDEREDSUBJECT" {
-		_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
 		return false, err
 	}
 	if len(searchFields) == 0 {
@@ -2082,7 +2086,7 @@ func imapThreadCommandArguments(fields []string) (string, []string, bool, bool) 
 		return "", nil, true, true
 	}
 	if _, ok := imapSupportedCharset(fields[1]); !ok {
-		return "", nil, false, true
+		return algorithm, nil, false, true
 	}
 	return algorithm, imapNormalizeSearchCriteria(fields[2:]), true, true
 }
@@ -2096,6 +2100,10 @@ func imapThreadAlgorithm(value string) (string, bool) {
 		return "", false
 	}
 	return algorithm, true
+}
+
+func imapThreadAlgorithmIsSupported(algorithm string) bool {
+	return algorithm == "ORDEREDSUBJECT"
 }
 
 func imapSortCriteria(fields []string) ([]imapSortCriterion, bool) {

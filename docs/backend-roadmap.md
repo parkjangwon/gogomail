@@ -3078,6 +3078,10 @@ Implementation order:
       an explicit tagged `BAD STATUS requires status data items`, keeping
       malformed `STATUS inbox ()` requests separate from unsupported or
       duplicate item validation.
+1238. IMAP `THREAD` and `UID THREAD` now reject unsupported algorithms before
+      authentication or selected-mailbox checks, keeping the advertised
+      `THREAD=ORDEREDSUBJECT` capability boundary explicit when clients probe
+      unsupported algorithms such as `REFERENCES`.
 
 ## Deferred until backend contracts stabilize
 

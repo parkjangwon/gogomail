@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP STATUS empty-list validation)
+Last updated: 2026-05-06 (updated after IMAP THREAD algorithm validation)
 
 ## Current phase
 
@@ -20,7 +20,10 @@ RFC-sensitive core, but current work should balance:
 IMAP hardening continues as a release-readiness track. `STATUS` now rejects an
 empty parenthesized status data-item list with an explicit tagged `BAD` instead
 of treating `()` as a generic unsupported item, keeping RFC-shaped client
-diagnostics predictable without changing valid status item handling.
+diagnostics predictable without changing valid status item handling. `THREAD`
+now also rejects unsupported algorithms before authentication or selected
+mailbox checks, so unsupported extensions such as `REFERENCES` are reported at
+the syntax/capability boundary consistently for normal and UID forms.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
