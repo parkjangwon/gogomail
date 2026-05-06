@@ -76,10 +76,10 @@ Current state:
   requested logical prefix after canonical bucket-prefix mapping, so
   S3-compatible cleanup scans and `DeletePrefix` cannot touch sibling prefixes
   even if a provider returns an overly broad page.
-- S3-compatible storage now rejects encoded path separators such as `%2F` and
-  `%5C` in configured prefixes, object-key requests, list prefixes,
-  copy/move endpoints, and returned list keys, preserving local/NFS-style
-  logical boundaries across AWS S3, MinIO, and strict compatible gateways.
+- Shared storage object paths and prefixes now reject encoded separators such
+  as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
+  one portable logical key boundary across local filesystems, MinIO, AWS S3,
+  and strict compatible gateways.
 - Admin console capability OpenAPI security now models both `X-Admin-Token`
   and bearer-token auth alternatives, with runtime coverage for ambiguous
   credential rejection.
@@ -617,9 +617,10 @@ Current state:
   caller's requested logical prefix after removing the configured storage
   prefix, preserving local/NFS prefix isolation semantics during Drive,
   lifecycle, and reconciliation cleanup scans.
-- S3-compatible object keys and prefixes now reject encoded separators such as
-  `%2F` and `%5C` before request signing or list-page exposure, so object
-  names cannot depend on provider-specific single- or double-decoding behavior.
+- Shared storage object keys and prefixes now reject encoded separators such
+  as `%2F` and `%5C` before filesystem path construction, request signing, or
+  list-page exposure, so object names cannot depend on provider-specific
+  single- or double-decoding behavior.
 - S3-compatible endpoint validation rejects userinfo, query strings, fragments,
   non-HTTP schemes, CR/LF-bearing targets, and non-canonical base paths before
   storage adapter construction. Endpoint base paths also reject encoded path

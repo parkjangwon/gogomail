@@ -35,6 +35,9 @@ func ValidateObjectPath(objectPath string) (string, error) {
 	if strings.Contains(objectPath, `\`) {
 		return "", fmt.Errorf("storage path must use forward slash separators")
 	}
+	if storageContainsEncodedPathSeparator(objectPath) {
+		return "", fmt.Errorf("storage path must not contain percent-encoded path separators")
+	}
 	if path.IsAbs(objectPath) {
 		return "", fmt.Errorf("storage path must be relative")
 	}
@@ -70,6 +73,9 @@ func ValidateObjectPrefix(prefix string) (string, error) {
 	if strings.Contains(prefix, `\`) {
 		return "", fmt.Errorf("storage prefix must use forward slash separators")
 	}
+	if storageContainsEncodedPathSeparator(prefix) {
+		return "", fmt.Errorf("storage prefix must not contain percent-encoded path separators")
+	}
 	if path.IsAbs(prefix) {
 		return "", fmt.Errorf("storage prefix must be relative")
 	}
@@ -85,6 +91,11 @@ func ValidateObjectPrefix(prefix string) (string, error) {
 		return "", fmt.Errorf("storage prefix must be canonical")
 	}
 	return prefix, nil
+}
+
+func storageContainsEncodedPathSeparator(value string) bool {
+	value = strings.ToLower(value)
+	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
 }
 
 func NormalizeListLimit(limit int) int {

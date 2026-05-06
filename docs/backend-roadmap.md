@@ -3676,6 +3676,11 @@ Implementation order:
       endpoints, and provider-returned list keys, keeping object identity and
       prefix isolation portable across AWS S3, MinIO, and compatible gateways
       with different URL-decoding behavior.
+1357. Shared storage object path and prefix validation now rejects
+      percent-encoded path separators before local/NFS or S3-compatible adapter
+      use, preventing deployments from creating keys on one backend that depend
+      on provider-specific decoding behavior after a configuration-only
+      storage backend flip.
 
 ## Deferred until backend contracts stabilize
 
