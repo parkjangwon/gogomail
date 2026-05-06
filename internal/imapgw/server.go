@@ -1032,6 +1032,9 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 				if subcommand == "SORT" {
 					return imapRejectStringSortCriterionListArgument(writer, tag, line, fields, 3)
 				}
+				if subcommand == "THREAD" {
+					return imapRejectStringThreadAlgorithmArgument(writer, tag, line, fields, 3)
+				}
 			}
 		}
 	case "APPEND":
@@ -1052,7 +1055,10 @@ func imapRejectStringParenthesizedControlListArgument(writer *bufio.Writer, tag 
 		}
 		return imapRejectStringSortCriterionListArgument(writer, tag, line, fields, 2)
 	case "THREAD":
-		return imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "THREAD")
+		if handled, done, err := imapRejectStringSearchReturnControlArgument(writer, tag, line, fields, 2, "THREAD"); handled {
+			return true, done, err
+		}
+		return imapRejectStringThreadAlgorithmArgument(writer, tag, line, fields, 2)
 	case "LIST":
 		if len(fields) >= 3 && strings.HasPrefix(fields[2], "(") && imapRawFieldIsStringLike(line, 2) {
 			_, err := writer.WriteString(tag + " BAD LIST requires reference and mailbox pattern atoms\r\n")
@@ -1089,6 +1095,28 @@ func imapRejectStringSortCriterionListArgument(writer *bufio.Writer, tag string,
 }
 
 func imapSortCriterionRawIndex(fields []string, argumentStart int) int {
+	if len(fields) <= argumentStart {
+		return -1
+	}
+	if strings.EqualFold(fields[argumentStart], "RETURN") {
+		if len(fields) <= argumentStart+2 {
+			return -1
+		}
+		return argumentStart + 2
+	}
+	return argumentStart
+}
+
+func imapRejectStringThreadAlgorithmArgument(writer *bufio.Writer, tag string, line string, fields []string, argumentStart int) (bool, bool, error) {
+	algorithmRawIndex := imapThreadAlgorithmRawIndex(fields, argumentStart)
+	if algorithmRawIndex < 0 || !imapRawFieldIsStringLike(line, algorithmRawIndex) {
+		return false, false, nil
+	}
+	_, err := writer.WriteString(tag + " BAD THREAD algorithm is unsupported\r\n")
+	return true, false, err
+}
+
+func imapThreadAlgorithmRawIndex(fields []string, argumentStart int) int {
 	if len(fields) <= argumentStart {
 		return -1
 	}
