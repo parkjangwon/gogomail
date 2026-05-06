@@ -650,7 +650,7 @@ Legacy `candidates` entries describe stale `attachments` rows, while
 `session_candidates` describe unfinalized upload-session rows eligible for the
 same cleanup sweep.
 
-Mail and Admin API JSON request bodies must contain exactly one JSON value.
+Mail, Admin, and Drive API JSON request bodies must contain exactly one JSON value.
 Handlers require exactly one `Content-Type: application/json`, accepting normal
 media-type parameters such as `charset=utf-8`, and reject missing, repeated,
 malformed, or non-JSON content types as HTTP 400 `bad_request`. They also reject
