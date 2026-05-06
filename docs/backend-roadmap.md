@@ -3037,6 +3037,10 @@ Implementation order:
 1228. CalDAV `calendar-query` filters now require exactly one top-level
       `VCALENDAR` component filter, rejecting missing, direct `time-range`, or
       repeated top-level filter shapes before calendar-object scan planning.
+1229. Drive public share-link rate limiting now passes a share-token SHA-256
+      digest, not the raw token, across the limiter interface while preserving
+      normalized-remote plus token-scoped abuse buckets and existing 429
+      semantics.
 
 ## Deferred until backend contracts stabilize
 

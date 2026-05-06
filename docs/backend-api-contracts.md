@@ -278,9 +278,9 @@ or development `user_id` fallback path as webmail mail routes:
   Public share resolution and download endpoints can be protected with the
   optional `GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` fixed-window limiter.
   When enabled, anonymous requests are bucketed by normalized remote address and
-  raw share token, over-limit requests return HTTP 429 with `Retry-After`, and
-  transient limiter storage errors fail open so public download availability is
-  not coupled to Redis after startup.
+  a SHA-256 digest of the share token, over-limit requests return HTTP 429 with
+  `Retry-After`, and transient limiter storage errors fail open so public
+  download availability is not coupled to Redis after startup.
   Successful public share metadata, `GET` download, and `HEAD` download
   accesses, denied token/permission checks, and rate-limited requests are also
   recorded as best-effort hash-chain audit rows under `category=drive` with

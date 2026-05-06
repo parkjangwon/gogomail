@@ -290,8 +290,11 @@ func TestDrivePublicShareLimiterRejectsOnlyPublicShareRoutes(t *testing.T) {
 	if service.resolveShareLinkReq.Token != "" {
 		t.Fatalf("resolver ran despite limiter rejection: %+v", service.resolveShareLinkReq)
 	}
-	if len(limiter.keys) != 1 || !strings.Contains(limiter.keys[0], "remote=192.0.2.10") {
-		t.Fatalf("limiter keys = %+v, want normalized remote bucket", limiter.keys)
+	if len(limiter.keys) != 1 || !strings.Contains(limiter.keys[0], "remote=192.0.2.10") || !strings.Contains(limiter.keys[0], "token_sha256=") {
+		t.Fatalf("limiter keys = %+v, want normalized remote bucket and token digest", limiter.keys)
+	}
+	if strings.Contains(limiter.keys[0], token) {
+		t.Fatalf("limiter key leaked raw token: %q", limiter.keys[0])
 	}
 	if len(auditor.events) != 1 {
 		t.Fatalf("audit events = %+v, want rate-limited event", auditor.events)
