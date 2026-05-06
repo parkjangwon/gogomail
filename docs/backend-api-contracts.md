@@ -543,6 +543,14 @@ manifest-digest, and manifest-signature routes also reject query parameter
 names outside their documented allowlists. Detail, download, verification, and
 mutation routes that do not define query controls reject unexpected query
 strings instead of silently ignoring them.
+Admin DAV sync retention run-history routes expose the CalDAV/CardDAV retention
+worker audit read model through `/admin/v1/dav-sync/retention-runs`. The list
+route returns `{ "dav_sync_retention_runs": [...] }` with bounded `limit`,
+`status`, `created_from`, and `created_to` filters; unsupported statuses,
+invalid RFC3339 windows, and unknown query names are rejected before service
+dispatch. The detail route `/admin/v1/dav-sync/retention-runs/{id}` returns
+`{ "dav_sync_retention_run": ... }` for one bounded run ID and rejects
+unexpected query strings.
 Admin bodyless command/delete routes reject unknown query parameter names as
 well, including IMAP UID backfill, DKIM DNS verify, outbox retry, DKIM
 deactivation, suppression deletion, trusted-relay deletion, and delivery-route
@@ -1156,6 +1164,16 @@ API call metering can now emit durable usage events:
   persisted retention-run audit rows. `GET
   /admin/v1/api-usage/ledger/retention-runs/{id}` returns one persisted run
   with its readiness snapshot for purge forensics.
+- `GET /admin/v1/dav-sync/retention-runs` returns
+  `{ "dav_sync_retention_runs": [...] }` for the DAV sync retention worker
+  audit/read model. It supports bounded `limit`, `status` (`completed` or
+  `failed`), `created_from`, and `created_to` filters over persisted
+  CalDAV/CardDAV retention runs. `GET
+  /admin/v1/dav-sync/retention-runs/{id}` returns one persisted run with
+  cutoff, dry-run/confirmation flags, status, bounded error text, and
+  CalDAV/CardDAV candidate/deleted counts. These routes are read-only; running
+  retention remains worker-owned while production token-expiry policy is still
+  being finalized.
 - `POST /admin/v1/api-usage/export-batches` creates
   `{ "api_usage_export_batch": ... }`, a manifest checkpoint over the bounded
   ledger filter window with fixed event/request/byte/latency totals. The

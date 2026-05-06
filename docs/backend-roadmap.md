@@ -3167,6 +3167,11 @@ Implementation order:
       run by bounded ID. This gives Admin API readiness/history endpoints a
       stable operational read boundary over `dav_sync_retention_runs` without
       coupling controllers to worker execution internals.
+1250. Admin API now exposes DAV sync retention run history through
+      `GET /admin/v1/dav-sync/retention-runs` and
+      `GET /admin/v1/dav-sync/retention-runs/{id}` with explicit JSON
+      envelopes, bounded status/created-at filters, unknown-query rejection,
+      OpenAPI coverage, and console capability advertising.
 
 ## Deferred until backend contracts stabilize
 

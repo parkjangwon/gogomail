@@ -14,6 +14,7 @@ import (
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -67,6 +68,10 @@ type adminService struct {
 		ListObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) ([]drive.ObjectCleanupFailure, error)
 		ResolveObjectCleanupFailure(ctx context.Context, req drive.ResolveObjectCleanupFailureRequest) (drive.ObjectCleanupFailure, error)
 		RetryObjectCleanupFailures(ctx context.Context, req drive.ListObjectCleanupFailuresRequest) (drive.RetryObjectCleanupFailuresResult, error)
+	}
+	davSyncRetention interface {
+		ListRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
+		GetRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	}
 	attachmentCleanup interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
@@ -677,6 +682,20 @@ func (s adminService) GetAPIUsageExportCapabilities(context.Context) (maildb.API
 	}
 	view.BlockingReasons = uniqueStrings(blocking)
 	return view, nil
+}
+
+func (s adminService) ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error) {
+	if s.davSyncRetention == nil {
+		return nil, fmt.Errorf("DAV sync retention repository is not configured")
+	}
+	return s.davSyncRetention.ListRuns(ctx, req)
+}
+
+func (s adminService) GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error) {
+	if s.davSyncRetention == nil {
+		return davsyncretention.RunRecord{}, fmt.Errorf("DAV sync retention repository is not configured")
+	}
+	return s.davSyncRetention.GetRun(ctx, id)
 }
 
 func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bool) {

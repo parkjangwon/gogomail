@@ -12,6 +12,7 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
@@ -801,6 +802,44 @@ func TestAdminServiceRetryDriveObjectCleanupFailuresRecordsAudit(t *testing.T) {
 	}
 }
 
+func TestAdminServiceDAVSyncRetentionDelegatesToRepository(t *testing.T) {
+	t.Parallel()
+
+	created := time.Date(2026, 5, 5, 1, 0, 0, 0, time.UTC)
+	store := &fakeAdminDAVSyncRetention{
+		runs: []davsyncretention.RunRecord{{
+			ID:        "dav-sync-retention-1",
+			CreatedAt: created,
+			Cutoff:    created.Add(-90 * 24 * time.Hour),
+			Limit:     1000,
+			Status:    davsyncretention.RunStatusCompleted,
+		}},
+		run: davsyncretention.RunRecord{
+			ID:     "dav-sync-retention-2",
+			Limit:  1000,
+			Status: davsyncretention.RunStatusFailed,
+		},
+	}
+	service := adminService{davSyncRetention: store}
+	runs, err := service.ListDAVSyncRetentionRuns(t.Context(), davsyncretention.RunListRequest{
+		Limit:  5,
+		Status: davsyncretention.RunStatusCompleted,
+	})
+	if err != nil {
+		t.Fatalf("ListDAVSyncRetentionRuns returned error: %v", err)
+	}
+	if len(runs) != 1 || runs[0].ID != "dav-sync-retention-1" || store.lastList.Limit != 5 || store.lastList.Status != davsyncretention.RunStatusCompleted {
+		t.Fatalf("runs=%+v lastList=%+v", runs, store.lastList)
+	}
+	run, err := service.GetDAVSyncRetentionRun(t.Context(), "dav-sync-retention-2")
+	if err != nil {
+		t.Fatalf("GetDAVSyncRetentionRun returned error: %v", err)
+	}
+	if run.ID != "dav-sync-retention-2" || store.lastID != "dav-sync-retention-2" {
+		t.Fatalf("run=%+v lastID=%q", run, store.lastID)
+	}
+}
+
 func TestAttachmentCleanupAuditDetailSamplesIDs(t *testing.T) {
 	t.Parallel()
 
@@ -889,6 +928,23 @@ type fakeAdminDrive struct {
 	lastFailureReq  drive.ListObjectCleanupFailuresRequest
 	lastResolveReq  drive.ResolveObjectCleanupFailureRequest
 	lastRetryReq    drive.ListObjectCleanupFailuresRequest
+}
+
+type fakeAdminDAVSyncRetention struct {
+	runs     []davsyncretention.RunRecord
+	run      davsyncretention.RunRecord
+	lastList davsyncretention.RunListRequest
+	lastID   string
+}
+
+func (f *fakeAdminDAVSyncRetention) ListRuns(_ context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error) {
+	f.lastList = req
+	return f.runs, nil
+}
+
+func (f *fakeAdminDAVSyncRetention) GetRun(_ context.Context, id string) (davsyncretention.RunRecord, error) {
+	f.lastID = id
+	return f.run, nil
 }
 
 type fakeAdminDirectory struct {
