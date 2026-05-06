@@ -3686,6 +3686,10 @@ Implementation order:
       `LIST "" * RETURN CHILDREN` cannot bypass the parenthesized return-option
       shape required for `CHILDREN`, `SPECIAL-USE`, `SUBSCRIBED`, and
       LIST-STATUS controls.
+1359. IMAP `FETCH` and `UID FETCH` now support RFC 3501 `RFC822<offset.count>`
+      partial full-message literals, preserve the `RFC822<offset>` response
+      atom instead of normalizing it to `BODY[]`, and apply the same `\Seen`
+      mutation semantics as full `RFC822` body fetches.
 
 ## Deferred until backend contracts stabilize
 

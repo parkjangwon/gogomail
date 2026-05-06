@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP LIST-EXTENDED return-shape hardening)
+Last updated: 2026-05-07 (updated after IMAP RFC822 partial-fetch hardening)
 
 ## Current phase
 
@@ -78,6 +78,10 @@ option list to be parenthesized before option parsing, including non-`STATUS`
 forms such as `RETURN (CHILDREN)`. Unparenthesized return options now receive a
 tagged `BAD` at the parser boundary instead of being treated as valid extended
 LIST controls.
+IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
+partial full-message fetches, preserve `RFC822<offset>` in the literal
+response item, and apply the same `\Seen` mutation semantics as full `RFC822`
+body fetches.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list
