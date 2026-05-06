@@ -42,6 +42,10 @@ uses `Depth: 1`, keeping query scope explicit for native client compatibility.
 CalDAV `sync-collection` parsing now also requires an explicit `DAV:sync-token`
 element while preserving empty-token initial sync semantics, avoiding ambiguous
 requests that omit the sync state anchor entirely.
+Stale-token sync delta handling now probes one row beyond the requested
+`limit/nresults`, so exact-limit change sets can complete while genuinely
+truncating delta responses still fail closed until continuation semantics are
+implemented.
 
 Calendar product features must not grow as isolated CRUD. Before delegated
 calendars, shared ownership, attendees, resource booking, reminders, or

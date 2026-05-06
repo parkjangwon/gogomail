@@ -939,7 +939,7 @@ func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSi
 	if len(syncToken) > 128 || strings.ContainsAny(syncToken, "\r\n") {
 		return ListChangesSinceRequest{}, fmt.Errorf("sync token is invalid")
 	}
-	return ListChangesSinceRequest{UserID: userID, CalendarID: calendarID, SyncToken: syncToken, Limit: normalizeCalDAVLimit(req.Limit)}, nil
+	return ListChangesSinceRequest{UserID: userID, CalendarID: calendarID, SyncToken: syncToken, Limit: normalizeCalDAVChangeLimit(req.Limit)}, nil
 }
 
 func lockActiveCalendar(ctx context.Context, tx *sql.Tx, userID string, calendarID string) error {
@@ -1080,6 +1080,16 @@ func normalizeCalDAVLimit(limit int) int {
 	}
 	if limit > 1000 {
 		return 1000
+	}
+	return limit
+}
+
+func normalizeCalDAVChangeLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	if limit > MaxWebDAVReportLimit+1 {
+		return MaxWebDAVReportLimit + 1
 	}
 	return limit
 }

@@ -373,6 +373,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `REPORT sync-collection` also requires the request body to include an
   explicit `DAV:sync-token` element, accepting an empty value for initial sync
   while rejecting omitted sync-token anchors before repository work.
+- CalDAV stale-token `sync-collection` delta handling now probes one change-log
+  row beyond bounded `limit/nresults`, so exact-limit responses are not falsely
+  rejected while truly truncating deltas still fail closed.
 - CalDAV `REPORT calendar-query` now keeps child calendar-object scans behind
   explicit `Depth: 1`; default/explicit `Depth: 0` collection queries return no
   child object matches, preserving WebDAV request-scope semantics for native

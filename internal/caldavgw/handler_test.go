@@ -588,6 +588,45 @@ func TestHandlerReportSyncCollectionCurrentTokenReturnsOnlyToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionAllowsExactChangeLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].SyncToken = "sync-updated"
+	store.changes = append(store.changes, CalendarChange{
+		ID:         int64(len(store.changes) + 1),
+		UserID:     "user-1",
+		CalendarID: "work",
+		ObjectName: "event-1.ics",
+		ETag:       store.objects[0].ETag,
+		Action:     "object-upserted",
+		SyncToken:  "sync-updated",
+		ChangedAt:  time.Date(2026, 5, 6, 11, 12, 13, 0, time.UTC),
+	})
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>",
+		"<D:sync-token>sync-updated</D:sync-token>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("exact-limit sync response missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsNonZeroHTTPDepth(t *testing.T) {
 	t.Parallel()
 
@@ -726,6 +765,58 @@ func TestHandlerReportSyncCollectionRejectsTruncatingLimit(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "limit would truncate") {
 		t.Fatalf("truncating limit error missing:\n%s", rec.Body.String())
+	}
+}
+
+func TestHandlerReportSyncCollectionRejectsTruncatingChangeLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].SyncToken = "sync-updated-2"
+	second := store.objects[0]
+	second.ID = "object-2"
+	second.ObjectName = "event-2.ics"
+	second.UID = "event-2@example.com"
+	second.ETag = `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`
+	store.objects = append(store.objects, second)
+	store.changes = append(store.changes,
+		CalendarChange{
+			ID:         int64(len(store.changes) + 1),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			ETag:       store.objects[0].ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-1",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC),
+		},
+		CalendarChange{
+			ID:         int64(len(store.changes) + 2),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-2.ics",
+			ETag:       second.ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-2",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 1, 0, 0, time.UTC),
+		},
+	)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "limit may truncate") {
+		t.Fatalf("truncating change-limit error missing:\n%s", rec.Body.String())
 	}
 }
 

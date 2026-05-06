@@ -271,7 +271,7 @@ func TestValidateObjectReadAndDeleteRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateListChangesSinceRequest returned error: %v", err)
 	}
-	if changes.SyncToken != "sync-123" || changes.Limit != 1000 {
+	if changes.SyncToken != "sync-123" || changes.Limit != MaxWebDAVReportLimit+1 {
 		t.Fatalf("changes request = %+v", changes)
 	}
 	if _, err := ValidateListChangesSinceRequest(ListChangesSinceRequest{UserID: "user-1", CalendarID: "calendar-1"}); err == nil {
