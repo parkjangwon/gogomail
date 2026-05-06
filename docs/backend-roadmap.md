@@ -3517,6 +3517,10 @@ Implementation order:
       region, bucket, prefix, and credential fields in addition to endpoint and
       path-style settings, preventing config-only backend flips from silently
       losing required object-storage settings.
+1323. CLI `--config` storage profile handoff coverage now asserts the same
+      MinIO/AWS S3 region, bucket, prefix, and credential fields before app
+      startup, keeping command-level profile smoke tests aligned with the
+      config-loader checks.
 
 ## Deferred until backend contracts stabilize
 
