@@ -313,6 +313,9 @@ Current state:
   lists even when no `STATUS` return option is present, keeping `CHILDREN`,
   `SPECIAL-USE`, and `SUBSCRIBED` return controls on the same parser boundary
   as LIST-STATUS.
+- IMAP `LIST RETURN` option lists now reject whitespace-padded quoted or
+  literal list values such as `RETURN " (CHILDREN) "` instead of trimming them
+  into valid parenthesized return controls.
 - IMAP `FETCH` and `UID FETCH` now accept RFC 3501 `RFC822<offset.count>`
   partial full-message fetches, preserve the `RFC822<offset>` response atom,
   and mark messages seen like ordinary `RFC822` fetches.

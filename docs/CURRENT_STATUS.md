@@ -315,7 +315,10 @@ diagnostics predictable without changing valid status item handling. `STATUS`
 status item lists now also reject malformed inner whitespace such as
 `( UIDNEXT)` or `(UIDNEXT  RECENT)` instead of collapsing quoted/literal list
 values into valid status data items, while LIST-STATUS keeps its existing
-normalized return-option path regression-covered. `THREAD` now also rejects
+normalized return-option path regression-covered. `LIST RETURN` option lists
+now reject whitespace-padded quoted or literal list values such as
+`RETURN " (CHILDREN) "` instead of trimming them into valid return controls.
+`THREAD` now also rejects
 unsupported
 algorithms before authentication or selected mailbox checks, so unsupported
 extensions such as `REFERENCES` are reported at the syntax/capability boundary

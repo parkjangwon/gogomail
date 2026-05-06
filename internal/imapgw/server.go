@@ -6925,7 +6925,7 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 }
 
 func imapListReturnOptionsParenthesized(fields []string) bool {
-	value := strings.TrimSpace(strings.Join(fields, " "))
+	value := strings.Join(fields, " ")
 	if !strings.HasPrefix(value, "(") || !strings.HasSuffix(value, ")") {
 		return false
 	}
