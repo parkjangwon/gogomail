@@ -2747,6 +2747,8 @@ Next:
   CardDAV `OPTIONS` and unsupported-method responses share one implemented
   method list plus no-store/nosniff safety headers, keeping native contact
   clients from seeing or caching methods before handler semantics exist.
+  Future `COPY`/`MOVE` method names are explicit constants but remain
+  regression-covered as unadvertised until full WebDAV semantics are added.
   Repository-backed query execution can stream contact objects and stop once
   the response cap is satisfied, avoiding whole-address-book materialization on
   that hot path. Address-data projection failures are explicit errors rather

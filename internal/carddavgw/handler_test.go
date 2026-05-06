@@ -375,6 +375,26 @@ func TestHandlerOptionsAdvertisesOnlyImplementedMethods(t *testing.T) {
 	if got := rec.Header().Get("Allow"); got != want {
 		t.Fatalf("Allow = %q, want %q", got, want)
 	}
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(rec.Header().Get("Allow"), futureMethod) {
+			t.Fatalf("Allow header advertised unimplemented %s: %q", futureMethod, rec.Header().Get("Allow"))
+		}
+	}
+}
+
+func TestImplementedMethodsExcludeFutureCopyMove(t *testing.T) {
+	t.Parallel()
+
+	methods := ImplementedMethods()
+	want := []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodGet, MethodHead, MethodPut, MethodDelete, MethodMkcol}
+	if strings.Join(methods, ",") != strings.Join(want, ",") {
+		t.Fatalf("ImplementedMethods = %v, want %v", methods, want)
+	}
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(strings.Join(methods, ","), futureMethod) {
+			t.Fatalf("ImplementedMethods advertised future %s method: %v", futureMethod, methods)
+		}
+	}
 }
 
 func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
@@ -382,7 +402,7 @@ func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
-	handler.ServeHTTP(rec, httptest.NewRequest("COPY", "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(MethodCopy, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil))
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
@@ -390,6 +410,11 @@ func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 	want := strings.Join(ImplementedMethods(), ", ")
 	if got := rec.Header().Get("Allow"); got != want {
 		t.Fatalf("Allow = %q, want %q", got, want)
+	}
+	for _, futureMethod := range []string{MethodCopy, MethodMove} {
+		if strings.Contains(rec.Header().Get("Allow"), futureMethod) {
+			t.Fatalf("Allow header advertised unimplemented %s: %q", futureMethod, rec.Header().Get("Allow"))
+		}
 	}
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)

@@ -1096,6 +1096,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `CARDDAV:supported-filter` precondition. REPORT `address-data` can project
   returned vCards to
   requested property names while preserving structural BEGIN/VERSION/END lines.
+  CardDAV `OPTIONS` and unsupported-method `Allow` headers now have explicit
+  regression coverage that future WebDAV `COPY`/`MOVE` constants remain
+  unadvertised until handler semantics exist.
   Requested address-data content types and versions are validated against the
   advertised `text/vcard` 4.0/3.0 support and fail with the RFC 6352
   `CARDDAV:supported-address-data` precondition before handler execution.

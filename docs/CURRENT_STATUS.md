@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 Put/Delete success body hardening)
+Last updated: 2026-05-07 (updated after CardDAV future method advertising guard)
 
 ## Current phase
 
@@ -3867,9 +3867,11 @@ The platform hardening sprint completed the following:
   compatibility tests are still pending.
 - CardDAV `OPTIONS` and 405 responses now share an explicit implemented-method
   list, keeping `Allow` aligned with actual address book handlers instead of
-  future WebDAV method ambitions. Unsupported-method discovery responses also
-  return `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, so
-  native client method probes follow the same safety contract as `OPTIONS`.
+  future WebDAV method ambitions. Future `COPY`/`MOVE` method constants are
+  regression-covered as intentionally unadvertised until handler semantics
+  exist. Unsupported-method discovery responses also return
+  `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`, so native
+  client method probes follow the same safety contract as `OPTIONS`.
 - CardDAV now handles contact-object `GET`, `HEAD`, `PUT`, and `DELETE` inside
   the internal handler. Reads emit `text/vcard; charset=utf-8`, strong ETags,
   content length, no-store headers, and `Last-Modified`, while honoring
