@@ -118,6 +118,15 @@ func TestValidateObjectPrefixRejectsUnsafePrefixes(t *testing.T) {
 func TestValidateListCursorRejectsUnsafeCursor(t *testing.T) {
 	t.Parallel()
 
+	if got, err := ValidateListCursor(" "); err != nil || got != "" {
+		t.Fatalf("blank cursor = %q, %v", got, err)
+	}
+	if _, err := ValidateListCursor(" cursor-1"); err == nil {
+		t.Fatal("ValidateListCursor accepted leading-whitespace cursor")
+	}
+	if _, err := ValidateListCursor("cursor-1 "); err == nil {
+		t.Fatal("ValidateListCursor accepted trailing-whitespace cursor")
+	}
 	if _, err := ValidateListCursor("cursor\n2"); err == nil {
 		t.Fatal("ValidateListCursor accepted newline-bearing cursor")
 	}

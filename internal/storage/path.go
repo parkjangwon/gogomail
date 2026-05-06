@@ -98,9 +98,14 @@ func NormalizeListLimit(limit int) int {
 }
 
 func ValidateListCursor(cursor string) (string, error) {
-	cursor = strings.TrimSpace(cursor)
 	if cursor == "" {
 		return "", nil
+	}
+	if strings.TrimSpace(cursor) == "" {
+		return "", nil
+	}
+	if strings.TrimSpace(cursor) != cursor {
+		return "", fmt.Errorf("storage list cursor must not contain leading or trailing whitespace")
 	}
 	if len(cursor) > MaxListCursorBytes {
 		return "", fmt.Errorf("storage list cursor is too long")
