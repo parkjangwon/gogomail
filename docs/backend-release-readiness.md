@@ -1394,6 +1394,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP command and IDLE line reads enforce the command-line byte cap while
   reading from the socket, keeping malformed clients from accumulating
   oversized lines in memory before syntax rejection.
+- IMAP oversized command literals now return a tagged `BAD` response when the
+  command tag can be recovered, then emit `BYE` and close the session cleanly
+  instead of leaking an internal server error through the connection boundary.
 - IMAP accepts empty flag-lists where RFC-shaped clients can send them:
   `APPEND ()` stores without initial flags, `STORE FLAGS ()` clears supported
   flags, and empty `+FLAGS ()`/`-FLAGS ()` are successful no-ops.

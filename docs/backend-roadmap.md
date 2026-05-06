@@ -2681,6 +2681,10 @@ Implementation order:
       sync-specific one-extra-object repository list paths, so omitted-limit
       snapshots cannot be silently clipped by generic list defaults while still
       returning current collection sync tokens.
+1187. IMAP command framing now turns oversized command literals into a tagged
+      `BAD` response when the command tag is available, followed by `BYE` and a
+      clean connection close. This keeps literal-size enforcement observable to
+      clients without trying to resynchronize an unrecoverable input stream.
 
 ## Deferred until backend contracts stabilize
 

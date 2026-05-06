@@ -161,6 +161,16 @@ func (s *Server) ServeConn(conn net.Conn) error {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
+			var framingErr imapProtocolFramingError
+			if errors.As(err, &framingErr) {
+				if err := writeIMAPFramingError(writer, framingErr.line, framingErr.message); err != nil {
+					return err
+				}
+				if err := writer.Flush(); err != nil {
+					return err
+				}
+				return nil
+			}
 			return err
 		}
 		done, err := s.handleLineWithLiteral(writer, line, literals, &state)
@@ -198,6 +208,9 @@ func (s *Server) ServeConn(conn net.Conn) error {
 func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, []string, error) {
 	line, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 	if err != nil {
+		if errors.Is(err, errIMAPCommandLineTooLong) {
+			return "", nil, imapProtocolFramingError{message: "command line is too long"}
+		}
 		return "", nil, err
 	}
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
@@ -208,11 +221,17 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 	literals := make([]string, 0, 1)
 	for {
 		literalSize, nonSync, ok, err := imapCommandLiteralSize(command.String())
-		if err != nil || !ok {
+		if err != nil {
+			if errors.Is(err, errIMAPCommandLiteralTooLarge) {
+				return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal is too large"}
+			}
 			return command.String(), literals, err
 		}
+		if !ok {
+			return command.String(), literals, nil
+		}
 		if literalSize > maxIMAPCommandLiteralBytes {
-			return "", nil, fmt.Errorf("imap command literal is too large")
+			return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal is too large"}
 		}
 		if !nonSync {
 			if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
@@ -229,16 +248,61 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 		literals = append(literals, string(literal))
 		suffix, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 		if err != nil {
+			if errors.Is(err, errIMAPCommandLineTooLong) {
+				return "", nil, imapProtocolFramingError{line: command.String(), message: "command line is too long"}
+			}
 			return "", nil, err
 		}
 		if suffix == "\r\n" || suffix == "\n" {
 			return command.String(), literals, nil
 		}
 		if command.Len()+len(suffix) > maxIMAPCommandLineBytes {
-			return "", nil, fmt.Errorf("imap command line is too long")
+			return "", nil, imapProtocolFramingError{line: command.String(), message: "command line is too long"}
 		}
 		command.WriteString(strings.TrimRight(suffix, "\r\n"))
 	}
+}
+
+var (
+	errIMAPCommandLineTooLong     = errors.New("imap command line is too long")
+	errIMAPCommandLiteralTooLarge = errors.New("imap command literal is too large")
+)
+
+type imapProtocolFramingError struct {
+	line    string
+	message string
+}
+
+func (err imapProtocolFramingError) Error() string {
+	if err.message == "" {
+		return "imap protocol framing error"
+	}
+	return "imap " + err.message
+}
+
+func writeIMAPFramingError(writer *bufio.Writer, line string, message string) error {
+	if message == "" {
+		message = "protocol framing error"
+	}
+	if tag := imapTagFromCommandLine(line); tag != "" {
+		if _, err := writer.WriteString(tag + " BAD " + message + "\r\n"); err != nil {
+			return err
+		}
+	} else {
+		if _, err := writer.WriteString("* BAD " + message + "\r\n"); err != nil {
+			return err
+		}
+	}
+	_, err := writer.WriteString("* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n")
+	return err
+}
+
+func imapTagFromCommandLine(line string) string {
+	fields := strings.Fields(strings.TrimSpace(line))
+	if len(fields) == 0 || !imapTagValid(fields[0]) {
+		return ""
+	}
+	return fields[0]
 }
 
 func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {
@@ -252,7 +316,7 @@ func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {
 	for {
 		fragment, err := reader.ReadSlice('\n')
 		if len(line)+len(fragment) > maxBytes {
-			return "", fmt.Errorf("imap command line is too long")
+			return "", errIMAPCommandLineTooLong
 		}
 		line = append(line, fragment...)
 		if err == nil {
@@ -6490,7 +6554,7 @@ func imapCommandLiteralSize(line string) (int, bool, bool, error) {
 		}
 		size = size*10 + int64(value[i]-'0')
 		if size > maxIMAPCommandLiteralBytes {
-			return 0, nonSync, true, fmt.Errorf("imap command literal is too large")
+			return 0, nonSync, true, errIMAPCommandLiteralTooLarge
 		}
 	}
 	return int(size), nonSync, true, nil
