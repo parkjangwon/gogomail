@@ -429,8 +429,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bounded dry-run/delete calls preserve the newest sync marker per calendar and
   use a dedicated prune-order index. `dav-sync-retention-worker` runs the
   CalDAV/CardDAV prune paths on an interval or once-and-exit, dry-run by
-  default and guarded by explicit confirmation before destructive runs.
-  Public-ready status still requires documented token-retention policy.
+  default and guarded by explicit confirmation before destructive runs. Worker
+  executions now persist `dav_sync_retention_runs` audit/read-model rows with
+  cutoff, limit, dry-run/confirmation flags, status, bounded error text, and
+  CalDAV/CardDAV candidate/deleted counts, including partial failures.
+  Public-ready status still requires Admin API inspection plus documented
+  token-retention policy.
 - CardDAV sync-change retention pruning now mirrors that boundary for address
   books: bounded dry-run/delete calls preserve the newest sync marker per
   address book and use a dedicated prune-order index. Public-ready Contacts

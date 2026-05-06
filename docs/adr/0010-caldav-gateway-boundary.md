@@ -280,5 +280,6 @@ and compatibility tests.
 - The frontend calendar can be built later without bypassing the standards
   boundary needed by native clients.
 - Public CalDAV compatibility is experimental until recurrence, scheduling,
-  production token-retention policy, native-client compatibility testing, and the shared
+  Admin retention-readiness/history APIs, production token-retention policy,
+  native-client compatibility testing, and the shared
   Directory/Contacts/Notification/Search/Policy boundaries are in place.

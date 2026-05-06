@@ -137,11 +137,13 @@ Retention pruning is repository-owned as well. A bounded
 change-log rows while preserving the newest marker per address book, backed by
 a prune-order database index. The `dav-sync-retention-worker` runs that path
 with CalDAV retention on an interval or once-and-exit, dry-run by default and
-guarded by explicit confirmation before destructive runs. This keeps Contacts
-retention policy out of the HTTP handler and prevents cleanup work from
-deleting the token needed by a current client. Public readiness still needs
-deployment-specific retention age policy and native-client compatibility
-testing around expired tokens.
+guarded by explicit confirmation before destructive runs. Worker executions
+persist `dav_sync_retention_runs` rows with bounded counts, status, and
+sanitized failure text, including partial CalDAV/CardDAV failures. This keeps
+Contacts retention policy out of the HTTP handler and prevents cleanup work
+from deleting the token needed by a current client. Public readiness still
+needs Admin retention-readiness/history APIs, deployment-specific retention age
+policy, and native-client compatibility testing around expired tokens.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
 remains the final concurrency guard, but normal handler/repository failures now

@@ -29,6 +29,7 @@ import (
 	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/database"
+	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
@@ -150,15 +151,23 @@ type cardDAVSyncRetentionRunner interface {
 	PruneAddressBookChanges(ctx context.Context, req carddavgw.PruneAddressBookChangesRequest) (carddavgw.AddressBookChangePruneResult, error)
 }
 
+type davSyncRetentionAuditRecorder interface {
+	RecordRun(ctx context.Context, record davsyncretention.RunRecord) (davsyncretention.RunRecord, error)
+}
+
 type davSyncRetentionRunners struct {
 	CalDAV  calDAVSyncRetentionRunner
 	CardDAV cardDAVSyncRetentionRunner
+	Audit   davSyncRetentionAuditRecorder
 }
 
 type davSyncRetentionResult struct {
 	Cutoff         time.Time
 	Limit          int
 	DryRun         bool
+	ConfirmReady   bool
+	RunID          string
+	Status         davsyncretention.RunStatus
 	CalCandidates  int64
 	CalDeleted     int64
 	CardCandidates int64
@@ -497,6 +506,7 @@ func runDAVSyncRetentionWorker(ctx context.Context, cfg config.Config, logger *s
 	runners := davSyncRetentionRunners{
 		CalDAV:  caldavgw.NewRepository(db),
 		CardDAV: carddavgw.NewRepository(db),
+		Audit:   davsyncretention.NewRepository(db),
 	}
 	if cfg.DAVSyncRetentionRunOnce {
 		_, err := runDAVSyncRetentionOnce(ctx, runners, time.Now, cfg, logger)
@@ -648,7 +658,15 @@ func runDAVSyncRetentionOnce(ctx context.Context, runners davSyncRetentionRunner
 		DryRun: cfg.DAVSyncRetentionDryRun,
 	})
 	if err != nil {
-		return davSyncRetentionResult{}, err
+		result := davSyncRetentionResult{
+			Cutoff:       cutoff,
+			Limit:        cfg.DAVSyncRetentionBatchSize,
+			DryRun:       cfg.DAVSyncRetentionDryRun,
+			ConfirmReady: cfg.DAVSyncRetentionConfirmReady,
+			Status:       davsyncretention.RunStatusFailed,
+		}
+		result, auditErr := recordDAVSyncRetentionRun(ctx, runners.Audit, result, err)
+		return result, errors.Join(err, auditErr)
 	}
 	cardResult, err := runners.CardDAV.PruneAddressBookChanges(ctx, carddavgw.PruneAddressBookChangesRequest{
 		Cutoff: cutoff,
@@ -656,28 +674,80 @@ func runDAVSyncRetentionOnce(ctx context.Context, runners davSyncRetentionRunner
 		DryRun: cfg.DAVSyncRetentionDryRun,
 	})
 	if err != nil {
-		return davSyncRetentionResult{}, err
+		result := davSyncRetentionResult{
+			Cutoff:        cutoff,
+			Limit:         cfg.DAVSyncRetentionBatchSize,
+			DryRun:        cfg.DAVSyncRetentionDryRun,
+			ConfirmReady:  cfg.DAVSyncRetentionConfirmReady,
+			Status:        davsyncretention.RunStatusFailed,
+			CalCandidates: calResult.CandidateCount,
+			CalDeleted:    calResult.DeletedCount,
+		}
+		result, auditErr := recordDAVSyncRetentionRun(ctx, runners.Audit, result, err)
+		return result, errors.Join(err, auditErr)
 	}
 	result := davSyncRetentionResult{
 		Cutoff:         cutoff,
 		Limit:          cfg.DAVSyncRetentionBatchSize,
 		DryRun:         cfg.DAVSyncRetentionDryRun,
+		ConfirmReady:   cfg.DAVSyncRetentionConfirmReady,
+		Status:         davsyncretention.RunStatusCompleted,
 		CalCandidates:  calResult.CandidateCount,
 		CalDeleted:     calResult.DeletedCount,
 		CardCandidates: cardResult.CandidateCount,
 		CardDeleted:    cardResult.DeletedCount,
 	}
+	result, err = recordDAVSyncRetentionRun(ctx, runners.Audit, result, nil)
+	if err != nil {
+		return result, err
+	}
 	if logger != nil {
 		logger.Info("DAV sync retention completed",
+			"run_id", result.RunID,
 			"cutoff", result.Cutoff,
 			"limit", result.Limit,
 			"dry_run", result.DryRun,
+			"confirm_ready", result.ConfirmReady,
+			"status", result.Status,
 			"caldav_candidates", result.CalCandidates,
 			"caldav_deleted", result.CalDeleted,
 			"carddav_candidates", result.CardCandidates,
 			"carddav_deleted", result.CardDeleted,
 		)
 	}
+	return result, nil
+}
+
+func recordDAVSyncRetentionRun(ctx context.Context, recorder davSyncRetentionAuditRecorder, result davSyncRetentionResult, runErr error) (davSyncRetentionResult, error) {
+	if recorder == nil {
+		return result, nil
+	}
+	status := result.Status
+	if status == "" {
+		status = davsyncretention.RunStatusCompleted
+	}
+	errorMessage := ""
+	if runErr != nil {
+		status = davsyncretention.RunStatusFailed
+		errorMessage = runErr.Error()
+	}
+	record, err := recorder.RecordRun(ctx, davsyncretention.RunRecord{
+		Cutoff:            result.Cutoff,
+		Limit:             result.Limit,
+		DryRun:            result.DryRun,
+		ConfirmReady:      result.ConfirmReady,
+		Status:            status,
+		ErrorMessage:      errorMessage,
+		CalDAVCandidates:  result.CalCandidates,
+		CalDAVDeleted:     result.CalDeleted,
+		CardDAVCandidates: result.CardCandidates,
+		CardDAVDeleted:    result.CardDeleted,
+	})
+	if err != nil {
+		return result, fmt.Errorf("record DAV sync retention run: %w", err)
+	}
+	result.RunID = record.ID
+	result.Status = record.Status
 	return result, nil
 }
 
