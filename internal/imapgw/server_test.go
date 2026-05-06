@@ -6560,7 +6560,7 @@ func TestServerHandlesUIDFetchHeaderAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read partial header fields not literal header: %v", err)
 	}
-	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER]<0> {10}\r\n" {
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS.NOT (FROM)]<0> {10}\r\n" {
 		t.Fatalf("partial header fields not literal header = %q", line)
 	}
 	partialHeader := make([]byte, 10)
@@ -6684,7 +6684,7 @@ func TestServerHandlesUIDFetchHeaderFieldsAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read header fields literal header: %v", err)
 	}
-	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER] {18}\r\n" {
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS (SUBJECT)] {18}\r\n" {
 		t.Fatalf("header fields literal header = %q", line)
 	}
 	header := make([]byte, 18)
@@ -6707,7 +6707,7 @@ func TestServerHandlesUIDFetchHeaderFieldsAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read partial header fields literal header: %v", err)
 	}
-	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER]<0> {14}\r\n" {
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS (SUBJECT FROM)]<0> {14}\r\n" {
 		t.Fatalf("partial header fields literal header = %q", line)
 	}
 	partialHeader := make([]byte, 14)
@@ -6769,7 +6769,7 @@ func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read header fields not literal header: %v", err)
 	}
-	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER] {18}\r\n" {
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS.NOT (FROM)] {18}\r\n" {
 		t.Fatalf("header fields not literal header = %q", line)
 	}
 	header := make([]byte, 18)

@@ -2619,6 +2619,11 @@ Implementation order:
       delegated-access audit log envelope. Future CalDAV/CardDAV/Drive/mailbox
       adapters can record policy decisions without duplicating audit row
       construction or bypassing the shared audit repository boundary.
+1174. IMAP `FETCH` and `UID FETCH` now preserve requested
+      `HEADER.FIELDS (...)` and `HEADER.FIELDS.NOT (...)` section names in
+      `BODY[...]` literal response items, including partial-window suffixes,
+      so RFC 3501-shaped header subset clients can correlate responses without
+      treating every subset read as a generic `BODY[HEADER]` literal.
 
 ## Deferred until backend contracts stabilize
 
