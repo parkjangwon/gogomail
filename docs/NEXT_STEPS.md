@@ -101,7 +101,9 @@ Current state:
   `NO authentication required`. `LSUB` now explicitly rejects LIST-EXTENDED
   option probes such as `(SPECIAL-USE)` prefixes or `RETURN (...)` tails with
   an `LSUB`-specific tagged `BAD`, keeping subscribed-mailbox discovery
-  separate from advertised extended `LIST` semantics.
+  separate from advertised extended `LIST` semantics. `LIST` and `LSUB` also
+  normalize leading hierarchy delimiters in mailbox patterns as root-absolute
+  selectors before matching internal root-relative mailbox names.
 - Selected-mailbox discovery commands validate malformed `NAMESPACE`, `SELECT`,
   `EXAMINE`, and `STATUS` argument shape, CONDSTORE options, status item lists,
   or modified UTF-7 mailbox names before authentication failures, while

@@ -3321,6 +3321,10 @@ Implementation order:
       `(SPECIAL-USE)` prefixes or `RETURN (...)` tails before authentication
       with a dedicated `LSUB` tagged `BAD`, keeping RFC 3501 subscribed-mailbox
       discovery separate from advertised extended `LIST` behavior.
+1282. IMAP `LIST` and `LSUB` now normalize mailbox patterns beginning with the
+      hierarchy delimiter as root-absolute selectors before matching the
+      server's root-relative mailbox names, so absolute probes are not
+      accidentally matched against impossible leading-slash mailbox names.
 
 ## Deferred until backend contracts stabilize
 
