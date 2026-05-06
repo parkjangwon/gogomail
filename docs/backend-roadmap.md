@@ -4052,6 +4052,9 @@ Implementation order:
 1448. IMAP RFC 5258 `LIST-EXTENDED` now accepts parenthesized mailbox pattern
       lists, applies `RETURN` options such as `STATUS` and `SUBSCRIBED` to the
       union of matching folders, and de-duplicates overlapping pattern results.
+1449. S3-compatible `CopyObjectResult` success bodies now require a non-blank
+      bounded `ETag`, preventing copy/move success from being reported when
+      provider success metadata omits object identity.
 
 ## Deferred until backend contracts stabilize
 
