@@ -194,6 +194,14 @@ fail closed as access denial before audit or delegated role checks run, while
 infrastructure and audit-path failures remain explicit server errors. This is a
 protocol boundary foundation, not a public contacts-sharing UX.
 
+Mutating CardDAV repository requests carry the authenticated actor user ID
+separately from the owner user ID. Transactional `contacts.changed` DAV event
+payloads therefore include `owner_user_id`, `actor_user_id`, and `delegated`
+fields for address-book and contact-object changes while preserving owner
+scoping for storage, sync tokens, and partition keys. This keeps future
+Contacts, Notification & Sync, search, audit, and mobile delta consumers from
+guessing delegated context from request paths or re-querying protocol tables.
+
 ## Consequences
 
 - Contacts/CardDAV can evolve as a standards-first module instead of a webmail

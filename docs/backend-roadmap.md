@@ -3325,6 +3325,12 @@ Implementation order:
       hierarchy delimiter as root-absolute selectors before matching the
       server's root-relative mailbox names, so absolute probes are not
       accidentally matched against impossible leading-slash mailbox names.
+1283. CardDAV mutating repository requests now carry optional actor user IDs
+      alongside owner user IDs, and `contacts.changed` v1 `dav.event` payloads
+      preserve `owner_user_id`, `actor_user_id`, and `delegated` context for
+      address-book and contact-object changes, matching the CalDAV event
+      boundary for future Contacts, Notification & Sync, search, audit, and
+      mobile delta consumers.
 
 ## Deferred until backend contracts stabilize
 

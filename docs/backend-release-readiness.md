@@ -505,6 +505,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV `calendar.changed` now preserves owner user, actor user, and delegated
   status through mutating repository requests and DAV audit logs, so delegated
   calendar writes/deletes do not collapse into owner-only events.
+- CardDAV `contacts.changed` now preserves owner user, actor user, and
+  delegated status through address-book/contact-object mutating repository
+  requests, keeping delegated contacts changes auditable and ready for future
+  Contacts, search, notification, and mobile delta consumers.
 - `event-worker` can validate and audit DAV change events when deployed against
   `GOGOMAIL_EVENT_STREAM=dav.event`, keeping the first DAV event consumer
   auditable while reminder, device, search-index, and mobile delta consumers

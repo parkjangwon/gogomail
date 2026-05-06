@@ -36,6 +36,13 @@ type fakeCardDAVDiscoveryStore struct {
 	changes   []AddressBookChange
 }
 
+type trackingCardDAVObjectStore struct {
+	fakeCardDAVDiscoveryStore
+	lastUpsert UpsertContactObjectRequest
+	lastDelete DeleteContactObjectRequest
+	lastBook   DeleteAddressBookRequest
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
 	if userID != s.principal.UserID {
 		return Principal{}, errFakeCardDAVNotFound
@@ -255,6 +262,21 @@ func (s fakeCardDAVDiscoveryStore) DeleteContactObject(_ context.Context, req De
 	return ContactObject{}, errFakeCardDAVNotFound
 }
 
+func (s *trackingCardDAVObjectStore) UpsertContactObject(ctx context.Context, req UpsertContactObjectRequest) (ContactObject, error) {
+	s.lastUpsert = req
+	return s.fakeCardDAVDiscoveryStore.UpsertContactObject(ctx, req)
+}
+
+func (s *trackingCardDAVObjectStore) DeleteContactObject(ctx context.Context, req DeleteContactObjectRequest) (ContactObject, error) {
+	s.lastDelete = req
+	return s.fakeCardDAVDiscoveryStore.DeleteContactObject(ctx, req)
+}
+
+func (s *trackingCardDAVObjectStore) DeleteAddressBook(ctx context.Context, req DeleteAddressBookRequest) (AddressBook, error) {
+	s.lastBook = req
+	return s.fakeCardDAVDiscoveryStore.DeleteAddressBook(ctx, req)
+}
+
 func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 	t.Parallel()
 
@@ -449,7 +471,8 @@ func TestHandlerPutContactObjectRejectsDelegatedReadOnlyAccess(t *testing.T) {
 func TestHandlerPutContactObjectAllowsDelegatedWrite(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "delegate-1", nil })
 	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleWrite: true}}
 	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:new-contact\r\nFN:New Contact\r\nEND:VCARD\r\n"
 	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/new-contact.vcf", strings.NewReader(body))
@@ -462,6 +485,9 @@ func TestHandlerPutContactObjectAllowsDelegatedWrite(t *testing.T) {
 	}
 	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleWrite {
 		t.Fatalf("access request = %+v", got)
+	}
+	if store.lastUpsert.UserID != "user-1" || store.lastUpsert.ActorUserID != "delegate-1" {
+		t.Fatalf("delegated upsert request = %+v", store.lastUpsert)
 	}
 }
 
@@ -607,8 +633,8 @@ func TestHandlerDeleteAddressBookCollectionDeletesObjects(t *testing.T) {
 func TestHandlerDeleteAddressBookCollectionAllowsDelegatedManage(t *testing.T) {
 	t.Parallel()
 
-	store := testCardDAVDiscoveryStore(t)
-	handler := NewHandler(&store, func(*http.Request) (string, error) { return "delegate-1", nil })
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "delegate-1", nil })
 	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{allowedRoles: map[string]bool{ContactsAccessRoleManage: true}}
 	req := httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/", nil)
 	rec := httptest.NewRecorder()
@@ -619,6 +645,9 @@ func TestHandlerDeleteAddressBookCollectionAllowsDelegatedManage(t *testing.T) {
 	}
 	if got := handler.AccessAuthorizer.(*fakeCardDAVAccessAuthorizer).last; got.ActorUserID != "delegate-1" || got.OwnerUserID != "user-1" || got.RequiredRole != ContactsAccessRoleManage {
 		t.Fatalf("access request = %+v", got)
+	}
+	if store.lastBook.UserID != "user-1" || store.lastBook.ActorUserID != "delegate-1" {
+		t.Fatalf("delegated address-book delete request = %+v", store.lastBook)
 	}
 	if len(store.books) != 0 {
 		t.Fatalf("address books after delete = %+v", store.books)

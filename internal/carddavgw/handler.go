@@ -176,6 +176,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+	actorUserID := userID
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil || resource.Kind != ResourceAddressBookCollection {
 		http.Error(w, "MKCOL requires an address-book collection path", http.StatusConflict)
@@ -205,6 +206,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 	}
 	book, err := store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
 		UserID:        userID,
+		ActorUserID:   actorUserID,
 		AddressBookID: resource.AddressBookID,
 		Name:          req.DisplayName,
 		Description:   req.Description,
@@ -225,7 +227,7 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveResourceRequest(w, r, ContactsAccessRoleWrite)
+	userID, resource, actorUserID, ok := h.resolveResourceRequest(w, r, ContactsAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -248,6 +250,7 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 	}
 	book, err := store.UpdateAddressBookProperties(r.Context(), UpdateAddressBookRequest{
 		UserID:        userID,
+		ActorUserID:   actorUserID,
 		AddressBookID: resource.AddressBookID,
 		Name:          patch.Name,
 		Description:   patch.Description,
@@ -283,7 +286,7 @@ func (h *Handler) serveOptions(w http.ResponseWriter) {
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleRead)
+	userID, resource, _, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleRead)
 	if !ok {
 		return
 	}
@@ -328,7 +331,7 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
-	userID, resource, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleWrite)
+	userID, resource, actorUserID, ok := h.resolveObjectRequest(w, r, ContactsAccessRoleWrite)
 	if !ok {
 		return
 	}
@@ -396,6 +399,7 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 	}
 	object, err := store.UpsertContactObject(r.Context(), UpsertContactObjectRequest{
 		UserID:        userID,
+		ActorUserID:   actorUserID,
 		AddressBookID: resource.AddressBookID,
 		ObjectName:    resource.ObjectName,
 		VCard:         body,
@@ -427,6 +431,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+	actorUserID := userID
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -438,7 +443,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userID = ownerID
-		h.deleteAddressBookCollection(w, r, userID, resource)
+		h.deleteAddressBookCollection(w, r, userID, actorUserID, resource)
 		return
 	}
 	if resource.Kind != ResourceContactObject {
@@ -482,6 +487,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := store.DeleteContactObject(r.Context(), DeleteContactObjectRequest{
 		UserID:        userID,
+		ActorUserID:   actorUserID,
 		AddressBookID: resource.AddressBookID,
 		ObjectName:    resource.ObjectName,
 		ObservedETag:  observedETag,
@@ -498,7 +504,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) deleteAddressBookCollection(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+func (h *Handler) deleteAddressBookCollection(w http.ResponseWriter, r *http.Request, userID string, actorUserID string, resource ResourcePath) {
 	store, ok := h.Store.(AddressBookDeleter)
 	if !ok {
 		http.Error(w, "carddav address-book deleter is not configured", http.StatusNotImplemented)
@@ -507,7 +513,7 @@ func (h *Handler) deleteAddressBookCollection(w http.ResponseWriter, r *http.Req
 	if !h.checkAddressBookCollectionPreconditions(w, r, userID, resource.AddressBookID) {
 		return
 	}
-	if _, err := store.DeleteAddressBook(r.Context(), DeleteAddressBookRequest{UserID: userID, AddressBookID: resource.AddressBookID}); err != nil {
+	if _, err := store.DeleteAddressBook(r.Context(), DeleteAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: resource.AddressBookID}); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -869,22 +875,22 @@ func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter,
 	return true
 }
 
-func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
-	userID, resource, ok := h.resolveResourceRequest(w, r, requiredRole)
+func (h *Handler) resolveObjectRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {
+	userID, resource, actorUserID, ok := h.resolveResourceRequest(w, r, requiredRole)
 	if !ok {
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
 	if resource.Kind != ResourceContactObject {
 		http.Error(w, "carddav contact object path is required", http.StatusNotFound)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
-	return userID, resource, true
+	return userID, resource, actorUserID, true
 }
 
-func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, bool) {
+func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request, requiredRole string) (string, ResourcePath, string, bool) {
 	if h.Store == nil {
 		http.Error(w, "carddav store is not configured", http.StatusInternalServerError)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
 	resolve := h.ResolveUser
 	if resolve == nil {
@@ -893,18 +899,18 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request,
 	userID, err := resolve(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
 	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, requiredRole)
 	if !ok {
-		return "", ResourcePath{}, false
+		return "", ResourcePath{}, "", false
 	}
-	return ownerID, resource, true
+	return ownerID, resource, userID, true
 }
 
 func (h *Handler) authorizeResource(w http.ResponseWriter, r *http.Request, actorID string, resource ResourcePath, requiredRole string) (string, AccessDecision, bool) {
