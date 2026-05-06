@@ -60,6 +60,32 @@ func TestOpenAPIDraftPinsAdminConsoleCapabilitiesToAdminBase(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftPinsHealthAndInfoServers(t *testing.T) {
+	t.Parallel()
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	for _, route := range []string{"GET /health/live", "GET /health/ready"} {
+		block, ok := operations[route]
+		if !ok {
+			t.Fatalf("OpenAPI operation %s is missing", route)
+		}
+		for _, want := range []string{"servers:", "url: /", "description: Service root"} {
+			if !strings.Contains(block, want) {
+				t.Fatalf("OpenAPI operation %s must pin the service root server with %q:\n%s", route, want, block)
+			}
+		}
+	}
+	block, ok := operations["GET /info"]
+	if !ok {
+		t.Fatal("OpenAPI operation GET /info is missing")
+	}
+	for _, want := range []string{"servers:", "url: /api/v1", "description: Mail API"} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("OpenAPI operation GET /info must pin the Mail API server with %q:\n%s", want, block)
+		}
+	}
+}
+
 func TestOpenAPIDraftCoversRegisteredHTTPRoutes(t *testing.T) {
 	t.Parallel()
 

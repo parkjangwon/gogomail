@@ -29,6 +29,10 @@ server at the operation level, with a runtime regression that
 `/api/v1/console/capabilities` remains unregistered. This keeps generated
 admin clients from accidentally using the public mail API base path for
 operator bootstrap calls.
+Health probes are now pinned to the service-root OpenAPI server while service
+info is pinned to `/api/v1`, with runtime regressions for the common wrong-base
+forms. This keeps deployment probes, load balancer checks, and generated
+contract clients aligned with the actual Go router.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

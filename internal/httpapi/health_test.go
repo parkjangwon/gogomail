@@ -128,6 +128,37 @@ func TestReadyHandlerReportsRuntimeCheckFailure(t *testing.T) {
 	}
 }
 
+func TestHealthAndInfoHandlersUseDocumentedBasesOnly(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "live under mail api base", path: "/api/v1/health/live"},
+		{name: "ready under admin api base", path: "/admin/v1/health/ready"},
+		{name: "info under admin api base", path: "/admin/v1/info"},
+		{name: "info at service root", path: "/info"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mux := http.NewServeMux()
+			RegisterHealthRoutes(mux)
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHealthAndInfoHandlersRejectPayloadMetadata(t *testing.T) {
 	t.Parallel()
 

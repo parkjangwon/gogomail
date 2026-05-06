@@ -3445,6 +3445,10 @@ Implementation order:
       to the `/admin/v1` OpenAPI server at the operation level and has runtime
       coverage that `/api/v1/console/capabilities` is not registered, avoiding
       generated-client base-path ambiguity before admin frontend integration.
+1306. Health probes now pin `GET /health/live` and `GET /health/ready` to the
+      service-root OpenAPI server, while service info pins `GET /info` to the
+      `/api/v1` server; runtime regressions reject wrong-base variants so
+      operators and generated clients do not rely on undocumented probe URLs.
 
 ## Deferred until backend contracts stabilize
 
