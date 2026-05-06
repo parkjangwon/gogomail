@@ -397,6 +397,119 @@ func TestDelegationAuditRecorderPropagatesInsertError(t *testing.T) {
 	}
 }
 
+func TestDelegatedAccessAuthorizerRecordsAllowedDecision(t *testing.T) {
+	t.Parallel()
+
+	checker := &fakeDelegationChecker{allowed: true}
+	repo := &fakeAuditRepository{}
+	decision, err := (DelegatedAccessAuthorizer{Checker: checker, AuditRepository: repo}).CheckAndRecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    " company-1 ",
+		Owner:        Principal(" RESOURCE ", " room-1 "),
+		Actor:        Principal(" USER ", " user-1 "),
+		Scope:        " Calendar ",
+		RequiredRole: " WRITE ",
+	})
+	if err != nil {
+		t.Fatalf("CheckAndRecordDelegatedAccess returned error: %v", err)
+	}
+	if !decision.Allowed ||
+		decision.Reason != DecisionReasonDelegationAllowed ||
+		decision.Scope != directory.DelegationScopeCalendar ||
+		decision.RequiredRole != directory.DelegationRoleWrite {
+		t.Fatalf("decision = %+v, want normalized allowed decision", decision)
+	}
+	if !checker.called || checker.last.CompanyID != "company-1" || checker.last.OwnerKind != directory.PrincipalKindResource || checker.last.RequiredRole != directory.DelegationRoleWrite {
+		t.Fatalf("checker request = %+v called=%v", checker.last, checker.called)
+	}
+	if !repo.called ||
+		repo.log.CompanyID != "company-1" ||
+		repo.log.ActorID != "user-1" ||
+		repo.log.TargetType != directory.PrincipalKindResource ||
+		repo.log.TargetID != "room-1" ||
+		repo.log.Result != AuditResultDelegationAllowed {
+		t.Fatalf("recorded audit log = %+v called=%v", repo.log, repo.called)
+	}
+}
+
+func TestDelegatedAccessAuthorizerRecordsDeniedDecision(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeAuditRepository{}
+	decision, err := (DelegatedAccessAuthorizer{Checker: &fakeDelegationChecker{}, AuditRepository: repo}).CheckAndRecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleManage,
+	})
+	if err != nil {
+		t.Fatalf("CheckAndRecordDelegatedAccess returned error: %v", err)
+	}
+	if decision.Allowed || decision.Reason != DecisionReasonDelegationDenied {
+		t.Fatalf("decision = %+v, want denied decision", decision)
+	}
+	if !repo.called || repo.log.Result != AuditResultDelegationDenied {
+		t.Fatalf("recorded audit log = %+v called=%v", repo.log, repo.called)
+	}
+}
+
+func TestDelegatedAccessAuthorizerSkipsAuditOnCheckerError(t *testing.T) {
+	t.Parallel()
+
+	want := errors.New("directory unavailable")
+	repo := &fakeAuditRepository{}
+	_, err := (DelegatedAccessAuthorizer{Checker: &fakeDelegationChecker{err: want}, AuditRepository: repo}).CheckAndRecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+	if repo.called {
+		t.Fatalf("audit repository called after checker error: %+v", repo.log)
+	}
+}
+
+func TestDelegatedAccessAuthorizerReturnsAuditInsertError(t *testing.T) {
+	t.Parallel()
+
+	want := errors.New("audit database unavailable")
+	decision, err := (DelegatedAccessAuthorizer{Checker: &fakeDelegationChecker{allowed: true}, AuditRepository: &fakeAuditRepository{err: want}}).CheckAndRecordDelegatedAccess(context.Background(), DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %v, want %v", err, want)
+	}
+	if decision.Allowed {
+		t.Fatalf("decision = %+v, want zero decision on audit failure", decision)
+	}
+}
+
+func TestDelegatedAccessAuthorizerRequiresDependencies(t *testing.T) {
+	t.Parallel()
+
+	req := DelegatedAccessRequest{
+		CompanyID:    "company-1",
+		Owner:        Principal(directory.PrincipalKindResource, "room-1"),
+		Actor:        Principal(directory.PrincipalKindUser, "user-1"),
+		Scope:        directory.DelegationScopeCalendar,
+		RequiredRole: directory.DelegationRoleRead,
+	}
+	if _, err := (DelegatedAccessAuthorizer{AuditRepository: &fakeAuditRepository{}}).CheckAndRecordDelegatedAccess(context.Background(), req); err == nil {
+		t.Fatal("CheckAndRecordDelegatedAccess accepted nil checker")
+	}
+	if _, err := (DelegatedAccessAuthorizer{Checker: &fakeDelegationChecker{}}).CheckAndRecordDelegatedAccess(context.Background(), req); err == nil {
+		t.Fatal("CheckAndRecordDelegatedAccess accepted nil audit repository")
+	}
+}
+
 type fakeDelegationChecker struct {
 	allowed bool
 	err     error

@@ -67,6 +67,11 @@ type DelegationAuditRecorder struct {
 	Repository AuditRepository
 }
 
+type DelegatedAccessAuthorizer struct {
+	Checker         EffectiveDelegationChecker
+	AuditRepository AuditRepository
+}
+
 func (e DelegationEvaluator) CheckDelegatedAccess(ctx context.Context, req DelegatedAccessRequest) (Decision, error) {
 	if e.Checker == nil {
 		return Decision{}, fmt.Errorf("effective delegation checker is required")
@@ -79,16 +84,7 @@ func (e DelegationEvaluator) CheckDelegatedAccess(ctx context.Context, req Deleg
 	if err != nil {
 		return Decision{}, err
 	}
-	reason := DecisionReasonDelegationDenied
-	if allowed {
-		reason = DecisionReasonDelegationAllowed
-	}
-	return Decision{
-		Allowed:      allowed,
-		Reason:       reason,
-		Scope:        check.Scope,
-		RequiredRole: check.RequiredRole,
-	}, nil
+	return delegatedAccessDecisionFromCheck(check, allowed), nil
 }
 
 func Principal(kind string, id string) PrincipalRef {
@@ -134,6 +130,36 @@ func DelegatedAccessAuditLog(req DelegatedAccessRequest, decision Decision) (aud
 	if err != nil {
 		return audit.Log{}, err
 	}
+	return delegatedAccessAuditLogFromCheck(check, decision)
+}
+
+func (a DelegatedAccessAuthorizer) CheckAndRecordDelegatedAccess(ctx context.Context, req DelegatedAccessRequest) (Decision, error) {
+	if a.Checker == nil {
+		return Decision{}, fmt.Errorf("effective delegation checker is required")
+	}
+	if a.AuditRepository == nil {
+		return Decision{}, fmt.Errorf("audit repository is required")
+	}
+	check, err := normalizeDelegatedAccessRequest(req)
+	if err != nil {
+		return Decision{}, err
+	}
+	allowed, err := a.Checker.CheckEffectiveDelegation(ctx, check)
+	if err != nil {
+		return Decision{}, err
+	}
+	decision := delegatedAccessDecisionFromCheck(check, allowed)
+	log, err := delegatedAccessAuditLogFromCheck(check, decision)
+	if err != nil {
+		return Decision{}, err
+	}
+	if err := a.AuditRepository.Insert(ctx, log); err != nil {
+		return Decision{}, fmt.Errorf("record delegated access audit log: %w", err)
+	}
+	return decision, nil
+}
+
+func delegatedAccessAuditLogFromCheck(check directory.CheckDelegationRequest, decision Decision) (audit.Log, error) {
 	detail, err := delegatedAccessAuditDetailFromCheck(check, decision)
 	if err != nil {
 		return audit.Log{}, err
@@ -173,6 +199,19 @@ func normalizeDelegatedAccessRequest(req DelegatedAccessRequest) (directory.Chec
 		ActiveOnly:   true,
 		MaxDepth:     req.MaxDepth,
 	})
+}
+
+func delegatedAccessDecisionFromCheck(check directory.CheckDelegationRequest, allowed bool) Decision {
+	reason := DecisionReasonDelegationDenied
+	if allowed {
+		reason = DecisionReasonDelegationAllowed
+	}
+	return Decision{
+		Allowed:      allowed,
+		Reason:       reason,
+		Scope:        check.Scope,
+		RequiredRole: check.RequiredRole,
+	}
 }
 
 func delegatedAccessAuditDetailFromCheck(check directory.CheckDelegationRequest, decision Decision) (json.RawMessage, error) {

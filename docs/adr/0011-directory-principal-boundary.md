@@ -68,7 +68,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   reason enums instead of caller-supplied strings. Its delegated-access audit
   log builder also fixes the audit category, action, target, actor, and result
   envelope for future product adapters, and the recorder inserts that envelope
-  through the shared audit repository interface.
+  through the shared audit repository interface. Product modules that authorize
+  delegated access should prefer the composed authorizer so effective
+  delegation checks and audit insertion stay one fail-closed operation rather
+  than two caller-coordinated side effects.
 - Future resource-booking policy and delegation models can grow in
   Directory/Identity without forcing CalDAV, CardDAV, Drive, and webmail to
   invent parallel principal semantics.

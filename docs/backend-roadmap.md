@@ -2624,6 +2624,13 @@ Implementation order:
       `BODY[...]` literal response items, including partial-window suffixes,
       so RFC 3501-shaped header subset clients can correlate responses without
       treating every subset read as a generic `BODY[HEADER]` literal.
+1175. `internal/accesspolicy` now exposes `DelegatedAccessAuthorizer`, a
+      composed effective-delegation check plus audit insertion boundary. It
+      normalizes each request once, records both allowed and denied decisions
+      with the standard delegated-access audit envelope, skips fabricated audit
+      rows on checker errors, and fails closed on audit insertion errors so
+      future CalDAV/CardDAV/Drive/mailbox adapters do not permit unaudited
+      delegated access.
 
 ## Deferred until backend contracts stabilize
 
