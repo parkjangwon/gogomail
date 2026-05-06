@@ -280,6 +280,12 @@ and compatibility tests.
 - The frontend calendar can be built later without bypassing the standards
   boundary needed by native clients.
 - Public CalDAV compatibility is experimental until recurrence, scheduling,
-  Admin retention-readiness semantics, production token-retention policy,
-  native-client compatibility testing, and the shared
-  Directory/Contacts/Notification/Search/Policy boundaries are in place.
+  production token-retention policy, native-client compatibility testing, and
+  the shared Directory/Contacts/Notification/Search/Policy boundaries are in
+  place.
+- Admin API now has a read-only DAV sync retention-readiness preview that calls
+  the CalDAV and CardDAV retention repositories with dry-run semantics and
+  returns bounded candidate counts plus truncation status. This is an operator
+  safety gate, not a public destructive retention contract; token-retention
+  age policy and native-client expired-token behavior still define the release
+  gate.

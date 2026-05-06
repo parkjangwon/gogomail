@@ -3099,6 +3099,74 @@ func TestAdminAPIUsageLedgerRetentionRunListRejectsUnsafeRequests(t *testing.T) 
 	}
 }
 
+func TestAdminDAVSyncRetentionReadinessHandler(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	service := &fakeAdminService{
+		davSyncRetentionReadiness: davsyncretention.ReadinessView{
+			Cutoff:             cutoff,
+			Limit:              500,
+			Ready:              true,
+			Truncated:          false,
+			CandidateCount:     18,
+			CalDAVCandidates:   7,
+			CardDAVCandidates:  11,
+			DestructiveGuarded: true,
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/dav-sync/retention-readiness?cutoff="+cutoff.Format(time.RFC3339)+"&limit=500", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Readiness davsyncretention.ReadinessView `json:"dav_sync_retention_readiness"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.Readiness.Ready || body.Readiness.CandidateCount != 18 || !body.Readiness.DestructiveGuarded {
+		t.Fatalf("readiness = %+v", body.Readiness)
+	}
+	if service.lastDAVSyncRetentionReadiness.Limit != 500 || service.lastDAVSyncRetentionReadiness.Cutoff.IsZero() {
+		t.Fatalf("lastDAVSyncRetentionReadiness = %+v", service.lastDAVSyncRetentionReadiness)
+	}
+}
+
+func TestAdminDAVSyncRetentionReadinessRejectsUnsafeRequests(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+	for _, path := range []string{
+		"/admin/v1/dav-sync/retention-readiness",
+		"/admin/v1/dav-sync/retention-readiness?cutoff=not-a-time",
+		"/admin/v1/dav-sync/retention-readiness?cutoff=" + time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
+		"/admin/v1/dav-sync/retention-readiness?cutoff=" + time.Now().UTC().Add(-time.Hour).Format(time.RFC3339) + "&limit=0",
+		"/admin/v1/dav-sync/retention-readiness?cutoff=" + time.Now().UTC().Add(-time.Hour).Format(time.RFC3339) + "&status=completed",
+	} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+			}
+			if !service.lastDAVSyncRetentionReadiness.Cutoff.IsZero() {
+				t.Fatalf("readiness dispatched: %+v", service.lastDAVSyncRetentionReadiness)
+			}
+		})
+	}
+}
+
 func TestAdminListDAVSyncRetentionRunsHandler(t *testing.T) {
 	t.Parallel()
 
@@ -7948,6 +8016,7 @@ type fakeAdminService struct {
 	apiUsageLedgerRetentionRuns                 []maildb.APIUsageLedgerRetentionRunView
 	davSyncRetentionRun                         davsyncretention.RunRecord
 	davSyncRetentionRuns                        []davsyncretention.RunRecord
+	davSyncRetentionReadiness                   davsyncretention.ReadinessView
 	apiUsageExportCapabilities                  maildb.APIUsageExportCapabilityView
 	apiUsageExportBatch                         maildb.APIUsageExportBatchView
 	apiUsageExportBatches                       []maildb.APIUsageExportBatchView
@@ -8072,6 +8141,7 @@ type fakeAdminService struct {
 	lastAPIUsageLedgerRetentionRunID            string
 	lastDAVSyncRetentionRunList                 davsyncretention.RunListRequest
 	lastDAVSyncRetentionRunID                   string
+	lastDAVSyncRetentionReadiness               davsyncretention.ReadinessRequest
 	lastAPIUsageExportCapabilities              bool
 	lastAPIUsageExportBatchID                   string
 	lastAPIUsageExportBatchList                 maildb.APIUsageExportBatchListRequest
@@ -8554,6 +8624,11 @@ func (f *fakeAdminService) ListDAVSyncRetentionRuns(_ context.Context, req davsy
 func (f *fakeAdminService) GetDAVSyncRetentionRun(_ context.Context, id string) (davsyncretention.RunRecord, error) {
 	f.lastDAVSyncRetentionRunID = id
 	return f.davSyncRetentionRun, nil
+}
+
+func (f *fakeAdminService) GetDAVSyncRetentionReadiness(_ context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error) {
+	f.lastDAVSyncRetentionReadiness = req
+	return f.davSyncRetentionReadiness, nil
 }
 
 func (f *fakeAdminService) GetAPIUsageExportCapabilities(context.Context) (maildb.APIUsageExportCapabilityView, error) {

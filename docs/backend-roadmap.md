@@ -3176,6 +3176,12 @@ Implementation order:
       migrations and round-trips DAV sync retention completed/failed run rows,
       sanitized failure text, bounded detail reads, and status/time-window list
       filters.
+1252. Admin API now exposes a DAV sync retention readiness preview at
+      `GET /admin/v1/dav-sync/retention-readiness`. The endpoint performs
+      dry-run CalDAV/CardDAV retention probes only, rejects future cutoffs and
+      unknown query controls, caps the per-backend probe limit at 10000, and
+      returns aggregate plus backend-specific candidate counts with
+      truncation/readiness flags before any destructive policy is made public.
 
 ## Deferred until backend contracts stabilize
 

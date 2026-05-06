@@ -15,6 +15,8 @@ const (
 	maxRunErrorMessageBytes = 1024
 	maxRunIDBytes           = 128
 	MaxRunListLimit         = 100
+	MaxReadinessLimit       = 10000
+	DefaultReadinessLimit   = 1000
 )
 
 type RunStatus string
@@ -44,6 +46,22 @@ type RunListRequest struct {
 	Status      RunStatus
 	CreatedFrom time.Time
 	CreatedTo   time.Time
+}
+
+type ReadinessRequest struct {
+	Cutoff time.Time
+	Limit  int
+}
+
+type ReadinessView struct {
+	Cutoff             time.Time `json:"cutoff"`
+	Limit              int       `json:"limit"`
+	Ready              bool      `json:"ready"`
+	Truncated          bool      `json:"truncated"`
+	CandidateCount     int64     `json:"candidate_count"`
+	CalDAVCandidates   int64     `json:"caldav_candidate_count"`
+	CardDAVCandidates  int64     `json:"carddav_candidate_count"`
+	DestructiveGuarded bool      `json:"destructive_guarded"`
 }
 
 type Repository struct {
@@ -165,6 +183,29 @@ WHERE id = $1`
 		return RunRecord{}, fmt.Errorf("get DAV sync retention run: %w", err)
 	}
 	return run, nil
+}
+
+func NormalizeReadinessRequest(req ReadinessRequest, now func() time.Time) (ReadinessRequest, error) {
+	if now == nil {
+		now = time.Now
+	}
+	if req.Cutoff.IsZero() {
+		return ReadinessRequest{}, fmt.Errorf("cutoff is required")
+	}
+	req.Cutoff = req.Cutoff.UTC()
+	if req.Cutoff.After(now().UTC()) {
+		return ReadinessRequest{}, fmt.Errorf("cutoff must not be in the future")
+	}
+	if req.Limit < 0 {
+		return ReadinessRequest{}, fmt.Errorf("limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultReadinessLimit
+	}
+	if req.Limit > MaxReadinessLimit {
+		return ReadinessRequest{}, fmt.Errorf("limit must be at most %d", MaxReadinessLimit)
+	}
+	return req, nil
 }
 
 func normalizeRunRecord(record RunRecord, now func() time.Time) (RunRecord, error) {

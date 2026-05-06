@@ -14,6 +14,8 @@ import (
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/caldavgw"
+	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
@@ -73,7 +75,9 @@ type adminService struct {
 		ListRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
 		GetRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	}
-	attachmentCleanup interface {
+	calDAVSyncRetention  calDAVSyncRetentionRunner
+	cardDAVSyncRetention cardDAVSyncRetentionRunner
+	attachmentCleanup    interface {
 		ExpireStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 		CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
 		ListStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadCandidate, error)
@@ -696,6 +700,47 @@ func (s adminService) GetDAVSyncRetentionRun(ctx context.Context, id string) (da
 		return davsyncretention.RunRecord{}, fmt.Errorf("DAV sync retention repository is not configured")
 	}
 	return s.davSyncRetention.GetRun(ctx, id)
+}
+
+func (s adminService) GetDAVSyncRetentionReadiness(ctx context.Context, req davsyncretention.ReadinessRequest) (davsyncretention.ReadinessView, error) {
+	req, err := davsyncretention.NormalizeReadinessRequest(req, time.Now)
+	if err != nil {
+		return davsyncretention.ReadinessView{}, err
+	}
+	if s.calDAVSyncRetention == nil {
+		return davsyncretention.ReadinessView{}, fmt.Errorf("CalDAV sync retention repository is not configured")
+	}
+	if s.cardDAVSyncRetention == nil {
+		return davsyncretention.ReadinessView{}, fmt.Errorf("CardDAV sync retention repository is not configured")
+	}
+	calResult, err := s.calDAVSyncRetention.PruneCalendarSyncChanges(ctx, caldavgw.PruneCalendarSyncChangesRequest{
+		Cutoff: req.Cutoff,
+		Limit:  req.Limit,
+		DryRun: true,
+	})
+	if err != nil {
+		return davsyncretention.ReadinessView{}, err
+	}
+	cardResult, err := s.cardDAVSyncRetention.PruneAddressBookChanges(ctx, carddavgw.PruneAddressBookChangesRequest{
+		Cutoff: req.Cutoff,
+		Limit:  req.Limit,
+		DryRun: true,
+	})
+	if err != nil {
+		return davsyncretention.ReadinessView{}, err
+	}
+	candidateCount := calResult.CandidateCount + cardResult.CandidateCount
+	truncated := calResult.CandidateCount >= int64(req.Limit) || cardResult.CandidateCount >= int64(req.Limit)
+	return davsyncretention.ReadinessView{
+		Cutoff:             req.Cutoff,
+		Limit:              req.Limit,
+		Ready:              !truncated,
+		Truncated:          truncated,
+		CandidateCount:     candidateCount,
+		CalDAVCandidates:   calResult.CandidateCount,
+		CardDAVCandidates:  cardResult.CandidateCount,
+		DestructiveGuarded: true,
+	}, nil
 }
 
 func exportManifestSignerKeyID(signer apimeter.ExportManifestSigner) (string, bool) {

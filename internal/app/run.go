@@ -1941,6 +1941,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			directory:                   directory.NewRepository(db),
 			drive:                       driveServiceForConfig(db, cfg, store),
 			davSyncRetention:            davsyncretention.NewRepository(db),
+			calDAVSyncRetention:         caldavgw.NewRepository(db),
+			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
 		}, cfg.AdminToken)
 		logger.Info("admin api routes registered")

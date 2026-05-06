@@ -144,8 +144,12 @@ retention repository exposes bounded history reads through Admin API instead of
 making controllers query worker tables directly. This keeps Contacts retention
 policy out of the HTTP handler and prevents cleanup work from deleting the
 token needed by a current client. Public readiness still needs Admin
-retention-readiness semantics, deployment-specific retention age policy, and
-native-client compatibility testing around expired tokens.
+readiness preview results to be paired with deployment-specific retention age
+policy and native-client compatibility testing around expired tokens. The
+current Admin readiness endpoint is intentionally read-only and dry-run backed:
+it can preview CalDAV/CardDAV candidate counts and truncation, but destructive
+retention remains worker-owned unless a separately confirmed Admin API run
+boundary is designed.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
 remains the final concurrency guard, but normal handler/repository failures now

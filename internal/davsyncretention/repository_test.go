@@ -117,6 +117,38 @@ func TestNormalizeRunListRequest(t *testing.T) {
 	}
 }
 
+func TestNormalizeReadinessRequest(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
+	req, err := NormalizeReadinessRequest(ReadinessRequest{
+		Cutoff: now.Add(-time.Hour),
+	}, func() time.Time {
+		return now
+	})
+	if err != nil {
+		t.Fatalf("NormalizeReadinessRequest returned error: %v", err)
+	}
+	if req.Limit != DefaultReadinessLimit || !req.Cutoff.Equal(now.Add(-time.Hour)) {
+		t.Fatalf("request = %+v", req)
+	}
+	for _, unsafe := range []ReadinessRequest{
+		{},
+		{Cutoff: now.Add(time.Second), Limit: 1},
+		{Cutoff: now, Limit: -1},
+		{Cutoff: now, Limit: MaxReadinessLimit + 1},
+	} {
+		unsafe := unsafe
+		t.Run(unsafe.Cutoff.String(), func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeReadinessRequest(unsafe, func() time.Time { return now }); err == nil {
+				t.Fatalf("NormalizeReadinessRequest(%+v) error = nil, want rejection", unsafe)
+			}
+		})
+	}
+}
+
 func TestValidateRunID(t *testing.T) {
 	t.Parallel()
 

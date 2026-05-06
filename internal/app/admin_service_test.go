@@ -12,6 +12,8 @@ import (
 
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/caldavgw"
+	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
@@ -837,6 +839,53 @@ func TestAdminServiceDAVSyncRetentionDelegatesToRepository(t *testing.T) {
 	}
 	if run.ID != "dav-sync-retention-2" || store.lastID != "dav-sync-retention-2" {
 		t.Fatalf("run=%+v lastID=%q", run, store.lastID)
+	}
+}
+
+func TestAdminServiceDAVSyncRetentionReadinessUsesDryRunPrune(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	calRunner := &fakeCalDAVSyncRetentionRunner{result: caldavgw.CalendarSyncChangePruneResult{CandidateCount: 7}}
+	cardRunner := &fakeCardDAVSyncRetentionRunner{result: carddavgw.AddressBookChangePruneResult{CandidateCount: 11}}
+	service := adminService{
+		calDAVSyncRetention:  calRunner,
+		cardDAVSyncRetention: cardRunner,
+	}
+	view, err := service.GetDAVSyncRetentionReadiness(t.Context(), davsyncretention.ReadinessRequest{
+		Cutoff: cutoff,
+		Limit:  500,
+	})
+	if err != nil {
+		t.Fatalf("GetDAVSyncRetentionReadiness returned error: %v", err)
+	}
+	if !view.Ready || view.Truncated || view.CandidateCount != 18 || view.CalDAVCandidates != 7 || view.CardDAVCandidates != 11 || !view.DestructiveGuarded {
+		t.Fatalf("readiness = %+v", view)
+	}
+	if !calRunner.lastRequest.DryRun || !cardRunner.lastRequest.DryRun || calRunner.lastRequest.Limit != 500 || cardRunner.lastRequest.Limit != 500 {
+		t.Fatalf("requests = %+v / %+v", calRunner.lastRequest, cardRunner.lastRequest)
+	}
+}
+
+func TestAdminServiceDAVSyncRetentionReadinessMarksTruncatedPreview(t *testing.T) {
+	t.Parallel()
+
+	cutoff := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	calRunner := &fakeCalDAVSyncRetentionRunner{result: caldavgw.CalendarSyncChangePruneResult{CandidateCount: 500}}
+	cardRunner := &fakeCardDAVSyncRetentionRunner{result: carddavgw.AddressBookChangePruneResult{CandidateCount: 1}}
+	service := adminService{
+		calDAVSyncRetention:  calRunner,
+		cardDAVSyncRetention: cardRunner,
+	}
+	view, err := service.GetDAVSyncRetentionReadiness(t.Context(), davsyncretention.ReadinessRequest{
+		Cutoff: cutoff,
+		Limit:  500,
+	})
+	if err != nil {
+		t.Fatalf("GetDAVSyncRetentionReadiness returned error: %v", err)
+	}
+	if view.Ready || !view.Truncated || view.CandidateCount != 501 {
+		t.Fatalf("readiness = %+v, want truncated preview", view)
 	}
 }
 

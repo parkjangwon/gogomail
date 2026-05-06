@@ -2491,6 +2491,30 @@ paths:
           $ref: "#/components/responses/DAVSyncRetentionRunList"
         default:
           $ref: "#/components/responses/Error"
+  /dav-sync/retention-readiness:
+    get:
+      operationId: getAdminDAVSyncRetentionReadiness
+      summary: Preview DAV sync retention candidates with dry-run semantics
+      parameters:
+        - name: cutoff
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive RFC3339 changed-at upper bound for DAV sync retention candidates; future cutoffs are rejected.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+          description: Dry-run candidate probe limit per DAV backend; defaults to 1000.
+      responses:
+        "200":
+          $ref: "#/components/responses/DAVSyncRetentionReadiness"
+        default:
+          $ref: "#/components/responses/Error"
   /dav-sync/retention-runs/{id}:
     get:
       operationId: getAdminDAVSyncRetentionRun
@@ -4113,6 +4137,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DAVSyncRetentionRunListEnvelope"
+    DAVSyncRetentionReadiness:
+      description: DAV sync retention readiness envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DAVSyncRetentionReadinessEnvelope"
     ExhaustedAttempts:
       description: Exhausted delivery attempts envelope
       content:
@@ -7356,6 +7386,51 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DAVSyncRetentionRun"
+    DAVSyncRetentionReadiness:
+      type: object
+      required:
+        - cutoff
+        - limit
+        - ready
+        - truncated
+        - candidate_count
+        - caldav_candidate_count
+        - carddav_candidate_count
+        - destructive_guarded
+      properties:
+        cutoff:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        ready:
+          type: boolean
+        truncated:
+          type: boolean
+          description: True when either DAV backend hit the dry-run probe limit.
+        candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        caldav_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        carddav_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        destructive_guarded:
+          type: boolean
+          description: True when the endpoint only performed a non-destructive dry-run preview.
+    DAVSyncRetentionReadinessEnvelope:
+      type: object
+      required: [dav_sync_retention_readiness]
+      properties:
+        dav_sync_retention_readiness:
+          $ref: "#/components/schemas/DAVSyncRetentionReadiness"
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]
