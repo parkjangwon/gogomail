@@ -1684,6 +1684,10 @@ The platform hardening sprint completed the following:
   criteria scans, with `BODY` excluding the RFC 5322 header block.
 - IMAP `SEARCH`/`UID SEARCH` supports bounded RFC `HEADER <field> <value>`
   criteria scans over the raw message header block.
+- IMAP `SEARCH`/`UID SEARCH` now preserves RFC 3501 zero-length search string
+  semantics for quoted empty strings across envelope, body/text, and header
+  substring criteria, so client-generated `SEARCH SUBJECT ""` or
+  `SEARCH BODY ""` requests do not become false empty-mailbox results.
 - IMAP `SEARCH`/`UID SEARCH` supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP `SEARCH`/`UID SEARCH` accepts `CHARSET US-ASCII` and `CHARSET UTF-8`

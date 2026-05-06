@@ -2643,6 +2643,11 @@ Implementation order:
       AWS S3-style config flip, and rows persisted with `storage_backend='s3'`
       can still be served by a MinIO-style deployment when object keys and
       bucket contents are compatible.
+1178. IMAP `SEARCH` and `UID SEARCH` now preserve RFC 3501 zero-length search
+      string semantics for quoted empty strings across envelope, body/text, and
+      header substring criteria. Empty search strings remain syntactically
+      valid substring searches instead of being normalized into guaranteed
+      no-match results.
 
 ## Deferred until backend contracts stabilize
 

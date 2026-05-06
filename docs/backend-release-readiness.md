@@ -1346,6 +1346,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   raw-message criteria scans, with `BODY` excluding the RFC 5322 header block.
 - IMAP `SEARCH`/`UID SEARCH` now supports bounded RFC
   `HEADER <field> <value>` criteria scans over the raw message header block.
+- IMAP `SEARCH`/`UID SEARCH` now preserves RFC 3501 zero-length search string
+  semantics for quoted empty strings across envelope, body/text, and header
+  substring criteria instead of treating them as guaranteed no-match requests.
 - IMAP `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP advertises `LITERAL+` and accepts bounded non-synchronizing command

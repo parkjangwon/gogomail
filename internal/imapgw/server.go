@@ -1617,6 +1617,10 @@ func imapSupportedCharset(value string) (string, bool) {
 func imapNormalizeSearchCriteria(criteria []string) []string {
 	normalized := make([]string, 0, len(criteria))
 	for _, token := range criteria {
+		if token == "" {
+			normalized = append(normalized, imapEmptySearchStringToken)
+			continue
+		}
 		for strings.HasPrefix(token, "(") {
 			normalized = append(normalized, "(")
 			token = token[1:]
@@ -1635,6 +1639,8 @@ func imapNormalizeSearchCriteria(criteria []string) []string {
 	}
 	return normalized
 }
+
+const imapEmptySearchStringToken = "\x00EMPTY-SEARCH-STRING"
 
 type imapSearchMatch struct {
 	value          uint32
@@ -2234,6 +2240,9 @@ func imapMessageMatchesKeywordSearch(summary MessageSummary, keyword string) boo
 }
 
 func imapSearchStringArgument(value string) (string, bool) {
+	if value == imapEmptySearchStringToken {
+		return "", true
+	}
 	return value, true
 }
 
@@ -2543,9 +2552,6 @@ func imapSearchTextResults(messages []MessageSummary, uidMode bool, criterion st
 }
 
 func imapMessageMatchesTextSearch(summary MessageSummary, criterion string, query string) bool {
-	if query == "" {
-		return false
-	}
 	switch criterion {
 	case "SUBJECT":
 		return strings.Contains(strings.ToLower(summary.Envelope.Subject), query)
@@ -2571,7 +2577,7 @@ const (
 )
 
 func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {
-	if s == nil || state == nil || state.session == nil || query == "" || summary.UID == 0 {
+	if s == nil || state == nil || state.session == nil || summary.UID == 0 {
 		return false, nil
 	}
 	message, err := s.options.Backend.FetchMessage(ctx, FetchMessageRequest{
