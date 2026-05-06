@@ -2135,9 +2135,10 @@ Next:
   counts, dry-run/confirmation flags, status, and sanitized failure text, so
   partial CalDAV/CardDAV retention failures are auditable. The retention
   repository can list bounded run history by status/created-at window and fetch
-  one run by bounded ID, giving the Admin API a clean read boundary. Next,
-  expose Admin API readiness/history reads and choose a production
-  retention-age policy before treating DAV token expiry as client-ready.
+  one run by bounded ID, and Admin API now exposes that history at
+  `/admin/v1/dav-sync/retention-runs` plus detail reads by run ID. Next, add an
+  explicit retention readiness view and choose a production retention-age
+  policy before treating DAV token expiry as client-ready.
   CalDAV calendar-object `PUT` now rejects duplicate active iCalendar UIDs
   within the same calendar before the SQL upsert path, keeping repository
   errors predictable while the PostgreSQL partial unique index remains the

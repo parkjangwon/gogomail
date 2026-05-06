@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
@@ -62,6 +63,10 @@ func rejectUnknownAPIUsageRetentionReadinessQuery(w http.ResponseWriter, r *http
 
 func rejectUnknownAPIUsageRetentionRunListQuery(w http.ResponseWriter, r *http.Request) bool {
 	return rejectUnknownQueryKeys(w, r, "limit", "tenant_id", "principal_id", "created_from", "created_to")
+}
+
+func rejectUnknownDAVSyncRetentionRunListQuery(w http.ResponseWriter, r *http.Request) bool {
+	return rejectUnknownQueryKeys(w, r, "limit", "status", "created_from", "created_to")
 }
 
 func rejectUnknownAPIUsageExportBatchCreateQuery(w http.ResponseWriter, r *http.Request) bool {
@@ -138,6 +143,8 @@ type AdminService interface {
 	RunAPIUsageLedgerRetention(ctx context.Context, req maildb.APIUsageLedgerRetentionRunRequest) (maildb.APIUsageLedgerRetentionRunView, error)
 	ListAPIUsageLedgerRetentionRuns(ctx context.Context, req maildb.APIUsageLedgerRetentionRunListRequest) ([]maildb.APIUsageLedgerRetentionRunView, error)
 	GetAPIUsageLedgerRetentionRun(ctx context.Context, id string) (maildb.APIUsageLedgerRetentionRunView, error)
+	ListDAVSyncRetentionRuns(ctx context.Context, req davsyncretention.RunListRequest) ([]davsyncretention.RunRecord, error)
+	GetDAVSyncRetentionRun(ctx context.Context, id string) (davsyncretention.RunRecord, error)
 	GetAPIUsageExportCapabilities(ctx context.Context) (maildb.APIUsageExportCapabilityView, error)
 	CreateAPIUsageExportBatch(ctx context.Context, req maildb.APIUsageLedgerListRequest) (maildb.APIUsageExportBatchView, error)
 	ListAPIUsageExportBatches(ctx context.Context, req maildb.APIUsageExportBatchListRequest) ([]maildb.APIUsageExportBatchView, error)
@@ -252,6 +259,7 @@ type adminConsoleOperationCapabilities struct {
 	PushNotificationTriage    bool `json:"push_notification_triage"`
 	APIUsage                  bool `json:"api_usage"`
 	APIUsageExport            bool `json:"api_usage_export"`
+	DAVSyncRetention          bool `json:"dav_sync_retention"`
 	IMAPUIDBackfill           bool `json:"imap_uid_backfill"`
 }
 
@@ -311,6 +319,7 @@ func currentAdminConsoleCapabilities() adminConsoleCapabilities {
 			PushNotificationTriage:    true,
 			APIUsage:                  true,
 			APIUsageExport:            true,
+			DAVSyncRetention:          true,
 			IMAPUIDBackfill:           true,
 		},
 		Security: adminConsoleSecurityCapabilities{
@@ -1985,6 +1994,42 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownDAVSyncRetentionRunListQuery(w, r) {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseDAVSyncRetentionRunListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		runs, err := service.ListDAVSyncRetentionRuns(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_runs": runs})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		run, err := service.GetDAVSyncRetentionRun(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_run": run})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -3541,6 +3586,36 @@ func parseAPIUsageLedgerRetentionRunListRequest(w http.ResponseWriter, r *http.R
 		Limit:       limit,
 		TenantID:    tenantID,
 		PrincipalID: principalID,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
+	}, true
+}
+
+func parseDAVSyncRetentionRunListRequest(w http.ResponseWriter, r *http.Request, limit int) (davsyncretention.RunListRequest, bool) {
+	statusRaw, ok := parseBoundedAdminQuery(w, r, "status")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	status := davsyncretention.RunStatus(statusRaw)
+	if status != "" && status != davsyncretention.RunStatusCompleted && status != davsyncretention.RunStatusFailed {
+		writeError(w, http.StatusBadRequest, "status is unsupported")
+		return davsyncretention.RunListRequest{}, false
+	}
+	createdFrom, ok := parseOptionalRFC3339Query(w, r, "created_from")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	createdTo, ok := parseOptionalRFC3339Query(w, r, "created_to")
+	if !ok {
+		return davsyncretention.RunListRequest{}, false
+	}
+	if !createdFrom.IsZero() && !createdTo.IsZero() && !createdFrom.Before(createdTo) {
+		writeError(w, http.StatusBadRequest, "created_from must be before created_to")
+		return davsyncretention.RunListRequest{}, false
+	}
+	return davsyncretention.RunListRequest{
+		Limit:       limit,
+		Status:      status,
 		CreatedFrom: createdFrom,
 		CreatedTo:   createdTo,
 	}, true

@@ -2825,10 +2825,13 @@ The platform hardening sprint completed the following:
   CalDAV/CardDAV candidate/deleted counts, including partial failures after one
   side has pruned successfully. The DAV retention repository can now list
   bounded run history by status/created-at window and fetch one run by bounded
-  ID, readying the Admin API surface without coupling it to worker internals.
-  Unknown or expired tokens still fail with DAV `valid-sync-token`; deployment
-  retention-age policy, Admin API inspection, and native-client expiry testing
-  remain future work.
+  ID. Admin API now exposes that read model through
+  `GET /admin/v1/dav-sync/retention-runs` and
+  `GET /admin/v1/dav-sync/retention-runs/{id}` with explicit response
+  envelopes and documented query allowlists. Unknown or expired tokens still
+  fail with DAV `valid-sync-token`; deployment retention-age policy, explicit
+  retention readiness semantics, and native-client expiry testing remain future
+  work.
 - CalDAV now handles RFC 6764-style `/.well-known/caldav` discovery by
   redirecting to `/caldav/`, and `PROPFIND /caldav/` can return
   `current-user-principal`, `principal-collection-set`, and

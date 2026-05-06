@@ -2463,6 +2463,45 @@ paths:
           $ref: "#/components/responses/APIUsageLedgerRetentionRun"
         default:
           $ref: "#/components/responses/Error"
+  /dav-sync/retention-runs:
+    get:
+      operationId: listAdminDAVSyncRetentionRuns
+      summary: List DAV sync retention worker run audit records
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [completed, failed]
+        - name: created_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive DAV retention-run creation timestamp lower bound.
+        - name: created_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Exclusive DAV retention-run creation timestamp upper bound.
+      responses:
+        "200":
+          $ref: "#/components/responses/DAVSyncRetentionRunList"
+        default:
+          $ref: "#/components/responses/Error"
+  /dav-sync/retention-runs/{id}:
+    get:
+      operationId: getAdminDAVSyncRetentionRun
+      summary: Get one DAV sync retention worker run audit record
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/DAVSyncRetentionRun"
+        default:
+          $ref: "#/components/responses/Error"
   /api-usage/export-batches:
     get:
       operationId: listAdminAPIUsageExportBatches
@@ -4062,6 +4101,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/APIUsageLedgerRetentionRunListEnvelope"
+    DAVSyncRetentionRun:
+      description: DAV sync retention run envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DAVSyncRetentionRunEnvelope"
+    DAVSyncRetentionRunList:
+      description: DAV sync retention run list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DAVSyncRetentionRunListEnvelope"
     ExhaustedAttempts:
       description: Exhausted delivery attempts envelope
       content:
@@ -6214,6 +6265,8 @@ components:
               type: boolean
             api_usage_export:
               type: boolean
+            dav_sync_retention:
+              type: boolean
             imap_uid_backfill:
               type: boolean
         security:
@@ -7235,6 +7288,74 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/APIUsageLedgerRetentionRun"
+    DAVSyncRetentionRun:
+      type: object
+      required:
+        - id
+        - created_at
+        - cutoff
+        - limit
+        - dry_run
+        - confirm_ready
+        - status
+        - caldav_candidate_count
+        - caldav_deleted_count
+        - carddav_candidate_count
+        - carddav_deleted_count
+      properties:
+        id:
+          type: string
+          maxLength: 128
+        created_at:
+          type: string
+          format: date-time
+        cutoff:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dry_run:
+          type: boolean
+        confirm_ready:
+          type: boolean
+        status:
+          type: string
+          enum: [completed, failed]
+        error_message:
+          type: string
+          maxLength: 1024
+        caldav_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        caldav_deleted_count:
+          type: integer
+          format: int64
+          minimum: 0
+        carddav_candidate_count:
+          type: integer
+          format: int64
+          minimum: 0
+        carddav_deleted_count:
+          type: integer
+          format: int64
+          minimum: 0
+    DAVSyncRetentionRunEnvelope:
+      type: object
+      required: [dav_sync_retention_run]
+      properties:
+        dav_sync_retention_run:
+          $ref: "#/components/schemas/DAVSyncRetentionRun"
+    DAVSyncRetentionRunListEnvelope:
+      type: object
+      required: [dav_sync_retention_runs]
+      properties:
+        dav_sync_retention_runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/DAVSyncRetentionRun"
     APIUsageExportBatch:
       type: object
       required: [id, created_at, status, export_format, event_count, request_count, request_bytes, response_bytes, latency_ms_total, latency_ms_max, manifest]
