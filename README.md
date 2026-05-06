@@ -19,6 +19,21 @@ DNS/DKIM onboarding, quota/policy enforcement, OpenAPI drift prevention, DAV
 interoperability, and storage portability across local, NFS, MinIO, and
 AWS/S3-compatible deployments.
 
+## Backend capability tiers
+
+Use these tiers when deciding whether to expose a surface to operators,
+generated clients, or native protocol clients:
+
+| Surface | Current tier | Notes |
+| --- | --- | --- |
+| SMTP receive/delivery | Advanced backend | Standards-first core with pluggable policy, storage, queue, and notification boundaries. Keep new extensions gated until runtime semantics and RFC-shaped tests exist. |
+| Mail API | Release-readiness workbench | User-scoped webmail backend contracts are broad and tested, but frontend client release should still follow OpenAPI/runtime drift checks. |
+| Admin API | Release-readiness workbench | Operator console contracts exist under `/admin/v1` with no-store authenticated JSON responses and generated-client base-path pins. |
+| IMAP | Service-backed, gated | The gateway is real and increasingly strict, but public client readiness remains gated by RFC syntax/state/literal/MODSEQ/UID compatibility coverage. |
+| CalDAV/CardDAV | Backend-only experimental | Native DAV interoperability is progressing with real runtime modes, repository boundaries, sync tokens, validation, and conditional guards, but discovery/client compatibility remains intentionally gated. |
+| Drive | Backend groundwork | Storage/quota-backed metadata, object I/O, range download, cleanup, and public share-link APIs are present without starting frontend implementation. |
+| Frontend apps | Planned | Next.js TypeScript, shadcn/ui, `DESIGN.md`, and a Notion Mail-like product feel are planned after the frontend start gate is explicitly opened. |
+
 ## Engineering posture
 
 gogomail is being built as a standards-first platform with small replaceable
@@ -184,6 +199,13 @@ Key architecture decisions:
 - `docs/adr/0003-company-domain-user-quota-pool.md`
 - `docs/adr/0004-api-metering-aggregation-boundary.md`
 - `docs/adr/0005-imap-gateway-boundary.md`
+- `docs/adr/0006-imap-uid-storage.md`
+- `docs/adr/0007-resumable-attachment-upload-boundary.md`
+- `docs/adr/0008-imap-auth-session-semantics.md`
+- `docs/adr/0009-drive-module-boundary.md`
+- `docs/adr/0010-caldav-gateway-boundary.md`
+- `docs/adr/0011-directory-principal-boundary.md`
+- `docs/adr/0012-carddav-gateway-boundary.md`
 
 Guardrails:
 
