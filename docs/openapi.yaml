@@ -2508,6 +2508,12 @@ paths:
     get:
       operationId: getAdminAPIUsageLedgerRetentionReadiness
       summary: Check whether immutable API usage ledger rows are ready for retention handling
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: cutoff
           in: query
@@ -2627,6 +2633,12 @@ paths:
     get:
       operationId: getAdminDAVSyncRetentionReadiness
       summary: Preview DAV sync retention candidates with dry-run semantics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: cutoff
           in: query
@@ -2767,6 +2779,12 @@ paths:
     get:
       operationId: getAdminAPIUsageExportHandoffReadiness
       summary: Inspect API usage export batch handoff readiness
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - name: id
           in: path

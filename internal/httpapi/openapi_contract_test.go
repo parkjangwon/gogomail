@@ -45,11 +45,17 @@ func TestOpenAPIDraftUsesBackendContractVersion(t *testing.T) {
 	}
 }
 
-func TestOpenAPIDraftPinsAdminConsoleCapabilitiesToAdminBase(t *testing.T) {
+func TestOpenAPIDraftPinsAdminBootstrapOperationsToAdminBase(t *testing.T) {
 	t.Parallel()
 
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
-	for _, route := range []string{"GET /console/capabilities", "GET /api-usage/export-capabilities"} {
+	for _, route := range []string{
+		"GET /console/capabilities",
+		"GET /api-usage/ledger/retention-readiness",
+		"GET /dav-sync/retention-readiness",
+		"GET /api-usage/export-capabilities",
+		"GET /api-usage/export-batches/{id}/handoff-readiness",
+	} {
 		block, ok := operations[route]
 		if !ok {
 			t.Fatalf("OpenAPI operation %s is missing", route)

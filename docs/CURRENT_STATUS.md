@@ -47,6 +47,10 @@ bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.
 API usage export capability discovery now carries the same explicit Admin API
 server and admin-auth OpenAPI metadata, with runtime coverage for both accepted
 credential forms and ambiguous mixed-credential rejection.
+Admin readiness bootstrap operations now follow that same OpenAPI contract for
+API usage ledger retention readiness, DAV sync retention readiness, and API
+usage export handoff readiness, preventing generated operator clients from
+probing the Mail API base for admin-only readiness checks.
 
 IMAP hardening continues as a release-readiness track. `STATUS` and advertised
 RFC 5819 `LIST-STATUS` now reject empty parenthesized status data-item lists,

@@ -40,6 +40,9 @@ Current state:
   credential rejection.
 - API usage export capability discovery now has the same Admin API server and
   admin-auth OpenAPI metadata plus runtime auth coverage.
+- Admin readiness bootstrap operations now also pin the Admin API server and
+  admin-auth alternatives in OpenAPI for API usage ledger retention readiness,
+  DAV sync retention readiness, and API usage export handoff readiness.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, preserving OpenAPI/runtime pagination
   alignment for generated webmail and admin clients.
