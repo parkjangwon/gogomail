@@ -401,7 +401,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `LIST-EXTENDED` pattern lists also accept mailbox patterns supplied as
   command literals immediately after `(`, preserving common literal string
   framing for folder names containing spaces before applying `RETURN
-  (STATUS ...)`.
+  (STATUS ...)`. Embedded atom fragments such as `Archive{12}` remain
+  malformed so parenthesized literal support does not broaden atom parsing.
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.

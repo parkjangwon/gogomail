@@ -457,7 +457,9 @@ Current state:
   preserves quoted mailbox patterns containing spaces such as
   `"Archive 2026"` inside the pattern list. Pattern-list members may also be
   IMAP command literals immediately after `(`, keeping literal mailbox names
-  aligned with the same matcher/status path.
+  aligned with the same matcher/status path. Embedded atom fragments such as
+  `Archive{12}` remain malformed, so literal markers stay token-delimited
+  instead of widening the IMAP atom grammar.
 - IMAP UIDPLUS `COPYUID` generation now uses an explicit copy-result mapping
   from source UID to destination message summary across the gateway, service,
   and PostgreSQL repository boundary, so sparse UID requests and concurrent

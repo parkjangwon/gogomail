@@ -491,7 +491,9 @@ normal matcher/status path instead of failing during command field splitting.
 It also accepts synchronizing and non-synchronizing literals as pattern-list
 members immediately after `(`, so native clients can send the same spaced
 mailbox pattern as `LIST "" ({12} "INBOX") ...` without losing the literal at
-the command parser boundary.
+the command parser boundary. Embedded atom fragments such as `Archive{12}`
+remain rejected, keeping literal markers token-delimited instead of widening
+the IMAP atom grammar.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
 mapping through the gateway, service, and PostgreSQL repository boundary, and
 `MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned

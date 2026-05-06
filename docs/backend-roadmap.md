@@ -4068,6 +4068,10 @@ Implementation order:
       patterns supplied as command literals immediately after `(`, so literal
       folder names containing spaces flow through the same matcher and
       `RETURN (STATUS ...)` response path as quoted pattern strings.
+1453. IMAP parenthesized literal parsing now requires literal markers to be
+      token-delimited after `(`, space, or tab, keeping embedded atom fragments
+      such as `Archive{12}` rejected while preserving legal RFC 5258
+      `LIST-EXTENDED` literal pattern lists.
 
 ## Deferred until backend contracts stabilize
 
