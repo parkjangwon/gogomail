@@ -6085,11 +6085,40 @@ func imapSelectCondstore(fields []string) (bool, bool) {
 	if len(fields) == 0 {
 		return false, true
 	}
+	if !imapParenthesizedAtomListShapeValid(fields) {
+		return false, false
+	}
 	tokens := imapFetchNormalizedTokens(fields)
 	if len(tokens) != 1 || tokens[0] != "CONDSTORE" {
 		return false, false
 	}
 	return true, true
+}
+
+func imapParenthesizedAtomListShapeValid(fields []string) bool {
+	value := strings.TrimSpace(strings.Join(fields, " "))
+	if !strings.HasPrefix(value, "(") || !strings.HasSuffix(value, ")") {
+		return false
+	}
+	if strings.HasPrefix(value, "((") || strings.HasSuffix(value, "))") {
+		return false
+	}
+	depth := 0
+	for _, r := range value {
+		switch r {
+		case '(':
+			depth++
+			if depth > 1 {
+				return false
+			}
+		case ')':
+			depth--
+			if depth < 0 {
+				return false
+			}
+		}
+	}
+	return depth == 0
 }
 
 func imapMailboxMatchesPattern(name string, pattern string) bool {

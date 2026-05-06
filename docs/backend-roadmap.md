@@ -2660,6 +2660,10 @@ Implementation order:
       ranged `GET`, and `HEAD`/`Stat` `404 Not Found` responses, keeping
       backend-neutral missing-object handling aligned with local/NFS storage
       while retaining sanitized S3 status diagnostics.
+1182. IMAP `SELECT` and `EXAMINE` now require optional `CONDSTORE` select
+      parameters to arrive as a single RFC-shaped parenthesized select-param
+      list, rejecting bare `CONDSTORE` and over-parenthesized
+      `((CONDSTORE))` before authentication or backend mailbox lookup.
 
 ## Deferred until backend contracts stabilize
 
