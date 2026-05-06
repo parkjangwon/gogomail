@@ -789,6 +789,9 @@ Current state:
   XML bodies as bounded one-line `Code: Message` previews with request-id
   context, while preserving the sanitized plain-text fallback for non-XML
   compatible-provider errors.
+- S3-compatible `ListObjectsV2` `200 OK` responses now fail closed when the
+  body is a top-level standard S3 `<Error>` document, surfacing the same
+  bounded embedded-error diagnostic instead of a generic invalid list control.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.

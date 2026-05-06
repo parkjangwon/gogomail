@@ -1237,17 +1237,25 @@ func s3ErrorBodyPreview(body io.Reader, maxBytes int64) string {
 }
 
 func s3XMLErrorPreview(data []byte) string {
-	if strings.TrimSpace(string(data)) == "" {
+	preview, ok := s3XMLError(data)
+	if !ok {
 		return ""
+	}
+	return preview
+}
+
+func s3XMLError(data []byte) (string, bool) {
+	if strings.TrimSpace(string(data)) == "" {
+		return "", false
 	}
 	var response s3CopyResponse
 	if err := xml.Unmarshal(data, &response); err != nil {
-		return ""
+		return "", false
 	}
 	if response.XMLName.Local != "Error" || !s3XMLNamespaceAllowed(response.XMLName.Space) {
-		return ""
+		return "", false
 	}
-	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID))
+	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID)), true
 }
 
 func s3PlainErrorPreview(value string) string {
@@ -1297,6 +1305,12 @@ func decodeS3ListObjects(body io.Reader) (s3ListObjectsResult, error) {
 	}
 	if len(data) > maxS3ListResponseBytes {
 		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: response body is too large")
+	}
+	if preview, ok := s3XMLError(data); ok {
+		if preview == "" {
+			return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: embedded error")
+		}
+		return s3ListObjectsResult{}, fmt.Errorf("list s3 objects: embedded error: %s", preview)
 	}
 	if err := validateS3ListControlCardinality(data); err != nil {
 		return s3ListObjectsResult{}, err
