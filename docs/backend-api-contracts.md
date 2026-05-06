@@ -28,6 +28,7 @@ lower-camel `operationId`, protected/mutable operations reuse the default
 
 - Public mail API base path: `/api/v1`
 - Admin API base path: `/admin/v1`
+- Health probes: `GET /health/live` and `GET /health/ready` at the service root
 - Service info: `GET /api/v1/info`
 - Admin capability discovery: `GET /admin/v1/console/capabilities`
 - Current backend contract version: `2026-05-04.backend-release`

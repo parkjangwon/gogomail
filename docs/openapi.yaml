@@ -15,6 +15,9 @@ paths:
     get:
       operationId: getHealthLive
       summary: Process liveness probe
+      servers:
+        - url: /
+          description: Service root
       security: []
       responses:
         "200":
@@ -23,6 +26,9 @@ paths:
     get:
       operationId: getHealthReady
       summary: Service readiness probe
+      servers:
+        - url: /
+          description: Service root
       security: []
       responses:
         "200":
@@ -33,6 +39,9 @@ paths:
     get:
       operationId: getServiceInfo
       summary: Service and backend contract metadata
+      servers:
+        - url: /api/v1
+          description: Mail API
       security: []
       responses:
         "200":

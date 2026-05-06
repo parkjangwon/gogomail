@@ -13,6 +13,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   server at the operation level, with runtime coverage that the public
   `/api/v1` base does not serve `/console/capabilities`, avoiding generated
   admin-client base-path ambiguity.
+- Health probes are pinned to the service-root OpenAPI server and service info
+  is pinned to `/api/v1`, with runtime coverage for wrong-base URLs so
+  operators and generated clients do not probe undocumented routes.
 - Webmail capability discovery now advertises only the message-search filters
   implemented by `GET /api/v1/search` (`q`, `folder_id`, `from`, `subject`,
   and `has_attachment`), keeping generated clients from calling unsupported
