@@ -201,6 +201,18 @@ GOGOMAIL_DATABASE_URL='postgres://gogomail:gogomail@localhost:15432/gogomail?ssl
   go run ./cmd/gogomail --migrate --mode=all-in-one
 ```
 
+You can also load a flat YAML config file and override only the settings that
+belong to the current deployment:
+
+```bash
+go run ./cmd/gogomail --config=configs/config.example.yaml --mode=all-in-one
+```
+
+The config file uses the same runtime validation as environment variables.
+Storage can be flipped between `local`, `nfs`, `minio`, and `s3` by changing
+the `storage_*` keys, while secrets may still be supplied by environment
+variables when they are omitted from the file.
+
 ## Receive mail locally
 
 Start the current SMTP receive MVP:

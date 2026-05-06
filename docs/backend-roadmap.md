@@ -3257,6 +3257,10 @@ Implementation order:
       `GOGOMAIL_TEST_S3_INSECURE_SKIP_VERIFY`, letting release smoke tests
       verify private CA or local self-signed MinIO/S3 endpoints through the same
       injected HTTP-client path.
+1267. Runtime startup now accepts `--config=<path>` for a validated flat YAML
+      overlay on top of defaults/env values. The example config carries
+      local/NFS/S3-compatible storage knobs, making backend flips reviewable as
+      config-file changes without bypassing startup validation.
 
 ## Deferred until backend contracts stabilize
 

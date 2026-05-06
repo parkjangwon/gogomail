@@ -17,6 +17,7 @@ import (
 func main() {
 	modeRaw := flag.String("mode", string(app.ModeAllInOne), "component mode to run")
 	runMigrations := flag.Bool("migrate", false, "run database migrations before starting")
+	configFile := flag.String("config", "", "optional YAML config file")
 	flag.Parse()
 
 	mode, err := app.ParseMode(*modeRaw)
@@ -25,7 +26,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	cfg := config.Load()
+	cfg, err := config.LoadFile(*configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid config file: %v\n", err)
+		os.Exit(2)
+	}
 	if err := cfg.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "invalid config: %v\n", err)
 		os.Exit(2)
