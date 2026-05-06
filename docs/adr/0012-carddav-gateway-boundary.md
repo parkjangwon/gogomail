@@ -132,6 +132,14 @@ explicit `Depth: 0` request scope and rejecting `Depth: 1` before sync lookup or
 change-log work. Sync parsing distinguishes an empty initial `DAV:sync-token`
 element from a missing token element and rejects the latter before snapshot or
 change-log work.
+Retention pruning is repository-owned as well. A bounded
+`PruneAddressBookChanges` boundary can dry-run or delete old address-book
+change-log rows while preserving the newest marker per address book, backed by
+a prune-order database index. This keeps future Contacts retention policy out
+of the HTTP handler and prevents cleanup work from deleting the token needed by
+a current client. Public readiness still needs worker wiring,
+deployment-specific retention age policy, and native-client compatibility
+testing around expired tokens.
 Contact-object writes preflight duplicate active vCard UIDs inside the same
 address book before the SQL upsert path. The PostgreSQL partial unique index
 remains the final concurrency guard, but normal handler/repository failures now

@@ -85,7 +85,7 @@ type InvalidSyncTokenError struct {
 }
 
 func (e InvalidSyncTokenError) Error() string {
-	return "CardDAV sync-token is no longer valid"
+	return "CardDAV sync-token is unknown or expired"
 }
 
 type TruncatedResultsError struct {

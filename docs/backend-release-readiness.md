@@ -426,6 +426,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bounded dry-run/delete calls preserve the newest sync marker per calendar and
   use a dedicated prune-order index. Public-ready status still requires
   operator/worker wiring and documented token-retention policy.
+- CardDAV sync-change retention pruning now mirrors that boundary for address
+  books: bounded dry-run/delete calls preserve the newest sync marker per
+  address book and use a dedicated prune-order index. Public-ready Contacts
+  sync still requires operator/worker wiring and documented token-retention
+  policy.
 - CalDAV initial `sync-collection` snapshots now use a sync-specific
   one-extra-object repository list path, preventing omitted-limit snapshots
   from being clipped by generic list defaults while still returning the current
