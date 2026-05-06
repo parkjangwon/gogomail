@@ -131,9 +131,9 @@ header validation when present and wraps known-length successful bodies in a
 bounded reader, so truncated compatible-provider full reads surface
 `io.ErrUnexpectedEOF` instead of a silent short body.
 S3-compatible status-error diagnostics now recognize standard S3 `<Error>`
-XML bodies and render bounded one-line `Code: Message` previews instead of raw
-XML tags, while preserving the existing sanitized plain-text fallback for
-non-XML provider errors.
+XML bodies and render bounded one-line `Code: Message` previews with
+request-id context instead of raw XML tags, while preserving the existing
+sanitized plain-text fallback for non-XML provider errors.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

@@ -3284,6 +3284,8 @@ func TestS3StoreFormatsXMLStatusErrorPreview(t *testing.T) {
   <Code>SlowDown</Code>
   <Message>retry
 later</Message>
+  <RequestId>req-
+123</RequestId>
 </Error>`))
 	}))
 	defer server.Close()
@@ -3301,7 +3303,7 @@ later</Message>
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
 	_, err = store.Get(context.Background(), "messages/msg-1.eml")
-	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "SlowDown: retry later") || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
+	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "SlowDown: retry later: request-id=req- 123") || strings.Contains(err.Error(), "<Error>") || strings.ContainsAny(err.Error(), "\r\n") {
 		t.Fatalf("error = %q, want formatted XML status preview", err)
 	}
 }

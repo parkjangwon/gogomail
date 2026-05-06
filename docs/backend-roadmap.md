@@ -3966,9 +3966,10 @@ Implementation order:
       successful bodies in a bounded reader, surfacing truncated provider
       bodies as `io.ErrUnexpectedEOF` instead of silent short reads.
 1428. S3-compatible status-error diagnostics now parse standard S3 `<Error>`
-      XML bodies into bounded one-line `Code: Message` previews, keeping
-      AWS/MinIO-compatible failures operator-friendly while preserving the
-      existing sanitized plain-text fallback for non-XML provider errors.
+      XML bodies into bounded one-line `Code: Message` previews with
+      request-id context, keeping AWS/MinIO-compatible failures
+      operator-friendly while preserving the existing sanitized plain-text
+      fallback for non-XML provider errors.
 
 ## Deferred until backend contracts stabilize
 

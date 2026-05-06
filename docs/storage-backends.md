@@ -314,8 +314,9 @@ Missing-object reads also preserve the local/NFS error contract: `Get`,
 `GetRange`, and `Stat` wrap `os.ErrNotExist` for compatible-provider
 `404 Not Found` responses while retaining sanitized S3 status context.
 Standard S3 `<Error>` response bodies are rendered as bounded one-line
-`Code: Message` diagnostics instead of raw XML, while non-XML provider bodies
-fall back to the same sanitized preview path.
+`Code: Message` diagnostics with request-id context when supplied instead of
+raw XML, while non-XML provider bodies fall back to the same sanitized preview
+path.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
