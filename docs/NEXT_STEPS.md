@@ -1043,6 +1043,9 @@ Current state:
   reading from the socket instead of after an unbounded line allocation.
 - `AUTHENTICATE PLAIN` now supports `SASL-IR` initial responses, reducing
   authentication round trips for compatible IMAP clients.
+- `LOGIN` and SASL PLAIN decoded credentials now reject blank, CR/LF-bearing,
+  or oversized authentication identities and oversized or CR/LF-bearing
+  passwords before backend auth work.
 - Authenticated selected-mailbox `UID STORE` now maps `FLAGS`, `+FLAGS`, and
   `-FLAGS` for supported system flags to the service-backed flag mutation
   boundary and returns updated flag metadata.

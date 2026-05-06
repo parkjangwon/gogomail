@@ -2492,6 +2492,9 @@ Implementation order:
 1145. IMAP command and IDLE line reads now enforce the command-line byte cap
       while reading from the socket instead of after an unbounded line
       allocation.
+1146. IMAP `LOGIN` and SASL PLAIN decoded credentials now reject blank,
+      CR/LF-bearing, or oversized authentication identities plus oversized or
+      CR/LF-bearing passwords before backend auth work.
 
 ## Deferred until backend contracts stabilize
 

@@ -1789,6 +1789,9 @@ The platform hardening sprint completed the following:
   backend contract explicitly supports them. Failed `LOGIN` and
   `AUTHENTICATE` attempts include RFC 5530 `[AUTHENTICATIONFAILED]` response
   codes for client-readable auth diagnostics.
+- IMAP `LOGIN` and SASL PLAIN decoded credentials now reject blank,
+  CR/LF-bearing, or oversized authentication identities and oversized or
+  CR/LF-bearing passwords at the protocol boundary before backend auth work.
 - IMAP advertises `SASL-IR` before authentication and accepts
   `AUTHENTICATE PLAIN` initial responses to reduce client auth round trips.
 - `gogomail --mode=imap` initializes the service-backed IMAP store adapter,
