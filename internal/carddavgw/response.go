@@ -147,6 +147,16 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 	}
 }
 
+func PrincipalCollectionProperties(principal Principal) []PropertyResult {
+	return []PropertyResult{
+		{Name: PropDisplayName, Value: PropertyValue{Text: "Principals"}, Found: true},
+		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
+		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: readOnlyPrivileges()}, Found: true},
+		{Name: PropPrincipalCollectionSet, Value: PropertyValue{Hrefs: []string{PrincipalsPrefix + "/"}}, Found: true},
+	}
+}
+
 func AddressBookHomeProperties(userID string) ([]PropertyResult, error) {
 	if _, err := AddressBookHomePath(userID); err != nil {
 		return nil, err

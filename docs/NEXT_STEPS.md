@@ -1630,6 +1630,8 @@ Next:
   `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` semantics, and `gogomail --mode=carddav` now exposes an
   experimental Basic-auth runtime listener. It also evaluates
+  `/carddav/principals/` as the advertised principal collection, returning the
+  authenticated principal at `Depth: 1` without listing unrelated users, and
   `addressbook-query` filters over parsed unfolded vCard property values,
   including RFC 6352 match-type, `negate-condition`, default
   `i;unicode-casemap`, nested `param-filter`, and `test=anyof|allof`

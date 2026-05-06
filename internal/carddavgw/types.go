@@ -34,6 +34,7 @@ const (
 	ResourceUnknown               ResourceKind = "unknown"
 	ResourceWellKnown             ResourceKind = "well_known"
 	ResourceRoot                  ResourceKind = "root"
+	ResourcePrincipalCollection   ResourceKind = "principal_collection"
 	ResourcePrincipal             ResourceKind = "principal"
 	ResourceAddressBookHome       ResourceKind = "addressbook_home"
 	ResourceAddressBookCollection ResourceKind = "addressbook_collection"

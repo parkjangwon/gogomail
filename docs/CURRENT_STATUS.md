@@ -108,6 +108,9 @@ public/client-ready.
 Basic-auth backed by the existing Submission authenticator. WebDAV multistatus
 response building is available for CardDAV principal, address-book collection,
 contact-object, REPORT, and sync responses.
+CardDAV now resolves the advertised `/carddav/principals/` principal collection
+for `PROPFIND`, returning collection metadata at `Depth: 0` and the
+authenticated principal as a `Depth: 1` child without exposing other users.
 CardDAV PROPFIND responses now also expose a conservative RFC 3744-shaped
 `current-user-privilege-set`: readable resources advertise `DAV:read`, and
 address-book collections now also advertise `DAV:bind`/`DAV:unbind` for child
@@ -2483,8 +2486,9 @@ The platform hardening sprint completed the following:
   supported reports, supported vCard data types, sync tokens, and per-property
   404 propstats.
 - CardDAV now has an internal RFC 6764/WebDAV-style discovery handler for
-  `/.well-known/carddav`, `OPTIONS`, and `PROPFIND` over root, principal,
-  address-book home, address-book collection, and contact-object resources.
+  `/.well-known/carddav`, `OPTIONS`, and `PROPFIND` over root, the advertised
+  principal collection, principal, address-book home, address-book collection,
+  and contact-object resources.
   It rejects cross-user paths, `Depth: infinity`, malformed WebDAV XML, and
   contact-object `PROPFIND` above `Depth: 0`; the PostgreSQL repository
   satisfies the discovery store by delegating active user principal lookup to
