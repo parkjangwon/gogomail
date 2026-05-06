@@ -1556,7 +1556,8 @@ Current state:
 - CalDAV `.ics` validation now wraps `github.com/emersion/go-ical` so object
   writes decode RFC 5545 iCalendar bodies, derive or verify UID/component
   metadata, and reject missing/duplicate `VERSION`/`PRODID` root properties,
-  non-`2.0` versions, multiple supported top-level components,
+  non-`2.0` versions, RFC 4791-forbidden stored `METHOD` properties, multiple
+  supported top-level components,
   missing/duplicate UIDs, excessive component/property counts, and RFC-invalid
   `VEVENT`/`VTODO` duration/end combinations before storage. Supported calendar
   components now also reject duplicated singleton time/status properties before

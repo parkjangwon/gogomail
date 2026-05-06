@@ -101,6 +101,9 @@ func validateICalendarRootSemantics(root *ical.Component) error {
 	if strings.TrimSpace(productID) == "" {
 		return fmt.Errorf("VCALENDAR PRODID must not be empty")
 	}
+	if len(root.Props[ical.PropMethod]) > 0 {
+		return fmt.Errorf("VCALENDAR calendar object resource must not contain METHOD")
+	}
 	return nil
 }
 

@@ -2547,7 +2547,9 @@ The platform hardening sprint completed the following:
   iCalendar decoding, requiring one `VCALENDAR` with exactly one `VERSION:2.0`,
   exactly one non-empty `PRODID`, exactly one supported top-level calendar
   component, exactly one bounded UID, and explicit component/property count
-  caps before `.ics` bodies reach storage. It also
+  caps before `.ics` bodies reach storage. It rejects stored root `METHOD`
+  properties per RFC 4791 calendar object resource rules while still allowing
+  server-generated free-busy responses to carry `METHOD:REPLY`. It also
   rejects RFC-invalid duration/end combinations for stored `VEVENT` and `VTODO`
   objects, including `VEVENT` `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and
   `VTODO` `DURATION` without `DTSTART`; singleton time/status properties such
