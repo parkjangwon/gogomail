@@ -100,6 +100,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `CopyObjectResult` core child elements now use the same
   namespace boundary as the root, so foreign-namespace `ETag`, `LastModified`,
   or embedded `Error` elements cannot be collapsed into a successful copy.
+- S3-compatible `CopyObjectResult` `ETag` metadata now uses the same bounded
+  safe single-line validation as `Stat` and `List`, rejecting malformed copy
+  success metadata before copy/move callers treat the provider response as
+  durable.
 - S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   accepting ambiguous successful copy metadata.

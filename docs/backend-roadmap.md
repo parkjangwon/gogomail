@@ -3865,6 +3865,10 @@ Implementation order:
 1399. S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
       non-empty malformed or whitespace-padded timestamp values instead of
       accepting ambiguous successful copy metadata.
+1400. S3-compatible `CopyObjectResult` `ETag` metadata now uses the same
+      bounded safe single-line validation as `Stat` and `List`, rejecting
+      malformed copy success metadata before copy/move callers treat the
+      provider response as durable.
 
 ## Deferred until backend contracts stabilize
 

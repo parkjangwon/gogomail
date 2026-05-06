@@ -1215,6 +1215,7 @@ type s3CopyResponse struct {
 	XMLName      xml.Name
 	Code         string `xml:"Code"`
 	Message      string `xml:"Message"`
+	ETag         string `xml:"ETag"`
 	LastModified string `xml:"LastModified"`
 }
 
@@ -1367,6 +1368,9 @@ func validateS3CopyResponse(body io.Reader) error {
 	case "CopyObjectResult":
 		if !s3XMLNamespaceAllowed(response.XMLName.Space) {
 			return fmt.Errorf("copy s3 object: unexpected response namespace")
+		}
+		if response.ETag != "" && cleanS3ETag(response.ETag) == "" {
+			return fmt.Errorf("copy s3 object: invalid etag")
 		}
 		if _, ok := parseS3ListTime(response.LastModified); !ok {
 			return fmt.Errorf("copy s3 object: invalid last-modified")
