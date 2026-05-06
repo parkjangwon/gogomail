@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV If-Match star mutation hardening)
+Last updated: 2026-05-07 (updated after S3 encoded-separator key hardening)
 
 ## Current phase
 
@@ -69,6 +69,11 @@ S3-compatible `List` now rechecks provider-returned keys against the requested
 logical gogomail prefix after stripping the configured bucket/storage prefix,
 so malformed or overly broad S3-compatible list responses cannot leak sibling
 keys into caller listings or `DeletePrefix` cleanup work.
+S3-compatible storage now rejects percent-encoded path separators such as
+`%2F` and `%5C` in configured prefixes, request object keys, list prefixes,
+copy/move endpoints, and provider-returned list keys, keeping logical object
+boundaries portable across AWS S3, MinIO, and stricter compatible gateways that
+may differ in URL decoding behavior.
 Local/NFS storage now rejects symlinked intermediate path components for
 object reads, range reads, metadata probes, deletes, copies, moves, writes, and
 prefix listings, while continuing to hide final-object symlinks from list
@@ -1299,6 +1304,11 @@ owner/resource target without scanning unrelated audit history.
   paths before adapter construction. Endpoint base paths also reject encoded
   path separators such as `%2F` and `%5C`, keeping SigV4 signing and object
   addressing unambiguous across AWS S3, MinIO, and compatible providers.
+- S3-compatible object key and prefix validation now also rejects encoded path
+  separators such as `%2F` and `%5C` across configured storage prefixes,
+  object requests, list prefixes, copy/move endpoints, and returned list keys,
+  avoiding provider/proxy-specific double-decoding ambiguity at the storage
+  adapter boundary.
 - S3-compatible request construction automatically uses path-style addressing
   for dotted bucket names on HTTPS endpoints, avoiding AWS S3 virtual-hosted
   TLS wildcard certificate mismatches while preserving virtual-hosted requests

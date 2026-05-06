@@ -200,9 +200,10 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 			return ObjectInfo{}, err
 		}
 	}
-	objectPath, err = ValidateObjectPath(objectPath)
+	rawObjectPath := objectPath
+	objectPath, err = validateS3ObjectPath(objectPath)
 	if err != nil {
-		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
+		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", rawObjectPath, err)
 	}
 	return ObjectInfo{
 		Path:         objectPath,
@@ -236,11 +237,11 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	sourceObjectPath, err := validateS3ObjectPath(sourcePath)
 	if err != nil {
 		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
 	}
-	destObjectPath, err := ValidateObjectPath(destPath)
+	destObjectPath, err := validateS3ObjectPath(destPath)
 	if err != nil {
 		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
 	}
@@ -271,11 +272,11 @@ func (s *S3Store) Move(ctx context.Context, sourcePath string, destPath string) 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	sourceObjectPath, err := ValidateObjectPath(sourcePath)
+	sourceObjectPath, err := validateS3ObjectPath(sourcePath)
 	if err != nil {
 		return fmt.Errorf("unsafe source storage path %q: %w", sourcePath, err)
 	}
-	destObjectPath, err := ValidateObjectPath(destPath)
+	destObjectPath, err := validateS3ObjectPath(destPath)
 	if err != nil {
 		return fmt.Errorf("unsafe destination storage path %q: %w", destPath, err)
 	}
@@ -295,7 +296,7 @@ func (s *S3Store) Move(ctx context.Context, sourcePath string, destPath string) 
 }
 
 func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, error) {
-	prefix, err := ValidateObjectPrefix(opts.Prefix)
+	prefix, err := validateS3ObjectPrefix(opts.Prefix)
 	if err != nil {
 		return ObjectListPage{}, fmt.Errorf("unsafe storage prefix %q: %w", opts.Prefix, err)
 	}
@@ -461,7 +462,7 @@ func (s *S3Store) newRequestWithHeaders(ctx context.Context, method string, obje
 		return nil, err
 	}
 	rawObjectPath := objectPath
-	objectPath, err := ValidateObjectPath(objectPath)
+	objectPath, err := validateS3ObjectPath(objectPath)
 	if err != nil {
 		return nil, fmt.Errorf("unsafe storage path %q: %w", rawObjectPath, err)
 	}
@@ -710,7 +711,7 @@ func (s *S3Store) objectPathFromKey(key string) (string, bool) {
 	if strings.TrimSpace(key) != key {
 		return "", false
 	}
-	objectPath, err := ValidateObjectPath(key)
+	objectPath, err := validateS3ObjectPath(key)
 	if err != nil {
 		return "", false
 	}
@@ -830,7 +831,26 @@ func normalizeS3Prefix(prefix string) (string, error) {
 	if prefix == "" {
 		return "", nil
 	}
-	return ValidateObjectPath(prefix)
+	return validateS3ObjectPath(prefix)
+}
+
+func validateS3ObjectPath(objectPath string) (string, error) {
+	if s3ContainsEncodedPathSeparator(objectPath) {
+		return "", fmt.Errorf("storage path must not contain percent-encoded path separators")
+	}
+	return ValidateObjectPath(objectPath)
+}
+
+func validateS3ObjectPrefix(prefix string) (string, error) {
+	if s3ContainsEncodedPathSeparator(prefix) {
+		return "", fmt.Errorf("storage prefix must not contain percent-encoded path separators")
+	}
+	return ValidateObjectPrefix(prefix)
+}
+
+func s3ContainsEncodedPathSeparator(value string) bool {
+	value = strings.ToLower(value)
+	return strings.Contains(value, "%2f") || strings.Contains(value, "%5c")
 }
 
 func ValidateS3BucketName(bucket string) error {
