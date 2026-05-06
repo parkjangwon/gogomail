@@ -718,7 +718,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH ALL\r\na10 SORT (DATE) UTF-8 ALL\r\na11 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na12 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH ALL\r\na12 SORT (DATE) UTF-8 ALL\r\na13 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na14 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -730,11 +730,13 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a6 BAD THREAD requires algorithm, charset, and search criteria\r\n",
 		"a7 NO authentication required\r\n",
 		"a8 BAD SEARCH requires criteria\r\n",
-		"a9 NO authentication required\r\n",
-		"a10 NO authentication required\r\n",
+		"a9 BAD SEARCH criteria are unsupported\r\n",
+		"a10 BAD SEARCH criteria are unsupported\r\n",
 		"a11 NO authentication required\r\n",
+		"a12 NO authentication required\r\n",
+		"a13 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a12 OK LOGOUT completed\r\n",
+		"a14 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -5617,7 +5619,7 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\na26 UID SEARCH UID 1:*\r\na27 UID SEARCH UID 999:*\r\na28 SEARCH (ALL)\r\na29 SEARCH ()\r\na30 SEARCH MODSEQ 20\"\r\na31 SEARCH MODSEQ \"/flags/\\\\Seen\" all\" 17\r\na32 SEARCH MODSEQ +20\r\na33 SEARCH CHARSET UTF-8\" ALL\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH ALL\r\na4 UID SEARCH ALL\r\na5 SEARCH UID 8:9\r\na6 SEARCH UNSEEN SINCE 04-May-2026 LARGER 20\r\na7 UID SEARCH ALL FROM archive SENTBEFORE 04-May-2026\r\na8 SEARCH NOT SEEN\r\na9 UID SEARCH OR FROM sender BCC hidden\r\na10 SEARCH CHARSET UTF-8 SUBJECT IMAP\r\na11 UID SEARCH CHARSET US-ASCII ALL\r\na12 SEARCH CHARSET ISO-8859-1 ALL\r\na13 SEARCH 2:*\r\na14 UID SEARCH 1:* SUBJECT Archive\r\na15 SEARCH (UNSEEN BCC hidden)\r\na16 UID SEARCH OR (SUBJECT IMAP) (BCC hidden)\r\na17 UID SEARCH MODSEQ 20\r\na18 SEARCH MODSEQ \"/flags/\\\\Seen\" all 17\r\na19 SEARCH MODSEQ \"/flags/\\\\Seen\" bogus 17\r\na20 SEARCH RETURN (MIN MAX COUNT) UNSEEN\r\na21 UID SEARCH RETURN (ALL COUNT) ALL\r\na22 SEARCH RETURN () ALL\r\na23 SEARCH RETURN (MIN) MODSEQ 20\r\na24 SEARCH RETURN (COUNT COUNT) ALL\r\na25 UID SEARCH RETURN (ALL COUNT) DELETED\r\na26 UID SEARCH UID 1:*\r\na27 UID SEARCH UID 999:*\r\na28 SEARCH (ALL)\r\na29 SEARCH ()\r\na30 SEARCH MODSEQ 20\"\r\na31 SEARCH MODSEQ \"/flags/\\\\Seen\" all\" 17\r\na32 SEARCH MODSEQ +20\r\na33 SEARCH CHARSET UTF-8\" ALL\r\na34 SEARCH +1\r\na35 UID SEARCH UID +7\r\n")); err != nil {
 		t.Fatalf("write search: %v", err)
 	}
 	want := []string{
@@ -5675,6 +5677,8 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 		"a31 BAD malformed command\r\n",
 		"a32 BAD SEARCH criteria are unsupported\r\n",
 		"a33 BAD malformed command\r\n",
+		"a34 BAD SEARCH criteria are unsupported\r\n",
+		"a35 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

@@ -1382,6 +1382,10 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
 			return true, false, err
 		}
+		if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+			_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
+			return true, false, err
+		}
 	case "SORT":
 		if len(fields) < 6 {
 			_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
@@ -1487,6 +1491,10 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 	}
 	if !imapSearchFieldsContainCriteria(searchFields) {
 		_, err := writer.WriteString(tag + " BAD SEARCH requires criteria\r\n")
+		return false, err
+	}
+	if message, ok := imapSearchCriteriaSyntaxError(searchFields); ok {
+		_, err := writer.WriteString(tag + " BAD " + message + "\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -1737,6 +1745,132 @@ func imapSearchFieldsContainCriteria(fields []string) bool {
 		return len(fields) >= 3
 	}
 	return true
+}
+
+func imapSearchCriteriaSyntaxError(fields []string) (string, bool) {
+	criteria, charsetOK := imapSearchCriteria(fields)
+	if !charsetOK {
+		return "", false
+	}
+	if !imapSearchCriteriaSyntaxValid(criteria) {
+		return "SEARCH criteria are unsupported", true
+	}
+	return "", false
+}
+
+func imapSearchCriteriaSyntaxValid(criteria []string) bool {
+	for i := 0; i < len(criteria); {
+		consumed, ok := imapSearchCriterionSyntaxConsumed(criteria[i:])
+		if !ok || consumed <= 0 {
+			return false
+		}
+		i += consumed
+	}
+	return true
+}
+
+func imapSearchCriterionSyntaxConsumed(criteria []string) (int, bool) {
+	if len(criteria) == 0 {
+		return 0, false
+	}
+	criterion := strings.ToUpper(criteria[0])
+	switch criterion {
+	case "(":
+		i := 1
+		seenSearchKey := false
+		for i < len(criteria) {
+			if criteria[i] == ")" {
+				break
+			}
+			consumed, ok := imapSearchCriterionSyntaxConsumed(criteria[i:])
+			if !ok {
+				return 0, false
+			}
+			seenSearchKey = true
+			i += consumed
+		}
+		if i >= len(criteria) || criteria[i] != ")" || !seenSearchKey {
+			return 0, false
+		}
+		return i + 1, true
+	case "ALL", "SEEN", "UNSEEN", "FLAGGED", "UNFLAGGED", "ANSWERED", "UNANSWERED", "DRAFT", "UNDRAFT", "DELETED", "UNDELETED", "RECENT", "OLD", "NEW":
+		return 1, true
+	case "NOT":
+		consumed, ok := imapSearchCriterionSyntaxConsumed(criteria[1:])
+		if !ok {
+			return 0, false
+		}
+		return consumed + 1, true
+	case "OR":
+		leftConsumed, ok := imapSearchCriterionSyntaxConsumed(criteria[1:])
+		if !ok {
+			return 0, false
+		}
+		rightConsumed, ok := imapSearchCriterionSyntaxConsumed(criteria[1+leftConsumed:])
+		if !ok {
+			return 0, false
+		}
+		return 1 + leftConsumed + rightConsumed, true
+	case "UID":
+		if len(criteria) < 2 || !imapUIDSetSyntaxValid(criteria[1]) {
+			return 0, false
+		}
+		return 2, true
+	case "SINCE", "BEFORE", "ON", "SENTSINCE", "SENTBEFORE", "SENTON":
+		if len(criteria) < 2 {
+			return 0, false
+		}
+		_, ok := parseIMAPSearchDate(criteria[1])
+		return 2, ok
+	case "LARGER", "SMALLER":
+		if len(criteria) < 2 {
+			return 0, false
+		}
+		_, ok := parseIMAPSearchSize(criteria[1])
+		return 2, ok
+	case "MODSEQ":
+		_, consumed, ok := parseIMAPSearchModSeq(criteria)
+		return consumed, ok
+	case "KEYWORD", "UNKEYWORD":
+		if len(criteria) < 2 || !imapSearchKeywordValid(criteria[1]) {
+			return 0, false
+		}
+		return 2, true
+	case "FROM", "TO", "CC", "BCC", "SUBJECT", "BODY", "TEXT":
+		if len(criteria) < 2 {
+			return 0, false
+		}
+		_, ok := imapSearchStringArgument(criteria[1])
+		return 2, ok
+	case "HEADER":
+		if len(criteria) < 3 {
+			return 0, false
+		}
+		if _, ok := imapSearchStringArgument(criteria[1]); !ok {
+			return 0, false
+		}
+		if _, ok := imapSearchStringArgument(criteria[2]); !ok {
+			return 0, false
+		}
+		return 3, true
+	default:
+		if imapSearchCriterionLooksLikeSequenceSet(criteria[0]) {
+			return 1, imapSequenceSetSyntaxValid(criteria[0])
+		}
+		return 1, true
+	}
+}
+
+func imapSearchCriterionLooksLikeSequenceSet(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if value == "*" || strings.ContainsAny(value, ":,") {
+		return true
+	}
+	first := value[0]
+	return first == '+' || first == '-' || ('0' <= first && first <= '9')
 }
 
 func imapConsumeParenthesizedFields(fields []string) ([]string, []string, bool) {

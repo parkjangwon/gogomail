@@ -3017,6 +3017,11 @@ Implementation order:
       and UID set syntax, including signed values such as `+1` and `+7`,
       before authentication or selected-state checks while preserving
       selected-mailbox bounds validation for execution time.
+1224. IMAP `SEARCH` and `UID SEARCH` now validate malformed search
+      sequence-set and `UID` search-key set syntax before authentication or
+      selected-state checks, so signed values such as `SEARCH +1` and
+      `UID SEARCH UID +7` fail as RFC 3501 grammar errors instead of state
+      errors.
 
 ## Deferred until backend contracts stabilize
 
