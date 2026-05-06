@@ -27,6 +27,13 @@ kinds. Directory-owned tables hold groups, resources, aliases, and group
 memberships so product modules do not invent their own incompatible principal
 stores. Active aliases are resolved by normalized email address and map to a
 target Directory principal.
+Directory also owns bounded principal search across users, organizations,
+groups, and resources. Search is company-scoped, optionally domain- and
+organization-scoped, principal-kind filtered, query-size limited, result-size
+limited, and SQL-wildcard escaped before repository execution. CalDAV
+attendee/resource lookup, Contacts/CardDAV autocomplete, shared inbox targeting,
+and admin consoles should consume that boundary instead of querying
+user/group/resource tables directly.
 
 CalDAV discovery must use this shared resolver for active principal lookup
 instead of owning a private user/domain/company query. CalDAV remains
@@ -41,6 +48,9 @@ booking policy, and scheduling semantics are implemented explicitly.
 
 - Active user, organization, group, and resource principal lookup is now shared
   and testable outside CalDAV.
+- Principal search is now shared and bounded, giving calendar, contacts,
+  shared inbox, Drive, and admin surfaces one predictable contract for
+  user/group/resource lookup without product-local search semantics.
 - Alias-to-principal lookup is now shared and can be reused by mail routing,
   attendee resolution, admin consoles, and future shared inbox flows.
 - Direct group-membership checks are now shared and auditable before recursive

@@ -28,9 +28,12 @@ const (
 	DelegationRoleWrite  = "write"
 	DelegationRoleManage = "manage"
 
-	MaxPrincipalIDBytes       = 200
-	MaxGroupMembershipDepth   = 16
-	DefaultMembershipMaxDepth = 8
+	MaxPrincipalIDBytes         = 200
+	MaxGroupMembershipDepth     = 16
+	DefaultMembershipMaxDepth   = 8
+	MaxPrincipalSearchBytes     = 200
+	DefaultPrincipalSearchLimit = 20
+	MaxPrincipalSearchLimit     = 100
 )
 
 type Principal struct {
@@ -49,6 +52,16 @@ type ResolvePrincipalRequest struct {
 	ID         string
 	Kind       string
 	ActiveOnly bool
+}
+
+type SearchPrincipalsRequest struct {
+	CompanyID      string
+	DomainID       string
+	OrganizationID string
+	Kinds          []string
+	Query          string
+	ActiveOnly     bool
+	Limit          int
 }
 
 type Alias struct {
@@ -163,6 +176,69 @@ func NormalizeResolvePrincipalRequest(req ResolvePrincipalRequest) (ResolvePrinc
 	}
 	req.ID = id
 	req.Kind = kind
+	return req, nil
+}
+
+func NormalizeSearchPrincipalsRequest(req SearchPrincipalsRequest) (SearchPrincipalsRequest, error) {
+	companyID, err := NormalizePrincipalID(req.CompanyID)
+	if err != nil {
+		return SearchPrincipalsRequest{}, fmt.Errorf("company id: %w", err)
+	}
+	req.CompanyID = companyID
+	if strings.TrimSpace(req.DomainID) != "" {
+		domainID, err := NormalizePrincipalID(req.DomainID)
+		if err != nil {
+			return SearchPrincipalsRequest{}, fmt.Errorf("domain id: %w", err)
+		}
+		req.DomainID = domainID
+	}
+	if strings.TrimSpace(req.OrganizationID) != "" {
+		orgID, err := NormalizePrincipalID(req.OrganizationID)
+		if err != nil {
+			return SearchPrincipalsRequest{}, fmt.Errorf("organization id: %w", err)
+		}
+		req.OrganizationID = orgID
+	}
+	if strings.ContainsAny(req.Query, "\r\n") {
+		return SearchPrincipalsRequest{}, fmt.Errorf("principal search query must not contain line breaks")
+	}
+	query := strings.Join(strings.Fields(req.Query), " ")
+	if len(query) > MaxPrincipalSearchBytes {
+		return SearchPrincipalsRequest{}, fmt.Errorf("principal search query is too long")
+	}
+	for _, r := range query {
+		if unicode.IsControl(r) {
+			return SearchPrincipalsRequest{}, fmt.Errorf("principal search query must not contain control characters")
+		}
+	}
+	req.Query = query
+	if req.Limit < 0 {
+		return SearchPrincipalsRequest{}, fmt.Errorf("principal search limit must not be negative")
+	}
+	if req.Limit == 0 {
+		req.Limit = DefaultPrincipalSearchLimit
+	}
+	if req.Limit > MaxPrincipalSearchLimit {
+		return SearchPrincipalsRequest{}, fmt.Errorf("principal search limit is too large")
+	}
+	if len(req.Kinds) == 0 {
+		req.Kinds = []string{PrincipalKindUser, PrincipalKindOrganization, PrincipalKindGroup, PrincipalKindResource}
+		return req, nil
+	}
+	kinds := make([]string, 0, len(req.Kinds))
+	seen := make(map[string]struct{}, len(req.Kinds))
+	for _, raw := range req.Kinds {
+		kind, err := NormalizePrincipalKind(raw)
+		if err != nil {
+			return SearchPrincipalsRequest{}, err
+		}
+		if _, ok := seen[kind]; ok {
+			continue
+		}
+		seen[kind] = struct{}{}
+		kinds = append(kinds, kind)
+	}
+	req.Kinds = kinds
 	return req, nil
 }
 

@@ -165,6 +165,58 @@ func TestPostgresCheckEffectiveDelegationExpandsGroupDelegates(t *testing.T) {
 	}
 }
 
+func TestPostgresSearchPrincipalsFindsUsersResourcesAndGroups(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openDirectoryPostgresTestDB(t)
+	seed := seedDirectoryDelegationGraph(t, db)
+	repo := NewRepository(db)
+
+	principals, err := repo.SearchPrincipals(ctx, SearchPrincipalsRequest{
+		CompanyID:  seed.companyID,
+		Query:      "one",
+		ActiveOnly: true,
+		Kinds:      []string{PrincipalKindResource},
+		Limit:      10,
+	})
+	if err != nil {
+		t.Fatalf("SearchPrincipals resource returned error: %v", err)
+	}
+	if got, want := principalIDsByKind(principals, PrincipalKindResource), []string{seed.roomID, seed.equipmentID}; !sameStringSet(got, want) {
+		t.Fatalf("resource search ids = %#v, want %#v", got, want)
+	}
+
+	principals, err = repo.SearchPrincipals(ctx, SearchPrincipalsRequest{
+		CompanyID:      seed.companyID,
+		OrganizationID: seed.orgID,
+		ActiveOnly:     true,
+		Kinds:          []string{PrincipalKindOrganization},
+	})
+	if err != nil {
+		t.Fatalf("SearchPrincipals organization returned error: %v", err)
+	}
+	if len(principals) != 1 || principals[0].ID != seed.orgID || principals[0].Kind != PrincipalKindOrganization {
+		t.Fatalf("organization-scoped search = %+v", principals)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE directory_groups SET status = 'suspended' WHERE id = $1::uuid`, seed.teamID); err != nil {
+		t.Fatalf("suspend directory group: %v", err)
+	}
+	principals, err = repo.SearchPrincipals(ctx, SearchPrincipalsRequest{
+		CompanyID:  seed.companyID,
+		Query:      "team",
+		ActiveOnly: true,
+		Kinds:      []string{PrincipalKindGroup},
+	})
+	if err != nil {
+		t.Fatalf("SearchPrincipals active group returned error: %v", err)
+	}
+	if len(principals) != 0 {
+		t.Fatalf("active group search returned suspended principals: %+v", principals)
+	}
+}
+
 type directoryDelegationSeed struct {
 	companyID   string
 	domainID    string
@@ -176,6 +228,33 @@ type directoryDelegationSeed struct {
 	deeperID    string
 	roomID      string
 	equipmentID string
+}
+
+func principalIDsByKind(principals []Principal, kind string) []string {
+	ids := make([]string, 0, len(principals))
+	for _, principal := range principals {
+		if principal.Kind == kind {
+			ids = append(ids, principal.ID)
+		}
+	}
+	return ids
+}
+
+func sameStringSet(got []string, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	seen := make(map[string]int, len(got))
+	for _, value := range got {
+		seen[value]++
+	}
+	for _, value := range want {
+		if seen[value] == 0 {
+			return false
+		}
+		seen[value]--
+	}
+	return true
 }
 
 func seedDirectoryDelegationGraph(t *testing.T, db *sql.DB) directoryDelegationSeed {

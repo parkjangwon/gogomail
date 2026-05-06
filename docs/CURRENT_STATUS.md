@@ -242,6 +242,13 @@ instead of accumulating caller-supplied strings. It also builds the standard
 `audit.Log` envelope for delegated access checks (`access` /
 `delegation.access_checked` with fixed `allowed`/`denied` results), giving
 future CalDAV/CardDAV/Drive/mailbox adapters one auditable shape to insert.
+Directory now exposes a bounded `SearchPrincipals` repository boundary over
+users, organizations, groups, and resources. The search request validates
+company/domain/organization scope, deduplicates allowed principal kinds, caps
+query size and result count, and escapes SQL `LIKE` wildcard input before
+querying. This is the intended foundation for CalDAV attendee/resource lookup,
+contacts auto-complete, shared inbox targeting, and admin consoles without
+letting product modules invent their own principal search semantics.
 An `accesspolicy` recorder can now insert those delegated-access audit logs
 through the shared audit repository interface, keeping future protocol modules
 on one testable policy/audit boundary instead of open-coding audit writes.

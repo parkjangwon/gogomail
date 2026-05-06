@@ -2110,6 +2110,13 @@ Implementation order:
        delegates see only `DAV:read`, stronger delegates see privileges scoped
        to the requested home, collection, or object resource, and weaker
        delegated sessions no longer receive owner-level static capabilities.
+1051e. Directory/Identity now exposes a bounded `SearchPrincipals` repository
+       boundary over users, organizations, groups, and resources. Requests are
+       company-scoped, optionally domain/organization-scoped, kind-filtered,
+       result-limited, and SQL-wildcard escaped, giving CalDAV attendee and
+       resource lookup, Contacts/CardDAV autocomplete, shared inbox targeting,
+       and admin consoles one platform principal-search contract instead of
+       product-local lookup logic.
 1052. CalDAV now implements a conservative RFC 6578 `REPORT sync-collection`
       handler for authenticated calendar collections: initial empty-token sync
       returns active objects plus a top-level collection sync token, current

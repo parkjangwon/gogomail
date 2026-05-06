@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Repository struct {
@@ -87,6 +88,152 @@ WHERE lower(a.alias_address_ace) = $1
 	}
 	alias.TargetPrincipal = target
 	return alias, nil
+}
+
+func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsRequest) ([]Principal, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeSearchPrincipalsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	allowUser := searchPrincipalKindAllowed(req.Kinds, PrincipalKindUser)
+	allowOrganization := searchPrincipalKindAllowed(req.Kinds, PrincipalKindOrganization)
+	allowGroup := searchPrincipalKindAllowed(req.Kinds, PrincipalKindGroup)
+	allowResource := searchPrincipalKindAllowed(req.Kinds, PrincipalKindResource)
+	pattern := principalSearchPattern(req.Query)
+	const query = `
+WITH principals AS (
+  SELECT u.id::text AS id,
+         'user' AS kind,
+         c.id::text AS company_id,
+         d.id::text AS domain_id,
+         COALESCE(u.org_id::text, '') AS organization_id,
+         u.display_name AS display_name,
+         COALESCE(primary_addr.address, '') AS primary_email,
+         u.status AS status,
+         '' AS resource_type,
+         1 AS kind_rank
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  JOIN companies c ON c.id = d.company_id
+  LEFT JOIN LATERAL (
+    SELECT address
+    FROM user_addresses
+    WHERE user_id = u.id
+    ORDER BY is_primary DESC, created_at ASC, id ASC
+    LIMIT 1
+  ) primary_addr ON TRUE
+  WHERE $7::boolean
+    AND c.id = $1::uuid
+    AND ($2 = '' OR d.id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR COALESCE(u.org_id::text, '') = $3)
+    AND ($4::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+    AND ($5 = '' OR lower(u.display_name) LIKE $5 ESCAPE '\' OR lower(u.username) LIKE $5 ESCAPE '\' OR lower(COALESCE(primary_addr.address, '')) LIKE $5 ESCAPE '\')
+  UNION ALL
+  SELECT o.id::text,
+         'organization',
+         c.id::text,
+         d.id::text,
+         o.id::text,
+         o.name,
+         '',
+         o.status,
+         '',
+         2
+  FROM organizations o
+  JOIN domains d ON d.id = o.domain_id
+  JOIN companies c ON c.id = d.company_id
+  WHERE $8::boolean
+    AND c.id = $1::uuid
+    AND ($2 = '' OR d.id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR o.id::text = $3)
+    AND ($4::boolean = false OR (o.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+    AND ($5 = '' OR lower(o.name) LIKE $5 ESCAPE '\' OR lower(o.code) LIKE $5 ESCAPE '\')
+  UNION ALL
+  SELECT g.id::text,
+         'group',
+         g.company_id::text,
+         g.domain_id::text,
+         COALESCE(g.org_id::text, ''),
+         g.name,
+         '',
+         g.status,
+         '',
+         3
+  FROM directory_groups g
+  JOIN domains d ON d.id = g.domain_id
+  JOIN companies c ON c.id = g.company_id AND c.id = d.company_id
+  WHERE $9::boolean
+    AND g.company_id = $1::uuid
+    AND ($2 = '' OR g.domain_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR COALESCE(g.org_id::text, '') = $3)
+    AND ($4::boolean = false OR (g.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+    AND ($5 = '' OR lower(g.name) LIKE $5 ESCAPE '\' OR lower(g.slug) LIKE $5 ESCAPE '\')
+  UNION ALL
+  SELECT rsrc.id::text,
+         'resource',
+         rsrc.company_id::text,
+         rsrc.domain_id::text,
+         COALESCE(rsrc.org_id::text, ''),
+         rsrc.name,
+         '',
+         rsrc.status,
+         rsrc.resource_type,
+         4
+  FROM directory_resources rsrc
+  JOIN domains d ON d.id = rsrc.domain_id
+  JOIN companies c ON c.id = rsrc.company_id AND c.id = d.company_id
+  WHERE $10::boolean
+    AND rsrc.company_id = $1::uuid
+    AND ($2 = '' OR rsrc.domain_id = NULLIF($2, '')::uuid)
+    AND ($3 = '' OR COALESCE(rsrc.org_id::text, '') = $3)
+    AND ($4::boolean = false OR (rsrc.status = 'active' AND d.status = 'active' AND c.status = 'active'))
+    AND ($5 = '' OR lower(rsrc.name) LIKE $5 ESCAPE '\' OR lower(rsrc.slug) LIKE $5 ESCAPE '\' OR lower(rsrc.resource_type) LIKE $5 ESCAPE '\')
+)
+SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type
+FROM principals
+ORDER BY kind_rank, lower(display_name), id
+LIMIT $6`
+	rows, err := r.db.QueryContext(ctx, query,
+		req.CompanyID,
+		req.DomainID,
+		req.OrganizationID,
+		req.ActiveOnly,
+		pattern,
+		req.Limit,
+		allowUser,
+		allowOrganization,
+		allowGroup,
+		allowResource,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search directory principals: %w", err)
+	}
+	defer rows.Close()
+	principals := make([]Principal, 0, req.Limit)
+	for rows.Next() {
+		var principal Principal
+		if err := rows.Scan(
+			&principal.ID,
+			&principal.Kind,
+			&principal.CompanyID,
+			&principal.DomainID,
+			&principal.OrganizationID,
+			&principal.DisplayName,
+			&principal.PrimaryEmail,
+			&principal.Status,
+			&principal.ResourceType,
+		); err != nil {
+			return nil, fmt.Errorf("scan directory principal search result: %w", err)
+		}
+		principals = append(principals, principal)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("search directory principal rows: %w", err)
+	}
+	return principals, nil
 }
 
 func (r *Repository) CheckDirectGroupMembership(ctx context.Context, req CheckGroupMembershipRequest) (bool, error) {
@@ -379,6 +526,34 @@ WHERE u.id = $1::uuid
 		return Principal{}, fmt.Errorf("resolve directory principal: %w", err)
 	}
 	return principal, nil
+}
+
+func searchPrincipalKindAllowed(kinds []string, kind string) bool {
+	for _, candidate := range kinds {
+		if candidate == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func principalSearchPattern(query string) string {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(query) + 2)
+	b.WriteByte('%')
+	for _, r := range query {
+		switch r {
+		case '%', '_', '\\':
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	b.WriteByte('%')
+	return b.String()
 }
 
 func (r *Repository) resolveOrganizationPrincipal(ctx context.Context, req ResolvePrincipalRequest) (Principal, error) {
