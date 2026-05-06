@@ -35,7 +35,7 @@ func TestParseICalendarObjectAllowsTimezonePlusOneCalendarComponent(t *testing.T
 func TestParseICalendarObjectAllowsDetachedRecurringEventOverrides(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	object, err := ParseICalendarObject(body)
 	if err != nil {
 		t.Fatalf("ParseICalendarObject returned error: %v", err)
@@ -51,22 +51,27 @@ func TestParseICalendarObjectRejectsInvalidObjects(t *testing.T) {
 	tests := map[string][]byte{
 		"empty":                    nil,
 		"not calendar":             []byte("BEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\n"),
-		"missing uid":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"duplicate uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"multiple objects":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"two masters":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"mixed override uid":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"unsupported only":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
-		"oversized uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"too many children":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"event dtend duration":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"event duplicate dtstart":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTSTART:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"event duplicate status":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nSTATUS:CONFIRMED\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"todo due duration":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"todo duration no start":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"todo duplicate due":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDUE:20260506T010000Z\r\nDUE:20260506T020000Z\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
-		"journal duplicate status": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VJOURNAL\r\nUID:journal-1@example.com\r\nSTATUS:DRAFT\r\nSTATUS:FINAL\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n"),
-		"freebusy duplicate dtend": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nUID:fb-1@example.com\r\nDTEND:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n"),
+		"missing version":          []byte("BEGIN:VCALENDAR\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"duplicate version":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"unsupported version":      []byte("BEGIN:VCALENDAR\r\nVERSION:1.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"missing product id":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"duplicate product id":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nPRODID:-//gogomail//Other//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"missing uid":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nSUMMARY:No UID\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"duplicate uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nUID:b@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"multiple objects":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VTODO\r\nUID:b@example.com\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"two masters":              []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"mixed override uid":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:a@example.com\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"unsupported only":         []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\nEND:VCALENDAR\r\n"),
+		"oversized uid":            []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:" + strings.Repeat("u", MaxICalendarUIDBytes+1) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"too many children":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\n" + strings.Repeat("BEGIN:VALARM\r\nACTION:DISPLAY\r\nEND:VALARM\r\n", MaxICalendarComponents+1) + "END:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event dtend duration":     []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event duplicate dtstart":  []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260506T010000Z\r\nDTSTART:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"event duplicate status":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nSTATUS:CONFIRMED\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"todo due duration":        []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"todo duration no start":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDURATION:PT1H\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"todo duplicate due":       []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDUE:20260506T010000Z\r\nDUE:20260506T020000Z\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"),
+		"journal duplicate status": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VJOURNAL\r\nUID:journal-1@example.com\r\nSTATUS:DRAFT\r\nSTATUS:FINAL\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n"),
+		"freebusy duplicate dtend": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VFREEBUSY\r\nUID:fb-1@example.com\r\nDTEND:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n"),
 	}
 	for name, body := range tests {
 		name, body := name, body
@@ -198,7 +203,7 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=10\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=10\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
@@ -224,7 +229,7 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
 		Start: mustCalDAVTime(t, "20260502T030000Z"),
 		End:   mustCalDAVTime(t, "20260502T033000Z"),
@@ -250,7 +255,7 @@ func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:rdate@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRDATE:20260506T010000Z\r\nEXDATE:20260501T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:rdate@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRDATE:20260506T010000Z\r\nEXDATE:20260501T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
 		Start: mustCalDAVTime(t, "20260501T000000Z"),
 		End:   mustCalDAVTime(t, "20260501T030000Z"),
@@ -298,7 +303,7 @@ func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
 func TestCalendarObjectBusyPeriodsExpandsRecurringEvent(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=5\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=5\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260502T000000Z"),
 		End:   mustCalDAVTime(t, "20260504T000000Z"),
@@ -320,7 +325,7 @@ func TestCalendarObjectBusyPeriodsExpandsRecurringEvent(t *testing.T) {
 func TestCalendarObjectBusyPeriodsUsesDetachedOverride(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260502T000000Z"),
 		End:   mustCalDAVTime(t, "20260503T000000Z"),
@@ -339,7 +344,7 @@ func TestCalendarObjectBusyPeriodsUsesDetachedOverride(t *testing.T) {
 func TestCalendarObjectBusyPeriodsBoundsRecurrenceExpansion(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:secondly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T000000Z\r\nDTEND:20260501T000001Z\r\nRRULE:FREQ=SECONDLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:secondly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T000000Z\r\nDTEND:20260501T000001Z\r\nRRULE:FREQ=SECONDLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	_, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260501T000000Z"),
 		End:   mustCalDAVTime(t, "20260502T000000Z"),
@@ -353,8 +358,8 @@ func TestCalendarObjectBusyPeriodsSkipsTransparentAndCancelledEvents(t *testing.
 	t.Parallel()
 
 	for name, body := range map[string][]byte{
-		"transparent": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:transparent@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nTRANSP:TRANSPARENT\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
-		"cancelled":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:cancelled@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"transparent": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:transparent@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nTRANSP:TRANSPARENT\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"cancelled":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:cancelled@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
 	} {
 		name, body := name, body
 		t.Run(name, func(t *testing.T) {
@@ -377,7 +382,7 @@ func TestCalendarObjectBusyPeriodsSkipsTransparentAndCancelledEvents(t *testing.
 func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:tentative@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:tentative@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSTATUS:TENTATIVE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260507T000000Z"),
@@ -393,7 +398,7 @@ func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
 func TestCalendarObjectBusyPeriodsIncludesVFreeBusySourceObjects(t *testing.T) {
 	t.Parallel()
 
-	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nUID:fb@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T000000Z\r\nDTEND:20260507T000000Z\r\nFREEBUSY;FBTYPE=BUSY-UNAVAILABLE:20260506T000000Z/20260506T020000Z,20260506T030000Z/PT1H\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n")
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VFREEBUSY\r\nUID:fb@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T000000Z\r\nDTEND:20260507T000000Z\r\nFREEBUSY;FBTYPE=BUSY-UNAVAILABLE:20260506T000000Z/20260506T020000Z,20260506T030000Z/PT1H\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n")
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260506T010000Z"),
 		End:   mustCalDAVTime(t, "20260506T050000Z"),

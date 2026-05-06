@@ -2544,9 +2544,10 @@ The platform hardening sprint completed the following:
   object names or UIDs are mapped back into predictable repository errors
   instead of exposing raw driver details.
 - CalDAV object validation now uses `github.com/emersion/go-ical` for RFC 5545
-  iCalendar decoding, requiring one `VCALENDAR` with exactly one supported
-  top-level calendar component, exactly one bounded UID, and explicit
-  component/property count caps before `.ics` bodies reach storage. It also
+  iCalendar decoding, requiring one `VCALENDAR` with exactly one `VERSION:2.0`,
+  exactly one non-empty `PRODID`, exactly one supported top-level calendar
+  component, exactly one bounded UID, and explicit component/property count
+  caps before `.ics` bodies reach storage. It also
   rejects RFC-invalid duration/end combinations for stored `VEVENT` and `VTODO`
   objects, including `VEVENT` `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and
   `VTODO` `DURATION` without `DTSTART`; singleton time/status properties such
