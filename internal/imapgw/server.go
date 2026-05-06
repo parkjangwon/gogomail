@@ -6912,7 +6912,7 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 			if start == i {
 				return imapListOptions{}, "LIST requires status data items", false
 			}
-			statusItems, statusErr, ok := imapStatusItems(tokens[start:i])
+			statusItems, statusErr, ok := imapStatusItemsFromTokens(tokens[start:i])
 			if !ok {
 				return imapListOptions{}, strings.Replace(statusErr, "STATUS item", "LIST status item", 1), false
 			}
@@ -7202,21 +7202,31 @@ func imapMailboxPatternMatcher(pattern string) (func(string) bool, bool) {
 }
 
 func imapStatusItems(items []string) ([]string, string, bool) {
-	out := make([]string, 0, len(items))
-	seen := make(map[string]struct{}, len(items))
-	for _, raw := range items {
-		for _, token := range strings.Fields(strings.Trim(raw, "()")) {
-			item := strings.ToUpper(strings.TrimSpace(token))
-			switch item {
-			case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ", "SIZE":
-				if _, ok := seen[item]; ok {
-					return nil, "STATUS item is duplicated", false
-				}
-				seen[item] = struct{}{}
-				out = append(out, item)
-			default:
-				return nil, "STATUS item is unsupported", false
+	inner, ok := imapStatusItemListInner(items)
+	if !ok {
+		return nil, "STATUS item is unsupported", false
+	}
+	tokens, ok := imapParenthesizedAtomListTokens(inner)
+	if !ok {
+		return nil, "STATUS item is unsupported", false
+	}
+	return imapStatusItemsFromTokens(tokens)
+}
+
+func imapStatusItemsFromTokens(tokens []string) ([]string, string, bool) {
+	out := make([]string, 0, len(tokens))
+	seen := make(map[string]struct{}, len(tokens))
+	for _, token := range tokens {
+		item := strings.ToUpper(token)
+		switch item {
+		case "MESSAGES", "RECENT", "UIDNEXT", "UIDVALIDITY", "UNSEEN", "HIGHESTMODSEQ", "SIZE":
+			if _, ok := seen[item]; ok {
+				return nil, "STATUS item is duplicated", false
 			}
+			seen[item] = struct{}{}
+			out = append(out, item)
+		default:
+			return nil, "STATUS item is unsupported", false
 		}
 	}
 	if len(out) == 0 {
@@ -7225,15 +7235,43 @@ func imapStatusItems(items []string) ([]string, string, bool) {
 	return out, "", true
 }
 
+func imapStatusItemListInner(items []string) (string, bool) {
+	if len(items) == 0 {
+		return "", false
+	}
+	joined := strings.Join(items, " ")
+	if strings.TrimSpace(joined) != joined ||
+		!strings.HasPrefix(joined, "(") ||
+		!strings.HasSuffix(joined, ")") ||
+		strings.Count(joined, "(") != 1 ||
+		strings.Count(joined, ")") != 1 {
+		return "", false
+	}
+	return joined[1 : len(joined)-1], true
+}
+
+func imapParenthesizedAtomListTokens(inner string) ([]string, bool) {
+	if inner == "" {
+		return nil, true
+	}
+	if strings.TrimSpace(inner) != inner {
+		return nil, false
+	}
+	tokens := strings.Split(inner, " ")
+	for _, token := range tokens {
+		if token == "" || strings.TrimSpace(token) != token {
+			return nil, false
+		}
+	}
+	return tokens, true
+}
+
 func imapStatusItemListIsParenthesized(items []string) bool {
 	if len(items) == 0 {
 		return false
 	}
-	joined := strings.TrimSpace(strings.Join(items, " "))
-	return strings.HasPrefix(joined, "(") &&
-		strings.HasSuffix(joined, ")") &&
-		strings.Count(joined, "(") == 1 &&
-		strings.Count(joined, ")") == 1
+	_, ok := imapStatusItemListInner(items)
+	return ok
 }
 
 func imapStatusItemListIsEmpty(items []string) bool {

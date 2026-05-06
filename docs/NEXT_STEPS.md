@@ -305,6 +305,10 @@ Current state:
   including before authentication checks. LIST-STATUS now also rejects
   duplicated `STATUS` return options before mailbox lookup so later status
   return controls cannot overwrite earlier requested status data.
+- IMAP `STATUS` status item lists now reject malformed inner whitespace such
+  as `( UIDNEXT)` or `(UIDNEXT  RECENT)` instead of collapsing quoted/literal
+  list values into valid status data items, while LIST-STATUS keeps its
+  existing normalized return-option path regression-covered.
 - IMAP RFC 5258 `LIST-EXTENDED` now rejects unparenthesized `RETURN` option
   lists even when no `STATUS` return option is present, keeping `CHILDREN`,
   `SPECIAL-USE`, and `SUBSCRIBED` return controls on the same parser boundary

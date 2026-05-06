@@ -3911,6 +3911,10 @@ Implementation order:
 1413. IMAP APPEND/STORE flag-list parsing now rejects malformed inner list
       whitespace such as `( \\Seen)`, `(\\Seen )`, `(\\Seen  \\Flagged)`, or
       tab-separated flag names instead of collapsing them into valid flags.
+1414. IMAP `STATUS` item-list parsing now rejects malformed inner whitespace
+      such as `( UIDNEXT)` or `(UIDNEXT  RECENT)` instead of collapsing
+      quoted/literal list values into valid status data items, while
+      LIST-STATUS keeps its normalized return-option path regression-covered.
 
 ## Deferred until backend contracts stabilize
 
