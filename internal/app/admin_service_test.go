@@ -275,6 +275,28 @@ func TestAdminServiceCreateDirectoryDelegationUsesAuditedDirectoryBoundary(t *te
 	}
 }
 
+func TestAdminServiceDeleteDirectoryDelegationUsesAuditedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+
+	directoryStore := &fakeAdminDirectory{
+		delegation: directory.Delegation{ID: "delegation-1", Status: "deleted"},
+	}
+	service := adminService{directory: directoryStore}
+	delegation, err := service.DeleteDirectoryDelegation(t.Context(), " delegation-1 ")
+	if err != nil {
+		t.Fatalf("DeleteDirectoryDelegation returned error: %v", err)
+	}
+	if delegation.ID != "delegation-1" || delegation.Status != "deleted" {
+		t.Fatalf("delegation = %+v", delegation)
+	}
+	if directoryStore.lastDelegationDeleteID != " delegation-1 " {
+		t.Fatalf("lastDelegationDeleteID = %q", directoryStore.lastDelegationDeleteID)
+	}
+	if directoryStore.deleteDelegationWithAuditCalls != 1 {
+		t.Fatalf("deleteDelegationWithAuditCalls = %d, want 1", directoryStore.deleteDelegationWithAuditCalls)
+	}
+}
+
 func TestAdminServiceSearchDirectoryPrincipalsDelegatesToDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -689,6 +711,7 @@ type fakeAdminDirectory struct {
 	principals                     []directory.Principal
 	lastReq                        directory.ListDelegationsRequest
 	lastDelegationCreateReq        directory.CreateDelegationRequest
+	lastDelegationDeleteID         string
 	lastAliasReq                   directory.ResolveAliasRequest
 	lastAliasCreateReq             directory.CreateAliasRequest
 	lastAliasDeleteID              string
@@ -696,6 +719,7 @@ type fakeAdminDirectory struct {
 	lastSearchReq                  directory.SearchPrincipalsRequest
 	createAliasWithAuditCalls      int
 	createDelegationWithAuditCalls int
+	deleteDelegationWithAuditCalls int
 	deleteAliasWithAuditCalls      int
 }
 
@@ -707,6 +731,12 @@ func (f *fakeAdminDirectory) ListDelegations(_ context.Context, req directory.Li
 func (f *fakeAdminDirectory) CreateDelegationWithAudit(_ context.Context, req directory.CreateDelegationRequest) (directory.Delegation, error) {
 	f.createDelegationWithAuditCalls++
 	f.lastDelegationCreateReq = req
+	return f.delegation, nil
+}
+
+func (f *fakeAdminDirectory) DeleteDelegationWithAudit(_ context.Context, id string) (directory.Delegation, error) {
+	f.deleteDelegationWithAuditCalls++
+	f.lastDelegationDeleteID = id
 	return f.delegation, nil
 }
 

@@ -2707,6 +2707,12 @@ Implementation order:
         kinds, scope, and role, verifies active same-company owner/delegate
         principals, rejects self-delegation, maps duplicate active grants to a
         stable error, and commits `directory_delegation.create` with the grant.
+1175b2. Directory/Identity now exposes audited delegation deletion through
+        `DeleteDelegationWithAudit` and
+        `DELETE /admin/v1/directory/delegations/{id}`, soft-deleting active
+        grants and committing `directory_delegation.delete` in the same
+        transaction so shared-calendar, Drive, Contacts/CardDAV, and shared
+        inbox access can be revoked through one platform boundary.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

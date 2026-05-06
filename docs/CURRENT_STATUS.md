@@ -289,6 +289,9 @@ Audited delegation creation is also exposed through
 `{"directory_delegation":{...}}`; this is a platform admin relationship
 operation and still does not make delegated CalDAV/CardDAV/Drive/shared-inbox
 UX public.
+Audited delegation deletion is exposed through
+`DELETE /admin/v1/directory/delegations/{id}`, soft-deleting an active grant
+and recording `directory_delegation.delete` in the same transaction.
 Admin APIs also expose bounded Directory principal search through
 `GET /admin/v1/directory/principals`, returning
 `{"directory_principals":[...]}` for company-scoped user, organization, group,
