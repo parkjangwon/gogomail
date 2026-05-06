@@ -41,7 +41,9 @@ func TestS3StoreUsesPathStyleEndpointAndSignsRequests(t *testing.T) {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
+				w.Header().Set("Content-Type", "application/xml")
 				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`<CopyObjectResult><ETag>"etag-copy"</ETag></CopyObjectResult>`))
 				return
 			}
 			body, err := io.ReadAll(r.Body)
@@ -1377,6 +1379,48 @@ func TestS3StoreCopyAcceptsCopyObjectResult(t *testing.T) {
 	}
 	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml"); err != nil {
 		t.Fatalf("Copy returned error: %v", err)
+	}
+}
+
+func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   string
+	}{
+		{name: "no_content", status: http.StatusNoContent, body: `<CopyObjectResult/>`, want: "status 204"},
+		{name: "empty_ok", status: http.StatusOK, body: "", want: "response body is required"},
+		{name: "unexpected_xml", status: http.StatusOK, body: `<Result/>`, want: `unexpected response "Result"`},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: tc.status,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Copy err = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 
