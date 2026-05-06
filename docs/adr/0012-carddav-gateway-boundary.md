@@ -23,7 +23,9 @@ slices own RFC names, DAV capability tokens, principal paths, address-book home
 paths, address-book collection paths, `.vcf` contact-object resource paths,
 safe relative/absolute href parsing, address-book metadata validation, contact
 object name/UID/ETag/size validation, sync-token derivation, and bounded
-vCard 3.0/4.0 semantic validation.
+vCard 3.0/4.0 semantic validation. The vCard parser treats the value separator
+as the first unquoted colon so quoted parameter values can contain colons
+without being rejected.
 
 PostgreSQL storage tables hold address books, contact objects, and
 address-book change logs. The first repository methods create/list/get

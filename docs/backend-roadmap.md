@@ -2927,6 +2927,11 @@ Implementation order:
       parameter to match the vCard body `VERSION` before repository mutation.
       This prevents native clients and integrations from storing data under an
       ambiguous or over-advertised format contract.
+1201. CardDAV vCard content-line parsing now finds the value separator at the
+      first unquoted colon, so quoted parameters such as address labels can
+      contain colons without causing valid contact objects to fail validation.
+      This improves native-client compatibility while preserving bounded line
+      and body validation.
 
 ## Deferred until backend contracts stabilize
 

@@ -1893,7 +1893,9 @@ Next:
   now includes internal `addressbook-query`, `addressbook-multiget`, and
   `sync-collection` execution plus contact-object `GET`, `HEAD`, `PUT`, and
   `DELETE` semantics, and `gogomail --mode=carddav` now exposes an
-  experimental Basic-auth runtime listener. It also evaluates
+  experimental Basic-auth runtime listener. The vCard parser now recognizes
+  unquoted value separators, preserving quoted parameter values that contain
+  colons. It also evaluates
   `/carddav/principals/` as the advertised principal collection, returning the
   authenticated principal at `Depth: 1` without listing unrelated users, and
   `addressbook-query` filters over parsed unfolded vCard property values,

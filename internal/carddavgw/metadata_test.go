@@ -124,6 +124,19 @@ func TestValidateVCardObjectAcceptsFoldedFN(t *testing.T) {
 	}
 }
 
+func TestValidateVCardObjectAcceptsColonInQuotedParameter(t *testing.T) {
+	t.Parallel()
+
+	body := "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:contact-1\r\nFN:Contact One\r\nADR;LABEL=\"Office: HQ\":;;1 Example St;;;12345;KR\r\nEND:VCARD\r\n"
+	meta, err := ValidateVCardObject([]byte(body))
+	if err != nil {
+		t.Fatalf("ValidateVCardObject returned error: %v", err)
+	}
+	if meta.Version != "3.0" || meta.UID != "contact-1" {
+		t.Fatalf("metadata = %+v", meta)
+	}
+}
+
 func TestValidateVCardObjectRejectsMalformedCards(t *testing.T) {
 	t.Parallel()
 

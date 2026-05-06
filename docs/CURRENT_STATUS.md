@@ -92,6 +92,9 @@ RFC/WebDAV/CardDAV tokens, canonical principal, address-book home,
 address-book collection, and `.vcf` contact-object path/href handling, plus
 metadata validation for address books, contact object names, UIDs, strong
 ETags, size limits, sync tokens, and bounded vCard 3.0/4.0 semantic checks.
+The vCard content-line parser now treats the value separator as the first
+unquoted colon, so quoted parameters such as address labels can contain colons
+without being rejected as malformed cards.
 PostgreSQL storage groundwork now exists for address books, contact objects,
 and address-book change logs. A first repository boundary can create/list/get
 address-book collections through active user/domain/company scope and records
@@ -2839,7 +2842,8 @@ The platform hardening sprint completed the following:
 - CardDAV vCard validation now performs bounded RFC-oriented checks for vCard
   4.0 and common vCard 3.0 contact objects, including BEGIN/END structure, exactly one
   VERSION, required UID/FN, folded content-line handling, line/body caps, and
-  nested VCARD rejection.
+  nested VCARD rejection. Content-line parsing now honors quoted parameter
+  values containing colons before the value separator.
 - CardDAV contact-object repository methods now upsert/list/get/delete active
   `.vcf` objects under active address-book scope, enforce vCard UID alignment,
   compute strong ETags, honor optional observed ETags before overwrite, refresh
