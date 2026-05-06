@@ -79,8 +79,8 @@ Recent release-readiness work also includes:
   workflows, selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
-  diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped numeric grammar
-  checks for sequence sets, partial windows, SEARCH size criteria, and
+  diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and
+  numeric grammar checks, partial windows, SEARCH size criteria, and
   CONDSTORE zero-boundary semantics, rejection of whitespace-padded numeric
   and date search criteria, exact `IDLE` `DONE` continuation handling,
   selected-state event draining before sequence-set commands,

@@ -3885,6 +3885,9 @@ Implementation order:
 1405. IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded
       date strings such as `SINCE " 05-May-2026 "` instead of trimming them
       into valid date atoms.
+1406. IMAP UID and message sequence-set syntax now rejects whitespace-padded
+      quoted or literal set strings such as `SEARCH " 1 "` or
+      `UID SEARCH UID " 7 "` instead of trimming them into valid set atoms.
 
 ## Deferred until backend contracts stabilize
 
