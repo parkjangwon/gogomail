@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after IMAP pre-auth BADCHARSET handling)
+Last updated: 2026-05-06 (updated after storage profile config overlays)
 
 ## Current phase
 
@@ -87,6 +87,10 @@ configuration, so operators can flip local/NFS/MinIO/AWS S3 storage profiles
 through a reviewed config file while keeping the same startup validation. The
 CLI startup seam now has regression coverage proving valid YAML reaches the app
 runtime and invalid config/mode input fails before any component starts.
+Validated storage profile overlays now exist for local filesystem, explicit
+NFS, local MinIO, and AWS S3-style deployments under `configs/storage.*.yaml`,
+with config-loader coverage ensuring each profile parses and passes startup
+validation before operators use it as a `--config` starting point.
 
 Actual Next.js frontend implementation has not started. When frontend work
 starts, use Next.js with TypeScript, shadcn/ui, and the project `DESIGN.md` as
