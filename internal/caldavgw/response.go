@@ -96,10 +96,6 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 }
 
 func CalendarHomeProperties(userID string) ([]PropertyResult, error) {
-	home, err := CalendarHomePath(userID)
-	if err != nil {
-		return nil, err
-	}
 	principalPath, err := PrincipalPath(userID)
 	if err != nil {
 		return nil, err
@@ -107,7 +103,7 @@ func CalendarHomeProperties(userID string) ([]PropertyResult, error) {
 	return []PropertyResult{
 		{Name: PropDisplayName, Value: PropertyValue{Text: "Calendars"}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection}}, Found: true},
-		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{home}}, Found: true},
+		{Name: PropCurrentUserPrincipal, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 	}, nil
 }

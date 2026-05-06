@@ -257,6 +257,39 @@ func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 	}
 }
 
+func TestCalendarHomePropertiesExposePrincipalOwner(t *testing.T) {
+	t.Parallel()
+
+	props, err := CalendarHomeProperties("user-1")
+	if err != nil {
+		t.Fatalf("CalendarHomeProperties returned error: %v", err)
+	}
+	stats := SelectPropfindProperties(PropfindRequest{
+		Kind: PropfindProp,
+		Properties: []XMLName{
+			PropCurrentUserPrincipal,
+			PropOwner,
+		},
+	}, props)
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/calendars/user-1/", PropStats: stats}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:owner><D:href>/caldav/principals/user-1/</D:href></D:owner>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("calendar-home XML missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "<D:current-user-principal><D:href>/caldav/calendars/user-1/</D:href></D:current-user-principal>") {
+		t.Fatalf("calendar-home current-user-principal points at home collection:\n%s", text)
+	}
+}
+
 func TestCalendarObjectPropertiesExposeObjectDiscovery(t *testing.T) {
 	t.Parallel()
 

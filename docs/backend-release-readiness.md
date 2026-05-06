@@ -257,6 +257,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - CalDAV now supports RFC 6764-style discovery through `/.well-known/caldav`
   redirect and authenticated root `PROPFIND /caldav/` responses for principal
   and calendar-home discovery.
+- CalDAV calendar-home `PROPFIND` now keeps WebDAV `current-user-principal` and
+  `owner` hrefs pointed at the canonical principal URL, preserving correct
+  discovery semantics for future delegated/shared calendar access.
 - CalDAV now handles WebDAV `PROPPATCH` for authenticated calendar collection
   metadata (`displayname`, `calendar-description`, CalendarServer/Apple
   `calendar-color`) with bounded namespace-aware XML parsing, transactional
@@ -347,8 +350,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   group/resource principals, normalized alias targets, and direct group
   memberships. Effective membership expansion is bounded with an explicit
   recursion cap and cycle guard. CalDAV discovery delegates active user lookup
-  to this boundary. This does not make shared calendars, resource booking, or
-  delegated access public-release ready yet.
+  to this boundary and now keeps calendar-home `current-user-principal`
+  discovery anchored to canonical principal URLs. This does not make shared
+  calendars, resource booking, or delegated access public-release ready yet.
 - CardDAV is pre-public and backend-only. ADR 0012 and `internal/carddavgw`
   currently cover standards constants, DAV tokens, canonical principal,
   address-book home, address-book collection, and `.vcf` object path/href
