@@ -699,6 +699,10 @@ Current state:
   reject quoted or literal-framed values for `LARGER`, `SMALLER`, and MODSEQ
   thresholds/entry types, while preserving quoted MODSEQ entry names as
   RFC string operands.
+- IMAP `SEARCH`/`UID SEARCH`/`SORT`/`THREAD` charset and date controls now
+  reject quoted values such as `CHARSET "UTF-8"` or `SINCE "05-May-2026"`,
+  keeping command controls atom-only while leaving text/header search operands
+  string-capable.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

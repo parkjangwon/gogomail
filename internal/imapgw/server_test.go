@@ -1402,7 +1402,7 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH X-GM-RAW test\r\na15 SEARCH ALL\r\na16 SORT (DATE) UTF-8 +1\r\na17 THREAD ORDEREDSUBJECT UTF-8 +1\r\na18 SORT (DATE) UTF-8 \"1\"\r\na19 UID SORT (DATE) UTF-8 \"7\"\r\na20 THREAD ORDEREDSUBJECT UTF-8 \"1\"\r\na21 UID THREAD ORDEREDSUBJECT UTF-8 \"7\"\r\na22 SORT (DATE) UTF-8 ALL\r\na23 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na24 SEARCH CHARSET ISO-8859-1 ALL\r\na25 SORT (DATE) ISO-8859-1 ALL\r\na26 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na27 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 SEARCH\r\na2 SEARCH RETURN (COUNT COUNT) ALL\r\na3 SORT\r\na4 SORT DATE UTF-8 ALL\r\na5 SORT (DATE) UTF-8\r\na6 THREAD\r\na7 THREAD REFERENCES UTF-8 ALL\r\na8 SEARCH CHARSET UTF-8\r\na9 SEARCH +1\r\na10 UID SEARCH UID +7\r\na11 SEARCH HEADER \"\" value\r\na12 SEARCH HEADER \"Bad Field\" value\r\na13 SEARCH HEADER Subject: value\r\na14 SEARCH X-GM-RAW test\r\na15 SEARCH ALL\r\na16 SORT (DATE) UTF-8 +1\r\na17 THREAD ORDEREDSUBJECT UTF-8 +1\r\na18 SORT (DATE) UTF-8 \"1\"\r\na19 UID SORT (DATE) UTF-8 \"7\"\r\na20 THREAD ORDEREDSUBJECT UTF-8 \"1\"\r\na21 UID THREAD ORDEREDSUBJECT UTF-8 \"7\"\r\na22 SEARCH CHARSET \"UTF-8\" ALL\r\na23 SORT (DATE) \"UTF-8\" ALL\r\na24 THREAD ORDEREDSUBJECT \"UTF-8\" ALL\r\na25 SORT (DATE) UTF-8 ALL\r\na26 THREAD ORDEREDSUBJECT UTF-8 ALL\r\na27 SEARCH CHARSET ISO-8859-1 ALL\r\na28 SORT (DATE) ISO-8859-1 ALL\r\na29 THREAD ORDEREDSUBJECT ISO-8859-1 ALL\r\na30 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write search auth commands: %v", err)
 	}
 	want := []string{
@@ -1427,13 +1427,16 @@ func TestServerValidatesSearchSyntaxBeforeAuthentication(t *testing.T) {
 		"a19 BAD SORT criteria are unsupported\r\n",
 		"a20 BAD THREAD criteria are unsupported\r\n",
 		"a21 BAD THREAD criteria are unsupported\r\n",
-		"a22 NO authentication required\r\n",
-		"a23 NO authentication required\r\n",
-		"a24 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
-		"a25 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
-		"a26 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a22 BAD SEARCH criteria are unsupported\r\n",
+		"a23 BAD SORT arguments are unsupported\r\n",
+		"a24 BAD THREAD arguments are unsupported\r\n",
+		"a25 NO authentication required\r\n",
+		"a26 NO authentication required\r\n",
+		"a27 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
+		"a28 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
+		"a29 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a27 OK LOGOUT completed\r\n",
+		"a30 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -8314,9 +8317,9 @@ func TestServerRejectsPaddedSearchCharsetsAndThreadAlgorithms(t *testing.T) {
 		t.Fatalf("write padded search controls: %v", err)
 	}
 	want := []string{
-		"a1 NO [BADCHARSET (US-ASCII UTF-8)] SEARCH charset is unsupported\r\n",
-		"a2 NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n",
-		"a3 NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n",
+		"a1 BAD SEARCH criteria are unsupported\r\n",
+		"a2 BAD SORT arguments are unsupported\r\n",
+		"a3 BAD THREAD arguments are unsupported\r\n",
 		"a4 BAD THREAD algorithm is unsupported\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
 		"a5 OK LOGOUT completed\r\n",
@@ -9072,7 +9075,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\na9 SEARCH SINCE 5-May-2026\r\na10 UID SEARCH SENTON 3-May-2026\r\na11 SEARCH SINCE 05-May-2026\"\r\na12 SEARCH SINCE \" 05-May-2026 \"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\na9 SEARCH SINCE 5-May-2026\r\na10 UID SEARCH SENTON 3-May-2026\r\na11 SEARCH SINCE 05-May-2026\"\r\na12 SEARCH SINCE \" 05-May-2026 \"\r\na13 SEARCH SINCE \"05-May-2026\"\r\na14 UID SEARCH SENTON \"3-May-2026\"\r\n")); err != nil {
 		t.Fatalf("write date search: %v", err)
 	}
 	want := []string{
@@ -9094,6 +9097,8 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 		"a10 OK UID SEARCH completed\r\n",
 		"a11 BAD malformed command\r\n",
 		"a12 BAD SEARCH criteria are unsupported\r\n",
+		"a13 BAD SEARCH criteria are unsupported\r\n",
+		"a14 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -9104,7 +9109,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("date search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a12 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a15 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')

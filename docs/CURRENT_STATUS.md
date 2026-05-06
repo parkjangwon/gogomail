@@ -3971,6 +3971,10 @@ The platform hardening sprint completed the following:
   `LARGER`, `SMALLER`, simple `MODSEQ` thresholds, and `MODSEQ` entry-type/
   threshold operands reject quoted or command-literal strings while preserving
   the RFC string-shaped `MODSEQ` entry-name operand such as `"/flags/\\Seen"`.
+- IMAP search-family charset and date operands now also require raw atom
+  tokens: quoted `CHARSET`, `SORT`/`THREAD` charset, `SINCE`, `BEFORE`, `ON`,
+  `SENTSINCE`, `SENTBEFORE`, and `SENTON` values are rejected instead of being
+  dequoted into command controls.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

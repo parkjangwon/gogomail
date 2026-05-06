@@ -98,6 +98,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP search-family numeric operands now also reject exact quoted or
   literal-framed values for `LARGER`, `SMALLER`, and MODSEQ thresholds/entry
   types, while preserving quoted MODSEQ entry names as RFC string operands.
+- IMAP search-family charset and date controls now reject quoted values such
+  as `CHARSET "UTF-8"` or `SINCE "05-May-2026"`, keeping command controls
+  atom-only while preserving string-capable text/header operands.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
