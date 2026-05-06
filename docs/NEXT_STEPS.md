@@ -41,6 +41,9 @@ Current state:
   `If-Modified-Since` whenever `If-None-Match` is present, preserving HTTP
   conditional precedence for native DAV clients caching `.ics` and `.vcf`
   bodies.
+- Drive JSON mutation handlers now have regression coverage for required
+  `application/json` content type, unknown-field rejection, and trailing-token
+  rejection before service dispatch.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
   compatibility labels are now extensible safe tokens in the Admin API

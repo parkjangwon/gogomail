@@ -1179,9 +1179,13 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "get unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1?user_id=user-1&typo=true", nil)},
 		{name: "download body rejected", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node-1/download?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "download unsafe id", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes/node%0A1/download?user_id=user-1", nil)},
-		{name: "create invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{`))},
-		{name: "upload session invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{`))},
-		{name: "upload session invalid expires", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", strings.NewReader(`{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`))},
+		{name: "create invalid json", req: driveJSONRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", `{`)},
+		{name: "create missing content type", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", strings.NewReader(`{"name":"Reports"}`))},
+		{name: "create non-json content type", req: requestWithHeader(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", "Content-Type", "text/plain")},
+		{name: "create unknown json field", req: driveJSONRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", `{"name":"Reports","typo":true}`)},
+		{name: "create trailing json token", req: driveJSONRequest(http.MethodPost, "/api/v1/drive/folders?user_id=user-1", `{"name":"Reports"} {}`)},
+		{name: "upload session invalid json", req: driveJSONRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", `{`)},
+		{name: "upload session invalid expires", req: driveJSONRequest(http.MethodPost, "/api/v1/drive/upload-sessions?user_id=user-1", `{"name":"Report.pdf","storage_backend":"s3","expires_at":"tomorrow"}`)},
 		{name: "list upload sessions unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions?user_id=user-1&cursor=bad", nil)},
 		{name: "get upload session unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions/session-1?user_id=user-1&typo=true", nil)},
 		{name: "cancel upload session body rejected", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/upload-sessions/session-1?user_id=user-1", strings.NewReader(`{}`))},
@@ -1549,5 +1553,11 @@ func (f *fakeDrivePublicShareAudit) RecordDrivePublicShareAccess(_ context.Conte
 func requestWithHeader(method string, target string, header string, value string) *http.Request {
 	req := httptest.NewRequest(method, target, strings.NewReader("body"))
 	req.Header.Set(header, value)
+	return req
+}
+
+func driveJSONRequest(method string, target string, body string) *http.Request {
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	return req
 }

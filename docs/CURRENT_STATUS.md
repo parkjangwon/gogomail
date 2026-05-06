@@ -54,6 +54,9 @@ labels remain non-activating in the support matrix until explicitly recognized.
 The OpenAPI schema now machine-documents `active_labels` as a non-empty unique
 token list and `operations` as a unique primitive list, with regression coverage
 pinning the default advertised object-storage operations.
+Drive JSON mutation handlers share the strict backend JSON contract and now
+have regression coverage for required `application/json` content type,
+unknown-field rejection, and trailing-token rejection before service dispatch.
 Admin console capability OpenAPI security now explicitly documents both
 `X-Admin-Token` and bearer-token alternatives, with runtime coverage that the
 bootstrap endpoint accepts each form and rejects ambiguous mixed credentials.

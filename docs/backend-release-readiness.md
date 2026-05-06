@@ -1252,10 +1252,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - Mail API path identifiers and direct-upload `draft_id` form values are trimmed
   at the HTTP boundary before service dispatch, and direct multipart uploads
   reject repeated `draft_id` or `file` parts before storage work begins.
-- Mail and Admin API JSON request bodies reject trailing JSON tokens and
+- Mail, Admin, and Drive API JSON request bodies reject trailing JSON tokens and
   unknown object fields instead of accepting drifted payloads, and shared JSON
   decoding is capped at 1 MiB before parsing.
-- Mail and Admin API JSON mutation bodies require `Content-Type:
+- Mail, Admin, and Drive API JSON mutation bodies require `Content-Type:
   application/json` exactly once, while allowing normal media-type parameters
   such as `charset=utf-8`.
 - Mail API read and bodyless mutation routes reject request bodies and

@@ -3569,6 +3569,10 @@ Implementation order:
       non-empty unique safe-token list and `operations` as a unique primitive
       list, with runtime coverage pinning the default advertised storage
       operation set for generated admin consoles.
+1330. Drive JSON mutation routes now have regression coverage for required
+      `application/json` content type, unknown-field rejection, and
+      trailing-token rejection before service dispatch, keeping Drive API
+      payload semantics aligned with Mail/Admin JSON contracts.
 
 ## Deferred until backend contracts stabilize
 
