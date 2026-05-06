@@ -79,6 +79,7 @@ Recent release-readiness work also includes:
   workflows, exact `$` atom handling, selected-mailbox lifecycle cleanup for
   saved SEARCHRES state,
   strict STATUS item-list framing with LIST-STATUS compatibility coverage,
+  strict LIST RETURN option-list framing,
   CONDSTORE/MODSEQ-shaped behavior, syntax-before-state validation,
   exact SASL continuation cancellation, SASL-IR syntax-before-policy
   diagnostics, SEARCH/SORT/THREAD diagnostics, RFC-shaped sequence-set and

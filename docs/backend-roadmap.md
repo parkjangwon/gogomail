@@ -3915,6 +3915,9 @@ Implementation order:
       such as `( UIDNEXT)` or `(UIDNEXT  RECENT)` instead of collapsing
       quoted/literal list values into valid status data items, while
       LIST-STATUS keeps its normalized return-option path regression-covered.
+1415. IMAP `LIST RETURN` option-list parsing now rejects whitespace-padded
+      quoted or literal list values such as `RETURN " (CHILDREN) "` instead
+      of trimming them into valid parenthesized return controls.
 
 ## Deferred until backend contracts stabilize
 
