@@ -3325,6 +3325,38 @@ func TestServerHandlesAuthenticatePlainInitialResponse(t *testing.T) {
 	}
 }
 
+func TestServerRejectsPaddedAuthenticatePlainInitialResponse(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	response := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret"))
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN \" " + response + " \"\r\na2 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write padded authenticate initial response: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD AUTHENTICATE PLAIN response is malformed\r\n" {
+		t.Fatalf("padded authenticate initial response = %q err = %v", line, err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAuthenticatePlainFailureIncludesAuthenticationFailedCode(t *testing.T) {
 	t.Parallel()
 
@@ -10231,9 +10263,13 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 	t.Parallel()
 
+	valid := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret"))
 	for _, value := range []string{
 		"",
 		"not-base64",
+		" " + valid,
+		valid + " ",
+		"\t" + valid,
 		base64.StdEncoding.EncodeToString([]byte("user@example.com\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00\x00secret")),
 		base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00")),

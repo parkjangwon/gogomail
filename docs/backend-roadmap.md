@@ -3953,6 +3953,10 @@ Implementation order:
       `"1 :2"`, or `"1, 2"` before authentication, selected-mailbox state,
       or set expansion, keeping RFC 3501 sequence-set grammar exact across
       command validation and execution helpers.
+1425. IMAP `AUTHENTICATE PLAIN` now rejects whitespace-padded SASL response
+      tokens, including quoted SASL-IR values such as `" <base64> "`, before
+      privacy-policy or backend authentication checks while still preserving
+      intentional spaces inside decoded SASL PLAIN credentials.
 
 ## Deferred until backend contracts stabilize
 

@@ -1430,8 +1430,7 @@ func (s *Server) completeAuthenticatePlain(writer *bufio.Writer, tag string, val
 }
 
 func decodeSASLPlain(value string) (string, string, bool) {
-	value = strings.TrimSpace(value)
-	if value == "" {
+	if value == "" || strings.TrimSpace(value) != value {
 		return "", "", false
 	}
 	if len(value) > maxIMAPSASLPlainEncodedBytes {
