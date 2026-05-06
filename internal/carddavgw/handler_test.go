@@ -758,6 +758,26 @@ func TestHandlerReportRejectsUnsupportedAddressDataWithPrecondition(t *testing.T
 	}
 }
 
+func TestHandlerReportRejectsUnsupportedCollationWithPrecondition(t *testing.T) {
+	t.Parallel()
+
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match collation="i;octet">Contact</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-query>`
+	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthOne, body)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	text := rec.Body.String()
+	for _, want := range []string{"<D:error", "<C:supported-collation/>", "i;octet"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("unsupported collation response missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerReportAddressBookMultigetRequiresDepthHeader(t *testing.T) {
 	t.Parallel()
 

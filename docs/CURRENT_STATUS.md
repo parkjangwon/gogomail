@@ -79,6 +79,8 @@ project returned vCards to requested property names while preserving structural
 BEGIN/VERSION/END lines and rejects unsupported requested `content-type` or
 `version` values with the RFC 6352 `CARDDAV:supported-address-data`
 precondition instead of returning data under an unimplemented format contract.
+Unsupported text-match collations now fail with the RFC 6352
+`CARDDAV:supported-collation` precondition instead of a generic parse error.
 Returned `address-data` elements also carry explicit `content-type`
 and `version` attributes matching the advertised `text/vcard` 4.0 support.
 `addressbook-query` execution now honors bounded `limit/nresults` responses so

@@ -112,6 +112,14 @@ func (e UnsupportedAddressDataError) Error() string {
 	return fmt.Sprintf("unsupported CardDAV address-data %s %q", e.Attribute, e.Value)
 }
 
+type UnsupportedCollationError struct {
+	Value string
+}
+
+func (e UnsupportedCollationError) Error() string {
+	return fmt.Sprintf("unsupported CardDAV text-match collation %q", e.Value)
+}
+
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
 	body, err := readBoundedXMLBody(r)
 	if err != nil {
@@ -1030,7 +1038,7 @@ func parseTextMatchElement(dec *xml.Decoder, el xml.StartElement) (CardDAVTextMa
 				return CardDAVTextMatch{}, fmt.Errorf("CardDAV text-match collation is invalid")
 			}
 			if collation != TextMatchUnicodeCasemap {
-				return CardDAVTextMatch{}, fmt.Errorf("unsupported CardDAV text-match collation %q", collation)
+				return CardDAVTextMatch{}, UnsupportedCollationError{Value: collation}
 			}
 			match.Collation = collation
 		case "match-type":
