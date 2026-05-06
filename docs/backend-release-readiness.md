@@ -874,6 +874,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` date criteria accept one-digit date-day atoms such
   as `SINCE 5-May-2026` while preserving malformed quote rejection, improving
   compatibility with clients that do not zero-pad SEARCH dates.
+- IMAP `SEARCH` and `UID SEARCH` reject `CHARSET` prefixes that omit the
+  required following search-key before authentication or selected-mailbox
+  checks, keeping RFC 3501 grammar failures separate from state failures.
 - IMAP command tokenization rejects embedded quote characters inside unquoted
   atoms while preserving escaped quotes inside proper quoted strings, keeping
   RFC 3501 atom and quoted-string handling separate.
