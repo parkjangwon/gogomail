@@ -241,6 +241,64 @@ try later</Message>
 	}
 }
 
+func TestS3StorePutRejectsUnexpectedSuccessBody(t *testing.T) {
+	t.Parallel()
+
+	for _, bodyText := range []string{"provider ok", `<CopyObjectResult><ETag>"etag-1"</ETag></CopyObjectResult>`} {
+		bodyText := bodyText
+		t.Run(bodyText, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(bodyText)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+			if err == nil || !strings.Contains(err.Error(), "unexpected success response body") {
+				t.Fatalf("Put err = %v, want unexpected success body rejection", err)
+			}
+		})
+	}
+}
+
+func TestS3StorePutAllowsWhitespaceSuccessBody(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(" \n\t")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello")); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+}
+
 func TestS3StorePutValidatesSuccessETag(t *testing.T) {
 	t.Parallel()
 
@@ -3237,6 +3295,39 @@ by policy</Message>
 			}
 			if !body.closed {
 				t.Fatal("embedded-error response body was not closed")
+			}
+		})
+	}
+}
+
+func TestS3StoreDeleteRejectsUnexpectedSuccessBody(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		status := status
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: status,
+						Body:       io.NopCloser(strings.NewReader("deleted")),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+			err = store.Delete(context.Background(), "messages/msg-1.eml")
+			if err == nil || !strings.Contains(err.Error(), "unexpected success response body") {
+				t.Fatalf("Delete err = %v, want unexpected success body rejection", err)
 			}
 		})
 	}

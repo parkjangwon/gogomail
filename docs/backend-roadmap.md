@@ -4097,6 +4097,10 @@ Implementation order:
       top-level success children, keeping copy/move success metadata limited to
       canonical S3 fields instead of accepting provider-specific payload shape
       drift as durable object duplication.
+1460. S3-compatible `PutObject` and `DeleteObject` success bodies now must be
+      empty apart from whitespace unless they are rejected as standard S3
+      embedded errors, preventing arbitrary provider success text or XML from
+      crossing the shared storage contract as durable write/delete success.
 
 ## Deferred until backend contracts stabilize
 

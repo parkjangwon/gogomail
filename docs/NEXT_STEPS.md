@@ -840,7 +840,9 @@ Current state:
 - S3-compatible `PutObject` and `DeleteObject` success responses now also
   reject top-level standard S3 `<Error>` bodies before reporting completed
   writes or cleanup, keeping compatible-provider throttling/auth/policy
-  failures from crossing the shared storage contract as false success.
+  failures from crossing the shared storage contract as false success. They
+  now also reject non-whitespace non-error success bodies instead of accepting
+  arbitrary provider text or XML as an empty standard success response.
   `PutObject` also validates optional success `ETag` headers when present,
   rejecting duplicate or non-empty malformed identity metadata without
   requiring providers to send the header.
