@@ -195,6 +195,13 @@ timezone, delegation, or other future reports must not be exposed through
 discovery until their RFC behavior, storage model, and policy boundaries are
 implemented.
 
+The CalDAV service root is not the authenticated user's principal resource.
+`PROPFIND /caldav/` may expose root collection metadata plus the WebDAV
+`current-user-principal` and `principal-collection-set` discovery links, but
+principal-only CalDAV properties such as `calendar-home-set` must stay on the
+principal resource. This keeps RFC 6764-style discovery useful without teaching
+clients that the service root owns calendars or delegated identity semantics.
+
 CalDAV must also depend on platform-level principal boundaries instead of
 inventing a private calendar identity model. Directory/Identity should own
 users, organization hierarchy, teams/groups, aliases, mailing lists, resources,

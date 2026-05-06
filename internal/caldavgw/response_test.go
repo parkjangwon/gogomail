@@ -219,6 +219,52 @@ func TestSupportedCalendarReportsMatchesImplementedReportHandlers(t *testing.T) 
 	}
 }
 
+func TestServiceRootPropertiesExposeDiscoveryWithoutPrincipalSemantics(t *testing.T) {
+	t.Parallel()
+
+	props := ServiceRootProperties(Principal{
+		UserID:           "user-1",
+		DisplayName:      "User One",
+		CalendarHomePath: "/caldav/calendars/user-1/",
+		PrincipalPath:    "/caldav/principals/user-1/",
+	})
+	stats := SelectPropfindProperties(PropfindRequest{
+		Kind: PropfindProp,
+		Properties: []XMLName{
+			PropCurrentUserPrincipal,
+			PropCurrentUserPrivileges,
+			PropPrincipalCollectionSet,
+			PropResourceType,
+			PropCalendarHomeSet,
+		},
+	}, props)
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{Href: "/caldav/", PropStats: stats}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		"<D:href>/caldav/</D:href>",
+		"<D:current-user-principal><D:href>/caldav/principals/user-1/</D:href></D:current-user-principal>",
+		"<D:current-user-privilege-set><D:privilege><D:read></D:read></D:privilege></D:current-user-privilege-set>",
+		"<D:principal-collection-set><D:href>/caldav/principals/</D:href></D:principal-collection-set>",
+		"<D:resourcetype><D:collection></D:collection></D:resourcetype>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+		"<C:calendar-home-set></C:calendar-home-set>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("service root XML missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "<D:principal></D:principal>") {
+		t.Fatalf("service root was advertised as a principal resource:\n%s", text)
+	}
+	if strings.Contains(text, "<C:calendar-home-set><D:href>") {
+		t.Fatalf("service root should not expose principal-only calendar-home-set:\n%s", text)
+	}
+}
+
 func TestPrincipalPropertiesExposeDiscoveryChain(t *testing.T) {
 	t.Parallel()
 

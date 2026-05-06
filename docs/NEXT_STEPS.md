@@ -1510,8 +1510,11 @@ Current state:
   instead of always forcing a full resync. Collection-deleted tokens can now
   return a final top-level sync token even after the calendar row is gone.
 - CalDAV now supports RFC 6764-style service discovery: `/.well-known/caldav`
-  redirects to `/caldav/`, and authenticated root `PROPFIND` exposes principal
-  and calendar-home discovery properties.
+  redirects to `/caldav/`, and authenticated root `PROPFIND` exposes the
+  service root as a read-only collection discovery anchor with
+  `current-user-principal` and `principal-collection-set`. Principal-only
+  properties such as `calendar-home-set` remain on the principal resource so
+  clients do not mistake the service root for an authenticated user principal.
 - CalDAV `PROPFIND /caldav/principals/` now resolves the advertised principal
   collection path, returning collection metadata at `Depth: 0` and the
   authenticated principal as a `Depth: 1` child without exposing other users.

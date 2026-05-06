@@ -741,7 +741,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, resource
 		if err != nil {
 			return nil, err
 		}
-		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, PrincipalProperties(principal))}, nil
+		return []MultiStatusResponse{responseForProperties(RootPath+"/", propfind, ServiceRootProperties(principal))}, nil
 	case ResourcePrincipalCollection:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
 		if err != nil {
