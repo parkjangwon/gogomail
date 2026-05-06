@@ -3717,6 +3717,10 @@ Implementation order:
       semantics for MIME part paths and partial counts, rejecting leading-zero
       forms such as `BODY[01]`, `BODY[1.02.TEXT]`, and
       `BODY.PEEK[]<12.034>` before command execution.
+1366. Local/NFS storage `Move` now falls back to the shared copy-delete path
+      only when filesystem rename reports cross-device `EXDEV`, preserving the
+      normal rename fast path while keeping object relocation portable across
+      NFS or bind-mount style storage roots.
 
 ## Deferred until backend contracts stabilize
 

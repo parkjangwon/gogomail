@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP nz-number parser hardening)
+Last updated: 2026-05-07 (updated after Local/NFS cross-device move fallback)
 
 ## Current phase
 
@@ -107,6 +107,10 @@ prefix listings, while continuing to hide final-object symlinks from list
 pages. This keeps local disk and mounted storage deployments confined to the
 configured object root instead of following host-specific links outside the
 storage contract.
+Local/NFS `Move` now falls back to the shared copy-delete path only when
+filesystem rename reports a cross-device `EXDEV` boundary, keeping the
+efficient rename fast path while allowing NFS/bind-mount style deployments to
+preserve the backend-neutral relocation contract.
 Drive JSON mutation handlers share the strict backend JSON contract and now
 have regression coverage for required `application/json` content type,
 unknown-field rejection, and trailing-token rejection before service dispatch.
