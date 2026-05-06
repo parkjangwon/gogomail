@@ -156,6 +156,8 @@ func validateICalendarComponentSemantics(component string, child *ical.Component
 			ical.PropDateTimeStart,
 			ical.PropDue,
 			ical.PropDuration,
+			ical.PropCompleted,
+			ical.PropCreated,
 			ical.PropStatus,
 		}); err != nil {
 			return err
@@ -262,7 +264,7 @@ func projectICalendarChildren(children []*ical.Component) []*ical.Component {
 	return projected
 }
 
-func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, error) {
+func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *TimeRange) (bool, error) {
 	if timeRange == nil {
 		return true, nil
 	}
@@ -273,9 +275,15 @@ func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, er
 	if cal == nil || cal.Component == nil {
 		return false, fmt.Errorf("iCalendar body must contain one VCALENDAR root")
 	}
+	component = strings.ToUpper(strings.TrimSpace(component))
 	excludedRecurrences := veventOverrideRecurrenceIDs(cal.Children)
 	for _, child := range cal.Children {
-		if strings.EqualFold(child.Name, ComponentVEVENT) {
+		childComponent := strings.ToUpper(strings.TrimSpace(child.Name))
+		if component != "" && childComponent != component {
+			continue
+		}
+		switch childComponent {
+		case ComponentVEVENT:
 			uid, err := calendarComponentUID(child)
 			if err != nil {
 				return false, err
@@ -291,6 +299,16 @@ func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, er
 			if matches {
 				return true, nil
 			}
+		case ComponentVTODO:
+			matches, err := todoOverlapsRange(child, *timeRange)
+			if err != nil {
+				return false, err
+			}
+			if matches {
+				return true, nil
+			}
+		case ComponentVJOURNAL, ComponentVFREEBUSY:
+			return false, UnsupportedCalendarFilterError{Element: XMLName{Space: CalDAVNamespace, Local: "time-range"}}
 		}
 	}
 	return false, nil
@@ -338,6 +356,76 @@ func eventOverlapsRange(component *ical.Component, timeRange TimeRange, excluded
 		}
 	}
 	return false, nil
+}
+
+func todoOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
+	start, hasStart, err := componentDateTime(component, ical.PropDateTimeStart)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO DTSTART: %w", err)
+	}
+	duration, hasDuration, err := componentDuration(component, ical.PropDuration)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO DURATION: %w", err)
+	}
+	due, hasDue, err := componentDateTime(component, ical.PropDue)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO DUE: %w", err)
+	}
+	completed, hasCompleted, err := componentDateTime(component, ical.PropCompleted)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO COMPLETED: %w", err)
+	}
+	created, hasCreated, err := componentDateTime(component, ical.PropCreated)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO CREATED: %w", err)
+	}
+	switch {
+	case hasStart && hasDuration && !hasDue:
+		effectiveDue := start.Add(duration)
+		return !timeRange.Start.After(effectiveDue) && (timeRange.End.After(start) || !timeRange.End.Before(effectiveDue)), nil
+	case hasStart && !hasDuration && hasDue:
+		return (timeRange.Start.Before(due) || !timeRange.Start.After(start)) &&
+			(timeRange.End.After(start) || !timeRange.End.Before(due)), nil
+	case hasStart && !hasDuration && !hasDue:
+		return !timeRange.Start.After(start) && timeRange.End.After(start), nil
+	case !hasStart && !hasDuration && hasDue:
+		return timeRange.Start.Before(due) && !timeRange.End.Before(due), nil
+	case !hasStart && !hasDuration && !hasDue && hasCompleted && hasCreated:
+		return (!timeRange.Start.After(created) || !timeRange.Start.After(completed)) &&
+			(!timeRange.End.Before(created) || !timeRange.End.Before(completed)), nil
+	case !hasStart && !hasDuration && !hasDue && hasCompleted:
+		return !timeRange.Start.After(completed) && !timeRange.End.Before(completed), nil
+	case !hasStart && !hasDuration && !hasDue && hasCreated:
+		return timeRange.End.After(created), nil
+	case !hasStart && !hasDuration && !hasDue:
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func componentDateTime(component *ical.Component, name string) (time.Time, bool, error) {
+	prop := component.Props.Get(name)
+	if prop == nil {
+		return time.Time{}, false, nil
+	}
+	value, err := prop.DateTime(time.UTC)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return value.UTC(), true, nil
+}
+
+func componentDuration(component *ical.Component, name string) (time.Duration, bool, error) {
+	prop := component.Props.Get(name)
+	if prop == nil {
+		return 0, false, nil
+	}
+	value, err := prop.Duration()
+	if err != nil {
+		return 0, false, err
+	}
+	return value, true, nil
 }
 
 func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, error) {

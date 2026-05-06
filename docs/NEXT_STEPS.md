@@ -2011,6 +2011,10 @@ Current state:
   and `RDATE` support from the shared iCalendar library. Dense or unbounded
   rules are capped per object so native-client time-range scans cannot turn
   one stored event into unbounded gateway work.
+- CalDAV `calendar-query` now evaluates VTODO time-range filters with RFC 4791
+  `DTSTART`, `DUE`, `DURATION`, `COMPLETED`, and `CREATED` overlap rules,
+  including effective `DUE = DTSTART + DURATION`, so advertised VTODO support
+  no longer silently drops matching tasks from native-client sync results.
 - CalDAV iCalendar object validation now accepts one VEVENT master plus
   same-UID `RECURRENCE-ID` detached override VEVENTs in a single stored object.
   `calendar-query` and `free-busy-query` scan all VEVENTs in the object and

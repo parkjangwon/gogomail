@@ -335,9 +335,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   panics in manually assembled gateways. Broader native-client compatibility
   tests remain incomplete.
 - CalDAV now handles `REPORT calendar-query` for authenticated calendar
-  collections, including requested `calendar-data` bodies and VEVENT
-  time-range filtering through the RFC 5545 parser. Calendar-query object
-  listing is bounded with `limit/nresults` and one-extra-row truncation
+  collections, including requested `calendar-data` bodies, VEVENT time-range
+  filtering through the RFC 5545 parser, and VTODO time-range filtering with
+  RFC 4791 `DTSTART`/`DUE`/`DURATION`/`COMPLETED`/`CREATED` overlap
+  semantics. Calendar-query object listing is bounded with `limit/nresults`
+  and one-extra-row truncation
   detection so large collections cannot silently return partial result sets.
   VEVENT recurrence sets now expand through the shared RFC 5545 parser for
   `RRULE`, `EXDATE`, and `RDATE`, with a per-object expansion cap so dense or

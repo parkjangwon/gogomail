@@ -25,8 +25,9 @@ Recent release-readiness work also includes:
   framing coverage
 - backend-only CalDAV/CardDAV foundations for standards-first calendar and
   contacts interoperability, with Directory/Identity, delegation,
-  Notification & Sync, search, policy, and audit boundaries treated as platform
-  prerequisites rather than UI-only features
+  Notification & Sync, search, policy, audit boundaries, and RFC-shaped
+  calendar-query behavior treated as platform prerequisites rather than
+  UI-only features
 - Drive backend groundwork and APIs that reuse the shared storage/quota
   contract without starting frontend implementation
 

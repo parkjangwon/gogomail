@@ -179,7 +179,7 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	t.Parallel()
 
 	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nSUMMARY:Planning\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
-	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T013000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
 	})
@@ -189,7 +189,7 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	if !matches {
 		t.Fatal("matches = false, want true")
 	}
-	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260507T000000Z"),
 		End:   mustCalDAVTime(t, "20260508T000000Z"),
 	})
@@ -205,7 +205,7 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	t.Parallel()
 
 	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:daily@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=10\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
-	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
 	})
@@ -215,7 +215,7 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	if !matches {
 		t.Fatal("matches = false, want recurring occurrence match")
 	}
-	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260520T000000Z"),
 		End:   mustCalDAVTime(t, "20260520T030000Z"),
 	})
@@ -231,7 +231,7 @@ func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 	t.Parallel()
 
 	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nRECURRENCE-ID:20260502T010000Z\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260502T030000Z\r\nDTEND:20260502T040000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
-	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260502T030000Z"),
 		End:   mustCalDAVTime(t, "20260502T033000Z"),
 	})
@@ -241,7 +241,7 @@ func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 	if !matches {
 		t.Fatal("matches = false, want detached override match")
 	}
-	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260502T010000Z"),
 		End:   mustCalDAVTime(t, "20260502T013000Z"),
 	})
@@ -257,7 +257,7 @@ func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	t.Parallel()
 
 	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:rdate@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T010000Z\r\nDTEND:20260501T020000Z\r\nRDATE:20260506T010000Z\r\nEXDATE:20260501T010000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
-	matches, err := CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260501T000000Z"),
 		End:   mustCalDAVTime(t, "20260501T030000Z"),
 	})
@@ -267,7 +267,7 @@ func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	if matches {
 		t.Fatal("matches = true for EXDATE-excluded DTSTART")
 	}
-	matches, err = CalendarObjectMatchesTimeRange(body, &TimeRange{
+	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
 	})
@@ -276,6 +276,43 @@ func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	}
 	if !matches {
 		t.Fatal("matches = false, want RDATE occurrence match")
+	}
+}
+
+func TestCalendarObjectMatchesVTODOTimeRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		todoProps string
+		start     string
+		end       string
+		want      bool
+	}{
+		{name: "dtstart due overlap", todoProps: "DTSTART:20260506T090000Z\r\nDUE:20260506T100000Z\r\n", start: "20260506T093000Z", end: "20260506T110000Z", want: true},
+		{name: "dtstart due miss", todoProps: "DTSTART:20260508T090000Z\r\nDUE:20260508T100000Z\r\n", start: "20260506T093000Z", end: "20260506T110000Z", want: false},
+		{name: "dtstart duration effective due", todoProps: "DTSTART:20260506T090000Z\r\nDURATION:PT2H\r\n", start: "20260506T103000Z", end: "20260506T120000Z", want: true},
+		{name: "due only", todoProps: "DUE:20260506T100000Z\r\n", start: "20260506T093000Z", end: "20260506T100000Z", want: true},
+		{name: "completed created", todoProps: "CREATED:20260506T080000Z\r\nCOMPLETED:20260506T100000Z\r\n", start: "20260506T093000Z", end: "20260506T110000Z", want: true},
+		{name: "no date properties", todoProps: "", start: "20260506T093000Z", end: "20260506T110000Z", want: true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTAMP:20260506T000000Z\r\n" + tc.todoProps + "SUMMARY:Review\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVTODO, &TimeRange{
+				Start: mustCalDAVTime(t, tc.start),
+				End:   mustCalDAVTime(t, tc.end),
+			})
+			if err != nil {
+				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+			}
+			if matches != tc.want {
+				t.Fatalf("matches = %v, want %v", matches, tc.want)
+			}
+		})
 	}
 }
 
