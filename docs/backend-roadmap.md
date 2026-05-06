@@ -4165,6 +4165,9 @@ Implementation order:
 1477. IMAP ENABLE capability operands now reject quoted or command-literal
       CONDSTORE probes before authentication, preserving atom-only capability
       negotiation.
+1478. IMAP AUTHENTICATE mechanism names and SASL-IR initial responses now
+      reject quoted values before unsupported-mechanism, privacy, or backend
+      authentication policy checks.
 
 ## Deferred until backend contracts stabilize
 

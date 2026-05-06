@@ -3990,6 +3990,10 @@ The platform hardening sprint completed the following:
 - IMAP `ENABLE` capability operands now require raw atom tokens, rejecting
   quoted or command-literal `CONDSTORE` probes before authentication while
   preserving valid atom capability probes and unsupported atom ignore behavior.
+- IMAP `AUTHENTICATE` mechanism names and SASL-IR initial responses now
+  require raw atom tokens, so quoted `PLAIN` mechanisms and quoted base64
+  initial responses are rejected before unsupported-mechanism, privacy, or
+  backend authentication policy checks.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

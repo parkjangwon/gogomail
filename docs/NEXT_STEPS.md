@@ -718,6 +718,9 @@ Current state:
 - IMAP `ENABLE` capability operands now reject quoted or command-literal
   values such as `"CONDSTORE"` or literal `CONDSTORE`, keeping capability
   negotiation on the RFC atom boundary before authentication.
+- IMAP `AUTHENTICATE` mechanism names and SASL-IR initial responses now
+  reject quoted values such as `"PLAIN"` or quoted base64, keeping mechanism
+  selection and initial-response parsing atom-only before privacy checks.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

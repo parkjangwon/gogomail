@@ -113,6 +113,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `ENABLE` capability operands now reject quoted or command-literal
   `CONDSTORE` probes before authentication, preserving capability negotiation
   as atom-only syntax.
+- IMAP `AUTHENTICATE` mechanism names and SASL-IR initial responses now
+  reject quoted mechanism/base64 values before unsupported-mechanism, privacy,
+  or backend authentication policy checks.
 - IMAP CONDSTORE zero handling now separates positive RFC `mod-sequence-value`
   inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`

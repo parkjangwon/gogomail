@@ -442,6 +442,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		_, err := writer.WriteString(tag + " BAD malformed command\r\n")
 		return false, err
 	}
+	if handled, done, err := imapRejectNonAtomAuthenticateArgument(writer, tag, trimmedLine, fields, command); handled {
+		return done, err
+	}
 	if handled, done, err := imapRejectNonAtomSequenceSetArgument(writer, tag, trimmedLine, fields, command); handled {
 		return done, err
 	}
@@ -976,6 +979,21 @@ func imapRejectNonAtomSequenceSetArgument(writer *bufio.Writer, tag string, line
 				return true, false, err
 			}
 		}
+	}
+	return false, false, nil
+}
+
+func imapRejectNonAtomAuthenticateArgument(writer *bufio.Writer, tag string, line string, fields []string, command string) (bool, bool, error) {
+	if command != "AUTHENTICATE" {
+		return false, false, nil
+	}
+	if len(fields) >= 3 && !imapRawFieldIsAtom(line, 2) {
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE mechanism is malformed\r\n")
+		return true, false, err
+	}
+	if len(fields) >= 4 && !imapRawFieldIsAtom(line, 3) {
+		_, err := writer.WriteString(tag + " BAD AUTHENTICATE PLAIN response is malformed\r\n")
+		return true, false, err
 	}
 	return false, false, nil
 }
