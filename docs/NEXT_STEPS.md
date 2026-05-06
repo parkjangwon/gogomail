@@ -476,7 +476,8 @@ Current state:
   editing config rather than code. Validated profile overlays now also exist at
   `configs/storage.local.yaml`, `configs/storage.nfs.yaml`,
   `configs/storage.minio.yaml`, and `configs/storage.s3.yaml`, with loader
-  tests proving each profile parses and validates before release.
+  and CLI handoff tests proving each profile parses and validates before
+  release.
 - The `gogomail` CLI startup path now has focused regression coverage for
   `--config`: valid YAML reaches the injected app runtime, while invalid YAML
   config or mode input returns code 2 before components start.
