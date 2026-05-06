@@ -3625,6 +3625,10 @@ Implementation order:
       `/admin/v1` and admin-token/bearer auth alternatives, matching their
       runtime admin-authenticated storage/Drive routes across local, NFS,
       MinIO, and S3-compatible deployments.
+1346. API usage ledger retention run and DAV sync retention run OpenAPI
+      operations now pin `/admin/v1` and admin-token/bearer auth alternatives,
+      matching their runtime admin-authenticated destructive/audited retention
+      routes.
 
 ## Deferred until backend contracts stabilize
 

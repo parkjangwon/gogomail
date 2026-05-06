@@ -106,6 +106,9 @@ Current state:
   `/admin/v1` and admin-token/bearer auth alternatives, matching their runtime
   operator storage/Drive boundary across local, NFS, MinIO, and S3-compatible
   deployments.
+- API usage ledger retention run and DAV sync retention run OpenAPI operations
+  now also pin `/admin/v1` and admin-token/bearer auth alternatives, matching
+  their runtime operator-only destructive/audited retention boundary.
 - Mail API list/search handlers now apply the documented default `limit=50`
   when `limit` is omitted or empty, with regression coverage for message lists,
   thread lists, thread-message lists, active search, and draft search to

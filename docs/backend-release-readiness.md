@@ -66,6 +66,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Admin API server and admin-token/bearer auth alternatives, matching their
   runtime storage/Drive `adminAuth` routes across local, NFS, MinIO, and
   S3-compatible deployments.
+- API usage ledger retention run and DAV sync retention run OpenAPI operations
+  now also pin the Admin API server and admin-token/bearer auth alternatives,
+  matching their runtime destructive/audited retention `adminAuth` routes.
 - Admin readiness bootstrap operations now pin the Admin API server and
   `X-Admin-Token`/bearer-token security alternatives in OpenAPI for ledger
   retention readiness, DAV sync retention readiness, and export handoff

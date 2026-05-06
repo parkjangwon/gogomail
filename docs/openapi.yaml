@@ -2799,6 +2799,12 @@ paths:
     get:
       operationId: listAdminAPIUsageLedgerRetentionRuns
       summary: List immutable API usage ledger retention run audit records
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: tenant_id
@@ -2831,6 +2837,12 @@ paths:
     post:
       operationId: runAdminAPIUsageLedgerRetention
       summary: Run bounded immutable API usage ledger retention after readiness checks
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/APIUsageLedgerRetentionRun"
       responses:
@@ -2842,6 +2854,12 @@ paths:
     get:
       operationId: getAdminAPIUsageLedgerRetentionRun
       summary: Get one immutable API usage ledger retention run audit record
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
@@ -2853,6 +2871,12 @@ paths:
     post:
       operationId: runAdminDAVSyncRetention
       summary: Run DAV sync retention with dry-run or confirmed destructive semantics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       requestBody:
         $ref: "#/components/requestBodies/DAVSyncRetentionRun"
       responses:
@@ -2863,6 +2887,12 @@ paths:
     get:
       operationId: listAdminDAVSyncRetentionRuns
       summary: List DAV sync retention worker run audit records
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - name: status
@@ -2921,6 +2951,12 @@ paths:
     get:
       operationId: getAdminDAVSyncRetentionRun
       summary: Get one DAV sync retention worker run audit record
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PathID"
       responses:
