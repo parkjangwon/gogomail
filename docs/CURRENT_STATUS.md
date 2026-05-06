@@ -129,7 +129,9 @@ book collection has been deleted by reading the durable change log and returning
 the latest deletion sync token without requiring the collection to remain active.
 CardDAV contact-object `PUT` now rejects duplicate active vCard UIDs within the
 same address book before the SQL upsert path, while the PostgreSQL partial
-unique index remains the final concurrency guard.
+unique index remains the final concurrency guard. Repository error mapping also
+turns final unique-index races into predictable duplicate UID/name failures
+instead of leaking raw driver details.
 
 The first Directory/Identity slice now exists as `internal/directory`: it owns
 bounded platform-principal identifiers, principal kinds, active user principal

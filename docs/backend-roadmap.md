@@ -2434,6 +2434,10 @@ Implementation order:
       within the same address book before SQL upsert, returning a predictable
       repository/handler error while the PostgreSQL partial unique index stays
       as the final concurrency guard.
+1130. CardDAV contact-object upsert now maps PostgreSQL unique-index races for
+      active object names or vCard UIDs into stable repository errors, so
+      concurrent writes keep developer-readable CardDAV failure semantics
+      instead of exposing raw driver details.
 
 ## Deferred until backend contracts stabilize
 

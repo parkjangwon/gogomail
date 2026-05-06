@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Repository struct {
@@ -450,7 +452,7 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 		&object.UpdatedAt,
 	)
 	if err != nil {
-		return ContactObject{}, fmt.Errorf("upsert CardDAV contact object: %w", err)
+		return ContactObject{}, mapContactObjectUpsertError(err)
 	}
 	if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
 		return ContactObject{}, err
@@ -950,6 +952,19 @@ LIMIT 1`, userID, addressBookID, uid, objectName).Scan(&existingObject)
 		return fmt.Errorf("read CardDAV contact object UID: %w", err)
 	}
 	return fmt.Errorf("CardDAV contact object UID %q already exists as %q", uid, existingObject)
+}
+
+func mapContactObjectUpsertError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "idx_carddav_contact_objects_active_uid":
+			return fmt.Errorf("CardDAV contact object UID already exists")
+		case "idx_carddav_contact_objects_active_name":
+			return fmt.Errorf("CardDAV contact object already exists")
+		}
+	}
+	return fmt.Errorf("upsert CardDAV contact object: %w", err)
 }
 
 func ensureContactObjectETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, etag string) error {
