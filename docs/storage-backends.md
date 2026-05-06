@@ -320,8 +320,10 @@ bounded to safe single-line UTF-8 values before crossing the adapter boundary;
 malformed content type and ETag metadata is dropped while object identity and
 size remain available. `Content-Length` is treated as exact unsigned decimal
 metadata, so signed or whitespace-padded values fail closed instead of being
-normalized. A non-empty malformed `Last-Modified` header is rejected instead
-of being silently exposed as a zero timestamp, while missing timestamps and
+normalized; if both the raw header and normalized HTTP response length are
+available, they must agree. A non-empty malformed `Last-Modified` header is
+rejected instead of being silently exposed as a zero timestamp, while missing
+timestamps and
 HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
 S3-compatible `GetRange` uses a signed `GET` request with a single
