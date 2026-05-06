@@ -2886,6 +2886,12 @@ Implementation order:
       uses the bounded object limiter with the default one-extra-row truncation
       probe, returning an explicit request error instead of a partial WebDAV
       multistatus when a collection is too large to enumerate safely.
+1195. CalDAV `calendar-query` and `free-busy-query` now expand bounded VEVENT
+      recurrence sets through the RFC 5545 parser, including library-backed
+      `RRULE`, `EXDATE`, and `RDATE` handling. Dense or unbounded recurrence
+      rules are capped per object so native-client time-range scans remain
+      predictable while recurring events become visible in query and VFREEBUSY
+      responses.
 
 ## Deferred until backend contracts stabilize
 
@@ -2895,7 +2901,8 @@ Implementation order:
 - etcd
 - Vault
 - IMAP
-- CalDAV public/client-ready compatibility
+- CalDAV public/client-ready compatibility, including detached recurrence
+  overrides and broader native-client scheduling behavior
 - Directory/Identity expansion for delegated relationships, effective
   resource booking policy beyond the initial principal tables, resolver, alias
   lookup, bounded membership expansion, company-scoped delegation relationship

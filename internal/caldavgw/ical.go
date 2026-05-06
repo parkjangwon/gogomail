@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	MaxICalendarComponents = 1024
-	MaxICalendarProperties = 8192
-	MaxICalendarUIDBytes   = MaxCalendarObjectUIDBytes
+	MaxICalendarComponents          = 1024
+	MaxICalendarProperties          = 8192
+	MaxICalendarUIDBytes            = MaxCalendarObjectUIDBytes
+	MaxICalendarRecurrenceInstances = 10000
 )
 
 type ICalendarObject struct {
@@ -149,14 +150,44 @@ func CalendarObjectMatchesTimeRange(body []byte, timeRange *TimeRange) (bool, er
 }
 
 func eventOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
-	start, end, err := eventTimeSpan(component)
+	start, end, duration, err := eventTimeSpanWithDuration(component)
 	if err != nil {
 		return false, err
 	}
-	if end.Equal(start) {
-		end = start.Add(time.Nanosecond)
+	recurrence, err := component.RecurrenceSet(time.UTC)
+	if err != nil {
+		return false, fmt.Errorf("decode VEVENT recurrence: %w", err)
 	}
-	return start.Before(timeRange.End) && end.After(timeRange.Start), nil
+	if recurrence == nil {
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start)
+		if err != nil {
+			return false, err
+		}
+		if explicit {
+			return explicitRecurrencesOverlap(explicitStarts, duration, timeRange), nil
+		}
+		return timeSpansOverlap(start, end, timeRange), nil
+	}
+	windowStart := recurrenceWindowStart(timeRange.Start, duration)
+	next := recurrence.Iterator()
+	scanned := 0
+	for occurrenceStart, ok := next(); ok; occurrenceStart, ok = next() {
+		scanned++
+		if scanned > MaxICalendarRecurrenceInstances {
+			return false, fmt.Errorf("VEVENT recurrence expansion exceeds %d instances", MaxICalendarRecurrenceInstances)
+		}
+		occurrenceStart = occurrenceStart.UTC()
+		if occurrenceStart.Before(windowStart) {
+			continue
+		}
+		if !occurrenceStart.Before(timeRange.End) {
+			return false, nil
+		}
+		if timeSpansOverlap(occurrenceStart, occurrenceStart.Add(duration), timeRange) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, error) {
@@ -171,13 +202,11 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 	for _, child := range cal.Children {
 		switch {
 		case strings.EqualFold(child.Name, ComponentVEVENT):
-			period, ok, err := eventBusyPeriod(child, timeRange)
+			objectPeriods, err := eventBusyPeriods(child, timeRange)
 			if err != nil {
 				return nil, err
 			}
-			if ok {
-				periods = append(periods, period)
-			}
+			periods = append(periods, objectPeriods...)
 		case strings.EqualFold(child.Name, ComponentVFREEBUSY):
 			freeBusyPeriods, err := freeBusyComponentPeriods(child, timeRange)
 			if err != nil {
@@ -189,40 +218,70 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 	return periods, nil
 }
 
-func eventBusyPeriod(component *ical.Component, timeRange TimeRange) (BusyPeriod, bool, error) {
+func eventBusyPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPeriod, error) {
 	event := ical.Event{Component: component}
 	status, err := event.Status()
 	if err != nil {
-		return BusyPeriod{}, false, fmt.Errorf("decode VEVENT STATUS: %w", err)
+		return nil, fmt.Errorf("decode VEVENT STATUS: %w", err)
 	}
 	if strings.EqualFold(string(status), string(ical.EventCancelled)) {
-		return BusyPeriod{}, false, nil
+		return nil, nil
 	}
 	transparency, err := component.Props.Text(ical.PropTransparency)
 	if err != nil {
-		return BusyPeriod{}, false, fmt.Errorf("decode VEVENT TRANSP: %w", err)
+		return nil, fmt.Errorf("decode VEVENT TRANSP: %w", err)
 	}
 	if strings.EqualFold(transparency, "TRANSPARENT") {
-		return BusyPeriod{}, false, nil
+		return nil, nil
 	}
-	start, end, err := eventTimeSpan(component)
+	start, end, duration, err := eventTimeSpanWithDuration(component)
 	if err != nil {
-		return BusyPeriod{}, false, err
-	}
-	if !start.Before(end) || !start.Before(timeRange.End) || !end.After(timeRange.Start) {
-		return BusyPeriod{}, false, nil
-	}
-	if start.Before(timeRange.Start) {
-		start = timeRange.Start
-	}
-	if end.After(timeRange.End) {
-		end = timeRange.End
+		return nil, err
 	}
 	busyType := "BUSY"
 	if strings.EqualFold(string(status), string(ical.EventTentative)) {
 		busyType = "BUSY-TENTATIVE"
 	}
-	return BusyPeriod{Start: start.UTC(), End: end.UTC(), Type: busyType}, true, nil
+	recurrence, err := component.RecurrenceSet(time.UTC)
+	if err != nil {
+		return nil, fmt.Errorf("decode VEVENT recurrence: %w", err)
+	}
+	if recurrence == nil {
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start)
+		if err != nil {
+			return nil, err
+		}
+		if explicit {
+			return explicitRecurrenceBusyPeriods(explicitStarts, duration, busyType, timeRange), nil
+		}
+		period, ok := clippedBusyPeriod(start, end, busyType, timeRange)
+		if !ok {
+			return nil, nil
+		}
+		return []BusyPeriod{period}, nil
+	}
+	windowStart := recurrenceWindowStart(timeRange.Start, duration)
+	next := recurrence.Iterator()
+	periods := make([]BusyPeriod, 0)
+	scanned := 0
+	for occurrenceStart, ok := next(); ok; occurrenceStart, ok = next() {
+		scanned++
+		if scanned > MaxICalendarRecurrenceInstances {
+			return nil, fmt.Errorf("VEVENT recurrence expansion exceeds %d instances", MaxICalendarRecurrenceInstances)
+		}
+		occurrenceStart = occurrenceStart.UTC()
+		if occurrenceStart.Before(windowStart) {
+			continue
+		}
+		if !occurrenceStart.Before(timeRange.End) {
+			return periods, nil
+		}
+		period, ok := clippedBusyPeriod(occurrenceStart, occurrenceStart.Add(duration), busyType, timeRange)
+		if ok {
+			periods = append(periods, period)
+		}
+	}
+	return periods, nil
 }
 
 func freeBusyComponentPeriods(component *ical.Component, timeRange TimeRange) ([]BusyPeriod, error) {
@@ -355,6 +414,101 @@ func eventTimeSpan(component *ical.Component) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, fmt.Errorf("VEVENT DTEND must not be before DTSTART")
 	}
 	return start.UTC(), end.UTC(), nil
+}
+
+func eventTimeSpanWithDuration(component *ical.Component) (time.Time, time.Time, time.Duration, error) {
+	start, end, err := eventTimeSpan(component)
+	if err != nil {
+		return time.Time{}, time.Time{}, 0, err
+	}
+	duration := end.Sub(start)
+	if duration <= 0 {
+		duration = time.Nanosecond
+		end = start.Add(duration)
+	}
+	return start, end, duration, nil
+}
+
+func explicitRecurrenceStarts(component *ical.Component, start time.Time) ([]time.Time, bool, error) {
+	explicit := len(component.Props[ical.PropRecurrenceDates]) > 0 || len(component.Props[ical.PropExceptionDates]) > 0
+	starts := []time.Time{start.UTC()}
+	for _, prop := range component.Props[ical.PropRecurrenceDates] {
+		date, err := prop.DateTime(time.UTC)
+		if err != nil {
+			return nil, explicit, fmt.Errorf("decode VEVENT RDATE: %w", err)
+		}
+		starts = append(starts, date.UTC())
+	}
+	if len(component.Props[ical.PropExceptionDates]) == 0 {
+		return starts, explicit, nil
+	}
+	excluded := make(map[int64]struct{}, len(component.Props[ical.PropExceptionDates]))
+	for _, prop := range component.Props[ical.PropExceptionDates] {
+		date, err := prop.DateTime(time.UTC)
+		if err != nil {
+			return nil, explicit, fmt.Errorf("decode VEVENT EXDATE: %w", err)
+		}
+		excluded[date.UTC().UnixNano()] = struct{}{}
+	}
+	filtered := starts[:0]
+	for _, occurrenceStart := range starts {
+		if _, ok := excluded[occurrenceStart.UnixNano()]; ok {
+			continue
+		}
+		filtered = append(filtered, occurrenceStart)
+	}
+	return filtered, explicit, nil
+}
+
+func explicitRecurrencesOverlap(starts []time.Time, duration time.Duration, timeRange TimeRange) bool {
+	for i, occurrenceStart := range starts {
+		if i >= MaxICalendarRecurrenceInstances {
+			return false
+		}
+		if timeSpansOverlap(occurrenceStart, occurrenceStart.Add(duration), timeRange) {
+			return true
+		}
+	}
+	return false
+}
+
+func explicitRecurrenceBusyPeriods(starts []time.Time, duration time.Duration, busyType string, timeRange TimeRange) []BusyPeriod {
+	periods := make([]BusyPeriod, 0, len(starts))
+	for i, occurrenceStart := range starts {
+		if i >= MaxICalendarRecurrenceInstances {
+			return periods
+		}
+		period, ok := clippedBusyPeriod(occurrenceStart, occurrenceStart.Add(duration), busyType, timeRange)
+		if ok {
+			periods = append(periods, period)
+		}
+	}
+	return periods
+}
+
+func recurrenceWindowStart(rangeStart time.Time, duration time.Duration) time.Time {
+	windowStart := rangeStart.Add(-duration)
+	if duration < time.Second {
+		windowStart = windowStart.Add(-time.Second)
+	}
+	return windowStart.UTC()
+}
+
+func timeSpansOverlap(start time.Time, end time.Time, timeRange TimeRange) bool {
+	return start.Before(timeRange.End) && end.After(timeRange.Start)
+}
+
+func clippedBusyPeriod(start time.Time, end time.Time, busyType string, timeRange TimeRange) (BusyPeriod, bool) {
+	if !timeSpansOverlap(start, end, timeRange) {
+		return BusyPeriod{}, false
+	}
+	if start.Before(timeRange.Start) {
+		start = timeRange.Start
+	}
+	if end.After(timeRange.End) {
+		end = timeRange.End
+	}
+	return BusyPeriod{Start: start.UTC(), End: end.UTC(), Type: busyType}, true
 }
 
 func BuildFreeBusyCalendar(userID string, calendarID string, timeRange TimeRange, periods []BusyPeriod) ([]byte, error) {
