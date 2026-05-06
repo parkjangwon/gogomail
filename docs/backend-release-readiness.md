@@ -624,8 +624,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   currently cover standards constants, DAV tokens, canonical principal,
   address-book home, address-book collection, and `.vcf` object path/href
   handling, plus metadata validation for address-book/contact object names,
-  UIDs, strong ETags, size limits, and sync tokens. PostgreSQL storage tables
-  now exist for address books, contact objects, and address-book change logs.
+  UIDs, strong ETags, size limits, and sync tokens. Directory discovery now
+  explicitly converts only user principals into CardDAV principals, leaving
+  organization, group, and resource address-book semantics gated. PostgreSQL
+  storage tables now exist for address books, contact objects, and
+  address-book change logs.
   Address-book repository methods can create/list/get active collections while
   recording creation changes transactionally. vCard validation now performs
   bounded vCard 4.0 and common vCard 3.0 checks for BEGIN/END structure,

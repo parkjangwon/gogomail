@@ -2256,7 +2256,10 @@ Next:
   `MKCOL`, `PROPPATCH`, `REPORT`, and `PROPFIND` requests require the matching
   contacts read/write/manage role, run against the owner address-book store,
   keep `DAV:current-user-principal` actor-scoped, and expose delegated WebDAV
-  privileges in discovery and REPORT responses.
+  privileges in discovery and REPORT responses. Directory-to-CardDAV principal
+  conversion now explicitly rejects non-user principals, preserving the product
+  boundary that CardDAV is user-owned contacts while organization, group, and
+  resource principals wait for deliberate semantics.
   It should be followed by broader vCard compatibility and native-client
   compatibility tests before any public contacts UI or API treats it as
   production-ready.
