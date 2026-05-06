@@ -6736,6 +6736,9 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	if len(fields) < 4 || !strings.EqualFold(fields[2], "RETURN") {
 		return imapListOptions{}, "", false
 	}
+	if !imapListReturnOptionsParenthesized(fields[3:]) {
+		return imapListOptions{}, "LIST requires parenthesized return options", false
+	}
 	if !imapListStatusReturnItemsParenthesized(fields[3:]) {
 		return imapListOptions{}, "LIST requires parenthesized status item list", false
 	}
@@ -6776,6 +6779,29 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 		}
 	}
 	return options, "", true
+}
+
+func imapListReturnOptionsParenthesized(fields []string) bool {
+	value := strings.TrimSpace(strings.Join(fields, " "))
+	if !strings.HasPrefix(value, "(") || !strings.HasSuffix(value, ")") {
+		return false
+	}
+	if strings.HasPrefix(value, "((") {
+		return false
+	}
+	depth := 0
+	for _, r := range value {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth < 0 {
+				return false
+			}
+		}
+	}
+	return depth == 0
 }
 
 func imapListStatusReturnItemsParenthesized(fields []string) bool {
