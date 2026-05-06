@@ -2546,7 +2546,10 @@ The platform hardening sprint completed the following:
 - CalDAV object validation now uses `github.com/emersion/go-ical` for RFC 5545
   iCalendar decoding, requiring one `VCALENDAR` with exactly one supported
   top-level calendar component, exactly one bounded UID, and explicit
-  component/property count caps before `.ics` bodies reach storage.
+  component/property count caps before `.ics` bodies reach storage. It also
+  rejects RFC-invalid duration/end combinations for stored `VEVENT` and `VTODO`
+  objects, including `VEVENT` `DTEND`+`DURATION`, `VTODO` `DUE`+`DURATION`, and
+  `VTODO` `DURATION` without `DTSTART`.
 - CalDAV now has a WebDAV `multistatus` response builder for future PROPFIND
   and REPORT handlers. It renders per-property `propstat` statuses, principal
   discovery properties, calendar-home hints, calendar collection metadata
