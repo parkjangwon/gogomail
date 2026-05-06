@@ -186,7 +186,11 @@ bounded drain applies when callers close before consuming the requested range,
 helping preview/cancel paths reuse connections without unbounded cleanup reads.
 S3-compatible `Copy` uses a signed server-side copy request with an escaped
 `x-amz-copy-source`, so AWS S3, MinIO, and strict compatible providers can
-duplicate objects without pulling object bytes through gogomail.
+duplicate objects without pulling object bytes through gogomail. Successful
+copy responses are read through a bounded parser: normal `CopyObjectResult`
+responses are accepted, while embedded `Error` responses inside `200 OK` are
+rejected so provider-side copy failures cannot masquerade as successful object
+duplication.
 S3-compatible `Move` is intentionally documented as a copy-then-delete
 operation because S3 has no native atomic object rename. Callers that need
 user-visible Drive/file moves should treat failures after copy as recoverable

@@ -890,6 +890,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   copies use signed server-side copy requests with escaped `x-amz-copy-source`
   values so future Drive and lifecycle workflows can duplicate objects without
   forcing caller-side body streaming.
+- S3-compatible `Copy` now validates bounded successful `CopyObject` response
+  bodies and rejects embedded `<Error>` XML inside `200 OK` responses, so
+  provider-side copy failures cannot be mistaken for successful Drive or
+  lifecycle duplication.
 - Local/NFS and S3-compatible storage expose a shared bounded prefix `List`
   contract. Local/NFS uses directory walks, and S3-compatible storage uses
   signed `ListObjectsV2`, giving future Drive, lifecycle, and reconciliation

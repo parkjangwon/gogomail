@@ -2631,6 +2631,12 @@ Implementation order:
       rows on checker errors, and fails closed on audit insertion errors so
       future CalDAV/CardDAV/Drive/mailbox adapters do not permit unaudited
       delegated access.
+1176. S3-compatible storage `Copy` now reads and validates bounded successful
+      `CopyObject` response bodies, accepting normal `CopyObjectResult`
+      responses while rejecting embedded `<Error>` XML inside `200 OK`
+      responses. This keeps AWS S3/compatible copy failures from being treated
+      as successful Drive, attachment lifecycle, or reconciliation object
+      duplication.
 
 ## Deferred until backend contracts stabilize
 

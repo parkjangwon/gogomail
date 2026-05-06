@@ -288,6 +288,10 @@ Current state:
   filesystem rename semantics; S3-compatible storage uses signed server-side
   copy followed by source delete, so callers should treat post-copy failures as
   duplicate-cleanup work instead of relying on atomic rename semantics.
+- S3-compatible `Copy` now validates bounded successful `CopyObject` response
+  bodies and rejects embedded `<Error>` XML inside `200 OK` responses, keeping
+  AWS S3/compatible copy failures from being accepted as successful Drive or
+  lifecycle object duplication.
 - Shared storage exposes a bounded `DeletePrefix` helper over the existing
   `List` and idempotent `Delete` contracts, giving future Drive folder
   deletion, attachment lifecycle, and reconciliation jobs a cursor-driven

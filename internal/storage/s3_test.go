@@ -964,6 +964,87 @@ func TestS3StoreDeleteTreatsMissingObjectAsSuccess(t *testing.T) {
 	}
 }
 
+func TestS3StoreCopyRejectsEmbeddedErrorInOKResponse(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<Error>
+  <Code>SlowDown</Code>
+  <Message>copy throttled
+try later</Message>
+</Error>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	err = store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
+	if err == nil || !strings.Contains(err.Error(), "embedded error") || !strings.Contains(err.Error(), "SlowDown: copy throttled try later") || strings.ContainsAny(err.Error(), "\r\n") {
+		t.Fatalf("Copy err = %q, want sanitized embedded error rejection", err)
+	}
+}
+
+func TestS3StoreCopyAcceptsCopyObjectResult(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`<CopyObjectResult><ETag>"etag-1"</ETag></CopyObjectResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if err := store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml"); err != nil {
+		t.Fatalf("Copy returned error: %v", err)
+	}
+}
+
+func TestS3StoreCopyRejectsOversizedOKResponse(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(strings.Repeat("x", maxS3CopyResponseBytes+1))),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	err = store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
+	if err == nil || !strings.Contains(err.Error(), "response body is too large") {
+		t.Fatalf("Copy err = %v, want oversized body rejection", err)
+	}
+}
+
 func TestValidateS3BucketNameRejectsUnsafeNames(t *testing.T) {
 	t.Parallel()
 
