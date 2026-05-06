@@ -163,7 +163,9 @@ Current state:
   `LIST "" * RETURN (STATUS ())` requests distinct from unsupported,
   duplicate, or malformed-return status item handling. Duplicate status data
   items are now diagnosed separately from unknown/unsupported status items,
-  including before authentication checks.
+  including before authentication checks. LIST-STATUS now also rejects
+  duplicated `STATUS` return options before mailbox lookup so later status
+  return controls cannot overwrite earlier requested status data.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
@@ -2096,9 +2098,10 @@ Current state:
   callers close before consuming the requested range, helping preview/cancel
   paths reuse HTTP connections.
 - IMAP `STATUS`/LIST-STATUS parsing now rejects duplicate status data items
-  before mailbox metadata lookup, and LIST-STATUS now preserves specific
-  status-return diagnostics instead of collapsing malformed status return
-  options into generic LIST arity errors.
+  and duplicated LIST-STATUS `STATUS` return options before mailbox metadata
+  lookup, and LIST-STATUS now preserves specific status-return diagnostics
+  instead of collapsing malformed status return options into generic LIST arity
+  errors.
 - CalDAV `MKCALENDAR` now rejects non-UUID creation path IDs before reading
   the XML request body when no active collection already exists at that path.
 - CalDAV collection `DELETE` now honors `If-Unmodified-Since` and

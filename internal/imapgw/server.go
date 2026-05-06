@@ -6743,6 +6743,7 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 	if len(tokens) == 0 {
 		return imapListOptions{}, "", false
 	}
+	statusReturnSeen := false
 	for i := 0; i < len(tokens); {
 		switch strings.ToUpper(tokens[i]) {
 		case "CHILDREN":
@@ -6753,6 +6754,10 @@ func imapListCommandOptions(fields []string, subscribed bool) (imapListOptions, 
 			options.subscribedReturn = true
 			i++
 		case "STATUS":
+			if statusReturnSeen {
+				return imapListOptions{}, "LIST status return option is duplicated", false
+			}
+			statusReturnSeen = true
 			i++
 			start := i
 			for i < len(tokens) && !strings.EqualFold(tokens[i], "CHILDREN") && !strings.EqualFold(tokens[i], "SPECIAL-USE") && !strings.EqualFold(tokens[i], "SUBSCRIBED") {
