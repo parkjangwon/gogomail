@@ -279,6 +279,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   unexpired token hashes, hide storage internals from public metadata, enforce
   `download` permission before streaming bytes, and reuse Drive no-store,
   checksum, HEAD, and single-range download semantics.
+- Drive public share-link download OpenAPI now documents the same non-JSON
+  binary/header contract for `HEAD`, full-body `200`, and byte-range `206`
+  responses, with drift coverage so generated clients can safely stream public
+  shared files.
 - Drive public share-link metadata/download routes now support an optional
   Redis fixed-window abuse limiter with normalized remote+token bucketing and
   HTTP 429/`Retry-After` responses, giving production deployments a first

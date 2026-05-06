@@ -1751,6 +1751,10 @@ Current state:
   node state is rejected, metadata responses omit storage internals, and
   `download`-permission links reuse the Drive no-store, checksum, HEAD, and
   single-range download contract.
+- Drive public share-link download OpenAPI now documents `HEAD`, full-body
+  `200`, and byte-range `206` as non-JSON binary/header responses, and drift
+  tests include the public share routes alongside authenticated Drive
+  downloads.
 - Drive public share-link abuse controls now have a configurable Redis
   fixed-window limiter for anonymous metadata/download routes. The limiter
   buckets normalized remote address plus a share-token SHA-256 digest, returns

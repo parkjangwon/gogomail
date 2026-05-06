@@ -2890,6 +2890,9 @@ The platform hardening sprint completed the following:
   revocation, active owner/domain/node checks, keep storage internals out of
   metadata responses, and reuse the Drive no-store/range-download header
   contract for `download`-permission links.
+- OpenAPI now documents public share-link download `HEAD`, full-body `200`,
+  and byte-range `206` as non-JSON binary/header responses, with drift tests
+  keeping generated Drive clients aligned with runtime streaming semantics.
 - Drive public share endpoints now have an optional Redis-backed fixed-window
   abuse-control boundary (`GOGOMAIL_DRIVE_SHARE_RATELIMIT_BACKEND=redis` and
   `GOGOMAIL_DRIVE_SHARE_RATELIMIT_PER_MINUTE`) that buckets anonymous traffic

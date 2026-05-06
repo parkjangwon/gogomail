@@ -246,6 +246,49 @@ func TestDriveSharedDownloadHandlerSupportsByteRange(t *testing.T) {
 	}
 }
 
+func TestDriveSharedDownloadHeadHandlerReturnsPortableHeaders(t *testing.T) {
+	t.Parallel()
+
+	token := strings.Repeat("h", 40)
+	service := &fakeDriveService{
+		metadata: drive.FileMetadata{
+			Node:   drive.Node{ID: "node-1", UserID: "user-1", Name: "report.pdf", Type: drive.NodeTypeFile, MIMEType: "application/pdf", Size: 99, ChecksumSHA256: strings.Repeat("c", 64), Status: drive.NodeStatusActive},
+			Object: storage.ObjectInfo{Path: "drive/users/user-1/objects/node-1", Size: 7},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodHead, "/api/v1/drive/share-links/"+token+"/download", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.statSharedReq.Token != token {
+		t.Fatalf("stat shared request = %+v, want token", service.statSharedReq)
+	}
+	for name, want := range map[string]string{
+		"Accept-Ranges":           "bytes",
+		"Cache-Control":           "no-store",
+		"Content-Length":          "7",
+		"Content-Type":            "application/pdf",
+		"X-Content-Type-Options":  "nosniff",
+		"X-Gogomail-Drive-SHA256": strings.Repeat("c", 64),
+	} {
+		if got := rec.Header().Get(name); got != want {
+			t.Fatalf("%s = %q, want %q", name, got, want)
+		}
+	}
+	if got := rec.Header().Get("Content-Disposition"); !strings.Contains(got, "report.pdf") {
+		t.Fatalf("Content-Disposition = %q, want report.pdf filename", got)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+	}
+}
+
 func TestDriveSharedDownloadHandlerRejectsViewOnlyLink(t *testing.T) {
 	t.Parallel()
 

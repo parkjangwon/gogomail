@@ -693,6 +693,8 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		"GET /messages/{id}/attachments/{attachment_id}/download",
 		"HEAD /drive/nodes/{id}/download",
 		"GET /drive/nodes/{id}/download",
+		"HEAD /drive/share-links/{id}/download",
+		"GET /drive/share-links/{id}/download",
 	} {
 		block, ok := operations[route]
 		if !ok {
@@ -705,10 +707,10 @@ func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 		if !strings.HasPrefix(route, "HEAD ") {
 			wants = append(wants, "application/octet-stream:", "type: string", "format: binary")
 		}
-		if route == "GET /drive/nodes/{id}/download" {
+		if route == "GET /drive/nodes/{id}/download" || route == "GET /drive/share-links/{id}/download" {
 			wants = append(wants, "name: Range", "\"206\":", "Content-Range:", "Accept-Ranges:", "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
 		}
-		if route == "HEAD /drive/nodes/{id}/download" {
+		if route == "HEAD /drive/nodes/{id}/download" || route == "HEAD /drive/share-links/{id}/download" {
 			wants = append(wants, "X-Gogomail-Drive-SHA256:", "^[0-9a-f]{64}$")
 		}
 		for _, want := range wants {

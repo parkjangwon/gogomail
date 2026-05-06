@@ -640,7 +640,37 @@ paths:
           description: Raw public Drive share token.
       responses:
         "200":
-          description: Shared Drive file download headers
+          description: Shared Drive file metadata headers without a response body.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the shared Drive file, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Content-Length:
+              description: Size in bytes reported by the storage backend for the shared Drive file object.
+              schema:
+                type: integer
+                format: int64
+            Accept-Ranges:
+              description: Indicates support for single byte-range shared Drive downloads.
+              schema:
+                type: string
+                enum: [bytes]
+            X-Gogomail-Drive-SHA256:
+              description: SHA-256 digest of the complete shared Drive file object when recorded on the node.
+              schema:
+                type: string
+                pattern: "^[0-9a-f]{64}$"
+            Cache-Control:
+              description: Shared Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for shared Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
         "403":
           $ref: "#/components/responses/Error"
         "404":
@@ -668,9 +698,83 @@ paths:
           description: Optional single HTTP byte range. Multi-range requests are rejected.
       responses:
         "200":
-          description: Shared Drive file bytes
+          description: Shared Drive file bytes.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the shared Drive file, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Content-Length:
+              description: Full size in bytes reported for the shared Drive file object.
+              schema:
+                type: integer
+                format: int64
+            Accept-Ranges:
+              description: Indicates support for single byte-range shared Drive downloads.
+              schema:
+                type: string
+                enum: [bytes]
+            X-Gogomail-Drive-SHA256:
+              description: SHA-256 digest of the complete shared Drive file object when recorded on the node.
+              schema:
+                type: string
+                pattern: "^[0-9a-f]{64}$"
+            Cache-Control:
+              description: Shared Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for shared Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "206":
-          description: Partial shared Drive file bytes
+          description: Requested shared Drive file byte range.
+          headers:
+            Content-Disposition:
+              description: Attachment filename for the shared Drive file, including RFC 5987 filename* when needed.
+              schema:
+                type: string
+            Content-Range:
+              description: Byte range returned for the shared Drive file object.
+              schema:
+                type: string
+            Content-Length:
+              description: Number of bytes in the partial response.
+              schema:
+                type: integer
+                format: int64
+            Accept-Ranges:
+              description: Indicates support for single byte-range shared Drive downloads.
+              schema:
+                type: string
+                enum: [bytes]
+            X-Gogomail-Drive-SHA256:
+              description: SHA-256 digest of the complete shared Drive file object when recorded on the node.
+              schema:
+                type: string
+                pattern: "^[0-9a-f]{64}$"
+            Cache-Control:
+              description: Shared Drive file downloads are user data and must not be stored by shared caches.
+              schema:
+                type: string
+                enum: [no-store]
+            X-Content-Type-Options:
+              description: Prevent browser MIME sniffing for shared Drive file downloads.
+              schema:
+                type: string
+                enum: [nosniff]
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "403":
           $ref: "#/components/responses/Error"
         "404":
