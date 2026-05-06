@@ -398,6 +398,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   pattern strings containing spaces, so clients can issue probes such as
   `LIST "" ("Archive 2026" "INBOX") RETURN (STATUS (MESSAGES))` without the
   command parser splitting the mailbox name before RFC 5258 matching.
+- IMAP `LIST-EXTENDED` pattern lists also accept mailbox patterns supplied as
+  command literals immediately after `(`, preserving common literal string
+  framing for folder names containing spaces before applying `RETURN
+  (STATUS ...)`.
 - IMAP UIDPLUS `COPYUID` responses now use explicit source UID to destination
   summary mappings from the backend copy result, with sparse UID COPY/MOVE
   regression coverage and PostgreSQL coverage for ignored missing UID members.

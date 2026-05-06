@@ -4064,6 +4064,10 @@ Implementation order:
       preserve quoted pattern strings containing spaces, letting clients match
       folders such as `"Archive 2026"` and request `RETURN (STATUS ...)`
       without the command parser splitting the mailbox pattern early.
+1452. IMAP RFC 5258 `LIST-EXTENDED` pattern lists now also preserve mailbox
+      patterns supplied as command literals immediately after `(`, so literal
+      folder names containing spaces flow through the same matcher and
+      `RETURN (STATUS ...)` response path as quoted pattern strings.
 
 ## Deferred until backend contracts stabilize
 

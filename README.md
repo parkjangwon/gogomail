@@ -100,8 +100,8 @@ Recent release-readiness work also includes:
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
   namespace compatibility, RFC 5258 `SUBSCRIBED` selection, pattern-list, and
-  quoted pattern-list support, return-option support, SEARCHRES `$` reuse
-  across SEARCH/SORT/THREAD workflows, exact `$` atom handling,
+  quoted/literal pattern-list support, return-option support, SEARCHRES `$`
+  reuse across SEARCH/SORT/THREAD workflows, exact `$` atom handling,
   selected-mailbox lifecycle cleanup for saved SEARCHRES state,
   strict STATUS item-list framing with LIST-STATUS compatibility coverage,
   strict LIST selection option-list framing,

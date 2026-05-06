@@ -488,6 +488,10 @@ overlapping pattern results before writing responses. The pattern-list parser
 now also preserves quoted mailbox patterns containing spaces, so probes such as
 `LIST "" ("Archive 2026" "INBOX") RETURN (STATUS (MESSAGES))` reach the
 normal matcher/status path instead of failing during command field splitting.
+It also accepts synchronizing and non-synchronizing literals as pattern-list
+members immediately after `(`, so native clients can send the same spaced
+mailbox pattern as `LIST "" ({12} "INBOX") ...` without losing the literal at
+the command parser boundary.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
 mapping through the gateway, service, and PostgreSQL repository boundary, and
 `MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned
