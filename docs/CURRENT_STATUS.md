@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after DAV If-Unmodified-Since missing-object hardening)
+Last updated: 2026-05-07 (updated after S3 full-range compatibility hardening)
 
 ## Current phase
 
@@ -74,6 +74,12 @@ S3-compatible `List` now rechecks provider-returned keys against the requested
 logical gogomail prefix after stripping the configured bucket/storage prefix,
 so malformed or overly broad S3-compatible list responses cannot leak sibling
 keys into caller listings or `DeletePrefix` cleanup work.
+S3-compatible `GetRange` now accepts `200 OK` full-range compatibility
+responses only when the returned `Content-Range` matches the requested byte
+window or, without `Content-Range`, when the request starts at offset 0 and
+`Content-Length` exactly equals the requested length. Unsafe `200 OK` range
+responses are drained and rejected, keeping provider compatibility from
+weakening bounded-read semantics.
 The shared storage path/prefix validator now rejects percent-encoded path
 separators such as `%2F` and `%5C`, plus double-encoded forms such as `%252F`
 and `%255C`, keeping object keys portable across local/NFS, MinIO, AWS S3, and

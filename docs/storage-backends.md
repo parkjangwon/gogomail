@@ -18,6 +18,12 @@ object body, using filesystem metadata on local/NFS storage and signed `HEAD`
 requests on S3-compatible storage. `GetRange` opens a validated bounded byte
 range without requiring callers to stream and discard a prefix, using
 filesystem seek/limited reads locally and signed S3 `Range` requests remotely.
+S3-compatible range reads require `206 Partial Content` with a matching
+`Content-Range` unless a provider returns a compatibility `200 OK` response
+that can be proven to represent the requested full window: matching
+`Content-Range`, or offset-zero `Content-Length` exactly equal to the requested
+length. Ambiguous `200 OK` range responses are rejected and drained before any
+caller sees bytes.
 `Copy` preserves object keys and adapter semantics while avoiding caller-side
 read/write loops when the backend can copy server-side. `Move` gives callers
 one backend-neutral object relocation contract: local/NFS uses filesystem

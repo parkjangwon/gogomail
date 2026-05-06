@@ -168,12 +168,19 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 	if err != nil {
 		return nil, fmt.Errorf("get s3 object range: %w", err)
 	}
-	if resp.StatusCode != http.StatusPartialContent {
+	switch resp.StatusCode {
+	case http.StatusPartialContent:
+		if err := validateS3ContentRange(resp.Header.Get("Content-Range"), validated); err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, err
+		}
+	case http.StatusOK:
+		if err := validateS3FullRangeCompatibilityResponse(resp, validated); err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, err
+		}
+	default:
 		err := s3StatusError("get range", resp)
-		drainAndCloseS3Body(resp.Body)
-		return nil, err
-	}
-	if err := validateS3ContentRange(resp.Header.Get("Content-Range"), validated); err != nil {
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
@@ -612,6 +619,37 @@ func validateS3ContentRange(value string, req RangeRequest) error {
 		return fmt.Errorf("get range s3 object: content-range mismatch")
 	}
 	return nil
+}
+
+func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequest) error {
+	if strings.TrimSpace(resp.Header.Get("Content-Range")) != "" {
+		return validateS3ContentRange(resp.Header.Get("Content-Range"), req)
+	}
+	if req.Offset != 0 {
+		return fmt.Errorf("get range s3 object: status 200 without content-range for non-zero offset")
+	}
+	size, err := s3RangeResponseContentLength(resp)
+	if err != nil {
+		return err
+	}
+	if size != req.Length {
+		return fmt.Errorf("get range s3 object: content-length mismatch")
+	}
+	return nil
+}
+
+func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
+	if value := strings.TrimSpace(resp.Header.Get("Content-Length")); value != "" {
+		size, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || size < 0 {
+			return -1, fmt.Errorf("get range s3 object: invalid content length")
+		}
+		return size, nil
+	}
+	if resp.ContentLength >= 0 {
+		return resp.ContentLength, nil
+	}
+	return -1, fmt.Errorf("get range s3 object: content length is required")
 }
 
 type exactReadCloser struct {
