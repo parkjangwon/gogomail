@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-06 (updated after DAV sync-change retention pruning groundwork)
+Last updated: 2026-05-06 (updated after IMAP empty HEADER.FIELDS compatibility hardening)
 
 ## Current phase
 
@@ -31,7 +31,12 @@ atom data, and unused literal payloads so malformed wire input remains in the
 parser/framing layer instead of leaking into command handlers. Oversized lines
 sent while an `IDLE` continuation is active now follow the same tagged `BAD`
 plus `BYE` framing-error path as oversized ordinary command lines, giving
-clients a deterministic close reason instead of a silent connection drop.
+clients a deterministic close reason instead of a silent connection drop. IMAP
+`FETCH` and `UID FETCH` now also treat RFC-valid empty `HEADER.FIELDS ()` and
+`HEADER.FIELDS.NOT ()` lists as real header-section requests, returning the
+blank header terminator for include-empty requests and the full header block
+for exclude-empty requests instead of silently falling through as unsupported
+literal handling.
 
 Storage portability hardening continues across local/NFS, MinIO, and AWS S3
 deployments. `GOGOMAIL_STORAGE_BACKEND=nfs` now acts as an explicit alias for
@@ -1141,6 +1146,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists now
   validate RFC-shaped header field names instead of trimming stray brackets,
   rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+- IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
+  `HEADER.FIELDS.NOT ()` lists, returning only the header terminator for empty
+  include requests and the full header block when the exclude list is empty.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

@@ -1019,6 +1019,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
   validate RFC-shaped header field names instead of trimming stray brackets,
   rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+- IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
+  `HEADER.FIELDS.NOT ()` lists, preserving compatibility with clients that use
+  empty include/exclude header subsets during body-section probing.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

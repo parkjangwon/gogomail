@@ -3228,6 +3228,11 @@ Implementation order:
       instance at `GOGOMAIL_EVENT_STREAM=dav.event` to validate DAV event
       payloads and persist audit rows before public reminder, push, indexing,
       or mobile sync consumers are enabled.
+1261. IMAP `FETCH` and `UID FETCH` now treat empty `HEADER.FIELDS ()` and
+      `HEADER.FIELDS.NOT ()` field lists as RFC-valid header-section requests.
+      Empty include lists return only the header terminator, and empty exclude
+      lists return the full header block instead of falling through without the
+      requested literal.
 
 ## Deferred until backend contracts stabilize
 

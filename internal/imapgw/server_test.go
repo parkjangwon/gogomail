@@ -7018,7 +7018,30 @@ func TestServerHandlesUIDFetchHeaderAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
 		t.Fatalf("partial completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a5 UID FETCH 9 BODY.PEEK[HEADER.FIELDS ()]\r\n")); err != nil {
+		t.Fatalf("write uid fetch empty header fields: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read empty header fields literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS ()] {2}\r\n" {
+		t.Fatalf("empty header fields literal header = %q", line)
+	}
+	emptyHeader := make([]byte, 2)
+	if _, err := io.ReadFull(reader, emptyHeader); err != nil {
+		t.Fatalf("read empty header fields literal: %v", err)
+	}
+	if string(emptyHeader) != "\r\n" {
+		t.Fatalf("empty header fields = %q", emptyHeader)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("empty header fields close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a5 OK UID FETCH completed\r\n" {
+		t.Fatalf("empty header fields completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a6 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -7227,7 +7250,30 @@ func TestServerHandlesUIDFetchHeaderFieldsNotAfterSelect(t *testing.T) {
 	if line, err = reader.ReadString('\n'); err != nil || line != "a3 OK UID FETCH completed\r\n" {
 		t.Fatalf("completion = %q err = %v", line, err)
 	}
-	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH 9 BODY.PEEK[HEADER.FIELDS.NOT ()]\r\n")); err != nil {
+		t.Fatalf("write uid fetch empty header fields not: %v", err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read empty header fields not literal header: %v", err)
+	}
+	if line != "* 3 FETCH (UID 9 FLAGS (\\Seen \\Flagged) RFC822.SIZE 54 BODY[HEADER.FIELDS.NOT ()] {37}\r\n" {
+		t.Fatalf("empty header fields not literal header = %q", line)
+	}
+	fullHeader := make([]byte, 37)
+	if _, err := io.ReadFull(reader, fullHeader); err != nil {
+		t.Fatalf("read empty header fields not literal: %v", err)
+	}
+	if string(fullHeader) != "Subject: Hello\r\nFrom: sender@test\r\n\r\n" {
+		t.Fatalf("empty header fields not = %q", fullHeader)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != ")\r\n" {
+		t.Fatalf("empty header fields not close = %q err = %v", line, err)
+	}
+	if line, err = reader.ReadString('\n'); err != nil || line != "a4 OK UID FETCH completed\r\n" {
+		t.Fatalf("empty header fields not completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -8459,6 +8505,8 @@ func TestIMAPFetchDataItemsSyntaxAcceptsSupportedItems(t *testing.T) {
 		{name: "core list", items: []string{"(UID", "FLAGS", "RFC822.SIZE", "MODSEQ)"}},
 		{name: "full body partial", items: []string{"BODY.PEEK[]<12.34>"}},
 		{name: "header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(Subject", "From)]"}},
+		{name: "empty header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "()]"}},
+		{name: "empty header fields not", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "()]"}},
 		{name: "header fields partial", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "(From)]<0.10>"}},
 		{name: "mime part section", items: []string{"BODY.PEEK[1.HEADER]"}},
 		{name: "nested mime part partial", items: []string{"BODY.PEEK[1.2.TEXT]<0.6>"}},
@@ -8509,6 +8557,16 @@ func TestFilterIMAPHeaderFields(t *testing.T) {
 	want = "Subject: Hi\r\nTo: user@test\r\n\r\n"
 	if string(got) != want {
 		t.Fatalf("excluded header = %q, want %q", got, want)
+	}
+	got = filterIMAPHeaderFields([]byte("Subject: Hi\r\nFrom: sender@test\r\n\r\n"), nil, false)
+	want = "\r\n"
+	if string(got) != want {
+		t.Fatalf("empty include header = %q, want %q", got, want)
+	}
+	got = filterIMAPHeaderFields([]byte("Subject: Hi\r\nFrom: sender@test\r\n\r\n"), nil, true)
+	want = "Subject: Hi\r\nFrom: sender@test\r\n\r\n"
+	if string(got) != want {
+		t.Fatalf("empty exclude header = %q, want %q", got, want)
 	}
 }
 
