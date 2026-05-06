@@ -669,6 +669,9 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		return s.handleFetch(writer, tag, fields, state)
 	case "SEARCH":
 		return s.handleSearch(writer, tag, fields, state, false)
+	case "ESEARCH":
+		_, err := writer.WriteString(tag + " BAD ESEARCH command requires MULTISEARCH capability\r\n")
+		return false, err
 	case "SORT":
 		return s.handleSort(writer, tag, fields, state, false)
 	case "THREAD":
@@ -1431,11 +1434,16 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			return true, false, err
 		}
 	case "SORT":
-		if len(fields) < 6 {
+		_, sortFields, ok := imapSearchSaveReturnOption(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD SORT return options are unsupported\r\n")
+			return true, false, err
+		}
+		if len(sortFields) < 3 {
 			_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
 			return true, false, err
 		}
-		_, searchFields, charsetOK, ok := imapSortCommandArguments(fields[3:])
+		_, searchFields, charsetOK, ok := imapSortCommandArguments(sortFields)
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
 			return true, false, err
@@ -1451,11 +1459,16 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			}
 		}
 	case "THREAD":
-		if len(fields) < 6 {
+		_, threadFields, ok := imapSearchSaveReturnOption(fields[3:])
+		if !ok {
+			_, err := writer.WriteString(tag + " BAD THREAD return options are unsupported\r\n")
+			return true, false, err
+		}
+		if len(threadFields) < 3 {
 			_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
 			return true, false, err
 		}
-		algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[3:])
+		algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(threadFields)
 		if !ok {
 			_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
 			return true, false, err
@@ -1635,11 +1648,16 @@ func (s *Server) handleSearch(writer *bufio.Writer, tag string, fields []string,
 }
 
 func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
-	if len(fields) < 5 {
+	save, sortFields, ok := imapSearchSaveReturnOption(fields[2:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD SORT return options are unsupported\r\n")
+		return false, err
+	}
+	if len(sortFields) < 3 {
 		_, err := writer.WriteString(tag + " BAD SORT requires sort criteria, charset, and search criteria\r\n")
 		return false, err
 	}
-	sortCriteria, searchFields, charsetOK, ok := imapSortCommandArguments(fields[2:])
+	sortCriteria, searchFields, charsetOK, ok := imapSortCommandArguments(sortFields)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD SORT arguments are unsupported\r\n")
 		return false, err
@@ -1651,10 +1669,16 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		}
 	}
 	if !charsetOK {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] SORT charset is unsupported\r\n")
 		return false, err
 	}
 	if state.session == nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
@@ -1663,6 +1687,9 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		return false, err
 	}
 	if state.selectedMailbox == "" {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
@@ -1672,6 +1699,9 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		Limit:     int(state.selectedMessages),
 	})
 	if err != nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO SORT failed\r\n")
 		return false, writeErr
 	}
@@ -1684,6 +1714,9 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 	}
 	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
 	if err != nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO SORT failed\r\n")
 		return false, writeErr
 	}
@@ -1692,6 +1725,9 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 		return false, err
 	}
 	imapSortMatches(results, sortCriteria)
+	if save {
+		state.savedSearch = imapSavedSearchMatches(results)
+	}
 	if _, err := writer.WriteString("* SORT" + imapSearchResultSuffix(imapSearchResultValues(results), 0, false) + "\r\n"); err != nil {
 		return false, err
 	}
@@ -1704,11 +1740,16 @@ func (s *Server) handleSort(writer *bufio.Writer, tag string, fields []string, s
 }
 
 func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string, state *imapConnState, uidMode bool) (bool, error) {
-	if len(fields) < 5 {
+	save, threadFields, ok := imapSearchSaveReturnOption(fields[2:])
+	if !ok {
+		_, err := writer.WriteString(tag + " BAD THREAD return options are unsupported\r\n")
+		return false, err
+	}
+	if len(threadFields) < 3 {
 		_, err := writer.WriteString(tag + " BAD THREAD requires algorithm, charset, and search criteria\r\n")
 		return false, err
 	}
-	algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(fields[2:])
+	algorithm, searchFields, charsetOK, ok := imapThreadCommandArguments(threadFields)
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD THREAD arguments are unsupported\r\n")
 		return false, err
@@ -1724,10 +1765,16 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	if !charsetOK {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO [BADCHARSET (US-ASCII UTF-8)] THREAD charset is unsupported\r\n")
 		return false, err
 	}
 	if state.session == nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO authentication required\r\n")
 		return false, err
 	}
@@ -1736,6 +1783,9 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		return false, err
 	}
 	if state.selectedMailbox == "" {
+		if save {
+			state.savedSearch = nil
+		}
 		_, err := writer.WriteString(tag + " NO mailbox must be selected\r\n")
 		return false, err
 	}
@@ -1745,6 +1795,9 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 		Limit:     int(state.selectedMessages),
 	})
 	if err != nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO THREAD failed\r\n")
 		return false, writeErr
 	}
@@ -1757,12 +1810,18 @@ func (s *Server) handleThread(writer *bufio.Writer, tag string, fields []string,
 	}
 	results, _, ok, err := s.imapSearchResults(context.Background(), state, searchFields, messages, uidMode, false)
 	if err != nil {
+		if save {
+			state.savedSearch = nil
+		}
 		_, writeErr := writer.WriteString(tag + " NO THREAD failed\r\n")
 		return false, writeErr
 	}
 	if !ok {
 		_, err := writer.WriteString(tag + " BAD THREAD search criteria are unsupported\r\n")
 		return false, err
+	}
+	if save {
+		state.savedSearch = imapSavedSearchMatches(results)
 	}
 	if _, err := writer.WriteString(imapOrderedSubjectThreadResponse(results) + "\r\n"); err != nil {
 		return false, err
@@ -1816,6 +1875,24 @@ func imapSearchReturnOptions(fields []string) (imapSearchReturnSpec, []string, b
 	}
 	_, save := seen["SAVE"]
 	return imapSearchReturnSpec{extended: true, save: save, options: options}, rest, true
+}
+
+func imapSearchSaveReturnOption(fields []string) (bool, []string, bool) {
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "RETURN") {
+		return false, fields, true
+	}
+	if len(fields) < 2 {
+		return false, nil, false
+	}
+	optionFields, rest, ok := imapConsumeParenthesizedFields(fields[1:])
+	if !ok {
+		return false, nil, false
+	}
+	tokens := imapFetchNormalizedTokens(optionFields)
+	if len(tokens) != 1 || !strings.EqualFold(tokens[0], "SAVE") {
+		return false, nil, false
+	}
+	return true, rest, true
 }
 
 func imapSearchFieldsContainCriteria(fields []string) bool {
