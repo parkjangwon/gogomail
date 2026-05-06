@@ -422,6 +422,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /directory/group-memberships":                           "#/components/responses/DirectoryGroupMembershipList",
 		"POST /directory/group-memberships":                          "#/components/responses/DirectoryGroupMembership",
 		"DELETE /directory/group-memberships/{id}":                   "#/components/responses/DirectoryGroupMembership",
+		"PATCH /directory/group-memberships/{id}/role":               "#/components/responses/DirectoryGroupMembership",
 		"GET /backpressure":                                          "#/components/responses/Backpressure",
 		"PATCH /backpressure":                                        "#/components/responses/Backpressure",
 		"GET /quota-usage":                                           "#/components/responses/QuotaUsageList",
@@ -899,12 +900,13 @@ func TestOpenAPIDraftDocumentsQuotaUpdateInputs(t *testing.T) {
 	draft := string(raw)
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, requestBodyRef := range map[string]string{
-		"PATCH /companies/{id}/quota":       "#/components/requestBodies/CompanyQuotaUpdate",
-		"PATCH /domains/{id}/quota":         "#/components/requestBodies/DomainQuotaUpdate",
-		"PATCH /users/{id}/quota":           "#/components/requestBodies/UserQuotaUpdate",
-		"POST /directory/aliases":           "#/components/requestBodies/DirectoryAliasCreate",
-		"POST /directory/delegations":       "#/components/requestBodies/DirectoryDelegationCreate",
-		"POST /directory/group-memberships": "#/components/requestBodies/DirectoryGroupMembershipCreate",
+		"PATCH /companies/{id}/quota":                  "#/components/requestBodies/CompanyQuotaUpdate",
+		"PATCH /domains/{id}/quota":                    "#/components/requestBodies/DomainQuotaUpdate",
+		"PATCH /users/{id}/quota":                      "#/components/requestBodies/UserQuotaUpdate",
+		"POST /directory/aliases":                      "#/components/requestBodies/DirectoryAliasCreate",
+		"POST /directory/delegations":                  "#/components/requestBodies/DirectoryDelegationCreate",
+		"POST /directory/group-memberships":            "#/components/requestBodies/DirectoryGroupMembershipCreate",
+		"PATCH /directory/group-memberships/{id}/role": "#/components/requestBodies/DirectoryGroupMembershipRoleUpdate",
 	} {
 		block, ok := operations[route]
 		if !ok {

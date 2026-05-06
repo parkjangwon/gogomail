@@ -460,6 +460,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Audited group membership deletion is available through
   `DELETE /admin/v1/directory/group-memberships/{id}`, committing
   `directory_group_membership.delete` with the soft delete.
+  Audited group membership role updates are available through
+  `PATCH /admin/v1/directory/group-memberships/{id}/role`, committing
+  `directory_group_membership.role_update` with the role change.
   Directory principal search is now also available to operators through
   `GET /admin/v1/directory/principals`, with OpenAPI and backend contract
   coverage for bounded company, domain, organization, kind, query, active-only,

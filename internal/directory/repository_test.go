@@ -611,6 +611,41 @@ func TestNormalizeListGroupMembershipsRequestRejectsUnsafeInput(t *testing.T) {
 	}
 }
 
+func TestNormalizeUpdateGroupMembershipRoleRequest(t *testing.T) {
+	t.Parallel()
+
+	got, err := NormalizeUpdateGroupMembershipRoleRequest(UpdateGroupMembershipRoleRequest{
+		ID:   " membership-1 ",
+		Role: " OWNER ",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeUpdateGroupMembershipRoleRequest returned error: %v", err)
+	}
+	if got.ID != "membership-1" || got.Role != GroupMembershipRoleOwner {
+		t.Fatalf("request = %+v", got)
+	}
+}
+
+func TestNormalizeUpdateGroupMembershipRoleRequestRejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+
+	tests := []UpdateGroupMembershipRoleRequest{
+		{},
+		{ID: "membership\n1", Role: GroupMembershipRoleOwner},
+		{ID: "membership-1", Role: "admin"},
+	}
+	for _, req := range tests {
+		req := req
+		t.Run(req.ID+"/"+req.Role, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NormalizeUpdateGroupMembershipRoleRequest(req); err == nil {
+				t.Fatalf("NormalizeUpdateGroupMembershipRoleRequest(%+v) error = nil, want rejection", req)
+			}
+		})
+	}
+}
+
 func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
 	t.Parallel()
 
@@ -628,6 +663,28 @@ func TestDirectoryGroupMembershipCreateAuditDetail(t *testing.T) {
 	}
 	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
 		!strings.Contains(string(detail), `"role":"manager"`) {
+		t.Fatalf("audit detail = %s", detail)
+	}
+}
+
+func TestDirectoryGroupMembershipRoleUpdateAuditDetail(t *testing.T) {
+	t.Parallel()
+
+	detail, err := directoryGroupMembershipRoleUpdateAuditDetail(GroupMembership{
+		ID:         "membership-1",
+		GroupID:    "group-1",
+		CompanyID:  "company-1",
+		MemberKind: PrincipalKindUser,
+		MemberID:   "user-1",
+		Role:       GroupMembershipRoleOwner,
+		Status:     "active",
+	}, GroupMembershipRoleMember)
+	if err != nil {
+		t.Fatalf("directoryGroupMembershipRoleUpdateAuditDetail returned error: %v", err)
+	}
+	if !strings.Contains(string(detail), `"membership_id":"membership-1"`) ||
+		!strings.Contains(string(detail), `"previous_role":"member"`) ||
+		!strings.Contains(string(detail), `"role":"owner"`) {
 		t.Fatalf("audit detail = %s", detail)
 	}
 }
@@ -923,6 +980,18 @@ func TestRepositoryListGroupMembershipsRequiresDatabase(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ListGroupMemberships error = nil, want database handle error")
+	}
+}
+
+func TestRepositoryUpdateGroupMembershipRoleRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).UpdateGroupMembershipRoleWithAudit(context.Background(), UpdateGroupMembershipRoleRequest{
+		ID:   "membership-1",
+		Role: GroupMembershipRoleOwner,
+	})
+	if err == nil {
+		t.Fatal("UpdateGroupMembershipRoleWithAudit error = nil, want database handle error")
 	}
 }
 

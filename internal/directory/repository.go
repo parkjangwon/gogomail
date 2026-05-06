@@ -822,6 +822,112 @@ func directoryGroupMembershipCreateAuditDetail(membership GroupMembership) (json
 	return detail, nil
 }
 
+func (r *Repository) UpdateGroupMembershipRoleWithAudit(ctx context.Context, req UpdateGroupMembershipRoleRequest) (GroupMembership, error) {
+	if r == nil || r.db == nil {
+		return GroupMembership{}, fmt.Errorf("database handle is required")
+	}
+	req, err := NormalizeUpdateGroupMembershipRoleRequest(req)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GroupMembership{}, fmt.Errorf("begin update directory group membership role transaction: %w", err)
+	}
+	defer tx.Rollback()
+	membership, previousRole, err := r.updateGroupMembershipRoleTx(ctx, tx, req)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	detail, err := directoryGroupMembershipRoleUpdateAuditDetail(membership, previousRole)
+	if err != nil {
+		return GroupMembership{}, err
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  membership.CompanyID,
+		Category:   "admin",
+		Action:     "directory_group_membership.role_update",
+		TargetType: "directory_group_membership",
+		TargetID:   membership.ID,
+		Result:     "updated",
+		Detail:     detail,
+	}); err != nil {
+		return GroupMembership{}, fmt.Errorf("record directory group membership role update audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return GroupMembership{}, fmt.Errorf("commit update directory group membership role transaction: %w", err)
+	}
+	return membership, nil
+}
+
+func (r *Repository) updateGroupMembershipRoleTx(ctx context.Context, tx *sql.Tx, req UpdateGroupMembershipRoleRequest) (GroupMembership, string, error) {
+	const query = `
+WITH current_membership AS (
+  SELECT m.id,
+         m.role AS previous_role
+  FROM directory_group_memberships m
+  JOIN directory_groups g ON g.id = m.group_id
+  JOIN domains d ON d.id = g.domain_id AND d.company_id = g.company_id
+  JOIN companies c ON c.id = g.company_id
+  WHERE m.id = $1::uuid
+    AND m.status = 'active'
+    AND g.status = 'active'
+    AND d.status = 'active'
+    AND c.status = 'active'
+  FOR UPDATE OF m
+)
+UPDATE directory_group_memberships AS m
+SET role = $2,
+    updated_at = now()
+FROM current_membership AS current,
+     directory_groups AS g
+WHERE m.id = current.id
+  AND g.id = m.group_id
+RETURNING m.id::text,
+          m.group_id::text,
+          g.company_id::text,
+          m.member_kind,
+          m.member_id::text,
+          m.role,
+          m.status,
+          current.previous_role`
+	var membership GroupMembership
+	var previousRole string
+	if err := tx.QueryRowContext(ctx, query, req.ID, req.Role).Scan(
+		&membership.ID,
+		&membership.GroupID,
+		&membership.CompanyID,
+		&membership.MemberKind,
+		&membership.MemberID,
+		&membership.Role,
+		&membership.Status,
+		&previousRole,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GroupMembership{}, "", fmt.Errorf("directory group membership not found")
+		}
+		return GroupMembership{}, "", fmt.Errorf("update directory group membership role: %w", err)
+	}
+	return membership, previousRole, nil
+}
+
+func directoryGroupMembershipRoleUpdateAuditDetail(membership GroupMembership, previousRole string) (json.RawMessage, error) {
+	detail, err := json.Marshal(map[string]any{
+		"membership_id": membership.ID,
+		"group_id":      membership.GroupID,
+		"company_id":    membership.CompanyID,
+		"member_kind":   membership.MemberKind,
+		"member_id":     membership.MemberID,
+		"previous_role": previousRole,
+		"role":          membership.Role,
+		"status":        membership.Status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory group membership role update audit detail: %w", err)
+	}
+	return detail, nil
+}
+
 func (r *Repository) DeleteGroupMembershipWithAudit(ctx context.Context, id string) (GroupMembership, error) {
 	if r == nil || r.db == nil {
 		return GroupMembership{}, fmt.Errorf("database handle is required")

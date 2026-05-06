@@ -2733,6 +2733,11 @@ Implementation order:
         `directory_group_memberships` envelope with bounded company, group,
         member, role, active-only, and limit filters so operators can inspect
         group-backed access without product modules querying Directory tables.
+1175b6. Directory/Identity now exposes audited group membership role updates
+        through `UpdateGroupMembershipRoleWithAudit` and
+        `PATCH /admin/v1/directory/group-memberships/{id}/role`, changing
+        active membership roles in-place and committing
+        `directory_group_membership.role_update` with the role change.
 1175c. The admin backend API now exposes Directory principal search at
        `GET /admin/v1/directory/principals`, returning a
        `directory_principals` envelope over the existing bounded

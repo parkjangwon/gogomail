@@ -92,6 +92,10 @@ booking policy, and scheduling semantics are implemented explicitly.
   use `ListGroupMemberships` or
   `GET /admin/v1/directory/group-memberships` instead of product modules
   reading `directory_group_memberships` directly.
+- Group membership role updates are Directory-owned and transaction-audited.
+  Admin role changes must use `UpdateGroupMembershipRoleWithAudit` or
+  `PATCH /admin/v1/directory/group-memberships/{id}/role` so promotion and
+  demotion are visible as first-class relationship events.
 - Delegated access now has an initial company-scoped relationship table and
   repository check boundary. Delegations are keyed by owner principal, delegate
   principal, product scope, and hierarchical role so CalDAV, CardDAV, Drive,

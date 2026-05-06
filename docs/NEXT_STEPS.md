@@ -1798,9 +1798,13 @@ Next:
 - Audited group membership deletion now exists as
   `DELETE /admin/v1/directory/group-memberships/{id}`, backed by
   `DeleteGroupMembershipWithAudit`, so group-backed delegation can be revoked
-  with a transaction-coupled `directory_group_membership.delete` audit row. Next
-  group-membership work should add update/reassign flows before product
-  modules depend on group membership as public authorization UX.
+  with a transaction-coupled `directory_group_membership.delete` audit row.
+- Audited group membership role updates now exist as
+  `PATCH /admin/v1/directory/group-memberships/{id}/role`, backed by
+  `UpdateGroupMembershipRoleWithAudit`, so operators can promote or demote
+  group-backed access without delete/recreate churn. Next group-membership work
+  should add reassign flows before product modules depend on group membership
+  as public authorization UX.
 - Directory principal search is also exposed through
   `GET /admin/v1/directory/principals`. Future attendee/resource lookup,
   Contacts/CardDAV autocomplete, Drive sharing, shared inbox targeting, and
