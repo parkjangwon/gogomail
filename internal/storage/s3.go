@@ -564,11 +564,27 @@ func parseS3ContentLength(value string) (int64, error) {
 	if value == "" {
 		return -1, fmt.Errorf("stat s3 object: content length is required")
 	}
-	size, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || size < 0 {
+	size, ok := parseS3NonNegativeDecimal(value)
+	if !ok {
 		return -1, fmt.Errorf("stat s3 object: invalid content length")
 	}
 	return size, nil
+}
+
+func parseS3NonNegativeDecimal(value string) (int64, bool) {
+	if value == "" {
+		return 0, false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+	}
+	size, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return size, true
 }
 
 func cleanS3MetadataValue(value string, maxBytes int) string {
@@ -657,8 +673,8 @@ func validateS3FullRangeCompatibilityResponse(resp *http.Response, req RangeRequ
 
 func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 	if value := strings.TrimSpace(resp.Header.Get("Content-Length")); value != "" {
-		size, err := strconv.ParseInt(value, 10, 64)
-		if err != nil || size < 0 {
+		size, ok := parseS3NonNegativeDecimal(value)
+		if !ok {
 			return -1, fmt.Errorf("get range s3 object: invalid content length")
 		}
 		return size, nil
@@ -674,8 +690,8 @@ func validateS3RangeContentLength(resp *http.Response, req RangeRequest) error {
 	if value == "" {
 		return nil
 	}
-	size, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || size < 0 {
+	size, ok := parseS3NonNegativeDecimal(value)
+	if !ok {
 		return fmt.Errorf("get range s3 object: invalid content length")
 	}
 	if size != req.Length {

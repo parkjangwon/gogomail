@@ -132,6 +132,9 @@ Current state:
 - S3-compatible `200 OK` range compatibility responses with a matching
   `Content-Range` now also validate any present `Content-Length` against the
   requested window, matching the stricter `206 Partial Content` path.
+- S3-compatible `Content-Length` parsing requires unsigned decimal digits for
+  `HEAD` metadata and range-response validation, rejecting signed values such
+  as `+5` instead of normalizing them as valid sizes.
 - Shared storage object paths and prefixes now reject encoded separators such
   as `%2F` and `%5C` before local/NFS or S3-compatible adapter use, preserving
   one portable logical key boundary across local filesystems, MinIO, AWS S3,
