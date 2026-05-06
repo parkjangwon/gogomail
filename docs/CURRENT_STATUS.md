@@ -119,7 +119,10 @@ provider metadata before bounded range reads.
 S3-compatible `200 OK` range compatibility responses that include a matching
 `Content-Range` now also validate any present `Content-Length` against the
 requested window, keeping the compatibility path as strict as ordinary
-`206 Partial Content` responses.
+`206 Partial Content` responses. Duplicate `Content-Range` headers now fail
+closed for both `206 Partial Content` and safe `200 OK` range-compatibility
+responses, preventing object byte-window identity from depending on HTTP
+header collapse.
 S3-compatible `Content-Length` parsing now requires exact unsigned decimal
 digits at the storage boundary, rejecting signed or whitespace-padded values
 such as `+5` or ` 5` for `HEAD` metadata and range-response length validation

@@ -23,7 +23,8 @@ S3-compatible range reads require `206 Partial Content` with a matching
 that can be proven to represent the requested full window: matching
 `Content-Range`, or offset-zero `Content-Length` exactly equal to the requested
 length. Ambiguous `200 OK` range responses are rejected and drained before any
-caller sees bytes.
+caller sees bytes. Duplicate `Content-Range` headers also fail closed on both
+`206 Partial Content` and `200 OK` range-compatibility responses.
 `Copy` preserves object keys and adapter semantics while avoiding caller-side
 read/write loops when the backend can copy server-side. `Move` gives callers
 one backend-neutral object relocation contract: local/NFS uses filesystem

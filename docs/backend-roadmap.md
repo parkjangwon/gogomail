@@ -4046,6 +4046,9 @@ Implementation order:
       `ETag` and `Content-Type` headers instead of silently dropping them,
       keeping object identity and MIME metadata fail-closed at the storage
       adapter boundary.
+1447. S3-compatible range `GET` now rejects duplicate `Content-Range` headers
+      for both `206 Partial Content` and safe `200 OK` compatibility paths, so
+      byte-window identity is never selected by HTTP header collapse.
 
 ## Deferred until backend contracts stabilize
 

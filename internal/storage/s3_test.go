@@ -1943,6 +1943,38 @@ func TestS3StoreGetRangeRequiresMatchingContentRange(t *testing.T) {
 	}
 }
 
+func TestS3StoreGetRangeRejectsDuplicateContentRange(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: strings.NewReader("ell")}
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header: http.Header{
+					"Content-Range": []string{"bytes 1-3/5", "bytes 0-2/5"},
+				},
+				Body: body,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	if _, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 1, Length: 3}); err == nil || !strings.Contains(err.Error(), "duplicate content-range") {
+		t.Fatalf("GetRange err = %v, want duplicate content-range rejection", err)
+	}
+	if !body.closed {
+		t.Fatal("duplicate content-range response body was not closed")
+	}
+}
+
 func TestS3StoreGetRangeRejectsWhitespaceInsideContentRange(t *testing.T) {
 	t.Parallel()
 
@@ -2175,6 +2207,12 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 			req:    RangeRequest{Offset: 1, Length: 3},
 			header: http.Header{"Content-Range": []string{"bytes 0-2/5"}},
 			want:   "content-range mismatch",
+		},
+		{
+			name:   "duplicate content range",
+			req:    RangeRequest{Offset: 1, Length: 3},
+			header: http.Header{"Content-Range": []string{"bytes 1-3/5", "bytes 0-2/5"}},
+			want:   "duplicate content-range",
 		},
 	}
 	for _, tc := range tests {
