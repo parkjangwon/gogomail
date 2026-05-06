@@ -2189,6 +2189,11 @@ The platform hardening sprint completed the following:
 - IMAP `ENABLE` now has regression coverage for RFC 5161-compatible unknown
   capability handling: well-formed unsupported capability names are ignored and
   return an empty `ENABLED` response instead of being treated as syntax errors.
+- Storage portability now has a reusable backend-neutral contract test covering
+  object keys with literal `+`, `@`, spaces, and `=` plus `Put`, `Get`,
+  `GetRange`, `Stat`, `List`, `Copy`, `Move`, idempotent `Delete`, and bounded
+  `DeletePrefix`; the local backend always runs it and the S3 integration test
+  reuses it when `GOGOMAIL_TEST_S3_*` variables are present.
 - Backend release verification now fails when standard tests leave pending
   repository changes behind, while local OpenChrome session artifacts are
   ignored as developer-machine state.

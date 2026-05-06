@@ -1320,4 +1320,7 @@ func TestS3StoreIntegrationRoundTrip(t *testing.T) {
 	if string(copiedBody) != body {
 		t.Fatalf("copied body = %q, want %q", copiedBody, body)
 	}
+
+	contractPrefix := "integration/contract-" + strings.ReplaceAll(t.Name(), "/", "-") + "-" + time.Now().UTC().Format("20060102150405.000000000")
+	assertStorePortabilityContract(t, store, contractPrefix)
 }

@@ -34,6 +34,31 @@ page-level cleanup helper for future Drive folder deletion, attachment
 lifecycle, and reconciliation jobs without requiring callers to know whether
 the backend is local/NFS or S3-compatible storage.
 
+## Backend migration smoke matrix
+
+Before changing a deployment from local/NFS storage to MinIO/AWS S3, or between
+S3-compatible providers, operators should run the same backend-neutral object
+contract against the target backend:
+
+- `Put` stores a canonical slash-separated key with mail-like and Drive-like
+  segments, including literal `+`, `@`, spaces, and `=` characters.
+- `Get` and `GetRange` return the exact original bytes without caller-side
+  buffering or prefix streaming.
+- `Stat` reports the canonical object key and byte size without reading the
+  object body.
+- `List` returns only keys under the requested canonical prefix and hides any
+  deployment-specific S3 bucket prefix from callers.
+- `Copy` preserves bytes at a new key; `Move` relocates through the backend's
+  documented semantics while removing the old key.
+- `Delete` is idempotent for already-missing objects.
+- `storage.DeletePrefix` removes a bounded page of remaining objects under the
+  prefix without touching sibling prefixes.
+
+`TestLocalStorePortabilityContract` always runs this contract for local/NFS
+semantics. `TestS3StoreIntegrationRoundTrip` reuses the same contract when
+`GOGOMAIL_TEST_S3_*` variables are set, giving MinIO and AWS S3 deployments a
+single smoke test before a storage backend flip.
+
 ## Local filesystem or NFS
 
 Local storage is the default and can point at a normal disk path or an
