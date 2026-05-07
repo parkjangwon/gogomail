@@ -22,6 +22,10 @@ Before changing code, read:
 
 Current state:
 
+- Draft search (`GET /api/v1/drafts/search`) now supports `to`, `cc`, and `bcc`
+  filter parameters, with normalization, CR/LF injection guards, length limits,
+  unknown-key rejection, SQL filtering against `to_addrs`/`cc_addrs`/`bcc_addrs`,
+  and OpenAPI spec coverage aligned.
 - API metering `recordFailOpen` now logs recovered panics with route and method
   context, improving visibility when the metering sink is under backpressure or
   fails.

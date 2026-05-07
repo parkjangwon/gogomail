@@ -1793,7 +1793,7 @@ func TestSearchDraftsHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/search?user_id=user-1&q=%20hello%20&from=%20sender%20&subject=%20draft%20&has_attachment=false&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drafts/search?user_id=user-1&q=%20hello%20&from=%20sender%20&to=%20alice%20&cc=%20bob%20&bcc=%20carol%20&subject=%20draft%20&has_attachment=false&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1816,6 +1816,9 @@ func TestSearchDraftsHandler(t *testing.T) {
 	}
 	if service.lastDraftSearch.UserID != "user-1" || service.lastDraftSearch.Query != "hello" || service.lastDraftSearch.From != "sender" || service.lastDraftSearch.Subject != "draft" {
 		t.Fatalf("lastDraftSearch = %+v", service.lastDraftSearch)
+	}
+	if service.lastDraftSearch.To != "alice" || service.lastDraftSearch.Cc != "bob" || service.lastDraftSearch.Bcc != "carol" {
+		t.Fatalf("lastDraftSearch to/cc/bcc = %q/%q/%q", service.lastDraftSearch.To, service.lastDraftSearch.Cc, service.lastDraftSearch.Bcc)
 	}
 	if service.lastDraftSearch.HasAttachment == nil || *service.lastDraftSearch.HasAttachment {
 		t.Fatalf("HasAttachment = %+v", service.lastDraftSearch.HasAttachment)
@@ -1877,6 +1880,9 @@ func TestSearchDraftsHandlerRejectsUnsafeFilters(t *testing.T) {
 	tests := []string{
 		"/api/v1/drafts/search?user_id=user-1&q=hello%0Abad",
 		"/api/v1/drafts/search?user_id=user-1&from=" + strings.Repeat("s", maxHTTPQueryBytes+1),
+		"/api/v1/drafts/search?user_id=user-1&to=alice%0Dbad",
+		"/api/v1/drafts/search?user_id=user-1&cc=bob%0Abad",
+		"/api/v1/drafts/search?user_id=user-1&bcc=" + strings.Repeat("s", maxHTTPQueryBytes+1),
 		"/api/v1/drafts/search?user_id=user-1&subject=receipt%0Dbad",
 		"/api/v1/drafts/search?user_id=user-1&has_attachment=maybe",
 	}

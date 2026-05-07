@@ -414,6 +414,9 @@ func normalizeDraftSearchQuery(query maildb.DraftSearchQuery) maildb.DraftSearch
 	query.UserID = strings.TrimSpace(query.UserID)
 	query.Query = strings.TrimSpace(query.Query)
 	query.From = strings.TrimSpace(query.From)
+	query.To = strings.TrimSpace(query.To)
+	query.Cc = strings.TrimSpace(query.Cc)
+	query.Bcc = strings.TrimSpace(query.Bcc)
 	query.Subject = strings.TrimSpace(query.Subject)
 	query.Limit = maildb.NormalizeMessageListLimit(query.Limit)
 	return query
@@ -426,6 +429,9 @@ func validateDraftSearchQuery(query maildb.DraftSearchQuery) error {
 	for field, value := range map[string]string{
 		"q":       query.Query,
 		"from":    query.From,
+		"to":      query.To,
+		"cc":      query.Cc,
+		"bcc":     query.Bcc,
 		"subject": query.Subject,
 	} {
 		if strings.ContainsAny(value, "\r\n") {

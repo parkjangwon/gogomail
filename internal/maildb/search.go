@@ -29,6 +29,9 @@ type DraftSearchQuery struct {
 	UserID        string
 	Query         string
 	From          string
+	To            string
+	Cc            string
+	Bcc           string
 	Subject       string
 	HasAttachment *bool
 	Limit         int
@@ -154,6 +157,9 @@ func (r *Repository) SearchDrafts(ctx context.Context, query DraftSearchQuery) (
 		userID,
 		strings.TrimSpace(query.Query),
 		strings.TrimSpace(query.From),
+		strings.TrimSpace(query.To),
+		strings.TrimSpace(query.Cc),
+		strings.TrimSpace(query.Bcc),
 		strings.TrimSpace(query.Subject),
 		hasAttachment,
 		query.Cursor.At,
@@ -309,15 +315,24 @@ WHERE user_id = $1
     from_addr ILIKE '%' || $3 || '%'
     OR from_name ILIKE '%' || $3 || '%'
   ))
-  AND ($4 = '' OR subject ILIKE '%' || $4 || '%')
-  AND ($5 = '' OR has_attachment = $5::boolean)
+  AND ($4 = '' OR (
+    to_addrs::text ILIKE '%' || $4 || '%'
+  ))
+  AND ($5 = '' OR (
+    cc_addrs::text ILIKE '%' || $5 || '%'
+  ))
+  AND ($6 = '' OR (
+    bcc_addrs::text ILIKE '%' || $6 || '%'
+  ))
+  AND ($7 = '' OR subject ILIKE '%' || $7 || '%')
+  AND ($8 = '' OR has_attachment = $8::boolean)
   AND (
-    $7 = ''
+    $10 = ''
     OR (COALESCE(draft_updated_at, updated_at, created_at), id)
-       < ($6::timestamptz, $7::uuid)
+       < ($9::timestamptz, $10::uuid)
   )
 ORDER BY draft_at DESC, id DESC
-LIMIT $8`
+LIMIT $11`
 }
 
 func searchHighlightsFromSQL(subject sql.NullString, from sql.NullString, body sql.NullString) *MessageSearchHighlights {
