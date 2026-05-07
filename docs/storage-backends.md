@@ -454,8 +454,9 @@ turn structured provider data into apparently valid object metadata. Provider
 responses that return more matching objects than requested are rejected,
 keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded
-separators are ignored before exposure to callers, preserving the same
-portable key-shape rule used for request paths. `ListObjectsV2` query
+separators or leading/trailing whitespace fail closed once they map inside the
+configured storage prefix, preserving the same portable key-shape rule used for
+request paths. `ListObjectsV2` query
 parameters are encoded with SigV4 canonical URI rules instead of form-style
 query escaping, so prefixes and continuation tokens containing spaces, literal
 `+`, `/`, `=`, or `@` characters sign and round-trip consistently across AWS

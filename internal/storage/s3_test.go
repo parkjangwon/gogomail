@@ -2088,6 +2088,48 @@ func TestS3StoreListRejectsMissingObjectKey(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsWhitespaceObjectKeyIdentity(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{
+		"mail/messages/msg-1.eml ",
+		" mail/messages/msg-1.eml",
+		"mail/messages/msg-1.eml\t",
+	} {
+		key := key
+		t.Run(strconv.Quote(key), func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Contents><Key>` + key + `</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "invalid object key") {
+				t.Fatalf("List err = %v, want invalid object key rejection", err)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsWhitespacePaddedContinuationToken(t *testing.T) {
 	t.Parallel()
 
@@ -2158,7 +2200,7 @@ func TestS3StoreListIgnoresContinuationTokenOnFinalPage(t *testing.T) {
 	}
 }
 
-func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
+func TestS3StoreListRejectsNonCanonicalReturnedKeys(t *testing.T) {
 	t.Parallel()
 
 	store, err := NewS3Store(S3Options{
@@ -2186,12 +2228,9 @@ func TestS3StoreListDoesNotTrimReturnedKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewS3Store returned error: %v", err)
 	}
-	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err != nil {
-		t.Fatalf("List returned error: %v", err)
-	}
-	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-3.eml" {
-		t.Fatalf("list objects = %+v, want only exact canonical key", page.Objects)
+	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err == nil || !strings.Contains(err.Error(), "invalid object key") {
+		t.Fatalf("List err = %v, want invalid object key rejection", err)
 	}
 }
 

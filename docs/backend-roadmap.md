@@ -4194,6 +4194,10 @@ Implementation order:
 1486. S3-compatible ListObjectsV2 simple standard metadata now rejects nested
       XML inside Prefix and StorageClass-style fields before unmarshalling,
       while preserving structured AWS metadata such as Owner.
+1487. S3-compatible ListObjectsV2 mapped object keys now fail closed on
+      leading/trailing whitespace or encoded separators after matching the
+      configured storage prefix, instead of silently skipping corrupt provider
+      keys.
 
 ## Deferred until backend contracts stabilize
 
