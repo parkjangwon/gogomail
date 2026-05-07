@@ -629,7 +629,7 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 
 	msg, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{
 		UserID:    " user-1 ",
-		MailboxID: " inbox ",
+		MailboxID: "inbox",
 		UID:       12,
 	})
 	if err != nil {
@@ -649,6 +649,41 @@ func TestFetchIMAPMessageOpensRawStoredBody(t *testing.T) {
 	}
 	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
 		t.Fatalf("imap fetch ids = %q/%q", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID)
+	}
+}
+
+func TestFetchIMAPMessagePreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	raw := "Subject: spaced\r\n\r\nhello"
+	path := "messages/user-1/msg-1.eml"
+	if err := store.Put(context.Background(), path, strings.NewReader(raw)); err != nil {
+		t.Fatalf("Put returned error: %v", err)
+	}
+	repo := &fakeRepository{
+		imapMessage: maildb.IMAPStoredMessage{
+			Summary:     imapgw.MessageSummary{ID: "msg-1", MailboxID: " spaced-inbox ", UID: 12},
+			StoragePath: path,
+		},
+	}
+	service := New(repo, store)
+
+	msg, err := service.FetchIMAPMessage(context.Background(), imapgw.FetchMessageRequest{
+		UserID:    " user-1 ",
+		MailboxID: " INBOX ",
+		UID:       12,
+	})
+	if err != nil {
+		t.Fatalf("FetchIMAPMessage returned error: %v", err)
+	}
+	defer msg.Body.Close()
+
+	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != " INBOX " {
+		t.Fatalf("imap fetch ids = %q/%q, want user-1/spaced INBOX", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID)
+	}
+	if msg.Summary.MailboxID != " spaced-inbox " {
+		t.Fatalf("summary = %#v, want spaced mailbox id", msg.Summary)
 	}
 }
 
@@ -742,7 +777,7 @@ func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	got, err := service.ListIMAPMessages(context.Background(), imapgw.ListMessagesRequest{
 		UserID:    " user-1 ",
-		MailboxID: " inbox ",
+		MailboxID: "inbox",
 		Limit:     500,
 		AfterUID:  11,
 	})
@@ -754,6 +789,30 @@ func TestListIMAPMessagesDelegatesToRepository(t *testing.T) {
 	}
 	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" || repo.lastIMAPMessageLimit != maildb.MessageListMaxLimit {
 		t.Fatalf("imap list = %q/%q/%d", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID, repo.lastIMAPMessageLimit)
+	}
+}
+
+func TestListIMAPMessagesPreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMessages: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: " spaced-inbox ", UID: 12}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.ListIMAPMessages(context.Background(), imapgw.ListMessagesRequest{
+		UserID:    " user-1 ",
+		MailboxID: " INBOX ",
+		Limit:     50,
+	})
+	if err != nil {
+		t.Fatalf("ListIMAPMessages returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].MailboxID != " spaced-inbox " {
+		t.Fatalf("messages = %#v, want spaced mailbox result", got)
+	}
+	if repo.lastIMAPMessageUserID != "user-1" || repo.lastIMAPMessageMailboxID != " INBOX " {
+		t.Fatalf("imap list = %q/%q, want user-1/spaced INBOX", repo.lastIMAPMessageUserID, repo.lastIMAPMessageMailboxID)
 	}
 }
 

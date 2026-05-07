@@ -4458,6 +4458,10 @@ Implementation order:
       ID leading and trailing spaces after validation before append-target
       resolution, aligning literal storage and UID assignment with the same
       mailbox identity boundary used by `SELECT`/`EXAMINE`.
+1532. IMAP service-backed `FETCH` and message listing now preserve decoded
+      mailbox ID leading and trailing spaces after validation before
+      repository delegation, keeping read-side storage access aligned with the
+      exact selected-mailbox identity.
 
 ## Deferred until backend contracts stabilize
 

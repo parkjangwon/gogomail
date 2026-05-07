@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP APPEND mailbox lookup hardening)
+Last updated: 2026-05-07 (updated after IMAP read mailbox lookup hardening)
 
 ## Current phase
 
@@ -2989,6 +2989,10 @@ The platform hardening sprint completed the following:
   ID after validation before resolving the append target, so literal storage
   and UID assignment begin from the same mailbox identity semantics as
   `SELECT`/`EXAMINE`.
+- IMAP service-backed `FETCH` and message listing now preserve decoded mailbox
+  IDs after validation before repository delegation, keeping read-side storage
+  access aligned with exact selected-mailbox identity rather than a trimmed
+  service-local variant.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.
