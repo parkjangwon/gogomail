@@ -367,8 +367,8 @@ Current state:
   `HEADER.FIELDS` marker, keeping malformed section prefixes from riding the
   supported header-subset path.
 - IMAP command dispatch validates command and UID subcommand atoms before
-  routing so malformed atom-special-bearing command names do not fall through
-  as unknown commands.
+  routing so malformed atom-special-bearing or non-ASCII command names do not
+  fall through as unknown commands.
 - IMAP command parsing returns tagged `BAD` for malformed command lines when
   the command tag is still syntactically recoverable, while malformed or
   missing tags continue to receive untagged `BAD`.

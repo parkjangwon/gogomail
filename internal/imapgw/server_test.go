@@ -674,8 +674,11 @@ func TestServerRejectsMalformedCommandAtoms(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 CAPABILITY)\r\na2 LOGIN user@example.com secret\r\na3 SELECT inbox\r\n")); err != nil {
+	if _, err := client.Write([]byte("a0\x80 NOOP\r\na1 CAPABILITY)\r\na2 LOGIN user@example.com secret\r\na3 SELECT inbox\r\n")); err != nil {
 		t.Fatalf("write malformed command atom setup: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "* BAD malformed command\r\n" {
+		t.Fatalf("non-ascii tag response = %q err = %v", line, err)
 	}
 	if line, err := reader.ReadString('\n'); err != nil || line != "a1 BAD malformed command\r\n" {
 		t.Fatalf("malformed command response = %q err = %v", line, err)
@@ -688,13 +691,15 @@ func TestServerRejectsMalformedCommandAtoms(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a4 UID FETCH] 7 (FLAGS)\r\na5 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a4 UID FETCH] 7 (FLAGS)\r\na5 N\x80OOP\r\na6 UID F\x80ETCH 7 (FLAGS)\r\na7 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write malformed uid subcommand: %v", err)
 	}
 	want := []string{
 		"a4 BAD malformed command\r\n",
+		"a5 BAD malformed command\r\n",
+		"a6 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a5 OK LOGOUT completed\r\n",
+		"a7 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')

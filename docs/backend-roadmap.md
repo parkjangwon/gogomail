@@ -4313,6 +4313,10 @@ Implementation order:
       `Content-Type`: omitted remains compatible, while blank or malformed
       present values fail closed before timestamp, identity, or MIME metadata
       crosses the shared storage contract.
+1507. IMAP atom validation now rejects 8-bit non-ASCII bytes for command tags,
+      command names, and `UID` subcommand names, preserving RFC 3501's 7-bit
+      atom boundary before malformed input can route as an unknown command or
+      reach selected-state UID handling.
 
 ## Deferred until backend contracts stabilize
 
