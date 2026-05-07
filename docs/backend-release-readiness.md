@@ -242,8 +242,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   non-empty `<Delimiter>` and `<CommonPrefixes>` cannot be treated as ordinary
   object pages because gogomail does not request grouped listing.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
-  non-empty malformed or whitespace-padded timestamp values instead of
-  silently exposing zero timestamps to cleanup, Drive, or reconciliation
+  present-but-blank, malformed, or whitespace-padded timestamp values instead
+  of silently exposing zero timestamps to cleanup, Drive, or reconciliation
   callers.
 - S3-compatible `ListObjectsV2` object metadata now rejects duplicate
   per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before

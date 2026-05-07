@@ -462,9 +462,16 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if len(page.Objects) >= limit {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: response contains more objects than requested limit")
 		}
-		lastModified, ok := parseS3ListTime(item.LastModified)
-		if !ok {
-			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid last-modified")
+		lastModified := time.Time{}
+		if item.LastModified != nil {
+			if strings.TrimSpace(*item.LastModified) == "" {
+				return ObjectListPage{}, fmt.Errorf("list s3 objects: last-modified is empty")
+			}
+			var ok bool
+			lastModified, ok = parseS3ListTime(*item.LastModified)
+			if !ok {
+				return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid last-modified")
+			}
 		}
 		etag := ""
 		if item.ETag != "" {
@@ -1697,10 +1704,10 @@ type s3ListObjectsResult struct {
 }
 
 type s3ListObjectContent struct {
-	Key          string `xml:"Key"`
-	Size         string `xml:"Size"`
-	ETag         string `xml:"ETag"`
-	LastModified string `xml:"LastModified"`
+	Key          string  `xml:"Key"`
+	Size         string  `xml:"Size"`
+	ETag         string  `xml:"ETag"`
+	LastModified *string `xml:"LastModified"`
 }
 
 type s3CopyResponse struct {
