@@ -229,6 +229,8 @@ Current state:
   responses fail closed.
 - S3-compatible `ListObjectsV2` root `<EncodingType>` metadata is rejected
   when present because gogomail does not request encoded-key list mode.
+- S3-compatible `ListObjectsV2` root `<ContinuationToken>` metadata, when
+  present, must match the requested cursor exactly.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.
