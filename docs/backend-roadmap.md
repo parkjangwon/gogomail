@@ -4239,6 +4239,11 @@ Implementation order:
       lifecycle cleanup, and reconciliation callers from trusting impossible
       provider page shapes while preserving AWS-compatible default `MaxKeys`
       echoes.
+1497. S3-compatible `ListObjectsV2` root `Prefix` metadata is now validated
+      when providers return it: the echo must exactly match the signed provider
+      prefix requested by gogomail, including configured storage prefixes,
+      while omitted `Prefix` echoes remain compatible. Object-key prefix
+      filtering remains the authoritative safety boundary.
 
 ## Deferred until backend contracts stabilize
 

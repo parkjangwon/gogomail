@@ -217,6 +217,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` root `<MaxKeys>` metadata now rejects signed,
   whitespace-padded, or under-counting values before list pages reach Drive,
   lifecycle cleanup, or reconciliation callers.
+- S3-compatible `ListObjectsV2` root `<Prefix>` metadata, when present, must
+  match the requested provider prefix exactly, including configured storage
+  prefixes, while providers that omit the echo remain compatible.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation
