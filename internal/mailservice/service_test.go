@@ -1091,7 +1091,7 @@ func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
 
 	state, err := adapter.SelectMailbox(context.Background(), imapgw.SelectMailboxRequest{
 		UserID:    " user-1 ",
-		MailboxID: " inbox ",
+		MailboxID: "inbox",
 	})
 	if err != nil {
 		t.Fatalf("SelectMailbox returned error: %v", err)
@@ -1105,6 +1105,29 @@ func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
 	wantFlags := []string{imapgw.FlagSeen, imapgw.FlagFlagged, imapgw.FlagAnswered, imapgw.FlagForwarded, imapgw.FlagDraft, imapgw.FlagDeleted}
 	if strings.Join(state.PermanentFlags, ",") != strings.Join(wantFlags, ",") {
 		t.Fatalf("PermanentFlags = %#v, want %#v", state.PermanentFlags, wantFlags)
+	}
+}
+
+func TestIMAPStoreAdapterSelectPreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapMailboxes: []imapgw.Mailbox{{ID: " spaced-inbox ", Name: " INBOX ", UIDValidity: 42, UIDNext: 99}},
+	}
+	adapter := NewIMAPStoreAdapter(New(repo, nil))
+
+	state, err := adapter.SelectMailbox(context.Background(), imapgw.SelectMailboxRequest{
+		UserID:    " user-1 ",
+		MailboxID: " INBOX ",
+	})
+	if err != nil {
+		t.Fatalf("SelectMailbox returned error: %v", err)
+	}
+	if state.ID != " spaced-inbox " || state.Name != " INBOX " {
+		t.Fatalf("state = %#v, want spaced mailbox identity", state)
+	}
+	if repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != " INBOX " {
+		t.Fatalf("select ids = %q/%q, want user-1/spaced INBOX", repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
 	}
 }
 

@@ -4445,6 +4445,10 @@ Implementation order:
       leading and trailing spaces after validation, keeping IDLE/NOOP event
       fan-out keyed to the exact selected mailbox identity instead of a
       trimmed variant.
+1529. IMAP service-backed mailbox lookup for `SELECT`/`EXAMINE` now preserves
+      decoded mailbox ID leading and trailing spaces after validation before
+      repository delegation, preventing the protocol adapter from collapsing
+      legitimate mailbox-name characters at the service boundary.
 
 ## Deferred until backend contracts stabilize
 
