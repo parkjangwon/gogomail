@@ -126,6 +126,9 @@ func TestIMAPStoreFlagChangesRejectsDraftModel(t *testing.T) {
 	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{Draft: true}, imapgw.StoreFlagsAdd); err == nil {
 		t.Fatal("newIMAPStoreFlagChanges accepted Draft")
 	}
+	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{Keywords: []string{"$Project"}}, imapgw.StoreFlagsAdd); err == nil {
+		t.Fatal("newIMAPStoreFlagChanges accepted custom keywords")
+	}
 	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{}, imapgw.StoreFlagsMode("bad")); err == nil {
 		t.Fatal("newIMAPStoreFlagChanges accepted bad mode")
 	}

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP RECENT/NEW/OLD search hardening)
+Last updated: 2026-05-07 (updated after IMAP custom keyword boundary hardening)
 
 ## Current phase
 
@@ -2769,10 +2769,12 @@ The platform hardening sprint completed the following:
   `MessageSummary.Recent` boundary. `NEW` now means recent and unseen, while
   `OLD` means not recent, preserving RFC-shaped semantics for backends that can
   expose per-session recentness and keeping legacy zero-value summaries old.
-- IMAP `SEARCH`/`UID SEARCH` supports `KEYWORD` and `UNKEYWORD` criteria with
-  validated keyword atoms, and the webmail `forwarded` state is exposed as an
-  IMAP `$Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
-  permitted `STORE` mutations.
+- IMAP custom keyword flags are now modeled in the protocol core through
+  `MessageFlags.Keywords`. `SELECT`/`PERMANENTFLAGS` can advertise
+  backend-provided keyword atoms, `FETCH FLAGS` renders canonical duplicate-free
+  keywords, `SEARCH KEYWORD`/`UNKEYWORD` evaluates them, and `STORE` accepts
+  permitted custom keywords. The PostgreSQL `maildb` adapter still rejects
+  keyword persistence until durable user keyword storage is explicitly added.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded partial windows over

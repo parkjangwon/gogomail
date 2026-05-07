@@ -1735,11 +1735,12 @@ Current state:
   per-message recentness. `NEW` matches messages that are both recent and
   unseen, while `OLD` matches non-recent messages, keeping RFC-shaped search
   behavior available when a backend can expose recent state.
-- `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria with
-  validated keyword atoms. The existing webmail `forwarded` state now maps to
-  an IMAP `$Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and
-  permitted `STORE` mutations while unknown custom keywords still return no
-  matches until durable user keyword storage exists.
+- IMAP custom keyword flags are now supported at the protocol-core boundary:
+  backend-provided permanent keyword atoms can be advertised, `FETCH FLAGS`
+  renders canonical duplicate-free keywords, `SEARCH KEYWORD`/`UNKEYWORD`
+  evaluates them, and `STORE` accepts custom keywords only when the selected
+  mailbox advertises them. Durable PostgreSQL user-keyword persistence remains
+  a separate backend-storage task.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports bounded partial windows over

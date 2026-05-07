@@ -3397,12 +3397,13 @@ func imapSearchKeywordValid(value string) bool {
 }
 
 func imapMessageMatchesKeywordSearch(summary MessageSummary, keyword string) bool {
-	switch CanonicalIMAPFlag(keyword) {
-	case FlagForwarded:
-		return summary.Flags.Forwarded
-	default:
-		return false
+	keyword = CanonicalIMAPFlag(keyword)
+	for _, flag := range summary.Flags.IMAPFlags() {
+		if flag == keyword {
+			return true
+		}
 	}
+	return false
 }
 
 func imapSearchStringArgument(value string) (string, bool) {
@@ -7296,7 +7297,10 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 		case FlagDeleted:
 			flags.Deleted = true
 		default:
-			return MessageFlags{}, nil, false
+			if !IMAPKeywordFlagValid(name) {
+				return MessageFlags{}, nil, false
+			}
+			flags.Keywords = append(flags.Keywords, name)
 		}
 		if _, ok := seen[name]; ok {
 			return MessageFlags{}, nil, false
@@ -7336,10 +7340,20 @@ func imapCanonicalPermanentFlags(flags []string) []string {
 		return nil
 	}
 	present := make(map[string]struct{}, len(flags))
+	custom := make([]string, 0)
 	for _, raw := range flags {
 		switch name := CanonicalIMAPFlag(raw); name {
 		case FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted:
 			present[name] = struct{}{}
+		default:
+			if !IMAPKeywordFlagValid(name) {
+				continue
+			}
+			if _, ok := present[name]; ok {
+				continue
+			}
+			present[name] = struct{}{}
+			custom = append(custom, name)
 		}
 	}
 	if len(present) == 0 {
@@ -7352,6 +7366,7 @@ func imapCanonicalPermanentFlags(flags []string) []string {
 			canonical = append(canonical, name)
 		}
 	}
+	canonical = append(canonical, custom...)
 	return canonical
 }
 
@@ -7374,6 +7389,7 @@ func imapMessageFlagsEmpty(flags MessageFlags) bool {
 		!flags.Forwarded &&
 		!flags.Draft &&
 		!flags.Deleted &&
+		len(flags.Keywords) == 0 &&
 		strings.TrimSpace(flags.Status) == ""
 }
 

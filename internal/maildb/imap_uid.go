@@ -1947,7 +1947,7 @@ type imapStoreFlagChanges struct {
 }
 
 func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) (imapStoreFlagChanges, error) {
-	if flags.Draft || strings.TrimSpace(flags.Status) != "" {
+	if flags.Draft || len(flags.Keywords) > 0 || strings.TrimSpace(flags.Status) != "" {
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flag set")
 	}
 	var changes imapStoreFlagChanges

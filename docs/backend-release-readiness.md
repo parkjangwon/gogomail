@@ -2222,10 +2222,12 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `MessageSummary.Recent`: `RECENT` matches recent messages, `NEW` matches
   recent unseen messages, and `OLD` matches non-recent messages. Backends that
   do not expose recentness keep the zero-value old behavior.
-- IMAP `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria
-  with validated keyword atoms, returning no custom-keyword matches until
-  durable user keyword storage exists and treating active messages as
-  unkeyworded.
+- IMAP custom keyword flags are now supported at the protocol-core boundary.
+  Backend-provided permanent keyword atoms can be advertised, `FETCH FLAGS`
+  renders canonical duplicate-free keywords, `SEARCH KEYWORD`/`UNKEYWORD`
+  evaluates them, and `STORE` accepts custom keywords only when the selected
+  mailbox advertises them. The PostgreSQL `maildb` adapter still rejects
+  custom keyword persistence until durable user keyword storage lands.
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
 - IMAP `FETCH`/`UID FETCH` now supports bounded partial windows over

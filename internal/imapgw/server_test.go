@@ -9122,6 +9122,82 @@ func TestServerSearchesRecentOldAndNewMessages(t *testing.T) {
 	}
 }
 
+func TestServerHandlesCustomKeywordFlags(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &customKeywordBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	wantSelect := []string{
+		"* FLAGS (\\Seen $Project)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 9] Predicted next UID\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen $Project)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+	}
+	for _, expected := range wantSelect {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("select response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH KEYWORD $Project\r\na4 SEARCH UNKEYWORD $Project\r\na5 UID SEARCH KEYWORD $Project\r\na6 STORE 2 +FLAGS ($Project)\r\na7 STORE 1 +FLAGS ($Other)\r\na8 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write keyword commands: %v", err)
+	}
+	want := []string{
+		"* SEARCH 1\r\n",
+		"a3 OK SEARCH completed\r\n",
+		"* SEARCH 2\r\n",
+		"a4 OK SEARCH completed\r\n",
+		"* SEARCH 7\r\n",
+		"a5 OK UID SEARCH completed\r\n",
+		"* 2 FETCH (UID 8 FLAGS ($Project))\r\n",
+		"a6 OK STORE completed\r\n",
+		"a7 NO STORE flags are not permitted\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a8 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read keyword response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("keyword response = %q, want %q", line, expected)
+		}
+	}
+	if backendImpl.storeCalls != 1 || !reflect.DeepEqual(backendImpl.lastKeywords, []string{"$Project"}) {
+		t.Fatalf("custom keyword store = calls %d keywords %#v, want one $Project", backendImpl.storeCalls, backendImpl.lastKeywords)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestParseIMAPSearchModSeqRejectsPaddedEntryTypes(t *testing.T) {
 	t.Parallel()
 
@@ -13637,6 +13713,38 @@ func (recentSearchBackend) ListMessages(context.Context, ListMessagesRequest) ([
 		{ID: "message-8", UID: 8, SequenceNumber: 2, Recent: true},
 		{ID: "message-9", UID: 9, SequenceNumber: 3},
 	}, nil
+}
+
+type customKeywordBackend struct {
+	fakeBackend
+
+	storeCalls   int
+	lastKeywords []string
+}
+
+func (customKeywordBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 9, Messages: 2},
+		PermanentFlags: []string{FlagSeen, "$Project", "$Project", `\Bogus`},
+	}, nil
+}
+
+func (customKeywordBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{
+		{ID: "message-7", UID: 7, SequenceNumber: 1, Flags: MessageFlags{Keywords: []string{"$Project"}}},
+		{ID: "message-8", UID: 8, SequenceNumber: 2},
+	}, nil
+}
+
+func (b *customKeywordBackend) StoreFlags(_ context.Context, req StoreFlagsRequest) ([]MessageSummary, error) {
+	b.storeCalls++
+	b.lastKeywords = append([]string(nil), req.Flags.Keywords...)
+	return []MessageSummary{{
+		ID:             "message-8",
+		UID:            req.UIDs[0],
+		SequenceNumber: 2,
+		Flags:          req.Flags,
+	}}, nil
 }
 
 type threadBackend struct {

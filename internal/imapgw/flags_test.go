@@ -12,8 +12,9 @@ func TestMapMessageFlagsUsesRFC3501SystemFlags(t *testing.T) {
 		Answered:  true,
 		Deleted:   true,
 		Forwarded: true,
+		Keywords:  []string{"$Project", "$Project", `\Seen`, "bad keyword"},
 	})
-	want := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDeleted}
+	want := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDeleted, "$Project"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("MapMessageFlags() = %#v, want %#v", got, want)
 	}
@@ -98,5 +99,18 @@ func TestMailFlagForIMAPFlagExposesOnlyPersistedMailboxFlags(t *testing.T) {
 	}
 	if got, ok := MailFlagForIMAPFlag(`\Draft`); ok || got != "" {
 		t.Fatalf("MailFlagForIMAPFlag(Draft) = %q, %v; want no direct persisted flag", got, ok)
+	}
+}
+
+func TestIMAPKeywordFlagValid(t *testing.T) {
+	for _, keyword := range []string{"$Project", "Custom", "$Forwarded"} {
+		if !IMAPKeywordFlagValid(keyword) {
+			t.Fatalf("IMAPKeywordFlagValid(%q) = false, want true", keyword)
+		}
+	}
+	for _, keyword := range []string{`\Seen`, `\Deleted`, "bad keyword", `"quoted"`} {
+		if IMAPKeywordFlagValid(keyword) {
+			t.Fatalf("IMAPKeywordFlagValid(%q) = true, want false", keyword)
+		}
 	}
 }
