@@ -4356,6 +4356,8 @@ Implementation order:
       2045-style token boundaries, falling back to conservative defaults for
       malformed tspecial/control-bearing source metadata and suppressing empty
       parameter values before writing client-visible structure responses.
+      Canonical duplicate parameter names are collapsed so malformed MIME
+      source metadata cannot emit repeated `BODYSTRUCTURE` keys.
 
 ## Deferred until backend contracts stabilize
 

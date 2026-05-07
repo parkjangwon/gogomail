@@ -6864,17 +6864,29 @@ func imapMIMEBodyParameterList(params map[string]string) string {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	values := make([]string, 0, len(keys)*2)
+	canonical := make(map[string]string, len(keys))
 	for _, rawKey := range keys {
 		key := strings.ToUpper(strings.TrimSpace(rawKey))
 		value := strings.TrimSpace(params[rawKey])
 		if !imapMIMETokenValid(key) || value == "" {
 			continue
 		}
-		values = append(values, imapQuotedString(key), imapQuotedString(value))
+		if _, exists := canonical[key]; exists {
+			continue
+		}
+		canonical[key] = value
 	}
-	if len(values) == 0 {
+	if len(canonical) == 0 {
 		return "NIL"
+	}
+	keys = keys[:0]
+	for key := range canonical {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	values := make([]string, 0, len(keys)*2)
+	for _, key := range keys {
+		values = append(values, imapQuotedString(key), imapQuotedString(canonical[key]))
 	}
 	return "(" + strings.Join(values, " ") + ")"
 }

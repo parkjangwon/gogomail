@@ -12688,6 +12688,20 @@ func TestIMAPMIMEBodyParameterListRejectsMalformedNames(t *testing.T) {
 	}
 }
 
+func TestIMAPMIMEBodyParameterListDeduplicatesCanonicalNames(t *testing.T) {
+	t.Parallel()
+
+	got := imapMIMEBodyParameterList(map[string]string{
+		"CHARSET": "utf-8",
+		"charset": "iso-8859-1",
+		"format":  "flowed",
+	})
+	want := `("CHARSET" "utf-8" "FORMAT" "flowed")`
+	if got != want {
+		t.Fatalf("imapMIMEBodyParameterList = %q, want canonical de-duplicated params %q", got, want)
+	}
+}
+
 func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 	t.Parallel()
 

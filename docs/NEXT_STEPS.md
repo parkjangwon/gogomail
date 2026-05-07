@@ -456,7 +456,8 @@ Current state:
   parameter-list names, and transfer-encoding tokens against RFC 2045-style
   token boundaries, using conservative defaults for malformed
   tspecial/control-bearing source metadata instead of emitting invalid
-  structure tokens or empty parameter values to clients.
+  structure tokens, duplicate canonical parameter keys, or empty parameter
+  values to clients.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
