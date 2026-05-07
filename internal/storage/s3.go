@@ -1705,12 +1705,12 @@ type s3ListObjectContent struct {
 
 type s3CopyResponse struct {
 	XMLName      xml.Name
-	Code         string `xml:"Code"`
-	Message      string `xml:"Message"`
-	RequestID    string `xml:"RequestId"`
-	HostID       string `xml:"HostId"`
-	ETag         string `xml:"ETag"`
-	LastModified string `xml:"LastModified"`
+	Code         string  `xml:"Code"`
+	Message      string  `xml:"Message"`
+	RequestID    string  `xml:"RequestId"`
+	HostID       string  `xml:"HostId"`
+	ETag         string  `xml:"ETag"`
+	LastModified *string `xml:"LastModified"`
 }
 
 const maxS3ListResponseBytes = 4 << 20
@@ -1956,8 +1956,13 @@ func validateS3CopyResponse(body io.Reader) error {
 		if cleanS3ETag(response.ETag) == "" {
 			return fmt.Errorf("copy s3 object: invalid etag")
 		}
-		if _, ok := parseS3ListTime(response.LastModified); !ok {
-			return fmt.Errorf("copy s3 object: invalid last-modified")
+		if response.LastModified != nil {
+			if strings.TrimSpace(*response.LastModified) == "" {
+				return fmt.Errorf("copy s3 object: last-modified is empty")
+			}
+			if _, ok := parseS3ListTime(*response.LastModified); !ok {
+				return fmt.Errorf("copy s3 object: invalid last-modified")
+			}
 		}
 		return nil
 	case "Error":

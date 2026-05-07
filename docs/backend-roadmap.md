@@ -3877,6 +3877,10 @@ Implementation order:
       bounded safe single-line validation as `Stat` and `List`, rejecting
       malformed copy success metadata before copy/move callers treat the
       provider response as durable.
+1400a. S3-compatible `CopyObjectResult` `LastModified` metadata now
+       distinguishes omission from a present-but-blank element: missing remains
+       compatible, while blank, malformed, or whitespace-padded values fail
+       closed before copy/move callers treat the provider response as durable.
 1401. IMAP `IDLE` now requires an exact case-insensitive `DONE` continuation
       token, rejecting leading/trailing whitespace variants as malformed
       termination instead of silently ending the idle state.

@@ -3992,8 +3992,8 @@ The platform hardening sprint completed the following:
   foreign-namespace pagination controls, object metadata, copy metadata, or
   embedded copy errors cannot be collapsed into canonical provider metadata.
 - S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
-  non-empty malformed or whitespace-padded timestamp values instead of
-  accepting ambiguous successful copy metadata.
+  present-but-blank, malformed, or whitespace-padded timestamp values instead
+  of accepting ambiguous successful copy metadata.
 - S3-compatible `CopyObjectResult` `ETag` metadata now uses the same bounded
   safe single-line validation as `Stat` and `List`, rejecting malformed copy
   success metadata before copy/move callers treat the provider response as

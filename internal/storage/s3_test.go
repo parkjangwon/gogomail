@@ -4279,6 +4279,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
 		{name: "invalid_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"bad&#xA;etag"</ETag></CopyObjectResult>`, want: "invalid etag"},
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
+		{name: "blank_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>  </LastModified></CopyObjectResult>`, want: "last-modified is empty"},
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "padded_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified> 2026-05-05T12:00:00Z </LastModified></CopyObjectResult>`, want: "invalid last-modified"},
 		{name: "nested_etag_metadata", status: http.StatusOK, body: `<CopyObjectResult><ETag><Value>"etag-1"</Value></ETag></CopyObjectResult>`, want: `ETag metadata contains nested element "Value"`},
