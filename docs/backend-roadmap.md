@@ -4257,6 +4257,11 @@ Implementation order:
       lifecycle cleanup, and reconciliation callers from trusting impossible
       provider page shapes while preserving AWS-compatible default `MaxKeys`
       echoes.
+1496a. S3-compatible `ListObjectsV2` root `KeyCount` and `MaxKeys` metadata
+       now distinguish omission from present-but-blank elements: missing
+       remains compatible, while blank values fail the same numeric boundary as
+       malformed values before list pages reach Drive, lifecycle cleanup, or
+       reconciliation callers.
 1497. S3-compatible `ListObjectsV2` root `Prefix` metadata is now validated
       when providers return it: the echo must exactly match the signed provider
       prefix requested by gogomail, including configured storage prefixes,

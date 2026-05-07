@@ -454,7 +454,9 @@ being silently exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 `LastModified` elements must be singular, so conflicting duplicate metadata is
 rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
-turn structured provider data into apparently valid object metadata. Provider
+turn structured provider data into apparently valid object metadata. Optional
+root `KeyCount` and `MaxKeys` metadata may be omitted, but present values must
+be exact unsigned decimal digits and cannot be blank. Provider
 responses that include `StartAfter` fail closed, and requester-pays response
 headers are rejected across success paths, because the adapter does not request
 start-after pagination or requester-pays mode. Delimiter grouping is likewise
