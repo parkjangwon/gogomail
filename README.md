@@ -35,7 +35,7 @@ generated clients, or native protocol clients:
 | SMTP receive/delivery | Advanced backend | Standards-first core with pluggable policy, storage, queue, and notification boundaries. Keep new extensions gated until runtime semantics and RFC-shaped tests exist. |
 | Mail API | Release-readiness workbench | User-scoped webmail backend contracts are broad and tested, but frontend client release should still follow OpenAPI/runtime drift checks. |
 | Admin API | Release-readiness workbench | Operator console contracts exist under `/admin/v1` with no-store authenticated JSON responses and generated-client base-path pins. |
-| IMAP | Service-backed, gated | The gateway is real and increasingly strict, but public client readiness remains gated by RFC syntax/state/literal/MODSEQ/UID compatibility coverage. |
+| IMAP | Service-backed, gated | The gateway is real and increasingly strict, including bounded ENVELOPE/BODY metadata rendering, but public client readiness remains gated by RFC syntax/state/literal/MODSEQ/UID compatibility coverage. |
 | CalDAV/CardDAV | Backend-only experimental | Native DAV interoperability is progressing with real runtime modes, repository boundaries, sync tokens, validation, and conditional guards, but discovery/client compatibility remains intentionally gated. |
 | Drive | Backend groundwork | Storage/quota-backed metadata, object I/O, range download, cleanup, and public share-link APIs are present without starting frontend implementation. |
 | Frontend apps | Planned | Next.js TypeScript, shadcn/ui, `DESIGN.md`, and a Notion Mail-like product feel are planned after the frontend start gate is explicitly opened. |
@@ -174,6 +174,9 @@ Recent release-readiness work also includes:
   UID-addressed workflows,
   quoted, escaped, and literal-framed destination mailbox names for COPY/MOVE
   backend mutations,
+  bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
+  address lists, and dropping malformed empty address placeholders before they
+  can render as stray address tuples,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
   cumulative command-literal memory caps plus literal framing coverage and
@@ -325,7 +328,10 @@ extensions currently backed by tests and service semantics; continue treating
 RFC correctness and client compatibility as release gates for every advertised
 capability. IMAP is intentionally service-backed and advanced, but public
 client readiness remains gated by RFC-shaped syntax, state, UID, MODSEQ, and
-literal/framing regressions. `GOGOMAIL_IMAP_MAX_CONNECTIONS` can set a
+literal/framing regressions. FETCH rendering also keeps backend metadata
+bounded before protocol quoting so malformed MIME, oversized envelope strings,
+or placeholder address rows cannot leak into client-visible responses as
+ambiguous IMAP syntax. `GOGOMAIL_IMAP_MAX_CONNECTIONS` can set a
 process-local concurrent session cap; `0` keeps the listener unlimited for
 development or externally limited deployments, while capped deployments reject
 excess clients with an initial IMAP `BYE [ALERT]` response.
