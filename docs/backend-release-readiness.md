@@ -2180,6 +2180,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   parameter values. Canonical duplicate parameter names are collapsed before
   rendering so malformed MIME source metadata cannot emit repeated structure
   keys.
+- IMAP BODYSTRUCTURE disposition metadata now treats malformed disposition
+  tokens as `NIL` instead of falling back to `ATTACHMENT`, preserving client
+  semantics when stored MIME metadata is invalid.
 - IMAP metadata-only `BODYSTRUCTURE` fetches now use the streaming
   MIME-structure parser to return multipart child order, subtype, parameters,
   transfer encodings, dispositions, body octets, and text line counts without

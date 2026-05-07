@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	messageparse "github.com/gogomail/gogomail/internal/message"
 )
 
 func TestNewServerValidatesListenerOptions(t *testing.T) {
@@ -12699,6 +12701,21 @@ func TestIMAPMIMEBodyParameterListDeduplicatesCanonicalNames(t *testing.T) {
 	want := `("CHARSET" "utf-8" "FORMAT" "flowed")`
 	if got != want {
 		t.Fatalf("imapMIMEBodyParameterList = %q, want canonical de-duplicated params %q", got, want)
+	}
+}
+
+func TestIMAPMIMEBodyDispositionRejectsMalformedToken(t *testing.T) {
+	t.Parallel()
+
+	if got := imapMIMEBodyDisposition(messageparse.MIMEPart{Disposition: "inline"}); got != `("INLINE" NIL)` {
+		t.Fatalf("imapMIMEBodyDisposition valid = %q, want INLINE disposition", got)
+	}
+	got := imapMIMEBodyDisposition(messageparse.MIMEPart{
+		Disposition:       "bad/value",
+		DispositionParams: map[string]string{"filename": "report.pdf"},
+	})
+	if got != "NIL" {
+		t.Fatalf("imapMIMEBodyDisposition malformed = %q, want NIL", got)
 	}
 }
 
