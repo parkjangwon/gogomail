@@ -6611,10 +6611,7 @@ func imapAddressList(addresses []Address) string {
 	if len(addresses) == 0 {
 		return "NIL"
 	}
-	if len(addresses) > maxIMAPEnvelopeAddressCount {
-		addresses = addresses[:maxIMAPEnvelopeAddressCount]
-	}
-	parts := make([]string, 0, len(addresses))
+	parts := make([]string, 0, min(len(addresses), maxIMAPEnvelopeAddressCount))
 	for _, address := range addresses {
 		if imapEnvelopeAddressEmpty(address) {
 			continue
@@ -6625,6 +6622,9 @@ func imapAddressList(addresses []Address) string {
 			imapEnvelopeNString(address.Mailbox),
 			imapEnvelopeNString(address.Host),
 		}, " ")+")")
+		if len(parts) == maxIMAPEnvelopeAddressCount {
+			break
+		}
 	}
 	if len(parts) == 0 {
 		return "NIL"
