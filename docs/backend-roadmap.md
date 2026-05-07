@@ -1024,9 +1024,8 @@ Implementation order:
 767. IMAP `SEARCH` and `UID SEARCH` now accept `RECENT`, `OLD`, and `NEW`
      criteria at the parser boundary.
 768. IMAP `SEARCH` and `UID SEARCH` now support `KEYWORD` and `UNKEYWORD`
-     criteria with validated keyword atoms, returning no custom-keyword matches
-     until durable user keyword storage exists and treating active messages as
-     unkeyworded.
+     criteria with validated keyword atoms for the `$Forwarded` compatibility
+     keyword.
 769. IMAP `SEARCH` and `UID SEARCH` now accept sequence-set criteria such as
      `2:*`, letting clients intersect standard search predicates with selected
      mailbox sequence ranges.
@@ -4224,6 +4223,13 @@ Implementation order:
       `NEW` matches recent unseen messages, `OLD` matches non-recent messages,
       and legacy zero-value summaries remain old until a backend exposes
       session-specific recent state.
+1494. IMAP custom keyword flags are now supported at the protocol-core
+      boundary. Backend-provided permanent keyword atoms can be advertised in
+      `FLAGS`/`PERMANENTFLAGS`, `FETCH FLAGS` renders canonical duplicate-free
+      keywords, `SEARCH KEYWORD`/`UNKEYWORD` evaluates them, and `STORE`
+      accepts custom keywords only when the selected mailbox permits them.
+      The PostgreSQL `maildb` adapter still rejects keyword persistence until
+      durable user keyword storage lands.
 
 ## Deferred until backend contracts stabilize
 

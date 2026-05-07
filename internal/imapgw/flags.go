@@ -18,6 +18,7 @@ type MessageFlags struct {
 	Forwarded bool
 	Draft     bool
 	Deleted   bool
+	Keywords  []string
 	Status    string
 }
 
@@ -45,7 +46,28 @@ func MapMessageFlags(flags MessageFlags) []string {
 	if flags.Deleted {
 		imapFlags = append(imapFlags, FlagDeleted)
 	}
+	imapFlags = append(imapFlags, canonicalIMAPKeywords(flags.Keywords)...)
 	return imapFlags
+}
+
+func canonicalIMAPKeywords(keywords []string) []string {
+	if len(keywords) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(keywords))
+	seen := make(map[string]struct{}, len(keywords))
+	for _, keyword := range keywords {
+		name := CanonicalIMAPFlag(keyword)
+		if !IMAPKeywordFlagValid(name) {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	return out
 }
 
 func ApplyIMAPFlag(flags MessageFlags, imapFlag string, value bool) (MessageFlags, bool) {
@@ -104,5 +126,15 @@ func CanonicalIMAPFlag(flag string) string {
 		return FlagDeleted
 	default:
 		return strings.TrimSpace(flag)
+	}
+}
+
+func IMAPKeywordFlagValid(flag string) bool {
+	flag = CanonicalIMAPFlag(flag)
+	switch flag {
+	case FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted:
+		return false
+	default:
+		return imapAtomValid(flag)
 	}
 }
