@@ -122,9 +122,10 @@ Current state:
   `ListObjectsV2`, and `CopyObjectResult`, rejecting malformed quote nesting,
   whitespace padding, controls, and non-ASCII provider values before they reach
   shared storage callers.
-- S3-compatible `HEAD`/`Stat` content-type metadata now must be a valid ASCII
-  MIME media type with optional parameters, preventing malformed provider MIME
-  metadata from reaching Drive, cleanup, or reconciliation callers.
+- S3-compatible `HEAD`/`Stat` content-type metadata now must be an unpadded
+  valid ASCII MIME media type with optional parameters, preventing malformed or
+  whitespace-normalized provider MIME metadata from reaching Drive, cleanup, or
+  reconciliation callers.
 - Shared storage `DeletePrefix` now fails closed when a truncated `List` page
   omits its continuation cursor, before deleting any listed object, and S3
   coverage verifies that continuation tokens are carried into the next
@@ -174,7 +175,8 @@ Current state:
   `Last-Modified`, `ETag`, and `Content-Type` headers now also fail closed
   before metadata parsing, and present-but-blank or malformed
   `Last-Modified`, `ETag`, and `Content-Type` metadata are rejected instead of
-  silently being exposed as empty optional metadata.
+  silently being exposed as empty optional metadata. `ETag` and `Content-Type`
+  headers must also be unpadded before quote cleanup or MIME parsing.
 - S3-compatible full-object `GET` now validates present `Content-Length`
   headers with the same exact unsigned decimal grammar and returns a bounded
   reader for known-length bodies, reporting `io.ErrUnexpectedEOF` on truncated

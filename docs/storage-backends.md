@@ -353,10 +353,10 @@ object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
 bounded before crossing the adapter boundary; present blank or malformed ETag
 metadata fails closed instead of being silently dropped, while present
-`Content-Type` metadata must parse as an ASCII MIME media type with optional
-parameters. Duplicate ETag headers are rejected because object identity
-metadata is ambiguous. Duplicate Content-Type headers are also rejected before
-MIME metadata is exposed. `Content-Length` is treated as exact
+`Content-Type` metadata must be unpadded and parse as an ASCII MIME media type
+with optional parameters. Duplicate ETag headers are rejected because object
+identity metadata is ambiguous. Duplicate Content-Type headers are also
+rejected before MIME metadata is exposed. `Content-Length` is treated as exact
 unsigned decimal
 metadata, so signed or whitespace-padded values fail closed instead of being
 normalized; if both the raw header and normalized HTTP response length are
