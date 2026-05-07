@@ -12647,6 +12647,30 @@ func TestIMAPBodyStructureDefersMultipartHeaders(t *testing.T) {
 	}
 }
 
+func TestIMAPBodyStructureRejectsMalformedMIMETokens(t *testing.T) {
+	t.Parallel()
+
+	header := []byte("Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted printable\r\n\r\n")
+	got := imapBodyStructureFromHeader(MessageSummary{Size: 123}, header)
+	want := `("TEXT" "HTML" ("CHARSET" "utf-8") NIL NIL "7BIT" 123 1 NIL NIL NIL NIL)`
+	if got != want {
+		t.Fatalf("bodystructure = %q, want sanitized MIME token fallback %q", got, want)
+	}
+}
+
+func TestIMAPMIMETokenRejectsTspecials(t *testing.T) {
+	t.Parallel()
+
+	if got := imapMIMEToken("quoted-printable", "7BIT"); got != "QUOTED-PRINTABLE" {
+		t.Fatalf("imapMIMEToken valid = %q, want QUOTED-PRINTABLE", got)
+	}
+	for _, value := range []string{"quoted printable", "x@y", "bad/value", "bad\x7f"} {
+		if got := imapMIMEToken(value, "7BIT"); got != "7BIT" {
+			t.Fatalf("imapMIMEToken(%q) = %q, want fallback", value, got)
+		}
+	}
+}
+
 func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 	t.Parallel()
 

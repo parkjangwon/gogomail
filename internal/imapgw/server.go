@@ -6818,7 +6818,7 @@ func imapBodyMetadataFromHeader(header []byte) imapBodyMetadata {
 		}
 	}
 	if encoding := strings.TrimSpace(message.Header.Get("Content-Transfer-Encoding")); encoding != "" {
-		metadata.encoding = strings.ToUpper(encoding)
+		metadata.encoding = imapMIMEToken(encoding, "7BIT")
 	}
 	metadata.id = strings.TrimSpace(message.Header.Get("Content-ID"))
 	metadata.description = strings.TrimSpace(message.Header.Get("Content-Description"))
@@ -6829,7 +6829,7 @@ func imapMediaTypeParts(value string) (string, string, bool) {
 	typ, subtype, ok := strings.Cut(strings.TrimSpace(value), "/")
 	typ = strings.ToUpper(strings.TrimSpace(typ))
 	subtype = strings.ToUpper(strings.TrimSpace(subtype))
-	if !ok || typ == "" || subtype == "" || strings.ContainsAny(typ+subtype, " \t\r\n") {
+	if !ok || !imapMIMETokenValid(typ) || !imapMIMETokenValid(subtype) {
 		return "", "", false
 	}
 	return typ, subtype, true
@@ -6843,7 +6843,7 @@ func imapBodyParams(params map[string]string) map[string]string {
 	for key, value := range params {
 		key = strings.ToUpper(strings.TrimSpace(key))
 		value = strings.TrimSpace(value)
-		if key == "" || value == "" || strings.ContainsAny(key, " \t\r\n") {
+		if !imapMIMETokenValid(key) || value == "" {
 			continue
 		}
 		out[key] = value
@@ -6873,10 +6873,23 @@ func imapMIMEBodyParameterList(params map[string]string) string {
 
 func imapMIMEToken(value string, fallback string) string {
 	value = strings.ToUpper(strings.TrimSpace(value))
-	if value == "" || strings.ContainsAny(value, " \t\r\n") {
+	if !imapMIMETokenValid(value) {
 		return fallback
 	}
 	return value
+}
+
+func imapMIMETokenValid(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if c <= 0x20 || c >= 0x7f || strings.ContainsRune("()<>@,;:\\\"/[]?=", rune(c)) {
+			return false
+		}
+	}
+	return true
 }
 
 func imapMIMESubtype(value string) string {
