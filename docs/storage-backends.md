@@ -413,8 +413,8 @@ AWS S3 XML namespace, matching the accepted root namespace boundary. `ETag`
 is required in successful copy metadata and uses the same bounded safe
 single-line validation as `Stat` and `List`. Non-empty `LastModified` values
 in successful copy metadata must parse as exact S3/RFC-compatible timestamps;
-malformed or whitespace-padded values are rejected instead of being treated as
-a trustworthy copy success. Nested child elements inside simple
+blank, malformed, or whitespace-padded values are rejected instead of being
+treated as a trustworthy copy success. Nested child elements inside simple
 `CopyObjectResult` metadata fields are rejected before XML unmarshalling can
 turn structured provider data into apparently valid string metadata.
 S3-compatible `Move` is intentionally documented as a copy-then-delete

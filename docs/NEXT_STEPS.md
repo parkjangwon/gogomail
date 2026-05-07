@@ -189,8 +189,8 @@ Current state:
   missing, blank, or malformed copy success metadata before copy/move callers
   treat the provider response as durable.
 - S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
-  non-empty malformed or whitespace-padded timestamp values instead of
-  accepting ambiguous successful copy metadata.
+  present-but-blank, malformed, or whitespace-padded timestamp values instead
+  of accepting ambiguous successful copy metadata.
 - S3-compatible `CopyObjectResult` success XML now rejects duplicate top-level
   `ETag` or `LastModified` metadata, nested `Error` elements, and unknown
   top-level success children, formatting nested standard S3 error details as
