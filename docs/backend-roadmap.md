@@ -4337,6 +4337,11 @@ Implementation order:
       `ListObjectsV2` object `ETag` and `CopyObjectResult` `ETag` values
       instead of trimming them into valid identity metadata, while preserving
       HTTP header optional-whitespace compatibility for `HEAD`/`Stat`.
+1512. S3-compatible ETag parsing now rejects malformed quote nesting such as
+      `""etag""` across optional `PutObject` success headers, `HEAD`/`Stat`
+      metadata, `ListObjectsV2` object metadata, and `CopyObjectResult`
+      success XML, while still accepting ordinary quoted and unquoted
+      compatible-provider ETags.
 
 ## Deferred until backend contracts stabilize
 

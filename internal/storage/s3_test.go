@@ -427,6 +427,7 @@ func TestS3StorePutValidatesSuccessETag(t *testing.T) {
 		{name: "whitespace", header: http.Header{"ETag": []string{"  "}}, want: "invalid etag"},
 		{name: "duplicate", header: http.Header{"ETag": []string{`"etag-1"`, `"etag-2"`}}, want: "duplicate etag"},
 		{name: "invalid", header: http.Header{"ETag": []string{`"bad` + "\n" + `etag"`}}, want: "invalid etag"},
+		{name: "double_quoted", header: http.Header{"ETag": []string{`""etag-1""`}}, want: "invalid etag"},
 	}
 	for _, tc := range tests {
 		tc := tc
@@ -1126,6 +1127,11 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 		{
 			name:   "oversized etag",
 			header: http.Header{"ETag": []string{`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`}},
+			want:   "invalid etag",
+		},
+		{
+			name:   "double quoted etag",
+			header: http.Header{"ETag": []string{`""etag-1""`}},
 			want:   "invalid etag",
 		},
 	} {
@@ -2783,6 +2789,7 @@ func TestS3StoreListRejectsInvalidETag(t *testing.T) {
 		{name: "blank", body: `  `, want: "object etag is empty"},
 		{name: "linebreak", body: `"bad&#xA;etag"`, want: "invalid object etag"},
 		{name: "padded", body: ` "etag-1" `, want: "invalid object etag"},
+		{name: "double_quoted", body: `""etag-1""`, want: "invalid object etag"},
 		{name: "oversized", body: `"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`, want: "invalid object etag"},
 		{name: "empty_quoted", body: `""`, want: "invalid object etag"},
 	}
@@ -4503,6 +4510,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "duplicate_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"a"</ETag><ETag>"b"</ETag></CopyObjectResult>`, want: "duplicate etag"},
 		{name: "invalid_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>"bad&#xA;etag"</ETag></CopyObjectResult>`, want: "invalid etag"},
 		{name: "padded_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag> "etag-1" </ETag></CopyObjectResult>`, want: "invalid etag"},
+		{name: "double_quoted_etag", status: http.StatusOK, body: `<CopyObjectResult><ETag>""etag-1""</ETag></CopyObjectResult>`, want: "invalid etag"},
 		{name: "duplicate_last_modified", status: http.StatusOK, body: `<CopyObjectResult><LastModified>2026-05-05T12:00:00Z</LastModified><LastModified>2026-05-06T12:00:00Z</LastModified></CopyObjectResult>`, want: "duplicate last-modified"},
 		{name: "blank_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>  </LastModified></CopyObjectResult>`, want: "last-modified is empty"},
 		{name: "invalid_last_modified", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified>not-a-time</LastModified></CopyObjectResult>`, want: "invalid last-modified"},

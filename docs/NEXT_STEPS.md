@@ -187,8 +187,8 @@ Current state:
   successful copy response.
 - S3-compatible `CopyObjectResult` `ETag` metadata is now required and uses
   the same bounded safe single-line validation as `Stat` and `List`, rejecting
-  missing, blank, whitespace-padded, or malformed copy success metadata before
-  copy/move callers treat the provider response as durable.
+  missing, blank, whitespace-padded, double-quoted, or malformed copy success
+  metadata before copy/move callers treat the provider response as durable.
 - S3-compatible `CopyObjectResult` `LastModified` metadata now rejects
   present-but-blank, malformed, or whitespace-padded timestamp values instead
   of accepting ambiguous successful copy metadata.
@@ -267,8 +267,8 @@ Current state:
   providers that omit optional timestamp metadata.
 - S3-compatible `ListObjectsV2` object `ETag` metadata now fails closed when a
   present provider value is blank, whitespace-padded, malformed, line-bearing,
-  empty after quote cleanup, or larger than the bounded metadata limit, instead
-  of silently dropping suspect listed-object metadata.
+  double-quoted, empty after quote cleanup, or larger than the bounded metadata
+  limit, instead of silently dropping suspect listed-object metadata.
 - S3-compatible `ListObjectsV2` object metadata now rejects duplicate
   per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before
   XML unmarshalling can collapse conflicting provider values into one listed
