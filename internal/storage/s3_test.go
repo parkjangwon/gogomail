@@ -2562,14 +2562,19 @@ func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
 func TestS3StoreListRejectsInvalidETag(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{
-		`"bad&#xA;etag"`,
-		`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`,
-		`""`,
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "blank", body: `  `, want: "object etag is empty"},
+		{name: "linebreak", body: `"bad&#xA;etag"`, want: "invalid object etag"},
+		{name: "oversized", body: `"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`, want: "invalid object etag"},
+		{name: "empty_quoted", body: `""`, want: "invalid object etag"},
 	}
-	for _, etag := range tests {
-		etag := etag
-		t.Run(strconv.Itoa(len(etag)), func(t *testing.T) {
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			store, err := NewS3Store(S3Options{
@@ -2585,7 +2590,7 @@ func TestS3StoreListRejectsInvalidETag(t *testing.T) {
 						StatusCode: http.StatusOK,
 						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
   <IsTruncated>false</IsTruncated>
-  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><ETag>` + etag + `</ETag></Contents>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><ETag>` + tc.body + `</ETag></Contents>
 </ListBucketResult>`)),
 					},
 				}},
@@ -2595,8 +2600,8 @@ func TestS3StoreListRejectsInvalidETag(t *testing.T) {
 			}
 
 			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-			if err == nil || !strings.Contains(err.Error(), "invalid object etag") {
-				t.Fatalf("List err = %v, want invalid object etag", err)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
 			}
 		})
 	}

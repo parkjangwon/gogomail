@@ -474,8 +474,11 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 			}
 		}
 		etag := ""
-		if item.ETag != "" {
-			etag = cleanS3ETag(item.ETag)
+		if item.ETag != nil {
+			if strings.TrimSpace(*item.ETag) == "" {
+				return ObjectListPage{}, fmt.Errorf("list s3 objects: object etag is empty")
+			}
+			etag = cleanS3ETag(*item.ETag)
 			if etag == "" {
 				return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object etag")
 			}
@@ -1706,7 +1709,7 @@ type s3ListObjectsResult struct {
 type s3ListObjectContent struct {
 	Key          string  `xml:"Key"`
 	Size         string  `xml:"Size"`
-	ETag         string  `xml:"ETag"`
+	ETag         *string `xml:"ETag"`
 	LastModified *string `xml:"LastModified"`
 }
 

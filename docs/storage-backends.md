@@ -446,11 +446,11 @@ rechecked against the requested logical prefix, preserving local/NFS
 sibling-prefix isolation even if a compatible provider returns an overly broad
 page. Size and returned ETag metadata are validated only after that canonical
 prefix mapping succeeds; object sizes must be exact unsigned decimal digits,
-and non-empty ETags must remain valid after the same bounded metadata cleanup
-as `Stat` instead of being silently dropped. Present `LastModified` values
-must be nonblank and parse as exact S3/RFC-compatible timestamps; malformed or
-whitespace-padded values are rejected instead of being silently exposed as zero
-timestamps. Per-object `Key`, `Size`, `ETag`, and
+and present ETags must remain nonblank and valid after the same bounded
+metadata cleanup as `Stat` instead of being silently dropped. Present
+`LastModified` values must be nonblank and parse as exact S3/RFC-compatible
+timestamps; malformed or whitespace-padded values are rejected instead of
+being silently exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 `LastModified` elements must be singular, so conflicting duplicate metadata is
 rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
