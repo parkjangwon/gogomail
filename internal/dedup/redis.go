@@ -25,6 +25,9 @@ func NewRedisDeduplicator(client *redis.Client, ttl time.Duration) *RedisDedupli
 }
 
 func (d *RedisDeduplicator) CheckAndSet(ctx context.Context, key smtpd.DedupKey) (bool, error) {
+	if d == nil || d.client == nil {
+		return true, nil
+	}
 	ok, err := d.client.SetNX(ctx, redisKey(key), "1", d.ttl).Result()
 	if err != nil {
 		return false, err
