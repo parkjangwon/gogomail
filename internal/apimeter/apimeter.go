@@ -220,7 +220,9 @@ func boundedRequestRouteValue(value string) string {
 
 func recordFailOpen(sink Sink, timeout time.Duration, event Event) {
 	defer func() {
-		_ = recover()
+		if r := recover(); r != nil {
+			slog.Default().Warn("api metering fail-open panic recovered", "panic", r, "route", event.RoutePattern, "method", event.Method)
+		}
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
