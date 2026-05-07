@@ -244,14 +244,19 @@ func TestNormalizeIMAPUIDBackfillLimit(t *testing.T) {
 func TestNormalizeIMAPMailboxLookupName(t *testing.T) {
 	t.Parallel()
 
-	tests := map[string]string{
-		`"INBOX"`:         "inbox",
-		"/Archive/2026/":  "archive/2026",
-		" Archive\t2026 ": "archive 2026",
+	tests := map[string]struct {
+		want      string
+		wantAllow bool
+	}{
+		`"INBOX"`:         {want: "inbox", wantAllow: true},
+		"/Archive/2026/":  {want: "archive/2026", wantAllow: true},
+		"Archive\t2026":   {want: "archive 2026", wantAllow: true},
+		" Archive\t2026 ": {want: "archive 2026", wantAllow: false},
 	}
-	for input, want := range tests {
-		if got := normalizeIMAPMailboxLookupName(input); got != want {
-			t.Fatalf("normalizeIMAPMailboxLookupName(%q) = %q, want %q", input, got, want)
+	for input, tc := range tests {
+		got, allow := normalizeIMAPMailboxLookupName(input)
+		if got != tc.want || allow != tc.wantAllow {
+			t.Fatalf("normalizeIMAPMailboxLookupName(%q) = %q/%v, want %q/%v", input, got, allow, tc.want, tc.wantAllow)
 		}
 	}
 }

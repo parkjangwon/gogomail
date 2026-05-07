@@ -4449,6 +4449,11 @@ Implementation order:
       decoded mailbox ID leading and trailing spaces after validation before
       repository delegation, preventing the protocol adapter from collapsing
       legitimate mailbox-name characters at the service boundary.
+1530. PostgreSQL IMAP mailbox and APPEND-target lookup now separates exact
+      decoded mailbox-name matching from compatibility aliases, keeping
+      unpadded `INBOX` and slash-trimmed path compatibility while preventing
+      names with real leading/trailing spaces from falling through to trimmed
+      aliases before storage lookup.
 
 ## Deferred until backend contracts stabilize
 

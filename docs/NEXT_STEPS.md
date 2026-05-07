@@ -1893,9 +1893,11 @@ Current state:
   spacing after validation, keeping IDLE/NOOP update fan-out keyed to the exact
   selected mailbox identity instead of a trimmed variant.
 - Service-backed IMAP mailbox lookup for `SELECT`/`EXAMINE` now preserves the
-  decoded mailbox ID before repository delegation; the remaining PostgreSQL
-  mailbox-name compatibility lookup normalization should be reviewed as a
-  separate storage-semantic change before public IMAP readiness.
+  decoded mailbox ID before repository delegation, and PostgreSQL mailbox/
+  APPEND-target lookup now allows compatibility alias fallback only for inputs
+  without leading/trailing whitespace. Next, the remaining service-level
+  `APPEND`, list, flag, copy/move, and expunge paths should be reviewed so
+  direct service calls do not trim mailbox identities before storage lookup.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.

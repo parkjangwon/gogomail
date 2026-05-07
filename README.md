@@ -186,7 +186,8 @@ Recent release-readiness work also includes:
   canonicalization that preserves those spaces through service/repository
   `SUBSCRIBE`/`UNSUBSCRIBE` delegation plus live mailbox-event subscription
   identity, while the service-backed `SELECT` adapter also preserves decoded
-  mailbox lookup identity before repository delegation,
+  mailbox lookup identity before repository delegation and the PostgreSQL
+  lookup path separates exact mailbox-name matching from compatibility aliases,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,

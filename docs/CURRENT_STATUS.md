@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP mailbox lookup identity hardening)
+Last updated: 2026-05-07 (updated after IMAP repository mailbox lookup hardening)
 
 ## Current phase
 
@@ -2980,6 +2980,11 @@ The platform hardening sprint completed the following:
   decoded mailbox ID after validation before repository delegation, keeping the
   protocol adapter from trimming legitimate leading/trailing mailbox-name
   characters at the service boundary.
+- PostgreSQL IMAP mailbox and APPEND-target lookup now separates exact decoded
+  mailbox-name matching from compatibility aliases. Compatibility forms such
+  as `INBOX` and slash-trimmed paths remain available for unpadded inputs, but
+  names with real leading/trailing spaces no longer fall through to trimmed
+  aliases before storage lookup.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.
