@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP empty mailbox target hardening)
+Last updated: 2026-05-07 (updated after S3 ETag padding hardening)
 
 ## Current phase
 

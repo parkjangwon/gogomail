@@ -4424,6 +4424,10 @@ Implementation order:
       commands before backend lookup or selected-state handling, while keeping
       empty `LIST`/`LSUB` reference and pattern strings available for RFC
       mailbox discovery semantics.
+1524. S3-compatible `PutObject` success `ETag` headers and `HEAD`/`Stat`
+      `ETag` metadata now reject leading or trailing whitespace padding before
+      quote cleanup, aligning header metadata with the existing strict
+      `ListObjectsV2` and `CopyObjectResult` ETag boundaries.
 
 ## Deferred until backend contracts stabilize
 
