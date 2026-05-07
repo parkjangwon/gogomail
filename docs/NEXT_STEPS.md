@@ -453,9 +453,10 @@ Current state:
   partial full-message fetches, preserve the `RFC822<offset>` response atom,
   and mark messages seen like ordinary `RFC822` fetches.
 - IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
-  parameter-name, and transfer-encoding tokens against RFC 2045-style token
-  boundaries, using conservative defaults for malformed tspecial/control-bearing
-  source metadata instead of emitting invalid structure tokens to clients.
+  parameter-list names, and transfer-encoding tokens against RFC 2045-style
+  token boundaries, using conservative defaults for malformed
+  tspecial/control-bearing source metadata instead of emitting invalid
+  structure tokens or empty parameter values to clients.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.

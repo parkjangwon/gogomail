@@ -12671,6 +12671,23 @@ func TestIMAPMIMETokenRejectsTspecials(t *testing.T) {
 	}
 }
 
+func TestIMAPMIMEBodyParameterListRejectsMalformedNames(t *testing.T) {
+	t.Parallel()
+
+	got := imapMIMEBodyParameterList(map[string]string{
+		"charset": " utf-8 ",
+		"bad/key": "ignored",
+		"empty":   " ",
+	})
+	want := `("CHARSET" "utf-8")`
+	if got != want {
+		t.Fatalf("imapMIMEBodyParameterList = %q, want %q", got, want)
+	}
+	if got := imapMIMEBodyParameterList(map[string]string{"bad/key": "value"}); got != "NIL" {
+		t.Fatalf("imapMIMEBodyParameterList malformed-only = %q, want NIL", got)
+	}
+}
+
 func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 	t.Parallel()
 
