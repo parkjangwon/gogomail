@@ -1819,6 +1819,7 @@ func validateS3ListControlCardinality(data []byte) error {
 	var simpleObjectMetadata string
 	var simpleStandardMetadata string
 	var structuredObjectMetadata string
+	structuredObjectChildSeen := make(map[string]struct{})
 	rootSimpleSeen := make(map[string]struct{})
 	for {
 		token, err := decoder.Token()
@@ -1936,6 +1937,7 @@ func validateS3ListControlCardinality(data []byte) error {
 						}
 						ownerSeen = true
 						structuredObjectMetadata = token.Name.Local
+						clear(structuredObjectChildSeen)
 					case "ChecksumType":
 						if checksumTypeSeen {
 							return fmt.Errorf("list s3 objects: duplicate object ChecksumType value")
@@ -1947,6 +1949,7 @@ func validateS3ListControlCardinality(data []byte) error {
 						}
 						restoreStatusSeen = true
 						structuredObjectMetadata = token.Name.Local
+						clear(structuredObjectChildSeen)
 					}
 					if s3ListStandardSimpleObjectMetadata(token.Name.Local) {
 						simpleStandardMetadata = token.Name.Local
@@ -1962,6 +1965,10 @@ func validateS3ListControlCardinality(data []byte) error {
 				if !s3ListStructuredObjectMetadataChildAllowed(structuredObjectMetadata, token.Name.Local) {
 					return fmt.Errorf("list s3 objects: object %s metadata contains unsupported child %q", structuredObjectMetadata, token.Name.Local)
 				}
+				if _, ok := structuredObjectChildSeen[token.Name.Local]; ok {
+					return fmt.Errorf("list s3 objects: object %s metadata contains duplicate child %q", structuredObjectMetadata, token.Name.Local)
+				}
+				structuredObjectChildSeen[token.Name.Local] = struct{}{}
 			case rootDepth > 2 && simpleStandardMetadata != "":
 				return fmt.Errorf("list s3 objects: metadata %s contains nested element %q", simpleStandardMetadata, token.Name.Local)
 			case inContent && rootDepth > 3 && simpleObjectMetadata != "":
@@ -1976,12 +1983,14 @@ func validateS3ListControlCardinality(data []byte) error {
 			}
 			if inContent && rootDepth == 3 && structuredObjectMetadata == token.Name.Local {
 				structuredObjectMetadata = ""
+				clear(structuredObjectChildSeen)
 			}
 			if inContent && rootDepth == 2 && token.Name.Local == "Contents" {
 				inContent = false
 				simpleObjectMetadata = ""
 				simpleStandardMetadata = ""
 				structuredObjectMetadata = ""
+				clear(structuredObjectChildSeen)
 			}
 			if rootDepth > 0 {
 				rootDepth--
