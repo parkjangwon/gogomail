@@ -7634,7 +7634,7 @@ func imapMailboxDisplayName(mailbox Mailbox) string {
 		}
 	}
 	if strings.TrimSpace(mailbox.Name) != "" {
-		return strings.TrimSpace(mailbox.Name)
+		return mailbox.Name
 	}
 	return strings.TrimSpace(string(mailbox.ID))
 }
