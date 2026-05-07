@@ -1522,7 +1522,8 @@ Implementation order:
      digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
      `BODY[]<+12.34>` before fetch processing, with offset/count values capped
      to the unsigned 32-bit IMAP `number` range and MIME part path numbers
-     held to the same bound.
+     held to the same bound. Padded MIME path atoms are rejected instead of
+     trimmed before section lookup.
 902. IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject
      malformed atoms that still contain quote characters after command parsing,
      preventing broken values such as `UTF-8"` from being silently normalized.

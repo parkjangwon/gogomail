@@ -376,7 +376,8 @@ Current state:
   for MIME part paths and partial counts, rejecting leading-zero forms such as
   `BODY[01]`, `BODY[1.02.TEXT]`, and `BODY.PEEK[]<12.034>` at the parser
   boundary. MIME part, partial offset, and partial count values are capped to
-  the unsigned 32-bit IMAP `number` range.
+  the unsigned 32-bit IMAP `number` range, and padded MIME path atoms are
+  rejected instead of trimmed.
 - IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT`
   parsing now accepts visible RFC 5322-style custom field names containing
   `_`, `+`, or `.`, while preserving fail-fast rejection for empty,
@@ -873,7 +874,8 @@ Current state:
   `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
   RFC 3501 `nz-number` grammar. MIME part, offset, and count values are capped
   to IMAP's unsigned 32-bit `number` range, and partial fetch tokens also
-  reject trailing characters after the closing `>`.
+  reject trailing characters after the closing `>`. Padded MIME path atoms are
+  rejected before section lookup.
 - IMAP partial fetch offsets now reject leading-zero RFC `number` atoms such
   as `BODY.PEEK[]<00.34>` or `<012.34>` instead of normalizing them to valid
   offsets, while preserving the valid zero-offset form `<0.count>`.

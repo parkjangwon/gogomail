@@ -12558,7 +12558,7 @@ func TestParseIMAPPartialBody(t *testing.T) {
 			t.Fatalf("imapFetchPartialBody accepted invalid partial %q", item)
 		}
 	}
-	for _, value := range []string{"+1", "1.+2", "01", "1.02"} {
+	for _, value := range []string{"+1", "1.+2", "01", "1.02", " 1", "1 ", "1. 2"} {
 		if got, ok := parseIMAPMIMEPartPath(value); ok {
 			t.Fatalf("parseIMAPMIMEPartPath(%q) = %v true, want invalid path rejection", value, got)
 		}
