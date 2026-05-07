@@ -19,6 +19,7 @@ import (
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/ratelimit"
 )
 
 const (
@@ -91,6 +92,14 @@ type MessageService interface {
 
 type webmailCapabilitiesEnvelope struct {
 	WebmailCapabilities webmailCapabilities `json:"webmail_capabilities"`
+}
+
+type MailRouteOptions struct {
+	MutationLimiter MailMutationLimiter
+}
+
+type MailMutationLimiter interface {
+	Allow(ctx context.Context, key string) (ratelimit.Decision, error)
 }
 
 type mailboxOverviewEnvelope struct {
@@ -330,7 +339,36 @@ func currentWebmailCapabilities() webmailCapabilities {
 	}
 }
 
+func allowMailMutationRequest(w http.ResponseWriter, r *http.Request, opts MailRouteOptions, userID string, action string) bool {
+	if opts.MutationLimiter == nil {
+		return true
+	}
+	key := mailMutationRateLimitKey(userID, action)
+	decision, err := opts.MutationLimiter.Allow(r.Context(), key)
+	if err != nil {
+		return true
+	}
+	if decision.Allowed {
+		return true
+	}
+	retryAfter := int((decision.RetryAfter + time.Second - time.Nanosecond) / time.Second)
+	if retryAfter <= 0 {
+		retryAfter = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	writeError(w, http.StatusTooManyRequests, "mail mutation rate limit exceeded")
+	return false
+}
+
+func mailMutationRateLimitKey(userID string, action string) string {
+	return "user=" + userID + " action=" + strings.ToLower(strings.TrimSpace(action))
+}
+
 func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager) {
+	RegisterMailRoutesWithOptions(mux, service, tokenManager, MailRouteOptions{})
+}
+
+func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
 	mux.HandleFunc("GET /api/v1/webmail/capabilities", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
@@ -1155,6 +1193,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !bindRequestUserID(w, r, tokenManager, &req.UserID) {
 			return
 		}
+		if !allowMailMutationRequest(w, r, opts, req.UserID, "save_draft") {
+			return
+		}
 		draft, err := service.SaveDraft(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1260,10 +1301,13 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			return
 		}
 		req.DraftID = draftID
-		if !bindRequestUserID(w, r, tokenManager, &req.UserID) {
-			return
-		}
-		draft, err := service.SaveDraft(r.Context(), req)
+	if !bindRequestUserID(w, r, tokenManager, &req.UserID) {
+		return
+	}
+	if !allowMailMutationRequest(w, r, opts, req.UserID, "update_draft") {
+		return
+	}
+	draft, err := service.SaveDraft(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
