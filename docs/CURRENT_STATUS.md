@@ -184,6 +184,10 @@ S3-compatible `ListObjectsV2` object-size parsing now also requires unsigned
 decimal digits, rejecting signed or whitespace-padded `<Size>` values such as
 `+5` or ` 5 ` before list metadata reaches cleanup, Drive, or reconciliation
 callers.
+S3-compatible `ListObjectsV2` root `MaxKeys` metadata now also uses the same
+exact unsigned decimal boundary and must not undercount returned `<Contents>`,
+preventing provider pages from hiding impossible page shapes behind plausible
+XML metadata while preserving AWS-compatible default `MaxKeys` echoes.
 S3-compatible `ListObjectsV2` object entries now reject missing or blank
 `<Key>` elements instead of silently skipping malformed provider entries before
 prefix mapping and cleanup scans.

@@ -4233,6 +4233,12 @@ Implementation order:
       `COPY`, `MOVE`, `FETCH`, and `SEARCH` paths share the same canonical
       keyword boundary, preserving RFC-shaped IMAP state without coupling it
       to future product labels or webmail categories.
+1496. S3-compatible `ListObjectsV2` root `MaxKeys` metadata now uses the same
+      exact unsigned decimal boundary as object sizes and `KeyCount`, and is
+      rejected when it undercounts raw `<Contents>`. This keeps Drive,
+      lifecycle cleanup, and reconciliation callers from trusting impossible
+      provider page shapes while preserving AWS-compatible default `MaxKeys`
+      echoes.
 
 ## Deferred until backend contracts stabilize
 
