@@ -370,8 +370,9 @@ Current state:
   the command tag is still syntactically recoverable, while malformed or
   missing tags continue to receive untagged `BAD`.
 - IMAP command-line framing now requires RFC CRLF endings for ordinary
-  commands, literal suffix lines, and `IDLE` continuations, returning tagged
-  `BAD` plus `BYE` for LF-only input before command handlers run.
+  commands, literal suffix lines, `AUTHENTICATE PLAIN` SASL continuations, and
+  `IDLE` continuations, returning tagged `BAD` plus `BYE` for LF-only input
+  before command handlers run.
 - `UID` dispatch validates missing, malformed, unknown, or state-independent
   malformed subcommands before authentication or selected-mailbox state, while
   valid unauthenticated UID commands still return `NO authentication required`.

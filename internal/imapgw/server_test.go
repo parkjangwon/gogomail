@@ -2752,6 +2752,52 @@ func TestServerAuthenticatePlainCancelReturnsBad(t *testing.T) {
 	}
 }
 
+func TestServerRejectsLFOnlyAuthenticateContinuationBeforeClosing(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 AUTHENTICATE PLAIN\r\n")); err != nil {
+		t.Fatalf("write authenticate: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ \r\n" {
+		t.Fatalf("continuation = %q err = %v", line, err)
+	}
+	response := base64.StdEncoding.EncodeToString([]byte("\x00user@example.com\x00secret"))
+	if _, err := client.Write([]byte(response + "\n")); err != nil {
+		t.Fatalf("write lf-only authenticate response: %v", err)
+	}
+	want := []string{
+		"a1 BAD command line must end with CRLF\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lf-only authenticate response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lf-only authenticate response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	t.Parallel()
 

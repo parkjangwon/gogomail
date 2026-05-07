@@ -4302,10 +4302,10 @@ Implementation order:
       list metadata without letting foreign-namespace or structured checksum
       fields cross the storage boundary.
 1505. IMAP command-line framing now requires RFC CRLF endings for ordinary
-      commands, literal suffix lines, and `IDLE` continuations. LF-only input
-      receives a tagged `BAD command line must end with CRLF` plus the existing
-      framing-error `BYE` close before command handlers can normalize malformed
-      line endings.
+      commands, literal suffix lines, `AUTHENTICATE PLAIN` SASL continuations,
+      and `IDLE` continuations. LF-only input receives a tagged
+      `BAD command line must end with CRLF` plus the existing framing-error
+      `BYE` close before command handlers can normalize malformed line endings.
 
 ## Deferred until backend contracts stabilize
 
