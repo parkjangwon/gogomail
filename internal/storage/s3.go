@@ -854,11 +854,11 @@ func validateS3ListPrefix(value string, expected string) error {
 	return nil
 }
 
-func validateS3ListBucketName(value string, expected string) error {
-	if value == "" {
+func validateS3ListBucketName(value *string, expected string) error {
+	if value == nil {
 		return nil
 	}
-	if value != expected {
+	if *value != expected {
 		return fmt.Errorf("list s3 objects: response Name does not match bucket")
 	}
 	return nil
@@ -1696,7 +1696,7 @@ type s3ListObjectsResult struct {
 	IsTruncated           string                `xml:"IsTruncated"`
 	ContinuationToken     *string               `xml:"ContinuationToken"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
-	Name                  string                `xml:"Name"`
+	Name                  *string               `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
 	StartAfter            *string               `xml:"StartAfter"`
