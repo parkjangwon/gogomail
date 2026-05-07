@@ -1525,8 +1525,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
   `date-day-fixed` syntax, accepting zero-padded or space-padded days while
   rejecting bare one-digit dates such as `"5-May-2026 ..."`. Date-month atoms
-  are canonicalized case-insensitively before parsing, preserving strict date
-  shape while accepting common uppercase or lowercase client month literals.
+  are canonicalized ASCII-case-insensitively before parsing, preserving strict
+  date shape while accepting common uppercase or lowercase client month
+  literals.
 - IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
   `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
   mailbox did not permit them instead of dispatching unsupported mutations to
@@ -1557,7 +1558,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` date criteria accept one-digit date-day atoms such
   as `SINCE 5-May-2026` while preserving malformed quote rejection, improving
   compatibility with clients that do not zero-pad SEARCH dates. Search
-  date-month atoms are also canonicalized case-insensitively before parsing.
+  date-month atoms are also canonicalized ASCII-case-insensitively before parsing.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.
@@ -2476,7 +2477,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   number, which is used as the precise `EXISTS` event count when available.
   APPEND internaldate parsing accepts RFC 3501 space-padded one-digit date-days
   such as `" 5-May-2026 ..."` while rejecting bare one-digit date-days such as
-  `"5-May-2026 ..."`, and canonicalizes date-month atoms case-insensitively
+  `"5-May-2026 ..."`, and canonicalizes date-month atoms ASCII-case-insensitively
   before parsing. The service boundary rejects CR/LF-bearing or oversized
   APPEND user and mailbox identifiers before repository lookup, spooling,
   parsing, storage, or quota work.

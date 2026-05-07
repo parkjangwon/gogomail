@@ -4475,34 +4475,44 @@ func imapCanonicalDateMonth(value string) (string, bool) {
 }
 
 func imapCanonicalMonth(value string) (string, bool) {
-	switch strings.ToLower(value) {
-	case "jan":
+	if len(value) != 3 {
+		return "", false
+	}
+	switch [3]byte{imapASCIILower(value[0]), imapASCIILower(value[1]), imapASCIILower(value[2])} {
+	case [3]byte{'j', 'a', 'n'}:
 		return "Jan", true
-	case "feb":
+	case [3]byte{'f', 'e', 'b'}:
 		return "Feb", true
-	case "mar":
+	case [3]byte{'m', 'a', 'r'}:
 		return "Mar", true
-	case "apr":
+	case [3]byte{'a', 'p', 'r'}:
 		return "Apr", true
-	case "may":
+	case [3]byte{'m', 'a', 'y'}:
 		return "May", true
-	case "jun":
+	case [3]byte{'j', 'u', 'n'}:
 		return "Jun", true
-	case "jul":
+	case [3]byte{'j', 'u', 'l'}:
 		return "Jul", true
-	case "aug":
+	case [3]byte{'a', 'u', 'g'}:
 		return "Aug", true
-	case "sep":
+	case [3]byte{'s', 'e', 'p'}:
 		return "Sep", true
-	case "oct":
+	case [3]byte{'o', 'c', 't'}:
 		return "Oct", true
-	case "nov":
+	case [3]byte{'n', 'o', 'v'}:
 		return "Nov", true
-	case "dec":
+	case [3]byte{'d', 'e', 'c'}:
 		return "Dec", true
 	default:
 		return "", false
 	}
+}
+
+func imapASCIILower(value byte) byte {
+	if value >= 'A' && value <= 'Z' {
+		return value + ('a' - 'A')
+	}
+	return value
 }
 
 func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {
