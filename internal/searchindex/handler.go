@@ -52,6 +52,9 @@ type Document struct {
 	Subject       string
 	FromAddr      string
 	FromName      string
+	ToAddrs       []string
+	CcAddrs       []string
+	BccAddrs      []string
 	StoragePath   string
 	ReceivedAt    string
 	Size          int64
@@ -142,6 +145,9 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		Subject:       firstNonEmpty(event.Subject, parsed.Subject),
 		FromAddr:      parsed.From.Address,
 		FromName:      parsed.From.Name,
+		ToAddrs:       extractAddressStrings(parsed.To),
+		CcAddrs:       extractAddressStrings(parsed.Cc),
+		BccAddrs:      extractAddressStrings(parsed.Bcc),
 		StoragePath:   event.StoragePath,
 		ReceivedAt:    event.ReceivedAt,
 		Size:          event.Size,
@@ -265,6 +271,17 @@ func firstNonEmpty(primary, fallback string) string {
 		return primary
 	}
 	return strings.TrimSpace(fallback)
+}
+
+func extractAddressStrings(addrs []message.Address) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		addr := strings.TrimSpace(a.Address)
+		if addr != "" {
+			out = append(out, addr)
+		}
+	}
+	return out
 }
 
 type storageStoreReader struct {

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after message search to/cc/bcc filter expansion)
+Last updated: 2026-05-07 (updated after OpenSearch to/cc/bcc recipient filter integration)
 
 ## Current phase
 
@@ -66,13 +66,16 @@ raw-header versus normalized-length agreement when both metadata surfaces are
 known, so a downgraded full-window range response cannot contradict its own
 zero-length metadata before exposing a bounded reader.
 
-Webmail capability discovery now advertises only runtime-backed `GET
-/api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and
-`has_attachment`). The runtime response, OpenAPI enum, and regression test are
-aligned so future generated clients do not attempt unsupported `since`,
-`before`, `read`, or `starred` search filters; read/starred filtering remains
-available on the message/thread list endpoints where it is actually
-implemented.
+Webmail capability discovery now advertises `GET /api/v1/search` filters `q`,
+`folder_id`, `from`, `to`, `cc`, `bcc`, `subject`, and `has_attachment`. The
+`to`, `cc`, and `bcc` parameters are supported both on the Postgres path and the
+OpenSearch relevance path — the search index stores `to_addrs_lc`, `cc_addrs_lc`,
+and `bcc_addrs_lc` as keyword fields and applies wildcard filters matching the
+same case-insensitive pattern used for `from_addr_lc` and `subject_lc`. The
+runtime response, OpenAPI enum, and regression tests are aligned so future
+generated clients do not attempt unsupported `since`, `before`, `read`, or
+`starred` search filters; read/starred filtering remains available on the
+message/thread list endpoints where it is actually implemented.
 Admin console capability discovery is now pinned to the `/admin/v1` OpenAPI
 server at the operation level, with a runtime regression that
 `/api/v1/console/capabilities` remains unregistered. This keeps generated
