@@ -197,8 +197,9 @@ now must exactly match the signed provider prefix requested by gogomail,
 including any configured storage prefix, so diagnostics cannot depend on a
 misleading list echo while compatible providers may still omit the field.
 S3-compatible `ListObjectsV2` root `Name` metadata, when present, must also
-match the configured bucket name, preventing wrong-bucket compatible-provider
-responses from looking like ordinary empty or successful list pages.
+be nonblank and match the configured bucket name, preventing wrong-bucket or
+blank-bucket compatible-provider responses from looking like ordinary empty or
+successful list pages.
 S3-compatible `ListObjectsV2` root `EncodingType` metadata is now rejected when
 present, including blank elements, because gogomail does not request
 URL-encoded key mode and should not treat encoded provider keys as ordinary

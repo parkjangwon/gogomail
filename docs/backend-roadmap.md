@@ -4268,9 +4268,10 @@ Implementation order:
       while omitted `Prefix` echoes remain compatible. Object-key prefix
       filtering remains the authoritative safety boundary.
 1498. S3-compatible `ListObjectsV2` root `Name` metadata is now validated when
-      providers return it: the echoed bucket name must match the configured
-      bucket, so wrong-bucket compatible-provider responses fail closed instead
-      of looking like ordinary empty or successful list pages.
+      providers return it: the echoed bucket name must be nonblank and match
+      the configured bucket, so wrong-bucket or blank-bucket compatible-provider
+      responses fail closed instead of looking like ordinary empty or
+      successful list pages.
 1499. S3-compatible `ListObjectsV2` root `EncodingType` metadata is now
       rejected when present, including blank elements, because gogomail does
       not request encoded-key list mode. This keeps URL-encoded provider keys
