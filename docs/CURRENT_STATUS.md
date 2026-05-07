@@ -218,8 +218,9 @@ storage contract. Standard object checksum metadata now treats
 `ChecksumType` like `ChecksumAlgorithm`: namespace-free and AWS-namespaced
 values are compatible, but foreign namespaces and nested XML fail closed.
 S3-compatible `ListObjectsV2` delimiter grouping controls are now rejected:
-gogomail never requests delimiter-based grouping, so non-empty `Delimiter` or
-`CommonPrefixes` responses cannot be mistaken for ordinary object pages.
+gogomail never requests delimiter-based grouping, so returned `Delimiter`
+elements, including blank elements, or `CommonPrefixes` responses cannot be
+mistaken for ordinary object pages.
 S3-compatible `ListObjectsV2` object entries now reject missing or blank
 `<Key>` elements instead of silently skipping malformed provider entries before
 prefix mapping and cleanup scans.

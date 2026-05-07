@@ -902,8 +902,8 @@ func validateS3UnsupportedRequestChargedHeader(operation string, resp *http.Resp
 	return fmt.Errorf("%s s3 object: unsupported request-charged header", operation)
 }
 
-func validateS3ListDelimiter(value string) error {
-	if value == "" {
+func validateS3ListDelimiter(value *string) error {
+	if value == nil {
 		return nil
 	}
 	return fmt.Errorf("list s3 objects: unsupported Delimiter value")
@@ -1698,7 +1698,7 @@ type s3ListObjectsResult struct {
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Name                  *string               `xml:"Name"`
 	Prefix                *string               `xml:"Prefix"`
-	Delimiter             string                `xml:"Delimiter"`
+	Delimiter             *string               `xml:"Delimiter"`
 	StartAfter            *string               `xml:"StartAfter"`
 	EncodingType          *string               `xml:"EncodingType"`
 	KeyCount              *string               `xml:"KeyCount"`

@@ -246,8 +246,9 @@ Current state:
 - S3-compatible `ListObjectsV2` object `ChecksumType` metadata now shares the
   same namespace and simple-field nested-XML boundary as `ChecksumAlgorithm`.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
-  non-empty `<Delimiter>` and `<CommonPrefixes>` cannot be treated as ordinary
-  object pages because gogomail does not request grouped listing.
+  returned `<Delimiter>` elements, including blank elements, and
+  `<CommonPrefixes>` cannot be treated as ordinary object pages because
+  gogomail does not request grouped listing.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.

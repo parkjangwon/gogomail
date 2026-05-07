@@ -107,7 +107,7 @@ Recent release-readiness work also includes:
   nonblank exact `Prefix` and bucket `Name` echoes when present, any returned
   `EncodingType`, missing-request or mismatched returned `ContinuationToken`
   echoes when present, and any returned `StartAfter`, requester-pays response
-  headers across S3 adapter success paths, delimiter/grouping controls, and
+  headers across S3 adapter success paths, any delimiter/grouping controls, and
   nested XML inside simple
   core/standard provider metadata fields, while standard S3 error XML,
   including duplicate, nested,

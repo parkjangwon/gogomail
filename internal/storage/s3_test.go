@@ -2444,6 +2444,11 @@ func TestS3StoreListRejectsGroupingControls(t *testing.T) {
 		want string
 	}{
 		{
+			name: "blank_delimiter",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Delimiter></Delimiter></ListBucketResult>`,
+			want: "unsupported Delimiter value",
+		},
+		{
 			name: "delimiter",
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Delimiter>/</Delimiter></ListBucketResult>`,
 			want: "unsupported Delimiter value",

@@ -465,8 +465,9 @@ headers are rejected across success paths, because the adapter does not request
 start-after pagination, encoded-key mode, or requester-pays mode. Returned root
 `ContinuationToken` echoes must match an explicitly requested cursor and are
 rejected when no request cursor was sent. Delimiter grouping is likewise
-unsupported: non-empty `Delimiter` or `CommonPrefixes` responses are rejected
-instead of being treated as ordinary object pages. Responses that return more
+unsupported: returned `Delimiter` elements, including blank elements, or
+`CommonPrefixes` responses are rejected instead of being treated as ordinary
+object pages. Responses that return more
 matching objects than requested are rejected,
 keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded
