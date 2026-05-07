@@ -657,6 +657,10 @@ Current state:
 - IMAP APPEND/STORE flag-list parsing now also rejects duplicate canonical
   system flags such as `(\\Seen \\Seen)`, keeping flag-lists set-shaped before
   backend mutation or APPEND body handling.
+- IMAP `SELECT` now canonicalizes mailbox `PermanentFlags` before rendering
+  `FLAGS`/`PERMANENTFLAGS` and before selected-state STORE permission checks,
+  so backend duplicate, alias, lower-case, or unknown flag metadata cannot
+  leak into wire responses or permission state.
 - IMAP selected-state commands reject malformed message sequence-set and UID
   set syntax, including signed values such as `+1`/`+7`, before authentication
   or selected-mailbox checks while preserving selected-mailbox bounds checks

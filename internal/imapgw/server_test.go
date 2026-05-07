@@ -2740,6 +2740,60 @@ func TestServerHandlesSelectAfterLogin(t *testing.T) {
 	}
 }
 
+func TestServerCanonicalizesPermanentFlagsInSelectResponses(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: duplicatePermanentFlagsBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 STORE 1 +FLAGS (Forwarded)\r\n")); err != nil {
+		t.Fatalf("write login/select/store: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	want := []string{
+		"* FLAGS (\\Seen $Forwarded \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen $Forwarded \\Deleted)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+		"* 1 FETCH (UID 7 FLAGS ($Forwarded))\r\n",
+		"a3 OK STORE completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerFailedSelectDeselectsCurrentMailbox(t *testing.T) {
 	t.Parallel()
 
@@ -13784,6 +13838,25 @@ func (forwardedPermanentFlagsBackend) SelectMailbox(context.Context, SelectMailb
 	return MailboxState{
 		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
 		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted},
+	}, nil
+}
+
+type duplicatePermanentFlagsBackend struct {
+	fakeBackend
+}
+
+func (duplicatePermanentFlagsBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox: Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 5, Messages: 2},
+		PermanentFlags: []string{
+			`\seen`,
+			FlagSeen,
+			`Forwarded`,
+			FlagForwarded,
+			`\Bogus`,
+			FlagDeleted,
+			FlagDeleted,
+		},
 	}, nil
 }
 

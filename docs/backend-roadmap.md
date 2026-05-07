@@ -4210,6 +4210,11 @@ Implementation order:
 1490. IMAP APPEND/STORE flag-list parsing now rejects duplicate canonical
       system flags such as `(\\Seen \\Seen)`, keeping mutation and append
       option lists set-shaped before backend writes or APPEND body handling.
+1491. IMAP `SELECT` now canonicalizes backend-provided permanent flags before
+      rendering `FLAGS`/`PERMANENTFLAGS` and before selected-state STORE
+      permission checks. Duplicate, aliased, lower-case, or unknown backend
+      metadata is collapsed into the supported RFC-shaped flag set, keeping
+      client-visible mailbox metadata and mutation permissions aligned.
 
 ## Deferred until backend contracts stabilize
 
