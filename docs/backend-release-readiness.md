@@ -2401,8 +2401,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP ENVELOPE address lists are capped after placeholder filtering so
   abnormal recipient fan-out metadata cannot amplify FETCH responses and
   malformed empty entries cannot hide later valid addresses.
-- Malformed empty ENVELOPE address entries are dropped before rendering, so
-  backend placeholder data cannot emit stray `(NIL NIL NIL NIL)` address tuples.
+- Malformed empty or incomplete ENVELOPE address entries are dropped before
+  rendering, so backend placeholder data cannot emit stray `(NIL NIL NIL NIL)`
+  or display-name-only address tuples.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.

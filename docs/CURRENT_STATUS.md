@@ -382,8 +382,9 @@ responses.
 ENVELOPE address lists are also capped after placeholder filtering, preventing
 abnormal recipient fan-out metadata from amplifying IMAP FETCH responses
 without letting malformed empty entries hide later valid addresses.
-Malformed empty ENVELOPE address entries are dropped before rendering, so
-backend placeholder data cannot emit stray `(NIL NIL NIL NIL)` address tuples.
+Malformed empty or incomplete ENVELOPE address entries are dropped before
+rendering, so backend placeholder data cannot emit stray `(NIL NIL NIL NIL)`
+or display-name-only address tuples.
 IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting

@@ -1976,8 +1976,9 @@ Current state:
 - IMAP ENVELOPE address lists are capped after placeholder filtering,
   preventing abnormal recipient fan-out metadata from amplifying FETCH
   responses without letting malformed empty entries hide later valid addresses.
-- Malformed empty ENVELOPE address entries are dropped before rendering, so
-  backend placeholder data cannot emit stray `(NIL NIL NIL NIL)` address tuples.
+- Malformed empty or incomplete ENVELOPE address entries are dropped before
+  rendering, so backend placeholder data cannot emit stray `(NIL NIL NIL NIL)`
+  or display-name-only address tuples.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
