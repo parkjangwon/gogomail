@@ -292,7 +292,7 @@ func TestIMAPUIDBackfillAuditDetailSamplesAssignments(t *testing.T) {
 	if err := json.Unmarshal(detail, &got); err != nil {
 		t.Fatalf("unmarshal audit detail: %v", err)
 	}
-	if got.UserID != "user-1" || got.MailboxID != "inbox" || got.Limit != imapUIDBackfillDefaultLimit || got.AssignedCount != maxIMAPUIDBackfillAuditSample+2 {
+	if got.UserID != "user-1" || got.MailboxID != " inbox " || got.Limit != imapUIDBackfillDefaultLimit || got.AssignedCount != maxIMAPUIDBackfillAuditSample+2 {
 		t.Fatalf("audit detail = %+v", got)
 	}
 	if len(got.Assigned) != maxIMAPUIDBackfillAuditSample || got.Assigned[0].MessageID != "msg-0" || got.Assigned[0].UID != 100 {
