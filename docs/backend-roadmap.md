@@ -4284,9 +4284,10 @@ Implementation order:
       aligned with the signed list request.
 1501. S3-compatible `ListObjectsV2` delimiter grouping controls are now
       rejected. gogomail never requests delimiter-based grouped listing, so
-      non-empty `Delimiter` or `CommonPrefixes` responses fail closed instead
-      of being treated as ordinary object pages by Drive, lifecycle cleanup, or
-      reconciliation callers.
+      returned `Delimiter` elements, including blank elements, or
+      `CommonPrefixes` responses fail closed instead of being treated as
+      ordinary object pages by Drive, lifecycle cleanup, or reconciliation
+      callers.
 1502. S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected
       when present, including blank elements. gogomail uses continuation-token
       pagination rather than start-after list mode, so provider responses
