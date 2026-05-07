@@ -223,6 +223,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` root `<Name>` metadata, when present, must
   match the configured bucket name so wrong-bucket compatible-provider
   responses fail closed.
+- S3-compatible `ListObjectsV2` root `<EncodingType>` metadata is rejected
+  when present because gogomail does not request encoded-key list mode.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

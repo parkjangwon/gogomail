@@ -4248,6 +4248,10 @@ Implementation order:
       providers return it: the echoed bucket name must match the configured
       bucket, so wrong-bucket compatible-provider responses fail closed instead
       of looking like ordinary empty or successful list pages.
+1499. S3-compatible `ListObjectsV2` root `EncodingType` metadata is now
+      rejected when present because gogomail does not request encoded-key list
+      mode. This keeps URL-encoded provider keys from being treated as ordinary
+      storage object paths before an explicit decoding contract exists.
 
 ## Deferred until backend contracts stabilize
 
