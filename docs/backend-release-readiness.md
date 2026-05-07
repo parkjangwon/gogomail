@@ -49,7 +49,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   collection already-exists semantics.
 - IMAP partial fetch offsets now enforce RFC 3501 `number` syntax, rejecting
   leading-zero forms such as `BODY.PEEK[]<00.34>` before command execution
-  while keeping valid zero-offset partial windows available for clients.
+  while keeping valid zero-offset partial windows available for clients and
+  capping offset/count values to the unsigned 32-bit IMAP `number` range.
 - IMAP command literal size framing now enforces RFC 3501 `number` syntax,
   preserving valid `{0}` literals while rejecting leading-zero literal sizes
   such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such
@@ -1628,8 +1629,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP MIME body-part paths and partial body fetch windows require digit-only
   number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
-  RFC 3501 `nz-number` grammar. Partial fetch tokens also reject trailing
-  characters after the closing `>`.
+  RFC 3501 `nz-number` grammar. Offset and count values are capped to IMAP's
+  unsigned 32-bit `number` range, and partial fetch tokens also reject
+  trailing characters after the closing `>`.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized. Unsupported charsets

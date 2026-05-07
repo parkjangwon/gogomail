@@ -1520,7 +1520,8 @@ Implementation order:
      command execution.
 901. IMAP MIME body-part paths and partial body fetch windows now require
      digit-only number atoms, rejecting signed forms such as `BODY[+1]` and
-     `BODY[]<+12.34>` before fetch processing.
+     `BODY[]<+12.34>` before fetch processing, with offset/count values capped
+     to the unsigned 32-bit IMAP `number` range.
 902. IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject
      malformed atoms that still contain quote characters after command parsing,
      preventing broken values such as `UTF-8"` from being silently normalized.
@@ -3788,7 +3789,8 @@ Implementation order:
 1378. IMAP partial fetch offsets now enforce RFC 3501 `number` syntax by
       rejecting leading-zero forms such as `BODY.PEEK[]<00.34>` and
       `<012.34>` before command execution, while preserving the valid
-      zero-offset `<0.count>` window used by clients.
+      zero-offset `<0.count>` window used by clients and capping offset/count
+      values to the unsigned 32-bit IMAP `number` range.
 1379. IMAP UID and message sequence-set number parsing now enforces RFC
       `nz-number` spelling, rejecting leading-zero values such as
       `FETCH 01 FLAGS` and `UID FETCH 1:02 FLAGS` before set expansion instead
