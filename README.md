@@ -107,7 +107,8 @@ Recent release-readiness work also includes:
   `EncodingType`, missing-request or mismatched returned `ContinuationToken`
   echoes when present, and any returned `StartAfter`, requester-pays response
   headers across S3 adapter success paths, any delimiter/grouping controls, and
-  nested XML inside simple
+  duplicate single-value object metadata such as `StorageClass`/`ChecksumType`,
+  plus nested XML inside simple
   core/standard provider metadata fields, while standard S3 error XML,
   including duplicate, nested,
   or otherwise ambiguous safe error fields, and

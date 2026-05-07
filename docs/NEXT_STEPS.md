@@ -215,6 +215,10 @@ Current state:
 - S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
   `StorageClass` now rejects nested XML before unmarshalling, while AWS
   structured fields such as `Owner` remain accepted.
+- S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+  single-value `StorageClass` and `ChecksumType` elements, while preserving
+  repeated `ChecksumAlgorithm` compatibility for providers that return multiple
+  checksum algorithms.
 - S3-compatible `ListObjectsV2` simple root metadata now rejects duplicate
   standard elements such as `<KeyCount>` or `<Prefix>`, and validates
   `KeyCount` as an unsigned decimal that exactly matches the returned

@@ -4323,6 +4323,11 @@ Implementation order:
       non-ASCII runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST,
       and related quoted response strings 7-bit safe while gogomail does not
       advertise an IMAP UTF-8 response extension.
+1509. S3-compatible `ListObjectsV2` object metadata now rejects duplicate
+      single-value `StorageClass` and `ChecksumType` elements before XML
+      unmarshalling can collapse provider ambiguity, while preserving repeated
+      `ChecksumAlgorithm` compatibility for providers that report multiple
+      checksum algorithms.
 
 ## Deferred until backend contracts stabilize
 
