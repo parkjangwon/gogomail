@@ -487,6 +487,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 			if strings.TrimSpace(*item.ETag) == "" {
 				return ObjectListPage{}, fmt.Errorf("list s3 objects: object etag is empty")
 			}
+			if strings.TrimSpace(*item.ETag) != *item.ETag {
+				return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object etag")
+			}
 			etag = cleanS3ETag(*item.ETag)
 			if etag == "" {
 				return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object etag")
@@ -2001,6 +2004,9 @@ func validateS3CopyResponse(body io.Reader) error {
 		}
 		if strings.TrimSpace(response.ETag) == "" {
 			return fmt.Errorf("copy s3 object: etag is required")
+		}
+		if strings.TrimSpace(response.ETag) != response.ETag {
+			return fmt.Errorf("copy s3 object: invalid etag")
 		}
 		if cleanS3ETag(response.ETag) == "" {
 			return fmt.Errorf("copy s3 object: invalid etag")
