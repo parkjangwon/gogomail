@@ -2244,30 +2244,62 @@ func TestS3StoreListRejectsUnexpectedEncodingType(t *testing.T) {
 func TestS3StoreListValidatesContinuationTokenEcho(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+	for _, tc := range []struct {
+		name   string
+		body   string
+		cursor string
+	}{
+		{
+			name: "blank_without_request_cursor",
+			body: `<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <ContinuationToken></ContinuationToken>
+</ListBucketResult>`,
+		},
+		{
+			name:   "blank_with_request_cursor",
+			cursor: "cursor-1",
+			body: `<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <ContinuationToken></ContinuationToken>
+</ListBucketResult>`,
+		},
+		{
+			name:   "mismatch",
+			cursor: "cursor-1",
+			body: `<ListBucketResult>
   <IsTruncated>false</IsTruncated>
   <ContinuationToken>cursor-other</ContinuationToken>
-</ListBucketResult>`)),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
+</ListBucketResult>`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Cursor: "cursor-1"})
-	if err == nil || !strings.Contains(err.Error(), "response ContinuationToken does not match request") {
-		t.Fatalf("List err = %v, want ContinuationToken mismatch", err)
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Cursor: tc.cursor})
+			if err == nil || !strings.Contains(err.Error(), "response ContinuationToken does not match request") {
+				t.Fatalf("List err = %v, want ContinuationToken mismatch", err)
+			}
+		})
 	}
 }
 
