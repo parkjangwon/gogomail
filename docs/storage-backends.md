@@ -460,7 +460,9 @@ be exact unsigned decimal digits and cannot be blank. Provider
 responses that include `StartAfter` or `EncodingType`, even as blank elements,
 fail closed, and requester-pays response
 headers are rejected across success paths, because the adapter does not request
-start-after pagination or requester-pays mode. Delimiter grouping is likewise
+start-after pagination, encoded-key mode, or requester-pays mode. Returned root
+`ContinuationToken` echoes must match an explicitly requested cursor and are
+rejected when no request cursor was sent. Delimiter grouping is likewise
 unsupported: non-empty `Delimiter` or `CommonPrefixes` responses are rejected
 instead of being treated as ordinary object pages. Responses that return more
 matching objects than requested are rejected,

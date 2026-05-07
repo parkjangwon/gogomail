@@ -871,11 +871,11 @@ func validateS3ListEncodingType(value *string) error {
 	return fmt.Errorf("list s3 objects: unsupported EncodingType value")
 }
 
-func validateS3ListContinuationToken(value string, expected string) error {
-	if value == "" {
+func validateS3ListContinuationToken(value *string, expected string) error {
+	if value == nil {
 		return nil
 	}
-	if value != expected {
+	if expected == "" || *value != expected {
 		return fmt.Errorf("list s3 objects: response ContinuationToken does not match request")
 	}
 	return nil
@@ -1694,7 +1694,7 @@ func s3PlainErrorPreview(value string) string {
 type s3ListObjectsResult struct {
 	XMLName               xml.Name              `xml:"ListBucketResult"`
 	IsTruncated           string                `xml:"IsTruncated"`
-	ContinuationToken     string                `xml:"ContinuationToken"`
+	ContinuationToken     *string               `xml:"ContinuationToken"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Name                  string                `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`

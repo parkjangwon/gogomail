@@ -4277,9 +4277,10 @@ Implementation order:
       from being treated as ordinary storage object paths before an explicit
       decoding contract exists.
 1500. S3-compatible `ListObjectsV2` root `ContinuationToken` metadata is now
-      validated when present: the echoed token must match the requested cursor
-      exactly, keeping page diagnostics and retry semantics aligned with the
-      signed list request.
+      validated when present: the echoed token must match an explicitly
+      requested cursor exactly, and returned tokens are rejected when no
+      request cursor was sent. This keeps page diagnostics and retry semantics
+      aligned with the signed list request.
 1501. S3-compatible `ListObjectsV2` delimiter grouping controls are now
       rejected. gogomail never requests delimiter-based grouped listing, so
       non-empty `Delimiter` or `CommonPrefixes` responses fail closed instead

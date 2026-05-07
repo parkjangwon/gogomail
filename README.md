@@ -105,9 +105,10 @@ Recent release-readiness work also includes:
   `KeyCount`, present-but-blank `KeyCount`/`MaxKeys`, malformed or
   under-counting `MaxKeys`, mismatched returned
   `Prefix` and bucket `Name` echoes when present, any returned
-  `EncodingType`, mismatched returned `ContinuationToken` echoes when present,
-  and any returned `StartAfter`, requester-pays response headers across S3
-  adapter success paths, delimiter/grouping controls, and nested XML inside simple
+  `EncodingType`, missing-request or mismatched returned `ContinuationToken`
+  echoes when present, and any returned `StartAfter`, requester-pays response
+  headers across S3 adapter success paths, delimiter/grouping controls, and
+  nested XML inside simple
   core/standard provider metadata fields, while standard S3 error XML,
   including duplicate, nested,
   or otherwise ambiguous safe error fields, and

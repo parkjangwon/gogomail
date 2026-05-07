@@ -204,7 +204,8 @@ present, including blank elements, because gogomail does not request
 URL-encoded key mode and should not treat encoded provider keys as ordinary
 object paths.
 S3-compatible `ListObjectsV2` root `ContinuationToken` metadata, when present,
-must now match the requested cursor exactly, keeping page diagnostics and retry
+must now match an explicitly requested cursor exactly; returned tokens are
+rejected when no request cursor was sent, keeping page diagnostics and retry
 semantics aligned with the signed list request.
 S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected when
 present, including blank elements, because gogomail uses continuation-token

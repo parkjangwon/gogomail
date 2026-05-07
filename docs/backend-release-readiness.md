@@ -233,7 +233,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   when present, including blank elements, because gogomail does not request
   encoded-key list mode.
 - S3-compatible `ListObjectsV2` root `<ContinuationToken>` metadata, when
-  present, must match the requested cursor exactly.
+  present, must match an explicitly requested cursor exactly and is rejected
+  when no request cursor was sent.
 - S3-compatible `ListObjectsV2` root `<StartAfter>` metadata is rejected when
   present, including blank elements, because gogomail does not request
   start-after list mode and relies on continuation-token pagination.
