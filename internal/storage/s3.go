@@ -1776,6 +1776,8 @@ func validateS3ListControlCardinality(data []byte) error {
 	var sizeSeen bool
 	var etagSeen bool
 	var lastModifiedSeen bool
+	var storageClassSeen bool
+	var checksumTypeSeen bool
 	var simpleObjectMetadata string
 	var simpleStandardMetadata string
 	rootSimpleSeen := make(map[string]struct{})
@@ -1818,6 +1820,8 @@ func validateS3ListControlCardinality(data []byte) error {
 					sizeSeen = false
 					etagSeen = false
 					lastModifiedSeen = false
+					storageClassSeen = false
+					checksumTypeSeen = false
 					simpleObjectMetadata = ""
 					simpleStandardMetadata = ""
 				case "CommonPrefixes":
@@ -1878,6 +1882,18 @@ func validateS3ListControlCardinality(data []byte) error {
 				default:
 					if s3ListStandardObjectMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
+					switch token.Name.Local {
+					case "StorageClass":
+						if storageClassSeen {
+							return fmt.Errorf("list s3 objects: duplicate object StorageClass value")
+						}
+						storageClassSeen = true
+					case "ChecksumType":
+						if checksumTypeSeen {
+							return fmt.Errorf("list s3 objects: duplicate object ChecksumType value")
+						}
+						checksumTypeSeen = true
 					}
 					if s3ListStandardSimpleObjectMetadata(token.Name.Local) {
 						simpleStandardMetadata = token.Name.Local
