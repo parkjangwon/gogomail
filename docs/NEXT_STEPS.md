@@ -18,7 +18,15 @@ Before changing code, read:
 
 ## Immediate backend priorities
 
-### 0. Storage portability
+### Redis-backed module nil safety (completed)
+
+- `RedisLimiter.Allow` now guards against nil Redis client, returning `true` (allow)
+  instead of panicking, matching the defensive pattern in `RedisFixedWindowLimiter.Allow`.
+- `RedisDeduplicator.CheckAndSet` now guards against nil Redis client, returning
+  `(true, nil)` (new duplicate, allow) instead of panicking.
+- Both fixes include unit test coverage for nil client behavior.
+
+### Storage portability
 
 Current state:
 
