@@ -817,7 +817,7 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 STORE 1 +FLAGS \\Seen)\r\na5 FETCH +1 (FLAGS)\r\na6 STORE +1 +FLAGS (\\Seen)\r\na7 COPY +1 Archive\r\na8 MOVE +1 Archive\r\na9 COPY 1\r\na10 COPY 1 &Jjo!\r\na11 MOVE 1\r\na12 FETCH \"1: 2\" (FLAGS)\r\na13 SEARCH\r\na14 SEARCH RETURN (COUNT COUNT) ALL\r\na15 SEARCH CHARSET UTF-8\r\na16 SORT\r\na17 SORT (DATE) UTF-8\r\na18 THREAD\r\na19 THREAD REFERENCES UTF-8 ALL\r\na20 FETCH 1 ((FLAGS))\r\na21 FETCH 1 (FLAGS)\r\na22 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 FETCH\r\na3 STORE\r\na4 STORE 1 +FLAGS \\Seen)\r\na5 FETCH +1 (FLAGS)\r\na6 STORE +1 +FLAGS (\\Seen)\r\na7 COPY +1 Archive\r\na8 MOVE +1 Archive\r\na9 COPY 1\r\na10 COPY 1 &Jjo!\r\na11 MOVE 1\r\na12 FETCH \"1: 2\" (FLAGS)\r\na13 SEARCH\r\na14 SEARCH RETURN (COUNT COUNT) ALL\r\na15 SEARCH CHARSET UTF-8\r\na16 SORT\r\na17 SORT (DATE) UTF-8\r\na18 THREAD\r\na19 THREAD REFERENCES UTF-8 ALL\r\na20 FETCH 1 ((FLAGS))\r\na21 STORE 1 +FLAGS (\\Seen \\Seen)\r\na22 FETCH 1 (FLAGS)\r\na23 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write selected-state commands: %v", err)
 	}
 	want := []string{
@@ -841,9 +841,10 @@ func TestServerValidatesSelectedCommandSyntaxBeforeSelectedState(t *testing.T) {
 		"a18 BAD THREAD requires algorithm, charset, and search criteria\r\n",
 		"a19 BAD THREAD algorithm is unsupported\r\n",
 		"a20 BAD FETCH data item list is invalid\r\n",
-		"a21 NO mailbox must be selected\r\n",
+		"a21 BAD STORE flags are unsupported\r\n",
+		"a22 NO mailbox must be selected\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a22 OK LOGOUT completed\r\n",
+		"a23 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
