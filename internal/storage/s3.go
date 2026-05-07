@@ -994,6 +994,9 @@ func s3ContentTypeValueValid(value string) bool {
 }
 
 func parseS3StatETag(value string) (string, error) {
+	if strings.TrimSpace(value) != value {
+		return "", fmt.Errorf("stat s3 object: invalid etag")
+	}
 	etag := cleanS3ETag(value)
 	if strings.TrimSpace(value) != "" && etag == "" {
 		return "", fmt.Errorf("stat s3 object: invalid etag")
@@ -1584,6 +1587,9 @@ func validateS3OptionalSuccessETag(operation string, resp *http.Response) error 
 	}
 	if !present {
 		return nil
+	}
+	if strings.TrimSpace(rawETag) != rawETag {
+		return fmt.Errorf("%s s3 object: invalid etag", operation)
 	}
 	if cleanS3ETag(rawETag) == "" {
 		return fmt.Errorf("%s s3 object: invalid etag", operation)

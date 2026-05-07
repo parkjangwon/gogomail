@@ -425,6 +425,7 @@ func TestS3StorePutValidatesSuccessETag(t *testing.T) {
 		{name: "valid_quoted", header: http.Header{"ETag": []string{`"etag-1"`}}},
 		{name: "blank", header: http.Header{"ETag": []string{""}}, want: "invalid etag"},
 		{name: "whitespace", header: http.Header{"ETag": []string{"  "}}, want: "invalid etag"},
+		{name: "padded", header: http.Header{"ETag": []string{` "etag-1" `}}, want: "invalid etag"},
 		{name: "duplicate", header: http.Header{"ETag": []string{`"etag-1"`, `"etag-2"`}}, want: "duplicate etag"},
 		{name: "invalid", header: http.Header{"ETag": []string{`"bad` + "\n" + `etag"`}}, want: "invalid etag"},
 		{name: "double_quoted", header: http.Header{"ETag": []string{`""etag-1""`}}, want: "invalid etag"},
@@ -1172,6 +1173,11 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 		{
 			name:   "blank etag",
 			header: http.Header{"ETag": []string{"  "}},
+			want:   "invalid etag",
+		},
+		{
+			name:   "padded etag",
+			header: http.Header{"ETag": []string{` "etag-1" `}},
 			want:   "invalid etag",
 		},
 		{

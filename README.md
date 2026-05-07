@@ -124,9 +124,9 @@ Recent release-readiness work also includes:
   diagnostics with request-id and host-id context when supplied, even when the
   provider body is truncated. Successful `PutObject`/`DeleteObject` bodies must
   otherwise be empty apart from whitespace. Optional `PutObject` success `ETag`
-  headers must also be singular, nonblank, and bounded when supplied, so
-  provider write identity metadata cannot depend on header collapse or
-  malformed values.
+  headers must also be singular, nonblank, unpadded, printable, and bounded
+  when supplied, so provider write identity metadata cannot depend on header
+  collapse or malformed values.
 - service-backed IMAP hardening, including UIDPLUS `COPYUID`/`APPENDUID`
   behavior, `UIDNOTSTICKY` handling, sparse `UID EXPUNGE`, RFC 5258
   `LIST-EXTENDED`/RFC 5819 `LIST-STATUS` capability alignment, LIST/LSUB
