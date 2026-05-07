@@ -10,3 +10,6 @@
 .env
 .env.*
 !.env.example
+
+# OpenCode agent sessions
+.omc/
