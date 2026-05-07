@@ -12674,6 +12674,23 @@ func TestIMAPMIMETokenRejectsTspecials(t *testing.T) {
 	}
 }
 
+func TestIMAPMIMETypePairFallsBackTogether(t *testing.T) {
+	t.Parallel()
+
+	mediaType, mediaSubtype := imapMIMETypePair("application", "pdf", "TEXT", "PLAIN")
+	if mediaType != "APPLICATION" || mediaSubtype != "PDF" {
+		t.Fatalf("imapMIMETypePair valid = %q/%q, want APPLICATION/PDF", mediaType, mediaSubtype)
+	}
+	mediaType, mediaSubtype = imapMIMETypePair("bad/type", "pdf", "TEXT", "PLAIN")
+	if mediaType != "TEXT" || mediaSubtype != "PLAIN" {
+		t.Fatalf("imapMIMETypePair invalid type = %q/%q, want TEXT/PLAIN", mediaType, mediaSubtype)
+	}
+	mediaType, mediaSubtype = imapMIMETypePair("application", "bad/subtype", "TEXT", "PLAIN")
+	if mediaType != "TEXT" || mediaSubtype != "PLAIN" {
+		t.Fatalf("imapMIMETypePair invalid subtype = %q/%q, want TEXT/PLAIN", mediaType, mediaSubtype)
+	}
+}
+
 func TestIMAPMIMEBodyParameterListRejectsMalformedNames(t *testing.T) {
 	t.Parallel()
 

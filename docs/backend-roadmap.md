@@ -4354,8 +4354,9 @@ Implementation order:
 1515. IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
       parameter-list names, and transfer-encoding tokens against RFC
       2045-style token boundaries, falling back to conservative defaults for
-      malformed tspecial/control-bearing source metadata and suppressing empty
-      parameter values before writing client-visible structure responses.
+      malformed tspecial/control-bearing source metadata, using pair-shaped
+      type/subtype fallback, and suppressing empty parameter values before
+      writing client-visible structure responses.
       Canonical duplicate parameter names are collapsed so malformed MIME
       source metadata cannot emit repeated `BODYSTRUCTURE` keys, and MIME
       parameter values are bounded at UTF-8 boundaries before rendering so

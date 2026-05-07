@@ -2177,9 +2177,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   parameter-list names, and transfer-encoding tokens against RFC 2045-style
   token boundaries, falling back to safe defaults when stored or parsed source
   metadata contains tspecial/control-bearing malformed tokens or empty
-  parameter values. Canonical duplicate parameter names are collapsed before
-  rendering so malformed MIME source metadata cannot emit repeated structure
-  keys. MIME parameter values are trimmed and bounded at UTF-8 boundaries
+  parameter values. Type/subtype fallback is pair-shaped, so malformed source
+  metadata cannot combine a fallback type with a valid but misleading subtype.
+  Canonical duplicate parameter names are collapsed before rendering so
+  malformed MIME source metadata cannot emit repeated structure keys. MIME
+  parameter values are trimmed and bounded at UTF-8 boundaries
   before rendering so oversized filenames, boundaries, or other source metadata
   cannot amplify BODY/BODYSTRUCTURE fetch responses.
 - IMAP BODYSTRUCTURE disposition metadata now treats malformed disposition

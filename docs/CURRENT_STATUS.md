@@ -379,6 +379,9 @@ IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting
 malformed tspecial/control-bearing tokens or empty parameter values to clients.
+MIME type/subtype validation is pair-shaped for structure rendering, so a
+malformed type cannot be combined with a valid subtype, or vice versa, to
+invent mixed fallback semantics.
 Canonical duplicate parameter names are collapsed before rendering so a
 malformed or inconsistent MIME source cannot emit repeated `BODYSTRUCTURE`
 parameter keys.
