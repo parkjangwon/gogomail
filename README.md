@@ -148,7 +148,8 @@ Recent release-readiness work also includes:
   and date search criteria,
   rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
   values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
-  `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing,
+  `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing with
+  duplicate flag rejection,
   rejection of whitespace-bearing sequence-set range components,
   strict KEYWORD/UNKEYWORD atom validation,
   case-insensitive standard SORT criteria while preserving strict criterion-list

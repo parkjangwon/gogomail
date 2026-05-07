@@ -1724,6 +1724,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP APPEND/STORE flag-list parsing now rejects malformed inner list
   whitespace such as `( \\Seen)`, `(\\Seen )`, `(\\Seen  \\Flagged)`, or
   tab-separated flag names instead of collapsing them into valid flags.
+- IMAP APPEND/STORE flag-list parsing now also rejects duplicate canonical
+  system flags such as `(\\Seen \\Seen)`, keeping flag-lists set-shaped before
+  backend mutation or APPEND body handling.
 - IMAP selected-state commands now validate malformed message sequence-set and
   UID set syntax, including signed values such as `+1`/`+7`, before
   authentication or selected-mailbox checks while leaving selected-mailbox

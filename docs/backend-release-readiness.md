@@ -1453,6 +1453,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP flag-list parsing for `APPEND`, `STORE`, and `UID STORE` now rejects
   unparenthesized or unbalanced lists before backend mutation, preserving
   stricter protocol syntax for client compatibility.
+- IMAP flag-list parsing for `APPEND`, `STORE`, and `UID STORE` now also
+  rejects duplicate canonical system flags, preserving set-shaped mutation
+  controls before backend writes.
 - IMAP `APPEND` now resolves destination mailbox names to canonical mailbox IDs
   before mutation dispatch and rejects appends to the currently
   `EXAMINE`-selected read-only mailbox without calling backend storage,
