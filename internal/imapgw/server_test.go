@@ -12704,6 +12704,18 @@ func TestIMAPMIMEBodyParameterListDeduplicatesCanonicalNames(t *testing.T) {
 	}
 }
 
+func TestIMAPMIMEBodyParameterListBoundsValues(t *testing.T) {
+	t.Parallel()
+
+	got := imapMIMEBodyParameterList(map[string]string{
+		"filename": strings.Repeat("x", maxIMAPBodyMetadataTextBytes+10),
+	})
+	want := `("FILENAME" "` + strings.Repeat("x", maxIMAPBodyMetadataTextBytes) + `")`
+	if got != want {
+		t.Fatalf("imapMIMEBodyParameterList oversized = %q, want bounded value", got)
+	}
+}
+
 func TestIMAPMIMEBodyDispositionRejectsMalformedToken(t *testing.T) {
 	t.Parallel()
 

@@ -4357,7 +4357,9 @@ Implementation order:
       malformed tspecial/control-bearing source metadata and suppressing empty
       parameter values before writing client-visible structure responses.
       Canonical duplicate parameter names are collapsed so malformed MIME
-      source metadata cannot emit repeated `BODYSTRUCTURE` keys.
+      source metadata cannot emit repeated `BODYSTRUCTURE` keys, and MIME
+      parameter values are bounded before rendering so oversized filenames or
+      boundaries cannot inflate fetch responses.
 1516. IMAP BODYSTRUCTURE disposition rendering now treats malformed disposition
       tokens as `NIL` instead of falling back to `ATTACHMENT`, preventing
       invalid MIME source metadata from inventing attachment semantics.
