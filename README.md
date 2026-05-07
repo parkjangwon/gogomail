@@ -151,7 +151,7 @@ Recent release-readiness work also includes:
   values, exact `IDLE` `DONE` continuation handling, exact STORE mode and
   `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing with
   duplicate flag rejection, canonical duplicate-free `SELECT` permanent flag
-  responses,
+  responses, per-message `RECENT`/`NEW`/`OLD` search semantics,
   rejection of whitespace-bearing sequence-set range components,
   strict KEYWORD/UNKEYWORD atom validation,
   case-insensitive standard SORT criteria while preserving strict criterion-list

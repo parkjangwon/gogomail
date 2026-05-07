@@ -1021,9 +1021,8 @@ Implementation order:
 766. IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
      separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
      that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
-767. IMAP `SEARCH` and `UID SEARCH` now support `RECENT`, `OLD`, and `NEW`,
-     returning no recent/new matches while durable recent-state semantics remain
-     deferred and treating active messages as old.
+767. IMAP `SEARCH` and `UID SEARCH` now accept `RECENT`, `OLD`, and `NEW`
+     criteria at the parser boundary.
 768. IMAP `SEARCH` and `UID SEARCH` now support `KEYWORD` and `UNKEYWORD`
      criteria with validated keyword atoms, returning no custom-keyword matches
      until durable user keyword storage exists and treating active messages as
@@ -4220,6 +4219,11 @@ Implementation order:
       `KeyCount` as an unsigned decimal that exactly matches the returned
       `<Contents>` count before pagination, cleanup, Drive, or reconciliation
       callers trust the provider page.
+1493. IMAP `SEARCH` and `UID SEARCH` now evaluate `RECENT`, `NEW`, and `OLD`
+      against per-message recentness instead of fixed empty/all results.
+      `NEW` matches recent unseen messages, `OLD` matches non-recent messages,
+      and legacy zero-value summaries remain old until a backend exposes
+      session-specific recent state.
 
 ## Deferred until backend contracts stabilize
 
