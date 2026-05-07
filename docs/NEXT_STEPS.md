@@ -457,15 +457,15 @@ Current state:
   token boundaries, using conservative defaults for malformed
   tspecial/control-bearing source metadata instead of emitting invalid
   structure tokens, duplicate canonical parameter keys, or empty parameter
-  values to clients. Parameter values are also trimmed and bounded before
-  rendering so oversized filenames or boundaries cannot inflate fetch
-  responses.
+  values to clients. Parameter values are also trimmed and bounded at UTF-8
+  boundaries before rendering so oversized filenames or boundaries cannot
+  inflate fetch responses.
 - Malformed MIME disposition tokens now render as `NIL` instead of falling back
   to `ATTACHMENT`, so IMAP BODYSTRUCTURE does not invent attachment semantics
   for invalid source metadata.
 - BODYSTRUCTURE content ID and description nstrings are now trimmed and
-  bounded before quoting, preventing oversized source metadata from inflating
-  IMAP fetch responses.
+  bounded at UTF-8 boundaries before quoting, preventing oversized source
+  metadata from inflating IMAP fetch responses.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
