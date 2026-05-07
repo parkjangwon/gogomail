@@ -82,22 +82,27 @@ func (r *Repository) SubscribeIMAPMailbox(ctx context.Context, userID string, ma
 		return imapgw.MailboxSubscription{}, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("mailbox_id is required")
 	}
-	mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID)
+	var mailbox imapgw.Mailbox
+	var err error
 	exists := true
 	name := ""
+	if strings.TrimSpace(mailboxID) == mailboxID {
+		mailbox, err = r.GetIMAPMailbox(ctx, userID, mailboxID)
+	} else {
+		err = imapgw.ErrMailboxNotFound
+	}
 	if err != nil {
 		if !isIMAPMailboxNotFound(err) {
 			return imapgw.MailboxSubscription{}, err
 		}
 		exists = false
-		name = strings.Trim(strings.TrimSpace(mailboxID), `"`)
+		name = mailboxID
 	} else {
 		name = imapSubscriptionDisplayName(mailbox)
 	}
@@ -120,19 +125,20 @@ func (r *Repository) UnsubscribeIMAPMailbox(ctx context.Context, userID string, 
 		return fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return fmt.Errorf("mailbox_id is required")
 	}
 
 	name := mailboxID
-	if mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID); err == nil {
-		name = imapSubscriptionDisplayName(mailbox)
-	} else if !isIMAPMailboxNotFound(err) {
-		return err
+	if strings.TrimSpace(mailboxID) == mailboxID {
+		if mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID); err == nil {
+			name = imapSubscriptionDisplayName(mailbox)
+		} else if !isIMAPMailboxNotFound(err) {
+			return err
+		}
 	}
 	canonical := canonicalIMAPSubscriptionName(name)
 	if canonical == "" {
@@ -158,7 +164,10 @@ func imapSubscriptionDisplayName(mailbox imapgw.Mailbox) string {
 }
 
 func canonicalIMAPSubscriptionName(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return strings.ToLower(value)
 }
 
 func isIMAPMailboxNotFound(err error) bool {

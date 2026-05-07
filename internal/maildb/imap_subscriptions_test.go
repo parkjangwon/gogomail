@@ -10,11 +10,13 @@ func TestCanonicalIMAPSubscriptionNamePreservesMailboxIdentity(t *testing.T) {
 		value string
 		want  string
 	}{
-		{name: "case insensitive", value: " INBOX ", want: "inbox"},
+		{name: "case insensitive", value: "INBOX", want: "inbox"},
+		{name: "leading and trailing space identity", value: " INBOX ", want: " inbox "},
 		{name: "leading delimiter", value: "/Archive", want: "/archive"},
 		{name: "trailing delimiter", value: "Archive/", want: "archive/"},
 		{name: "internal spacing", value: "Project  2026", want: "project  2026"},
 		{name: "quoted direct value", value: `"Archive"`, want: `"archive"`},
+		{name: "blank", value: " ", want: ""},
 	}
 	for _, tt := range tests {
 		tt := tt

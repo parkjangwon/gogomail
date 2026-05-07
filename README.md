@@ -181,8 +181,10 @@ Recent release-readiness work also includes:
   backend mutations, explicit rejection of empty required mailbox targets for
   SELECT/EXAMINE, STATUS, mailbox mutation/subscription commands, COPY/MOVE,
   UID COPY/MOVE, and APPEND while preserving empty LIST/LSUB root/pattern
-  semantics, and exact `INBOX` special-name checks that do not trim quoted
-  mailbox names containing real leading or trailing spaces,
+  semantics, exact `INBOX` special-name checks that do not trim quoted
+  mailbox names containing real leading or trailing spaces, and subscription
+  canonicalization that preserves those spaces through service/repository
+  `SUBSCRIBE`/`UNSUBSCRIBE` delegation,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,
