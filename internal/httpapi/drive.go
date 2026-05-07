@@ -427,16 +427,28 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !ok {
 			return
 		}
-		if contentRange != "" {
-			writeError(w, http.StatusBadRequest, "content-range is not supported for drive upload session body storage")
+		session, err := service.GetUploadSession(r.Context(), drive.GetUploadSessionRequest{UserID: userID, SessionID: sessionID})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
+		}
+		if contentRange != "" {
+			parsedRange, err := drive.ParseContentRange(contentRange)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			if err := drive.ValidateContentRangeComplete(parsedRange, session.DeclaredSize); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 		}
 		checksum, ok := singleHTTPHeaderValue(w, r, "X-Content-SHA256", maxHTTPAuthHeaderBytes)
 		if !ok {
 			return
 		}
 		body := http.MaxBytesReader(w, r.Body, drive.MaxUploadSessionBytes+1)
-		session, err := service.StoreUploadSessionBody(r.Context(), drive.StoreUploadSessionBodyRequest{
+		session, err = service.StoreUploadSessionBody(r.Context(), drive.StoreUploadSessionBodyRequest{
 			UserID:                 userID,
 			SessionID:              sessionID,
 			ExpectedChecksumSHA256: checksum,

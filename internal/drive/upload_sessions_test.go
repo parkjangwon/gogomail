@@ -317,3 +317,248 @@ func TestValidateUploadSessionStatus(t *testing.T) {
 		t.Fatal("ValidateUploadSessionStatus accepted unsupported status")
 	}
 }
+
+func TestParseContentRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		value       string
+		want        ContentRange
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "asterisk form",
+			value:   "bytes */100",
+			want:    ContentRange{Total: 100, IsAsteriskForm: true},
+			wantErr: false,
+		},
+		{
+			name:    "full range",
+			value:   "bytes 0-99/100",
+			want:    ContentRange{Start: 0, End: 99, Total: 100},
+			wantErr: false,
+		},
+		{
+			name:    "full range with spaces",
+			value:   "bytes  0 - 99 / 100 ",
+			want:    ContentRange{Start: 0, End: 99, Total: 100},
+			wantErr: false,
+		},
+		{
+			name:        "empty value",
+			value:       "",
+			wantErr:     true,
+			errContains: "empty",
+		},
+		{
+			name:        "missing bytes prefix",
+			value:       "*/100",
+			wantErr:     true,
+			errContains: "bytes",
+		},
+		{
+			name:        "missing slash",
+			value:       "bytes 0-99",
+			wantErr:     true,
+			errContains: "<range>/<total>",
+		},
+		{
+			name:        "start greater than end",
+			value:       "bytes 10-5/100",
+			wantErr:     true,
+			errContains: "start must not exceed end",
+		},
+		{
+			name:        "end equals total",
+			value:       "bytes 0-100/100",
+			wantErr:     true,
+			errContains: "end must be less than total",
+		},
+		{
+			name:        "end greater than total",
+			value:       "bytes 0-101/100",
+			wantErr:     true,
+			errContains: "end must be less than total",
+		},
+		{
+			name:        "negative start",
+			value:       "bytes -1-99/100",
+			wantErr:     true,
+			errContains: "invalid start",
+		},
+		{
+			name:        "negative end",
+			value:       "bytes 0--1/100",
+			wantErr:     true,
+			errContains: "invalid end",
+		},
+		{
+			name:        "negative total",
+			value:       "bytes 0-99/-100",
+			wantErr:     true,
+			errContains: "invalid total size",
+		},
+		{
+			name:        "non-numeric start",
+			value:       "bytes ab-99/100",
+			wantErr:     true,
+			errContains: "invalid start",
+		},
+		{
+			name:        "non-numeric end",
+			value:       "bytes 0-xy/100",
+			wantErr:     true,
+			errContains: "invalid end",
+		},
+		{
+			name:        "non-numeric total",
+			value:       "bytes 0-99/abc",
+			wantErr:     true,
+			errContains: "invalid total size",
+		},
+		{
+			name:        "missing asterisk value",
+			value:       "bytes */",
+			wantErr:     true,
+			errContains: "invalid total size",
+		},
+		{
+			name:        "missing range part",
+			value:       "bytes /100",
+			wantErr:     true,
+			errContains: "<start>-<end>",
+		},
+		{
+			name:        "too many dashes",
+			value:       "bytes 0-99-100/200",
+			wantErr:     true,
+			errContains: "invalid end",
+		},
+		{
+			name:    "zero total asterisk form",
+			value:   "bytes */0",
+			want:    ContentRange{Total: 0, IsAsteriskForm: true},
+			wantErr: false,
+		},
+		{
+			name:    "zero range",
+			value:   "bytes 0-0/1",
+			want:    ContentRange{Start: 0, End: 0, Total: 1},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ParseContentRange(tc.value)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("ParseContentRange(%q) error = nil, want error containing %q", tc.value, tc.errContains)
+				}
+				if !strings.Contains(err.Error(), tc.errContains) {
+					t.Fatalf("ParseContentRange(%q) error = %q, want error containing %q", tc.value, err.Error(), tc.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseContentRange(%q) returned error: %v", tc.value, err)
+			}
+			if got != tc.want {
+				t.Fatalf("ParseContentRange(%q) = %+v, want %+v", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateContentRangeComplete(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		contentRange ContentRange
+		declaredSize int64
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "valid asterisk form matching size",
+			contentRange: ContentRange{Total: 100, IsAsteriskForm: true},
+			declaredSize: 100,
+			wantErr:     false,
+		},
+		{
+			name:        "valid full range matching size",
+			contentRange: ContentRange{Start: 0, End: 99, Total: 100},
+			declaredSize: 100,
+			wantErr:     false,
+		},
+		{
+			name:        "asterisk total mismatch",
+			contentRange: ContentRange{Total: 200, IsAsteriskForm: true},
+			declaredSize: 100,
+			wantErr:     true,
+			errContains: "total 200 does not match declared size 100",
+		},
+		{
+			name:        "full range start not zero",
+			contentRange: ContentRange{Start: 10, End: 99, Total: 100},
+			declaredSize: 100,
+			wantErr:     true,
+			errContains: "start must be 0",
+		},
+		{
+			name:        "full range end mismatch",
+			contentRange: ContentRange{Start: 0, End: 98, Total: 100},
+			declaredSize: 100,
+			wantErr:     true,
+			errContains: "end must be 99",
+		},
+		{
+			name:        "full range total mismatch",
+			contentRange: ContentRange{Start: 0, End: 99, Total: 200},
+			declaredSize: 100,
+			wantErr:     true,
+			errContains: "total 200 does not match declared size 100",
+		},
+		{
+			name:        "zero declared size",
+			contentRange: ContentRange{Total: 100, IsAsteriskForm: true},
+			declaredSize: 0,
+			wantErr:     true,
+			errContains: "declared size is zero",
+		},
+		{
+			name:        "zero declared size non-asterisk",
+			contentRange: ContentRange{Start: 0, End: 0, Total: 1},
+			declaredSize: 0,
+			wantErr:     true,
+			errContains: "declared size is zero",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateContentRangeComplete(tc.contentRange, tc.declaredSize)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("ValidateContentRangeComplete(%+v, %d) error = nil, want error containing %q", tc.contentRange, tc.declaredSize, tc.errContains)
+				}
+				if !strings.Contains(err.Error(), tc.errContains) {
+					t.Fatalf("ValidateContentRangeComplete(%+v, %d) error = %q, want error containing %q", tc.contentRange, tc.declaredSize, err.Error(), tc.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ValidateContentRangeComplete(%+v, %d) returned error: %v", tc.contentRange, tc.declaredSize, err)
+			}
+		})
+	}
+}

@@ -319,3 +319,96 @@ func ValidateUploadSessionStatus(status string) (string, error) {
 		return "", fmt.Errorf("unsupported drive upload session status %q", status)
 	}
 }
+
+type ContentRange struct {
+	Start  int64
+	End    int64
+	Total  int64
+	IsAsteriskForm bool
+}
+
+func ParseContentRange(value string) (ContentRange, error) {
+	if value == "" {
+		return ContentRange{}, fmt.Errorf("content-range is empty")
+	}
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "bytes ") {
+		return ContentRange{}, fmt.Errorf("content-range must start with bytes")
+	}
+	value = strings.TrimPrefix(value, "bytes ")
+	if strings.HasPrefix(value, "*/") {
+		totalStr := strings.TrimSpace(strings.TrimPrefix(value, "*/"))
+		total, err := parseContentRangeNumber(totalStr)
+		if err != nil {
+			return ContentRange{}, fmt.Errorf("content-range invalid total size: %w", err)
+		}
+		return ContentRange{Total: total, IsAsteriskForm: true}, nil
+	}
+	slashIdx := strings.LastIndex(value, "/")
+	if slashIdx < 0 {
+		return ContentRange{}, fmt.Errorf("content-range must be bytes <range>/<total> or bytes */<total>")
+	}
+	rangePart := strings.TrimSpace(value[:slashIdx])
+	totalStr := strings.TrimSpace(value[slashIdx+1:])
+	total, err := parseContentRangeNumber(totalStr)
+	if err != nil {
+		return ContentRange{}, fmt.Errorf("content-range invalid total size: %w", err)
+	}
+	dashIdx := strings.Index(rangePart, "-")
+	if dashIdx < 0 {
+		return ContentRange{}, fmt.Errorf("content-range byte range must be <start>-<end>")
+	}
+	startStr := strings.TrimSpace(rangePart[:dashIdx])
+	endStr := strings.TrimSpace(rangePart[dashIdx+1:])
+	start, err := parseContentRangeNumber(startStr)
+	if err != nil {
+		return ContentRange{}, fmt.Errorf("content-range invalid start: %w", err)
+	}
+	end, err := parseContentRangeNumber(endStr)
+	if err != nil {
+		return ContentRange{}, fmt.Errorf("content-range invalid end: %w", err)
+	}
+	if start > end {
+		return ContentRange{}, fmt.Errorf("content-range start must not exceed end")
+	}
+	if end >= total {
+		return ContentRange{}, fmt.Errorf("content-range end must be less than total")
+	}
+	return ContentRange{Start: start, End: end, Total: total}, nil
+}
+
+func parseContentRangeNumber(s string) (int64, error) {
+	if s == "" {
+		return 0, fmt.Errorf("number is empty")
+	}
+	n := int64(0)
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("number must be unsigned decimal")
+		}
+		n = n*10 + int64(c-'0')
+	}
+	return n, nil
+}
+
+func ValidateContentRangeComplete(contentRange ContentRange, declaredSize int64) error {
+	if declaredSize == 0 {
+		return fmt.Errorf("upload session declared size is zero, content-range header is invalid")
+	}
+	if contentRange.IsAsteriskForm {
+		if contentRange.Total != declaredSize {
+			return fmt.Errorf("content-range total %d does not match declared size %d", contentRange.Total, declaredSize)
+		}
+		return nil
+	}
+	if contentRange.Start != 0 {
+		return fmt.Errorf("content-range start must be 0 for complete upload, got %d", contentRange.Start)
+	}
+	if contentRange.End != declaredSize-1 {
+		return fmt.Errorf("content-range end must be %d for complete upload, got %d", declaredSize-1, contentRange.End)
+	}
+	if contentRange.Total != declaredSize {
+		return fmt.Errorf("content-range total %d does not match declared size %d", contentRange.Total, declaredSize)
+	}
+	return nil
+}

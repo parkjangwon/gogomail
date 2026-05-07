@@ -1304,7 +1304,7 @@ func TestDriveHandlersRejectBadRequests(t *testing.T) {
 		{name: "list upload sessions unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions?user_id=user-1&cursor=bad", nil)},
 		{name: "get upload session unknown query", req: httptest.NewRequest(http.MethodGet, "/api/v1/drive/upload-sessions/session-1?user_id=user-1&typo=true", nil)},
 		{name: "cancel upload session body rejected", req: httptest.NewRequest(http.MethodDelete, "/api/v1/drive/upload-sessions/session-1?user_id=user-1", strings.NewReader(`{}`))},
-		{name: "store upload session content range rejected", req: requestWithHeader(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", "Content-Range", "bytes 0-1/2")},
+		{name: "store upload session content range total mismatch", req: requestWithHeader(http.MethodPut, "/api/v1/drive/upload-sessions/session-1/body?user_id=user-1", "Content-Range", "bytes 0-1/2")},
 		{name: "finalize upload session body rejected", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/upload-sessions/session-1/finalize?user_id=user-1", strings.NewReader(`{}`))},
 		{name: "finalize invalid json", req: httptest.NewRequest(http.MethodPost, "/api/v1/drive/files/finalize?user_id=user-1", strings.NewReader(`{`))},
 		{name: "staged missing backend", req: httptest.NewRequest(http.MethodPut, "/api/v1/drive/files/staged/upload-1/body?user_id=user-1", strings.NewReader("x"))},

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-08 (updated after CalDAV/CardDAV webmail REST API additions)
+Last updated: 2026-05-08 (updated after Drive Content-Range upload support)
 
 ## Current phase
 
@@ -1689,6 +1689,14 @@ owner/resource target without scanning unrelated audit history.
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities mark Drive
   upload-session inspection available for operator consoles.
+- Drive upload session body storage now accepts `Content-Range` headers for
+  complete body uploads. The `PUT /api/v1/drive/upload-sessions/{id}/body`
+  endpoint parses and validates RFC 7233 `Content-Range` headers, accepting
+  both `bytes */<size>` asterisk form and `bytes 0-<size-1>/<size>` explicit
+  range form when the range matches the session's declared size. Malformed
+  Content-Range headers or mismatched sizes return HTTP 400 with descriptive
+  errors. This enables clients to verify upload completeness through standard
+  HTTP Content-Range semantics before finalization.
 - Drive node listing now supports a bounded `q` name filter on both Mail and
   Admin API list surfaces, with case-insensitive normalization and literal SQL
   wildcard handling inside the selected parent/status scope.
