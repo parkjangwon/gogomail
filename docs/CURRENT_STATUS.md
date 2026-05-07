@@ -4270,11 +4270,8 @@ Next focus areas:
    IMAP gateway boundary.
 4. Add FCM/APNs/Web Push sink adapters and invalid-token cleanup behind the push
    notification worker.
-5. Deploy the remote-Ed25519 signer behind an approved KMS service, or add a
-   direct cloud KMS adapter, before using API usage batches for invoices or hard
-   limits.
-6. Frontend planning and API contract review before webmail implementation.
-7. Extend Directory/Identity from stored users, organizations, groups,
+5. Frontend planning and API contract review before webmail implementation.
+6. Extend Directory/Identity from stored users, organizations, groups,
    resources, aliases, group memberships, and bounded membership expansion into
    explicit delegated principal relationships before public shared-calendar or
    resource-booking CalDAV features.
