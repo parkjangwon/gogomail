@@ -1629,9 +1629,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP MIME body-part paths and partial body fetch windows require digit-only
   number atoms, rejecting signed forms such as `BODY[+1]` and
   `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
-  RFC 3501 `nz-number` grammar. Offset and count values are capped to IMAP's
-  unsigned 32-bit `number` range, and partial fetch tokens also reject
-  trailing characters after the closing `>`.
+  RFC 3501 `nz-number` grammar. MIME part, offset, and count values are capped
+  to IMAP's unsigned 32-bit `number` range, and partial fetch tokens also
+  reject trailing characters after the closing `>`.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments reject malformed atoms
   that still contain quote characters after command parsing, preventing broken
   values such as `UTF-8"` from being silently normalized. Unsupported charsets
