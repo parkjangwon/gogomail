@@ -262,7 +262,9 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	runtime := newIMAPGatewayRuntime(repository, store, repository)
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(runCtx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -330,8 +332,12 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	select {
 	case <-ctx.Done():
 		cancel()
-		_ = listener.Close()
-		_ = redisClient.Close()
+		if err := listener.Close(); err != nil {
+			logger.Warn("close listener", "error", err)
+		}
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		for range 2 {
 			err := <-errCh
 			if err != nil && !errors.Is(err, imapgw.ErrServerClosed) {
@@ -341,8 +347,12 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	case err := <-errCh:
 		cancel()
-		_ = listener.Close()
-		_ = redisClient.Close()
+		if err := listener.Close(); err != nil {
+			logger.Warn("close listener", "error", err)
+		}
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		otherErr := <-errCh
 		if err == nil || errors.Is(err, imapgw.ErrServerClosed) {
 			err = otherErr
@@ -1020,7 +1030,9 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	if opts.EnableDedup && cfg.DedupBackend == "redis" {
 		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		if err := redisClient.Ping(ctx).Err(); err != nil {
-			_ = redisClient.Close()
+			if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 			return err
 		}
 
@@ -1031,7 +1043,9 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		if redisClient == nil {
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
-				_ = redisClient.Close()
+				if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 				return err
 			}
 		}
@@ -1042,7 +1056,9 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		if redisClient == nil {
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
-				_ = redisClient.Close()
+				if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 				return err
 			}
 		}
@@ -1302,7 +1318,9 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1337,7 +1355,9 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1435,7 +1455,9 @@ func runSearchIndexWorker(ctx context.Context, cfg config.Config, logger *slog.L
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1564,7 +1586,9 @@ func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.L
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1621,7 +1645,9 @@ func runPushNotificationWorker(ctx context.Context, cfg config.Config, logger *s
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1692,7 +1718,9 @@ func runDeliveryWorker(ctx context.Context, cfg config.Config, logger *slog.Logg
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		_ = redisClient.Close()
+		if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 		return err
 	}
 	defer redisClient.Close()
@@ -1983,7 +2011,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		if strings.EqualFold(strings.TrimSpace(cfg.DriveShareRateLimitBackend), "redis") {
 			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
-				_ = redisClient.Close()
+				if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 				return err
 			}
 			defer redisClient.Close()
@@ -2008,7 +2038,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		if cfg.BackpressureBackend == "redis" {
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
-				_ = redisClient.Close()
+				if err := redisClient.Close(); err != nil {
+			logger.Warn("close redis client", "error", err)
+		}
 				return err
 			}
 			defer redisClient.Close()

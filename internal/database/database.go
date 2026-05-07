@@ -32,7 +32,9 @@ func Open(ctx context.Context, databaseURL string) (*sql.DB, error) {
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(pingCtx); err != nil {
-		_ = db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			fmt.Fprintln(os.Stderr, "close postgres after ping error:", closeErr)
+		}
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
