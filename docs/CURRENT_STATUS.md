@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3-compatible ETag hardening)
+Last updated: 2026-05-07 (updated after IMAP MIME token hardening)
 
 ## Current phase
 
@@ -375,6 +375,10 @@ checks.
 IMAP quoted-string response rendering now also forces invalid UTF-8 and
 non-ASCII runes to `?`, so ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and related
 quoted responses stay 7-bit safe while `UTF8=ACCEPT` is not advertised.
+IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
+parameter-name, and transfer-encoding tokens against RFC 2045-style token
+boundaries, falling back to conservative defaults instead of emitting malformed
+tspecial/control-bearing tokens to clients.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of

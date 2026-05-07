@@ -154,8 +154,9 @@ Recent release-readiness work also includes:
   partial windows, SEARCH size criteria,
   atom-only search numeric operands, atom-only search charset/date/keyword
   controls,
-  RFC-shaped `HEADER.FIELDS` field-list grammar, and CONDSTORE zero-boundary
-  semantics, RFC 2971 `ID` including bare no-argument probes, `NIL`, and
+  RFC-shaped `HEADER.FIELDS` field-list grammar, CONDSTORE zero-boundary
+  semantics, BODY/BODYSTRUCTURE MIME token sanitization, and RFC 2971 `ID`
+  including bare no-argument probes, `NIL`, and
   bounded field/value parameter lists, rejection of whitespace-padded numeric
   and date search criteria,
   rejection of whitespace-padded CONDSTORE modifier and MODSEQ entry-type
