@@ -241,6 +241,62 @@ func TestReadCommandLineRejectsCumulativeOversizedLiterals(t *testing.T) {
 	}
 }
 
+func TestServerRejectsLFOnlyCommandLineBeforeClosing(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 NOOP\n")); err != nil {
+		t.Fatalf("write lf-only command: %v", err)
+	}
+	want := []string{
+		"a1 BAD command line must end with CRLF\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lf-only command response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lf-only command response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestReadCommandLineRejectsLFOnlyLiteralSuffix(t *testing.T) {
+	t.Parallel()
+
+	input := "a1 LOGIN {4}\r\nuser {6}\nsecret\r\n"
+	reader := bufio.NewReader(strings.NewReader(input))
+	writer := bufio.NewWriter(&bytes.Buffer{})
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+
+	_, _, err = server.readCommandLine(reader, writer, &imapConnState{})
+	if err == nil || !strings.Contains(err.Error(), "command line must end with CRLF") {
+		t.Fatalf("readCommandLine err = %v, want LF-only literal suffix rejection", err)
+	}
+}
+
 func TestServerRejectsLeadingZeroCommandLiteralSize(t *testing.T) {
 	t.Parallel()
 
@@ -6161,6 +6217,59 @@ func TestServerReportsOversizedIdleLineBeforeClosing(t *testing.T) {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
 	<-writeErrCh
+}
+
+func TestServerRejectsLFOnlyIdleDoneBeforeClosing(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 IDLE\r\n")); err != nil {
+		t.Fatalf("write login/select/idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("DONE\n")); err != nil {
+		t.Fatalf("write lf-only done: %v", err)
+	}
+	want := []string{
+		"a3 BAD command line must end with CRLF\r\n",
+		"* BYE gogomail IMAP4rev1 server closing connection after framing error\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read lf-only idle response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("lf-only idle response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
 }
 
 func TestServerDrainsExpungeEventsOverNoop(t *testing.T) {

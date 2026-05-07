@@ -171,7 +171,8 @@ Recent release-readiness work also includes:
   backend mutations,
   non-blocking
   mailbox event delivery under concurrent subscription cancellation, and
-  cumulative command-literal memory caps plus literal framing coverage
+  cumulative command-literal memory caps plus literal framing coverage and
+  strict CRLF command/IDLE continuation line framing
 - backend-only CalDAV foundations for standards-first calendar
   interoperability, with real gateway/runtime mode work, Basic-auth protected
   DAV surfaces, PROPFIND/REPORT/object I/O, sync-token discovery, iCalendar
