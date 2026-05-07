@@ -12542,10 +12542,17 @@ func TestParseIMAPPartialBody(t *testing.T) {
 	if got.offset != 12 || got.count != 34 {
 		t.Fatalf("partial = %+v, want offset 12 count 34", got)
 	}
+	got, ok = imapFetchPartialBody([]string{"BODY.PEEK[]<4294967295.4294967295>"})
+	if !ok {
+		t.Fatal("imapFetchPartialBody rejected max RFC number partial")
+	}
+	if got.offset != 4294967295 || got.count != 4294967295 {
+		t.Fatalf("max partial = %+v, want offset/count 4294967295", got)
+	}
 	if _, ok := imapFetchPartialBody([]string{"BODY[]"}); ok {
 		t.Fatal("imapFetchPartialBody accepted full body fetch")
 	}
-	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<00.34>", "BODY.PEEK[]<012.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>", "BODY.PEEK[]<12.034>", "BODY.PEEK[]<12.34>BAD"} {
+	for _, item := range []string{"BODY.PEEK[]<+12.34>", "BODY.PEEK[]<00.34>", "BODY.PEEK[]<012.34>", "BODY.PEEK[]<12.+34>", "BODY.PEEK[]<12.0>", "BODY.PEEK[]<12.034>", "BODY.PEEK[]<12.34>BAD", "BODY.PEEK[]<4294967296.34>", "BODY.PEEK[]<12.4294967296>"} {
 		if _, ok := imapFetchPartialBody([]string{item}); ok {
 			t.Fatalf("imapFetchPartialBody accepted invalid partial %q", item)
 		}

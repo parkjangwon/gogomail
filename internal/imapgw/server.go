@@ -5840,11 +5840,11 @@ func imapParsePartialBodyToken(token string) (imapPartialBodyRequest, bool) {
 	if !imapNumberAtomRFC3501(offsetText) || !imapNZNumberAtomDigitsOnly(countText) {
 		return imapPartialBodyRequest{}, false
 	}
-	offset, err := strconv.ParseUint(offsetText, 10, 63)
+	offset, err := strconv.ParseUint(offsetText, 10, 32)
 	if err != nil {
 		return imapPartialBodyRequest{}, false
 	}
-	count, err := strconv.ParseUint(countText, 10, 31)
+	count, err := strconv.ParseUint(countText, 10, 32)
 	if err != nil || count == 0 {
 		return imapPartialBodyRequest{}, false
 	}
