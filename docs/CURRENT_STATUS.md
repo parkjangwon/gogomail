@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 range compatibility length hardening)
+Last updated: 2026-05-07 (updated after IMAP empty mailbox target hardening)
 
 ## Current phase
 
@@ -537,6 +537,13 @@ values into valid status data items, while LIST-STATUS keeps its existing
 normalized return-option path regression-covered. `LIST RETURN` option lists
 now reject whitespace-padded quoted or literal list values such as
 `RETURN " (CHILDREN) "` instead of trimming them into valid return controls.
+Required IMAP mailbox targets now reject decoded empty names at the protocol
+boundary for `SELECT`/`EXAMINE`, `STATUS`, `CREATE`, `DELETE`, `RENAME`,
+`SUBSCRIBE`/`UNSUBSCRIBE`, `COPY`/`MOVE`, `UID COPY`/`UID MOVE`, and `APPEND`,
+returning deterministic tagged `BAD` diagnostics before backend lookup,
+mutation, or selected-state checks. `LIST`/`LSUB` reference and pattern
+handling continues to allow empty mailbox strings where RFC mailbox discovery
+semantics require root/pattern behavior.
 RFC 5258 `LIST-EXTENDED` selection option lists now consume the full
 parenthesized option list and reject whitespace-padded quoted or literal list
 values such as `" (SPECIAL-USE) "` instead of trimming them into valid

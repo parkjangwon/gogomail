@@ -4419,6 +4419,11 @@ Implementation order:
       same raw-header versus normalized-length agreement when both metadata
       surfaces are known, so downgraded full-window range responses cannot
       contradict known zero-length metadata before a bounded reader is exposed.
+1523. IMAP required mailbox targets now reject decoded empty names for
+      selection, status, mailbox mutation/subscription, append, copy, and move
+      commands before backend lookup or selected-state handling, while keeping
+      empty `LIST`/`LSUB` reference and pattern strings available for RFC
+      mailbox discovery semantics.
 
 ## Deferred until backend contracts stabilize
 
