@@ -2231,6 +2231,55 @@ func TestS3StoreListRejectsUnsupportedStructuredObjectMetadataChildren(t *testin
 	}
 }
 
+func TestS3StoreListRejectsDuplicateStructuredObjectMetadataChildren(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "owner_duplicate_id",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><Owner><ID>owner-1</ID><ID>owner-2</ID></Owner></Contents></ListBucketResult>`,
+			want: `object Owner metadata contains duplicate child "ID"`,
+		},
+		{
+			name: "restore_status_duplicate_progress",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><RestoreStatus><IsRestoreInProgress>false</IsRestoreInProgress><IsRestoreInProgress>true</IsRestoreInProgress></RestoreStatus></Contents></ListBucketResult>`,
+			want: `object RestoreStatus metadata contains duplicate child "IsRestoreInProgress"`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsUnsafeETagMetadata(t *testing.T) {
 	t.Parallel()
 

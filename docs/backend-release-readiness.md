@@ -258,7 +258,7 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `RestoreStatus` object metadata is rejected, while repeated
   `ChecksumAlgorithm` values remain compatible. Structured `Owner` and
   `RestoreStatus` children must remain namespace-free or AWS S3-namespaced and
-  use known AWS child names.
+  use known AWS child names without repeating the same child.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
   returned `<Delimiter>` elements, including blank elements, and
   `<CommonPrefixes>` cannot be treated as ordinary object pages because
