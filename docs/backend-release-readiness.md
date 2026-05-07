@@ -227,6 +227,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   when present because gogomail does not request encoded-key list mode.
 - S3-compatible `ListObjectsV2` root `<ContinuationToken>` metadata, when
   present, must match the requested cursor exactly.
+- S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
+  non-empty `<Delimiter>` and `<CommonPrefixes>` cannot be treated as ordinary
+  object pages because gogomail does not request grouped listing.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

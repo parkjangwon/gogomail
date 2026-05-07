@@ -201,6 +201,9 @@ treat encoded provider keys as ordinary object paths.
 S3-compatible `ListObjectsV2` root `ContinuationToken` metadata, when present,
 must now match the requested cursor exactly, keeping page diagnostics and retry
 semantics aligned with the signed list request.
+S3-compatible `ListObjectsV2` delimiter grouping controls are now rejected:
+gogomail never requests delimiter-based grouping, so non-empty `Delimiter` or
+`CommonPrefixes` responses cannot be mistaken for ordinary object pages.
 S3-compatible `ListObjectsV2` object entries now reject missing or blank
 `<Key>` elements instead of silently skipping malformed provider entries before
 prefix mapping and cleanup scans.
