@@ -2172,6 +2172,65 @@ func TestS3StoreListRejectsForeignNamespaceInStructuredObjectMetadata(t *testing
 	}
 }
 
+func TestS3StoreListRejectsUnsupportedStructuredObjectMetadataChildren(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "owner_unknown_child",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><Owner><Account>owner-1</Account></Owner></Contents></ListBucketResult>`,
+			want: `object Owner metadata contains unsupported child "Account"`,
+		},
+		{
+			name: "owner_nested_child",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><Owner><ID><Value>owner-1</Value></ID></Owner></Contents></ListBucketResult>`,
+			want: `object Owner metadata contains nested element "Value"`,
+		},
+		{
+			name: "restore_status_unknown_child",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><RestoreStatus><Status>ready</Status></RestoreStatus></Contents></ListBucketResult>`,
+			want: `object RestoreStatus metadata contains unsupported child "Status"`,
+		},
+		{
+			name: "restore_status_nested_child",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><RestoreStatus><IsRestoreInProgress><Value>false</Value></IsRestoreInProgress></RestoreStatus></Contents></ListBucketResult>`,
+			want: `object RestoreStatus metadata contains nested element "Value"`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsUnsafeETagMetadata(t *testing.T) {
 	t.Parallel()
 
