@@ -391,6 +391,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err := validateS3ListStartAfter(result.StartAfter); err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListRequestCharged(result.RequestCharged); err != nil {
+		return ObjectListPage{}, err
+	}
 	if err := validateS3ListDelimiter(result.Delimiter); err != nil {
 		return ObjectListPage{}, err
 	}
@@ -849,6 +852,13 @@ func validateS3ListStartAfter(value string) error {
 		return nil
 	}
 	return fmt.Errorf("list s3 objects: unsupported StartAfter value")
+}
+
+func validateS3ListRequestCharged(value string) error {
+	if value == "" {
+		return nil
+	}
+	return fmt.Errorf("list s3 objects: unsupported RequestCharged value")
 }
 
 func validateS3ListDelimiter(value string) error {
@@ -1649,6 +1659,7 @@ type s3ListObjectsResult struct {
 	Prefix                string                `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
 	StartAfter            string                `xml:"StartAfter"`
+	RequestCharged        string                `xml:"RequestCharged"`
 	EncodingType          string                `xml:"EncodingType"`
 	KeyCount              string                `xml:"KeyCount"`
 	MaxKeys               string                `xml:"MaxKeys"`
@@ -1849,7 +1860,7 @@ func validateS3ListControlCardinality(data []byte) error {
 
 func s3ListStandardSimpleRootMetadata(local string) bool {
 	switch local {
-	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "RequestCharged", "EncodingType":
 		return true
 	default:
 		return false
@@ -1858,7 +1869,7 @@ func s3ListStandardSimpleRootMetadata(local string) bool {
 
 func s3ListStandardRootMetadata(local string) bool {
 	switch local {
-	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "RequestCharged", "EncodingType":
 		return true
 	default:
 		return false
