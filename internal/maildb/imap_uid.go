@@ -185,6 +185,10 @@ SELECT
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
   COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   m.status,
   i.uid,
   i.modseq
@@ -230,6 +234,7 @@ LIMIT $4`
 			&row.Forwarded,
 			&row.Draft,
 			&row.Deleted,
+			&row.Keywords,
 			&row.Status,
 			&uid,
 			&modseq,
@@ -298,6 +303,10 @@ SELECT
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
   COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   m.status,
   m.storage_path,
   i.uid,
@@ -333,6 +342,7 @@ LIMIT 1`
 		&row.Forwarded,
 		&row.Draft,
 		&row.Deleted,
+		&row.Keywords,
 		&row.Status,
 		&storagePath,
 		&messageUID.UID,
@@ -750,6 +760,10 @@ SELECT
   COALESCE((source.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((source.flags->>'draft')::boolean, false) AS draft,
   COALESCE((source.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(source.flags->'imap_keywords') = 'array' THEN source.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   'active' AS status,
   source.source_uid,
   inserted_uids.uid,
@@ -789,6 +803,7 @@ ORDER BY source.rn`
 			&row.Forwarded,
 			&row.Draft,
 			&row.Deleted,
+			&row.Keywords,
 			&row.Status,
 			&sourceUID,
 			&messageUID.UID,
@@ -871,6 +886,10 @@ SELECT
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
   COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   m.status,
   i.uid,
   i.modseq
@@ -913,6 +932,7 @@ FOR UPDATE OF i, m`
 			&row.Forwarded,
 			&row.Draft,
 			&row.Deleted,
+			&row.Keywords,
 			&row.Status,
 			&messageUID.UID,
 			&messageUID.ModSeq,
@@ -1099,6 +1119,10 @@ SELECT
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
   COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   m.status,
   i.uid,
   i.modseq
@@ -1142,6 +1166,7 @@ FOR UPDATE OF i, m`
 			&row.Forwarded,
 			&row.Draft,
 			&row.Deleted,
+			&row.Keywords,
 			&row.Status,
 			&messageUID.UID,
 			&messageUID.ModSeq,
@@ -1495,6 +1520,10 @@ SELECT
   COALESCE((source.flags->>'forwarded')::boolean, false) AS source_forwarded,
   COALESCE((source.flags->>'draft')::boolean, false) AS source_draft,
   COALESCE((source.flags->>'imap_deleted')::boolean, false) AS source_deleted,
+  CASE
+    WHEN jsonb_typeof(source.flags->'imap_keywords') = 'array' THEN source.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS source_imap_keywords,
   'active' AS source_status,
   source.source_uid,
   source.source_modseq,
@@ -1545,6 +1574,7 @@ ORDER BY source.rn`
 			&sourceRow.Forwarded,
 			&sourceRow.Draft,
 			&sourceRow.Deleted,
+			&sourceRow.Keywords,
 			&sourceRow.Status,
 			&sourceUID.UID,
 			&sourceUID.ModSeq,
@@ -1935,6 +1965,7 @@ type imapMessageRow struct {
 	Forwarded    bool
 	Draft        bool
 	Deleted      bool
+	Keywords     imapKeywordList
 	Status       string
 }
 
@@ -1944,13 +1975,19 @@ type imapStoreFlagChanges struct {
 	Answered  *bool
 	Forwarded *bool
 	Deleted   *bool
+	Keywords  imapKeywordList
+	Mode      imapgw.StoreFlagsMode
 }
 
 func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMode) (imapStoreFlagChanges, error) {
-	if flags.Draft || len(flags.Keywords) > 0 || strings.TrimSpace(flags.Status) != "" {
+	if flags.Draft || strings.TrimSpace(flags.Status) != "" {
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flag set")
 	}
-	var changes imapStoreFlagChanges
+	keywords, err := canonicalMailDBIMAPKeywords(flags.Keywords)
+	if err != nil {
+		return imapStoreFlagChanges{}, err
+	}
+	changes := imapStoreFlagChanges{Keywords: keywords, Mode: mode}
 	switch mode {
 	case imapgw.StoreFlagsAdd:
 		if flags.Read {
@@ -1993,7 +2030,7 @@ func newIMAPStoreFlagChanges(flags imapgw.MessageFlags, mode imapgw.StoreFlagsMo
 	default:
 		return imapStoreFlagChanges{}, fmt.Errorf("unsupported imap store flags mode %q", mode)
 	}
-	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil && changes.Forwarded == nil && changes.Deleted == nil {
+	if changes.Read == nil && changes.Starred == nil && changes.Answered == nil && changes.Forwarded == nil && changes.Deleted == nil && len(changes.Keywords) == 0 && mode != imapgw.StoreFlagsReplace {
 		return imapStoreFlagChanges{}, fmt.Errorf("imap flags are required")
 	}
 	return changes, nil
@@ -2016,7 +2053,112 @@ func applyIMAPStoreFlagChanges(row imapMessageRow, changes imapStoreFlagChanges)
 	if changes.Deleted != nil {
 		next.Deleted = *changes.Deleted
 	}
-	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered || next.Forwarded != row.Forwarded || next.Deleted != row.Deleted
+	switch changes.Mode {
+	case imapgw.StoreFlagsAdd:
+		next.Keywords = addIMAPKeywords(row.Keywords, changes.Keywords)
+	case imapgw.StoreFlagsRemove:
+		next.Keywords = removeIMAPKeywords(row.Keywords, changes.Keywords)
+	case imapgw.StoreFlagsReplace:
+		next.Keywords = append(imapKeywordList(nil), changes.Keywords...)
+	}
+	return next, next.Read != row.Read || next.Starred != row.Starred || next.Answered != row.Answered || next.Forwarded != row.Forwarded || next.Deleted != row.Deleted || !imapKeywordListsEqual(next.Keywords, row.Keywords)
+}
+
+type imapKeywordList []string
+
+func (keywords *imapKeywordList) Scan(value any) error {
+	if value == nil {
+		*keywords = nil
+		return nil
+	}
+	var raw []byte
+	switch typed := value.(type) {
+	case []byte:
+		raw = typed
+	case string:
+		raw = []byte(typed)
+	default:
+		return fmt.Errorf("scan imap keywords: unsupported value type %T", value)
+	}
+	var parsed []string
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return fmt.Errorf("scan imap keywords: %w", err)
+	}
+	canonical, err := canonicalMailDBIMAPKeywords(parsed)
+	if err != nil {
+		return err
+	}
+	*keywords = canonical
+	return nil
+}
+
+func canonicalMailDBIMAPKeywords(keywords []string) (imapKeywordList, error) {
+	if len(keywords) == 0 {
+		return nil, nil
+	}
+	out := make(imapKeywordList, 0, len(keywords))
+	seen := make(map[string]struct{}, len(keywords))
+	for _, keyword := range keywords {
+		canonical := imapgw.CanonicalIMAPFlag(keyword)
+		if !imapgw.IMAPKeywordFlagValid(canonical) {
+			return nil, fmt.Errorf("invalid imap keyword flag %q", keyword)
+		}
+		if _, ok := seen[canonical]; ok {
+			continue
+		}
+		seen[canonical] = struct{}{}
+		out = append(out, canonical)
+	}
+	return out, nil
+}
+
+func addIMAPKeywords(existing imapKeywordList, additions imapKeywordList) imapKeywordList {
+	if len(additions) == 0 {
+		return append(imapKeywordList(nil), existing...)
+	}
+	out := append(imapKeywordList(nil), existing...)
+	seen := make(map[string]struct{}, len(existing)+len(additions))
+	for _, keyword := range existing {
+		seen[keyword] = struct{}{}
+	}
+	for _, keyword := range additions {
+		if _, ok := seen[keyword]; ok {
+			continue
+		}
+		seen[keyword] = struct{}{}
+		out = append(out, keyword)
+	}
+	return out
+}
+
+func removeIMAPKeywords(existing imapKeywordList, removals imapKeywordList) imapKeywordList {
+	if len(existing) == 0 || len(removals) == 0 {
+		return append(imapKeywordList(nil), existing...)
+	}
+	remove := make(map[string]struct{}, len(removals))
+	for _, keyword := range removals {
+		remove[keyword] = struct{}{}
+	}
+	out := make(imapKeywordList, 0, len(existing))
+	for _, keyword := range existing {
+		if _, ok := remove[keyword]; ok {
+			continue
+		}
+		out = append(out, keyword)
+	}
+	return out
+}
+
+func imapKeywordListsEqual(a imapKeywordList, b imapKeywordList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func boolPointer(value bool) *bool {
@@ -2054,6 +2196,7 @@ func imapMessageFromRow(row imapMessageRow, uid IMAPMessageUID) imapgw.MessageSu
 			Forwarded: row.Forwarded,
 			Draft:     row.Draft,
 			Deleted:   row.Deleted,
+			Keywords:  append([]string(nil), row.Keywords...),
 			Status:    row.Status,
 		},
 		InternalDate: row.InternalDate,
@@ -2141,6 +2284,10 @@ SELECT
   COALESCE((m.flags->>'forwarded')::boolean, false) AS forwarded,
   COALESCE((m.flags->>'draft')::boolean, false) AS draft,
   COALESCE((m.flags->>'imap_deleted')::boolean, false) AS deleted,
+  CASE
+    WHEN jsonb_typeof(m.flags->'imap_keywords') = 'array' THEN m.flags->'imap_keywords'
+    ELSE '[]'::jsonb
+  END AS imap_keywords,
   m.status,
   i.uid,
   i.modseq
@@ -2175,6 +2322,7 @@ FOR UPDATE OF i, m`
 		&row.Forwarded,
 		&row.Draft,
 		&row.Deleted,
+		&row.Keywords,
 		&row.Status,
 		&messageUID.UID,
 		&messageUID.ModSeq,
@@ -2193,24 +2341,31 @@ FOR UPDATE OF i, m`
 }
 
 func updateIMAPMessageFlags(ctx context.Context, tx *sql.Tx, messageID string, modseq uint64, row imapMessageRow) error {
+	keywords, err := json.Marshal([]string(row.Keywords))
+	if err != nil {
+		return fmt.Errorf("marshal imap message keywords: %w", err)
+	}
 	const updateMessage = `
 UPDATE messages
 SET flags = jsonb_set(
       jsonb_set(
         jsonb_set(
           jsonb_set(
-            jsonb_set(flags, '{read}', to_jsonb($2::boolean), true),
-            '{starred}', to_jsonb($3::boolean), true
+            jsonb_set(
+              jsonb_set(COALESCE(flags, '{}'::jsonb), '{read}', to_jsonb($2::boolean), true),
+              '{starred}', to_jsonb($3::boolean), true
+            ),
+            '{answered}', to_jsonb($4::boolean), true
           ),
-          '{answered}', to_jsonb($4::boolean), true
+          '{forwarded}', to_jsonb($5::boolean), true
         ),
-        '{forwarded}', to_jsonb($5::boolean), true
+        '{imap_deleted}', to_jsonb($6::boolean), true
       ),
-      '{imap_deleted}', to_jsonb($6::boolean), true
+      '{imap_keywords}', $7::jsonb, true
     ),
     updated_at = now()
 WHERE id = $1::uuid`
-	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered, row.Forwarded, row.Deleted); err != nil {
+	if _, err := tx.ExecContext(ctx, updateMessage, messageID, row.Read, row.Starred, row.Answered, row.Forwarded, row.Deleted, string(keywords)); err != nil {
 		return fmt.Errorf("update imap message flags: %w", err)
 	}
 

@@ -2226,8 +2226,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Backend-provided permanent keyword atoms can be advertised, `FETCH FLAGS`
   renders canonical duplicate-free keywords, `SEARCH KEYWORD`/`UNKEYWORD`
   evaluates them, and `STORE` accepts custom keywords only when the selected
-  mailbox advertises them. The PostgreSQL `maildb` adapter still rejects
-  custom keyword persistence until durable user keyword storage lands.
+  mailbox advertises them. PostgreSQL `maildb` now persists those user
+  keywords in the IMAP-specific `imap_keywords` JSONB flag array across
+  append, store, copy, move, fetch, and search paths.
 - IMAP `FETCH`/`UID FETCH` now supports bounded `BODY[HEADER.FIELDS (...)]`
   and `BODY.PEEK[HEADER.FIELDS (...)]` literals for lightweight header reads.
 - IMAP `FETCH`/`UID FETCH` now supports bounded partial windows over

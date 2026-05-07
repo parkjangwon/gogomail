@@ -46,11 +46,11 @@ func MapMessageFlags(flags MessageFlags) []string {
 	if flags.Deleted {
 		imapFlags = append(imapFlags, FlagDeleted)
 	}
-	imapFlags = append(imapFlags, canonicalIMAPKeywords(flags.Keywords)...)
+	imapFlags = append(imapFlags, CanonicalIMAPKeywords(flags.Keywords)...)
 	return imapFlags
 }
 
-func canonicalIMAPKeywords(keywords []string) []string {
+func CanonicalIMAPKeywords(keywords []string) []string {
 	if len(keywords) == 0 {
 		return nil
 	}

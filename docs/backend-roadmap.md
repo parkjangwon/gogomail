@@ -4228,8 +4228,11 @@ Implementation order:
       `FLAGS`/`PERMANENTFLAGS`, `FETCH FLAGS` renders canonical duplicate-free
       keywords, `SEARCH KEYWORD`/`UNKEYWORD` evaluates them, and `STORE`
       accepts custom keywords only when the selected mailbox permits them.
-      The PostgreSQL `maildb` adapter still rejects keyword persistence until
-      durable user keyword storage lands.
+1495. PostgreSQL `maildb` now persists IMAP custom keyword flags in the
+      protocol-specific `imap_keywords` JSONB flag array. `APPEND`, `STORE`,
+      `COPY`, `MOVE`, `FETCH`, and `SEARCH` paths share the same canonical
+      keyword boundary, preserving RFC-shaped IMAP state without coupling it
+      to future product labels or webmail categories.
 
 ## Deferred until backend contracts stabilize
 

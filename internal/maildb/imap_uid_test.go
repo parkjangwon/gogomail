@@ -29,6 +29,7 @@ func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 		Starred:      true,
 		Answered:     true,
 		Forwarded:    true,
+		Keywords:     imapKeywordList{"$Project", "ClientTag"},
 	}, IMAPMessageUID{
 		MessageID: "message-1",
 		MailboxID: "mailbox-1",
@@ -58,8 +59,8 @@ func TestIMAPMessageFromRowMapsEnvelopeFlagsAndUID(t *testing.T) {
 	if want := []imapgw.Address{{Name: "Blind", Mailbox: "blind", Host: "example.com"}}; !reflect.DeepEqual(got.Envelope.Bcc, want) {
 		t.Fatalf("bcc = %#v, want %#v", got.Envelope.Bcc, want)
 	}
-	if !got.Flags.Read || !got.Flags.Starred || !got.Flags.Answered || !got.Flags.Forwarded {
-		t.Fatalf("flags = %#v, want read/starred/answered/forwarded", got.Flags)
+	if !got.Flags.Read || !got.Flags.Starred || !got.Flags.Answered || !got.Flags.Forwarded || !reflect.DeepEqual(got.Flags.Keywords, []string{"$Project", "ClientTag"}) {
+		t.Fatalf("flags = %#v, want read/starred/answered/forwarded and keywords", got.Flags)
 	}
 	if got.Size != 4096 {
 		t.Fatalf("size = %d, want 4096", got.Size)
@@ -94,19 +95,30 @@ func TestIMAPStoreFlagChangesForModes(t *testing.T) {
 		want  imapStoreFlagChanges
 	}{
 		"add": {
-			flags: imapgw.MessageFlags{Read: true, Starred: true, Forwarded: true, Deleted: true},
+			flags: imapgw.MessageFlags{Read: true, Starred: true, Forwarded: true, Deleted: true, Keywords: []string{"$Project", "$Project", "$forwarded"}},
 			mode:  imapgw.StoreFlagsAdd,
-			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(true), Forwarded: boolPtr(true), Deleted: boolPtr(true)},
+			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(true), Forwarded: boolPtr(true), Deleted: boolPtr(true), Keywords: imapKeywordList{"$Project", "$Forwarded"}, Mode: imapgw.StoreFlagsAdd},
 		},
 		"remove": {
-			flags: imapgw.MessageFlags{Answered: true, Forwarded: true, Deleted: true},
+			flags: imapgw.MessageFlags{Answered: true, Forwarded: true, Deleted: true, Keywords: []string{"ClientTag"}},
 			mode:  imapgw.StoreFlagsRemove,
-			want:  imapStoreFlagChanges{Answered: boolPtr(false), Forwarded: boolPtr(false), Deleted: boolPtr(false)},
+			want:  imapStoreFlagChanges{Answered: boolPtr(false), Forwarded: boolPtr(false), Deleted: boolPtr(false), Keywords: imapKeywordList{"ClientTag"}, Mode: imapgw.StoreFlagsRemove},
 		},
 		"replace": {
-			flags: imapgw.MessageFlags{Read: true, Forwarded: true},
+			flags: imapgw.MessageFlags{Read: true, Forwarded: true, Keywords: []string{"$Project"}},
 			mode:  imapgw.StoreFlagsReplace,
-			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(false), Answered: boolPtr(false), Forwarded: boolPtr(true), Deleted: boolPtr(false)},
+			want:  imapStoreFlagChanges{Read: boolPtr(true), Starred: boolPtr(false), Answered: boolPtr(false), Forwarded: boolPtr(true), Deleted: boolPtr(false), Keywords: imapKeywordList{"$Project"}, Mode: imapgw.StoreFlagsReplace},
+		},
+		"replace empty clears all mutable flags": {
+			mode: imapgw.StoreFlagsReplace,
+			want: imapStoreFlagChanges{
+				Read:      boolPtr(false),
+				Starred:   boolPtr(false),
+				Answered:  boolPtr(false),
+				Forwarded: boolPtr(false),
+				Deleted:   boolPtr(false),
+				Mode:      imapgw.StoreFlagsReplace,
+			},
 		},
 	}
 	for name, tt := range tests {
@@ -126,8 +138,8 @@ func TestIMAPStoreFlagChangesRejectsDraftModel(t *testing.T) {
 	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{Draft: true}, imapgw.StoreFlagsAdd); err == nil {
 		t.Fatal("newIMAPStoreFlagChanges accepted Draft")
 	}
-	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{Keywords: []string{"$Project"}}, imapgw.StoreFlagsAdd); err == nil {
-		t.Fatal("newIMAPStoreFlagChanges accepted custom keywords")
+	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{Keywords: []string{"bad keyword"}}, imapgw.StoreFlagsAdd); err == nil {
+		t.Fatal("newIMAPStoreFlagChanges accepted invalid custom keyword")
 	}
 	if _, err := newIMAPStoreFlagChanges(imapgw.MessageFlags{}, imapgw.StoreFlagsMode("bad")); err == nil {
 		t.Fatal("newIMAPStoreFlagChanges accepted bad mode")
@@ -135,19 +147,21 @@ func TestIMAPStoreFlagChangesRejectsDraftModel(t *testing.T) {
 }
 
 func TestApplyIMAPStoreFlagChangesReportsActualMutation(t *testing.T) {
-	row := imapMessageRow{Read: true, Starred: false, Answered: false, Forwarded: false, Deleted: false}
+	row := imapMessageRow{Read: true, Starred: false, Answered: false, Forwarded: false, Deleted: false, Keywords: imapKeywordList{"$Project"}}
 	next, changed := applyIMAPStoreFlagChanges(row, imapStoreFlagChanges{
 		Read:      boolPtr(true),
 		Starred:   boolPtr(true),
 		Answered:  boolPtr(false),
 		Forwarded: boolPtr(true),
 		Deleted:   boolPtr(true),
+		Keywords:  imapKeywordList{"ClientTag"},
+		Mode:      imapgw.StoreFlagsAdd,
 	})
 	if !changed {
 		t.Fatal("applyIMAPStoreFlagChanges reported no change")
 	}
-	if !next.Read || !next.Starred || next.Answered || !next.Forwarded || !next.Deleted {
-		t.Fatalf("next flags = read:%v starred:%v answered:%v forwarded:%v deleted:%v", next.Read, next.Starred, next.Answered, next.Forwarded, next.Deleted)
+	if !next.Read || !next.Starred || next.Answered || !next.Forwarded || !next.Deleted || !reflect.DeepEqual(next.Keywords, imapKeywordList{"$Project", "ClientTag"}) {
+		t.Fatalf("next flags = read:%v starred:%v answered:%v forwarded:%v deleted:%v keywords:%#v", next.Read, next.Starred, next.Answered, next.Forwarded, next.Deleted, next.Keywords)
 	}
 
 	_, changed = applyIMAPStoreFlagChanges(next, imapStoreFlagChanges{
@@ -156,9 +170,60 @@ func TestApplyIMAPStoreFlagChangesReportsActualMutation(t *testing.T) {
 		Answered:  boolPtr(false),
 		Forwarded: boolPtr(true),
 		Deleted:   boolPtr(true),
+		Keywords:  imapKeywordList{"ClientTag"},
+		Mode:      imapgw.StoreFlagsAdd,
 	})
 	if changed {
 		t.Fatal("applyIMAPStoreFlagChanges reported change for identical flags")
+	}
+
+	cleared, changed := applyIMAPStoreFlagChanges(next, imapStoreFlagChanges{
+		Read:      boolPtr(false),
+		Starred:   boolPtr(false),
+		Answered:  boolPtr(false),
+		Forwarded: boolPtr(false),
+		Deleted:   boolPtr(false),
+		Mode:      imapgw.StoreFlagsReplace,
+	})
+	if !changed {
+		t.Fatal("applyIMAPStoreFlagChanges reported no change for empty replace")
+	}
+	if cleared.Read || cleared.Starred || cleared.Answered || cleared.Forwarded || cleared.Deleted || len(cleared.Keywords) != 0 {
+		t.Fatalf("cleared flags = %#v", cleared)
+	}
+}
+
+func TestIMAPKeywordListScanCanonicalizesAndRejectsInvalid(t *testing.T) {
+	var got imapKeywordList
+	if err := got.Scan([]byte(`["$project","ClientTag","$Project"]`)); err != nil {
+		t.Fatalf("scan keywords returned error: %v", err)
+	}
+	if want := (imapKeywordList{"$project", "ClientTag", "$Project"}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("keywords = %#v, want %#v", got, want)
+	}
+
+	if err := got.Scan([]byte(`["bad keyword"]`)); err == nil {
+		t.Fatal("scan keywords accepted invalid keyword")
+	}
+}
+
+func TestIMAPFlagsJSONPersistsCustomKeywords(t *testing.T) {
+	raw, err := imapFlagsJSON(imapgw.MessageFlags{
+		Read:     true,
+		Keywords: []string{"$Project", "$Project", "$forwarded"},
+	})
+	if err != nil {
+		t.Fatalf("imapFlagsJSON returned error: %v", err)
+	}
+	var got struct {
+		Read     bool     `json:"read"`
+		Keywords []string `json:"imap_keywords"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal imap flags json: %v", err)
+	}
+	if !got.Read || !reflect.DeepEqual(got.Keywords, []string{"$Project", "$Forwarded"}) {
+		t.Fatalf("flags json = read:%v keywords:%#v", got.Read, got.Keywords)
 	}
 }
 

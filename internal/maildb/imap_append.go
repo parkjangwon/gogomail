@@ -224,6 +224,10 @@ inserted_message AS (
     COALESCE((flags->>'forwarded')::boolean, false) AS forwarded,
     COALESCE((flags->>'draft')::boolean, false) AS draft,
     COALESCE((flags->>'imap_deleted')::boolean, false) AS deleted,
+    CASE
+      WHEN jsonb_typeof(flags->'imap_keywords') = 'array' THEN flags->'imap_keywords'
+      ELSE '[]'::jsonb
+    END AS imap_keywords,
     status
 ),
 inserted_uid AS (
@@ -256,6 +260,7 @@ SELECT
   inserted_message.forwarded,
   inserted_message.draft,
   inserted_message.deleted,
+  inserted_message.imap_keywords,
   inserted_message.status,
   inserted_uid.uid,
   inserted_uid.modseq,
@@ -301,6 +306,7 @@ FROM inserted_message, inserted_uid, bumped_state`
 		&row.Forwarded,
 		&row.Draft,
 		&row.Deleted,
+		&row.Keywords,
 		&row.Status,
 		&uid.UID,
 		&uid.ModSeq,
@@ -346,13 +352,18 @@ FROM inserted_message, inserted_uid, bumped_state`
 }
 
 func imapFlagsJSON(flags imapgw.MessageFlags) ([]byte, error) {
-	raw, err := json.Marshal(map[string]bool{
-		"read":         flags.Read,
-		"starred":      flags.Starred,
-		"answered":     flags.Answered,
-		"forwarded":    flags.Forwarded,
-		"draft":        flags.Draft,
-		"imap_deleted": flags.Deleted,
+	keywords, err := canonicalMailDBIMAPKeywords(flags.Keywords)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(map[string]any{
+		"read":          flags.Read,
+		"starred":       flags.Starred,
+		"answered":      flags.Answered,
+		"forwarded":     flags.Forwarded,
+		"draft":         flags.Draft,
+		"imap_deleted":  flags.Deleted,
+		"imap_keywords": []string(keywords),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal imap append flags: %w", err)

@@ -152,7 +152,8 @@ Recent release-readiness work also includes:
   `UNCHANGEDSINCE` marker handling, strict APPEND/STORE flag-list framing with
   duplicate flag rejection, canonical duplicate-free `SELECT` permanent flag
   responses, per-message `RECENT`/`NEW`/`OLD` search semantics,
-  custom IMAP keyword flags at the protocol-core boundary,
+  custom IMAP keyword flags with PostgreSQL `maildb` persistence through the
+  IMAP-specific `imap_keywords` JSONB flag array,
   rejection of whitespace-bearing sequence-set range components,
   strict KEYWORD/UNKEYWORD atom validation,
   case-insensitive standard SORT criteria while preserving strict criterion-list

@@ -1739,8 +1739,9 @@ Current state:
   backend-provided permanent keyword atoms can be advertised, `FETCH FLAGS`
   renders canonical duplicate-free keywords, `SEARCH KEYWORD`/`UNKEYWORD`
   evaluates them, and `STORE` accepts custom keywords only when the selected
-  mailbox advertises them. Durable PostgreSQL user-keyword persistence remains
-  a separate backend-storage task.
+  mailbox advertises them. PostgreSQL `maildb` now persists those user
+  keywords in the IMAP-specific `imap_keywords` JSONB flag array across append,
+  store, copy, move, fetch, and search paths.
 - `FETCH`/`UID FETCH` now supports `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` for lightweight preview metadata reads.
 - `FETCH`/`UID FETCH` now supports bounded partial windows over

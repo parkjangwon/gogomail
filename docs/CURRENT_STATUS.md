@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP custom keyword boundary hardening)
+Last updated: 2026-05-07 (updated after IMAP custom keyword persistence)
 
 ## Current phase
 
@@ -2773,8 +2773,10 @@ The platform hardening sprint completed the following:
   `MessageFlags.Keywords`. `SELECT`/`PERMANENTFLAGS` can advertise
   backend-provided keyword atoms, `FETCH FLAGS` renders canonical duplicate-free
   keywords, `SEARCH KEYWORD`/`UNKEYWORD` evaluates them, and `STORE` accepts
-  permitted custom keywords. The PostgreSQL `maildb` adapter still rejects
-  keyword persistence until durable user keyword storage is explicitly added.
+  permitted custom keywords. The PostgreSQL `maildb` adapter now persists
+  user keywords in the IMAP-specific `imap_keywords` JSONB flag array across
+  `APPEND`, `STORE`, `COPY`, `MOVE`, `FETCH`, and `SEARCH` read paths without
+  mixing product labels into protocol state.
 - IMAP `FETCH`/`UID FETCH` supports bounded `BODY[HEADER.FIELDS (...)]` and
   `BODY.PEEK[HEADER.FIELDS (...)]` literals.
 - IMAP `FETCH`/`UID FETCH` supports bounded partial windows over
