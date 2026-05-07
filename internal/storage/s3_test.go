@@ -423,6 +423,8 @@ func TestS3StorePutValidatesSuccessETag(t *testing.T) {
 	}{
 		{name: "missing"},
 		{name: "valid_quoted", header: http.Header{"ETag": []string{`"etag-1"`}}},
+		{name: "blank", header: http.Header{"ETag": []string{""}}, want: "invalid etag"},
+		{name: "whitespace", header: http.Header{"ETag": []string{"  "}}, want: "invalid etag"},
 		{name: "duplicate", header: http.Header{"ETag": []string{`"etag-1"`, `"etag-2"`}}, want: "duplicate etag"},
 		{name: "invalid", header: http.Header{"ETag": []string{`"bad` + "\n" + `etag"`}}, want: "invalid etag"},
 	}

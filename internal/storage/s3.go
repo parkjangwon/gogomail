@@ -1534,7 +1534,7 @@ func validateS3OptionalSuccessETag(operation string, resp *http.Response) error 
 	if !ok {
 		return fmt.Errorf("%s s3 object: duplicate etag", operation)
 	}
-	if !present || strings.TrimSpace(rawETag) == "" {
+	if !present {
 		return nil
 	}
 	if cleanS3ETag(rawETag) == "" {

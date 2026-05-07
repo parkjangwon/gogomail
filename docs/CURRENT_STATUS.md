@@ -174,9 +174,9 @@ delete-compatible success responses cannot masquerade as durable object writes
 or cleanup progress. Those success bodies now also reject non-whitespace
 non-error payloads instead of treating arbitrary provider text or XML as an
 empty standard success response. `PutObject` success responses now also reject
-duplicate or non-empty malformed `ETag` headers when providers supply optional
-write identity metadata, while still allowing compatible providers that omit
-the header entirely.
+blank, duplicate, or malformed `ETag` headers when providers supply optional
+write identity metadata, while still allowing compatible providers that omit the
+header entirely.
 S3-compatible `Content-Range` start, end, and total-size numbers now reuse the
 same unsigned decimal parser, rejecting signed values such as `bytes +1-3/5`
 or `bytes 1-3/+5` before range metadata can be normalized.

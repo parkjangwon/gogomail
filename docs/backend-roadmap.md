@@ -4111,9 +4111,9 @@ Implementation order:
       `UID FETCH *` with the existing pre-command `EXISTS`/`EXPUNGE`/`FLAGS`
       drain used by non-UID selected-state commands.
 1458. S3-compatible `PutObject` success responses now validate optional
-      `ETag` headers when providers send them, rejecting duplicate or
-      non-empty malformed write identity metadata while preserving compatibility
-      with providers that omit the header.
+      `ETag` headers when providers send them, rejecting blank, duplicate, or
+      malformed write identity metadata while preserving compatibility with
+      providers that omit the header.
 1459. S3-compatible `CopyObjectResult` success XML now rejects unknown
       top-level success children, keeping copy/move success metadata limited to
       canonical S3 fields instead of accepting provider-specific payload shape
