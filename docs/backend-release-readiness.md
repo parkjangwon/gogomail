@@ -155,13 +155,15 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   for `HEAD` metadata and range-response validation, rejecting signed values
   such as `+5`. Duplicate `Content-Length` headers now fail closed across
   `HEAD`/`Stat`, full-object `GET`, and range response validation.
-- S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
+- S3-compatible `HEAD`/`Stat` now rejects blank or malformed present
   `Last-Modified` metadata instead of silently exposing a zero timestamp,
   while still allowing missing timestamps and HTTP optional whitespace around
   otherwise valid header values. Duplicate `Last-Modified` headers are rejected
   as ambiguous provider metadata, and duplicate `ETag` headers are rejected
   before object identity metadata is exposed. Duplicate `Content-Type`
-  metadata is rejected before MIME metadata is exposed.
+  metadata is rejected before MIME metadata is exposed. Blank or malformed
+  present `ETag` and `Content-Type` metadata also fail closed instead of being
+  treated like omitted optional headers.
 - S3-compatible `Content-Range` start, end, and total-size numbers now reuse
   the unsigned decimal parser, rejecting signed values such as
   `bytes +1-3/5` or `bytes 1-3/+5`.

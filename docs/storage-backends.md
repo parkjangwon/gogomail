@@ -347,17 +347,18 @@ S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are
 bounded to safe single-line UTF-8 values before crossing the adapter boundary;
-non-empty malformed content type and ETag metadata fails closed instead of
-being silently dropped. Duplicate ETag headers are rejected because object
+present blank or malformed content type and ETag metadata fail closed instead
+of being silently dropped. Duplicate ETag headers are rejected because object
 identity metadata is ambiguous. Duplicate Content-Type headers are also
-rejected before MIME metadata is exposed. `Content-Length` is treated as exact unsigned decimal
+rejected before MIME metadata is exposed. `Content-Length` is treated as exact
+unsigned decimal
 metadata, so signed or whitespace-padded values fail closed instead of being
 normalized; if both the raw header and normalized HTTP response length are
 available, they must agree, and duplicate `Content-Length` headers are
-rejected as ambiguous provider metadata. A non-empty malformed `Last-Modified`
-header is rejected instead of being silently exposed as a zero timestamp, while
-duplicate `Last-Modified` headers are rejected before timestamp parsing. Missing
-timestamps and
+rejected as ambiguous provider metadata. A present blank or malformed
+`Last-Modified` header is rejected instead of being silently exposed as a zero
+timestamp, while duplicate `Last-Modified` headers are rejected before
+timestamp parsing. Missing timestamps and
 HTTP optional whitespace around otherwise valid timestamp values remain
 compatible.
 S3-compatible full-object `GET` validates present `Content-Length` metadata

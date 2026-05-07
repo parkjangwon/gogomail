@@ -4308,6 +4308,11 @@ Implementation order:
       and `IDLE` continuations. LF-only input receives a tagged
       `BAD command line must end with CRLF` plus the existing framing-error
       `BYE` close before command handlers can normalize malformed line endings.
+1506. S3-compatible `HEAD`/`Stat` metadata now distinguishes omitted optional
+      headers from present-but-blank metadata for `Last-Modified`, `ETag`, and
+      `Content-Type`: omitted remains compatible, while blank or malformed
+      present values fail closed before timestamp, identity, or MIME metadata
+      crosses the shared storage contract.
 
 ## Deferred until backend contracts stabilize
 

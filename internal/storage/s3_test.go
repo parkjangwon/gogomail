@@ -1109,6 +1109,21 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 			want:   "invalid content-type",
 		},
 		{
+			name:   "blank content type",
+			header: http.Header{"Content-Type": []string{"  "}},
+			want:   "invalid content-type",
+		},
+		{
+			name:   "blank last modified",
+			header: http.Header{"Last-Modified": []string{"  "}},
+			want:   "invalid last-modified",
+		},
+		{
+			name:   "blank etag",
+			header: http.Header{"ETag": []string{"  "}},
+			want:   "invalid etag",
+		},
+		{
 			name:   "oversized etag",
 			header: http.Header{"ETag": []string{`"` + strings.Repeat("e", maxS3ETagBytes+1) + `"`}},
 			want:   "invalid etag",
@@ -1141,6 +1156,36 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 				t.Fatalf("Stat err = %v, want %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestS3StoreStatAllowsMissingOptionalMetadata(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.ContentType != "" || info.ETag != "" || !info.LastModified.IsZero() {
+		t.Fatalf("Stat optional metadata = content-type %q, etag %q, last-modified %v; want empty optional metadata", info.ContentType, info.ETag, info.LastModified)
 	}
 }
 
