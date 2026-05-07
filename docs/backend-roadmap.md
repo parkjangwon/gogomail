@@ -2029,6 +2029,11 @@ Implementation order:
 1034. IMAP command reading now supports bounded literals in non-final command
       positions and multiple literals in one command, aligning literalized
       LOGIN/string arguments with the advertised `LITERAL+` capability.
+1034a. IMAP command reading now applies the command-literal memory cap to the
+       cumulative literal payloads in a single command, keeping multi-literal
+       `LOGIN`, RFC 2971 `ID`, LIST, or search-style commands standards-shaped
+       without letting one connection goroutine exceed the per-command memory
+       ceiling through several individually valid literals.
 1035. Webmail Drive node listing now accepts `all_parents=true` for whole-user
       Drive search/list views while rejecting ambiguous `parent_id`
       combinations, giving production compose file pickers and Drive browsers a

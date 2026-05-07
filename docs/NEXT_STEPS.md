@@ -1938,6 +1938,9 @@ Current state:
   positions and multiple literals in one command, so literalized credentials,
   mailbox names, and search strings are no longer constrained to terminal
   APPEND-style framing.
+- IMAP command reading now enforces the command-literal memory cap across the
+  cumulative literal payloads in one command, so multiple individually valid
+  literals cannot exceed the per-command memory ceiling.
 - IMAP server coverage now verifies `LOGIN` commands that carry both the user
   name and password as separate synchronizing literals, including the
   credentials delivered to the backend auth boundary.
