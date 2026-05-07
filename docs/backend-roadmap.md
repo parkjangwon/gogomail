@@ -3844,6 +3844,11 @@ Implementation order:
       non-empty malformed or whitespace-padded timestamp values instead of
       silently exposing zero timestamps to cleanup, Drive, or reconciliation
       callers, while still allowing missing values from compatible providers.
+1392a. S3-compatible `ListObjectsV2` object `LastModified` metadata now
+       distinguishes omission from a present-but-blank element: missing remains
+       compatible, while blank, malformed, or whitespace-padded values fail
+       closed before list pages reach cleanup, Drive, or reconciliation
+       callers.
 1393. S3-compatible `ListObjectsV2` pagination controls now reject duplicate
       top-level `<IsTruncated>` or `<NextContinuationToken>` elements before
       XML unmarshalling can collapse ambiguous final/truncated state or cursor

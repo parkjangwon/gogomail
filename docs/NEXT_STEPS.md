@@ -246,9 +246,9 @@ Current state:
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now fails
-  closed when a non-empty provider value is malformed or whitespace-padded,
-  while still allowing missing values for compatible providers that omit
-  optional timestamp metadata.
+  closed when a present provider value is blank, malformed, or
+  whitespace-padded, while still allowing missing values for compatible
+  providers that omit optional timestamp metadata.
 - S3-compatible `ListObjectsV2` object `ETag` metadata now fails closed when a
   non-empty provider value is malformed, line-bearing, empty after quote
   cleanup, or larger than the bounded metadata limit, instead of silently

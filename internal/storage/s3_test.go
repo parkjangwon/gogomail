@@ -2515,13 +2515,18 @@ func TestS3StoreListRejectsSignedObjectSize(t *testing.T) {
 func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{
-		"not-a-time",
-		" 2026-05-05T12:00:00Z ",
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "blank", body: "  ", want: "last-modified is empty"},
+		{name: "invalid", body: "not-a-time", want: "invalid last-modified"},
+		{name: "padded", body: " 2026-05-05T12:00:00Z ", want: "invalid last-modified"},
 	}
-	for _, lastModified := range tests {
-		lastModified := lastModified
-		t.Run(lastModified, func(t *testing.T) {
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			store, err := NewS3Store(S3Options{
@@ -2537,7 +2542,7 @@ func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
 						StatusCode: http.StatusOK,
 						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
   <IsTruncated>false</IsTruncated>
-  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><LastModified>` + lastModified + `</LastModified></Contents>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size><LastModified>` + tc.body + `</LastModified></Contents>
 </ListBucketResult>`)),
 					},
 				}},
@@ -2547,8 +2552,8 @@ func TestS3StoreListRejectsInvalidLastModified(t *testing.T) {
 			}
 
 			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-			if err == nil || !strings.Contains(err.Error(), "invalid last-modified") {
-				t.Fatalf("List err = %v, want invalid last-modified", err)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
 			}
 		})
 	}
