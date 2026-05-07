@@ -5818,11 +5818,14 @@ func parseIMAPMIMEPartPath(value string) ([]int, bool) {
 		if !imapNZNumberAtomDigitsOnly(part) {
 			return nil, false
 		}
-		number, err := strconv.Atoi(part)
-		if err != nil || number <= 0 {
+		number, err := strconv.ParseUint(part, 10, 32)
+		if err != nil || number == 0 {
 			return nil, false
 		}
-		path = append(path, number)
+		if strconv.IntSize == 32 && number > uint64(int(^uint(0)>>1)) {
+			return nil, false
+		}
+		path = append(path, int(number))
 	}
 	return path, true
 }

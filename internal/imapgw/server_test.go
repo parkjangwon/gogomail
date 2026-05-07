@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -12561,6 +12562,12 @@ func TestParseIMAPPartialBody(t *testing.T) {
 		if got, ok := parseIMAPMIMEPartPath(value); ok {
 			t.Fatalf("parseIMAPMIMEPartPath(%q) = %v true, want invalid path rejection", value, got)
 		}
+	}
+	if got, ok := parseIMAPMIMEPartPath("1.4294967295"); strconv.IntSize == 64 && (!ok || !reflect.DeepEqual(got, []int{1, 4294967295})) {
+		t.Fatalf("parseIMAPMIMEPartPath max RFC number = %v, %v; want valid max path", got, ok)
+	}
+	if got, ok := parseIMAPMIMEPartPath("1.4294967296"); ok {
+		t.Fatalf("parseIMAPMIMEPartPath overflow = %v true, want rejection", got)
 	}
 }
 
