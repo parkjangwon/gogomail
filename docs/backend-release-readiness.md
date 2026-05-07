@@ -252,8 +252,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   contract.
 - S3-compatible `ListObjectsV2` object `ChecksumType` metadata now shares the
   same namespace and simple-field nested-XML boundary as `ChecksumAlgorithm`.
-  Duplicate single-value `StorageClass` and `ChecksumType` object metadata is
-  rejected, while repeated `ChecksumAlgorithm` values remain compatible.
+  Duplicate single-value `StorageClass`, `ChecksumType`, `Owner`, and
+  `RestoreStatus` object metadata is rejected, while repeated
+  `ChecksumAlgorithm` values remain compatible.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
   returned `<Delimiter>` elements, including blank elements, and
   `<CommonPrefixes>` cannot be treated as ordinary object pages because

@@ -218,9 +218,10 @@ the adapter because requester-pays mode is not part of the current portable
 storage contract. Standard object checksum metadata now treats
 `ChecksumType` like `ChecksumAlgorithm`: namespace-free and AWS-namespaced
 values are compatible, but foreign namespaces and nested XML fail closed.
-Duplicate single-value `StorageClass` and `ChecksumType` object metadata now
-also fails closed, while repeated `ChecksumAlgorithm` values remain compatible
-for providers that report more than one checksum algorithm.
+Duplicate single-value `StorageClass`, `ChecksumType`, `Owner`, and
+`RestoreStatus` object metadata now also fails closed, while repeated
+`ChecksumAlgorithm` values remain compatible for providers that report more
+than one checksum algorithm.
 S3-compatible `ListObjectsV2` delimiter grouping controls are now rejected:
 gogomail never requests delimiter-based grouping, so returned `Delimiter`
 elements, including blank elements, or `CommonPrefixes` responses cannot be
