@@ -3818,7 +3818,10 @@ The platform hardening sprint completed the following:
   responses, keeping object reads behind bounded `limit/nresults` handling
   with one-extra-row truncation detection, applying RFC 5545-backed VEVENT
   overlap checks, and matching VTODO time-ranges with RFC 4791
-  `DTSTART`/`DUE`/`DURATION`/`COMPLETED`/`CREATED` semantics. Unsupported
+  `DTSTART`/`DUE`/`DURATION`/`COMPLETED`/`CREATED` semantics. VJOURNAL and
+  VFREEBUSY components return `false` for time-range queries per RFC 4791
+  Section 9.6.1 (time-range only applies to VEVENT/VTODO) and Section 7.8.1
+  (VFREEBUSY MUST NOT occur in calendar-query time-range). Unsupported
   CalDAV filter elements such as `prop-filter` now fail closed with a
   `CALDAV:supported-filter` precondition instead of being silently ignored and
   widening query results.
