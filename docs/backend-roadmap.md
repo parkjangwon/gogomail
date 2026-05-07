@@ -4191,6 +4191,9 @@ Implementation order:
       namespace boundary as core list controls, preserving AWS metadata fields
       while rejecting foreign-namespace Prefix/Name/KeyCount/MaxKeys/
       StorageClass/Owner elements before unmarshalling.
+1486. S3-compatible ListObjectsV2 simple standard metadata now rejects nested
+      XML inside Prefix and StorageClass-style fields before unmarshalling,
+      while preserving structured AWS metadata such as Owner.
 
 ## Deferred until backend contracts stabilize
 

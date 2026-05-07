@@ -202,6 +202,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` now also shares that
   namespace boundary, preserving normal AWS responses while rejecting
   same-local-name foreign metadata before list unmarshalling.
+- S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
+  `StorageClass` now rejects nested XML before unmarshalling, while structured
+  AWS fields such as `Owner` remain accepted.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

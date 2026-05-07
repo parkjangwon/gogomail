@@ -1620,6 +1620,9 @@ owner/resource target without scanning unrelated audit history.
   namespace boundary used by core list controls: normal AWS fields such as
   `Prefix`, `Name`, `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` remain
   accepted, while foreign-namespace variants fail closed before unmarshalling.
+- S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
+  `StorageClass` now also rejects nested XML before unmarshalling, while
+  structured AWS fields such as `Owner` remain compatible.
 - S3-compatible uploads now set a deterministic `Content-Length` for seekable
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first

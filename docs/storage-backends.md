@@ -433,8 +433,10 @@ pagination, `Contents`, key, size, ETag, or timestamp elements are rejected
 before XML unmarshalling can collapse them into provider metadata. Standard S3
 list metadata such as `Name`, `Prefix`, `KeyCount`, `MaxKeys`, `StorageClass`,
 and `Owner` is accepted when namespace-free or AWS-namespaced, but the same
-fields from foreign namespaces fail closed. Returned keys are normalized back
-to gogomail object paths under the configured storage prefix, so callers do not
+fields from foreign namespaces fail closed. Simple standard metadata such as
+`Prefix` and `StorageClass` cannot contain nested XML, while structured AWS
+fields such as `Owner` remain compatible. Returned keys are normalized back to
+gogomail object paths under the configured storage prefix, so callers do not
 see deployment-specific bucket prefixes. The mapped gogomail path is then
 rechecked against the requested logical prefix, preserving local/NFS
 sibling-prefix isolation even if a compatible provider returns an overly broad
