@@ -1681,6 +1681,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   previews deterministic for non-empty, empty include, and empty exclude lists.
 - IMAP `SEARCH HEADER` validates header field names at the grammar boundary,
   rejecting empty, space-bearing, or colon-suffixed names before state checks.
+  `HEADER.FIELDS` filtering matches raw RFC 5322 field names without trimming
+  malformed whitespace before the colon.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

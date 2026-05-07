@@ -6292,7 +6292,7 @@ func filterIMAPHeaderFields(header []byte, fields []string, exclude bool) []byte
 			include = false
 			continue
 		}
-		_, found := allowed[strings.ToUpper(strings.TrimSpace(name))]
+		_, found := allowed[strings.ToUpper(name)]
 		include = found
 		if exclude {
 			include = !found
