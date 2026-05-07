@@ -1499,6 +1499,11 @@ Current state:
   latest draft update with opaque cursor pagination. This keeps active-message
   Postgres/OpenSearch relevance semantics aligned while giving compose UIs a
   bounded search path.
+- `GET /api/v1/search` now supports opaque cursor-based pagination for
+  date-sorted results, returning `has_more`, `next_cursor`, and `limit` in the
+  response envelope consistent with other paginated endpoints. Cursor
+  pagination is rejected with HTTP 400 for `sort=relevance` since relevance
+  results are unordered. OpenAPI spec and contract tests are updated.
 
 Next:
 

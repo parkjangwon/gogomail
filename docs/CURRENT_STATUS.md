@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after OpenSearch to/cc/bcc recipient filter integration)
+Last updated: 2026-05-07 (updated after message search cursor pagination)
 
 ## Current phase
 
