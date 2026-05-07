@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	messageparse "github.com/gogomail/gogomail/internal/message"
 	"golang.org/x/text/collate"
@@ -6769,6 +6770,9 @@ func imapBodyMetadataText(value string) string {
 	value = strings.TrimSpace(value)
 	if len(value) > maxIMAPBodyMetadataTextBytes {
 		value = value[:maxIMAPBodyMetadataTextBytes]
+		for !utf8.ValidString(value) && len(value) > 0 {
+			value = value[:len(value)-1]
+		}
 	}
 	return value
 }

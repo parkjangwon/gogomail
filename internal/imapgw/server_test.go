@@ -21,6 +21,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	messageparse "github.com/gogomail/gogomail/internal/message"
 )
@@ -12741,6 +12742,18 @@ func TestIMAPBodyMetadataNStringBoundsQuotedMetadata(t *testing.T) {
 	want := `"` + strings.Repeat("x", maxIMAPBodyMetadataTextBytes) + `"`
 	if got != want {
 		t.Fatalf("imapBodyMetadataNString oversized len = %d, want %d-byte quoted value", len(got), maxIMAPBodyMetadataTextBytes)
+	}
+}
+
+func TestIMAPBodyMetadataTextPreservesUTF8Boundary(t *testing.T) {
+	t.Parallel()
+
+	got := imapBodyMetadataText(strings.Repeat("x", maxIMAPBodyMetadataTextBytes-1) + "\u00e9")
+	if !utf8.ValidString(got) {
+		t.Fatalf("imapBodyMetadataText returned invalid UTF-8")
+	}
+	if len(got) != maxIMAPBodyMetadataTextBytes-1 {
+		t.Fatalf("imapBodyMetadataText len = %d, want truncated to UTF-8 boundary", len(got))
 	}
 }
 

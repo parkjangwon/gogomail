@@ -382,15 +382,15 @@ malformed tspecial/control-bearing tokens or empty parameter values to clients.
 Canonical duplicate parameter names are collapsed before rendering so a
 malformed or inconsistent MIME source cannot emit repeated `BODYSTRUCTURE`
 parameter keys.
-MIME parameter values now share the same bounded metadata text path, so
-oversized filenames, boundaries, or other parameter values cannot inflate
-BODY/BODYSTRUCTURE responses.
+MIME parameter values now share the same UTF-8-boundary-safe bounded metadata
+text path, so oversized filenames, boundaries, or other parameter values cannot
+inflate BODY/BODYSTRUCTURE responses.
 Malformed MIME disposition tokens now render as `NIL` instead of being
 upgraded to `ATTACHMENT`, preventing BODYSTRUCTURE responses from inventing
 attachment semantics for invalid source metadata.
 BODYSTRUCTURE content ID and description nstrings are now trimmed and bounded
-before quoting, keeping oversized source metadata from inflating IMAP fetch
-responses.
+at a UTF-8 boundary before quoting, keeping oversized source metadata from
+inflating IMAP fetch responses.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of
