@@ -2335,6 +2335,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` now preserves RFC 3501 zero-length search string
   semantics for quoted empty strings across envelope, body/text, and header
   substring criteria instead of treating them as guaranteed no-match requests.
+  Escaped quote characters inside search strings remain literal query text
+  rather than being stripped from the query boundary.
 - IMAP `SEARCH`/`UID SEARCH` now supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP advertises `LITERAL+` and accepts bounded non-synchronizing command
