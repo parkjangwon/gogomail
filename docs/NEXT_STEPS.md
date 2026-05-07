@@ -149,13 +149,14 @@ Current state:
   even when the HTTP response already has a populated `ContentLength` field,
   rejecting malformed or contradictory provider metadata. Duplicate
   `Last-Modified`, `ETag`, and `Content-Type` headers now also fail closed
-  before metadata parsing, and non-empty malformed `ETag`/`Content-Type`
-  metadata is rejected instead of silently dropped.
+  before metadata parsing, and present-but-blank or malformed
+  `Last-Modified`, `ETag`, and `Content-Type` metadata are rejected instead of
+  silently being exposed as empty optional metadata.
 - S3-compatible full-object `GET` now validates present `Content-Length`
   headers with the same exact unsigned decimal grammar and returns a bounded
   reader for known-length bodies, reporting `io.ErrUnexpectedEOF` on truncated
   full-object responses.
-- S3-compatible `HEAD`/`Stat` now rejects non-empty malformed
+- S3-compatible `HEAD`/`Stat` now rejects blank or malformed present
   `Last-Modified` headers instead of silently returning zero timestamps,
   while preserving HTTP optional-whitespace compatibility around otherwise
   valid timestamp values.

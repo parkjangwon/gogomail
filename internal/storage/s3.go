@@ -247,25 +247,34 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	if err != nil {
 		return ObjectInfo{}, fmt.Errorf("unsafe storage path %q: %w", rawObjectPath, err)
 	}
-	rawLastModified, ok := s3ResponseSingleHeader(resp, "Last-Modified")
+	rawLastModified, lastModifiedPresent, ok := s3ResponseOptionalSingleHeader(resp, "Last-Modified")
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate last-modified")
+	}
+	if lastModifiedPresent && strings.TrimSpace(rawLastModified) == "" {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: invalid last-modified")
 	}
 	lastModified, err := parseS3StatLastModified(rawLastModified)
 	if err != nil {
 		return ObjectInfo{}, err
 	}
-	rawETag, ok := s3ResponseSingleHeader(resp, "ETag")
+	rawETag, etagPresent, ok := s3ResponseOptionalSingleHeader(resp, "ETag")
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate etag")
+	}
+	if etagPresent && strings.TrimSpace(rawETag) == "" {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: invalid etag")
 	}
 	etag, err := parseS3StatETag(rawETag)
 	if err != nil {
 		return ObjectInfo{}, err
 	}
-	rawContentType, ok := s3ResponseSingleHeader(resp, "Content-Type")
+	rawContentType, contentTypePresent, ok := s3ResponseOptionalSingleHeader(resp, "Content-Type")
 	if !ok {
 		return ObjectInfo{}, fmt.Errorf("stat s3 object: duplicate content-type")
+	}
+	if contentTypePresent && strings.TrimSpace(rawContentType) == "" {
+		return ObjectInfo{}, fmt.Errorf("stat s3 object: invalid content-type")
 	}
 	contentType, err := parseS3StatContentType(rawContentType)
 	if err != nil {
