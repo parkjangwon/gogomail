@@ -214,6 +214,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `KeyCount` as an unsigned decimal matching the raw returned `<Contents>`
   count before list pages reach pagination, cleanup, Drive, or reconciliation
   callers.
+- S3-compatible `ListObjectsV2` root `<MaxKeys>` metadata now rejects signed,
+  whitespace-padded, or under-counting values before list pages reach Drive,
+  lifecycle cleanup, or reconciliation callers.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

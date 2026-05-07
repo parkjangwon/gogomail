@@ -1935,6 +1935,54 @@ func TestS3StoreListValidatesKeyCount(t *testing.T) {
 	}
 }
 
+func TestS3StoreListValidatesMaxKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		maxKeys string
+		limit   int
+		want    string
+	}{
+		{name: "signed", maxKeys: "+1", limit: 10, want: "invalid MaxKeys value"},
+		{name: "padded", maxKeys: " 1 ", limit: 10, want: "invalid MaxKeys value"},
+		{name: "less_than_contents", maxKeys: "0", limit: 10, want: "MaxKeys is less than contents"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <MaxKeys>` + tc.maxKeys + `</MaxKeys>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Limit: tc.limit})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsDuplicateRootMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -1952,6 +2000,11 @@ func TestS3StoreListRejectsDuplicateRootMetadata(t *testing.T) {
 			name: "prefix",
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Prefix>mail/messages/</Prefix><Prefix>mail/messages/</Prefix><KeyCount>1</KeyCount><Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
 			want: "duplicate Prefix value",
+		},
+		{
+			name: "max_keys",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><MaxKeys>10</MaxKeys><MaxKeys>10</MaxKeys><Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: "duplicate MaxKeys value",
 		},
 	} {
 		tc := tc

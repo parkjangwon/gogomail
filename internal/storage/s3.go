@@ -372,6 +372,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err := validateS3ListKeyCount(result.KeyCount, len(result.Contents)); err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListMaxKeys(result.MaxKeys, len(result.Contents)); err != nil {
+		return ObjectListPage{}, err
+	}
 	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
 	if !ok {
 		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid IsTruncated value")
@@ -762,6 +765,20 @@ func validateS3ListKeyCount(value string, contents int) error {
 	}
 	if count != int64(contents) {
 		return fmt.Errorf("list s3 objects: KeyCount does not match contents")
+	}
+	return nil
+}
+
+func validateS3ListMaxKeys(value string, contents int) error {
+	if value == "" {
+		return nil
+	}
+	maxKeys, ok := parseS3NonNegativeDecimal(value)
+	if !ok {
+		return fmt.Errorf("list s3 objects: invalid MaxKeys value")
+	}
+	if int64(contents) > maxKeys {
+		return fmt.Errorf("list s3 objects: MaxKeys is less than contents")
 	}
 	return nil
 }
@@ -1553,6 +1570,7 @@ type s3ListObjectsResult struct {
 	IsTruncated           string                `xml:"IsTruncated"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	KeyCount              string                `xml:"KeyCount"`
+	MaxKeys               string                `xml:"MaxKeys"`
 	Contents              []s3ListObjectContent `xml:"Contents"`
 }
 

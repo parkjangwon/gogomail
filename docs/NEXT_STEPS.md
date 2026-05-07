@@ -218,6 +218,9 @@ Current state:
   standard elements such as `<KeyCount>` or `<Prefix>`, and validates
   `KeyCount` as an unsigned decimal that exactly matches the returned
   `<Contents>` count before pagination or cleanup callers trust the page.
+- S3-compatible `ListObjectsV2` root `<MaxKeys>` metadata now rejects signed,
+  whitespace-padded, or under-counting values before list pages reach Drive,
+  lifecycle cleanup, or reconciliation callers.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.
