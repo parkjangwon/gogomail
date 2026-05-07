@@ -198,6 +198,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   the same namespace boundary as the root, so foreign-namespace
   `IsTruncated`, `Contents`, `Key`, `Size`, `ETag`, or `LastModified` elements
   cannot be treated as canonical provider metadata.
+- S3-compatible `ListObjectsV2` standard metadata such as `Prefix`, `Name`,
+  `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` now also shares that
+  namespace boundary, preserving normal AWS responses while rejecting
+  same-local-name foreign metadata before list unmarshalling.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

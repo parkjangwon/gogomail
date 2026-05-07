@@ -4187,6 +4187,10 @@ Implementation order:
 1484. IMAP THREAD and UID THREAD algorithm controls now reject exact quoted or
       command-literal ORDEREDSUBJECT values before state checks, keeping
       advertised RFC 5256 thread algorithms atom-only.
+1485. S3-compatible ListObjectsV2 standard metadata now shares the same
+      namespace boundary as core list controls, preserving AWS metadata fields
+      while rejecting foreign-namespace Prefix/Name/KeyCount/MaxKeys/
+      StorageClass/Owner elements before unmarshalling.
 
 ## Deferred until backend contracts stabilize
 

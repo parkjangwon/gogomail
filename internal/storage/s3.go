@@ -1615,6 +1615,10 @@ func validateS3ListControlCardinality(data []byte) error {
 					etagSeen = false
 					lastModifiedSeen = false
 					simpleObjectMetadata = ""
+				default:
+					if s3ListStandardRootMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 				}
 			case inContent && rootDepth == 3:
 				switch token.Name.Local {
@@ -1654,6 +1658,10 @@ func validateS3ListControlCardinality(data []byte) error {
 					}
 					lastModifiedSeen = true
 					simpleObjectMetadata = token.Name.Local
+				default:
+					if s3ListStandardObjectMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
 				}
 			case inContent && rootDepth > 3 && simpleObjectMetadata != "":
 				return fmt.Errorf("list s3 objects: object %s metadata contains nested element %q", simpleObjectMetadata, token.Name.Local)
@@ -1670,6 +1678,24 @@ func validateS3ListControlCardinality(data []byte) error {
 				rootDepth--
 			}
 		}
+	}
+}
+
+func s3ListStandardRootMetadata(local string) bool {
+	switch local {
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
+		return true
+	default:
+		return false
+	}
+}
+
+func s3ListStandardObjectMetadata(local string) bool {
+	switch local {
+	case "StorageClass", "Owner", "ChecksumAlgorithm", "RestoreStatus":
+		return true
+	default:
+		return false
 	}
 }
 
