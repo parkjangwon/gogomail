@@ -694,18 +694,41 @@ func TestIMAPMailboxSubscriptionCommandsDelegateToRepository(t *testing.T) {
 	}
 	service := New(repo, nil)
 
-	got, err := service.SubscribeIMAPMailboxName(context.Background(), " user-1 ", " inbox ")
+	got, err := service.SubscribeIMAPMailboxName(context.Background(), " user-1 ", "inbox")
 	if err != nil {
 		t.Fatalf("SubscribeIMAPMailboxName returned error: %v", err)
 	}
 	if got.Name != "INBOX" || repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != "inbox" {
 		t.Fatalf("subscription = %#v, ids = %q/%q", got, repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
 	}
-	if err := service.UnsubscribeIMAPMailboxName(context.Background(), " user-1 ", " inbox "); err != nil {
+	if err := service.UnsubscribeIMAPMailboxName(context.Background(), " user-1 ", "inbox"); err != nil {
 		t.Fatalf("UnsubscribeIMAPMailboxName returned error: %v", err)
 	}
 	if repo.lastUnsubscribeIMAPMailboxID != "inbox" {
 		t.Fatalf("unsubscribe mailbox id = %q, want inbox", repo.lastUnsubscribeIMAPMailboxID)
+	}
+}
+
+func TestIMAPMailboxSubscriptionCommandsPreserveMailboxNameSpacing(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapSubscription: imapgw.MailboxSubscription{Name: " INBOX ", Exists: false},
+	}
+	service := New(repo, nil)
+
+	got, err := service.SubscribeIMAPMailboxName(context.Background(), " user-1 ", " INBOX ")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailboxName returned error: %v", err)
+	}
+	if got.Name != " INBOX " || repo.lastIMAPMailboxUserID != "user-1" || repo.lastIMAPMessageMailboxID != " INBOX " {
+		t.Fatalf("subscription = %#v, ids = %q/%q", got, repo.lastIMAPMailboxUserID, repo.lastIMAPMessageMailboxID)
+	}
+	if err := service.UnsubscribeIMAPMailboxName(context.Background(), " user-1 ", " INBOX "); err != nil {
+		t.Fatalf("UnsubscribeIMAPMailboxName returned error: %v", err)
+	}
+	if repo.lastUnsubscribeIMAPMailboxID != " INBOX " {
+		t.Fatalf("unsubscribe mailbox id = %q, want spaced INBOX", repo.lastUnsubscribeIMAPMailboxID)
 	}
 }
 

@@ -572,7 +572,7 @@ func (s *Service) SubscribeIMAPMailboxName(ctx context.Context, userID imapgw.Us
 		return imapgw.MailboxSubscription{}, fmt.Errorf("imap mailbox subscription repository is required")
 	}
 	user := strings.TrimSpace(string(userID))
-	mailbox := strings.TrimSpace(string(mailboxID))
+	mailbox := string(mailboxID)
 	if err := validateServiceResourceID("user_id", user); err != nil {
 		return imapgw.MailboxSubscription{}, err
 	}
@@ -590,7 +590,7 @@ func (s *Service) UnsubscribeIMAPMailboxName(ctx context.Context, userID imapgw.
 		return fmt.Errorf("imap mailbox subscription repository is required")
 	}
 	user := strings.TrimSpace(string(userID))
-	mailbox := strings.TrimSpace(string(mailboxID))
+	mailbox := string(mailboxID)
 	if err := validateServiceResourceID("user_id", user); err != nil {
 		return err
 	}

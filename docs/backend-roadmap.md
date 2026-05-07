@@ -4436,6 +4436,11 @@ Implementation order:
       case-insensitive `INBOX` as the RFC special namespace, preserving quoted
       mailbox names with real leading or trailing spaces such as `" INBOX "`
       as ordinary backend-bound folder names.
+1527. IMAP subscription canonicalization and service/repository
+      `SUBSCRIBE`/`UNSUBSCRIBE` delegation now preserve decoded mailbox-name
+      leading and trailing spaces, so missing subscriptions such as
+      `" INBOX "` remain distinct `LSUB` rows instead of collapsing into
+      `INBOX`.
 
 ## Deferred until backend contracts stabilize
 

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP INBOX special-name exactness)
+Last updated: 2026-05-07 (updated after IMAP subscription spacing hardening)
 
 ## Current phase
 
@@ -2968,9 +2968,11 @@ The platform hardening sprint completed the following:
   through the service/repository boundary, and `LSUB` now returns the saved
   subscription set instead of every visible mailbox.
 - IMAP subscription canonicalization preserves hierarchy delimiters, quoting,
-  and internal spacing while keeping case-insensitive matching, preventing
-  distinct subscribed mailbox names from silently collapsing into one `LSUB`
-  row.
+  internal spacing, and real leading/trailing spaces while keeping
+  case-insensitive matching, preventing distinct subscribed mailbox names from
+  silently collapsing into one `LSUB` row. The service/repository
+  `SUBSCRIBE`/`UNSUBSCRIBE` boundary now preserves decoded mailbox-name
+  spacing instead of trimming it before subscription persistence.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.

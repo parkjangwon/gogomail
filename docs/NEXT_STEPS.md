@@ -1884,8 +1884,11 @@ Current state:
   names, and `LSUB` returns the saved subscription set instead of every visible
   mailbox.
 - IMAP subscription canonicalization preserves hierarchy delimiters, quoting,
-  and internal spacing while keeping case-insensitive matching, preventing
-  distinct subscribed mailbox names from collapsing into the same `LSUB` row.
+  internal spacing, and real leading/trailing spaces while keeping
+  case-insensitive matching, preventing distinct subscribed mailbox names from
+  collapsing into the same `LSUB` row. The service/repository subscription
+  boundary now preserves decoded mailbox-name spacing instead of trimming it
+  before `SUBSCRIBE`/`UNSUBSCRIBE` persistence.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.
