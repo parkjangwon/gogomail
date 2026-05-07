@@ -1775,7 +1775,9 @@ owner/resource target without scanning unrelated audit history.
   expectations.
 - IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
   `date-day-fixed` syntax, accepting zero-padded or space-padded days while
-  rejecting bare one-digit dates such as `"5-May-2026 ..."`.
+  rejecting bare one-digit dates such as `"5-May-2026 ..."`. Date-month atoms
+  are canonicalized case-insensitively before parsing, preserving strict date
+  shape while accepting common uppercase or lowercase client month literals.
 - IMAP selected-mailbox `STORE` and `UID STORE` now honor advertised
   `[PERMANENTFLAGS]`, rejecting otherwise valid system flags when the selected
   mailbox did not permit them instead of dispatching unsupported mutations to
@@ -1805,7 +1807,8 @@ owner/resource target without scanning unrelated audit history.
   as `SINCE 05-May-2026"` are not silently normalized.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now accept one-digit date-day atoms
   such as `SINCE 5-May-2026` while preserving the malformed quote rejection,
-  improving compatibility with clients that do not zero-pad day values.
+  improving compatibility with clients that do not zero-pad day values. Search
+  date-month atoms are also canonicalized case-insensitively before parsing.
 - IMAP `SEARCH`/`UID SEARCH` date criteria now reject whitespace-padded date
   strings such as `SINCE " 05-May-2026 "` instead of trimming them into valid
   date atoms.

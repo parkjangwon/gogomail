@@ -9924,7 +9924,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
-	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\na9 SEARCH SINCE 5-May-2026\r\na10 UID SEARCH SENTON 3-May-2026\r\na11 SEARCH SINCE 05-May-2026\"\r\na12 SEARCH SINCE \" 05-May-2026 \"\r\na13 SEARCH SINCE \"05-May-2026\"\r\na14 UID SEARCH SENTON \"3-May-2026\"\r\n")); err != nil {
+	if _, err := client.Write([]byte("a3 SEARCH SINCE 05-May-2026\r\na4 UID SEARCH BEFORE 05-May-2026\r\na5 SEARCH ON 05-May-2026\r\na6 UID SEARCH SENTON 03-May-2026\r\na7 SEARCH SENTSINCE 04-May-2026\r\na8 UID SEARCH SENTBEFORE 04-May-2026\r\na9 SEARCH SINCE 5-May-2026\r\na10 UID SEARCH SENTON 3-May-2026\r\na11 SEARCH SINCE 05-MAY-2026\r\na12 UID SEARCH SENTON 3-may-2026\r\na13 SEARCH SINCE 05-May-2026\"\r\na14 SEARCH SINCE \" 05-May-2026 \"\r\na15 SEARCH SINCE \"05-May-2026\"\r\na16 UID SEARCH SENTON \"3-May-2026\"\r\n")); err != nil {
 		t.Fatalf("write date search: %v", err)
 	}
 	want := []string{
@@ -9944,10 +9944,14 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 		"a9 OK SEARCH completed\r\n",
 		"* SEARCH 8\r\n",
 		"a10 OK UID SEARCH completed\r\n",
-		"a11 BAD malformed command\r\n",
-		"a12 BAD SEARCH criteria are unsupported\r\n",
-		"a13 BAD SEARCH criteria are unsupported\r\n",
+		"* SEARCH 1\r\n",
+		"a11 OK SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a12 OK UID SEARCH completed\r\n",
+		"a13 BAD malformed command\r\n",
 		"a14 BAD SEARCH criteria are unsupported\r\n",
+		"a15 BAD SEARCH criteria are unsupported\r\n",
+		"a16 BAD SEARCH criteria are unsupported\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -9958,7 +9962,7 @@ func TestServerHandlesDateSearchAfterSelect(t *testing.T) {
 			t.Fatalf("date search response = %q, want %q", line, expected)
 		}
 	}
-	if _, err := client.Write([]byte("a15 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a17 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write logout: %v", err)
 	}
 	_, _ = reader.ReadString('\n')
@@ -12219,6 +12223,20 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	}
 	if !paddedInternalDate.Equal(wantDate) {
 		t.Fatalf("space-padded internal date = %s, want %s", paddedInternalDate, wantDate)
+	}
+	_, upperMonthDate, ok := imapAppendOptions([]string{"05-MAY-2026 12:34:56 +0900"})
+	if !ok {
+		t.Fatal("imapAppendOptions rejected uppercase date-month")
+	}
+	if !upperMonthDate.Equal(wantDate) {
+		t.Fatalf("uppercase month internal date = %s, want %s", upperMonthDate, wantDate)
+	}
+	_, lowerMonthDate, ok := imapAppendOptions([]string{" 5-may-2026 12:34:56 +0900"})
+	if !ok {
+		t.Fatal("imapAppendOptions rejected lowercase date-month")
+	}
+	if !lowerMonthDate.Equal(wantDate) {
+		t.Fatalf("lowercase month internal date = %s, want %s", lowerMonthDate, wantDate)
 	}
 	if _, _, ok := imapAppendOptions([]string{"5-May-2026 12:34:56 +0900"}); ok {
 		t.Fatal("imapAppendOptions accepted non-fixed one-digit date-day")
