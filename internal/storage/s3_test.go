@@ -3735,6 +3735,8 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 		{name: "nested_last_modified_metadata", status: http.StatusOK, body: `<CopyObjectResult><ETag>"etag-1"</ETag><LastModified><Value>2026-05-05T12:00:00Z</Value></LastModified></CopyObjectResult>`, want: `LastModified metadata contains nested element "Value"`},
 		{name: "nested_error", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Message>copy throttled
 try later</Message><RequestId>req-copy-1</RequestId><HostId>host-copy-1</HostId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1: host-id=host-copy-1"},
+		{name: "duplicate_error_field", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Code>AccessDenied</Code><Message>copy throttled</Message></Error></CopyObjectResult>`, want: "embedded error"},
+		{name: "nested_error_field", status: http.StatusOK, body: `<CopyObjectResult><Error><Code><Value>SlowDown</Value></Code><Message>copy throttled</Message></Error></CopyObjectResult>`, want: "embedded error"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
