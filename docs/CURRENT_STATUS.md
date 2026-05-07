@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP display name and observability hardening)
+Last updated: 2026-05-07 (updated after draft search to/cc/bcc filter expansion)
 
 ## Current phase
 

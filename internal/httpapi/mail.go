@@ -1125,7 +1125,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "q", "from", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "q", "from", "to", "cc", "bcc", "subject") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -1157,6 +1157,18 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		to, ok := parseBoundedHTTPQuery(w, r, "to", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		cc, ok := parseBoundedHTTPQuery(w, r, "cc", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		bcc, ok := parseBoundedHTTPQuery(w, r, "bcc", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
 		subject, ok := parseBoundedHTTPQuery(w, r, "subject", false, maxHTTPQueryBytes)
 		if !ok {
 			return
@@ -1165,6 +1177,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			UserID:        userID,
 			Query:         queryText,
 			From:          from,
+			To:            to,
+			Cc:            cc,
+			Bcc:           bcc,
 			Subject:       subject,
 			HasAttachment: hasAttachment,
 			Limit:         limit,
