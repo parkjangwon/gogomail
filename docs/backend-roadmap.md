@@ -4358,6 +4358,9 @@ Implementation order:
       parameter values before writing client-visible structure responses.
       Canonical duplicate parameter names are collapsed so malformed MIME
       source metadata cannot emit repeated `BODYSTRUCTURE` keys.
+1516. IMAP BODYSTRUCTURE disposition rendering now treats malformed disposition
+      tokens as `NIL` instead of falling back to `ATTACHMENT`, preventing
+      invalid MIME source metadata from inventing attachment semantics.
 
 ## Deferred until backend contracts stabilize
 

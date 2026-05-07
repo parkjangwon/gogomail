@@ -382,6 +382,9 @@ malformed tspecial/control-bearing tokens or empty parameter values to clients.
 Canonical duplicate parameter names are collapsed before rendering so a
 malformed or inconsistent MIME source cannot emit repeated `BODYSTRUCTURE`
 parameter keys.
+Malformed MIME disposition tokens now render as `NIL` instead of being
+upgraded to `ATTACHMENT`, preventing BODYSTRUCTURE responses from inventing
+attachment semantics for invalid source metadata.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of

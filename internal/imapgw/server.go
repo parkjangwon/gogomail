@@ -6749,10 +6749,11 @@ func imapMIMEMessageBody(part messageparse.MIMEPart, extended bool) string {
 }
 
 func imapMIMEBodyDisposition(part messageparse.MIMEPart) string {
-	if strings.TrimSpace(part.Disposition) == "" {
+	disposition := imapMIMEToken(part.Disposition, "")
+	if disposition == "" {
 		return "NIL"
 	}
-	return "(" + imapQuotedString(imapMIMEToken(part.Disposition, "ATTACHMENT")) + " " + imapMIMEBodyParameterList(part.DispositionParams) + ")"
+	return "(" + imapQuotedString(disposition) + " " + imapMIMEBodyParameterList(part.DispositionParams) + ")"
 }
 
 func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended bool) string {

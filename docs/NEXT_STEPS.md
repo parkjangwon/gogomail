@@ -458,6 +458,9 @@ Current state:
   tspecial/control-bearing source metadata instead of emitting invalid
   structure tokens, duplicate canonical parameter keys, or empty parameter
   values to clients.
+- Malformed MIME disposition tokens now render as `NIL` instead of falling back
+  to `ATTACHMENT`, so IMAP BODYSTRUCTURE does not invent attachment semantics
+  for invalid source metadata.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.
