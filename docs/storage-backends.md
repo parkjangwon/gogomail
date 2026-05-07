@@ -412,10 +412,11 @@ S3 fields gogomail understands.
 Core `CopyObjectResult` child elements must also be namespace-free or in the
 AWS S3 XML namespace, matching the accepted root namespace boundary. `ETag`
 is required in successful copy metadata and uses the same bounded safe
-single-line validation as `Stat` and `List`, without XML whitespace padding.
-Non-empty `LastModified` values in successful copy metadata must parse as
-exact S3/RFC-compatible timestamps; blank, malformed, or whitespace-padded
-values are rejected instead of being treated as a trustworthy copy success.
+single-line validation as `Stat` and `List`, without XML whitespace padding or
+ambiguous quote nesting. Non-empty `LastModified` values in successful copy
+metadata must parse as exact S3/RFC-compatible timestamps; blank, malformed, or
+whitespace-padded values are rejected instead of being treated as a trustworthy
+copy success.
 Nested child elements inside simple `CopyObjectResult` metadata fields are
 rejected before XML unmarshalling can turn structured provider data into
 apparently valid string metadata.
@@ -452,8 +453,9 @@ rechecked against the requested logical prefix, preserving local/NFS
 sibling-prefix isolation even if a compatible provider returns an overly broad
 page. Size and returned ETag metadata are validated only after that canonical
 prefix mapping succeeds; object sizes must be exact unsigned decimal digits,
-and present ETags must remain nonblank, unpadded, and valid after the same
-bounded metadata cleanup as `Stat` instead of being silently dropped. Present
+and present ETags must remain nonblank, unpadded, non-double-quoted, and valid
+after the same bounded metadata cleanup as `Stat` instead of being silently
+dropped. Present
 `LastModified` values must be nonblank and parse as exact S3/RFC-compatible
 timestamps; malformed or whitespace-padded values are rejected instead of
 being silently exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and

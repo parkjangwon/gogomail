@@ -945,7 +945,17 @@ func cleanS3ETag(value string) string {
 	if value == "" {
 		return ""
 	}
-	value = strings.Trim(value, `"`)
+	if strings.HasPrefix(value, `"`) || strings.HasSuffix(value, `"`) {
+		if len(value) < 2 || !strings.HasPrefix(value, `"`) || !strings.HasSuffix(value, `"`) {
+			return ""
+		}
+		value = value[1 : len(value)-1]
+		if value == "" || strings.Contains(value, `"`) {
+			return ""
+		}
+	} else if strings.Contains(value, `"`) {
+		return ""
+	}
 	if value == "" || len(value) > maxS3ETagBytes || strings.ContainsAny(value, "\r\n") {
 		return ""
 	}
