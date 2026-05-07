@@ -280,6 +280,14 @@ Implementation order:
 225. API metering aggregation has a first worker/read-model boundary: `api-metering-worker` consumes `api.usage` events from `api.event`, upserts `api_usage_daily`, and Admin API exposes `GET /admin/v1/api-usage/daily`.
 226. ADR 0004 captures the API metering aggregation boundary: HTTP remains fail-open, aggregation is disabled by default, daily aggregates are operational read models, and billing-grade idempotency is deferred.
 227. Search results now have opt-in relevance ordering, rank scores, and bounded headline snippets through `sort=relevance`, `include_rank=true`, and `include_highlights=true`, while the default response remains date sorted.
+## Phase 2: Protocol Gateways
+
+Target outcome:
+
+> IMAP, CalDAV, CardDAV 프로토콜 게이트웨이. SMTP 코어와 분리된 서비스형 게이트웨이.
+
+`internal/imapgw`, `internal/caldavgw`, `internal/carddavgw`는 SMTP/Mail API와 분리된 독립 게이트웨이입니다. 각 게이트웨이는 서비스 어댑터 경계를 통해 `maildb`, `mailservice`, `storage`를 사용합니다.
+
 228. `internal/imapgw` establishes a dependency-light IMAP gateway boundary with native DTOs/interfaces, UID-oriented mailbox state, RFC 3501 system flag mapping, mailbox helpers, and explicit deferral of `\Deleted`/EXPUNGE semantics.
 229. ADR 0005 records that IMAP will be a separate gateway over stable mailbox/message interfaces rather than protocol code embedded into Mail API, SMTP, or `maildb` internals.
 230. Push notification enqueue has a first async worker boundary: `push-notification-worker` consumes committed `mail.stored` events, routes them through `internal/pushnotify`, and supports a disabled-by-default `slog` sink while FCM/APNs delivery remains adapter work.
