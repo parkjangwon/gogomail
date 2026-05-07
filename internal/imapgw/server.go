@@ -633,7 +633,8 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 				cancel()
 			}
 		}()
-		if _, err := writer.WriteString("* FLAGS " + imapFlagList(mailboxState.PermanentFlags) + "\r\n"); err != nil {
+		permanentFlags := imapCanonicalPermanentFlags(mailboxState.PermanentFlags)
+		if _, err := writer.WriteString("* FLAGS " + imapFlagList(permanentFlags) + "\r\n"); err != nil {
 			return false, err
 		}
 		if _, err := writer.WriteString(fmt.Sprintf("* %d EXISTS\r\n", mailboxState.Messages)); err != nil {
@@ -675,7 +676,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		if state.readOnly {
 			state.permanentFlags = nil
 		} else {
-			state.permanentFlags = imapPermanentFlagSet(mailboxState.PermanentFlags)
+			state.permanentFlags = imapPermanentFlagSet(permanentFlags)
 		}
 		state.savedSearch = nil
 		if condstore {
@@ -691,7 +692,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err = writer.WriteString(tag + " OK [READ-ONLY] EXAMINE completed\r\n")
 			return false, err
 		}
-		if _, err := writer.WriteString("* OK [PERMANENTFLAGS " + imapFlagList(mailboxState.PermanentFlags) + "] Permanent flags\r\n"); err != nil {
+		if _, err := writer.WriteString("* OK [PERMANENTFLAGS " + imapFlagList(permanentFlags) + "] Permanent flags\r\n"); err != nil {
 			return false, err
 		}
 		_, err = writer.WriteString(tag + " OK [READ-WRITE] SELECT completed\r\n")
@@ -7322,13 +7323,34 @@ func imapFlagListTokens(inner string) ([]string, bool) {
 
 func imapPermanentFlagSet(flags []string) map[string]struct{} {
 	permitted := make(map[string]struct{}, len(flags))
+	for _, name := range imapCanonicalPermanentFlags(flags) {
+		permitted[name] = struct{}{}
+	}
+	return permitted
+}
+
+func imapCanonicalPermanentFlags(flags []string) []string {
+	if len(flags) == 0 {
+		return nil
+	}
+	present := make(map[string]struct{}, len(flags))
 	for _, raw := range flags {
 		switch name := CanonicalIMAPFlag(raw); name {
 		case FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted:
-			permitted[name] = struct{}{}
+			present[name] = struct{}{}
 		}
 	}
-	return permitted
+	if len(present) == 0 {
+		return nil
+	}
+	ordered := []string{FlagSeen, FlagFlagged, FlagAnswered, FlagForwarded, FlagDraft, FlagDeleted}
+	canonical := make([]string, 0, len(present))
+	for _, name := range ordered {
+		if _, ok := present[name]; ok {
+			canonical = append(canonical, name)
+		}
+	}
+	return canonical
 }
 
 func imapPermanentFlagsAllow(permitted map[string]struct{}, requested []string, mode StoreFlagsMode) bool {

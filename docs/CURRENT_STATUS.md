@@ -211,6 +211,11 @@ status errors. Successful
 `CopyObjectResult` bodies now also require a non-blank bounded `ETag`, so
 copy/move durability is not reported when provider success metadata omits
 object identity.
+IMAP `SELECT` now canonicalizes backend-provided permanent flags before
+rendering `FLAGS`/`PERMANENTFLAGS` and before selected-state STORE permission
+checks. Duplicate, aliased, lower-case, or unknown backend flag metadata is
+collapsed into the supported RFC-shaped system/keyword flag set on the wire,
+keeping client-visible mailbox metadata and mutation permissions aligned.
 S3-compatible `ListObjectsV2` response XML now applies the same namespace
 boundary to `ListBucketResult`, accepting namespace-free or AWS S3 namespace
 roots only before pagination, prefix filtering, cleanup, or Drive callers see

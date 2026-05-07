@@ -130,6 +130,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   and `FETCH (CHANGEDSINCE 0)` are rejected, while `STORE (UNCHANGEDSINCE 0)`
   remains a real conditional guard that yields `MODIFIED` instead of an
   unconditional flag mutation.
+- IMAP `SELECT` now canonicalizes backend-provided permanent flags before
+  rendering `FLAGS`/`PERMANENTFLAGS` and before selected-state STORE
+  permission checks, keeping response metadata duplicate-free, RFC-shaped, and
+  aligned with the permitted mutation set.
 - S3-compatible `206 Partial Content` range responses now reject invalid or
   mismatched `Content-Length` headers when present, draining the body before
   returning an error so provider metadata contradictions do not weaken bounded
