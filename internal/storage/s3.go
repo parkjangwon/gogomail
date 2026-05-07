@@ -909,7 +909,7 @@ func validateS3UnsupportedRequestChargedHeader(operation string, resp *http.Resp
 	if !present {
 		return nil
 	}
-	if value == "" {
+	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("%s s3 object: invalid request-charged header", operation)
 	}
 	return fmt.Errorf("%s s3 object: unsupported request-charged header", operation)

@@ -475,7 +475,8 @@ and `Name` metadata may be omitted, but present values must be nonblank and
 match the requested provider prefix or configured bucket name. Provider
 responses that include `StartAfter` or `EncodingType`, even as blank elements,
 fail closed, and requester-pays response
-headers are rejected across success paths, because the adapter does not request
+headers are rejected across success paths, with blank or whitespace-only values
+treated as invalid provider metadata, because the adapter does not request
 start-after pagination, encoded-key mode, or requester-pays mode. Returned root
 `ContinuationToken` echoes must match an explicitly requested cursor and are
 rejected when no request cursor was sent. Delimiter grouping is likewise
