@@ -38,6 +38,9 @@ func NewRedisBackpressure(client *redis.Client, key string) *RedisBackpressure {
 }
 
 func (b *RedisBackpressure) Accept(ctx context.Context) (bool, error) {
+	if b == nil || b.client == nil {
+		return true, nil
+	}
 	state, err := b.State(ctx)
 	if err != nil {
 		return false, err
@@ -46,6 +49,9 @@ func (b *RedisBackpressure) Accept(ctx context.Context) (bool, error) {
 }
 
 func (b *RedisBackpressure) State(ctx context.Context) (State, error) {
+	if b == nil || b.client == nil {
+		return State{Level: "normal"}, nil
+	}
 	raw, err := b.client.Get(ctx, b.key).Result()
 	if err == redis.Nil {
 		return State{Level: "normal"}, nil
@@ -64,6 +70,9 @@ func (b *RedisBackpressure) State(ctx context.Context) (State, error) {
 }
 
 func (b *RedisBackpressure) SetState(ctx context.Context, update StateUpdate) (State, error) {
+	if b == nil || b.client == nil {
+		return State{}, fmt.Errorf("redis client is required")
+	}
 	state, err := normalizeStateUpdate(update)
 	if err != nil {
 		return State{}, err
