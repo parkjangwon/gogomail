@@ -28,6 +28,9 @@ func NewRedisLimiter(client *redis.Client, limit int64, window time.Duration) *R
 }
 
 func (l *RedisLimiter) Allow(ctx context.Context, key smtpd.RateLimitKey) (bool, error) {
+	if l == nil || l.client == nil {
+		return true, nil
+	}
 	redisKey := redisKey(key)
 	count, err := l.client.Incr(ctx, redisKey).Result()
 	if err != nil {

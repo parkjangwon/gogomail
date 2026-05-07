@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
 func TestRedisLimiterConstructorDefaults(t *testing.T) {
@@ -34,6 +36,19 @@ func TestRedisLimiterConstructorNegativeWindow(t *testing.T) {
 	l := NewRedisLimiter(nil, 0, -time.Hour)
 	if l.window != time.Minute {
 		t.Fatalf("window = %v, want 1m default", l.window)
+	}
+}
+
+func TestRedisLimiterNilClientAllows(t *testing.T) {
+	t.Parallel()
+
+	l := NewRedisLimiter(nil, 10, time.Minute)
+	allowed, err := l.Allow(context.Background(), smtpd.RateLimitKey{Stage: "test", RemoteAddr: "192.0.2.1:25"})
+	if err != nil {
+		t.Fatalf("Allow error = %v, want nil", err)
+	}
+	if !allowed {
+		t.Fatalf("allowed = false, want true for nil client")
 	}
 }
 
