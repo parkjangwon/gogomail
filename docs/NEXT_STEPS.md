@@ -97,11 +97,16 @@ Current state:
   contract for generated public clients.
 - Admin storage capability support flags now come from active backend labels,
   avoiding over-broad local/NFS, MinIO, or AWS/S3-compatible claims. Explicit
-  compatibility labels are now extensible safe tokens in the Admin API
+  compatibility labels are now extensible safe tokens in the Admin API surface
   contract, sorted/de-duplicated by runtime while unknown labels do not
   activate support booleans. OpenAPI now also marks active labels as non-empty
   and unique, and storage operations as unique, with runtime coverage for the
   default advertised operation list.
+- S3-compatible ETags are now validated as bounded printable ASCII opaque
+  identity metadata across optional `PutObject` success headers, `HEAD`/`Stat`,
+  `ListObjectsV2`, and `CopyObjectResult`, rejecting malformed quote nesting,
+  whitespace padding, controls, and non-ASCII provider values before they reach
+  shared storage callers.
 - Shared storage `DeletePrefix` now fails closed when a truncated `List` page
   omits its continuation cursor, before deleting any listed object, and S3
   coverage verifies that continuation tokens are carried into the next

@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP custom keyword persistence)
+Last updated: 2026-05-07 (updated after S3-compatible ETag hardening)
 
 ## Current phase
 
@@ -16,6 +16,13 @@ RFC-sensitive core, but current work should balance:
 - DNS/DKIM/domain onboarding
 - quota and policy enforcement
 - OpenAPI drift prevention
+
+S3-compatible storage ETag handling is now stricter across optional
+`PutObject` success headers, `HEAD`/`Stat`, `ListObjectsV2`, and
+`CopyObjectResult` success XML: malformed quote nesting, whitespace padding,
+line/control bytes, non-ASCII values, and other non-printable opaque ETag
+payloads fail closed instead of crossing the shared storage boundary as object
+identity metadata.
 
 Webmail capability discovery now advertises only runtime-backed `GET
 /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and

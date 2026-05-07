@@ -96,8 +96,9 @@ Recent release-readiness work also includes:
   `ETag`, and `Content-Type` metadata including duplicate `Last-Modified`,
   `ETag`, and `Content-Type` headers, truncated
   pages require canonical continuation state, malformed list entries fail
-  closed, malformed quoted, double-quoted, or whitespace-padded S3 ETags fail
-  closed across headers and XML success metadata, and
+  closed, malformed quoted, double-quoted, whitespace-padded, non-ASCII, or
+  otherwise non-printable S3 ETags fail closed across headers and XML success
+  metadata, and
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
   S3 namespaces plus required bounded copy ETags, timestamp metadata, and
   known core/standard list metadata elements, rejecting foreign-namespace
