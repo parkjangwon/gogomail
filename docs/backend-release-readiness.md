@@ -164,8 +164,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   as ambiguous provider metadata, and duplicate `ETag` headers are rejected
   before object identity metadata is exposed. Duplicate `Content-Type`
   metadata is rejected before MIME metadata is exposed. Blank or malformed
-  present `ETag` and `Content-Type` metadata also fail closed instead of being
-  treated like omitted optional headers.
+  present `ETag` metadata also fails closed instead of being treated like an
+  omitted optional header, while present `Content-Type` metadata must parse as
+  an ASCII MIME media type with optional parameters before reaching Drive or
+  reconciliation callers.
 - S3-compatible `Content-Range` start, end, and total-size numbers now reuse
   the unsigned decimal parser, rejecting signed values such as
   `bytes +1-3/5` or `bytes 1-3/+5`.

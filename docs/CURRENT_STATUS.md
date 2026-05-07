@@ -23,6 +23,9 @@ S3-compatible storage ETag handling is now stricter across optional
 line/control bytes, non-ASCII values, and other non-printable opaque ETag
 payloads fail closed instead of crossing the shared storage boundary as object
 identity metadata.
+S3-compatible `HEAD`/`Stat` content-type metadata now also parses as an ASCII
+MIME media type before it can reach shared storage callers, while still
+preserving valid parameterized values such as `text/plain; charset=utf-8`.
 
 Webmail capability discovery now advertises only runtime-backed `GET
 /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and

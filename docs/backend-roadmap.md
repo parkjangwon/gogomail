@@ -4347,6 +4347,10 @@ Implementation order:
       `HEAD`/`Stat`, `ListObjectsV2`, and `CopyObjectResult`, rejecting
       non-ASCII, control, whitespace, or otherwise non-printable provider
       identity metadata before it crosses the shared storage boundary.
+1514. S3-compatible `HEAD`/`Stat` content-type parsing now validates present
+      provider metadata as an ASCII MIME media type with optional parameters,
+      rejecting slashless, non-ASCII, control-bearing, or otherwise malformed
+      values before they can become trusted shared storage object metadata.
 
 ## Deferred until backend contracts stabilize
 
