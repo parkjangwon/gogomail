@@ -4352,10 +4352,10 @@ Implementation order:
       rejecting slashless, non-ASCII, control-bearing, or otherwise malformed
       values before they can become trusted shared storage object metadata.
 1515. IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
-      parameter-name, and transfer-encoding tokens against RFC 2045-style token
-      boundaries, falling back to conservative defaults for malformed
-      tspecial/control-bearing source metadata before writing client-visible
-      structure responses.
+      parameter-list names, and transfer-encoding tokens against RFC
+      2045-style token boundaries, falling back to conservative defaults for
+      malformed tspecial/control-bearing source metadata and suppressing empty
+      parameter values before writing client-visible structure responses.
 
 ## Deferred until backend contracts stabilize
 
