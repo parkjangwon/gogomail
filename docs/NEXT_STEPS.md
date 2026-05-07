@@ -250,7 +250,7 @@ Current state:
   whitespace-padded, while still allowing missing values for compatible
   providers that omit optional timestamp metadata.
 - S3-compatible `ListObjectsV2` object `ETag` metadata now fails closed when a
-  non-empty provider value is malformed, line-bearing, empty after quote
+  present provider value is blank, malformed, line-bearing, empty after quote
   cleanup, or larger than the bounded metadata limit, instead of silently
   dropping suspect listed-object metadata.
 - S3-compatible `ListObjectsV2` object metadata now rejects duplicate

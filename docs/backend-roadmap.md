@@ -3961,6 +3961,10 @@ Implementation order:
       when a non-empty provider value is malformed, line-bearing, empty after
       quote cleanup, or larger than the bounded metadata limit, instead of
       silently dropping suspect listed-object metadata.
+1422a. S3-compatible `ListObjectsV2` object `ETag` metadata now distinguishes
+       omission from a present-but-blank element: missing remains compatible,
+       while blank or malformed values fail closed before list metadata reaches
+       cleanup, Drive, or reconciliation callers.
 1423. S3-compatible `Content-Length` parsing now rejects whitespace-padded
       values for `HEAD` metadata, `206 Partial Content` range validation, and
       safe `200 OK` full-range compatibility checks, keeping provider numeric
