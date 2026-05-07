@@ -349,10 +349,12 @@ rejected at the IMAP parser boundary. `FETCH` header-field section detection
 now also requires an exact top-level body section or a valid numeric MIME part
 path before `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, so malformed section prefixes
 cannot ride the supported header-subset path.
-IMAP command tag, command-name, and UID subcommand atom validation now rejects
-8-bit non-ASCII bytes in addition to control and atom-special characters,
-keeping RFC 3501's 7-bit atom boundary intact before command routing or UID
-state checks.
+IMAP command parsing now rejects 8-bit non-ASCII bytes in unquoted atoms,
+quoted strings, parenthesized quoted controls, and RFC 2971 ID quoted tokens.
+Command tag, command-name, and UID subcommand atom validation also rejects
+non-ASCII bytes in addition to control and atom-special characters, keeping RFC
+3501's 7-bit atom/string boundary intact before command routing or UID state
+checks.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of

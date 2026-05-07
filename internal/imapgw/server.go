@@ -8142,7 +8142,7 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 					fields = append(fields, b.String())
 					closed = true
 				default:
-					if line[i] < 0x20 || line[i] == 0x7f {
+					if line[i] < 0x20 || line[i] >= 0x7f {
 						return nil, fmt.Errorf("invalid quoted control character")
 					}
 					b.WriteByte(line[i])
@@ -8171,7 +8171,7 @@ func parseIMAPFieldsWithLiteral(line string, literals []string) ([]string, error
 			if line[i] == '"' && line[start] != '(' {
 				return nil, fmt.Errorf("invalid embedded atom quote character")
 			}
-			if line[i] < 0x20 || line[i] == 0x7f {
+			if line[i] < 0x20 || line[i] >= 0x7f {
 				return nil, fmt.Errorf("invalid atom control character")
 			}
 			i++
@@ -8342,7 +8342,7 @@ func parseIMAPParenthesizedField(line string, start int, literals []string, lite
 	var field strings.Builder
 	for i := start; i < len(line); i++ {
 		c := line[i]
-		if c < 0x20 || c == 0x7f {
+		if c < 0x20 || c >= 0x7f {
 			return "", 0, fmt.Errorf("invalid parenthesized control character")
 		}
 		if quoted {
@@ -8536,7 +8536,7 @@ func imapIDListTokens(value string, literals []string) ([]string, bool) {
 		}
 		start := i
 		for i < len(value) && value[i] != ' ' && value[i] != '\t' {
-			if value[i] == '(' || value[i] == ')' || value[i] < 0x20 || value[i] == 0x7f {
+			if value[i] == '(' || value[i] == ')' || value[i] < 0x20 || value[i] >= 0x7f {
 				return nil, false
 			}
 			i++
@@ -8579,7 +8579,7 @@ func imapParseQuotedToken(value string, start int) (string, int, bool) {
 		case '"':
 			return b.String(), i + 1, true
 		default:
-			if value[i] < 0x20 || value[i] == 0x7f {
+			if value[i] < 0x20 || value[i] >= 0x7f {
 				return "", 0, false
 			}
 			b.WriteByte(value[i])

@@ -1932,9 +1932,9 @@ Current state:
 - Command dispatch now rejects malformed tags containing atom-special
   characters with untagged `BAD` responses before command handling, avoiding
   ambiguous tagged replies for invalid client command tags.
-- Command parsing now rejects control characters inside unquoted atoms,
-  aligning atom parsing with the existing quoted-string control-character
-  guardrail before command dispatch.
+- Command parsing now rejects control characters or 8-bit non-ASCII bytes
+  inside unquoted atoms and quoted strings, aligning parser behavior with RFC
+  3501's 7-bit string/atom boundary before command dispatch.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
