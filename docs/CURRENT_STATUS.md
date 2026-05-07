@@ -2916,6 +2916,8 @@ The platform hardening sprint completed the following:
   semantics for quoted empty strings across envelope, body/text, and header
   substring criteria, so client-generated `SEARCH SUBJECT ""` or
   `SEARCH BODY ""` requests do not become false empty-mailbox results.
+  Escaped quote characters inside search strings are also preserved as literal
+  query text instead of being stripped from the query boundary.
 - IMAP `SEARCH`/`UID SEARCH` supports RFC 3501 `LARGER` and `SMALLER`
   criteria over message `RFC822.SIZE` metadata.
 - IMAP `SEARCH`/`UID SEARCH` accepts `CHARSET US-ASCII` and `CHARSET UTF-8`

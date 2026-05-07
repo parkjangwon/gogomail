@@ -3765,7 +3765,7 @@ func imapMessageMatchesSizeSearch(summary MessageSummary, criterion string, size
 }
 
 func imapSearchTextResults(messages []MessageSummary, uidMode bool, criterion string, query string) []uint32 {
-	query = strings.ToLower(strings.Trim(query, `"`))
+	query = strings.ToLower(query)
 	results := make([]uint32, 0, len(messages))
 	for i, summary := range messages {
 		if !imapMessageMatchesTextSearch(summary, criterion, query) {

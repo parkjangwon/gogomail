@@ -2886,7 +2886,9 @@ Implementation order:
       string semantics for quoted empty strings across envelope, body/text, and
       header substring criteria. Empty search strings remain syntactically
       valid substring searches instead of being normalized into guaranteed
-      no-match results.
+      no-match results, and escaped quote characters inside search strings
+      remain literal query text instead of being trimmed from the query
+      boundary.
 1179. CalDAV `REPORT sync-collection` now enforces HTTP `Depth: 0` before
       repository lookup or change-log work, aligning the gateway with RFC
       6578 request-scope semantics and the existing CardDAV behavior while
