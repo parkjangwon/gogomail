@@ -2792,6 +2792,11 @@ func TestS3StoreListRejectsUnexpectedRequestCharged(t *testing.T) {
 			want:   "invalid request-charged header",
 		},
 		{
+			name:   "padded requester",
+			header: http.Header{"X-Amz-Request-Charged": []string{" requester "}},
+			want:   "invalid request-charged header",
+		},
+		{
 			name:   "duplicate",
 			header: http.Header{"X-Amz-Request-Charged": []string{"requester", "requester"}},
 			want:   "duplicate request-charged header",

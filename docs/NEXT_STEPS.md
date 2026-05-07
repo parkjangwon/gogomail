@@ -40,9 +40,9 @@ Current state:
   `RestoreStatus`, keeping ignored provider text from crossing the storage
   adapter while preserving known AWS child metadata compatibility.
 - S3-compatible success responses that include requester-pays
-  `x-amz-request-charged` metadata now treat blank or whitespace-only values as
-  invalid provider metadata before rejecting nonblank requester-pays mode as
-  unsupported across adapter success paths.
+  `x-amz-request-charged` metadata now treat blank, whitespace-only, or
+  whitespace-padded values as invalid provider metadata before rejecting exact
+  nonblank requester-pays mode as unsupported across adapter success paths.
 - S3-compatible full-object `GET` now rejects contradictory `Content-Length`
   metadata even when Go's normalized response length is known to be zero,
   preserving exact provider length identity before exposing a bounded reader.
