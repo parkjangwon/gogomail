@@ -12085,6 +12085,14 @@ func TestIMAPQuotedStringPreservesIdentitySpacing(t *testing.T) {
 	if got != want {
 		t.Fatalf("imapQuotedString = %q, want %q", got, want)
 	}
+	got = imapQuotedString("Résumé \xff")
+	want = `"R?sum? ?"`
+	if got != want {
+		t.Fatalf("imapQuotedString non-ascii = %q, want %q", got, want)
+	}
+	if strings.ContainsAny(got, "\r\n") {
+		t.Fatalf("imapQuotedString emitted line break: %q", got)
+	}
 }
 
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {

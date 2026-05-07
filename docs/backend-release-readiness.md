@@ -2366,6 +2366,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   before command dispatch. Parser failures now return tagged `BAD` when a
   syntactically valid command tag can still be recovered, keeping client
   command tracking deterministic.
+- IMAP quoted-string response rendering replaces invalid UTF-8 and non-ASCII
+  runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and related
+  response strings 7-bit safe until an explicit IMAP UTF-8 extension is
+  advertised.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.
