@@ -1415,11 +1415,16 @@ Current state:
   Drive quota ledger by preserving the underlying attachment ownership and
   status, ensuring that publicly shared large attachments are accounted for in
   the company/domain/user storage pool.
+- A standalone `remote-signer` HTTP service now exists in `cmd/remote-signer`
+  to satisfy production export-manifest signing requirements without coupling
+  gogomail to a vendor KMS SDK. The signer runs as an isolated microservice,
+  loads a base64-encoded Ed25519 private key from its environment, and exposes
+  a bounded `/v1/sign` endpoint matching the `remote-ed25519` payload
+  expectations.
 
 Next:
 
-- Add a concrete Cloud KMS adapter for API usage export signing, or deploy the
-  remote-Ed25519 signer service.
+- No immediate tasks in this section.
 
 ### 2. Message threading and search
 
