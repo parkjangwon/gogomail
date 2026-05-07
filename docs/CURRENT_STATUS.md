@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP maildb mailbox UUID hardening)
+Last updated: 2026-05-07 (updated after IMAP backfill mailbox identity hardening)
 
 ## Current phase
 
@@ -3002,6 +3002,10 @@ The platform hardening sprint completed the following:
   UUIDs therefore fail closed instead of being silently promoted to canonical
   folder IDs across list, fetch, store, copy, move, expunge, append-store,
   backfill, mailbox state, and message UID assignment boundaries.
+- Service-level IMAP UID backfill now preserves mailbox IDs after validation
+  before repository delegation, keeping operator/bootstrap work aligned with
+  the same exact mailbox identity and audit semantics as client-visible IMAP
+  paths.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.
