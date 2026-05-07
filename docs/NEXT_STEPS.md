@@ -36,6 +36,13 @@ Before changing code, read:
 - `migrationVersionFromFilename` edge cases now have comprehensive unit test coverage
   for invalid version prefixes, zero versions, negative versions, and malformed filenames.
 
+### mailauth SPF/DMARC test coverage (completed)
+
+- Added comprehensive tests for `splitSPFTerm`, `spfQualifierResult`, and `parseMechanism`
+  helper functions covering all SPF qualifiers (+-~?) and mechanism parsing with CIDR.
+- Added tests for SPF neutral (`?all`), all mechanisms (a, mx, ptr), and DMARC
+  policies (none, quarantine, reject) to improve RFC 7208/6376 compliance verification.
+
 ### Storage portability
 
 Current state:
