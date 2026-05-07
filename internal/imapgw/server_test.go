@@ -12726,6 +12726,11 @@ func TestFilterIMAPHeaderFields(t *testing.T) {
 	if string(got) != want {
 		t.Fatalf("filtered header = %q, want %q", got, want)
 	}
+	got = filterIMAPHeaderFields([]byte("Subject : Bad\r\nSubject: Good\r\n\r\n"), []string{"subject"}, false)
+	want = "Subject: Good\r\n\r\n"
+	if string(got) != want {
+		t.Fatalf("filtered malformed header name = %q, want %q", got, want)
+	}
 	got = filterIMAPHeaderFields([]byte("Subject: Hi\r\nFrom: sender@test\r\nTo: user@test\r\n\r\n"), []string{"from"}, true)
 	want = "Subject: Hi\r\nTo: user@test\r\n\r\n"
 	if string(got) != want {

@@ -3317,7 +3317,8 @@ Implementation order:
 1270. IMAP `SEARCH HEADER` now validates RFC-shaped header field names before
       authentication or selected-mailbox state, rejecting empty, space-bearing,
       colon-suffixed, or IMAP atom-special-bearing field-name arguments as
-      malformed criteria.
+      malformed criteria. `HEADER.FIELDS` filtering also matches raw RFC 5322
+      field names without trimming malformed whitespace before the colon.
 1271. CalDAV object reads, object writes, object deletes, and collection
       precondition checks now reject repeated `If-Modified-Since` or
       `If-Unmodified-Since` headers before storage work, keeping date-based

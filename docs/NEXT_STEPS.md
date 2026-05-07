@@ -938,6 +938,8 @@ Current state:
 - IMAP `SEARCH HEADER` now rejects malformed header field names before
   authentication or selected-mailbox state, so broken criteria such as empty
   field names, `Bad Field`, or `Subject:` do not masquerade as empty searches.
+  `HEADER.FIELDS` filtering no longer trims malformed stored field names such
+  as `Subject : value` into valid matches.
 - IMAP `SEARCH`, `UID SEARCH`, `SORT`, and `THREAD` embedded criteria now
   reject unknown/unsupported search-key atoms such as `X-GM-RAW` before
   authentication or selected-mailbox state, keeping capability probes distinct

@@ -585,7 +585,10 @@ empty `HEADER.FIELDS.NOT` windows on attached messages. IMAP `SEARCH HEADER`
 now validates RFC-shaped header field names before authentication or selected
 mailbox state, rejecting empty names, names with spaces, and colon-suffixed
 field labels as syntax errors instead of treating them as successful empty
-searches. Unsupported IMAP search-key atoms such as vendor-specific
+searches. `HEADER.FIELDS` filtering now also matches raw RFC 5322 field names
+without trimming whitespace around the colon, so malformed stored headers such
+as `Subject : value` are not silently repaired into `Subject` matches.
+Unsupported IMAP search-key atoms such as vendor-specific
 `X-GM-RAW` probes are now also rejected before authentication or selected
 mailbox state, so unsupported criteria do not masquerade as valid stateful
 searches. Unsupported `SEARCH`, `SORT`, and `THREAD` charset probes now return
