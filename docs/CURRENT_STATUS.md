@@ -367,11 +367,12 @@ returns `MODIFIED` instead of being collapsed into an unconditional STORE.
 IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT` parsing
 now accepts RFC 5322-style visible field-name characters such as `_`, `+`, and
 `.` while still rejecting empty, space/control-bearing, colon-suffixed, or
-non-ASCII field names. This keeps custom header probes from being falsely
-rejected at the IMAP parser boundary. `FETCH` header-field section detection
-now also requires an exact top-level body section or a valid numeric MIME part
-path before `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, so malformed section prefixes
-cannot ride the supported header-subset path.
+non-ASCII field names, plus IMAP atom-specials that would make FETCH field
+lists ambiguous. This keeps custom header probes from being falsely rejected at
+the IMAP parser boundary. `FETCH` header-field section detection now also
+requires an exact top-level body section or a valid numeric MIME part path
+before `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, so malformed section prefixes cannot
+ride the supported header-subset path.
 IMAP command parsing now rejects 8-bit non-ASCII bytes in unquoted atoms,
 quoted strings, parenthesized quoted controls, and RFC 2971 ID quoted tokens.
 Command tag, command-name, and UID subcommand atom validation also rejects
@@ -1968,8 +1969,8 @@ owner/resource target without scanning unrelated audit history.
   `HEADER.FIELDS.NOT ()` semantics to `message/rfc822` MIME-part sections such
   as `BODY[1.HEADER.FIELDS ()]` and `BODY[2.HEADER.FIELDS.NOT ()]`.
 - IMAP `SEARCH HEADER` validates RFC-shaped header field names before state
-  checks, rejecting empty, space-bearing, or colon-suffixed field-name
-  arguments as malformed criteria.
+  checks, rejecting empty, space-bearing, colon-suffixed, or IMAP
+  atom-special-bearing field-name arguments as malformed criteria.
 - IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
   parenthesized modifier form and rejects bare or over-closed variants such as
   `FETCH 7 FLAGS CHANGEDSINCE 17`.

@@ -6243,8 +6243,13 @@ func imapHeaderFieldNameValid(field string) bool {
 	}
 	for i := 0; i < len(field); i++ {
 		c := field[i]
-		if c <= 0x20 || c == ':' || c >= 0x7f {
+		switch c {
+		case '(', ')', '{', '%', '*', '"', '\\', ']', ':':
 			return false
+		default:
+			if c <= 0x20 || c >= 0x7f {
+				return false
+			}
 		}
 	}
 	return true

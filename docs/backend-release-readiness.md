@@ -502,11 +502,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP header field-name validation for `SEARCH HEADER` and
   `HEADER.FIELDS`/`HEADER.FIELDS.NOT` now accepts RFC 5322-style visible
   custom names containing `_`, `+`, or `.`, while rejecting empty,
-  whitespace/control-bearing, colon-suffixed, or non-ASCII names before
-  command execution. `FETCH` header-field section detection now also requires
-  a real top-level body section or a valid numeric MIME part path before the
-  `HEADER.FIELDS` marker, so malformed section prefixes cannot pass through
-  the header-subset literal path.
+  whitespace/control-bearing, colon-suffixed, non-ASCII, or IMAP
+  atom-special-bearing names before command execution. `FETCH` header-field
+  section detection now also requires a real top-level body section or a valid
+  numeric MIME part path before the `HEADER.FIELDS` marker, so malformed
+  section prefixes cannot pass through the header-subset literal path.
 - IMAP listener concurrency is now operator-bounded through
   `GOGOMAIL_IMAP_MAX_CONNECTIONS` / `imap_max_connections`; positive caps hold
   one slot per active protocol session and reject excess clients with an
@@ -1664,8 +1664,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   `LIST "" INBOX"` from reaching command-specific normalization while
   preserving valid escaped quotes inside proper quoted strings.
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
-  validate RFC-shaped header field names instead of trimming stray brackets,
-  rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+  validate RFC-shaped header field names instead of trimming stray brackets or
+  accepting IMAP atom-specials, rejecting malformed requests such as
+  `HEADER.FIELDS ([Subject])`.
 - IMAP `FETCH`/`UID FETCH` accepts RFC-valid empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists, preserving compatibility with clients that use
   empty include/exclude header subsets during body-section probing.

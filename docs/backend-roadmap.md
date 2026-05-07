@@ -1547,8 +1547,9 @@ Implementation order:
      `SUBJECT "Project \"Q2\""` remain compatible while malformed atom quotes
      are rejected by command parsing.
 908. IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists now
-     validate RFC-shaped header field names instead of trimming stray brackets,
-     rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+     validate RFC-shaped header field names instead of trimming stray brackets
+     or accepting IMAP atom-specials, rejecting malformed requests such as
+     `HEADER.FIELDS ([Subject])`.
 909. IMAP `FETCH`/`UID FETCH` `CHANGEDSINCE` now requires the RFC-shaped
      parenthesized modifier form and rejects bare or over-closed variants such
      as `FETCH 7 FLAGS CHANGEDSINCE 17`.
@@ -3313,7 +3314,8 @@ Implementation order:
       windows on attached messages.
 1270. IMAP `SEARCH HEADER` now validates RFC-shaped header field names before
       authentication or selected-mailbox state, rejecting empty, space-bearing,
-      or colon-suffixed field-name arguments as malformed criteria.
+      colon-suffixed, or IMAP atom-special-bearing field-name arguments as
+      malformed criteria.
 1271. CalDAV object reads, object writes, object deletes, and collection
       precondition checks now reject repeated `If-Modified-Since` or
       `If-Unmodified-Since` headers before storage work, keeping date-based

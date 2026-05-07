@@ -381,7 +381,8 @@ Current state:
 - IMAP `SEARCH HEADER` and `FETCH` `HEADER.FIELDS`/`HEADER.FIELDS.NOT`
   parsing now accepts visible RFC 5322-style custom field names containing
   `_`, `+`, or `.`, while preserving fail-fast rejection for empty,
-  whitespace/control-bearing, colon-suffixed, or non-ASCII field names.
+  whitespace/control-bearing, colon-suffixed, non-ASCII, or IMAP
+  atom-special-bearing field names.
   `FETCH` header-field section detection now also requires either an exact
   top-level body section or a valid numeric MIME part path before the
   `HEADER.FIELDS` marker, keeping malformed section prefixes from riding the
@@ -912,8 +913,9 @@ Current state:
   `LIST "" INBOX"` from reaching command-specific normalization while
   preserving valid escaped quotes inside proper quoted strings.
 - IMAP `FETCH`/`UID FETCH` `HEADER.FIELDS` and `HEADER.FIELDS.NOT` lists
-  validate RFC-shaped header field names instead of trimming stray brackets,
-  rejecting malformed requests such as `HEADER.FIELDS ([Subject])`.
+  validate RFC-shaped header field names instead of trimming stray brackets or
+  accepting IMAP atom-specials, rejecting malformed requests such as
+  `HEADER.FIELDS ([Subject])`.
 - IMAP `FETCH`/`UID FETCH` now accepts empty `HEADER.FIELDS ()` and
   `HEADER.FIELDS.NOT ()` lists. Empty include lists return the blank header
   terminator, while empty exclude lists return the full header block as RFC

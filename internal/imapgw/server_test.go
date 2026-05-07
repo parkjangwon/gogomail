@@ -12611,6 +12611,7 @@ func TestIMAPFetchDataItemsSyntaxRejectsMalformedHeaderFieldLists(t *testing.T) 
 		{name: "space only header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "( )]"}},
 		{name: "padded header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "( Subject)]"}},
 		{name: "double space header fields", items: []string{"BODY.PEEK[HEADER.FIELDS", "(Subject  From)]"}},
+		{name: "imap atom special header field", items: []string{"BODY.PEEK[HEADER.FIELDS", "([Subject])]"}},
 		{name: "space only header fields not", items: []string{"BODY.PEEK[HEADER.FIELDS.NOT", "( )]"}},
 		{name: "padded nested header fields", items: []string{"BODY.PEEK[1.HEADER.FIELDS", "( Subject)]"}},
 	} {
@@ -12641,6 +12642,11 @@ func TestIMAPHeaderFieldNameValid(t *testing.T) {
 		{name: "empty", field: "", want: false},
 		{name: "space", field: "Bad Field", want: false},
 		{name: "colon", field: "Subject:", want: false},
+		{name: "closing bracket", field: "[Subject]", want: false},
+		{name: "parenthesis", field: "Subject)", want: false},
+		{name: "quoted special", field: `Sub"ject`, want: false},
+		{name: "backslash", field: `Sub\ject`, want: false},
+		{name: "wildcard", field: "X-*", want: false},
 		{name: "control", field: "Bad\tField", want: false},
 		{name: "non ascii", field: "X-\x80", want: false},
 	}
