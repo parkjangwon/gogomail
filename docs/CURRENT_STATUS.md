@@ -252,7 +252,9 @@ nested copy `Error` bodies share the same capped streaming XML field parser as
 status errors. Successful
 `CopyObjectResult` bodies now also require a non-blank bounded `ETag`, so
 copy/move durability is not reported when provider success metadata omits
-object identity.
+object identity. XML `CopyObjectResult` ETags must not be whitespace-padded,
+preserving exact success metadata while HTTP header optional-whitespace
+compatibility remains limited to header parsing.
 IMAP `SELECT` now canonicalizes backend-provided permanent flags before
 rendering `FLAGS`/`PERMANENTFLAGS` and before selected-state STORE permission
 checks. Duplicate, aliased, lower-case, or unknown backend flag metadata is
@@ -267,9 +269,9 @@ when a present provider value is blank, malformed, or whitespace-padded, while
 still allowing missing values for compatible providers that omit optional
 timestamp metadata.
 S3-compatible `ListObjectsV2` object `ETag` metadata now also fails closed
-when a present provider value is blank, malformed, line-bearing,
-empty-after-quote cleanup, or larger than the bounded metadata limit, instead
-of silently dropping suspect list metadata.
+when a present provider value is blank, whitespace-padded, malformed,
+line-bearing, empty-after-quote cleanup, or larger than the bounded metadata
+limit, instead of silently dropping suspect list metadata.
 S3-compatible `ListObjectsV2` object metadata now rejects duplicate
 per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before XML
 unmarshalling can collapse conflicting provider values into one listed object.

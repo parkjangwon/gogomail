@@ -264,9 +264,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   of silently exposing zero timestamps to cleanup, Drive, or reconciliation
   callers.
 - S3-compatible `ListObjectsV2` object `ETag` metadata now rejects
-  present-but-blank, malformed, line-bearing, empty-after-quote cleanup, or
-  oversized values instead of silently dropping suspect listed-object identity
-  metadata.
+  present-but-blank, whitespace-padded, malformed, line-bearing,
+  empty-after-quote cleanup, or oversized values instead of silently dropping
+  suspect listed-object identity metadata.
 - S3-compatible `ListObjectsV2` object metadata now rejects duplicate
   per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before
   XML unmarshalling can collapse conflicting provider values into one listed

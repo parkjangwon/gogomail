@@ -4333,6 +4333,10 @@ Implementation order:
       accepting one structured value from namespace-free or AWS S3 namespaced
       responses, keeping compatible-provider metadata deterministic without
       breaking repeated `ChecksumAlgorithm` responses.
+1511. S3-compatible XML success metadata now rejects whitespace-padded
+      `ListObjectsV2` object `ETag` and `CopyObjectResult` `ETag` values
+      instead of trimming them into valid identity metadata, while preserving
+      HTTP header optional-whitespace compatibility for `HEAD`/`Stat`.
 
 ## Deferred until backend contracts stabilize
 
