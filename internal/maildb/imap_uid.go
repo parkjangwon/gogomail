@@ -66,14 +66,14 @@ func (r *Repository) GetIMAPMailbox(ctx context.Context, userID string, mailboxI
 		return imapgw.Mailbox{}, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return imapgw.Mailbox{}, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return imapgw.Mailbox{}, fmt.Errorf("mailbox_id is required")
 	}
-	mailboxName := normalizeIMAPMailboxLookupName(mailboxID)
+	exactMailboxName := strings.ToLower(mailboxID)
+	compatMailboxName, allowCompatMailboxLookup := normalizeIMAPMailboxLookupName(mailboxID)
 
 	const query = `
 SELECT
@@ -105,8 +105,14 @@ WHERE f.user_id = $1::uuid
   AND (
     f.id::text = $2
     OR lower(f.name) = $3
-    OR lower(trim(both '/' from f.full_path)) = $3
-    OR ($3 = 'inbox' AND lower(COALESCE(f.system_type, '')) = 'inbox')
+    OR (
+      $5
+      AND (
+        lower(f.name) = $4
+        OR lower(trim(both '/' from f.full_path)) = $4
+        OR ($4 = 'inbox' AND lower(COALESCE(f.system_type, '')) = 'inbox')
+      )
+    )
   )
 ORDER BY
   CASE WHEN lower(COALESCE(f.system_type, '')) = 'inbox' THEN 0 ELSE 1 END,
@@ -115,7 +121,7 @@ ORDER BY
 LIMIT 1`
 
 	var folder Folder
-	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, mailboxName).Scan(
+	if err := r.db.QueryRowContext(ctx, query, userID, mailboxID, exactMailboxName, compatMailboxName, allowCompatMailboxLookup).Scan(
 		&folder.ID,
 		&folder.ParentID,
 		&folder.Name,
@@ -140,12 +146,12 @@ LIMIT 1`
 	return imapMailboxFromFolder(folder, state), nil
 }
 
-func normalizeIMAPMailboxLookupName(value string) string {
-	value = strings.TrimSpace(value)
+func normalizeIMAPMailboxLookupName(value string) (string, bool) {
+	allowCompatLookup := value == strings.TrimSpace(value)
 	value = strings.Trim(value, `"`)
 	value = strings.Trim(value, "/")
 	value = strings.Join(strings.Fields(value), " ")
-	return strings.ToLower(value)
+	return strings.ToLower(value), allowCompatLookup
 }
 
 func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailboxID string, limit int, afterUID imapgw.UID) ([]imapgw.MessageSummary, error) {
