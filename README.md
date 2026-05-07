@@ -105,8 +105,8 @@ Recent release-readiness work also includes:
   `KeyCount`, malformed or under-counting `MaxKeys`, mismatched returned
   `Prefix` and bucket `Name` echoes when present, unexpected `EncodingType`
   values, mismatched returned `ContinuationToken` echoes when present, and
-  unexpected delimiter/grouping controls, and nested XML inside simple
-  core/standard provider metadata fields, while standard S3 error XML,
+  unexpected `StartAfter` and delimiter/grouping controls, and nested XML
+  inside simple core/standard provider metadata fields, while standard S3 error XML,
   including duplicate, nested,
   or otherwise ambiguous safe error fields, and
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested

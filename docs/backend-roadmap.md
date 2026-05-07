@@ -4261,6 +4261,10 @@ Implementation order:
       non-empty `Delimiter` or `CommonPrefixes` responses fail closed instead
       of being treated as ordinary object pages by Drive, lifecycle cleanup, or
       reconciliation callers.
+1502. S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected
+      when present. gogomail uses continuation-token pagination rather than
+      start-after list mode, so provider responses cannot silently shift cursor
+      semantics for Drive, lifecycle cleanup, or reconciliation callers.
 
 ## Deferred until backend contracts stabilize
 

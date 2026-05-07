@@ -388,6 +388,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err := validateS3ListContinuationToken(result.ContinuationToken, cursor); err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListStartAfter(result.StartAfter); err != nil {
+		return ObjectListPage{}, err
+	}
 	if err := validateS3ListDelimiter(result.Delimiter); err != nil {
 		return ObjectListPage{}, err
 	}
@@ -839,6 +842,13 @@ func validateS3ListContinuationToken(value string, expected string) error {
 		return fmt.Errorf("list s3 objects: response ContinuationToken does not match request")
 	}
 	return nil
+}
+
+func validateS3ListStartAfter(value string) error {
+	if value == "" {
+		return nil
+	}
+	return fmt.Errorf("list s3 objects: unsupported StartAfter value")
 }
 
 func validateS3ListDelimiter(value string) error {
@@ -1638,6 +1648,7 @@ type s3ListObjectsResult struct {
 	Name                  string                `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
+	StartAfter            string                `xml:"StartAfter"`
 	EncodingType          string                `xml:"EncodingType"`
 	KeyCount              string                `xml:"KeyCount"`
 	MaxKeys               string                `xml:"MaxKeys"`
