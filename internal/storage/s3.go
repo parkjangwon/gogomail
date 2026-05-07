@@ -864,8 +864,8 @@ func validateS3ListBucketName(value string, expected string) error {
 	return nil
 }
 
-func validateS3ListEncodingType(value string) error {
-	if value == "" {
+func validateS3ListEncodingType(value *string) error {
+	if value == nil {
 		return nil
 	}
 	return fmt.Errorf("list s3 objects: unsupported EncodingType value")
@@ -881,8 +881,8 @@ func validateS3ListContinuationToken(value string, expected string) error {
 	return nil
 }
 
-func validateS3ListStartAfter(value string) error {
-	if value == "" {
+func validateS3ListStartAfter(value *string) error {
+	if value == nil {
 		return nil
 	}
 	return fmt.Errorf("list s3 objects: unsupported StartAfter value")
@@ -1699,8 +1699,8 @@ type s3ListObjectsResult struct {
 	Name                  string                `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
-	StartAfter            string                `xml:"StartAfter"`
-	EncodingType          string                `xml:"EncodingType"`
+	StartAfter            *string               `xml:"StartAfter"`
+	EncodingType          *string               `xml:"EncodingType"`
 	KeyCount              *string               `xml:"KeyCount"`
 	MaxKeys               *string               `xml:"MaxKeys"`
 	Contents              []s3ListObjectContent `xml:"Contents"`

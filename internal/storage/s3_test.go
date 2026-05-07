@@ -2191,31 +2191,53 @@ func TestS3StoreListValidatesResponseBucketName(t *testing.T) {
 func TestS3StoreListRejectsUnexpectedEncodingType(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{
+			name: "blank",
+			body: `<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <EncodingType></EncodingType>
+</ListBucketResult>`,
+		},
+		{
+			name: "url",
+			body: `<ListBucketResult>
   <IsTruncated>false</IsTruncated>
   <EncodingType>url</EncodingType>
   <Contents><Key>messages%2Fmsg-1.eml</Key><Size>5</Size></Contents>
-</ListBucketResult>`)),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
+</ListBucketResult>`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err == nil || !strings.Contains(err.Error(), "unsupported EncodingType value") {
-		t.Fatalf("List err = %v, want unsupported EncodingType rejection", err)
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "unsupported EncodingType value") {
+				t.Fatalf("List err = %v, want unsupported EncodingType rejection", err)
+			}
+		})
 	}
 }
 
@@ -2252,30 +2274,52 @@ func TestS3StoreListValidatesContinuationTokenEcho(t *testing.T) {
 func TestS3StoreListRejectsUnexpectedStartAfter(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{
+			name: "blank",
+			body: `<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <StartAfter></StartAfter>
+</ListBucketResult>`,
+		},
+		{
+			name: "value",
+			body: `<ListBucketResult>
   <IsTruncated>false</IsTruncated>
   <StartAfter>messages/msg-1.eml</StartAfter>
-</ListBucketResult>`)),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
+</ListBucketResult>`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err == nil || !strings.Contains(err.Error(), "unsupported StartAfter value") {
-		t.Fatalf("List err = %v, want unsupported StartAfter rejection", err)
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), "unsupported StartAfter value") {
+				t.Fatalf("List err = %v, want unsupported StartAfter rejection", err)
+			}
+		})
 	}
 }
 

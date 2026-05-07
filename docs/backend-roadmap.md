@@ -4272,9 +4272,10 @@ Implementation order:
       bucket, so wrong-bucket compatible-provider responses fail closed instead
       of looking like ordinary empty or successful list pages.
 1499. S3-compatible `ListObjectsV2` root `EncodingType` metadata is now
-      rejected when present because gogomail does not request encoded-key list
-      mode. This keeps URL-encoded provider keys from being treated as ordinary
-      storage object paths before an explicit decoding contract exists.
+      rejected when present, including blank elements, because gogomail does
+      not request encoded-key list mode. This keeps URL-encoded provider keys
+      from being treated as ordinary storage object paths before an explicit
+      decoding contract exists.
 1500. S3-compatible `ListObjectsV2` root `ContinuationToken` metadata is now
       validated when present: the echoed token must match the requested cursor
       exactly, keeping page diagnostics and retry semantics aligned with the
@@ -4285,9 +4286,10 @@ Implementation order:
       of being treated as ordinary object pages by Drive, lifecycle cleanup, or
       reconciliation callers.
 1502. S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected
-      when present. gogomail uses continuation-token pagination rather than
-      start-after list mode, so provider responses cannot silently shift cursor
-      semantics for Drive, lifecycle cleanup, or reconciliation callers.
+      when present, including blank elements. gogomail uses continuation-token
+      pagination rather than start-after list mode, so provider responses
+      cannot silently shift cursor semantics for Drive, lifecycle cleanup, or
+      reconciliation callers.
 1503. S3-compatible requester-pays success response headers are now rejected
       across the adapter. The current storage adapter does not request
       requester-pays mode, so billing-mode response metadata cannot cross the
