@@ -12719,6 +12719,19 @@ func TestIMAPMIMEBodyDispositionRejectsMalformedToken(t *testing.T) {
 	}
 }
 
+func TestIMAPBodyMetadataNStringBoundsQuotedMetadata(t *testing.T) {
+	t.Parallel()
+
+	if got := imapBodyMetadataNString("  "); got != "NIL" {
+		t.Fatalf("imapBodyMetadataNString blank = %q, want NIL", got)
+	}
+	got := imapBodyMetadataNString(strings.Repeat("x", maxIMAPBodyMetadataTextBytes+10))
+	want := `"` + strings.Repeat("x", maxIMAPBodyMetadataTextBytes) + `"`
+	if got != want {
+		t.Fatalf("imapBodyMetadataNString oversized len = %d, want %d-byte quoted value", len(got), maxIMAPBodyMetadataTextBytes)
+	}
+}
+
 func TestServerHandlesFetchBodyStructureFromMessageHeaders(t *testing.T) {
 	t.Parallel()
 

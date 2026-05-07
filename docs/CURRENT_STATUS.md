@@ -385,6 +385,9 @@ parameter keys.
 Malformed MIME disposition tokens now render as `NIL` instead of being
 upgraded to `ATTACHMENT`, preventing BODYSTRUCTURE responses from inventing
 attachment semantics for invalid source metadata.
+BODYSTRUCTURE content ID and description nstrings are now trimmed and bounded
+before quoting, keeping oversized source metadata from inflating IMAP fetch
+responses.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of

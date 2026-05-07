@@ -4361,6 +4361,9 @@ Implementation order:
 1516. IMAP BODYSTRUCTURE disposition rendering now treats malformed disposition
       tokens as `NIL` instead of falling back to `ATTACHMENT`, preventing
       invalid MIME source metadata from inventing attachment semantics.
+1517. IMAP BODYSTRUCTURE content ID and description nstrings are now trimmed
+      and bounded before response quoting, preventing oversized source MIME
+      metadata from inflating fetch responses.
 
 ## Deferred until backend contracts stabilize
 

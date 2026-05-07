@@ -2183,6 +2183,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP BODYSTRUCTURE disposition metadata now treats malformed disposition
   tokens as `NIL` instead of falling back to `ATTACHMENT`, preserving client
   semantics when stored MIME metadata is invalid.
+- IMAP BODYSTRUCTURE content ID and description nstrings are now trimmed and
+  bounded before response quoting, keeping malformed or oversized source MIME
+  metadata from amplifying fetch responses.
 - IMAP metadata-only `BODYSTRUCTURE` fetches now use the streaming
   MIME-structure parser to return multipart child order, subtype, parameters,
   transfer encodings, dispositions, body octets, and text line counts without
