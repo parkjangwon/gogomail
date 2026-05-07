@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP MIME token hardening)
+Last updated: 2026-05-07 (updated after S3 structured metadata text hardening)
 
 ## Current phase
 
@@ -26,6 +26,11 @@ identity metadata.
 S3-compatible `HEAD`/`Stat` content-type metadata now also parses as an ASCII
 MIME media type before it can reach shared storage callers, while still
 preserving valid parameterized values such as `text/plain; charset=utf-8`.
+S3-compatible `ListObjectsV2` success XML now rejects direct text inside
+structured standard object metadata wrappers such as `Owner` and
+`RestoreStatus`, while still accepting known namespace-free/AWS child elements.
+This keeps provider compatibility for standard AWS metadata without allowing
+ignored wrapper text to cross the shared storage boundary.
 
 Webmail capability discovery now advertises only runtime-backed `GET
 /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and

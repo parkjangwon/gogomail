@@ -4396,6 +4396,11 @@ Implementation order:
 1517. IMAP BODYSTRUCTURE content ID and description nstrings are now trimmed
       and bounded at UTF-8 boundaries before response quoting, preventing
       oversized source MIME metadata from inflating fetch responses.
+1518. S3-compatible `ListObjectsV2` structured object metadata now rejects
+      direct text on `Owner` and `RestoreStatus` wrapper elements before XML
+      unmarshalling can ignore ambiguous provider content, while preserving
+      known namespace-free/AWS child elements for compatible-provider
+      metadata.
 
 ## Deferred until backend contracts stabilize
 

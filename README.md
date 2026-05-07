@@ -110,8 +110,9 @@ Recent release-readiness work also includes:
   echoes when present, and any returned `StartAfter`, requester-pays response
   headers across S3 adapter success paths, any delimiter/grouping controls, and
   duplicate single-value object metadata such as `StorageClass`, `ChecksumType`,
-  `Owner`, and `RestoreStatus`, plus nested XML inside simple
-  core/standard provider metadata fields, while standard S3 error XML,
+  `Owner`, and `RestoreStatus`, direct text inside structured `Owner` or
+  `RestoreStatus` metadata, plus nested XML inside simple core/standard
+  provider metadata fields, while standard S3 error XML,
   including duplicate, nested, foreign-namespace,
   or otherwise ambiguous safe error fields, and
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested

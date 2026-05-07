@@ -35,6 +35,10 @@ Current state:
   `mail.go` and `drive.go` and require every `/api/v1` operation to pin the
   Mail API server at the operation level, preventing generated clients from
   inheriting the global `/admin/v1` server for user-facing routes.
+- S3-compatible `ListObjectsV2` success XML now rejects direct text inside
+  structured standard object metadata wrappers such as `Owner` and
+  `RestoreStatus`, keeping ignored provider text from crossing the storage
+  adapter while preserving known AWS child metadata compatibility.
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.

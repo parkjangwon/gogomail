@@ -2280,6 +2280,55 @@ func TestS3StoreListRejectsDuplicateStructuredObjectMetadataChildren(t *testing.
 	}
 }
 
+func TestS3StoreListRejectsDirectStructuredObjectMetadataText(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "owner_direct_text",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><Owner>owner-text<ID>owner-1</ID></Owner></Contents></ListBucketResult>`,
+			want: "object Owner metadata contains direct text",
+		},
+		{
+			name: "restore_status_direct_text",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><RestoreStatus>ready<IsRestoreInProgress>false</IsRestoreInProgress></RestoreStatus></Contents></ListBucketResult>`,
+			want: "object RestoreStatus metadata contains direct text",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsUnsafeETagMetadata(t *testing.T) {
 	t.Parallel()
 
