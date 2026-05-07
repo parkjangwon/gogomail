@@ -4024,7 +4024,11 @@ Implementation order:
 1435. S3-compatible `CopyObject` embedded-error diagnostics now reuse the same
       capped streaming standard `<Error>` field parser for both top-level and
       nested copy errors, preventing oversized provider copy-failure messages
-      from bypassing the status-error diagnostic bounds.
+      from bypassing the status-error diagnostic bounds. The same standard
+      `<Error>` preview path now also suppresses previews when
+      safe same-local-name fields such as `Message` arrive from foreign XML
+      namespaces, keeping status and embedded copy errors from collapsing
+      ambiguous provider diagnostics into canonical S3 text.
 1436. IMAP `FETCH` header-field section detection now requires either an exact
       top-level body section or a valid numeric MIME part path before
       `HEADER.FIELDS`/`HEADER.FIELDS.NOT`, preventing malformed section

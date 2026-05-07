@@ -2862,7 +2862,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   store errors from leaking into readiness or storage operation diagnostics.
 - S3-compatible standard `<Error>` diagnostics suppress previews when safe
   fields such as `Code`, `Message`, `RequestId`, or `HostId` are duplicated
-  or contain nested XML, avoiding ambiguous provider status strings.
+  or contain nested XML, and when same-local-name safe fields arrive from a
+  foreign XML namespace, avoiding ambiguous provider status strings.
 - S3-compatible `ObjectInfo` metadata from `HEAD` and `ListObjectsV2` also
   stays bounded to safe single-line UTF-8 before it reaches logs, Drive,
   lifecycle, or reconciliation code.

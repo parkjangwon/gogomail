@@ -112,7 +112,7 @@ Recent release-readiness work also includes:
   duplicate single-value object metadata such as `StorageClass`, `ChecksumType`,
   `Owner`, and `RestoreStatus`, plus nested XML inside simple
   core/standard provider metadata fields, while standard S3 error XML,
-  including duplicate, nested,
+  including duplicate, nested, foreign-namespace,
   or otherwise ambiguous safe error fields, and
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested
   `CopyObjectResult` embedded error bodies, is streamed into bounded one-line

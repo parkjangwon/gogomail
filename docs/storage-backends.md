@@ -329,7 +329,9 @@ When a standard S3 error XML body contains no safe preview fields, gogomail
 suppresses the preview instead of exposing raw XML fragments. Standard S3 error
 XML that repeats or nests safe preview fields such as `Code`, `Message`,
 `RequestId`, or `HostId` is treated the same way, avoiding ambiguous
-concatenated diagnostics.
+concatenated diagnostics. Same-local-name safe preview fields from foreign XML
+namespaces are also suppressed rather than interpreted as canonical S3 error
+text.
 The same embedded-error handling applies to `ListObjectsV2` responses that
 arrive as `200 OK` with a top-level standard S3 `<Error>` body, so throttling,
 auth, or provider-side list failures cannot be misreported as malformed
