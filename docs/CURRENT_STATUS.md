@@ -1616,6 +1616,10 @@ owner/resource target without scanning unrelated audit history.
 - S3-compatible `ListObjectsV2` pages now reject provider responses that return
   more matching objects than the requested bounded page size, keeping S3,
   MinIO, and local/NFS pagination under the same storage contract.
+- S3-compatible `ListObjectsV2` standard metadata now also shares the
+  namespace boundary used by core list controls: normal AWS fields such as
+  `Prefix`, `Name`, `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` remain
+  accepted, while foreign-namespace variants fail closed before unmarshalling.
 - S3-compatible uploads now set a deterministic `Content-Length` for seekable
   PUT bodies without buffering the object in memory, improving compatibility
   for file-backed mail and attachment writes while preserving streaming-first

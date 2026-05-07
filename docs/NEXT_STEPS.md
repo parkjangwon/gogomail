@@ -207,6 +207,10 @@ Current state:
   the same namespace boundary as the root, preventing foreign-namespace
   `IsTruncated`, `Contents`, `Key`, `Size`, `ETag`, or `LastModified` elements
   from being treated as canonical provider metadata.
+- S3-compatible `ListObjectsV2` standard metadata such as `Prefix`, `Name`,
+  `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` now also shares that
+  namespace boundary, while normal namespace-free and AWS-namespaced metadata
+  remains compatible.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now fails
   closed when a non-empty provider value is malformed or whitespace-padded,
   while still allowing missing values for compatible providers that omit

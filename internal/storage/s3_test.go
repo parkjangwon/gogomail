@@ -1626,6 +1626,16 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><x:Key xmlns:x="urn:not-s3">messages/msg-1.eml</x:Key><Size>5</Size></Contents></ListBucketResult>`,
 			want: "unexpected response namespace",
 		},
+		{
+			name: "unexpected_standard_root_metadata_namespace",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><x:Prefix xmlns:x="urn:not-s3">messages/</x:Prefix><Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
+		{
+			name: "unexpected_standard_object_metadata_namespace",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><x:StorageClass xmlns:x="urn:not-s3">STANDARD</x:StorageClass></Contents></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -1673,6 +1683,48 @@ func TestS3StoreListAcceptsAWSNamespace(t *testing.T) {
 				Body: io.NopCloser(strings.NewReader(`<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <IsTruncated>false</IsTruncated>
   <Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	page, err := store.List(context.Background(), ListOptions{Prefix: "messages"})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(page.Objects) != 1 || page.Objects[0].Path != "messages/msg-1.eml" {
+		t.Fatalf("List page = %+v, want namespaced S3 object", page)
+	}
+}
+
+func TestS3StoreListAcceptsStandardAWSMetadata(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Name>gogomail</Name>
+  <Prefix>messages/</Prefix>
+  <KeyCount>1</KeyCount>
+  <MaxKeys>1000</MaxKeys>
+  <IsTruncated>false</IsTruncated>
+  <Contents>
+    <Key>messages/msg-1.eml</Key>
+    <Size>5</Size>
+    <StorageClass>STANDARD</StorageClass>
+    <Owner><ID>owner-1</ID><DisplayName>gogomail</DisplayName></Owner>
+  </Contents>
 </ListBucketResult>`)),
 			},
 		}},
