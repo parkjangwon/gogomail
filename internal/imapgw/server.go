@@ -881,9 +881,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 		}
 		return s.writeExpungeResponses(writer, tag, state, nil, "EXPUNGE")
 	case "MOVE":
-		if len(fields) != 4 {
-			return s.handleMove(writer, tag, fields, state)
-		}
 		return s.handleMove(writer, tag, fields, state)
 	case "APPEND":
 		return s.handleAppend(writer, tag, fields, literals, state)
