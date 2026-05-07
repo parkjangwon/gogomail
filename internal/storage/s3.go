@@ -353,6 +353,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		return ObjectListPage{}, err
 	}
 	limit := NormalizeListLimit(opts.Limit)
+	listPrefix := s.listPrefix(prefix)
 	req, err := s.newListRequest(ctx, prefix, limit, cursor)
 	if err != nil {
 		return ObjectListPage{}, err
@@ -373,6 +374,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		return ObjectListPage{}, err
 	}
 	if err := validateS3ListMaxKeys(result.MaxKeys, len(result.Contents)); err != nil {
+		return ObjectListPage{}, err
+	}
+	if err := validateS3ListPrefix(result.Prefix, listPrefix); err != nil {
 		return ObjectListPage{}, err
 	}
 	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
@@ -511,12 +515,7 @@ func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, 
 	query := url.Values{}
 	query.Set("list-type", "2")
 	query.Set("max-keys", strconv.Itoa(limit))
-	listPrefix := ""
-	if prefix != "" {
-		listPrefix = s.key(prefix)
-	} else if s.prefix != "" {
-		listPrefix = s.prefix + "/"
-	}
+	listPrefix := s.listPrefix(prefix)
 	if listPrefix != "" {
 		query.Set("prefix", listPrefix)
 	}
@@ -535,6 +534,16 @@ func (s *S3Store) newListRequest(ctx context.Context, prefix string, limit int, 
 	}
 	s.sign(req)
 	return req, nil
+}
+
+func (s *S3Store) listPrefix(prefix string) string {
+	if prefix != "" {
+		return s.key(prefix)
+	}
+	if s.prefix != "" {
+		return s.prefix + "/"
+	}
+	return ""
 }
 
 func (s *S3Store) newRequestWithHeaders(ctx context.Context, method string, objectPath string, body io.Reader, headers map[string]string) (*http.Request, error) {
@@ -779,6 +788,16 @@ func validateS3ListMaxKeys(value string, contents int) error {
 	}
 	if int64(contents) > maxKeys {
 		return fmt.Errorf("list s3 objects: MaxKeys is less than contents")
+	}
+	return nil
+}
+
+func validateS3ListPrefix(value string, expected string) error {
+	if value == "" {
+		return nil
+	}
+	if value != expected {
+		return fmt.Errorf("list s3 objects: response Prefix does not match request")
 	}
 	return nil
 }
@@ -1569,6 +1588,7 @@ type s3ListObjectsResult struct {
 	XMLName               xml.Name              `xml:"ListBucketResult"`
 	IsTruncated           string                `xml:"IsTruncated"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
+	Prefix                string                `xml:"Prefix"`
 	KeyCount              string                `xml:"KeyCount"`
 	MaxKeys               string                `xml:"MaxKeys"`
 	Contents              []s3ListObjectContent `xml:"Contents"`

@@ -1715,7 +1715,7 @@ func TestS3StoreListAcceptsStandardAWSMetadata(t *testing.T) {
 				StatusCode: http.StatusOK,
 				Body: io.NopCloser(strings.NewReader(`<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Name>gogomail</Name>
-  <Prefix>messages/</Prefix>
+  <Prefix>messages</Prefix>
   <KeyCount>1</KeyCount>
   <MaxKeys>1000</MaxKeys>
   <IsTruncated>false</IsTruncated>
@@ -1978,6 +1978,53 @@ func TestS3StoreListValidatesMaxKeys(t *testing.T) {
 			_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Limit: tc.limit})
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestS3StoreListValidatesResponsePrefix(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		storePrefix    string
+		requestPrefix  string
+		responsePrefix string
+		want           string
+	}{
+		{name: "logical_prefix_mismatch", requestPrefix: "messages", responsePrefix: "archive/"},
+		{name: "storage_prefix_mismatch", storePrefix: "mail", requestPrefix: "messages", responsePrefix: "messages/"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          tc.storePrefix,
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <Prefix>` + tc.responsePrefix + `</Prefix>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: tc.requestPrefix})
+			if err == nil || !strings.Contains(err.Error(), "response Prefix does not match request") {
+				t.Fatalf("List err = %v, want response Prefix mismatch", err)
 			}
 		})
 	}

@@ -221,6 +221,9 @@ Current state:
 - S3-compatible `ListObjectsV2` root `<MaxKeys>` metadata now rejects signed,
   whitespace-padded, or under-counting values before list pages reach Drive,
   lifecycle cleanup, or reconciliation callers.
+- S3-compatible `ListObjectsV2` root `<Prefix>` metadata, when present, must
+  match the requested provider prefix exactly, including configured storage
+  prefixes, while providers that omit the echo remain compatible.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.
