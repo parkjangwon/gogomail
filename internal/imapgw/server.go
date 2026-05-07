@@ -267,6 +267,7 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 	var command strings.Builder
 	command.WriteString(strings.TrimRight(line, "\r\n"))
 	literals := make([]string, 0, 1)
+	totalLiteralBytes := 0
 	for {
 		literalSize, nonSync, ok, err := imapCommandLiteralSize(command.String())
 		if err != nil {
@@ -284,6 +285,9 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 		if literalSize > maxIMAPCommandLiteralBytes {
 			return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal is too large"}
 		}
+		if totalLiteralBytes+literalSize > maxIMAPCommandLiteralBytes {
+			return "", nil, imapProtocolFramingError{line: command.String(), message: "command literal is too large"}
+		}
 		if !nonSync {
 			if _, err := writer.WriteString("+ Ready for literal data\r\n"); err != nil {
 				return "", nil, err
@@ -296,6 +300,7 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 		if _, err := io.ReadFull(reader, literal); err != nil {
 			return "", nil, err
 		}
+		totalLiteralBytes += literalSize
 		literals = append(literals, string(literal))
 		suffix, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
 		if err != nil {

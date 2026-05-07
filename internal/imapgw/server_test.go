@@ -223,6 +223,24 @@ func TestServerReportsOversizedCommandLiteralBeforeClosing(t *testing.T) {
 	}
 }
 
+func TestReadCommandLineRejectsCumulativeOversizedLiterals(t *testing.T) {
+	t.Parallel()
+
+	firstLiteralSize := maxIMAPCommandLiteralBytes - 1
+	input := fmt.Sprintf("a1 LOGIN {%d}\r\n%s {2}\r\n", firstLiteralSize, strings.Repeat("a", firstLiteralSize))
+	reader := bufio.NewReader(strings.NewReader(input))
+	writer := bufio.NewWriter(&bytes.Buffer{})
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+
+	_, _, err = server.readCommandLine(reader, writer, &imapConnState{})
+	if err == nil || !strings.Contains(err.Error(), "command literal is too large") {
+		t.Fatalf("readCommandLine err = %v, want cumulative literal rejection", err)
+	}
+}
+
 func TestServerRejectsLeadingZeroCommandLiteralSize(t *testing.T) {
 	t.Parallel()
 
