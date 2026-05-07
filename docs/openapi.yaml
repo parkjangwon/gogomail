@@ -959,6 +959,12 @@ paths:
       parameters:
         - $ref: "#/components/parameters/UserIDFallback"
         - $ref: "#/components/parameters/Limit"
+        - name: cursor
+          in: query
+          description: Opaque pagination cursor from a previous date-sorted search response. Not supported for sort=relevance.
+          schema:
+            type: string
+            maxLength: 1024
         - name: q
           in: query
           schema:
@@ -1017,7 +1023,7 @@ paths:
             default: false
       responses:
         "200":
-          $ref: "#/components/responses/MessageList"
+          $ref: "#/components/responses/MessageListPage"
         default:
           $ref: "#/components/responses/Error"
   /messages/{id}:
