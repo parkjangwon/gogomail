@@ -90,11 +90,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   keeping all search-family set operands atom-only before state checks.
 - IMAP command names and `UID` subcommand names now reject quoted-string
   and command-literal probes such as `"NOOP"`, `{4}\r\nNOOP`, `UID "COPY"`,
-  or `UID {4}\r\nCOPY` as malformed commands, preserving the distinction
-  between atom command words and string values.
+  or `UID {4}\r\nCOPY` as malformed commands, and now also reject non-ASCII
+  command/subcommand atoms, preserving the distinction between RFC 3501
+  7-bit atom command words and string values.
 - IMAP command tags now reject quoted-string and command-literal probes such
   as `"a1" NOOP` or `{2}\r\na1 NOOP` as untagged malformed commands,
-  preserving the RFC atom tag boundary before command routing.
+  preserving the RFC atom tag boundary before command routing. Non-ASCII tag
+  atoms are rejected the same way.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now enforce
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`
@@ -2356,8 +2358,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   status item list, rejecting malformed `RETURN (STATUS MESSAGES)` before
   mailbox listing work.
 - IMAP command dispatch rejects malformed tags containing atom-special
-  characters with untagged `BAD` responses before command handling, avoiding
-  ambiguous tagged replies for invalid client command tags.
+  characters or non-ASCII bytes with untagged `BAD` responses before command
+  handling, avoiding ambiguous tagged replies for invalid client command tags.
 - IMAP command parsing rejects control characters inside unquoted atoms,
   matching the existing quoted-string control-character guardrail before
   command dispatch. Parser failures now return tagged `BAD` when a

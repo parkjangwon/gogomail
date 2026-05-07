@@ -136,7 +136,7 @@ Recent release-readiness work also includes:
   handling, atom-only AUTHENTICATE mechanism/SASL-IR controls,
   SASL-IR syntax-before-policy diagnostics, empty quoted `LOGIN`
   passwords routed to backend authentication failures instead of protocol
-  `BAD`, strict atom-only command and UID subcommand dispatch, strict
+  `BAD`, strict 7-bit atom-only command and UID subcommand dispatch, strict
   SEARCH/SORT/THREAD charset and raw thread-algorithm atoms,
   strict raw SORT criterion-list framing, strict FETCH data-item framing,
   atom-only FETCH data-item controls, atom-only ENABLE capability controls,

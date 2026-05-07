@@ -8469,7 +8469,7 @@ func imapAtomValid(tag string) bool {
 		case '(', ')', '{', ' ', '\t', '%', '*', '"', '\\', ']':
 			return false
 		default:
-			if tag[i] < 0x20 || tag[i] == 0x7f {
+			if tag[i] < 0x20 || tag[i] >= 0x7f {
 				return false
 			}
 		}
