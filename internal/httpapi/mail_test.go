@@ -1114,6 +1114,128 @@ func TestSearchMessagesHandlerRejectsInvalidRankingOptions(t *testing.T) {
 	}
 }
 
+func TestSearchMessagesHandlerReturnsPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
+	ts := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{
+			{ID: "11111111-1111-1111-1111-111111111111", Subject: "a", ReceivedAt: ts.Add(-time.Hour)},
+			{ID: "22222222-2222-2222-2222-222222222222", Subject: "b", ReceivedAt: ts.Add(-2 * time.Hour)},
+			{ID: "33333333-3333-3333-3333-333333333333", Subject: "c", ReceivedAt: ts.Add(-3 * time.Hour)},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&limit=2", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Messages   []maildb.MessageSummary `json:"messages"`
+		Limit      int                     `json:"limit"`
+		HasMore    bool                    `json:"has_more"`
+		NextCursor string                  `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if len(body.Messages) != 2 {
+		t.Fatalf("messages count = %d, want 2", len(body.Messages))
+	}
+	if !body.HasMore {
+		t.Fatalf("has_more = false, want true")
+	}
+	if body.NextCursor == "" {
+		t.Fatalf("next_cursor is empty")
+	}
+	cursor, err := maildb.DecodeMessageListCursor(body.NextCursor)
+	if err != nil {
+		t.Fatalf("DecodeMessageListCursor: %v", err)
+	}
+	if cursor.ID != "22222222-2222-2222-2222-222222222222" {
+		t.Fatalf("cursor.ID = %q, want second message ID", cursor.ID)
+	}
+}
+
+func TestSearchMessagesHandlerPassesCursorToQuery(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{
+		list: []maildb.MessageSummary{{ID: "msg-1", Subject: "hello"}},
+	}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	at := time.Date(2026, 4, 30, 10, 0, 0, 0, time.UTC)
+	encoded, err := maildb.EncodeMessageListCursor(maildb.MessageListCursor{
+		At: at,
+		ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+	})
+	if err != nil {
+		t.Fatalf("EncodeMessageListCursor: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&cursor="+encoded, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !service.lastSearch.Cursor.At.Equal(at) {
+		t.Fatalf("cursor.At = %v, want %v", service.lastSearch.Cursor.At, at)
+	}
+	if service.lastSearch.Cursor.ID != "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" {
+		t.Fatalf("cursor.ID = %q", service.lastSearch.Cursor.ID)
+	}
+}
+
+func TestSearchMessagesHandlerRejectsCursorForRelevanceSort(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	at := time.Date(2026, 4, 30, 10, 0, 0, 0, time.UTC)
+	encoded, err := maildb.EncodeMessageListCursor(maildb.MessageListCursor{
+		At: at,
+		ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+	})
+	if err != nil {
+		t.Fatalf("EncodeMessageListCursor: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&sort=relevance&cursor="+encoded, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSearchMessagesHandlerRejectsMalformedCursor(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=hello&cursor=not-valid-base64!!!", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestMailRoutesRejectOversizedLimit(t *testing.T) {
 	t.Parallel()
 

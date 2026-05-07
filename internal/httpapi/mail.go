@@ -572,7 +572,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -605,6 +605,19 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		}
 		if sortMode != maildb.MessageSearchSortDate && sortMode != maildb.MessageSearchSortRelevance {
 			writeError(w, http.StatusBadRequest, "sort must be date or relevance")
+			return
+		}
+		cursorRaw, ok := singleQueryValue(w, r, "cursor")
+		if !ok {
+			return
+		}
+		if cursorRaw != "" && sortMode == maildb.MessageSearchSortRelevance {
+			writeError(w, http.StatusBadRequest, "cursor is not supported for relevance sort")
+			return
+		}
+		cursor, err := maildb.DecodeMessageListCursor(cursorRaw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		queryText, ok := parseBoundedHTTPQuery(w, r, "q", false, maxHTTPQueryBytes)
@@ -647,6 +660,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			HasAttachment:     hasAttachment,
 			Limit:             limit,
 			Sort:              sortMode,
+			Cursor:            cursor,
 			IncludeRank:       includeRank,
 			IncludeHighlights: includeHighlights,
 		})
@@ -654,7 +668,20 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"messages": messages})
+		page, err := maildb.NewMessageListPage(messages, limit)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if sortMode == maildb.MessageSearchSortRelevance {
+			page.NextCursor = ""
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"messages":    page.Messages,
+			"limit":       page.Limit,
+			"has_more":    page.HasMore,
+			"next_cursor": page.NextCursor,
+		})
 	})
 
 	mux.HandleFunc("GET /api/v1/threads", func(w http.ResponseWriter, r *http.Request) {

@@ -603,7 +603,7 @@ func TestOpenAPIDraftDocumentsStableResponseEnvelopes(t *testing.T) {
 		"GET /drive/share-links/{id}/download":                                "",
 		"GET /mailbox/overview":                                               "#/components/responses/MailboxOverview",
 		"GET /messages":                                                       "#/components/responses/MessageListPage",
-		"GET /search":                                                         "#/components/responses/MessageList",
+		"GET /search":                                                         "#/components/responses/MessageListPage",
 		"GET /messages/{id}":                                                  "#/components/responses/Message",
 		"GET /messages/{id}/delivery-status":                                  "#/components/responses/MessageDeliveryStatus",
 		"GET /threads":                                                        "#/components/responses/ThreadList",
@@ -933,7 +933,7 @@ func TestOpenAPIDraftDocumentsOperationalTriageFilters(t *testing.T) {
 	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
 	for route, params := range map[string][]string{
 		"GET /messages":                                        {"limit", "cursor", "folder_id", "read", "starred", "has_attachment", "sort"},
-		"GET /search":                                          {"limit", "q", "folder_id", "from", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
+		"GET /search":                                          {"limit", "cursor", "q", "folder_id", "from", "to", "cc", "bcc", "subject", "has_attachment", "sort", "include_rank", "include_highlights"},
 		"GET /drafts/search":                                   {"limit", "cursor", "q", "from", "subject", "has_attachment"},
 		"GET /drive/nodes":                                     {"limit", "parent_id", "status", "node_type", "q", "sort", "all_parents"},
 		"GET /companies":                                       {"limit", "status"},

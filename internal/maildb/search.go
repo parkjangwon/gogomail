@@ -24,6 +24,7 @@ type MessageSearchQuery struct {
 	HasAttachment     *bool
 	Limit             int
 	Sort              string
+	Cursor            MessageListCursor
 	IncludeRank       bool
 	IncludeHighlights bool
 }
@@ -98,6 +99,8 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		limit,
 		query.IncludeRank || sortMode == MessageSearchSortRelevance,
 		query.IncludeHighlights,
+		query.Cursor.At,
+		strings.TrimSpace(query.Cursor.ID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search messages: %w", err)
@@ -276,6 +279,7 @@ WHERE messages.user_id = $1
   ))
   AND ($8 = '' OR subject ILIKE '%' || $8 || '%')
   AND ($9 = '' OR has_attachment = $9::boolean)
+  AND ($14 = '' OR (COALESCE(received_at, sent_at, draft_updated_at, created_at), id) < ($13::timestamptz, $14::uuid))
 )
 SELECT
   id,
