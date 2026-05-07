@@ -1151,6 +1151,11 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 			want:   "invalid content-type",
 		},
 		{
+			name:   "padded content type",
+			header: http.Header{"Content-Type": []string{" message/rfc822 "}},
+			want:   "invalid content-type",
+		},
+		{
 			name:   "content type without slash",
 			header: http.Header{"Content-Type": []string{"message"}},
 			want:   "invalid content-type",

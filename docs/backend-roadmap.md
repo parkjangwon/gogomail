@@ -4428,6 +4428,10 @@ Implementation order:
       `ETag` metadata now reject leading or trailing whitespace padding before
       quote cleanup, aligning header metadata with the existing strict
       `ListObjectsV2` and `CopyObjectResult` ETag boundaries.
+1525. S3-compatible `HEAD`/`Stat` `Content-Type` metadata now rejects leading
+      or trailing whitespace padding before MIME parsing, so preview/download
+      MIME decisions cannot depend on adapter-side normalization of provider
+      metadata.
 
 ## Deferred until backend contracts stabilize
 

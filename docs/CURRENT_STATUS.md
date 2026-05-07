@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 ETag padding hardening)
+Last updated: 2026-05-07 (updated after S3 content-type padding hardening)
 
 ## Current phase
 
@@ -23,9 +23,10 @@ S3-compatible storage ETag handling is now stricter across optional
 line/control bytes, non-ASCII values, and other non-printable opaque ETag
 payloads fail closed instead of crossing the shared storage boundary as object
 identity metadata.
-S3-compatible `HEAD`/`Stat` content-type metadata now also parses as an ASCII
-MIME media type before it can reach shared storage callers, while still
-preserving valid parameterized values such as `text/plain; charset=utf-8`.
+S3-compatible `HEAD`/`Stat` content-type metadata now also parses as an
+unpadded ASCII MIME media type before it can reach shared storage callers,
+while still preserving valid parameterized values such as
+`text/plain; charset=utf-8`.
 S3-compatible `ListObjectsV2` success XML now rejects direct text inside
 structured standard object metadata wrappers such as `Owner` and
 `RestoreStatus`, while still accepting known namespace-free/AWS child elements.
@@ -174,8 +175,10 @@ on first-header collapse. Duplicate `Content-Type` metadata on `HEAD`/`Stat`
 also fails closed so preview/download MIME decisions do not depend on
 first-header collapse. Present-but-blank or malformed `Last-Modified`, `ETag`,
 and `Content-Type` metadata now also fails closed instead of being silently
-exposed as empty optional metadata, keeping object identity, timestamp, and MIME
-metadata explicit at the S3-compatible adapter boundary.
+exposed as empty optional metadata, and `ETag`/`Content-Type` headers must not
+carry leading or trailing padding before quote cleanup or MIME parsing. This
+keeps object identity, timestamp, and MIME metadata explicit at the
+S3-compatible adapter boundary.
 S3-compatible full-object `GET` now applies the same exact `Content-Length`
 header validation when present and wraps known-length successful bodies in a
 bounded reader, so truncated compatible-provider full reads surface

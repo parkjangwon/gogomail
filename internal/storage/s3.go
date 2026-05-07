@@ -976,6 +976,9 @@ func s3ETagOpaqueValueValid(value string) bool {
 }
 
 func parseS3StatContentType(value string) (string, error) {
+	if strings.TrimSpace(value) != value {
+		return "", fmt.Errorf("stat s3 object: invalid content-type")
+	}
 	contentType := cleanS3MetadataValue(value, maxS3ContentTypeBytes)
 	if strings.TrimSpace(value) != "" && (contentType == "" || !s3ContentTypeValueValid(contentType)) {
 		return "", fmt.Errorf("stat s3 object: invalid content-type")
