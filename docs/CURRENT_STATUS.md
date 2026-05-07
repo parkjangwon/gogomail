@@ -316,9 +316,10 @@ such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such as
 `{+1}`, `{-1}`, and `{1++}`, with a tagged `BAD` framing response before
 reading literal bytes.
 IMAP command-line framing now requires RFC CRLF endings for ordinary commands,
-literal suffix lines, and `IDLE` continuations. LF-only input receives a
-tagged `BAD command line must end with CRLF` plus the existing framing-error
-`BYE` close, keeping malformed line endings out of command handlers.
+literal suffix lines, `AUTHENTICATE PLAIN` SASL continuations, and `IDLE`
+continuations. LF-only input receives a tagged
+`BAD command line must end with CRLF` plus the existing framing-error `BYE`
+close, keeping malformed line endings out of command handlers.
 IMAP UID and message sequence-set numbers now also enforce RFC `nz-number`
 spelling, rejecting leading-zero values such as `FETCH 01 FLAGS` or
 `UID FETCH 1:02 FLAGS` before sequence expansion instead of normalizing them

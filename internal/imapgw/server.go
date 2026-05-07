@@ -262,6 +262,9 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 		return "", nil, err
 	}
 	if !imapLineHasCRLF(line) {
+		if state != nil && state.pendingAuthTag != "" {
+			return "", nil, imapProtocolFramingError{line: state.pendingAuthTag + " AUTHENTICATE", message: "command line must end with CRLF"}
+		}
 		return "", nil, imapProtocolFramingError{line: strings.TrimRight(line, "\n"), message: "command line must end with CRLF"}
 	}
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
