@@ -330,7 +330,8 @@ leading-zero `nz-number` forms such as `<12.034>`, keeping body-section and
 partial-window parsing aligned with RFC 3501 number semantics. MIME part path,
 partial fetch offset, and partial fetch count values are capped to IMAP's
 unsigned 32-bit `number` range, while the maximum valid `4294967295` remains
-accepted where the runtime integer width can represent it.
+accepted where the runtime integer width can represent it. MIME part paths also
+reject surrounding or embedded whitespace instead of repairing padded atoms.
 IMAP partial fetch offsets now also follow RFC 3501 `number` grammar by
 accepting `0` or non-zero-leading digit atoms only; malformed windows such as
 `BODY.PEEK[]<00.34>` or `<012.34>` are rejected before command execution
@@ -1921,7 +1922,8 @@ owner/resource target without scanning unrelated audit history.
   `BODY[]<+12.34>`, and partial fetch counts must be non-zero as required by
   RFC 3501 `nz-number` grammar. MIME part, offset, and count values are capped
   to IMAP's unsigned 32-bit `number` range, and partial fetch tokens also
-  reject trailing characters after the closing `>`.
+  reject trailing characters after the closing `>`. Padded MIME path atoms are
+  rejected before section lookup.
 - IMAP `SEARCH`, `SORT`, and `THREAD` charset arguments now reject malformed
   atoms that still contain quote characters or outer whitespace after command
   parsing, preventing broken values such as `UTF-8"` or `" UTF-8 "` from being

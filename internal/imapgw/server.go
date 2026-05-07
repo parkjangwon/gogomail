@@ -5809,7 +5809,10 @@ func imapParseMIMEPartRequestToken(token string) (imapMIMEPartRequest, bool) {
 }
 
 func parseIMAPMIMEPartPath(value string) ([]int, bool) {
-	parts := strings.Split(strings.TrimSpace(value), ".")
+	if strings.TrimSpace(value) != value {
+		return nil, false
+	}
+	parts := strings.Split(value, ".")
 	if len(parts) == 0 || len(parts) > maxIMAPMIMEPartPathDepth {
 		return nil, false
 	}
