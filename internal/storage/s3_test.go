@@ -2121,6 +2121,55 @@ func TestS3StoreListValidatesContinuationTokenEcho(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsGroupingControls(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "delimiter",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Delimiter>/</Delimiter></ListBucketResult>`,
+			want: "unsupported Delimiter value",
+		},
+		{
+			name: "common_prefixes",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><CommonPrefixes><Prefix>messages/</Prefix></CommonPrefixes></ListBucketResult>`,
+			want: "CommonPrefixes are unsupported",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsDuplicateRootMetadata(t *testing.T) {
 	t.Parallel()
 

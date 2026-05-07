@@ -4256,6 +4256,11 @@ Implementation order:
       validated when present: the echoed token must match the requested cursor
       exactly, keeping page diagnostics and retry semantics aligned with the
       signed list request.
+1501. S3-compatible `ListObjectsV2` delimiter grouping controls are now
+      rejected. gogomail never requests delimiter-based grouped listing, so
+      non-empty `Delimiter` or `CommonPrefixes` responses fail closed instead
+      of being treated as ordinary object pages by Drive, lifecycle cleanup, or
+      reconciliation callers.
 
 ## Deferred until backend contracts stabilize
 

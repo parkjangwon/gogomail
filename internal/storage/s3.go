@@ -388,6 +388,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err := validateS3ListContinuationToken(result.ContinuationToken, cursor); err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListDelimiter(result.Delimiter); err != nil {
+		return ObjectListPage{}, err
+	}
 	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
 	if !ok {
 		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid IsTruncated value")
@@ -836,6 +839,13 @@ func validateS3ListContinuationToken(value string, expected string) error {
 		return fmt.Errorf("list s3 objects: response ContinuationToken does not match request")
 	}
 	return nil
+}
+
+func validateS3ListDelimiter(value string) error {
+	if value == "" {
+		return nil
+	}
+	return fmt.Errorf("list s3 objects: unsupported Delimiter value")
 }
 
 func parseS3ListIsTruncated(value string) (bool, bool) {
@@ -1627,6 +1637,7 @@ type s3ListObjectsResult struct {
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Name                  string                `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`
+	Delimiter             string                `xml:"Delimiter"`
 	EncodingType          string                `xml:"EncodingType"`
 	KeyCount              string                `xml:"KeyCount"`
 	MaxKeys               string                `xml:"MaxKeys"`
@@ -1738,6 +1749,11 @@ func validateS3ListControlCardinality(data []byte) error {
 					lastModifiedSeen = false
 					simpleObjectMetadata = ""
 					simpleStandardMetadata = ""
+				case "CommonPrefixes":
+					if !s3XMLNamespaceAllowed(token.Name.Space) {
+						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
+					return fmt.Errorf("list s3 objects: CommonPrefixes are unsupported")
 				default:
 					if s3ListStandardRootMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
