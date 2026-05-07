@@ -1818,6 +1818,7 @@ func validateS3ListControlCardinality(data []byte) error {
 	var restoreStatusSeen bool
 	var simpleObjectMetadata string
 	var simpleStandardMetadata string
+	var structuredObjectMetadata string
 	rootSimpleSeen := make(map[string]struct{})
 	for {
 		token, err := decoder.Token()
@@ -1934,6 +1935,7 @@ func validateS3ListControlCardinality(data []byte) error {
 							return fmt.Errorf("list s3 objects: duplicate object Owner value")
 						}
 						ownerSeen = true
+						structuredObjectMetadata = token.Name.Local
 					case "ChecksumType":
 						if checksumTypeSeen {
 							return fmt.Errorf("list s3 objects: duplicate object ChecksumType value")
@@ -1944,10 +1946,15 @@ func validateS3ListControlCardinality(data []byte) error {
 							return fmt.Errorf("list s3 objects: duplicate object RestoreStatus value")
 						}
 						restoreStatusSeen = true
+						structuredObjectMetadata = token.Name.Local
 					}
 					if s3ListStandardSimpleObjectMetadata(token.Name.Local) {
 						simpleStandardMetadata = token.Name.Local
 					}
+				}
+			case inContent && rootDepth > 3 && structuredObjectMetadata != "":
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return fmt.Errorf("list s3 objects: object %s metadata contains unexpected namespace", structuredObjectMetadata)
 				}
 			case rootDepth > 2 && simpleStandardMetadata != "":
 				return fmt.Errorf("list s3 objects: metadata %s contains nested element %q", simpleStandardMetadata, token.Name.Local)
@@ -1961,10 +1968,14 @@ func validateS3ListControlCardinality(data []byte) error {
 			if inContent && rootDepth == 3 && simpleObjectMetadata == token.Name.Local {
 				simpleObjectMetadata = ""
 			}
+			if inContent && rootDepth == 3 && structuredObjectMetadata == token.Name.Local {
+				structuredObjectMetadata = ""
+			}
 			if inContent && rootDepth == 2 && token.Name.Local == "Contents" {
 				inContent = false
 				simpleObjectMetadata = ""
 				simpleStandardMetadata = ""
+				structuredObjectMetadata = ""
 			}
 			if rootDepth > 0 {
 				rootDepth--

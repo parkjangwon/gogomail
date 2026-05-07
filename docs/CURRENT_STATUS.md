@@ -1734,7 +1734,8 @@ owner/resource target without scanning unrelated audit history.
   accepted, while foreign-namespace variants fail closed before unmarshalling.
 - S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
   `StorageClass` now also rejects nested XML before unmarshalling, while
-  structured AWS fields such as `Owner` remain compatible.
+  structured AWS fields such as `Owner` remain compatible when nested children
+  are namespace-free or AWS S3-namespaced.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.

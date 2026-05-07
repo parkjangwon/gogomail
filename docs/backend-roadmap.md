@@ -4343,7 +4343,9 @@ Implementation order:
       single-value structured `Owner` and `RestoreStatus` elements while still
       accepting one structured value from namespace-free or AWS S3 namespaced
       responses, keeping compatible-provider metadata deterministic without
-      breaking repeated `ChecksumAlgorithm` responses.
+      breaking repeated `ChecksumAlgorithm` responses. Nested children inside
+      structured `Owner` and `RestoreStatus` metadata now also reject foreign
+      XML namespaces before unmarshalling can hide provider-specific shapes.
 1511. S3-compatible XML success metadata now rejects whitespace-padded
       `ListObjectsV2` object `ETag` and `CopyObjectResult` `ETag` values
       instead of trimming them into valid identity metadata, while preserving
