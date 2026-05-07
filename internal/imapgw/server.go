@@ -8092,12 +8092,15 @@ func imapFlagList(flags []string) string {
 }
 
 func imapQuotedString(value string) string {
-	value = strings.ToValidUTF8(value, "")
+	value = strings.ToValidUTF8(value, "?")
 	value = strings.ReplaceAll(value, `\`, `\\`)
 	value = strings.ReplaceAll(value, `"`, `\"`)
 	value = strings.Map(func(r rune) rune {
 		if r < 0x20 || r == 0x7f {
 			return ' '
+		}
+		if r >= 0x80 {
+			return '?'
 		}
 		return r
 	}, value)

@@ -1935,6 +1935,10 @@ Current state:
 - Command parsing now rejects control characters or 8-bit non-ASCII bytes
   inside unquoted atoms and quoted strings, aligning parser behavior with RFC
   3501's 7-bit string/atom boundary before command dispatch.
+- IMAP quoted-string response rendering now replaces invalid UTF-8 and
+  non-ASCII runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and
+  related quoted strings 7-bit safe until an explicit IMAP UTF-8 extension is
+  advertised.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response

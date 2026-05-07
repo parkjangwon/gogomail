@@ -355,6 +355,9 @@ Command tag, command-name, and UID subcommand atom validation also rejects
 non-ASCII bytes in addition to control and atom-special characters, keeping RFC
 3501's 7-bit atom/string boundary intact before command routing or UID state
 checks.
+IMAP quoted-string response rendering now also forces invalid UTF-8 and
+non-ASCII runes to `?`, so ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and related
+quoted responses stay 7-bit safe while `UTF8=ACCEPT` is not advertised.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of

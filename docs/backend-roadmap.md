@@ -4319,6 +4319,10 @@ Implementation order:
       subcommand names, preserving RFC 3501's 7-bit atom/string boundary
       before malformed input can route as an unknown command or reach
       selected-state UID handling.
+1508. IMAP quoted-string response rendering now replaces invalid UTF-8 and
+      non-ASCII runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST,
+      and related quoted response strings 7-bit safe while gogomail does not
+      advertise an IMAP UTF-8 response extension.
 
 ## Deferred until backend contracts stabilize
 
