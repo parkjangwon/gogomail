@@ -1417,6 +1417,14 @@ Current state:
 - Admin API now exposes `GET /admin/v1/drive-upload-sessions` with required
   user scope plus status/limit filters, and admin capabilities advertise Drive
   upload-session inspection.
+- Drive upload session body storage now accepts `Content-Range` headers for
+  complete body uploads. The `PUT /api/v1/drive/upload-sessions/{id}/body`
+  endpoint parses and validates RFC 7233 `Content-Range` headers, accepting
+  both `bytes */<size>` asterisk form and `bytes 0-<size-1>/<size>` explicit
+  range form when the range matches the session's declared size. Malformed
+  Content-Range headers or mismatched sizes return HTTP 400 with descriptive
+  errors. Comprehensive unit tests cover parsing edge cases and validation
+  scenarios.
 - Admin API now exposes `GET /admin/v1/drive-nodes` with required user scope
   plus parent/status/name/limit filters, giving operator consoles a bounded
   Drive inventory view without reusing user-facing auth paths.
