@@ -454,7 +454,11 @@ exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
 turn structured provider data into apparently valid object metadata. Provider
-responses that return more matching objects than requested are rejected,
+responses that include `StartAfter` or `RequestCharged` fail closed because
+the adapter does not request start-after pagination or requester-pays listing.
+Delimiter grouping is likewise unsupported: non-empty `Delimiter` or
+`CommonPrefixes` responses are rejected instead of being treated as ordinary
+object pages. Responses that return more matching objects than requested are rejected,
 keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded
 separators or leading/trailing whitespace fail closed once they map inside the
