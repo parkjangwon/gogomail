@@ -1552,6 +1552,9 @@ owner/resource target without scanning unrelated audit history.
   `ListObjectsV2` now require exact `200 OK` responses so accepted/deferred
   writes, unexpected partial-content, or other non-OK 2xx statuses cannot
   masquerade as durable or complete backend-neutral object results.
+- S3-compatible standard `<Error>` diagnostics now suppress previews when safe
+  fields such as `Code`, `Message`, `RequestId`, or `HostId` appear more than
+  once, avoiding ambiguous concatenated S3 provider status diagnostics.
 - S3-compatible request construction now has explicit regression coverage for
   automatic path-style addressing on HTTPS dotted buckets and local/IP
   endpoints, preserving AWS S3 certificate compatibility and MinIO-style local

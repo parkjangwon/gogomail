@@ -4099,6 +4099,15 @@ func TestS3StoreSuppressesEmptyXMLStatusErrorPreview(t *testing.T) {
 	}
 }
 
+func TestS3StoreSuppressesAmbiguousXMLStatusErrorPreview(t *testing.T) {
+	t.Parallel()
+
+	preview := s3ErrorBodyPreview(strings.NewReader(`<Error><Code>SlowDown</Code><Code>AccessDenied</Code><Message>retry</Message></Error>`), 512)
+	if preview != "" {
+		t.Fatalf("preview = %q, want empty preview for duplicate S3 error fields", preview)
+	}
+}
+
 func TestS3StoreBoundsXMLStatusErrorPreviewFields(t *testing.T) {
 	t.Parallel()
 

@@ -1413,6 +1413,9 @@ func s3XMLError(data []byte) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	if response.XMLName.Local == "" {
+		return "", true
+	}
 	return s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID)), true
 }
 
@@ -1433,15 +1436,27 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 		if start.Name.Local != "Error" || !s3XMLNamespaceAllowed(start.Name.Space) {
 			return s3CopyResponse{}, false
 		}
-		response, _ := parseS3XMLErrorElement(decoder, start)
+		response, err := parseS3XMLErrorElement(decoder, start)
+		if err != nil {
+			if _, ok := err.(s3DuplicateErrorFieldError); ok {
+				return s3CopyResponse{}, true
+			}
+		}
 		return response, true
 	}
+}
+
+type s3DuplicateErrorFieldError string
+
+func (err s3DuplicateErrorFieldError) Error() string {
+	return "duplicate " + string(err)
 }
 
 func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3CopyResponse, error) {
 	response := s3CopyResponse{XMLName: root.Name}
 	depth := 1
 	current := ""
+	seenFields := map[string]struct{}{}
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1456,6 +1471,10 @@ func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3Copy
 			if depth == 2 && s3XMLNamespaceAllowed(token.Name.Space) {
 				switch token.Name.Local {
 				case "Code", "Message", "RequestId", "HostId":
+					if _, ok := seenFields[token.Name.Local]; ok {
+						return response, s3DuplicateErrorFieldError(token.Name.Local)
+					}
+					seenFields[token.Name.Local] = struct{}{}
 					current = token.Name.Local
 				default:
 					current = ""
