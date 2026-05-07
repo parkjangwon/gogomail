@@ -4244,6 +4244,10 @@ Implementation order:
       prefix requested by gogomail, including configured storage prefixes,
       while omitted `Prefix` echoes remain compatible. Object-key prefix
       filtering remains the authoritative safety boundary.
+1498. S3-compatible `ListObjectsV2` root `Name` metadata is now validated when
+      providers return it: the echoed bucket name must match the configured
+      bucket, so wrong-bucket compatible-provider responses fail closed instead
+      of looking like ordinary empty or successful list pages.
 
 ## Deferred until backend contracts stabilize
 

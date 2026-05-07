@@ -224,6 +224,9 @@ Current state:
 - S3-compatible `ListObjectsV2` root `<Prefix>` metadata, when present, must
   match the requested provider prefix exactly, including configured storage
   prefixes, while providers that omit the echo remain compatible.
+- S3-compatible `ListObjectsV2` root `<Name>` metadata, when present, must
+  match the configured bucket name so wrong-bucket compatible-provider
+  responses fail closed.
 - S3-compatible `ListObjectsV2` mapped object keys with leading/trailing
   whitespace or encoded separators now fail closed instead of being silently
   skipped after they match the configured storage prefix.
