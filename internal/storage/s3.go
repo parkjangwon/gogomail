@@ -1575,6 +1575,7 @@ func validateS3ListControlCardinality(data []byte) error {
 	var etagSeen bool
 	var lastModifiedSeen bool
 	var simpleObjectMetadata string
+	var simpleStandardMetadata string
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1615,9 +1616,13 @@ func validateS3ListControlCardinality(data []byte) error {
 					etagSeen = false
 					lastModifiedSeen = false
 					simpleObjectMetadata = ""
+					simpleStandardMetadata = ""
 				default:
 					if s3ListStandardRootMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
+					}
+					if s3ListStandardSimpleRootMetadata(token.Name.Local) {
+						simpleStandardMetadata = token.Name.Local
 					}
 				}
 			case inContent && rootDepth == 3:
@@ -1662,17 +1667,26 @@ func validateS3ListControlCardinality(data []byte) error {
 					if s3ListStandardObjectMetadata(token.Name.Local) && !s3XMLNamespaceAllowed(token.Name.Space) {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
 					}
+					if s3ListStandardSimpleObjectMetadata(token.Name.Local) {
+						simpleStandardMetadata = token.Name.Local
+					}
 				}
+			case rootDepth > 2 && simpleStandardMetadata != "":
+				return fmt.Errorf("list s3 objects: metadata %s contains nested element %q", simpleStandardMetadata, token.Name.Local)
 			case inContent && rootDepth > 3 && simpleObjectMetadata != "":
 				return fmt.Errorf("list s3 objects: object %s metadata contains nested element %q", simpleObjectMetadata, token.Name.Local)
 			}
 		case xml.EndElement:
+			if simpleStandardMetadata == token.Name.Local {
+				simpleStandardMetadata = ""
+			}
 			if inContent && rootDepth == 3 && simpleObjectMetadata == token.Name.Local {
 				simpleObjectMetadata = ""
 			}
 			if inContent && rootDepth == 2 && token.Name.Local == "Contents" {
 				inContent = false
 				simpleObjectMetadata = ""
+				simpleStandardMetadata = ""
 			}
 			if rootDepth > 0 {
 				rootDepth--
@@ -1681,9 +1695,27 @@ func validateS3ListControlCardinality(data []byte) error {
 	}
 }
 
+func s3ListStandardSimpleRootMetadata(local string) bool {
+	switch local {
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
+		return true
+	default:
+		return false
+	}
+}
+
 func s3ListStandardRootMetadata(local string) bool {
 	switch local {
 	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
+		return true
+	default:
+		return false
+	}
+}
+
+func s3ListStandardSimpleObjectMetadata(local string) bool {
+	switch local {
+	case "StorageClass", "ChecksumAlgorithm":
 		return true
 	default:
 		return false

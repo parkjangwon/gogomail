@@ -211,6 +211,9 @@ Current state:
   `KeyCount`, `MaxKeys`, `StorageClass`, and `Owner` now also shares that
   namespace boundary, while normal namespace-free and AWS-namespaced metadata
   remains compatible.
+- S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
+  `StorageClass` now rejects nested XML before unmarshalling, while AWS
+  structured fields such as `Owner` remain accepted.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now fails
   closed when a non-empty provider value is malformed or whitespace-padded,
   while still allowing missing values for compatible providers that omit

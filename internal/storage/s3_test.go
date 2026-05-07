@@ -1777,6 +1777,55 @@ func TestS3StoreListFiltersLogicalPrefixAfterCanonicalMapping(t *testing.T) {
 	}
 }
 
+func TestS3StoreListRejectsNestedStandardSimpleMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "root_prefix",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Prefix><Value>messages/</Value></Prefix><Contents><Key>messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: `metadata Prefix contains nested element "Value"`,
+		},
+		{
+			name: "object_storage_class",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><StorageClass><Value>STANDARD</Value></StorageClass></Contents></ListBucketResult>`,
+			want: `metadata StorageClass contains nested element "Value"`,
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListRejectsUnsafeETagMetadata(t *testing.T) {
 	t.Parallel()
 
