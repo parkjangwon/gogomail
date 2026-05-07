@@ -54,6 +54,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   preserving valid `{0}` literals while rejecting leading-zero literal sizes
   such as `{00}`, `{001}`, and `{001+}`, plus signed or malformed forms such
   as `{+1}`, `{-1}`, and `{1++}`, before reading literal bytes.
+- IMAP command-line framing now requires RFC CRLF endings for ordinary
+  commands, literal suffix lines, and `IDLE` continuations, returning tagged
+  `BAD` plus `BYE` for LF-only input before command handlers run.
 - IMAP command reading now enforces the command-literal memory cap across the
   cumulative literal payloads in one command, so multiple individually valid
   literals cannot exceed the per-command memory ceiling.

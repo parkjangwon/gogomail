@@ -261,6 +261,9 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 		}
 		return "", nil, err
 	}
+	if !imapLineHasCRLF(line) {
+		return "", nil, imapProtocolFramingError{line: strings.TrimRight(line, "\n"), message: "command line must end with CRLF"}
+	}
 	if state != nil && (state.pendingIdleTag != "" || state.pendingAuthTag != "") {
 		return line, nil, nil
 	}
@@ -309,7 +312,10 @@ func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, sta
 			}
 			return "", nil, err
 		}
-		if suffix == "\r\n" || suffix == "\n" {
+		if !imapLineHasCRLF(suffix) {
+			return "", nil, imapProtocolFramingError{line: command.String(), message: "command line must end with CRLF"}
+		}
+		if suffix == "\r\n" {
 			return command.String(), literals, nil
 		}
 		if command.Len()+len(suffix) > maxIMAPCommandLineBytes {
@@ -384,6 +390,10 @@ func readIMAPLine(reader *bufio.Reader, maxBytes int) (string, error) {
 		}
 		return "", err
 	}
+}
+
+func imapLineHasCRLF(line string) bool {
+	return strings.HasSuffix(line, "\r\n")
 }
 
 type imapConnState struct {
@@ -1776,6 +1786,9 @@ func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *im
 			}
 			if len(result.line) > 8192 {
 				return imapProtocolFramingError{line: state.pendingIdleTag + " IDLE", message: "command line is too long"}
+			}
+			if !imapLineHasCRLF(result.line) {
+				return imapProtocolFramingError{line: state.pendingIdleTag + " IDLE", message: "command line must end with CRLF"}
 			}
 			_, err := s.handleIdleDone(writer, strings.TrimRight(result.line, "\r\n"), state)
 			return err
