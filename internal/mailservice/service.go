@@ -306,6 +306,9 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		FolderID:          query.FolderID,
 		Query:             query.Query,
 		From:              query.From,
+		To:                query.To,
+		Cc:                query.Cc,
+		Bcc:               query.Bcc,
 		Subject:           query.Subject,
 		HasAttachment:     query.HasAttachment,
 		IncludeHighlights: query.IncludeHighlights,
@@ -356,10 +359,7 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 
 func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
-		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
-		strings.TrimSpace(query.To) == "" &&
-		strings.TrimSpace(query.Cc) == "" &&
-		strings.TrimSpace(query.Bcc) == ""
+		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance
 }
 
 func normalizedSearchSort(sort string) string {

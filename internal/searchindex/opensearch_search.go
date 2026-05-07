@@ -28,6 +28,9 @@ type OpenSearchSearchQuery struct {
 	FolderID          string
 	Query             string
 	From              string
+	To                string
+	Cc                string
+	Bcc               string
 	Subject           string
 	HasAttachment     *bool
 	IncludeHighlights bool
@@ -194,6 +197,21 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	if subject := cleanOpenSearchSearchText(query.Subject); subject != "" {
 		must = append(must, map[string]any{
 			"wildcard": map[string]any{"subject_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(subject)) + "*"},
+		})
+	}
+	if to := cleanOpenSearchSearchText(query.To); to != "" {
+		must = append(must, map[string]any{
+			"wildcard": map[string]any{"to_addrs_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(to)) + "*"},
+		})
+	}
+	if cc := cleanOpenSearchSearchText(query.Cc); cc != "" {
+		must = append(must, map[string]any{
+			"wildcard": map[string]any{"cc_addrs_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(cc)) + "*"},
+		})
+	}
+	if bcc := cleanOpenSearchSearchText(query.Bcc); bcc != "" {
+		must = append(must, map[string]any{
+			"wildcard": map[string]any{"bcc_addrs_lc": "*" + escapeOpenSearchWildcard(strings.ToLower(bcc)) + "*"},
 		})
 	}
 	if query.HasAttachment != nil {

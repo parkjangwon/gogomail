@@ -81,6 +81,28 @@ func TestOpenSearchSearcherReturnsMessageIDs(t *testing.T) {
 	}
 }
 
+func TestOpenSearchSearchPayloadIncludesToCcBccWildcards(t *testing.T) {
+	t.Parallel()
+
+	payload := openSearchSearchPayload(OpenSearchSearchQuery{
+		UserID: "user-1",
+		To:     "alice@example.com",
+		Cc:     "BOB@example.com",
+		Bcc:    "carol@example.com",
+	}, "user-1", 50)
+	must := payload["query"].(map[string]any)["bool"].(map[string]any)["must"].([]map[string]any)
+
+	if got := wildcardValue(t, must, "to_addrs_lc"); got != `*alice@example.com*` {
+		t.Fatalf("to wildcard = %q", got)
+	}
+	if got := wildcardValue(t, must, "cc_addrs_lc"); got != `*bob@example.com*` {
+		t.Fatalf("cc wildcard = %q", got)
+	}
+	if got := wildcardValue(t, must, "bcc_addrs_lc"); got != `*carol@example.com*` {
+		t.Fatalf("bcc wildcard = %q", got)
+	}
+}
+
 func TestOpenSearchSearchPayloadEscapesWildcardFilters(t *testing.T) {
 	t.Parallel()
 

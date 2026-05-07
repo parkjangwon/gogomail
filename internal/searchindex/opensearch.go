@@ -199,6 +199,9 @@ func openSearchIndexDefinition() map[string]any {
 				"from_addr":      map[string]any{"type": "keyword"},
 				"from_addr_lc":   map[string]any{"type": "keyword"},
 				"from_name":      map[string]any{"type": "text"},
+				"to_addrs_lc":    map[string]any{"type": "keyword"},
+				"cc_addrs_lc":    map[string]any{"type": "keyword"},
+				"bcc_addrs_lc":   map[string]any{"type": "keyword"},
 				"storage_path":   map[string]any{"type": "keyword", "index": false},
 				"received_at":    map[string]any{"type": "date"},
 				"size":           map[string]any{"type": "long"},
@@ -240,6 +243,9 @@ func openSearchDocument(doc Document) map[string]any {
 		"from_addr":      fromAddr,
 		"from_addr_lc":   strings.ToLower(fromAddr),
 		"from_name":      fromName,
+		"to_addrs_lc":    lowercaseAddrs(doc.ToAddrs),
+		"cc_addrs_lc":    lowercaseAddrs(doc.CcAddrs),
+		"bcc_addrs_lc":   lowercaseAddrs(doc.BccAddrs),
 		"storage_path":   storagePath,
 		"received_at":    receivedAt,
 		"size":           doc.Size,
@@ -262,6 +268,17 @@ func cleanOpenSearchReferences(values []string) []string {
 		value = cleanOpenSearchMetadata(value)
 		if value != "" {
 			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func lowercaseAddrs(addrs []string) []string {
+	out := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		a = strings.ToValidUTF8(strings.TrimSpace(a), "")
+		if a != "" {
+			out = append(out, strings.ToLower(a))
 		}
 	}
 	return out

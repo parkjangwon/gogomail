@@ -27,11 +27,13 @@ Current state:
   unknown-key rejection, SQL filtering against `to_addrs`/`cc_addrs`/`bcc_addrs`,
   and OpenAPI spec coverage aligned.
 - Message search (`GET /api/v1/search`) now supports `to`, `cc`, and `bcc` filter
-  parameters using the same normalization, validation, and SQL filtering approach.
-  When any of `to`/`cc`/`bcc` is specified, the OpenSearch relevance path is
-  bypassed in favor of Postgres filtering since those fields are not indexed in
-  the external search backend. Webmail capabilities `search.filters` and OpenAPI
-  spec updated to match.
+  parameters with normalization, validation, SQL filtering, and full OpenSearch
+  integration. The search index stores `to_addrs_lc`, `cc_addrs_lc`, and
+  `bcc_addrs_lc` as keyword fields; the OpenSearch query path applies wildcard
+  filters for these fields alongside the existing `from_addr_lc` and `subject_lc`
+  filters. The `canUseSearchIDSource` bypass for to/cc/bcc is removed — OpenSearch
+  relevance search now handles all filter combinations. Webmail capabilities
+  `search.filters` and OpenAPI spec updated to match.
 - API metering `recordFailOpen` now logs recovered panics with route and method
   context, improving visibility when the metering sink is under backpressure or
   fails.
