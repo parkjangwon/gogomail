@@ -12073,6 +12073,12 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	if _, err := parseIMAPFieldsWithLiteral(`a1 LIST "" (Archive{12})`, []string{" 2026"}); err == nil {
 		t.Fatal("parseIMAPFieldsWithLiteral accepted embedded parenthesized literal marker")
 	}
+	if _, err := parseIMAPFieldsWithLiteral(`a1 LIST "" ({7})`, []string{"Bad\nBox"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted control-bearing parenthesized literal")
+	}
+	if _, err := parseIMAPFieldsWithLiteral(`a1 LIST "" ({7})`, []string{"Résumé"}); err == nil {
+		t.Fatal("parseIMAPFieldsWithLiteral accepted non-ascii parenthesized literal")
+	}
 	if _, _, ok, err := imapCommandLiteralSize("a1 APPEND inbox {12}\r\n"); err != nil || !ok {
 		t.Fatalf("imapCommandLiteralSize synchronizing ok = %v err = %v", ok, err)
 	}
@@ -12085,6 +12091,28 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	for _, command := range []string{"a1 APPEND inbox {00}\r\n", "a1 APPEND inbox {001}\r\n", "a1 APPEND inbox {001+}\r\n", "a1 APPEND inbox {+1}\r\n", "a1 APPEND inbox {-1}\r\n", "a1 APPEND inbox {1++}\r\n"} {
 		if _, _, ok, err := imapCommandLiteralSize(command); !ok || !errors.Is(err, errIMAPCommandLiteralInvalid) {
 			t.Fatalf("imapCommandLiteralSize(%q) = ok %v err %v, want invalid literal size", command, ok, err)
+		}
+	}
+}
+
+func TestIMAPRawFieldKindTracksAfterQuotedParenthesizedList(t *testing.T) {
+	t.Parallel()
+
+	line := `a1 LIST "" ("Archive 2026" "INBOX") RETURN (STATUS (MESSAGES))`
+	for _, tc := range []struct {
+		index int
+		want  imapRawFieldKindValue
+	}{
+		{index: 0, want: imapRawFieldAtom},
+		{index: 1, want: imapRawFieldAtom},
+		{index: 2, want: imapRawFieldQuoted},
+		{index: 3, want: imapRawFieldList},
+		{index: 4, want: imapRawFieldAtom},
+		{index: 5, want: imapRawFieldList},
+	} {
+		got, ok := imapRawFieldKind(line, tc.index)
+		if !ok || got != tc.want {
+			t.Fatalf("imapRawFieldKind index %d = %v, %v; want %v, true", tc.index, got, ok, tc.want)
 		}
 	}
 }

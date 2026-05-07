@@ -8544,7 +8544,11 @@ func parseIMAPParenthesizedField(line string, start int, literals []string, lite
 					if literalIndex == nil || *literalIndex >= len(literals) {
 						return "", 0, fmt.Errorf("imap literal is not available")
 					}
-					field.WriteString(imapQuotedString(literals[*literalIndex]))
+					literal := literals[*literalIndex]
+					if !imapParenthesizedLiteralValueValid(literal) {
+						return "", 0, fmt.Errorf("invalid parenthesized literal value")
+					}
+					field.WriteString(imapQuotedString(literal))
 					*literalIndex = *literalIndex + 1
 					i += end
 					continue
@@ -8575,6 +8579,15 @@ func parseIMAPParenthesizedField(line string, start int, literals []string, lite
 		return "", 0, fmt.Errorf("unterminated quoted string")
 	}
 	return "", 0, fmt.Errorf("unterminated parenthesized field")
+}
+
+func imapParenthesizedLiteralValueValid(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] < 0x20 || value[i] >= 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func imapParenthesizedLiteralMarkerDelimited(line string, start int, marker int) bool {
