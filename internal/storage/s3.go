@@ -1956,6 +1956,12 @@ func validateS3ListControlCardinality(data []byte) error {
 				if !s3XMLNamespaceAllowed(token.Name.Space) {
 					return fmt.Errorf("list s3 objects: object %s metadata contains unexpected namespace", structuredObjectMetadata)
 				}
+				if rootDepth > 4 {
+					return fmt.Errorf("list s3 objects: object %s metadata contains nested element %q", structuredObjectMetadata, token.Name.Local)
+				}
+				if !s3ListStructuredObjectMetadataChildAllowed(structuredObjectMetadata, token.Name.Local) {
+					return fmt.Errorf("list s3 objects: object %s metadata contains unsupported child %q", structuredObjectMetadata, token.Name.Local)
+				}
 			case rootDepth > 2 && simpleStandardMetadata != "":
 				return fmt.Errorf("list s3 objects: metadata %s contains nested element %q", simpleStandardMetadata, token.Name.Local)
 			case inContent && rootDepth > 3 && simpleObjectMetadata != "":
@@ -2015,6 +2021,27 @@ func s3ListStandardObjectMetadata(local string) bool {
 	switch local {
 	case "StorageClass", "Owner", "ChecksumAlgorithm", "ChecksumType", "RestoreStatus":
 		return true
+	default:
+		return false
+	}
+}
+
+func s3ListStructuredObjectMetadataChildAllowed(parent string, local string) bool {
+	switch parent {
+	case "Owner":
+		switch local {
+		case "ID", "DisplayName":
+			return true
+		default:
+			return false
+		}
+	case "RestoreStatus":
+		switch local {
+		case "IsRestoreInProgress", "RestoreExpiryDate":
+			return true
+		default:
+			return false
+		}
 	default:
 		return false
 	}

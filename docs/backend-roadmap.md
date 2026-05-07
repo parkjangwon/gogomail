@@ -4345,7 +4345,8 @@ Implementation order:
       responses, keeping compatible-provider metadata deterministic without
       breaking repeated `ChecksumAlgorithm` responses. Nested children inside
       structured `Owner` and `RestoreStatus` metadata now also reject foreign
-      XML namespaces before unmarshalling can hide provider-specific shapes.
+      XML namespaces, unknown child names, and deeper nested elements before
+      unmarshalling can hide provider-specific shapes.
 1511. S3-compatible XML success metadata now rejects whitespace-padded
       `ListObjectsV2` object `ETag` and `CopyObjectResult` `ETag` values
       instead of trimming them into valid identity metadata, while preserving

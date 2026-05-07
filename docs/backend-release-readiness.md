@@ -257,7 +257,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   Duplicate single-value `StorageClass`, `ChecksumType`, `Owner`, and
   `RestoreStatus` object metadata is rejected, while repeated
   `ChecksumAlgorithm` values remain compatible. Structured `Owner` and
-  `RestoreStatus` children must remain namespace-free or AWS S3-namespaced.
+  `RestoreStatus` children must remain namespace-free or AWS S3-namespaced and
+  use known AWS child names.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
   returned `<Delimiter>` elements, including blank elements, and
   `<CommonPrefixes>` cannot be treated as ordinary object pages because
