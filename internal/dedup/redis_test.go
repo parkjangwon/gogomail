@@ -1,11 +1,29 @@
 package dedup
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
+
+func TestRedisDeduplicatorNilClientAllows(t *testing.T) {
+	t.Parallel()
+
+	d := NewRedisDeduplicator(nil, 24*24*time.Hour)
+	ok, err := d.CheckAndSet(context.Background(), smtpd.DedupKey{
+		MessageID: "<test@example.com>",
+		Recipient: "rcpt@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CheckAndSet error = %v, want nil", err)
+	}
+	if !ok {
+		t.Fatalf("ok = false, want true for nil client")
+	}
+}
 
 func TestRedisKeyUsesMessageIDAndRecipient(t *testing.T) {
 	t.Parallel()
