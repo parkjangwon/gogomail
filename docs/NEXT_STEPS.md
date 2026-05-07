@@ -1899,9 +1899,11 @@ Current state:
   now preserves decoded destination mailbox ID before repository delegation,
   read-side `FETCH`/message listing follows the same identity boundary, and
   service-level `STORE`, `COPY`, `MOVE`, and `EXPUNGE` now preserve decoded
-  mailbox IDs through repository and event boundaries. Next, review whether
-  admin-only UID backfill should continue trimming operator-supplied IDs or
-  move to the same exact mailbox identity semantics.
+  mailbox IDs through repository and event boundaries. PostgreSQL UID/message
+  operations now also reject padded mailbox UUIDs instead of trimming them
+  before UUID-bound queries, including admin UID backfill and audit detail.
+  Next, review remaining IMAP helper DTO formatting that trims display names
+  so it stays limited to rendered names rather than storage identity.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.

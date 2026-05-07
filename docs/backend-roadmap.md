@@ -4466,6 +4466,11 @@ Implementation order:
       decoded mailbox ID leading and trailing spaces after validation before
       repository delegation, while mutation event fan-out remains keyed to the
       repository-returned summary mailbox IDs.
+1534. PostgreSQL IMAP UID/message operations now validate mailbox IDs for
+      emptiness without trimming them before UUID-bound queries, so padded
+      mailbox UUIDs fail closed instead of being silently promoted to canonical
+      folder IDs across list, fetch, store, copy, move, expunge, append-store,
+      backfill, mailbox state, and message UID assignment boundaries.
 
 ## Deferred until backend contracts stabilize
 

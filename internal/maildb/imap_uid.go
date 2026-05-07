@@ -159,11 +159,10 @@ func (r *Repository) ListIMAPMessages(ctx context.Context, userID string, mailbo
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return nil, fmt.Errorf("mailbox_id is required")
 	}
 	limit = NormalizeMessageListLimit(limit)
@@ -279,11 +278,10 @@ func (r *Repository) GetIMAPMessage(ctx context.Context, userID string, mailboxI
 		return IMAPStoredMessage{}, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return IMAPStoredMessage{}, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return IMAPStoredMessage{}, fmt.Errorf("mailbox_id is required")
 	}
 	if uid == 0 {
@@ -381,11 +379,10 @@ func (r *Repository) StoreIMAPFlags(ctx context.Context, userID string, mailboxI
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return nil, fmt.Errorf("mailbox_id is required")
 	}
 	if len(uids) == 0 {
@@ -488,15 +485,13 @@ func (r *Repository) CopyIMAPMessages(ctx context.Context, userID string, source
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	sourceMailboxID = strings.TrimSpace(sourceMailboxID)
-	destMailboxID = strings.TrimSpace(destMailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if sourceMailboxID == "" {
+	if strings.TrimSpace(sourceMailboxID) == "" {
 		return nil, fmt.Errorf("source_mailbox_id is required")
 	}
-	if destMailboxID == "" {
+	if strings.TrimSpace(destMailboxID) == "" {
 		return nil, fmt.Errorf("dest_mailbox_id is required")
 	}
 	if len(uids) == 0 {
@@ -843,11 +838,10 @@ func (r *Repository) ExpungeIMAPMessages(ctx context.Context, userID string, mai
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return nil, fmt.Errorf("mailbox_id is required")
 	}
 	if len(uids) > 500 {
@@ -1002,15 +996,13 @@ func (r *Repository) MoveIMAPMessages(ctx context.Context, userID string, source
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	sourceMailboxID = strings.TrimSpace(sourceMailboxID)
-	destMailboxID = strings.TrimSpace(destMailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if sourceMailboxID == "" {
+	if strings.TrimSpace(sourceMailboxID) == "" {
 		return nil, fmt.Errorf("source_mailbox_id is required")
 	}
-	if destMailboxID == "" {
+	if strings.TrimSpace(destMailboxID) == "" {
 		return nil, fmt.Errorf("dest_mailbox_id is required")
 	}
 	if sourceMailboxID == destMailboxID {
@@ -1777,11 +1769,10 @@ func (r *Repository) BackfillIMAPMailboxUIDs(ctx context.Context, userID string,
 		return nil, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return nil, fmt.Errorf("mailbox_id is required")
 	}
 	limit = normalizeIMAPUIDBackfillLimit(limit)
@@ -1904,7 +1895,7 @@ func imapUIDBackfillAuditDetail(userID string, mailboxID string, limit int, assi
 		Assigned      []imapUIDBackfillAuditSampleID `json:"assigned_sample"`
 	}{
 		UserID:        strings.TrimSpace(userID),
-		MailboxID:     strings.TrimSpace(mailboxID),
+		MailboxID:     mailboxID,
 		Limit:         normalizeIMAPUIDBackfillLimit(limit),
 		AssignedCount: len(assigned),
 		Assigned:      sampleIMAPUIDBackfillAuditIDs(assigned),
@@ -2403,11 +2394,10 @@ func (r *Repository) EnsureIMAPMailboxState(ctx context.Context, userID string, 
 		return IMAPUIDState{}, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if userID == "" {
 		return IMAPUIDState{}, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return IMAPUIDState{}, fmt.Errorf("mailbox_id is required")
 	}
 
@@ -2441,12 +2431,11 @@ func (r *Repository) EnsureIMAPMessageUID(ctx context.Context, userID string, ma
 		return IMAPMessageUID{}, fmt.Errorf("database handle is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	messageID = strings.TrimSpace(messageID)
 	if userID == "" {
 		return IMAPMessageUID{}, fmt.Errorf("user_id is required")
 	}
-	if mailboxID == "" {
+	if strings.TrimSpace(mailboxID) == "" {
 		return IMAPMessageUID{}, fmt.Errorf("mailbox_id is required")
 	}
 	if messageID == "" {

@@ -103,14 +103,13 @@ func (r *Repository) AppendStoredIMAPMessage(ctx context.Context, req AppendStor
 		return imapgw.AppendMessageResult{}, fmt.Errorf("database handle is required")
 	}
 	req.Target.UserID = strings.TrimSpace(req.Target.UserID)
-	req.Target.MailboxID = strings.TrimSpace(req.Target.MailboxID)
 	req.Target.CompanyID = strings.TrimSpace(req.Target.CompanyID)
 	req.Target.DomainID = strings.TrimSpace(req.Target.DomainID)
 	req.StoragePath = strings.TrimSpace(req.StoragePath)
 	if req.Target.UserID == "" {
 		return imapgw.AppendMessageResult{}, fmt.Errorf("user_id is required")
 	}
-	if req.Target.MailboxID == "" {
+	if strings.TrimSpace(req.Target.MailboxID) == "" {
 		return imapgw.AppendMessageResult{}, fmt.Errorf("mailbox_id is required")
 	}
 	if req.Target.CompanyID == "" || req.Target.DomainID == "" {
