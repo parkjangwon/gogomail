@@ -4740,6 +4740,7 @@ func TestS3StoreCopyRequiresOKCopyObjectResult(t *testing.T) {
 try later</Message><RequestId>req-copy-1</RequestId><HostId>host-copy-1</HostId></Error></CopyObjectResult>`, want: "SlowDown: copy throttled try later: request-id=req-copy-1: host-id=host-copy-1"},
 		{name: "duplicate_error_field", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><Code>AccessDenied</Code><Message>copy throttled</Message></Error></CopyObjectResult>`, want: "embedded error"},
 		{name: "nested_error_field", status: http.StatusOK, body: `<CopyObjectResult><Error><Code><Value>SlowDown</Value></Code><Message>copy throttled</Message></Error></CopyObjectResult>`, want: "embedded error"},
+		{name: "foreign_namespace_error_field", status: http.StatusOK, body: `<CopyObjectResult><Error><Code>SlowDown</Code><x:Message xmlns:x="urn:not-s3">copy throttled</x:Message></Error></CopyObjectResult>`, want: "embedded error"},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -5119,6 +5120,15 @@ func TestS3StoreSuppressesNestedXMLStatusErrorPreviewFields(t *testing.T) {
 	preview := s3ErrorBodyPreview(strings.NewReader(`<Error><Code><Value>SlowDown</Value></Code><Message>retry</Message></Error>`), 512)
 	if preview != "" {
 		t.Fatalf("preview = %q, want empty preview for nested S3 error fields", preview)
+	}
+}
+
+func TestS3StoreSuppressesForeignNamespaceXMLStatusErrorPreviewFields(t *testing.T) {
+	t.Parallel()
+
+	preview := s3ErrorBodyPreview(strings.NewReader(`<Error><Code>SlowDown</Code><x:Message xmlns:x="urn:not-s3">retry</x:Message></Error>`), 512)
+	if preview != "" {
+		t.Fatalf("preview = %q, want empty preview for foreign-namespace S3 error fields", preview)
 	}
 }
 

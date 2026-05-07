@@ -1676,17 +1676,15 @@ func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3Copy
 				return response, s3AmbiguousErrorFieldError("nested " + current)
 			}
 			depth++
-			if depth == 2 && s3XMLNamespaceAllowed(token.Name.Space) {
-				switch token.Name.Local {
-				case "Code", "Message", "RequestId", "HostId":
-					if _, ok := seenFields[token.Name.Local]; ok {
-						return response, s3AmbiguousErrorFieldError("duplicate " + token.Name.Local)
-					}
-					seenFields[token.Name.Local] = struct{}{}
-					current = token.Name.Local
-				default:
-					current = ""
+			if depth == 2 && s3ErrorPreviewField(token.Name.Local) {
+				if !s3XMLNamespaceAllowed(token.Name.Space) {
+					return response, s3AmbiguousErrorFieldError("unexpected namespace " + token.Name.Local)
 				}
+				if _, ok := seenFields[token.Name.Local]; ok {
+					return response, s3AmbiguousErrorFieldError("duplicate " + token.Name.Local)
+				}
+				seenFields[token.Name.Local] = struct{}{}
+				current = token.Name.Local
 			}
 		case xml.EndElement:
 			if depth == 2 {
@@ -1711,6 +1709,15 @@ func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3Copy
 				appendS3ErrorPreviewField(&response.HostID, token)
 			}
 		}
+	}
+}
+
+func s3ErrorPreviewField(local string) bool {
+	switch local {
+	case "Code", "Message", "RequestId", "HostId":
+		return true
+	default:
+		return false
 	}
 }
 
