@@ -382,6 +382,9 @@ malformed tspecial/control-bearing tokens or empty parameter values to clients.
 Canonical duplicate parameter names are collapsed before rendering so a
 malformed or inconsistent MIME source cannot emit repeated `BODYSTRUCTURE`
 parameter keys.
+MIME parameter values now share the same bounded metadata text path, so
+oversized filenames, boundaries, or other parameter values cannot inflate
+BODY/BODYSTRUCTURE responses.
 Malformed MIME disposition tokens now render as `NIL` instead of being
 upgraded to `ATTACHMENT`, preventing BODYSTRUCTURE responses from inventing
 attachment semantics for invalid source metadata.

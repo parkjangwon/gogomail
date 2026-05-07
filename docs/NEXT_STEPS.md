@@ -457,7 +457,9 @@ Current state:
   token boundaries, using conservative defaults for malformed
   tspecial/control-bearing source metadata instead of emitting invalid
   structure tokens, duplicate canonical parameter keys, or empty parameter
-  values to clients.
+  values to clients. Parameter values are also trimmed and bounded before
+  rendering so oversized filenames or boundaries cannot inflate fetch
+  responses.
 - Malformed MIME disposition tokens now render as `NIL` instead of falling back
   to `ATTACHMENT`, so IMAP BODYSTRUCTURE does not invent attachment semantics
   for invalid source metadata.

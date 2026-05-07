@@ -2179,7 +2179,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   metadata contains tspecial/control-bearing malformed tokens or empty
   parameter values. Canonical duplicate parameter names are collapsed before
   rendering so malformed MIME source metadata cannot emit repeated structure
-  keys.
+  keys. MIME parameter values are trimmed and bounded before rendering so
+  oversized filenames, boundaries, or other source metadata cannot amplify
+  BODY/BODYSTRUCTURE fetch responses.
 - IMAP BODYSTRUCTURE disposition metadata now treats malformed disposition
   tokens as `NIL` instead of falling back to `ATTACHMENT`, preserving client
   semantics when stored MIME metadata is invalid.

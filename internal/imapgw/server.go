@@ -6758,14 +6758,19 @@ func imapMIMEBodyDisposition(part messageparse.MIMEPart) string {
 }
 
 func imapBodyMetadataNString(value string) string {
-	value = strings.TrimSpace(value)
+	value = imapBodyMetadataText(value)
 	if value == "" {
 		return "NIL"
 	}
+	return imapQuotedString(value)
+}
+
+func imapBodyMetadataText(value string) string {
+	value = strings.TrimSpace(value)
 	if len(value) > maxIMAPBodyMetadataTextBytes {
 		value = value[:maxIMAPBodyMetadataTextBytes]
 	}
-	return imapQuotedString(value)
+	return value
 }
 
 func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended bool) string {
@@ -6880,7 +6885,7 @@ func imapMIMEBodyParameterList(params map[string]string) string {
 	canonical := make(map[string]string, len(keys))
 	for _, rawKey := range keys {
 		key := strings.ToUpper(strings.TrimSpace(rawKey))
-		value := strings.TrimSpace(params[rawKey])
+		value := imapBodyMetadataText(params[rawKey])
 		if !imapMIMETokenValid(key) || value == "" {
 			continue
 		}
