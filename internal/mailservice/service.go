@@ -492,7 +492,7 @@ func (s *Service) FetchIMAPMessage(ctx context.Context, req imapgw.FetchMessageR
 	}
 
 	userID := strings.TrimSpace(string(req.UserID))
-	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	mailboxID := string(req.MailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return imapgw.Message{}, err
 	}
@@ -644,7 +644,7 @@ func (s *Service) ListIMAPMessages(ctx context.Context, req imapgw.ListMessagesR
 		return nil, fmt.Errorf("imap message repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
-	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	mailboxID := string(req.MailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}
