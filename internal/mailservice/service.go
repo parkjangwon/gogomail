@@ -663,7 +663,7 @@ func (s *Service) SubscribeIMAPMailbox(ctx context.Context, userID imapgw.UserID
 		return nil, nil, fmt.Errorf("imap mailbox event broker is required")
 	}
 	user := strings.TrimSpace(string(userID))
-	mailbox := strings.TrimSpace(string(mailboxID))
+	mailbox := string(mailboxID)
 	if err := validateServiceResourceID("user_id", user); err != nil {
 		return nil, nil, err
 	}

@@ -4441,6 +4441,10 @@ Implementation order:
       leading and trailing spaces, so missing subscriptions such as
       `" INBOX "` remain distinct `LSUB` rows instead of collapsing into
       `INBOX`.
+1528. IMAP live mailbox-event subscription now preserves decoded mailbox ID
+      leading and trailing spaces after validation, keeping IDLE/NOOP event
+      fan-out keyed to the exact selected mailbox identity instead of a
+      trimmed variant.
 
 ## Deferred until backend contracts stabilize
 

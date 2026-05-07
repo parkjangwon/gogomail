@@ -1048,6 +1048,39 @@ func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	}
 }
 
+func TestSubscribeIMAPMailboxPreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	broker := imapgw.NewMailboxEventBroker(2)
+	service := New(&fakeRepository{}, nil).WithIMAPMailboxEvents(broker)
+	events, cancel, err := service.SubscribeIMAPMailbox(context.Background(), " user-1 ", " INBOX ")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox returned error: %v", err)
+	}
+	defer cancel()
+
+	if err := broker.Publish(context.Background(), imapgw.MailboxEvent{Type: imapgw.MailboxEventExists, UserID: "user-1", MailboxID: "INBOX", Messages: 1}); err != nil {
+		t.Fatalf("Publish trimmed mailbox event returned error: %v", err)
+	}
+	select {
+	case got := <-events:
+		t.Fatalf("received event for trimmed mailbox id: %#v", got)
+	default:
+	}
+
+	if err := broker.Publish(context.Background(), imapgw.MailboxEvent{Type: imapgw.MailboxEventExists, UserID: "user-1", MailboxID: " INBOX ", Messages: 2}); err != nil {
+		t.Fatalf("Publish exact mailbox event returned error: %v", err)
+	}
+	select {
+	case got := <-events:
+		if got.Type != imapgw.MailboxEventExists || got.Messages != 2 {
+			t.Fatalf("event = %#v", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for exact mailbox event")
+	}
+}
+
 func TestIMAPStoreAdapterSelectsMailboxState(t *testing.T) {
 	t.Parallel()
 
