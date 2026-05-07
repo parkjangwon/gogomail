@@ -974,6 +974,21 @@ paths:
           schema:
             type: string
             maxLength: 1024
+        - name: to
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: cc
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: bcc
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
         - name: subject
           in: query
           schema:

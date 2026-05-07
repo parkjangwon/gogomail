@@ -356,7 +356,10 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 
 func canUseSearchIDSource(query maildb.MessageSearchQuery) bool {
 	return strings.TrimSpace(query.Query) != "" &&
-		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance
+		normalizedSearchSort(query.Sort) == maildb.MessageSearchSortRelevance &&
+		strings.TrimSpace(query.To) == "" &&
+		strings.TrimSpace(query.Cc) == "" &&
+		strings.TrimSpace(query.Bcc) == ""
 }
 
 func normalizedSearchSort(sort string) string {
@@ -375,6 +378,9 @@ func normalizeMessageSearchQuery(query maildb.MessageSearchQuery) maildb.Message
 	query.Query = strings.TrimSpace(query.Query)
 	query.FolderID = strings.TrimSpace(query.FolderID)
 	query.From = strings.TrimSpace(query.From)
+	query.To = strings.TrimSpace(query.To)
+	query.Cc = strings.TrimSpace(query.Cc)
+	query.Bcc = strings.TrimSpace(query.Bcc)
 	query.Subject = strings.TrimSpace(query.Subject)
 	if sort := normalizedSearchSort(query.Sort); sort != "" {
 		query.Sort = sort
@@ -398,6 +404,9 @@ func validateMessageSearchQuery(query maildb.MessageSearchQuery) error {
 	for field, value := range map[string]string{
 		"q":       query.Query,
 		"from":    query.From,
+		"to":      query.To,
+		"cc":      query.Cc,
+		"bcc":     query.Bcc,
 		"subject": query.Subject,
 	} {
 		if strings.ContainsAny(value, "\r\n") {

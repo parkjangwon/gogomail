@@ -17,6 +17,9 @@ type MessageSearchQuery struct {
 	Query             string
 	FolderID          string
 	From              string
+	To                string
+	Cc                string
+	Bcc               string
 	Subject           string
 	HasAttachment     *bool
 	Limit             int
@@ -87,6 +90,9 @@ func (r *Repository) SearchMessages(ctx context.Context, query MessageSearchQuer
 		strings.TrimSpace(query.Query),
 		strings.TrimSpace(query.FolderID),
 		strings.TrimSpace(query.From),
+		strings.TrimSpace(query.To),
+		strings.TrimSpace(query.Cc),
+		strings.TrimSpace(query.Bcc),
 		strings.TrimSpace(query.Subject),
 		hasAttachment,
 		limit,
@@ -221,7 +227,7 @@ SELECT
   messages.has_attachment,
   COALESCE((flags->>'read')::boolean, false) AS read,
   COALESCE((flags->>'starred')::boolean, false) AS starred,
-  CASE WHEN $8::boolean AND $2 <> '' THEN
+  CASE WHEN $11::boolean AND $2 <> '' THEN
     ts_rank_cd(
       setweight(to_tsvector('simple', coalesce(messages.subject, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(messages.from_addr, '')), 'A') ||
@@ -230,13 +236,13 @@ SELECT
       search_input.tsq
     )
   ELSE NULL END AS search_rank,
-  CASE WHEN $9::boolean AND $2 <> '' THEN
+  CASE WHEN $12::boolean AND $2 <> '' THEN
     ts_headline('simple', coalesce(messages.subject, ''), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=1, MaxWords=12')
   ELSE NULL END AS subject_highlight,
-  CASE WHEN $9::boolean AND $2 <> '' THEN
+  CASE WHEN $12::boolean AND $2 <> '' THEN
     ts_headline('simple', coalesce(messages.from_name, '') || ' ' || coalesce(messages.from_addr, ''), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=2, MinWords=1, MaxWords=12')
   ELSE NULL END AS from_highlight,
-  CASE WHEN $9::boolean AND $2 <> '' THEN
+  CASE WHEN $12::boolean AND $2 <> '' THEN
     ts_headline('simple', left(coalesce(msd.body_text, ''), 5000), search_input.tsq, 'StartSel=<mark>, StopSel=</mark>, MaxFragments=3, MinWords=3, MaxWords=18')
   ELSE NULL END AS body_highlight
 FROM messages
@@ -259,8 +265,17 @@ WHERE messages.user_id = $1
   ))
   AND ($3 = '' OR folder_id::text = $3)
   AND ($4 = '' OR from_addr ILIKE '%' || $4 || '%')
-  AND ($5 = '' OR subject ILIKE '%' || $5 || '%')
-  AND ($6 = '' OR has_attachment = $6::boolean)
+  AND ($5 = '' OR (
+    to_addrs::text ILIKE '%' || $5 || '%'
+  ))
+  AND ($6 = '' OR (
+    cc_addrs::text ILIKE '%' || $6 || '%'
+  ))
+  AND ($7 = '' OR (
+    bcc_addrs::text ILIKE '%' || $7 || '%'
+  ))
+  AND ($8 = '' OR subject ILIKE '%' || $8 || '%')
+  AND ($9 = '' OR has_attachment = $9::boolean)
 )
 SELECT
   id,
@@ -279,7 +294,7 @@ SELECT
   body_highlight
 FROM ranked_messages
 ORDER BY ` + orderBy + `
-LIMIT $7`
+LIMIT $10`
 }
 
 func draftSearchSQL() string {
