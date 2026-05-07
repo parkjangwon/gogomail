@@ -12098,6 +12098,29 @@ func TestIMAPQuotedStringPreservesIdentitySpacing(t *testing.T) {
 	}
 }
 
+func TestIMAPEnvelopeBoundsMetadataStrings(t *testing.T) {
+	t.Parallel()
+
+	got := imapEnvelope(MessageSummary{
+		Envelope: Envelope{
+			Subject: strings.Repeat("x", maxIMAPBodyMetadataTextBytes+10),
+			From: []Address{{
+				Name:    strings.Repeat("n", maxIMAPBodyMetadataTextBytes+10),
+				Mailbox: strings.Repeat("m", maxIMAPBodyMetadataTextBytes+10),
+				Host:    strings.Repeat("h", maxIMAPBodyMetadataTextBytes+10),
+			}},
+		},
+	})
+	if strings.Contains(got, strings.Repeat("x", maxIMAPBodyMetadataTextBytes+1)) {
+		t.Fatalf("imapEnvelope did not bound subject: %q", got)
+	}
+	if strings.Contains(got, strings.Repeat("n", maxIMAPBodyMetadataTextBytes+1)) ||
+		strings.Contains(got, strings.Repeat("m", maxIMAPBodyMetadataTextBytes+1)) ||
+		strings.Contains(got, strings.Repeat("h", maxIMAPBodyMetadataTextBytes+1)) {
+		t.Fatalf("imapEnvelope did not bound address fields: %q", got)
+	}
+}
+
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	t.Parallel()
 

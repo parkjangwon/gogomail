@@ -375,6 +375,10 @@ checks.
 IMAP quoted-string response rendering now also forces invalid UTF-8 and
 non-ASCII runes to `?`, so ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and related
 quoted responses stay 7-bit safe while `UTF8=ACCEPT` is not advertised.
+IMAP ENVELOPE subject, message-id, in-reply-to, and address display/mailbox/
+host nstrings now share the bounded UTF-8-safe metadata text path before
+response quoting, preventing oversized backend metadata from inflating FETCH
+responses.
 IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting

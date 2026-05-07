@@ -6586,16 +6586,16 @@ func imapEnvelope(summary MessageSummary) string {
 		replyTo = envelope.From
 	}
 	return "(" + strings.Join([]string{
-		imapNString(imapEnvelopeDate(date)),
-		imapNString(envelope.Subject),
+		imapEnvelopeNString(imapEnvelopeDate(date)),
+		imapEnvelopeNString(envelope.Subject),
 		imapAddressList(envelope.From),
 		imapAddressList(sender),
 		imapAddressList(replyTo),
 		imapAddressList(envelope.To),
 		imapAddressList(envelope.Cc),
 		imapAddressList(envelope.Bcc),
-		imapNString(envelope.InReplyTo),
-		imapNString(envelope.MessageID),
+		imapEnvelopeNString(envelope.InReplyTo),
+		imapEnvelopeNString(envelope.MessageID),
 	}, " ") + ")"
 }
 
@@ -6613,13 +6613,21 @@ func imapAddressList(addresses []Address) string {
 	parts := make([]string, 0, len(addresses))
 	for _, address := range addresses {
 		parts = append(parts, "("+strings.Join([]string{
-			imapNString(address.Name),
+			imapEnvelopeNString(address.Name),
 			"NIL",
-			imapNString(address.Mailbox),
-			imapNString(address.Host),
+			imapEnvelopeNString(address.Mailbox),
+			imapEnvelopeNString(address.Host),
 		}, " ")+")")
 	}
 	return "(" + strings.Join(parts, " ") + ")"
+}
+
+func imapEnvelopeNString(value string) string {
+	value = imapBodyMetadataText(value)
+	if value == "" {
+		return "NIL"
+	}
+	return imapQuotedString(value)
 }
 
 func imapNString(value string) string {

@@ -2394,6 +2394,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and related
   response strings 7-bit safe until an explicit IMAP UTF-8 extension is
   advertised.
+- IMAP ENVELOPE subject, message-id, in-reply-to, and address display/mailbox/
+  host nstrings now use the same bounded UTF-8-safe metadata text path before
+  response quoting, so oversized backend metadata cannot amplify FETCH
+  responses.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
   `CHARSET UTF-8` prefixes and returns an RFC-shaped `[BADCHARSET]` response
   for unsupported search charsets.
