@@ -1731,9 +1731,10 @@ Current state:
 - `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag separately
   from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose that flag
   through `FLAGS`, `DELETED`, and `UNDELETED`.
-- `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning no
-  recent/new matches while durable recent-state semantics remain deferred and
-  treating active messages as old.
+- `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW` against
+  per-message recentness. `NEW` matches messages that are both recent and
+  unseen, while `OLD` matches non-recent messages, keeping RFC-shaped search
+  behavior available when a backend can expose recent state.
 - `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria with
   validated keyword atoms. The existing webmail `forwarded` state now maps to
   an IMAP `$Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and

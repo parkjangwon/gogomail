@@ -2218,9 +2218,10 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
   separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
   that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
-- IMAP `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW`, returning
-  no recent/new matches while durable recent-state semantics remain deferred and
-  treating active messages as old.
+- IMAP `SEARCH`/`UID SEARCH` now supports `RECENT`, `OLD`, and `NEW` through
+  `MessageSummary.Recent`: `RECENT` matches recent messages, `NEW` matches
+  recent unseen messages, and `OLD` matches non-recent messages. Backends that
+  do not expose recentness keep the zero-value old behavior.
 - IMAP `SEARCH`/`UID SEARCH` now supports `KEYWORD` and `UNKEYWORD` criteria
   with validated keyword atoms, returning no custom-keyword matches until
   durable user keyword storage exists and treating active messages as

@@ -3489,10 +3489,12 @@ func imapMessageMatchesFlagSearch(summary MessageSummary, criterion string) bool
 		return summary.Flags.Deleted
 	case "UNDELETED":
 		return !summary.Flags.Deleted
-	case "RECENT", "NEW":
-		return false
+	case "RECENT":
+		return summary.Recent
+	case "NEW":
+		return summary.Recent && !summary.Flags.Read
 	case "OLD":
-		return true
+		return !summary.Recent
 	default:
 		return false
 	}

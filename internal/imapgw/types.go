@@ -37,6 +37,7 @@ type MessageSummary struct {
 	SequenceNumber uint32
 	Envelope       Envelope
 	Flags          MessageFlags
+	Recent         bool
 	InternalDate   time.Time
 	Size           int64
 	ModSeq         uint64

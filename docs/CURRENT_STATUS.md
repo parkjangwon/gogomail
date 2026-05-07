@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 ListObjectsV2 KeyCount hardening)
+Last updated: 2026-05-07 (updated after IMAP RECENT/NEW/OLD search hardening)
 
 ## Current phase
 
@@ -2765,9 +2765,10 @@ The platform hardening sprint completed the following:
 - IMAP `STORE`/`UID STORE` can persist the IMAP-specific `\Deleted` flag
   separately from gogomail's soft-delete status, and `FETCH`/`SEARCH` expose
   that flag through `FLAGS`, `DELETED`, and `UNDELETED`.
-- IMAP `SEARCH`/`UID SEARCH` supports `RECENT`, `OLD`, and `NEW`, returning no
-  recent/new matches while durable recent-state semantics remain deferred and
-  treating active messages as old.
+- IMAP `SEARCH`/`UID SEARCH` supports `RECENT`, `OLD`, and `NEW` against the
+  `MessageSummary.Recent` boundary. `NEW` now means recent and unseen, while
+  `OLD` means not recent, preserving RFC-shaped semantics for backends that can
+  expose per-session recentness and keeping legacy zero-value summaries old.
 - IMAP `SEARCH`/`UID SEARCH` supports `KEYWORD` and `UNKEYWORD` criteria with
   validated keyword atoms, and the webmail `forwarded` state is exposed as an
   IMAP `$Forwarded` keyword across `FETCH FLAGS`, `SEARCH KEYWORD`, and

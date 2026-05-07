@@ -9060,6 +9060,68 @@ func TestServerHandlesSearchAfterSelect(t *testing.T) {
 	}
 }
 
+func TestServerSearchesRecentOldAndNewMessages(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: recentSearchBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	for i := 0; i < 7; i++ {
+		if _, err := reader.ReadString('\n'); err != nil {
+			t.Fatalf("read select response: %v", err)
+		}
+	}
+	if _, err := client.Write([]byte("a3 SEARCH RECENT\r\na4 SEARCH NEW\r\na5 SEARCH OLD\r\na6 UID SEARCH RECENT\r\na7 UID SEARCH NEW\r\na8 UID SEARCH OLD\r\na9 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write recent search commands: %v", err)
+	}
+	want := []string{
+		"* SEARCH 1 2\r\n",
+		"a3 OK SEARCH completed\r\n",
+		"* SEARCH 2\r\n",
+		"a4 OK SEARCH completed\r\n",
+		"* SEARCH 3\r\n",
+		"a5 OK SEARCH completed\r\n",
+		"* SEARCH 7 8\r\n",
+		"a6 OK UID SEARCH completed\r\n",
+		"* SEARCH 8\r\n",
+		"a7 OK UID SEARCH completed\r\n",
+		"* SEARCH 9\r\n",
+		"a8 OK UID SEARCH completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a9 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read recent search response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("recent search response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestParseIMAPSearchModSeqRejectsPaddedEntryTypes(t *testing.T) {
 	t.Parallel()
 
@@ -13556,6 +13618,25 @@ func (flagSearchBackend) ListMessages(context.Context, ListMessagesRequest) ([]M
 	messages, _ := (fakeBackend{}).ListMessages(context.Background(), ListMessagesRequest{})
 	messages[0].Flags.Forwarded = true
 	return messages, nil
+}
+
+type recentSearchBackend struct {
+	fakeBackend
+}
+
+func (recentSearchBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 10, Messages: 3, Recent: 2},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
+	}, nil
+}
+
+func (recentSearchBackend) ListMessages(context.Context, ListMessagesRequest) ([]MessageSummary, error) {
+	return []MessageSummary{
+		{ID: "message-7", UID: 7, SequenceNumber: 1, Recent: true, Flags: MessageFlags{Read: true}},
+		{ID: "message-8", UID: 8, SequenceNumber: 2, Recent: true},
+		{ID: "message-9", UID: 9, SequenceNumber: 3},
+	}, nil
 }
 
 type threadBackend struct {
