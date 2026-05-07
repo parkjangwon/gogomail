@@ -209,6 +209,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` simple standard metadata such as `Prefix` and
   `StorageClass` now rejects nested XML before unmarshalling, while structured
   AWS fields such as `Owner` remain accepted.
+- S3-compatible `ListObjectsV2` simple root metadata now rejects duplicate
+  standard elements such as `<KeyCount>` or `<Prefix>`, and validates
+  `KeyCount` as an unsigned decimal matching the raw returned `<Contents>`
+  count before list pages reach pagination, cleanup, Drive, or reconciliation
+  callers.
 - S3-compatible `ListObjectsV2` object `LastModified` metadata now rejects
   non-empty malformed or whitespace-padded timestamp values instead of
   silently exposing zero timestamps to cleanup, Drive, or reconciliation

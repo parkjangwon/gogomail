@@ -4215,6 +4215,11 @@ Implementation order:
       permission checks. Duplicate, aliased, lower-case, or unknown backend
       metadata is collapsed into the supported RFC-shaped flag set, keeping
       client-visible mailbox metadata and mutation permissions aligned.
+1492. S3-compatible `ListObjectsV2` root metadata now rejects duplicate simple
+      standard elements such as `<KeyCount>` or `<Prefix>`, and validates
+      `KeyCount` as an unsigned decimal that exactly matches the returned
+      `<Contents>` count before pagination, cleanup, Drive, or reconciliation
+      callers trust the provider page.
 
 ## Deferred until backend contracts stabilize
 

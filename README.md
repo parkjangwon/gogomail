@@ -101,8 +101,9 @@ Recent release-readiness work also includes:
   `ListObjectsV2`/`CopyObject` success XML accepts only namespace-free or AWS
   S3 namespaces plus required bounded copy ETags, timestamp metadata, and
   known core/standard list metadata elements, rejecting foreign-namespace
-  standard list metadata and nested XML inside simple core/standard provider
-  metadata fields, while standard S3 error XML, including duplicate, nested,
+  standard list metadata, duplicate simple root metadata, inconsistent
+  `KeyCount`, and nested XML inside simple core/standard provider metadata
+  fields, while standard S3 error XML, including duplicate, nested,
   or otherwise ambiguous safe error fields, and
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested
   `CopyObjectResult` embedded error bodies, is streamed into bounded one-line

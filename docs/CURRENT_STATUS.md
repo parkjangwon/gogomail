@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP raw THREAD algorithm hardening)
+Last updated: 2026-05-07 (updated after S3 ListObjectsV2 KeyCount hardening)
 
 ## Current phase
 
@@ -233,6 +233,11 @@ per-object `<Key>`, `<Size>`, `<ETag>`, or `<LastModified>` elements before XML
 unmarshalling can collapse conflicting provider values into one listed object.
 Nested child elements inside those simple object metadata fields are also
 rejected before list results reach cleanup, Drive, or reconciliation callers.
+S3-compatible `ListObjectsV2` root metadata now rejects duplicate simple
+standard elements such as `<KeyCount>` or `<Prefix>`, and validates
+`KeyCount` as an unsigned decimal that exactly matches the raw returned
+`<Contents>` count before pagination, cleanup, Drive, or reconciliation logic
+trusts the provider page.
 `storage.DeletePrefix` now revalidates every listed object against the
 requested canonical prefix before deletion, returning a structured out-of-scope
 listing error after preserving completed progress if a backend returns sibling
