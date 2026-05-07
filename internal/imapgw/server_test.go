@@ -12282,6 +12282,23 @@ func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	}
 }
 
+func TestIMAPDateMonthCanonicalizationIsASCIIOnly(t *testing.T) {
+	t.Parallel()
+
+	if day, ok := parseIMAPSearchDate("05-MAY-2026"); !ok || day.Year() != 2026 || day.Month() != time.May || day.Day() != 5 {
+		t.Fatalf("parseIMAPSearchDate uppercase month = %s, %v; want canonical May", day, ok)
+	}
+	if _, ok := parseIMAPSearchDate("05-Máy-2026"); ok {
+		t.Fatal("parseIMAPSearchDate accepted non-ASCII date-month")
+	}
+	if _, ok := parseIMAPAppendDate("05-Máy-2026 12:34:56 +0900"); ok {
+		t.Fatal("parseIMAPAppendDate accepted non-ASCII date-month")
+	}
+	if _, ok := imapCanonicalMonth("máy"); ok {
+		t.Fatal("imapCanonicalMonth accepted non-ASCII month token")
+	}
+}
+
 func TestDecodeSASLPlainRejectsMalformedResponses(t *testing.T) {
 	t.Parallel()
 
