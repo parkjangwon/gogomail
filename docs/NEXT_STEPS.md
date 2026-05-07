@@ -1969,6 +1969,10 @@ Current state:
   non-ASCII runes with `?`, keeping ENVELOPE, BODYSTRUCTURE, STATUS, LIST, and
   related quoted strings 7-bit safe until an explicit IMAP UTF-8 extension is
   advertised.
+- IMAP ENVELOPE subject, message-id, in-reply-to, and address display/mailbox/
+  host nstrings now share the bounded UTF-8-safe metadata text path before
+  response quoting, preventing oversized backend metadata from inflating FETCH
+  responses.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response
