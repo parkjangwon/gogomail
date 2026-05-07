@@ -4203,6 +4203,10 @@ Implementation order:
       duplicated, preventing ambiguous provider XML from becoming concatenated
       status strings while still recognizing the response as structured S3
       error XML.
+1489. S3-compatible standard `<Error>` diagnostics now also suppress previews
+      when those safe fields contain nested XML, preserving structured-error
+      recognition without flattening ambiguous provider-specific elements into
+      operator-facing status strings.
 
 ## Deferred until backend contracts stabilize
 
