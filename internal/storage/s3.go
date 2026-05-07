@@ -2002,6 +2002,10 @@ func validateS3ListControlCardinality(data []byte) error {
 			if rootDepth > 0 {
 				rootDepth--
 			}
+		case xml.CharData:
+			if inContent && rootDepth == 3 && structuredObjectMetadata != "" && len(bytes.TrimSpace(token)) > 0 {
+				return fmt.Errorf("list s3 objects: object %s metadata contains direct text", structuredObjectMetadata)
+			}
 		}
 	}
 }
