@@ -250,6 +250,10 @@ Current state:
   contract.
 - S3-compatible `ListObjectsV2` object `ChecksumType` metadata now shares the
   same namespace and simple-field nested-XML boundary as `ChecksumAlgorithm`.
+- S3-compatible `ListObjectsV2` object metadata rejects duplicate
+  single-value `StorageClass`, `ChecksumType`, `Owner`, and `RestoreStatus`
+  fields before XML unmarshalling can collapse ambiguous provider metadata,
+  while preserving repeated `ChecksumAlgorithm` compatibility.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
   returned `<Delimiter>` elements, including blank elements, and
   `<CommonPrefixes>` cannot be treated as ordinary object pages because

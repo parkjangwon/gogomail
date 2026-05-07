@@ -4328,6 +4328,11 @@ Implementation order:
       unmarshalling can collapse provider ambiguity, while preserving repeated
       `ChecksumAlgorithm` compatibility for providers that report multiple
       checksum algorithms.
+1510. S3-compatible `ListObjectsV2` object metadata now also rejects duplicate
+      single-value structured `Owner` and `RestoreStatus` elements while still
+      accepting one structured value from namespace-free or AWS S3 namespaced
+      responses, keeping compatible-provider metadata deterministic without
+      breaking repeated `ChecksumAlgorithm` responses.
 
 ## Deferred until backend contracts stabilize
 

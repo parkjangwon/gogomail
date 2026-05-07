@@ -439,10 +439,11 @@ list metadata such as `Name`, `Prefix`, `KeyCount`, `MaxKeys`, `StorageClass`,
 `ChecksumAlgorithm`, `ChecksumType`, and `Owner` is accepted when namespace-free
 or AWS-namespaced, but the same fields from foreign namespaces fail closed.
 Simple standard metadata such as `Prefix`, `StorageClass`, and `ChecksumType`
-cannot contain nested XML, while structured AWS fields such as `Owner` remain
-compatible. Duplicate single-value `StorageClass` and `ChecksumType` object
-metadata is rejected, while repeated `ChecksumAlgorithm` metadata remains
-compatible for providers that report multiple checksum algorithms. Returned
+cannot contain nested XML, while structured AWS fields such as `Owner` and
+`RestoreStatus` remain compatible. Duplicate single-value `StorageClass`,
+`ChecksumType`, `Owner`, and `RestoreStatus` object metadata is rejected,
+while repeated `ChecksumAlgorithm` metadata remains compatible for providers
+that report multiple checksum algorithms. Returned
 keys are normalized back to gogomail object paths under the configured storage
 prefix, so callers do not
 see deployment-specific bucket prefixes. The mapped gogomail path is then

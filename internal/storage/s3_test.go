@@ -1892,6 +1892,7 @@ func TestS3StoreListAcceptsStandardAWSMetadata(t *testing.T) {
     <ChecksumAlgorithm>SHA256</ChecksumAlgorithm>
     <ChecksumType>FULL_OBJECT</ChecksumType>
     <Owner><ID>owner-1</ID><DisplayName>gogomail</DisplayName></Owner>
+    <RestoreStatus><IsRestoreInProgress>false</IsRestoreInProgress></RestoreStatus>
   </Contents>
 </ListBucketResult>`)),
 			},
@@ -2016,6 +2017,16 @@ func TestS3StoreListRejectsDuplicateSingleValueStandardObjectMetadata(t *testing
 			name: "checksum_type",
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><ChecksumType>FULL_OBJECT</ChecksumType><ChecksumType>COMPOSITE</ChecksumType></Contents></ListBucketResult>`,
 			want: "duplicate object ChecksumType value",
+		},
+		{
+			name: "owner",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><Owner><ID>owner-1</ID></Owner><Owner><ID>owner-2</ID></Owner></Contents></ListBucketResult>`,
+			want: "duplicate object Owner value",
+		},
+		{
+			name: "restore_status",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><RestoreStatus><IsRestoreInProgress>false</IsRestoreInProgress></RestoreStatus><RestoreStatus><IsRestoreInProgress>true</IsRestoreInProgress></RestoreStatus></Contents></ListBucketResult>`,
+			want: "duplicate object RestoreStatus value",
 		},
 	} {
 		tc := tc

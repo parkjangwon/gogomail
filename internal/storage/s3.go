@@ -1777,7 +1777,9 @@ func validateS3ListControlCardinality(data []byte) error {
 	var etagSeen bool
 	var lastModifiedSeen bool
 	var storageClassSeen bool
+	var ownerSeen bool
 	var checksumTypeSeen bool
+	var restoreStatusSeen bool
 	var simpleObjectMetadata string
 	var simpleStandardMetadata string
 	rootSimpleSeen := make(map[string]struct{})
@@ -1821,7 +1823,9 @@ func validateS3ListControlCardinality(data []byte) error {
 					etagSeen = false
 					lastModifiedSeen = false
 					storageClassSeen = false
+					ownerSeen = false
 					checksumTypeSeen = false
+					restoreStatusSeen = false
 					simpleObjectMetadata = ""
 					simpleStandardMetadata = ""
 				case "CommonPrefixes":
@@ -1889,11 +1893,21 @@ func validateS3ListControlCardinality(data []byte) error {
 							return fmt.Errorf("list s3 objects: duplicate object StorageClass value")
 						}
 						storageClassSeen = true
+					case "Owner":
+						if ownerSeen {
+							return fmt.Errorf("list s3 objects: duplicate object Owner value")
+						}
+						ownerSeen = true
 					case "ChecksumType":
 						if checksumTypeSeen {
 							return fmt.Errorf("list s3 objects: duplicate object ChecksumType value")
 						}
 						checksumTypeSeen = true
+					case "RestoreStatus":
+						if restoreStatusSeen {
+							return fmt.Errorf("list s3 objects: duplicate object RestoreStatus value")
+						}
+						restoreStatusSeen = true
 					}
 					if s3ListStandardSimpleObjectMetadata(token.Name.Local) {
 						simpleStandardMetadata = token.Name.Local
