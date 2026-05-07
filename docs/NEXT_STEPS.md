@@ -107,6 +107,9 @@ Current state:
   `ListObjectsV2`, and `CopyObjectResult`, rejecting malformed quote nesting,
   whitespace padding, controls, and non-ASCII provider values before they reach
   shared storage callers.
+- S3-compatible `HEAD`/`Stat` content-type metadata now must be a valid ASCII
+  MIME media type with optional parameters, preventing malformed provider MIME
+  metadata from reaching Drive, cleanup, or reconciliation callers.
 - Shared storage `DeletePrefix` now fails closed when a truncated `List` page
   omits its continuation cursor, before deleting any listed object, and S3
   coverage verifies that continuation tokens are carried into the next

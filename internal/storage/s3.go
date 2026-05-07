@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -976,10 +977,20 @@ func s3ETagOpaqueValueValid(value string) bool {
 
 func parseS3StatContentType(value string) (string, error) {
 	contentType := cleanS3MetadataValue(value, maxS3ContentTypeBytes)
-	if strings.TrimSpace(value) != "" && contentType == "" {
+	if strings.TrimSpace(value) != "" && (contentType == "" || !s3ContentTypeValueValid(contentType)) {
 		return "", fmt.Errorf("stat s3 object: invalid content-type")
 	}
 	return contentType, nil
+}
+
+func s3ContentTypeValueValid(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] < 0x20 || value[i] >= 0x7f {
+			return false
+		}
+	}
+	mediaType, _, err := mime.ParseMediaType(value)
+	return err == nil && strings.Contains(mediaType, "/")
 }
 
 func parseS3StatETag(value string) (string, error) {

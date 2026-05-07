@@ -1098,6 +1098,37 @@ func TestS3StoreStatAllowsLastModifiedOWS(t *testing.T) {
 	}
 }
 
+func TestS3StoreStatAllowsMIMEContentTypeParameters(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Type": []string{"text/plain; charset=utf-8"}},
+				ContentLength: 5,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+	info, err := store.Stat(context.Background(), "messages/msg-1.eml")
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if info.ContentType != "text/plain; charset=utf-8" {
+		t.Fatalf("ContentType = %q, want text/plain parameter value", info.ContentType)
+	}
+}
+
 func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -1114,6 +1145,21 @@ func TestS3StoreStatRejectsInvalidMetadata(t *testing.T) {
 		{
 			name:   "blank content type",
 			header: http.Header{"Content-Type": []string{"  "}},
+			want:   "invalid content-type",
+		},
+		{
+			name:   "content type without slash",
+			header: http.Header{"Content-Type": []string{"message"}},
+			want:   "invalid content-type",
+		},
+		{
+			name:   "content type with non ascii subtype",
+			header: http.Header{"Content-Type": []string{"message/" + "\uD0DC"}},
+			want:   "invalid content-type",
+		},
+		{
+			name:   "content type with control byte",
+			header: http.Header{"Content-Type": []string{"message/rfc822\x1f"}},
 			want:   "invalid content-type",
 		},
 		{

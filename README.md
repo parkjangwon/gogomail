@@ -93,8 +93,8 @@ Recent release-readiness work also includes:
   range `Content-Range` headers fail closed, `HEAD`/`Stat` rejects malformed
   or contradictory
   `Content-Length` metadata, blank or malformed present `Last-Modified`,
-  `ETag`, and `Content-Type` metadata including duplicate `Last-Modified`,
-  `ETag`, and `Content-Type` headers, truncated
+  `ETag`, and RFC-shaped ASCII `Content-Type` metadata including duplicate
+  `Last-Modified`, `ETag`, and `Content-Type` headers, truncated
   pages require canonical continuation state, malformed list entries fail
   closed, malformed quoted, double-quoted, whitespace-padded, non-ASCII, or
   otherwise non-printable S3 ETags fail closed across headers and XML success
