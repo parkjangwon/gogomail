@@ -777,6 +777,7 @@ func TestS3StoreGetRejectsInvalidContentLength(t *testing.T) {
 		{name: "trailing space", header: "5 ", contentLength: -1, want: "invalid content length"},
 		{name: "header invalid with populated content length", header: " 5", contentLength: 5, want: "invalid content length"},
 		{name: "header mismatch", header: "5", contentLength: 4, want: "content-length mismatch"},
+		{name: "header mismatch with zero content length", header: "5", contentLength: 0, want: "content-length mismatch"},
 	}
 	for _, tc := range tests {
 		tc := tc
@@ -856,9 +857,10 @@ func TestS3StoreGetReportsTruncatedContentLengthBody(t *testing.T) {
 		ForcePathStyle:  true,
 		HTTPClient: &http.Client{Transport: staticRoundTripper{
 			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Header:     http.Header{"Content-Length": []string{"5"}},
-				Body:       io.NopCloser(strings.NewReader("hel")),
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"5"}},
+				ContentLength: -1,
+				Body:          io.NopCloser(strings.NewReader("hel")),
 			},
 		}},
 	})

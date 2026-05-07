@@ -43,6 +43,9 @@ Current state:
   `x-amz-request-charged` metadata now treat blank or whitespace-only values as
   invalid provider metadata before rejecting nonblank requester-pays mode as
   unsupported across adapter success paths.
+- S3-compatible full-object `GET` now rejects contradictory `Content-Length`
+  metadata even when Go's normalized response length is known to be zero,
+  preserving exact provider length identity before exposing a bounded reader.
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.

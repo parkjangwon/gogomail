@@ -4411,6 +4411,10 @@ Implementation order:
       whitespace-only `x-amz-request-charged` values as invalid provider
       metadata before rejecting nonblank requester-pays mode as unsupported
       across adapter success paths.
+1521. S3-compatible full-object `GET` now rejects `Content-Length` mismatches
+      even when Go's normalized response length is known to be zero, keeping
+      exact body-length identity aligned between raw provider headers and the
+      shared bounded-reader contract.
 
 ## Deferred until backend contracts stabilize
 
