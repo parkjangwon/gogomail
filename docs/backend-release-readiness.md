@@ -1740,7 +1740,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   being accepted as an empty list page.
 - S3-compatible `ListObjectsV2` key decoding preserves provider-returned object
   key identity by rejecting keys that would require leading/trailing whitespace
-  trimming before prefix/object-path validation.
+  trimming before prefix/object-path validation. Non-canonical mapped keys,
+  including encoded separators, now fail closed instead of being silently
+  skipped once they map inside the configured storage prefix.
 - S3-compatible `ListObjectsV2` object-size validation now runs after provider
   keys map back to the requested canonical gogomail prefix, so out-of-scope
   bucket entries are skipped before their metadata can fail a valid listing.

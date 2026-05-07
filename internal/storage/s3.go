@@ -393,7 +393,10 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		if strings.TrimSpace(item.Key) == "" {
 			return ObjectListPage{}, fmt.Errorf("list s3 objects: object key is required")
 		}
-		objectPath, ok := s.objectPathFromKey(item.Key)
+		objectPath, ok, err := s.objectPathFromKey(item.Key)
+		if err != nil {
+			return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid object key: %w", err)
+		}
 		if !ok {
 			continue
 		}
@@ -998,25 +1001,25 @@ func (s *S3Store) key(objectPath string) string {
 	return s.prefix + "/" + objectPath
 }
 
-func (s *S3Store) objectPathFromKey(key string) (string, bool) {
+func (s *S3Store) objectPathFromKey(key string) (string, bool, error) {
 	if strings.TrimSpace(key) != key {
-		return "", false
+		return "", false, fmt.Errorf("storage key must not contain leading or trailing whitespace")
 	}
 	if s.prefix != "" {
 		prefix := s.prefix + "/"
 		if !strings.HasPrefix(key, prefix) {
-			return "", false
+			return "", false, nil
 		}
 		key = strings.TrimPrefix(key, prefix)
 	}
 	if strings.TrimSpace(key) != key {
-		return "", false
+		return "", false, fmt.Errorf("storage key must not contain leading or trailing whitespace")
 	}
 	objectPath, err := validateS3ObjectPath(key)
 	if err != nil {
-		return "", false
+		return "", false, err
 	}
-	return objectPath, true
+	return objectPath, true, nil
 }
 
 func (s *S3Store) copySource(objectPath string) string {
