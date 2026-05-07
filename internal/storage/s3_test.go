@@ -4108,6 +4108,15 @@ func TestS3StoreSuppressesAmbiguousXMLStatusErrorPreview(t *testing.T) {
 	}
 }
 
+func TestS3StoreSuppressesNestedXMLStatusErrorPreviewFields(t *testing.T) {
+	t.Parallel()
+
+	preview := s3ErrorBodyPreview(strings.NewReader(`<Error><Code><Value>SlowDown</Value></Code><Message>retry</Message></Error>`), 512)
+	if preview != "" {
+		t.Fatalf("preview = %q, want empty preview for nested S3 error fields", preview)
+	}
+}
+
 func TestS3StoreBoundsXMLStatusErrorPreviewFields(t *testing.T) {
 	t.Parallel()
 

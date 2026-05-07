@@ -1438,7 +1438,7 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 		}
 		response, err := parseS3XMLErrorElement(decoder, start)
 		if err != nil {
-			if _, ok := err.(s3DuplicateErrorFieldError); ok {
+			if _, ok := err.(s3AmbiguousErrorFieldError); ok {
 				return s3CopyResponse{}, true
 			}
 		}
@@ -1446,10 +1446,10 @@ func parseS3XMLError(data []byte) (s3CopyResponse, bool) {
 	}
 }
 
-type s3DuplicateErrorFieldError string
+type s3AmbiguousErrorFieldError string
 
-func (err s3DuplicateErrorFieldError) Error() string {
-	return "duplicate " + string(err)
+func (err s3AmbiguousErrorFieldError) Error() string {
+	return string(err)
 }
 
 func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3CopyResponse, error) {
@@ -1467,12 +1467,15 @@ func parseS3XMLErrorElement(decoder *xml.Decoder, root xml.StartElement) (s3Copy
 		}
 		switch token := token.(type) {
 		case xml.StartElement:
+			if depth == 2 && current != "" {
+				return response, s3AmbiguousErrorFieldError("nested " + current)
+			}
 			depth++
 			if depth == 2 && s3XMLNamespaceAllowed(token.Name.Space) {
 				switch token.Name.Local {
 				case "Code", "Message", "RequestId", "HostId":
 					if _, ok := seenFields[token.Name.Local]; ok {
-						return response, s3DuplicateErrorFieldError(token.Name.Local)
+						return response, s3AmbiguousErrorFieldError("duplicate " + token.Name.Local)
 					}
 					seenFields[token.Name.Local] = struct{}{}
 					current = token.Name.Local
@@ -1854,6 +1857,9 @@ func validateS3CopyResultShape(data []byte) error {
 				simpleCopyMetadata = ""
 				response, err := parseS3XMLErrorElement(decoder, token)
 				if err != nil {
+					if _, ok := err.(s3AmbiguousErrorFieldError); ok {
+						return fmt.Errorf("copy s3 object: embedded error")
+					}
 					return fmt.Errorf("decode s3 copy response: %w", err)
 				}
 				preview := s3ErrorPreview(response.Code, response.Message, s3ErrorDetail("request-id", response.RequestID), s3ErrorDetail("host-id", response.HostID))

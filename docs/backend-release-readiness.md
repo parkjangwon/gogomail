@@ -2753,8 +2753,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   bodies into bounded one-line UTF-8 previews, preventing CR/LF-bearing object
   store errors from leaking into readiness or storage operation diagnostics.
 - S3-compatible standard `<Error>` diagnostics suppress previews when safe
-  fields such as `Code`, `Message`, `RequestId`, or `HostId` are duplicated,
-  avoiding ambiguous concatenated provider status strings.
+  fields such as `Code`, `Message`, `RequestId`, or `HostId` are duplicated
+  or contain nested XML, avoiding ambiguous provider status strings.
 - S3-compatible `ObjectInfo` metadata from `HEAD` and `ListObjectsV2` also
   stays bounded to safe single-line UTF-8 before it reaches logs, Drive,
   lifecycle, or reconciliation code.

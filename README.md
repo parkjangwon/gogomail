@@ -102,8 +102,8 @@ Recent release-readiness work also includes:
   S3 namespaces plus required bounded copy ETags, timestamp metadata, and
   known core/standard list metadata elements, rejecting foreign-namespace
   standard list metadata and nested XML inside simple core/standard provider
-  metadata fields, while standard S3 error XML, including duplicate or
-  otherwise ambiguous safe error fields, and
+  metadata fields, while standard S3 error XML, including duplicate, nested,
+  or otherwise ambiguous safe error fields, and
   `200 OK` `ListObjectsV2`, successful `PutObject`/`DeleteObject`, and nested
   `CopyObjectResult` embedded error bodies, is streamed into bounded one-line
   diagnostics with request-id and host-id context when supplied, even when the
