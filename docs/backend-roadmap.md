@@ -4471,6 +4471,10 @@ Implementation order:
       mailbox UUIDs fail closed instead of being silently promoted to canonical
       folder IDs across list, fetch, store, copy, move, expunge, append-store,
       backfill, mailbox state, and message UID assignment boundaries.
+1535. Service-level IMAP UID backfill now preserves mailbox IDs after
+      validation before repository delegation, aligning operator/bootstrap UID
+      assignment with the same exact mailbox identity and audit semantics as
+      client-visible IMAP paths.
 
 ## Deferred until backend contracts stabilize
 

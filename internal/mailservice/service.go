@@ -681,7 +681,6 @@ func (s *Service) BackfillIMAPMailboxUIDs(ctx context.Context, userID string, ma
 		return nil, fmt.Errorf("imap uid backfill repository is required")
 	}
 	userID = strings.TrimSpace(userID)
-	mailboxID = strings.TrimSpace(mailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}

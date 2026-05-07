@@ -193,7 +193,8 @@ Recent release-readiness work also includes:
   mailbox IDs before repository delegation, plus flag/copy/move/expunge
   mutation paths preserving decoded mailbox IDs through repository and event
   boundaries, with PostgreSQL UID/message operations rejecting padded mailbox
-  UUIDs instead of trimming them into canonical IDs,
+  UUIDs instead of trimming them into canonical IDs, and admin UID backfill
+  preserving exact mailbox IDs before repository/audit handling,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,

@@ -1255,7 +1255,7 @@ func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
 	}
 	service := New(repo, nil)
 
-	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), " user-1 ", " inbox ", 500)
+	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), " user-1 ", "inbox", 500)
 	if err != nil {
 		t.Fatalf("BackfillIMAPMailboxUIDs returned error: %v", err)
 	}
@@ -1264,6 +1264,26 @@ func TestBackfillIMAPMailboxUIDsDelegatesToRepository(t *testing.T) {
 	}
 	if repo.lastBackfillUserID != "user-1" || repo.lastBackfillMailboxID != "inbox" {
 		t.Fatalf("backfill ids = %q/%q", repo.lastBackfillUserID, repo.lastBackfillMailboxID)
+	}
+}
+
+func TestBackfillIMAPMailboxUIDsPreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		backfilledIMAPUIDs: []maildb.IMAPMessageUID{{MessageID: "msg-1", MailboxID: " spaced-inbox ", UID: 12, ModSeq: 2}},
+	}
+	service := New(repo, nil)
+
+	got, err := service.BackfillIMAPMailboxUIDs(context.Background(), " user-1 ", " INBOX ", 50)
+	if err != nil {
+		t.Fatalf("BackfillIMAPMailboxUIDs returned error: %v", err)
+	}
+	if len(got) != 1 || got[0].MailboxID != " spaced-inbox " {
+		t.Fatalf("backfill = %#v, want spaced mailbox result", got)
+	}
+	if repo.lastBackfillUserID != "user-1" || repo.lastBackfillMailboxID != " INBOX " {
+		t.Fatalf("backfill ids = %q/%q, want user-1/spaced INBOX", repo.lastBackfillUserID, repo.lastBackfillMailboxID)
 	}
 }
 
