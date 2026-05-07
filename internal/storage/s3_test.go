@@ -1636,6 +1636,11 @@ func TestS3StoreListRequiresListBucketResult(t *testing.T) {
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><x:StorageClass xmlns:x="urn:not-s3">STANDARD</x:StorageClass></Contents></ListBucketResult>`,
 			want: "unexpected response namespace",
 		},
+		{
+			name: "unexpected_standard_checksum_type_namespace",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><x:ChecksumType xmlns:x="urn:not-s3">FULL_OBJECT</x:ChecksumType></Contents></ListBucketResult>`,
+			want: "unexpected response namespace",
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -1723,6 +1728,8 @@ func TestS3StoreListAcceptsStandardAWSMetadata(t *testing.T) {
     <Key>messages/msg-1.eml</Key>
     <Size>5</Size>
     <StorageClass>STANDARD</StorageClass>
+    <ChecksumAlgorithm>SHA256</ChecksumAlgorithm>
+    <ChecksumType>FULL_OBJECT</ChecksumType>
     <Owner><ID>owner-1</ID><DisplayName>gogomail</DisplayName></Owner>
   </Contents>
 </ListBucketResult>`)),
@@ -1794,6 +1801,11 @@ func TestS3StoreListRejectsNestedStandardSimpleMetadata(t *testing.T) {
 			name: "object_storage_class",
 			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><StorageClass><Value>STANDARD</Value></StorageClass></Contents></ListBucketResult>`,
 			want: `metadata StorageClass contains nested element "Value"`,
+		},
+		{
+			name: "object_checksum_type",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>messages/msg-1.eml</Key><Size>5</Size><ChecksumType><Value>FULL_OBJECT</Value></ChecksumType></Contents></ListBucketResult>`,
+			want: `metadata ChecksumType contains nested element "Value"`,
 		},
 	} {
 		tc := tc
@@ -2154,30 +2166,57 @@ func TestS3StoreListRejectsUnexpectedStartAfter(t *testing.T) {
 func TestS3StoreListRejectsUnexpectedRequestCharged(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewS3Store(S3Options{
-		Endpoint:        "http://localhost:9000",
-		Region:          "us-east-1",
-		Bucket:          "gogomail",
-		AccessKeyID:     "access",
-		SecretAccessKey: "secret",
-		ForcePathStyle:  true,
-		HTTPClient: &http.Client{Transport: staticRoundTripper{
-			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
-  <IsTruncated>false</IsTruncated>
-  <RequestCharged>requester</RequestCharged>
-</ListBucketResult>`)),
-			},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("NewS3Store returned error: %v", err)
-	}
+	for _, tc := range []struct {
+		name   string
+		header http.Header
+		want   string
+	}{
+		{
+			name:   "requester",
+			header: http.Header{"X-Amz-Request-Charged": []string{"requester"}},
+			want:   "unsupported request-charged header",
+		},
+		{
+			name:   "blank",
+			header: http.Header{"X-Amz-Request-Charged": []string{""}},
+			want:   "invalid request-charged header",
+		},
+		{
+			name:   "duplicate",
+			header: http.Header{"X-Amz-Request-Charged": []string{"requester", "requester"}},
+			want:   "duplicate request-charged header",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
-	if err == nil || !strings.Contains(err.Error(), "unsupported RequestCharged value") {
-		t.Fatalf("List err = %v, want unsupported RequestCharged rejection", err)
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     tc.header,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 

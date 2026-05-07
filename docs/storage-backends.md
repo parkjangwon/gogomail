@@ -435,10 +435,11 @@ inside the result use the same namespace boundary, so foreign-namespace
 pagination, `Contents`, key, size, ETag, or timestamp elements are rejected
 before XML unmarshalling can collapse them into provider metadata. Standard S3
 list metadata such as `Name`, `Prefix`, `KeyCount`, `MaxKeys`, `StorageClass`,
-and `Owner` is accepted when namespace-free or AWS-namespaced, but the same
-fields from foreign namespaces fail closed. Simple standard metadata such as
-`Prefix` and `StorageClass` cannot contain nested XML, while structured AWS
-fields such as `Owner` remain compatible. Returned keys are normalized back to
+`ChecksumAlgorithm`, `ChecksumType`, and `Owner` is accepted when namespace-free
+or AWS-namespaced, but the same fields from foreign namespaces fail closed.
+Simple standard metadata such as `Prefix`, `StorageClass`, and `ChecksumType`
+cannot contain nested XML, while structured AWS fields such as `Owner` remain
+compatible. Returned keys are normalized back to
 gogomail object paths under the configured storage prefix, so callers do not
 see deployment-specific bucket prefixes. The mapped gogomail path is then
 rechecked against the requested logical prefix, preserving local/NFS
@@ -454,11 +455,12 @@ exposed as zero timestamps. Per-object `Key`, `Size`, `ETag`, and
 rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
 turn structured provider data into apparently valid object metadata. Provider
-responses that include `StartAfter` or `RequestCharged` fail closed because
-the adapter does not request start-after pagination or requester-pays listing.
-Delimiter grouping is likewise unsupported: non-empty `Delimiter` or
-`CommonPrefixes` responses are rejected instead of being treated as ordinary
-object pages. Responses that return more matching objects than requested are rejected,
+responses that include `StartAfter` fail closed, and requester-pays response
+headers are rejected, because the adapter does not request start-after
+pagination or requester-pays listing. Delimiter grouping is likewise
+unsupported: non-empty `Delimiter` or `CommonPrefixes` responses are rejected
+instead of being treated as ordinary object pages. Responses that return more
+matching objects than requested are rejected,
 keeping local/NFS and
 S3-compatible pagination semantics aligned. Returned keys containing encoded
 separators or leading/trailing whitespace fail closed once they map inside the

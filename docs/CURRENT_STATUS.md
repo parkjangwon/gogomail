@@ -204,9 +204,11 @@ semantics aligned with the signed list request.
 S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected when
 present because gogomail uses continuation-token pagination and does not
 request start-after list mode.
-S3-compatible `ListObjectsV2` root `RequestCharged` metadata is now also
+S3-compatible `ListObjectsV2` requester-pays response headers are now also
 rejected when present because requester-pays list mode is not part of the
-current storage adapter contract.
+current storage adapter contract. Standard object checksum metadata now treats
+`ChecksumType` like `ChecksumAlgorithm`: namespace-free and AWS-namespaced
+values are compatible, but foreign namespaces and nested XML fail closed.
 S3-compatible `ListObjectsV2` delimiter grouping controls are now rejected:
 gogomail never requests delimiter-based grouping, so non-empty `Delimiter` or
 `CommonPrefixes` responses cannot be mistaken for ordinary object pages.

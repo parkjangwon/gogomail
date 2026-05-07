@@ -4265,11 +4265,16 @@ Implementation order:
       when present. gogomail uses continuation-token pagination rather than
       start-after list mode, so provider responses cannot silently shift cursor
       semantics for Drive, lifecycle cleanup, or reconciliation callers.
-1503. S3-compatible `ListObjectsV2` root `RequestCharged` metadata is now
+1503. S3-compatible `ListObjectsV2` requester-pays response headers are now
       rejected when present. The current storage adapter does not request
       requester-pays list mode, so billing-mode response metadata cannot cross
       the portable local/NFS, MinIO, AWS S3, and compatible-gateway boundary as
       if it were an ordinary list page.
+1504. S3-compatible `ListObjectsV2` object `ChecksumType` metadata now shares
+      the same namespace and simple-field nested-XML boundary as
+      `ChecksumAlgorithm`, preserving compatibility with newer AWS S3 checksum
+      list metadata without letting foreign-namespace or structured checksum
+      fields cross the storage boundary.
 
 ## Deferred until backend contracts stabilize
 

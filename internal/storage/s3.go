@@ -366,6 +366,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if resp.StatusCode != http.StatusOK {
 		return ObjectListPage{}, s3StatusError("list", resp)
 	}
+	if err := validateS3ListRequestChargedHeader(resp); err != nil {
+		return ObjectListPage{}, err
+	}
 	result, err := decodeS3ListObjects(resp.Body)
 	if err != nil {
 		return ObjectListPage{}, err
@@ -389,9 +392,6 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 		return ObjectListPage{}, err
 	}
 	if err := validateS3ListStartAfter(result.StartAfter); err != nil {
-		return ObjectListPage{}, err
-	}
-	if err := validateS3ListRequestCharged(result.RequestCharged); err != nil {
 		return ObjectListPage{}, err
 	}
 	if err := validateS3ListDelimiter(result.Delimiter); err != nil {
@@ -854,11 +854,18 @@ func validateS3ListStartAfter(value string) error {
 	return fmt.Errorf("list s3 objects: unsupported StartAfter value")
 }
 
-func validateS3ListRequestCharged(value string) error {
-	if value == "" {
+func validateS3ListRequestChargedHeader(resp *http.Response) error {
+	value, present, ok := s3ResponseOptionalSingleHeader(resp, "x-amz-request-charged")
+	if !ok {
+		return fmt.Errorf("list s3 objects: duplicate request-charged header")
+	}
+	if !present {
 		return nil
 	}
-	return fmt.Errorf("list s3 objects: unsupported RequestCharged value")
+	if value == "" {
+		return fmt.Errorf("list s3 objects: invalid request-charged header")
+	}
+	return fmt.Errorf("list s3 objects: unsupported request-charged header")
 }
 
 func validateS3ListDelimiter(value string) error {
@@ -1659,7 +1666,6 @@ type s3ListObjectsResult struct {
 	Prefix                string                `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
 	StartAfter            string                `xml:"StartAfter"`
-	RequestCharged        string                `xml:"RequestCharged"`
 	EncodingType          string                `xml:"EncodingType"`
 	KeyCount              string                `xml:"KeyCount"`
 	MaxKeys               string                `xml:"MaxKeys"`
@@ -1860,7 +1866,7 @@ func validateS3ListControlCardinality(data []byte) error {
 
 func s3ListStandardSimpleRootMetadata(local string) bool {
 	switch local {
-	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "RequestCharged", "EncodingType":
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
 		return true
 	default:
 		return false
@@ -1869,7 +1875,7 @@ func s3ListStandardSimpleRootMetadata(local string) bool {
 
 func s3ListStandardRootMetadata(local string) bool {
 	switch local {
-	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "RequestCharged", "EncodingType":
+	case "Name", "Prefix", "Delimiter", "MaxKeys", "KeyCount", "ContinuationToken", "StartAfter", "EncodingType":
 		return true
 	default:
 		return false
@@ -1878,7 +1884,7 @@ func s3ListStandardRootMetadata(local string) bool {
 
 func s3ListStandardSimpleObjectMetadata(local string) bool {
 	switch local {
-	case "StorageClass", "ChecksumAlgorithm":
+	case "StorageClass", "ChecksumAlgorithm", "ChecksumType":
 		return true
 	default:
 		return false
@@ -1887,7 +1893,7 @@ func s3ListStandardSimpleObjectMetadata(local string) bool {
 
 func s3ListStandardObjectMetadata(local string) bool {
 	switch local {
-	case "StorageClass", "Owner", "ChecksumAlgorithm", "RestoreStatus":
+	case "StorageClass", "Owner", "ChecksumAlgorithm", "ChecksumType", "RestoreStatus":
 		return true
 	default:
 		return false
