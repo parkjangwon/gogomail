@@ -1735,7 +1735,7 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 }
 
 func imapMailboxNameIsINBOX(name string) bool {
-	return strings.EqualFold(strings.TrimSpace(name), "INBOX")
+	return strings.EqualFold(name, "INBOX")
 }
 
 func imapMailboxNotFoundResponse(tag string, command string) string {

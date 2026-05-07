@@ -4432,6 +4432,10 @@ Implementation order:
       or trailing whitespace padding before MIME parsing, so preview/download
       MIME decisions cannot depend on adapter-side normalization of provider
       metadata.
+1526. IMAP mailbox mutation special handling now treats only exact
+      case-insensitive `INBOX` as the RFC special namespace, preserving quoted
+      mailbox names with real leading or trailing spaces such as `" INBOX "`
+      as ordinary backend-bound folder names.
 
 ## Deferred until backend contracts stabilize
 
