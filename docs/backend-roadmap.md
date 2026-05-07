@@ -4475,6 +4475,10 @@ Implementation order:
       validation before repository delegation, aligning operator/bootstrap UID
       assignment with the same exact mailbox identity and audit semantics as
       client-visible IMAP paths.
+1536. S3-compatible success responses with `x-amz-request-charged` metadata
+      now classify whitespace-padded values as invalid provider metadata,
+      keeping requester-pays detection exact before rejecting exact nonblank
+      requester-pays mode as unsupported across adapter success paths.
 
 ## Deferred until backend contracts stabilize
 

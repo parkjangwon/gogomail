@@ -111,8 +111,8 @@ Recent release-readiness work also includes:
   nonblank exact `Prefix` and bucket `Name` echoes when present, any returned
   `EncodingType`, missing-request or mismatched returned `ContinuationToken`
   echoes when present, and any returned `StartAfter`, requester-pays response
-  headers across S3 adapter success paths, including blank or whitespace-only
-  values, any delimiter/grouping controls, and duplicate single-value object
+  headers across S3 adapter success paths, including blank, whitespace-only,
+  or whitespace-padded values, any delimiter/grouping controls, and duplicate single-value object
   metadata such as `StorageClass`, `ChecksumType`,
   `Owner`, and `RestoreStatus`, direct text inside structured `Owner` or
   `RestoreStatus` metadata, plus nested XML inside simple core/standard

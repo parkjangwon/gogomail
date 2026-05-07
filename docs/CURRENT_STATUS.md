@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP backfill mailbox identity hardening)
+Last updated: 2026-05-07 (updated after S3 requester-pays metadata hardening)
 
 ## Current phase
 
@@ -33,9 +33,9 @@ structured standard object metadata wrappers such as `Owner` and
 This keeps provider compatibility for standard AWS metadata without allowing
 ignored wrapper text to cross the shared storage boundary.
 S3-compatible success responses that include requester-pays
-`x-amz-request-charged` metadata now classify blank or whitespace-only values
-as invalid provider metadata before rejecting nonblank requester-pays mode as
-unsupported.
+`x-amz-request-charged` metadata now classify blank, whitespace-only, or
+whitespace-padded values as invalid provider metadata before rejecting exact
+nonblank requester-pays mode as unsupported.
 S3-compatible full-object `GET` now rejects contradictory `Content-Length`
 metadata even when Go's normalized response length is known to be zero, keeping
 empty-object and non-empty-object identity from depending on which metadata
