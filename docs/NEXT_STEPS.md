@@ -1973,6 +1973,8 @@ Current state:
   host nstrings now share the bounded UTF-8-safe metadata text path before
   response quoting, preventing oversized backend metadata from inflating FETCH
   responses.
+- IMAP ENVELOPE address lists are capped before rendering, preventing abnormal
+  recipient fan-out metadata from amplifying FETCH responses.
 - `STARTTLS` is now supported on plaintext IMAP listeners with configured TLS,
   and is advertised only before the connection upgrades.
 - `STARTTLS` completion now includes an updated `[CAPABILITY ...]` response

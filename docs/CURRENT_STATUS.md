@@ -379,6 +379,8 @@ IMAP ENVELOPE subject, message-id, in-reply-to, and address display/mailbox/
 host nstrings now share the bounded UTF-8-safe metadata text path before
 response quoting, preventing oversized backend metadata from inflating FETCH
 responses.
+ENVELOPE address lists are also capped before rendering, preventing abnormal
+recipient fan-out metadata from amplifying IMAP FETCH responses.
 IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting

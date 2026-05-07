@@ -4326,7 +4326,9 @@ Implementation order:
 1508a. IMAP ENVELOPE subject, message-id, in-reply-to, and address display/
        mailbox/host nstrings now use the bounded UTF-8-safe metadata text path
        before response quoting, preventing oversized backend metadata from
-       inflating FETCH responses.
+       inflating FETCH responses. ENVELOPE address lists are also capped before
+       rendering so abnormal recipient fan-out metadata cannot amplify FETCH
+       responses.
 1509. S3-compatible `ListObjectsV2` object metadata now rejects duplicate
       single-value `StorageClass` and `ChecksumType` elements before XML
       unmarshalling can collapse provider ambiguity, while preserving repeated
