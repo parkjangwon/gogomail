@@ -100,7 +100,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now enforce
   RFC 3501 `number` spelling, rejecting leading-zero values such as
   `SEARCH LARGER 020` before command execution while preserving valid `0`
-  size atoms.
+  size atoms and rejecting values above the unsigned 32-bit IMAP `number`
+  range.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.
@@ -1607,8 +1608,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   list, while missing or unused literal payloads remain syntax errors.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
   RFC 3501 `number` atoms, rejecting signed values such as `+20` and
-  leading-zero values such as `020` instead of silently treating them as valid
-  sizes.
+  leading-zero values such as `020`, plus values above the unsigned 32-bit
+  IMAP `number` range, instead of silently treating them as valid sizes.
 - IMAP mod-sequence numeric inputs require digit-only atoms across
   `SEARCH MODSEQ`, `FETCH CHANGEDSINCE`, and conditional `STORE`
   `UNCHANGEDSINCE`, rejecting signed values such as `+17`. Positive

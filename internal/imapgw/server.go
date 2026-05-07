@@ -3641,11 +3641,11 @@ func parseIMAPSearchSize(value string) (int64, bool) {
 	if !imapNumberAtomRFC3501(value) {
 		return 0, false
 	}
-	size, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || size < 0 {
+	size, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
 		return 0, false
 	}
-	return size, true
+	return int64(size), true
 }
 
 func parseIMAPSearchModSeq(criteria []string) (uint64, int, bool) {

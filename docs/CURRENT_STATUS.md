@@ -353,7 +353,8 @@ expansion instead of trimming them into valid sequence sets.
 IMAP `SEARCH` and `UID SEARCH` `LARGER`/`SMALLER` size criteria now use the
 same RFC 3501 `number` grammar boundary, preserving valid zero-size searches
 while rejecting leading-zero values such as `SEARCH LARGER 020` before command
-execution.
+execution. Size numbers are also capped to IMAP's unsigned 32-bit `number`
+range, so `4294967296` is rejected before search evaluation.
 IMAP CONDSTORE parsing now separates positive RFC `mod-sequence-value` inputs
 from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0` and
 `FETCH (CHANGEDSINCE 0)` are rejected as malformed, while
@@ -1888,7 +1889,8 @@ owner/resource target without scanning unrelated audit history.
   `NIL` and parenthesized field/value-list validation.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria now require
   digit-only RFC 3501 number atoms, rejecting signed values such as `+20`
-  instead of silently treating them as valid sizes.
+  and values above the unsigned 32-bit IMAP `number` range instead of silently
+  treating them as valid sizes.
 - IMAP `SEARCH`/`UID SEARCH` size and MODSEQ numeric criteria now reject
   whitespace-padded numeric strings such as `LARGER " 20 "` or
   `MODSEQ " 20 "` instead of trimming them into valid number atoms.

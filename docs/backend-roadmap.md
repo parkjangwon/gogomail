@@ -3796,7 +3796,8 @@ Implementation order:
 1380. IMAP `SEARCH` and `UID SEARCH` size criteria now enforce RFC 3501
       `number` spelling for `LARGER` and `SMALLER`, rejecting leading-zero
       values such as `SEARCH LARGER 020` before command execution while
-      preserving valid zero-size searches.
+      preserving valid zero-size searches and rejecting values above the
+      unsigned 32-bit IMAP `number` range.
 1381. IMAP CONDSTORE parsing now separates positive RFC `mod-sequence-value`
       inputs from zero-allowed `mod-sequence-valzer` inputs: `SEARCH MODSEQ 0`
       and `FETCH (CHANGEDSINCE 0)` are rejected, while

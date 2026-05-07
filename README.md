@@ -151,7 +151,7 @@ Recent release-readiness work also includes:
   numeric grammar checks including rejection of quoted/literal-framed set
   values in selected-state FETCH/STORE/COPY/MOVE/UID mutation commands and
   SEARCH/SORT/THREAD set operands,
-  partial windows, SEARCH size criteria,
+  partial windows, bounded SEARCH size criteria,
   atom-only search numeric operands, atom-only search charset/date/keyword
   controls,
   RFC-shaped `HEADER.FIELDS` field-list grammar, CONDSTORE zero-boundary
