@@ -104,10 +104,10 @@ Recent release-readiness work also includes:
   standard list metadata, duplicate simple root metadata, inconsistent
   `KeyCount`, present-but-blank `KeyCount`/`MaxKeys`, malformed or
   under-counting `MaxKeys`, mismatched returned
-  `Prefix` and bucket `Name` echoes when present, unexpected `EncodingType`
-  values, mismatched returned `ContinuationToken` echoes when present, and
-  unexpected `StartAfter`, requester-pays response headers across S3 adapter
-  success paths, delimiter/grouping controls, and nested XML inside simple
+  `Prefix` and bucket `Name` echoes when present, any returned
+  `EncodingType`, mismatched returned `ContinuationToken` echoes when present,
+  and any returned `StartAfter`, requester-pays response headers across S3
+  adapter success paths, delimiter/grouping controls, and nested XML inside simple
   core/standard provider metadata fields, while standard S3 error XML,
   including duplicate, nested,
   or otherwise ambiguous safe error fields, and

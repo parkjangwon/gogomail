@@ -457,7 +457,8 @@ metadata fields also reject nested child elements before XML unmarshalling can
 turn structured provider data into apparently valid object metadata. Optional
 root `KeyCount` and `MaxKeys` metadata may be omitted, but present values must
 be exact unsigned decimal digits and cannot be blank. Provider
-responses that include `StartAfter` fail closed, and requester-pays response
+responses that include `StartAfter` or `EncodingType`, even as blank elements,
+fail closed, and requester-pays response
 headers are rejected across success paths, because the adapter does not request
 start-after pagination or requester-pays mode. Delimiter grouping is likewise
 unsupported: non-empty `Delimiter` or `CommonPrefixes` responses are rejected

@@ -200,14 +200,15 @@ S3-compatible `ListObjectsV2` root `Name` metadata, when present, must also
 match the configured bucket name, preventing wrong-bucket compatible-provider
 responses from looking like ordinary empty or successful list pages.
 S3-compatible `ListObjectsV2` root `EncodingType` metadata is now rejected when
-present, because gogomail does not request URL-encoded key mode and should not
-treat encoded provider keys as ordinary object paths.
+present, including blank elements, because gogomail does not request
+URL-encoded key mode and should not treat encoded provider keys as ordinary
+object paths.
 S3-compatible `ListObjectsV2` root `ContinuationToken` metadata, when present,
 must now match the requested cursor exactly, keeping page diagnostics and retry
 semantics aligned with the signed list request.
 S3-compatible `ListObjectsV2` root `StartAfter` metadata is now rejected when
-present because gogomail uses continuation-token pagination and does not
-request start-after list mode.
+present, including blank elements, because gogomail uses continuation-token
+pagination and does not request start-after list mode.
 S3-compatible requester-pays success response headers are now rejected across
 the adapter because requester-pays mode is not part of the current portable
 storage contract. Standard object checksum metadata now treats

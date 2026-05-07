@@ -230,12 +230,13 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   match the configured bucket name so wrong-bucket compatible-provider
   responses fail closed.
 - S3-compatible `ListObjectsV2` root `<EncodingType>` metadata is rejected
-  when present because gogomail does not request encoded-key list mode.
+  when present, including blank elements, because gogomail does not request
+  encoded-key list mode.
 - S3-compatible `ListObjectsV2` root `<ContinuationToken>` metadata, when
   present, must match the requested cursor exactly.
 - S3-compatible `ListObjectsV2` root `<StartAfter>` metadata is rejected when
-  present because gogomail does not request start-after list mode and relies on
-  continuation-token pagination.
+  present, including blank elements, because gogomail does not request
+  start-after list mode and relies on continuation-token pagination.
 - S3-compatible requester-pays success response headers are rejected across the
   adapter because requester-pays mode is outside the current portable storage
   contract.
