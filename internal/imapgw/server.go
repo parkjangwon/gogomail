@@ -6668,7 +6668,8 @@ func imapMIMEPartBody(part messageparse.MIMEPart, fallbackSize int64, extended b
 		if len(childBodies) == 0 {
 			return imapBodyFromHeaderExtended(MessageSummary{Size: fallbackSize}, nil, extended)
 		}
-		childBodies = append(childBodies, imapQuotedString(imapMIMESubtype(part.MediaSubtype)))
+		_, mediaSubtype := imapMIMETypePair("MULTIPART", part.MediaSubtype, "MULTIPART", "MIXED")
+		childBodies = append(childBodies, imapQuotedString(mediaSubtype))
 		if extended {
 			childBodies = append(childBodies, imapMIMEBodyParameterList(part.Params), "NIL", "NIL", "NIL")
 		}
@@ -6678,8 +6679,7 @@ func imapMIMEPartBody(part messageparse.MIMEPart, fallbackSize int64, extended b
 }
 
 func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, extended bool) string {
-	mediaType := imapMIMEToken(part.MediaType, "TEXT")
-	mediaSubtype := imapMIMEToken(part.MediaSubtype, "PLAIN")
+	mediaType, mediaSubtype := imapMIMETypePair(part.MediaType, part.MediaSubtype, "TEXT", "PLAIN")
 	size := part.Size
 	if size == 0 && fallbackSize > 0 {
 		size = fallbackSize
@@ -6934,8 +6934,13 @@ func imapMIMETokenValid(value string) bool {
 	return true
 }
 
-func imapMIMESubtype(value string) string {
-	return imapMIMEToken(value, "MIXED")
+func imapMIMETypePair(mediaType string, mediaSubtype string, fallbackType string, fallbackSubtype string) (string, string) {
+	mediaType = strings.ToUpper(strings.TrimSpace(mediaType))
+	mediaSubtype = strings.ToUpper(strings.TrimSpace(mediaSubtype))
+	if !imapMIMETokenValid(mediaType) || !imapMIMETokenValid(mediaSubtype) {
+		return fallbackType, fallbackSubtype
+	}
+	return mediaType, mediaSubtype
 }
 
 func maxInt64(a int64, b int64) int64 {
