@@ -3620,6 +3620,11 @@ func parseIMAPSearchDate(value string) (time.Time, bool) {
 	if strings.TrimSpace(value) != value {
 		return time.Time{}, false
 	}
+	var ok bool
+	value, ok = imapCanonicalDateMonth(value)
+	if !ok {
+		return time.Time{}, false
+	}
 	for _, layout := range []string{"02-Jan-2006", "2-Jan-2006"} {
 		day, err := time.Parse(layout, value)
 		if err == nil {
@@ -4432,6 +4437,11 @@ func parseIMAPAppendDate(value string) (time.Time, bool) {
 	} else if value[0] < '0' || value[0] > '9' || value[1] < '0' || value[1] > '9' {
 		return time.Time{}, false
 	}
+	var ok bool
+	value, ok = imapCanonicalDateMonth(value)
+	if !ok {
+		return time.Time{}, false
+	}
 	for _, layout := range []string{
 		"_2-Jan-2006 15:04:05 -0700",
 		"02-Jan-2006 15:04:05 -0700",
@@ -4442,6 +4452,57 @@ func parseIMAPAppendDate(value string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+func imapCanonicalDateMonth(value string) (string, bool) {
+	firstDash := strings.IndexByte(value, '-')
+	if firstDash < 1 || len(value) < firstDash+5 {
+		return "", false
+	}
+	monthStart := firstDash + 1
+	monthEnd := monthStart + 3
+	if value[monthEnd] != '-' {
+		return "", false
+	}
+	month, ok := imapCanonicalMonth(value[monthStart:monthEnd])
+	if !ok {
+		return "", false
+	}
+	if value[monthStart:monthEnd] == month {
+		return value, true
+	}
+	return value[:monthStart] + month + value[monthEnd:], true
+}
+
+func imapCanonicalMonth(value string) (string, bool) {
+	switch strings.ToLower(value) {
+	case "jan":
+		return "Jan", true
+	case "feb":
+		return "Feb", true
+	case "mar":
+		return "Mar", true
+	case "apr":
+		return "Apr", true
+	case "may":
+		return "May", true
+	case "jun":
+		return "Jun", true
+	case "jul":
+		return "Jul", true
+	case "aug":
+		return "Aug", true
+	case "sep":
+		return "Sep", true
+	case "oct":
+		return "Oct", true
+	case "nov":
+		return "Nov", true
+	case "dec":
+		return "Dec", true
+	default:
+		return "", false
+	}
 }
 
 func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnState) (bool, error) {

@@ -1675,7 +1675,9 @@ Implementation order:
 942. IMAP `SEARCH` and `UID SEARCH` date criteria now accept one-digit
      date-day atoms such as `SINCE 5-May-2026` while preserving malformed quote
      rejection for broken atoms such as `SINCE 05-May-2026"`, improving client
-     compatibility without weakening syntax guardrails.
+     compatibility without weakening syntax guardrails. Search date-month atoms
+     are canonicalized case-insensitively before parsing, so common uppercase or
+     lowercase month literals remain compatible.
 943. IMAP `SEARCH RETURN (SAVE)` now clears the selected-session `$` result
      when the save-requested search fails with tagged `NO`, while tagged `BAD`
      searches leave the previous result untouched, aligning the advertised
@@ -3057,7 +3059,8 @@ Implementation order:
       field-combination semantics for cache validation and write guards.
 1217. IMAP `APPEND` internaldate parsing now enforces RFC 3501 fixed-width
       `date-day-fixed` syntax, accepting zero-padded or space-padded days while
-      rejecting bare one-digit dates before backend append dispatch.
+      rejecting bare one-digit dates before backend append dispatch. Date-month
+      atoms are canonicalized case-insensitively before parsing.
 1218. S3-compatible `ListObjectsV2` result processing now validates object size
       only after a returned key maps to the requested canonical gogomail prefix,
       preserving the storage contract that out-of-scope bucket keys are hidden
