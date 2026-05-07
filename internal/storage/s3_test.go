@@ -2022,6 +2022,7 @@ func TestS3StoreListValidatesKeyCount(t *testing.T) {
 		keyCount string
 		want     string
 	}{
+		{name: "blank", keyCount: "", want: "invalid KeyCount value"},
 		{name: "signed", keyCount: "+1", want: "invalid KeyCount value"},
 		{name: "padded", keyCount: " 1 ", want: "invalid KeyCount value"},
 		{name: "mismatch", keyCount: "2", want: "KeyCount does not match contents"},
@@ -2070,6 +2071,7 @@ func TestS3StoreListValidatesMaxKeys(t *testing.T) {
 		limit   int
 		want    string
 	}{
+		{name: "blank", maxKeys: "", limit: 10, want: "invalid MaxKeys value"},
 		{name: "signed", maxKeys: "+1", limit: 10, want: "invalid MaxKeys value"},
 		{name: "padded", maxKeys: " 1 ", limit: 10, want: "invalid MaxKeys value"},
 		{name: "less_than_contents", maxKeys: "0", limit: 10, want: "MaxKeys is less than contents"},

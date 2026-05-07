@@ -188,6 +188,10 @@ S3-compatible `ListObjectsV2` root `MaxKeys` metadata now also uses the same
 exact unsigned decimal boundary and must not undercount returned `<Contents>`,
 preventing provider pages from hiding impossible page shapes behind plausible
 XML metadata while preserving AWS-compatible default `MaxKeys` echoes.
+S3-compatible `ListObjectsV2` root `KeyCount` and `MaxKeys` metadata now
+distinguish omission from present-but-blank elements: missing remains
+compatible, while blank values fail the same numeric boundary as malformed
+values.
 S3-compatible `ListObjectsV2` root `Prefix` metadata, when providers echo it,
 now must exactly match the signed provider prefix requested by gogomail,
 including any configured storage prefix, so diagnostics cannot depend on a

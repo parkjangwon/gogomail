@@ -102,7 +102,8 @@ Recent release-readiness work also includes:
   S3 namespaces plus required bounded copy ETags, timestamp metadata, and
   known core/standard list metadata elements, rejecting foreign-namespace
   standard list metadata, duplicate simple root metadata, inconsistent
-  `KeyCount`, malformed or under-counting `MaxKeys`, mismatched returned
+  `KeyCount`, present-but-blank `KeyCount`/`MaxKeys`, malformed or
+  under-counting `MaxKeys`, mismatched returned
   `Prefix` and bucket `Name` echoes when present, unexpected `EncodingType`
   values, mismatched returned `ContinuationToken` echoes when present, and
   unexpected `StartAfter`, requester-pays response headers across S3 adapter

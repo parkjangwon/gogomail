@@ -816,11 +816,11 @@ func parseS3ListObjectSize(value string) (int64, bool) {
 	return parseS3NonNegativeDecimal(value)
 }
 
-func validateS3ListKeyCount(value string, contents int) error {
-	if value == "" {
+func validateS3ListKeyCount(value *string, contents int) error {
+	if value == nil {
 		return nil
 	}
-	count, ok := parseS3NonNegativeDecimal(value)
+	count, ok := parseS3NonNegativeDecimal(*value)
 	if !ok {
 		return fmt.Errorf("list s3 objects: invalid KeyCount value")
 	}
@@ -830,11 +830,11 @@ func validateS3ListKeyCount(value string, contents int) error {
 	return nil
 }
 
-func validateS3ListMaxKeys(value string, contents int) error {
-	if value == "" {
+func validateS3ListMaxKeys(value *string, contents int) error {
+	if value == nil {
 		return nil
 	}
-	maxKeys, ok := parseS3NonNegativeDecimal(value)
+	maxKeys, ok := parseS3NonNegativeDecimal(*value)
 	if !ok {
 		return fmt.Errorf("list s3 objects: invalid MaxKeys value")
 	}
@@ -1701,8 +1701,8 @@ type s3ListObjectsResult struct {
 	Delimiter             string                `xml:"Delimiter"`
 	StartAfter            string                `xml:"StartAfter"`
 	EncodingType          string                `xml:"EncodingType"`
-	KeyCount              string                `xml:"KeyCount"`
-	MaxKeys               string                `xml:"MaxKeys"`
+	KeyCount              *string               `xml:"KeyCount"`
+	MaxKeys               *string               `xml:"MaxKeys"`
 	Contents              []s3ListObjectContent `xml:"Contents"`
 }
 
