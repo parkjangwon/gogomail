@@ -185,7 +185,8 @@ Recent release-readiness work also includes:
   mailbox names containing real leading or trailing spaces, and subscription
   canonicalization that preserves those spaces through service/repository
   `SUBSCRIBE`/`UNSUBSCRIBE` delegation plus live mailbox-event subscription
-  identity,
+  identity, while the service-backed `SELECT` adapter also preserves decoded
+  mailbox lookup identity before repository delegation,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,

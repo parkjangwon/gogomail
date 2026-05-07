@@ -554,7 +554,7 @@ func (s *Service) GetIMAPMailbox(ctx context.Context, userID imapgw.UserID, mail
 		return imapgw.Mailbox{}, fmt.Errorf("imap mailbox repository is required")
 	}
 	user := strings.TrimSpace(string(userID))
-	mailbox := strings.TrimSpace(string(mailboxID))
+	mailbox := string(mailboxID)
 	if err := validateServiceResourceID("user_id", user); err != nil {
 		return imapgw.Mailbox{}, err
 	}

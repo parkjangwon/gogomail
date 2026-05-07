@@ -1892,6 +1892,10 @@ Current state:
 - Live IMAP mailbox-event subscription now preserves decoded mailbox ID
   spacing after validation, keeping IDLE/NOOP update fan-out keyed to the exact
   selected mailbox identity instead of a trimmed variant.
+- Service-backed IMAP mailbox lookup for `SELECT`/`EXAMINE` now preserves the
+  decoded mailbox ID before repository delegation; the remaining PostgreSQL
+  mailbox-name compatibility lookup normalization should be reviewed as a
+  separate storage-semantic change before public IMAP readiness.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.

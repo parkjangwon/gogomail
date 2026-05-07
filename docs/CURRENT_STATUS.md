@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP mailbox event identity hardening)
+Last updated: 2026-05-07 (updated after IMAP mailbox lookup identity hardening)
 
 ## Current phase
 
@@ -2976,6 +2976,10 @@ The platform hardening sprint completed the following:
 - IMAP live mailbox-event subscription now preserves the decoded mailbox ID
   after validation, so selected-mailbox IDLE/NOOP fan-out keys do not collapse
   mailbox names that intentionally contain leading or trailing spaces.
+- IMAP service-backed mailbox lookup for `SELECT`/`EXAMINE` now preserves the
+  decoded mailbox ID after validation before repository delegation, keeping the
+  protocol adapter from trimming legitimate leading/trailing mailbox-name
+  characters at the service boundary.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.
