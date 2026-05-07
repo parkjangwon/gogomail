@@ -150,6 +150,15 @@ Current state:
   non-existent resources before reading request bodies, keeping timestamp
   preconditions fail-closed for native DAV clients that intended to update an
   existing `.ics` or `.vcf` representation.
+- CalDAV and CardDAV webmail REST APIs now expose JSON endpoints for webmail
+  frontend integration. `CalendarHandler` uses a `CalendarRepo` interface and
+  implements CRUD for calendars and calendar objects with `text/calendar` content
+  type support. `ContactHandler` uses a `ContactRepo` interface and implements
+  CRUD for address books and contacts with `text/vcard`, `application/vcard+xml`,
+  and `text/x-vcard` content type support. Both handlers support `user_id` query
+  authentication when `tokenManager` is nil, with `rejectUnknownQueryKeys`
+  allowing `user_id` in that mode. ETag-based conditional requests are supported.
+  Comprehensive unit tests with fake repository implementations provide coverage.
 - Drive JSON mutation handlers now have regression coverage for required
   `application/json` content type, unknown-field rejection, and trailing-token
   rejection before service dispatch.

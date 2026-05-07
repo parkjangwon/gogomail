@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-08 (updated after nil client guard defensive fixes)
+Last updated: 2026-05-08 (updated after CalDAV/CardDAV webmail REST API additions)
 
 ## Current phase
 
@@ -152,6 +152,21 @@ CalDAV and CardDAV object `PUT` now reject `If-Unmodified-Since` requests for
 missing objects with HTTP 412 before reading `.ics` or `.vcf` bodies, so
 state-changing WebDAV timestamp preconditions cannot accidentally create new
 resources when the client intended to guard an existing representation.
+CalDAV and CardDAV webmail REST APIs now expose calendar and address book
+operations through JSON endpoints for webmail frontend integration. The CalDAV
+`CalendarHandler` uses a `CalendarRepo` interface for testability and implements
+CRUD endpoints for calendars (`GET/POST/PATCH/DELETE /api/v1/calendars`) and
+calendar objects (`GET/PUT/DELETE /api/v1/calendars/{id}/objects/{name}`). The
+CardDAV `ContactHandler` uses a `ContactRepo` interface and implements CRUD
+endpoints for address books (`GET/POST/PATCH/DELETE /api/v1/addressbooks`) and
+contacts (`GET/PUT/DELETE /api/v1/addressbooks/{id}/contacts/{name}`). Both
+handlers support `user_id` query parameter authentication when `tokenManager`
+is nil, with `rejectUnknownQueryKeys` allowing `user_id` in that mode. Contact
+object endpoints accept `text/vcard`, `application/vcard+xml`, and `text/x-vcard`
+content types. Calendar object endpoints accept `text/calendar` and
+`application/ics`. ETag-based conditional requests are supported for object
+get/delete operations. All endpoints include comprehensive unit tests with
+fake repository implementations.
 IMAP `LOGIN` now treats an empty quoted password as syntactically valid and
 passes it to the backend authentication boundary, returning
 `[AUTHENTICATIONFAILED]` instead of a protocol `BAD` response when credentials

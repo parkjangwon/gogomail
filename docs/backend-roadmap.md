@@ -4484,9 +4484,23 @@ Target outcome:
       assignment with the same exact mailbox identity and audit semantics as
       client-visible IMAP paths.
 1536. S3-compatible success responses with `x-amz-request-charged` metadata
-      now classify whitespace-padded values as invalid provider metadata,
-      keeping requester-pays detection exact before rejecting exact nonblank
-      requester-pays mode as unsupported across adapter success paths.
+       now classify whitespace-padded values as invalid provider metadata,
+       keeping requester-pays detection exact before rejecting exact nonblank
+       requester-pays mode as unsupported across adapter success paths.
+1537. CalDAV webmail REST API now exposes JSON endpoints for calendar operations
+       through `CalendarHandler` with `CalendarRepo` interface, implementing CRUD
+       endpoints for calendars and calendar objects for webmail frontend integration.
+       Supports `text/calendar` and `application/ics` content types, ETag-based
+       conditional requests, and `user_id` query parameter authentication when
+       `tokenManager` is nil. Comprehensive unit tests with `fakeCalendarRepo`
+       provide coverage.
+1538. CardDAV webmail REST API now exposes JSON endpoints for address book
+       operations through `ContactHandler` with `ContactRepo` interface, implementing
+       CRUD endpoints for address books and contacts for webmail frontend integration.
+       Supports `text/vcard`, `application/vcard+xml`, and `text/x-vcard` content types,
+       ETag-based conditional requests, and `user_id` query parameter authentication
+       when `tokenManager` is nil. Comprehensive unit tests with `fakeContactRepo`
+       provide coverage.
 
 ## Deferred until backend contracts stabilize
 
