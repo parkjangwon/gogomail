@@ -844,11 +844,11 @@ func validateS3ListMaxKeys(value *string, contents int) error {
 	return nil
 }
 
-func validateS3ListPrefix(value string, expected string) error {
-	if value == "" {
+func validateS3ListPrefix(value *string, expected string) error {
+	if value == nil {
 		return nil
 	}
-	if value != expected {
+	if *value != expected {
 		return fmt.Errorf("list s3 objects: response Prefix does not match request")
 	}
 	return nil
@@ -1697,7 +1697,7 @@ type s3ListObjectsResult struct {
 	ContinuationToken     *string               `xml:"ContinuationToken"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Name                  *string               `xml:"Name"`
-	Prefix                string                `xml:"Prefix"`
+	Prefix                *string               `xml:"Prefix"`
 	Delimiter             string                `xml:"Delimiter"`
 	StartAfter            *string               `xml:"StartAfter"`
 	EncodingType          *string               `xml:"EncodingType"`

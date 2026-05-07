@@ -4263,10 +4263,10 @@ Implementation order:
        malformed values before list pages reach Drive, lifecycle cleanup, or
        reconciliation callers.
 1497. S3-compatible `ListObjectsV2` root `Prefix` metadata is now validated
-      when providers return it: the echo must exactly match the signed provider
-      prefix requested by gogomail, including configured storage prefixes,
-      while omitted `Prefix` echoes remain compatible. Object-key prefix
-      filtering remains the authoritative safety boundary.
+      when providers return it: the echo must be nonblank and exactly match the
+      signed provider prefix requested by gogomail, including configured
+      storage prefixes, while omitted `Prefix` echoes remain compatible.
+      Object-key prefix filtering remains the authoritative safety boundary.
 1498. S3-compatible `ListObjectsV2` root `Name` metadata is now validated when
       providers return it: the echoed bucket name must be nonblank and match
       the configured bucket, so wrong-bucket or blank-bucket compatible-provider

@@ -456,9 +456,9 @@ rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
 turn structured provider data into apparently valid object metadata. Optional
 root `KeyCount` and `MaxKeys` metadata may be omitted, but present values must
-be exact unsigned decimal digits and cannot be blank. Returned root `Name`
-metadata may be omitted, but present values must be nonblank and match the
-configured bucket name. Provider
+be exact unsigned decimal digits and cannot be blank. Returned root `Prefix`
+and `Name` metadata may be omitted, but present values must be nonblank and
+match the requested provider prefix or configured bucket name. Provider
 responses that include `StartAfter` or `EncodingType`, even as blank elements,
 fail closed, and requester-pays response
 headers are rejected across success paths, because the adapter does not request
