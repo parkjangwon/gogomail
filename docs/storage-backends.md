@@ -443,7 +443,8 @@ list metadata such as `Name`, `Prefix`, `KeyCount`, `MaxKeys`, `StorageClass`,
 or AWS-namespaced, but the same fields from foreign namespaces fail closed.
 Simple standard metadata such as `Prefix`, `StorageClass`, and `ChecksumType`
 cannot contain nested XML, while structured AWS fields such as `Owner` and
-`RestoreStatus` remain compatible. Duplicate single-value `StorageClass`,
+`RestoreStatus` remain compatible as long as nested children stay
+namespace-free or AWS S3-namespaced. Duplicate single-value `StorageClass`,
 `ChecksumType`, `Owner`, and `RestoreStatus` object metadata is rejected,
 while repeated `ChecksumAlgorithm` metadata remains compatible for providers
 that report multiple checksum algorithms. Returned
