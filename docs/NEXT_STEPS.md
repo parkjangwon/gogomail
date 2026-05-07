@@ -461,6 +461,9 @@ Current state:
 - Malformed MIME disposition tokens now render as `NIL` instead of falling back
   to `ATTACHMENT`, so IMAP BODYSTRUCTURE does not invent attachment semantics
   for invalid source metadata.
+- BODYSTRUCTURE content ID and description nstrings are now trimmed and
+  bounded before quoting, preventing oversized source metadata from inflating
+  IMAP fetch responses.
 - Authenticated selected-state commands validate malformed `FETCH`, `STORE`,
   `COPY`, `MOVE`, `SEARCH`, `SORT`, and `THREAD` syntax before returning
   selected-mailbox state errors for valid commands.

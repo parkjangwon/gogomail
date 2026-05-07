@@ -3803,6 +3803,7 @@ const (
 	maxIMAPSASLPlainEncodedBytes = ((maxIMAPSASLPlainDecodedBytes + 2) / 3) * 4
 	maxIMAPSearchLiteralBytes    = 1 << 20
 	maxIMAPCommandLiteralBytes   = 10 << 20
+	maxIMAPBodyMetadataTextBytes = 1024
 )
 
 func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {
@@ -6686,8 +6687,8 @@ func imapMIMESinglePartBody(part messageparse.MIMEPart, fallbackSize int64, exte
 		imapQuotedString(mediaType),
 		imapQuotedString(mediaSubtype),
 		imapMIMEBodyParameterList(part.Params),
-		imapNString(part.ContentID),
-		imapNString(part.Description),
+		imapBodyMetadataNString(part.ContentID),
+		imapBodyMetadataNString(part.Description),
 		imapQuotedString(imapMIMEToken(part.Encoding, "7BIT")),
 		fmt.Sprintf("%d", maxInt64(size, 0)),
 	}
@@ -6756,6 +6757,17 @@ func imapMIMEBodyDisposition(part messageparse.MIMEPart) string {
 	return "(" + imapQuotedString(disposition) + " " + imapMIMEBodyParameterList(part.DispositionParams) + ")"
 }
 
+func imapBodyMetadataNString(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "NIL"
+	}
+	if len(value) > maxIMAPBodyMetadataTextBytes {
+		value = value[:maxIMAPBodyMetadataTextBytes]
+	}
+	return imapQuotedString(value)
+}
+
 func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended bool) string {
 	metadata := imapBodyMetadataFromHeader(header)
 	lines := int64(0)
@@ -6767,8 +6779,8 @@ func imapBodyFromHeaderExtended(summary MessageSummary, header []byte, extended 
 		imapQuotedString(metadata.mediaType),
 		imapQuotedString(metadata.mediaSubtype),
 		imapBodyParameterList(metadata.params),
-		imapNString(metadata.id),
-		imapNString(metadata.description),
+		imapBodyMetadataNString(metadata.id),
+		imapBodyMetadataNString(metadata.description),
 		imapQuotedString(metadata.encoding),
 		fmt.Sprintf("%d", size),
 	}
