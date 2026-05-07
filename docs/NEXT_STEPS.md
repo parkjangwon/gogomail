@@ -978,8 +978,8 @@ Current state:
   now also reject non-whitespace non-error success bodies instead of accepting
   arbitrary provider text or XML as an empty standard success response.
   `PutObject` also validates optional success `ETag` headers when present,
-  rejecting duplicate or non-empty malformed identity metadata without
-  requiring providers to send the header.
+  rejecting blank, duplicate, or malformed identity metadata without requiring
+  providers to send the header.
 - Local/NFS and S3-compatible readiness probes read the verification object
   through a tight expected-size bound, preventing malformed or proxy-inflated
   probe responses from allocating unbounded memory during health checks.

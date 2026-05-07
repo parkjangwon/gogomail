@@ -341,8 +341,8 @@ shared storage contract as false success. Apart from whitespace, those success
 bodies must otherwise be empty; arbitrary provider text or XML is rejected
 instead of being treated as a standard empty success. If a provider includes an
 `ETag` header on a successful `PutObject`, gogomail requires that header to be
-singular and a bounded safe single-line value; providers that omit the optional
-header remain compatible.
+singular, nonblank, and a bounded safe single-line value; providers that omit
+the optional header remain compatible.
 S3-compatible `Stat` uses a signed `HEAD` request and returns the canonical
 object key, byte size, content type, ETag, and last-modified timestamp when the
 provider supplies them. Provider-returned content type and ETag metadata are

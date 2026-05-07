@@ -200,8 +200,8 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   completed object writes or cleanup. Non-whitespace non-error success bodies
   are also rejected instead of being accepted as empty standard successes.
   Optional `PutObject` success `ETag` headers are validated when present,
-  rejecting duplicates or non-empty malformed values while preserving
-  compatibility with providers that omit the header.
+  rejecting blank, duplicate, or malformed values while preserving compatibility
+  with providers that omit the header.
 - S3-compatible `ListObjectsV2` response XML now accepts namespace-free or AWS
   S3 namespace `ListBucketResult` roots only, rejecting unexpected namespaces
   before list metadata reaches pagination, cleanup, or Drive callers.
