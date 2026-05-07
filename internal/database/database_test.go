@@ -93,3 +93,61 @@ func TestExpectedMigrationVersionRejectsInvalidPrefix(t *testing.T) {
 		t.Fatalf("error = %q, want invalid numeric version context", err.Error())
 	}
 }
+
+func TestMigrationVersionFromFilenameEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{name: "0001_initial.sql", wantErr: false},
+		{name: "0001_no_underscore", wantErr: false},
+		{name: "abc_initial.sql", wantErr: true},
+		{name: "0000_initial.sql", wantErr: true},
+		{name: "-0001_initial.sql", wantErr: true},
+		{name: "0001_.sql", wantErr: false},
+		{name: "_0001_initial.sql", wantErr: true},
+		{name: "0001initial.sql", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := migrationVersionFromFilename(tt.name)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("migrationVersionFromFilename(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMigrateUpRejectsNilDatabase(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "0001_initial.sql"), []byte("-- +goose Up\n-- +goose Down\n"), 0o644); err != nil {
+		t.Fatalf("write migration: %v", err)
+	}
+
+	err := MigrateUp(context.Background(), nil, dir)
+	if err == nil {
+		t.Fatal("MigrateUp accepted nil database")
+	}
+	if !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %q, want database handle context", err.Error())
+	}
+}
+
+func TestCurrentMigrationVersionRejectsNilDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := CurrentMigrationVersion(context.Background(), nil)
+	if err == nil {
+		t.Fatal("CurrentMigrationVersion accepted nil database")
+	}
+	if !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %q, want database handle context", err.Error())
+	}
+}

@@ -29,6 +29,13 @@ Before changing code, read:
   error for nil client since explicit state write requires a backend.
 - All nil guard fixes include unit test coverage for nil client behavior.
 
+### Database module nil safety and validation (completed)
+
+- `MigrateUp` now rejects nil database handle with explicit error.
+- `CurrentMigrationVersion` now rejects nil database handle with explicit error.
+- `migrationVersionFromFilename` edge cases now have comprehensive unit test coverage
+  for invalid version prefixes, zero versions, negative versions, and malformed filenames.
+
 ### Storage portability
 
 Current state:

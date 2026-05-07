@@ -30,6 +30,9 @@ permissive defaults instead of panicking. `RedisBackpressure.SetState` returns a
 for nil client since explicit state write requires a backend. All nil guards include
 unit test coverage. This prevents crashes when Redis-optional features are configured
 without a Redis backend.
+Database migration functions now validate nil database handles explicitly: `MigrateUp`
+and `CurrentMigrationVersion` return clear errors for nil database. `migrationVersionFromFilename`
+has comprehensive edge case coverage for malformed migration filenames.
 IMAP `STORE`, `MOVE`, `EXPUNGE`, and their `UID` equivalents now use flattened
 dispatch branches, removing redundant syntax checks that were previously
 duplicated between the tag-based and UID-based handlers.
