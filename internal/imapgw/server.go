@@ -7276,6 +7276,7 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 		return flags, nil, value == "()"
 	}
 	names := make([]string, 0, len(tokens))
+	seen := make(map[string]struct{}, len(tokens))
 	for _, raw := range tokens {
 		name := CanonicalIMAPFlag(raw)
 		switch name {
@@ -7294,6 +7295,10 @@ func imapStoreFlagsWithNames(value string) (MessageFlags, []string, bool) {
 		default:
 			return MessageFlags{}, nil, false
 		}
+		if _, ok := seen[name]; ok {
+			return MessageFlags{}, nil, false
+		}
+		seen[name] = struct{}{}
 		names = append(names, name)
 	}
 	return flags, names, true

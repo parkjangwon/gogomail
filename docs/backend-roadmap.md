@@ -4207,6 +4207,9 @@ Implementation order:
       when those safe fields contain nested XML, preserving structured-error
       recognition without flattening ambiguous provider-specific elements into
       operator-facing status strings.
+1490. IMAP APPEND/STORE flag-list parsing now rejects duplicate canonical
+      system flags such as `(\\Seen \\Seen)`, keeping mutation and append
+      option lists set-shaped before backend writes or APPEND body handling.
 
 ## Deferred until backend contracts stabilize
 
