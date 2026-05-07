@@ -369,6 +369,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListKeyCount(result.KeyCount, len(result.Contents)); err != nil {
+		return ObjectListPage{}, err
+	}
 	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
 	if !ok {
 		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid IsTruncated value")
@@ -747,6 +750,20 @@ func parseS3NonNegativeDecimal(value string) (int64, bool) {
 
 func parseS3ListObjectSize(value string) (int64, bool) {
 	return parseS3NonNegativeDecimal(value)
+}
+
+func validateS3ListKeyCount(value string, contents int) error {
+	if value == "" {
+		return nil
+	}
+	count, ok := parseS3NonNegativeDecimal(value)
+	if !ok {
+		return fmt.Errorf("list s3 objects: invalid KeyCount value")
+	}
+	if count != int64(contents) {
+		return fmt.Errorf("list s3 objects: KeyCount does not match contents")
+	}
+	return nil
 }
 
 func parseS3ListIsTruncated(value string) (bool, bool) {
@@ -1535,6 +1552,7 @@ type s3ListObjectsResult struct {
 	XMLName               xml.Name              `xml:"ListBucketResult"`
 	IsTruncated           string                `xml:"IsTruncated"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
+	KeyCount              string                `xml:"KeyCount"`
 	Contents              []s3ListObjectContent `xml:"Contents"`
 }
 
@@ -1601,6 +1619,7 @@ func validateS3ListControlCardinality(data []byte) error {
 	var lastModifiedSeen bool
 	var simpleObjectMetadata string
 	var simpleStandardMetadata string
+	rootSimpleSeen := make(map[string]struct{})
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -1647,6 +1666,10 @@ func validateS3ListControlCardinality(data []byte) error {
 						return fmt.Errorf("list s3 objects: unexpected response namespace")
 					}
 					if s3ListStandardSimpleRootMetadata(token.Name.Local) {
+						if _, ok := rootSimpleSeen[token.Name.Local]; ok {
+							return fmt.Errorf("list s3 objects: duplicate %s value", token.Name.Local)
+						}
+						rootSimpleSeen[token.Name.Local] = struct{}{}
 						simpleStandardMetadata = token.Name.Local
 					}
 				}

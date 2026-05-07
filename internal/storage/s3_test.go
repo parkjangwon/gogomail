@@ -1888,6 +1888,103 @@ func TestS3StoreListRejectsProviderOverLimitPage(t *testing.T) {
 	}
 }
 
+func TestS3StoreListValidatesKeyCount(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		keyCount string
+		want     string
+	}{
+		{name: "signed", keyCount: "+1", want: "invalid KeyCount value"},
+		{name: "padded", keyCount: " 1 ", want: "invalid KeyCount value"},
+		{name: "mismatch", keyCount: "2", want: "KeyCount does not match contents"},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <KeyCount>` + tc.keyCount + `</KeyCount>
+  <Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents>
+</ListBucketResult>`)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestS3StoreListRejectsDuplicateRootMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "key_count",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><KeyCount>1</KeyCount><KeyCount>1</KeyCount><Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: "duplicate KeyCount value",
+		},
+		{
+			name: "prefix",
+			body: `<ListBucketResult><IsTruncated>false</IsTruncated><Prefix>mail/messages/</Prefix><Prefix>mail/messages/</Prefix><KeyCount>1</KeyCount><Contents><Key>mail/messages/msg-1.eml</Key><Size>5</Size></Contents></ListBucketResult>`,
+			want: "duplicate Prefix value",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				Prefix:          "mail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient: &http.Client{Transport: staticRoundTripper{
+					resp: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+					},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			_, err = store.List(context.Background(), ListOptions{Prefix: "messages"})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("List err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StoreListValidatesSizeAfterCanonicalPrefix(t *testing.T) {
 	t.Parallel()
 
