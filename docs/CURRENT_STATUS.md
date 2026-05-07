@@ -381,6 +381,8 @@ response quoting, preventing oversized backend metadata from inflating FETCH
 responses.
 ENVELOPE address lists are also capped before rendering, preventing abnormal
 recipient fan-out metadata from amplifying IMAP FETCH responses.
+Malformed empty ENVELOPE address entries are dropped before rendering, so
+backend placeholder data cannot emit stray `(NIL NIL NIL NIL)` address tuples.
 IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting

@@ -6616,6 +6616,9 @@ func imapAddressList(addresses []Address) string {
 	}
 	parts := make([]string, 0, len(addresses))
 	for _, address := range addresses {
+		if imapEnvelopeAddressEmpty(address) {
+			continue
+		}
 		parts = append(parts, "("+strings.Join([]string{
 			imapEnvelopeNString(address.Name),
 			"NIL",
@@ -6623,7 +6626,16 @@ func imapAddressList(addresses []Address) string {
 			imapEnvelopeNString(address.Host),
 		}, " ")+")")
 	}
+	if len(parts) == 0 {
+		return "NIL"
+	}
 	return "(" + strings.Join(parts, " ") + ")"
+}
+
+func imapEnvelopeAddressEmpty(address Address) bool {
+	return strings.TrimSpace(address.Name) == "" &&
+		strings.TrimSpace(address.Mailbox) == "" &&
+		strings.TrimSpace(address.Host) == ""
 }
 
 func imapEnvelopeNString(value string) string {

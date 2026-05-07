@@ -4328,7 +4328,8 @@ Implementation order:
        before response quoting, preventing oversized backend metadata from
        inflating FETCH responses. ENVELOPE address lists are also capped before
        rendering so abnormal recipient fan-out metadata cannot amplify FETCH
-       responses.
+       responses, and malformed empty address entries are dropped before they
+       can render as stray `(NIL NIL NIL NIL)` tuples.
 1509. S3-compatible `ListObjectsV2` object metadata now rejects duplicate
       single-value `StorageClass` and `ChecksumType` elements before XML
       unmarshalling can collapse provider ambiguity, while preserving repeated

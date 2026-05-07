@@ -12137,6 +12137,22 @@ func TestIMAPAddressListBoundsAddressCount(t *testing.T) {
 	}
 }
 
+func TestIMAPAddressListDropsEmptyAddresses(t *testing.T) {
+	t.Parallel()
+
+	got := imapAddressList([]Address{
+		{},
+		{Name: "Sender", Mailbox: "sender", Host: "example.net"},
+	})
+	want := `(("Sender" NIL "sender" "example.net"))`
+	if got != want {
+		t.Fatalf("imapAddressList = %q, want empty addresses dropped", got)
+	}
+	if got := imapAddressList([]Address{{}}); got != "NIL" {
+		t.Fatalf("imapAddressList empty-only = %q, want NIL", got)
+	}
+}
+
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	t.Parallel()
 
