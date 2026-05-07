@@ -230,9 +230,11 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
 - S3-compatible `ListObjectsV2` root `<StartAfter>` metadata is rejected when
   present because gogomail does not request start-after list mode and relies on
   continuation-token pagination.
-- S3-compatible `ListObjectsV2` root `<RequestCharged>` metadata is rejected
+- S3-compatible `ListObjectsV2` requester-pays response headers are rejected
   when present because requester-pays list mode is outside the current storage
   adapter contract.
+- S3-compatible `ListObjectsV2` object `ChecksumType` metadata now shares the
+  same namespace and simple-field nested-XML boundary as `ChecksumAlgorithm`.
 - S3-compatible `ListObjectsV2` delimiter grouping controls are rejected:
   non-empty `<Delimiter>` and `<CommonPrefixes>` cannot be treated as ordinary
   object pages because gogomail does not request grouped listing.
