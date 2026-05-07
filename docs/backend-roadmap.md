@@ -4252,6 +4252,10 @@ Implementation order:
       rejected when present because gogomail does not request encoded-key list
       mode. This keeps URL-encoded provider keys from being treated as ordinary
       storage object paths before an explicit decoding contract exists.
+1500. S3-compatible `ListObjectsV2` root `ContinuationToken` metadata is now
+      validated when present: the echoed token must match the requested cursor
+      exactly, keeping page diagnostics and retry semantics aligned with the
+      signed list request.
 
 ## Deferred until backend contracts stabilize
 

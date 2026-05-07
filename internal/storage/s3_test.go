@@ -2091,6 +2091,36 @@ func TestS3StoreListRejectsUnexpectedEncodingType(t *testing.T) {
 	}
 }
 
+func TestS3StoreListValidatesContinuationTokenEcho(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewS3Store(S3Options{
+		Endpoint:        "http://localhost:9000",
+		Region:          "us-east-1",
+		Bucket:          "gogomail",
+		AccessKeyID:     "access",
+		SecretAccessKey: "secret",
+		ForcePathStyle:  true,
+		HTTPClient: &http.Client{Transport: staticRoundTripper{
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<ListBucketResult>
+  <IsTruncated>false</IsTruncated>
+  <ContinuationToken>cursor-other</ContinuationToken>
+</ListBucketResult>`)),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewS3Store returned error: %v", err)
+	}
+
+	_, err = store.List(context.Background(), ListOptions{Prefix: "messages", Cursor: "cursor-1"})
+	if err == nil || !strings.Contains(err.Error(), "response ContinuationToken does not match request") {
+		t.Fatalf("List err = %v, want ContinuationToken mismatch", err)
+	}
+}
+
 func TestS3StoreListRejectsDuplicateRootMetadata(t *testing.T) {
 	t.Parallel()
 

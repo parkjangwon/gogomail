@@ -385,6 +385,9 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if err := validateS3ListEncodingType(result.EncodingType); err != nil {
 		return ObjectListPage{}, err
 	}
+	if err := validateS3ListContinuationToken(result.ContinuationToken, cursor); err != nil {
+		return ObjectListPage{}, err
+	}
 	isTruncated, ok := parseS3ListIsTruncated(result.IsTruncated)
 	if !ok {
 		return ObjectListPage{}, fmt.Errorf("list s3 objects: invalid IsTruncated value")
@@ -823,6 +826,16 @@ func validateS3ListEncodingType(value string) error {
 		return nil
 	}
 	return fmt.Errorf("list s3 objects: unsupported EncodingType value")
+}
+
+func validateS3ListContinuationToken(value string, expected string) error {
+	if value == "" {
+		return nil
+	}
+	if value != expected {
+		return fmt.Errorf("list s3 objects: response ContinuationToken does not match request")
+	}
+	return nil
 }
 
 func parseS3ListIsTruncated(value string) (bool, bool) {
@@ -1610,6 +1623,7 @@ func s3PlainErrorPreview(value string) string {
 type s3ListObjectsResult struct {
 	XMLName               xml.Name              `xml:"ListBucketResult"`
 	IsTruncated           string                `xml:"IsTruncated"`
+	ContinuationToken     string                `xml:"ContinuationToken"`
 	NextContinuationToken string                `xml:"NextContinuationToken"`
 	Name                  string                `xml:"Name"`
 	Prefix                string                `xml:"Prefix"`
