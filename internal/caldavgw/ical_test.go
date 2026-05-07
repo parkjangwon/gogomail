@@ -316,6 +316,38 @@ func TestCalendarObjectMatchesVTODOTimeRange(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectMatchesVJOURNALTimeRange(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VJOURNAL\r\nUID:journal-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T090000Z\r\nSUMMARY:Journal Entry\r\nEND:VJOURNAL\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVJOURNAL, &TimeRange{
+		Start: mustCalDAVTime(t, "20260506T080000Z"),
+		End:   mustCalDAVTime(t, "20260506T100000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true, want false for VJOURNAL time-range (RFC 4791 does not define time-range overlap for VJOURNAL)")
+	}
+}
+
+func TestCalendarObjectMatchesVFREEBUSYTimeRange(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VFREEBUSY\r\nUID:freebusy-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T090000Z\r\nDTEND:20260506T100000Z\r\nSUMMARY:Free Busy\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVFREEBUSY, &TimeRange{
+		Start: mustCalDAVTime(t, "20260506T080000Z"),
+		End:   mustCalDAVTime(t, "20260506T100000Z"),
+	})
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if matches {
+		t.Fatal("matches = true, want false for VFREEBUSY time-range (RFC 4791 Section 7.8.1: VFREEBUSY MUST NOT occur in calendar-query time-range)")
+	}
+}
+
 func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
 	t.Parallel()
 

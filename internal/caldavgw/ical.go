@@ -307,8 +307,10 @@ func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *Ti
 			if matches {
 				return true, nil
 			}
-		case ComponentVJOURNAL, ComponentVFREEBUSY:
-			return false, UnsupportedCalendarFilterError{Element: XMLName{Space: CalDAVNamespace, Local: "time-range"}}
+		case ComponentVJOURNAL:
+			return false, nil
+		case ComponentVFREEBUSY:
+			return false, nil
 		}
 	}
 	return false, nil
