@@ -796,8 +796,8 @@ Current state:
   parenthesized field/value-list validation.
 - IMAP `SEARCH`/`UID SEARCH` `LARGER` and `SMALLER` size criteria require
   RFC 3501 `number` atoms, rejecting signed values such as `+20` and
-  leading-zero values such as `020` instead of silently treating them as valid
-  sizes.
+  leading-zero values such as `020`, and values above the unsigned 32-bit IMAP
+  `number` range, instead of silently treating them as valid sizes.
 - IMAP `SEARCH`/`UID SEARCH`/`SORT`/`THREAD` numeric search operands now also
   reject quoted or literal-framed values for `LARGER`, `SMALLER`, and MODSEQ
   thresholds/entry types, while preserving quoted MODSEQ entry names as
