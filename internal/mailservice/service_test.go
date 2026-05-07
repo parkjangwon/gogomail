@@ -1470,7 +1470,7 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 
 	got, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
 		UserID:    " user-1 ",
-		MailboxID: " inbox ",
+		MailboxID: "inbox",
 		Size:      int64(len("Subject: hi\r\n\r\nhello")),
 		Body:      strings.NewReader("Subject: hi\r\n\r\nhello"),
 	})
@@ -1481,7 +1481,7 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 		t.Fatalf("append result = %#v, want repository result", got)
 	}
 	if repo.lastIMAPAppendUserID != "user-1" || repo.lastIMAPAppendMailboxID != "inbox" {
-		t.Fatalf("append target lookup = %q/%q, want trimmed ids", repo.lastIMAPAppendUserID, repo.lastIMAPAppendMailboxID)
+		t.Fatalf("append target lookup = %q/%q, want canonical ids", repo.lastIMAPAppendUserID, repo.lastIMAPAppendMailboxID)
 	}
 	if repo.lastIMAPAppendStored.Target.UserID != "user-1" || repo.lastIMAPAppendStored.Target.MailboxID != "inbox" || repo.lastIMAPAppendStored.Size != int64(len("Subject: hi\r\n\r\nhello")) {
 		t.Fatalf("append stored request = %#v, want canonical target and size", repo.lastIMAPAppendStored)
@@ -1494,6 +1494,47 @@ func TestAppendIMAPMessageDelegatesToRepository(t *testing.T) {
 	}
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 || events.events[0].Messages != 7 {
 		t.Fatalf("events = %#v, want exists event", events.events)
+	}
+}
+
+func TestAppendIMAPMessagePreservesMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	repo := &fakeRepository{
+		imapAppendTarget: maildb.IMAPAppendTarget{
+			UserID:      "user-1",
+			MailboxID:   " spaced-inbox ",
+			CompanyID:   "company-1",
+			DomainID:    "domain-1",
+			Address:     "user@example.com",
+			UIDValidity: 12,
+		},
+		imapAppendResult: imapgw.AppendMessageResult{
+			Summary:     imapgw.MessageSummary{ID: "msg-append-1", MailboxID: " spaced-inbox ", UID: 44, SequenceNumber: 7},
+			UIDValidity: 12,
+		},
+	}
+	store := storage.NewLocalStore(t.TempDir())
+	service := New(repo, store)
+	appendBody := "Subject: hi\r\n\r\nhello"
+
+	got, err := service.AppendIMAPMessage(context.Background(), imapgw.AppendMessageRequest{
+		UserID:    " user-1 ",
+		MailboxID: " INBOX ",
+		Size:      int64(len(appendBody)),
+		Body:      strings.NewReader(appendBody),
+	})
+	if err != nil {
+		t.Fatalf("AppendIMAPMessage returned error: %v", err)
+	}
+	if got.Summary.MailboxID != " spaced-inbox " {
+		t.Fatalf("append result = %#v, want spaced target result", got)
+	}
+	if repo.lastIMAPAppendUserID != "user-1" || repo.lastIMAPAppendMailboxID != " INBOX " {
+		t.Fatalf("append target lookup = %q/%q, want user-1/spaced INBOX", repo.lastIMAPAppendUserID, repo.lastIMAPAppendMailboxID)
+	}
+	if repo.lastIMAPAppendStored.Target.MailboxID != " spaced-inbox " {
+		t.Fatalf("append stored target = %#v, want spaced canonical mailbox id", repo.lastIMAPAppendStored.Target)
 	}
 }
 

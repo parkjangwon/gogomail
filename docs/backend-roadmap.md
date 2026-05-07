@@ -4454,6 +4454,10 @@ Implementation order:
       unpadded `INBOX` and slash-trimmed path compatibility while preventing
       names with real leading/trailing spaces from falling through to trimmed
       aliases before storage lookup.
+1531. IMAP service-backed `APPEND` now preserves decoded destination mailbox
+      ID leading and trailing spaces after validation before append-target
+      resolution, aligning literal storage and UID assignment with the same
+      mailbox identity boundary used by `SELECT`/`EXAMINE`.
 
 ## Deferred until backend contracts stabilize
 
