@@ -4198,6 +4198,11 @@ Implementation order:
       leading/trailing whitespace or encoded separators after matching the
       configured storage prefix, instead of silently skipping corrupt provider
       keys.
+1488. S3-compatible standard `<Error>` diagnostics now suppress previews when
+      safe fields such as `Code`, `Message`, `RequestId`, or `HostId` are
+      duplicated, preventing ambiguous provider XML from becoming concatenated
+      status strings while still recognizing the response as structured S3
+      error XML.
 
 ## Deferred until backend contracts stabilize
 
