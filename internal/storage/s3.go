@@ -134,6 +134,9 @@ func (s *S3Store) Put(ctx context.Context, objectPath string, body io.Reader) er
 	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("put", resp)
 	}
+	if err := validateS3UnsupportedRequestChargedHeader("put", resp); err != nil {
+		return err
+	}
 	if err := validateS3OptionalSuccessETag("put", resp); err != nil {
 		return err
 	}
@@ -151,6 +154,10 @@ func (s *S3Store) Get(ctx context.Context, objectPath string) (io.ReadCloser, er
 	}
 	if resp.StatusCode != http.StatusOK {
 		err := s3StatusError("get", resp)
+		drainAndCloseS3Body(resp.Body)
+		return nil, err
+	}
+	if err := validateS3UnsupportedRequestChargedHeader("get", resp); err != nil {
 		drainAndCloseS3Body(resp.Body)
 		return nil, err
 	}
@@ -181,6 +188,10 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 	}
 	switch resp.StatusCode {
 	case http.StatusPartialContent:
+		if err := validateS3UnsupportedRequestChargedHeader("get range", resp); err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, err
+		}
 		contentRange, err := s3ResponseContentRangeHeader(resp)
 		if err != nil {
 			drainAndCloseS3Body(resp.Body)
@@ -195,6 +206,10 @@ func (s *S3Store) GetRange(ctx context.Context, objectPath string, rangeReq Rang
 			return nil, err
 		}
 	case http.StatusOK:
+		if err := validateS3UnsupportedRequestChargedHeader("get range", resp); err != nil {
+			drainAndCloseS3Body(resp.Body)
+			return nil, err
+		}
 		if err := validateS3FullRangeCompatibilityResponse(resp, validated); err != nil {
 			drainAndCloseS3Body(resp.Body)
 			return nil, err
@@ -219,6 +234,9 @@ func (s *S3Store) Stat(ctx context.Context, objectPath string) (ObjectInfo, erro
 	defer drainAndCloseS3Body(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return ObjectInfo{}, s3StatusError("stat", resp)
+	}
+	if err := validateS3UnsupportedRequestChargedHeader("stat", resp); err != nil {
+		return ObjectInfo{}, err
 	}
 	size, err := s3StatContentLength(resp)
 	if err != nil {
@@ -278,6 +296,9 @@ func (s *S3Store) Delete(ctx context.Context, objectPath string) error {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return s3StatusError("delete", resp)
 	}
+	if err := validateS3UnsupportedRequestChargedHeader("delete", resp); err != nil {
+		return err
+	}
 	return validateS3EmptySuccessResponse("delete", resp.Body)
 }
 
@@ -309,6 +330,9 @@ func (s *S3Store) Copy(ctx context.Context, sourcePath string, destPath string) 
 	defer drainAndCloseS3Body(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return s3StatusError("copy", resp)
+	}
+	if err := validateS3UnsupportedRequestChargedHeader("copy", resp); err != nil {
+		return err
 	}
 	if err := validateS3CopyResponse(resp.Body); err != nil {
 		return err
@@ -366,7 +390,7 @@ func (s *S3Store) List(ctx context.Context, opts ListOptions) (ObjectListPage, e
 	if resp.StatusCode != http.StatusOK {
 		return ObjectListPage{}, s3StatusError("list", resp)
 	}
-	if err := validateS3ListRequestChargedHeader(resp); err != nil {
+	if err := validateS3UnsupportedRequestChargedHeader("list", resp); err != nil {
 		return ObjectListPage{}, err
 	}
 	result, err := decodeS3ListObjects(resp.Body)
@@ -854,18 +878,18 @@ func validateS3ListStartAfter(value string) error {
 	return fmt.Errorf("list s3 objects: unsupported StartAfter value")
 }
 
-func validateS3ListRequestChargedHeader(resp *http.Response) error {
+func validateS3UnsupportedRequestChargedHeader(operation string, resp *http.Response) error {
 	value, present, ok := s3ResponseOptionalSingleHeader(resp, "x-amz-request-charged")
 	if !ok {
-		return fmt.Errorf("list s3 objects: duplicate request-charged header")
+		return fmt.Errorf("%s s3 object: duplicate request-charged header", operation)
 	}
 	if !present {
 		return nil
 	}
 	if value == "" {
-		return fmt.Errorf("list s3 objects: invalid request-charged header")
+		return fmt.Errorf("%s s3 object: invalid request-charged header", operation)
 	}
-	return fmt.Errorf("list s3 objects: unsupported request-charged header")
+	return fmt.Errorf("%s s3 object: unsupported request-charged header", operation)
 }
 
 func validateS3ListDelimiter(value string) error {

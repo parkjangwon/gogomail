@@ -299,6 +299,120 @@ func TestS3StorePutAllowsWhitespaceSuccessBody(t *testing.T) {
 	}
 }
 
+func TestS3StoreRejectsRequesterPaysSuccessHeaders(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		resp   *http.Response
+		run    func(*S3Store) error
+		header http.Header
+		want   string
+	}{
+		{
+			name: "put",
+			resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))},
+			run: func(store *S3Store) error {
+				return store.Put(context.Background(), "messages/msg-1.eml", strings.NewReader("hello"))
+			},
+			want: "unsupported request-charged header",
+		},
+		{
+			name: "get",
+			resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))},
+			run: func(store *S3Store) error {
+				body, err := store.Get(context.Background(), "messages/msg-1.eml")
+				if body != nil {
+					_ = body.Close()
+				}
+				return err
+			},
+			want: "unsupported request-charged header",
+		},
+		{
+			name: "get_range",
+			resp: &http.Response{
+				StatusCode: http.StatusPartialContent,
+				Header: http.Header{
+					"Content-Range":  []string{"bytes 0-0/1"},
+					"Content-Length": []string{"1"},
+				},
+				Body: io.NopCloser(strings.NewReader("a")),
+			},
+			run: func(store *S3Store) error {
+				body, err := store.GetRange(context.Background(), "messages/msg-1.eml", RangeRequest{Offset: 0, Length: 1})
+				if body != nil {
+					_ = body.Close()
+				}
+				return err
+			},
+			want: "unsupported request-charged header",
+		},
+		{
+			name: "stat",
+			resp: &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"0"}},
+				ContentLength: 0,
+				Body:          io.NopCloser(strings.NewReader("")),
+			},
+			run: func(store *S3Store) error {
+				_, err := store.Stat(context.Background(), "messages/msg-1.eml")
+				return err
+			},
+			want: "unsupported request-charged header",
+		},
+		{
+			name: "delete",
+			resp: &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader(""))},
+			run: func(store *S3Store) error {
+				return store.Delete(context.Background(), "messages/msg-1.eml")
+			},
+			want: "unsupported request-charged header",
+		},
+		{
+			name: "copy",
+			resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`<CopyObjectResult>
+  <ETag>"etag-1"</ETag>
+</CopyObjectResult>`)),
+			},
+			run: func(store *S3Store) error {
+				return store.Copy(context.Background(), "messages/msg-1.eml", "messages/msg-2.eml")
+			},
+			want: "unsupported request-charged header",
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if tc.resp.Header == nil {
+				tc.resp.Header = http.Header{}
+			}
+			tc.resp.Header.Set("X-Amz-Request-Charged", "requester")
+			store, err := NewS3Store(S3Options{
+				Endpoint:        "http://localhost:9000",
+				Region:          "us-east-1",
+				Bucket:          "gogomail",
+				AccessKeyID:     "access",
+				SecretAccessKey: "secret",
+				ForcePathStyle:  true,
+				HTTPClient:      &http.Client{Transport: staticRoundTripper{resp: tc.resp}},
+			})
+			if err != nil {
+				t.Fatalf("NewS3Store returned error: %v", err)
+			}
+
+			err = tc.run(store)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("%s err = %v, want %q", tc.name, err, tc.want)
+			}
+		})
+	}
+}
+
 func TestS3StorePutValidatesSuccessETag(t *testing.T) {
 	t.Parallel()
 

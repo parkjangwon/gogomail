@@ -456,8 +456,8 @@ rejected before XML unmarshalling can overwrite earlier values. Those simple
 metadata fields also reject nested child elements before XML unmarshalling can
 turn structured provider data into apparently valid object metadata. Provider
 responses that include `StartAfter` fail closed, and requester-pays response
-headers are rejected, because the adapter does not request start-after
-pagination or requester-pays listing. Delimiter grouping is likewise
+headers are rejected across success paths, because the adapter does not request
+start-after pagination or requester-pays mode. Delimiter grouping is likewise
 unsupported: non-empty `Delimiter` or `CommonPrefixes` responses are rejected
 instead of being treated as ordinary object pages. Responses that return more
 matching objects than requested are rejected,
