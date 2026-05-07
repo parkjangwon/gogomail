@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP subscription spacing hardening)
+Last updated: 2026-05-07 (updated after IMAP mailbox event identity hardening)
 
 ## Current phase
 
@@ -2973,6 +2973,9 @@ The platform hardening sprint completed the following:
   silently collapsing into one `LSUB` row. The service/repository
   `SUBSCRIBE`/`UNSUBSCRIBE` boundary now preserves decoded mailbox-name
   spacing instead of trimming it before subscription persistence.
+- IMAP live mailbox-event subscription now preserves the decoded mailbox ID
+  after validation, so selected-mailbox IDLE/NOOP fan-out keys do not collapse
+  mailbox names that intentionally contain leading or trailing spaces.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.

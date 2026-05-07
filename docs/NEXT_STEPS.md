@@ -1889,6 +1889,9 @@ Current state:
   collapsing into the same `LSUB` row. The service/repository subscription
   boundary now preserves decoded mailbox-name spacing instead of trimming it
   before `SUBSCRIBE`/`UNSUBSCRIBE` persistence.
+- Live IMAP mailbox-event subscription now preserves decoded mailbox ID
+  spacing after validation, keeping IDLE/NOOP update fan-out keyed to the exact
+  selected mailbox identity instead of a trimmed variant.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.
