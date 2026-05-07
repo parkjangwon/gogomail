@@ -4782,6 +4782,61 @@ func TestServerAppendSuccessReturnsAppendUID(t *testing.T) {
 	}
 }
 
+func TestServerAppendPassesCustomKeywordFlags(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &appendBackend{
+		result: AppendMessageResult{
+			Summary:     MessageSummary{ID: "message-42", MailboxID: "inbox", UID: 42},
+			UIDValidity: 99,
+		},
+	}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\n")); err != nil {
+		t.Fatalf("write login: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n" {
+		t.Fatalf("login line = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a2 APPEND inbox (\\Seen $Project ClientTag) {11}\r\n")); err != nil {
+		t.Fatalf("write append literal command: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ Ready for literal data\r\n" {
+		t.Fatalf("append continuation = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("hello world\r\n")); err != nil {
+		t.Fatalf("write append literal body: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a2 OK [APPENDUID 99 42] APPEND completed\r\n" {
+		t.Fatalf("append response = %q err = %v", line, err)
+	}
+	if !backendImpl.request.Flags.Read || !reflect.DeepEqual(backendImpl.request.Flags.Keywords, []string{"$Project", "ClientTag"}) {
+		t.Fatalf("append flags = %#v, want seen plus custom keywords", backendImpl.request.Flags)
+	}
+	if _, err := client.Write([]byte("a3 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerAppendOmitsAppendUIDForUIDNotStickyResult(t *testing.T) {
 	t.Parallel()
 
