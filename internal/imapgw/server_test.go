@@ -12907,6 +12907,15 @@ func TestIMAPMailboxDisplayNameTrimsStoredRootPrefix(t *testing.T) {
 	}
 }
 
+func TestIMAPMailboxDisplayNamePreservesStoredNameSpacing(t *testing.T) {
+	t.Parallel()
+
+	got := imapMailboxDisplayName(Mailbox{ID: "mailbox-1", Name: " INBOX "})
+	if got != " INBOX " {
+		t.Fatalf("display name = %q, want spaced INBOX", got)
+	}
+}
+
 func TestIMAPMailboxModifiedUTF7Codec(t *testing.T) {
 	t.Parallel()
 
