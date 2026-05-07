@@ -12153,6 +12153,35 @@ func TestIMAPAddressListDropsEmptyAddresses(t *testing.T) {
 	}
 }
 
+func TestIMAPAddressListDropsIncompleteAddresses(t *testing.T) {
+	t.Parallel()
+
+	got := imapAddressList([]Address{
+		{Name: "Display Only"},
+		{Name: "Mailbox Only", Mailbox: "mailbox"},
+		{Name: "Host Only", Host: "example.net"},
+		{Name: "Sender", Mailbox: "sender", Host: "example.net"},
+	})
+	want := `(("Sender" NIL "sender" "example.net"))`
+	if got != want {
+		t.Fatalf("imapAddressList = %q, want incomplete addresses dropped", got)
+	}
+}
+
+func TestIMAPMIMEEnvelopeAddressesDropsInvalidAddrSpec(t *testing.T) {
+	t.Parallel()
+
+	got := imapMIMEEnvelopeAddresses([]messageparse.Address{
+		{Name: "Display Only"},
+		{Name: "Local Only", Address: "local"},
+		{Name: "Sender", Address: "sender@example.net"},
+	})
+	want := []Address{{Name: "Sender", Mailbox: "sender", Host: "example.net"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("imapMIMEEnvelopeAddresses = %#v, want invalid addr-specs dropped", got)
+	}
+}
+
 func TestIMAPAddressListCapsAfterDroppingEmptyAddresses(t *testing.T) {
 	t.Parallel()
 
