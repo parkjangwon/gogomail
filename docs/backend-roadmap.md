@@ -4462,6 +4462,10 @@ Implementation order:
       mailbox ID leading and trailing spaces after validation before
       repository delegation, keeping read-side storage access aligned with the
       exact selected-mailbox identity.
+1533. IMAP service-backed `STORE`, `COPY`, `MOVE`, and `EXPUNGE` now preserve
+      decoded mailbox ID leading and trailing spaces after validation before
+      repository delegation, while mutation event fan-out remains keyed to the
+      repository-returned summary mailbox IDs.
 
 ## Deferred until backend contracts stabilize
 

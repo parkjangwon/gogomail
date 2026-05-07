@@ -1278,7 +1278,7 @@ func TestStoreIMAPFlagsDelegatesToRepository(t *testing.T) {
 
 	got, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
 		UserID:            " user-1 ",
-		MailboxID:         " inbox ",
+		MailboxID:         "inbox",
 		UIDs:              []imapgw.UID{12},
 		Flags:             imapgw.MessageFlags{Read: true},
 		Mode:              imapgw.StoreFlagsAdd,
@@ -1374,8 +1374,8 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	got, err := service.CopyIMAPMessages(context.Background(), imapgw.CopyMessagesRequest{
 		UserID:          " user-1 ",
-		SourceMailboxID: " inbox ",
-		DestMailboxID:   " archive ",
+		SourceMailboxID: "inbox",
+		DestMailboxID:   "archive",
 		UIDs:            []imapgw.UID{12, 13},
 	})
 	if err != nil {
@@ -1393,6 +1393,117 @@ func TestCopyIMAPMessagesDelegatesToRepository(t *testing.T) {
 	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "archive" || events.events[0].UID != 20 {
 		t.Fatalf("events = %#v, want exists event", events.events)
 	}
+}
+
+func TestIMAPMutationServicesPreserveMailboxIDSpacing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("store", func(t *testing.T) {
+		t.Parallel()
+
+		events := &fakeIMAPEventPublisher{}
+		repo := &fakeRepository{
+			imapFlagSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: " spaced-inbox ", UID: 12}},
+		}
+		service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+		_, err := service.StoreIMAPFlags(context.Background(), imapgw.StoreFlagsRequest{
+			UserID:    " user-1 ",
+			MailboxID: " INBOX ",
+			UIDs:      []imapgw.UID{12},
+			Flags:     imapgw.MessageFlags{Read: true},
+			Mode:      imapgw.StoreFlagsAdd,
+		})
+		if err != nil {
+			t.Fatalf("StoreIMAPFlags returned error: %v", err)
+		}
+		if repo.lastIMAPFlagUserID != "user-1" || repo.lastIMAPFlagMailboxID != " INBOX " {
+			t.Fatalf("store ids = %q/%q, want user-1/spaced INBOX", repo.lastIMAPFlagUserID, repo.lastIMAPFlagMailboxID)
+		}
+		if len(events.events) != 1 || events.events[0].MailboxID != " spaced-inbox " {
+			t.Fatalf("events = %#v, want spaced summary mailbox id", events.events)
+		}
+	})
+
+	t.Run("copy", func(t *testing.T) {
+		t.Parallel()
+
+		events := &fakeIMAPEventPublisher{}
+		repo := &fakeRepository{
+			imapCopySummaries: []imapgw.CopyMessageResult{{SourceUID: 12, Destination: imapgw.MessageSummary{ID: "msg-copy-1", MailboxID: " spaced-dest ", UID: 20}}},
+		}
+		service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+		_, err := service.CopyIMAPMessages(context.Background(), imapgw.CopyMessagesRequest{
+			UserID:          " user-1 ",
+			SourceMailboxID: " INBOX ",
+			DestMailboxID:   " Archive ",
+			UIDs:            []imapgw.UID{12},
+		})
+		if err != nil {
+			t.Fatalf("CopyIMAPMessages returned error: %v", err)
+		}
+		if repo.lastIMAPCopyUserID != "user-1" || repo.lastIMAPCopySourceMailboxID != " INBOX " || repo.lastIMAPCopyDestMailboxID != " Archive " {
+			t.Fatalf("copy ids = %q/%q/%q, want exact spaced ids", repo.lastIMAPCopyUserID, repo.lastIMAPCopySourceMailboxID, repo.lastIMAPCopyDestMailboxID)
+		}
+		if len(events.events) != 1 || events.events[0].MailboxID != " spaced-dest " {
+			t.Fatalf("events = %#v, want spaced destination mailbox id", events.events)
+		}
+	})
+
+	t.Run("move", func(t *testing.T) {
+		t.Parallel()
+
+		events := &fakeIMAPEventPublisher{}
+		repo := &fakeRepository{
+			imapMoveResults: []imapgw.MoveMessageResult{{
+				Source:      imapgw.MessageSummary{ID: "msg-1", MailboxID: " spaced-source ", UID: 12},
+				Destination: imapgw.MessageSummary{ID: "msg-1", MailboxID: " spaced-dest ", UID: 33},
+			}},
+		}
+		service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+		_, err := service.MoveIMAPMessages(context.Background(), imapgw.MoveMessagesRequest{
+			UserID:          " user-1 ",
+			SourceMailboxID: " INBOX ",
+			DestMailboxID:   " Archive ",
+			UIDs:            []imapgw.UID{12},
+		})
+		if err != nil {
+			t.Fatalf("MoveIMAPMessages returned error: %v", err)
+		}
+		if repo.lastIMAPMoveUserID != "user-1" || repo.lastIMAPMoveSourceMailboxID != " INBOX " || repo.lastIMAPMoveDestMailboxID != " Archive " {
+			t.Fatalf("move ids = %q/%q/%q, want exact spaced ids", repo.lastIMAPMoveUserID, repo.lastIMAPMoveSourceMailboxID, repo.lastIMAPMoveDestMailboxID)
+		}
+		if len(events.events) != 1 || events.events[0].MailboxID != " spaced-source " {
+			t.Fatalf("events = %#v, want spaced source mailbox id", events.events)
+		}
+	})
+
+	t.Run("expunge", func(t *testing.T) {
+		t.Parallel()
+
+		events := &fakeIMAPEventPublisher{}
+		repo := &fakeRepository{
+			imapExpungeSummaries: []imapgw.MessageSummary{{ID: "msg-1", MailboxID: " spaced-inbox ", UID: 12}},
+		}
+		service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+		_, err := service.ExpungeIMAPMessages(context.Background(), imapgw.ExpungeRequest{
+			UserID:    " user-1 ",
+			MailboxID: " INBOX ",
+			UIDs:      []imapgw.UID{12},
+		})
+		if err != nil {
+			t.Fatalf("ExpungeIMAPMessages returned error: %v", err)
+		}
+		if repo.lastIMAPExpungeUserID != "user-1" || repo.lastIMAPExpungeMailboxID != " INBOX " {
+			t.Fatalf("expunge ids = %q/%q, want user-1/spaced INBOX", repo.lastIMAPExpungeUserID, repo.lastIMAPExpungeMailboxID)
+		}
+		if len(events.events) != 1 || events.events[0].MailboxID != " spaced-inbox " {
+			t.Fatalf("events = %#v, want spaced expunge mailbox id", events.events)
+		}
+	})
 }
 
 func TestIMAPMutationServicesRejectUnsafeIdentifiers(t *testing.T) {
@@ -1706,8 +1817,8 @@ func TestMoveIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	got, err := service.MoveIMAPMessages(context.Background(), imapgw.MoveMessagesRequest{
 		UserID:          " user-1 ",
-		SourceMailboxID: " inbox ",
-		DestMailboxID:   " archive ",
+		SourceMailboxID: "inbox",
+		DestMailboxID:   "archive",
 		UIDs:            []imapgw.UID{12},
 	})
 	if err != nil {
@@ -1735,7 +1846,7 @@ func TestExpungeIMAPMessagesDelegatesToRepository(t *testing.T) {
 
 	got, err := service.ExpungeIMAPMessages(context.Background(), imapgw.ExpungeRequest{
 		UserID:    " user-1 ",
-		MailboxID: " inbox ",
+		MailboxID: "inbox",
 		UIDs:      []imapgw.UID{12},
 	})
 	if err != nil {
