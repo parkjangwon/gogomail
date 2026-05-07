@@ -829,8 +829,12 @@ func spoolIMAPAppendBody(body io.Reader, expectedSize int64) (*os.File, int64, e
 	}
 	copied, copyErr := io.Copy(spooled, io.LimitReader(body, expectedSize+1))
 	if copyErr != nil {
-		spooled.Close()
-		os.Remove(spooled.Name())
+		if closeErr := spooled.Close(); closeErr != nil {
+			fmt.Fprintln(os.Stderr, "close imap append spool after copy error:", closeErr)
+		}
+		if rmErr := os.Remove(spooled.Name()); rmErr != nil {
+			fmt.Fprintln(os.Stderr, "remove imap append spool after copy error:", rmErr)
+		}
 		return nil, 0, fmt.Errorf("spool imap append body: %w", copyErr)
 	}
 	return spooled, copied, nil
