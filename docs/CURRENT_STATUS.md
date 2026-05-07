@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 content-type padding hardening)
+Last updated: 2026-05-07 (updated after IMAP INBOX special-name exactness)
 
 ## Current phase
 
@@ -547,6 +547,10 @@ returning deterministic tagged `BAD` diagnostics before backend lookup,
 mutation, or selected-state checks. `LIST`/`LSUB` reference and pattern
 handling continues to allow empty mailbox strings where RFC mailbox discovery
 semantics require root/pattern behavior.
+IMAP `INBOX` special-name handling for mailbox mutation commands is now exact
+case-insensitive matching without trimming decoded mailbox names. Quoted
+mailbox names such as `" INBOX "` remain ordinary backend-bound mailbox names
+instead of being misclassified as the RFC special `INBOX` namespace.
 RFC 5258 `LIST-EXTENDED` selection option lists now consume the full
 parenthesized option list and reject whitespace-padded quoted or literal list
 values such as `" (SPECIAL-USE) "` instead of trimming them into valid

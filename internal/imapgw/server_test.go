@@ -7627,6 +7627,55 @@ func TestServerDecodesModifiedUTF7MailboxMutationArguments(t *testing.T) {
 	}
 }
 
+func TestServerPreservesPaddedINBOXMailboxMutationArguments(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &mailboxMutationBackend{}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 CREATE \" INBOX \"\r\na3 RENAME \" INBOX \" \" inbox \"\r\n")); err != nil {
+		t.Fatalf("write padded inbox mailbox commands: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a2 OK CREATE completed\r\n",
+		"a3 OK RENAME completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read padded inbox mailbox response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("padded inbox mailbox response = %q, want %q", line, expected)
+		}
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+	if backendImpl.created != " INBOX " || backendImpl.renamedFrom != " INBOX " || backendImpl.renamedTo != " inbox " {
+		t.Fatalf("padded inbox mailbox args = create %q rename %q/%q", backendImpl.created, backendImpl.renamedFrom, backendImpl.renamedTo)
+	}
+}
+
 func TestServerDecodesModifiedUTF7OperationalMailboxArguments(t *testing.T) {
 	t.Parallel()
 

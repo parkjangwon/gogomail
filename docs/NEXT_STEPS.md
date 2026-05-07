@@ -376,7 +376,9 @@ Current state:
   `EXAMINE`-selected mailbox do not reach backend mutation dispatch.
 - IMAP mailbox mutation handling rejects `CREATE INBOX`, `DELETE INBOX`,
   `RENAME INBOX ...`, and `RENAME ... INBOX`, keeping the special INBOX
-  namespace out of generic folder mutation paths.
+  namespace out of generic folder mutation paths. The special-name check is
+  exact case-insensitive matching without trimming decoded mailbox names, so
+  quoted names such as `" INBOX "` are preserved as ordinary mailbox names.
 - IMAP authenticated `SELECT`/`EXAMINE` attempts now deselect the current
   mailbox before attempting the new selection, so failed selection attempts
   leave no stale selected mailbox for later selected-state commands.
