@@ -22,6 +22,19 @@ Before changing code, read:
 
 Current state:
 
+- API metering `recordFailOpen` now logs recovered panics with route and method
+  context, improving visibility when the metering sink is under backpressure or
+  fails.
+- Ignored `Close()` errors for Redis clients, network listeners, database
+  connections, and IMAP append spools are now logged to `slog` or `stderr`
+  across all service entry points (`internal/app/run.go`), ensuring resource
+  cleanup failures are observable.
+- IMAP `STORE`, `MOVE`, `EXPUNGE`, and their `UID` variants now use unified
+  command dispatch branches, removing redundant field-length checks that
+  delegated to the same handler logic.
+- IMAP mailbox display names now preserve original name spacing by removing
+  `strings.TrimSpace` from the `mailbox.Name` return path, with regression
+  coverage for spaced mailbox names such as `" INBOX "`.
 - Webmail capability discovery now limits advertised message-search filters to
   the runtime-supported `q`, `folder_id`, `from`, `subject`, and
   `has_attachment` query keys, with OpenAPI and regression coverage aligned.
@@ -1395,10 +1408,18 @@ Current state:
 - Admin API now exposes `POST /admin/v1/drive-cleanup-failures/retry-runs`
   for audited one-shot retry of pending Drive object cleanup failures, with
   scanned/deleted/resolved/failed counts suitable for an operator console.
+- `attachment_share_links` now defines the database and repository boundary for
+  public large-attachment sharing, including hashed token verification,
+  download-only permissions, and expiry tracking.
+- Attachment share-link creation and resolution reuse the shared Mail and
+  Drive quota ledger by preserving the underlying attachment ownership and
+  status, ensuring that publicly shared large attachments are accounted for in
+  the company/domain/user storage pool.
 
 Next:
 
-- Extend the same ledger service to large-attachment share-link objects.
+- Add a concrete Cloud KMS adapter for API usage export signing, or deploy the
+  remote-Ed25519 signer service.
 
 ### 2. Message threading and search
 

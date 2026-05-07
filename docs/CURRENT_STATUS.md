@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 requester-pays metadata hardening)
+Last updated: 2026-05-07 (updated after IMAP display name and observability hardening)
 
 ## Current phase
 
@@ -17,6 +17,27 @@ RFC-sensitive core, but current work should balance:
 - quota and policy enforcement
 - OpenAPI drift prevention
 
+API metering fail-open logic now logs recovered panics with full route and
+method context, preventing silent failures when the metering worker or sink is
+saturated.
+Ignored `Close()` errors for shared infrastructure (Redis, Postgres, TCP
+listeners) and local spool resources are now captured and logged across all
+service entry points, ensuring resource leak diagnostics are available in
+production logs.
+IMAP `STORE`, `MOVE`, `EXPUNGE`, and their `UID` equivalents now use flattened
+dispatch branches, removing redundant syntax checks that were previously
+duplicated between the tag-based and UID-based handlers.
+IMAP mailbox display names now preserve original database name spacing,
+allowing for exact mailbox identity in clients that depend on specific prefix
+or suffix whitespace, such as nested folder hierarchies or legacy INBOX
+naming.
+Large-attachment share links now have a dedicated database and repository
+boundary through `attachment_share_links`, allowing for public download-only
+access to stored attachments with the same hashed bearer-token and expiry
+semantics used for Drive files. Quota ledger integration is preserved by
+sharing the underlying `attachments` quota accounting, ensuring that
+shareable large attachments remain aggregated in the company/domain/user
+storage pool.
 S3-compatible storage ETag handling is now stricter across optional
 `PutObject` success headers, `HEAD`/`Stat`, `ListObjectsV2`, and
 `CopyObjectResult` success XML: malformed quote nesting, whitespace padding,
