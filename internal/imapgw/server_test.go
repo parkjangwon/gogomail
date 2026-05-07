@@ -1657,15 +1657,16 @@ func TestServerRejectsStringAppendFlagListsBeforeState(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 APPEND inbox \"(\\\\Seen)\" {5+}\r\nhello\r\na2 APPEND inbox {7+}\r\n(\\Seen) {5+}\r\nhello\r\na3 APPEND inbox (\\Seen) {5+}\r\nhello\r\na4 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 APPEND inbox \"(\\\\Seen)\" {5+}\r\nhello\r\na2 APPEND inbox {7+}\r\n(\\Seen) {5+}\r\nhello\r\na3 APPEND inbox (\\Seen \\Seen) {5+}\r\nhello\r\na4 APPEND inbox (\\Seen) {5+}\r\nhello\r\na5 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write string append flag lists: %v", err)
 	}
 	want := []string{
 		"a1 BAD APPEND options are unsupported\r\n",
 		"a2 BAD APPEND options are unsupported\r\n",
-		"a3 NO authentication required\r\n",
+		"a3 BAD APPEND options are unsupported\r\n",
+		"a4 NO authentication required\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a4 OK LOGOUT completed\r\n",
+		"a5 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
