@@ -22,9 +22,12 @@ S3-compatible range reads require `206 Partial Content` with a matching
 `Content-Range` unless a provider returns a compatibility `200 OK` response
 that can be proven to represent the requested full window: matching
 `Content-Range`, or offset-zero `Content-Length` exactly equal to the requested
-length. Ambiguous `200 OK` range responses are rejected and drained before any
-caller sees bytes. Duplicate `Content-Range` headers also fail closed on both
-`206 Partial Content` and `200 OK` range-compatibility responses.
+length. When the offset-zero `200 OK` compatibility path uses raw
+`Content-Length` metadata, it must agree with Go's normalized response length
+when both are known, including known zero-length responses. Ambiguous `200 OK`
+range responses are rejected and drained before any caller sees bytes.
+Duplicate `Content-Range` headers also fail closed on both `206 Partial
+Content` and `200 OK` range-compatibility responses.
 `Copy` preserves object keys and adapter semantics while avoiding caller-side
 read/write loops when the backend can copy server-side. `Move` gives callers
 one backend-neutral object relocation contract: local/NFS uses filesystem
@@ -381,7 +384,9 @@ matching `Content-Range` but truncates the response body before the requested
 byte count, callers see `io.ErrUnexpectedEOF` instead of a silent short read.
 When present, range-response `Content-Length` is parsed with the same exact
 unsigned decimal and duplicate-header rules and must match the requested
-window.
+window. On the offset-zero `200 OK` full-range compatibility path, raw
+`Content-Length` metadata must also match Go's normalized response length when
+both surfaces are known.
 Both full-object and range readers observe context cancellation after the
 request has opened, so canceled downloads, previews, and IMAP literal streams
 can stop promptly across local/NFS and S3-compatible backends.

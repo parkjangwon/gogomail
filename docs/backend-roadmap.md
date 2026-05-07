@@ -4415,6 +4415,10 @@ Implementation order:
       even when Go's normalized response length is known to be zero, keeping
       exact body-length identity aligned between raw provider headers and the
       shared bounded-reader contract.
+1522. S3-compatible offset-zero `200 OK` range compatibility now applies the
+      same raw-header versus normalized-length agreement when both metadata
+      surfaces are known, so downgraded full-window range responses cannot
+      contradict known zero-length metadata before a bounded reader is exposed.
 
 ## Deferred until backend contracts stabilize
 

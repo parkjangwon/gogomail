@@ -3472,9 +3472,10 @@ func TestS3StoreGetRangeAcceptsHTTP200ForFullRangeCompatibility(t *testing.T) {
 		ForcePathStyle:  true,
 		HTTPClient: &http.Client{Transport: staticRoundTripper{
 			resp: &http.Response{
-				StatusCode: http.StatusOK,
-				Header:     http.Header{"Content-Length": []string{"5"}},
-				Body:       body,
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Length": []string{"5"}},
+				ContentLength: 5,
+				Body:          body,
 			},
 		}},
 	})
@@ -3584,6 +3585,12 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 			want:   "content-length mismatch",
 		},
 		{
+			name:   "header mismatch with zero content length",
+			req:    RangeRequest{Offset: 0, Length: 5},
+			header: http.Header{"Content-Length": []string{"5"}},
+			want:   "content-length mismatch",
+		},
+		{
 			name:   "padded content length",
 			req:    RangeRequest{Offset: 0, Length: 5},
 			header: http.Header{"Content-Length": []string{" 5"}},
@@ -3629,9 +3636,10 @@ func TestS3StoreGetRangeRejectsUnsafeHTTP200CompatibilityResponses(t *testing.T)
 				ForcePathStyle:  true,
 				HTTPClient: &http.Client{Transport: staticRoundTripper{
 					resp: &http.Response{
-						StatusCode: http.StatusOK,
-						Header:     tc.header,
-						Body:       body,
+						StatusCode:    http.StatusOK,
+						Header:        tc.header,
+						ContentLength: 0,
+						Body:          body,
 					},
 				}},
 			})

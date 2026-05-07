@@ -1079,6 +1079,9 @@ func s3RangeResponseContentLength(resp *http.Response) (int64, error) {
 		if !ok {
 			return -1, fmt.Errorf("get range s3 object: invalid content length")
 		}
+		if resp.ContentLength >= 0 && resp.ContentLength != size {
+			return -1, fmt.Errorf("get range s3 object: content-length mismatch")
+		}
 		return size, nil
 	}
 	if resp.ContentLength >= 0 {
