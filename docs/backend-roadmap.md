@@ -4342,6 +4342,11 @@ Implementation order:
       metadata, `ListObjectsV2` object metadata, and `CopyObjectResult`
       success XML, while still accepting ordinary quoted and unquoted
       compatible-provider ETags.
+1513. S3-compatible ETag parsing now also requires the unwrapped opaque value
+      to be printable ASCII across optional `PutObject` success headers,
+      `HEAD`/`Stat`, `ListObjectsV2`, and `CopyObjectResult`, rejecting
+      non-ASCII, control, whitespace, or otherwise non-printable provider
+      identity metadata before it crosses the shared storage boundary.
 
 ## Deferred until backend contracts stabilize
 

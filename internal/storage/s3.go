@@ -959,7 +959,19 @@ func cleanS3ETag(value string) string {
 	if value == "" || len(value) > maxS3ETagBytes || strings.ContainsAny(value, "\r\n") {
 		return ""
 	}
+	if !s3ETagOpaqueValueValid(value) {
+		return ""
+	}
 	return value
+}
+
+func s3ETagOpaqueValueValid(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] <= 0x20 || value[i] >= 0x7f || value[i] == '"' {
+			return false
+		}
+	}
+	return true
 }
 
 func parseS3StatContentType(value string) (string, error) {
