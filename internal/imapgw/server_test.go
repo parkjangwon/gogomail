@@ -8016,6 +8016,79 @@ func TestServerRejectsUnsupportedMailboxMutations(t *testing.T) {
 	}
 }
 
+func TestServerRejectsEmptyMailboxTargets(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 CREATE \"\"\r\na3 DELETE \"\"\r\na4 RENAME \"\" Archive\r\na5 RENAME Archive \"\"\r\na6 SUBSCRIBE \"\"\r\na7 UNSUBSCRIBE \"\"\r\na8 STATUS \"\" (MESSAGES)\r\na9 SELECT \"\"\r\na10 EXAMINE \"\"\r\na11 UID COPY 7 \"\"\r\na12 UID MOVE 7 \"\"\r\na13 COPY 1 \"\"\r\na14 MOVE 1 \"\"\r\na15 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write empty mailbox targets: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"a2 BAD CREATE mailbox name is empty\r\n",
+		"a3 BAD DELETE mailbox name is empty\r\n",
+		"a4 BAD RENAME mailbox name is empty\r\n",
+		"a5 BAD RENAME mailbox name is empty\r\n",
+		"a6 BAD SUBSCRIBE mailbox name is empty\r\n",
+		"a7 BAD UNSUBSCRIBE mailbox name is empty\r\n",
+		"a8 BAD STATUS mailbox name is empty\r\n",
+		"a9 BAD SELECT mailbox name is empty\r\n",
+		"a10 BAD EXAMINE mailbox name is empty\r\n",
+		"a11 BAD UID COPY destination mailbox name is empty\r\n",
+		"a12 BAD UID MOVE destination mailbox name is empty\r\n",
+		"a13 BAD COPY destination mailbox name is empty\r\n",
+		"a14 BAD MOVE destination mailbox name is empty\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a15 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read empty mailbox target response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("empty mailbox target response = %q, want %q", line, expected)
+		}
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerRejectsEmptyAppendMailboxTarget(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	var output strings.Builder
+	writer := bufio.NewWriter(&output)
+	if _, err := server.handleAppend(writer, "a1", []string{"a1", "APPEND", "", ""}, []string{""}, &imapConnState{}); err != nil {
+		t.Fatalf("handleAppend returned error: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush writer: %v", err)
+	}
+	if got, want := output.String(), "a1 BAD APPEND mailbox name is empty\r\n"; got != want {
+		t.Fatalf("append response = %q, want %q", got, want)
+	}
+}
+
 func TestServerDeleteSelectedMailboxClearsSavedSearch(t *testing.T) {
 	t.Parallel()
 

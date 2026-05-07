@@ -1541,6 +1541,9 @@ Current state:
 - IMAP runtime TLS helper groundwork can load IMAP-specific certificate/key
   files with TLS 1.2 minimum and derive the server name from the IMAP listener
   host before falling back to `GOGOMAIL_SMTP_DOMAIN`.
+- IMAP required mailbox-name commands now reject decoded empty targets before
+  backend lookup or mutation while preserving empty `LIST`/`LSUB`
+  root/pattern discovery semantics.
 - ADR 0008 accepts the IMAP authentication/session direction: use a dedicated
   protocol auth adapter over local user password hashes, keep JWT out of IMAP,
   require TLS policy review before production enablement, keep `\Deleted`

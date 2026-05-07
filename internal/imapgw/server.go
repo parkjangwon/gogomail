@@ -618,9 +618,13 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD " + command + " requires a mailbox atom and optional CONDSTORE parameter\r\n")
 			return false, err
 		}
-		mailboxName, ok := imapDecodeMailboxName(fields[2])
-		if !ok {
+		mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+		if !valid {
 			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+			return false, err
+		}
+		if !nonEmpty {
+			_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is empty\r\n")
 			return false, err
 		}
 		if state.session == nil {
@@ -746,9 +750,13 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " BAD " + statusErr + "\r\n")
 			return false, err
 		}
-		mailboxName, ok := imapDecodeMailboxName(fields[2])
-		if !ok {
+		mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+		if !valid {
 			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is not valid modified UTF-7\r\n")
+			return false, err
+		}
+		if !nonEmpty {
+			_, err := writer.WriteString(tag + " BAD STATUS mailbox name is empty\r\n")
 			return false, err
 		}
 		if state.session == nil {
@@ -1596,9 +1604,13 @@ func (s *Server) handleCreate(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD CREATE requires mailbox name\r\n")
 		return false, err
 	}
-	mailboxName, ok := imapDecodeMailboxName(fields[2])
-	if !ok {
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
 		_, err := writer.WriteString(tag + " BAD CREATE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD CREATE mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -1622,9 +1634,13 @@ func (s *Server) handleDeleteMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " BAD DELETE requires mailbox name\r\n")
 		return false, err
 	}
-	mailboxName, ok := imapDecodeMailboxName(fields[2])
-	if !ok {
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
 		_, err := writer.WriteString(tag + " BAD DELETE mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD DELETE mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -1664,10 +1680,14 @@ func (s *Server) handleRenameMailbox(writer *bufio.Writer, tag string, fields []
 		_, err := writer.WriteString(tag + " BAD RENAME requires source and destination mailbox names\r\n")
 		return false, err
 	}
-	sourceName, sourceOK := imapDecodeMailboxName(fields[2])
-	destName, destOK := imapDecodeMailboxName(fields[3])
-	if !sourceOK || !destOK {
+	sourceName, sourceValid, sourceNonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	destName, destValid, destNonEmpty := imapDecodeRequiredMailboxName(fields[3])
+	if !sourceValid || !destValid {
 		_, err := writer.WriteString(tag + " BAD RENAME mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !sourceNonEmpty || !destNonEmpty {
+		_, err := writer.WriteString(tag + " BAD RENAME mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -1728,9 +1748,13 @@ func (s *Server) handleSubscriptionCommand(writer *bufio.Writer, tag string, fie
 		return false, err
 	}
 	var err error
-	mailboxName, ok := imapDecodeMailboxName(fields[2])
-	if !ok {
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
 		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD " + command + " mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -2216,8 +2240,11 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID COPY requires a positive UID set\r\n")
 			return true, false, err
 		}
-		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
+		if _, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[4]); !valid {
 			_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n")
+			return true, false, err
+		} else if !nonEmpty {
+			_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is empty\r\n")
 			return true, false, err
 		}
 	case "MOVE":
@@ -2229,8 +2256,11 @@ func (s *Server) validateUIDSubcommandSyntax(writer *bufio.Writer, tag string, f
 			_, err := writer.WriteString(tag + " BAD UID MOVE requires a positive UID set\r\n")
 			return true, false, err
 		}
-		if _, ok := imapDecodeMailboxName(fields[4]); !ok {
+		if _, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[4]); !valid {
 			_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n")
+			return true, false, err
+		} else if !nonEmpty {
+			_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is empty\r\n")
 			return true, false, err
 		}
 	}
@@ -4130,9 +4160,13 @@ func (s *Server) handleUIDCopy(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID COPY requires UID set and destination mailbox\r\n")
 		return false, err
 	}
-	destMailbox, destOK := imapDecodeMailboxName(fields[4])
-	if !destOK {
+	destMailbox, destValid, destNonEmpty := imapDecodeRequiredMailboxName(fields[4])
+	if !destValid {
 		_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !destNonEmpty {
+		_, err := writer.WriteString(tag + " BAD UID COPY destination mailbox name is empty\r\n")
 		return false, err
 	}
 	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
@@ -4152,9 +4186,13 @@ func (s *Server) handleUIDMove(writer *bufio.Writer, tag string, fields []string
 		_, err := writer.WriteString(tag + " BAD UID MOVE requires UID set and destination mailbox\r\n")
 		return false, err
 	}
-	destMailbox, destOK := imapDecodeMailboxName(fields[4])
-	if !destOK {
+	destMailbox, destValid, destNonEmpty := imapDecodeRequiredMailboxName(fields[4])
+	if !destValid {
 		_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !destNonEmpty {
+		_, err := writer.WriteString(tag + " BAD UID MOVE destination mailbox name is empty\r\n")
 		return false, err
 	}
 	uids, ok, err := s.uidsForUIDSet(context.Background(), state, fields[3])
@@ -4237,9 +4275,13 @@ func (s *Server) handleCopy(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD COPY requires a valid message sequence set\r\n")
 		return false, err
 	}
-	destMailbox, destOK := imapDecodeMailboxName(fields[3])
-	if !destOK {
+	destMailbox, destValid, destNonEmpty := imapDecodeRequiredMailboxName(fields[3])
+	if !destValid {
 		_, err := writer.WriteString(tag + " BAD COPY destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !destNonEmpty {
+		_, err := writer.WriteString(tag + " BAD COPY destination mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -4272,9 +4314,13 @@ func (s *Server) handleMove(writer *bufio.Writer, tag string, fields []string, s
 		_, err := writer.WriteString(tag + " BAD MOVE requires a valid message sequence set\r\n")
 		return false, err
 	}
-	destMailbox, destOK := imapDecodeMailboxName(fields[3])
-	if !destOK {
+	destMailbox, destValid, destNonEmpty := imapDecodeRequiredMailboxName(fields[3])
+	if !destValid {
 		_, err := writer.WriteString(tag + " BAD MOVE destination mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !destNonEmpty {
+		_, err := writer.WriteString(tag + " BAD MOVE destination mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -4316,9 +4362,13 @@ func (s *Server) handleAppend(writer *bufio.Writer, tag string, fields []string,
 		_, err := writer.WriteString(tag + " BAD APPEND options are unsupported\r\n")
 		return false, err
 	}
-	mailboxName, ok := imapDecodeMailboxName(fields[2])
-	if !ok {
+	mailboxName, valid, nonEmpty := imapDecodeRequiredMailboxName(fields[2])
+	if !valid {
 		_, err := writer.WriteString(tag + " BAD APPEND mailbox name is not valid modified UTF-7\r\n")
+		return false, err
+	}
+	if !nonEmpty {
+		_, err := writer.WriteString(tag + " BAD APPEND mailbox name is empty\r\n")
 		return false, err
 	}
 	if state.session == nil {
@@ -7908,6 +7958,14 @@ func imapDecodeMailboxName(value string) (string, bool) {
 		return "", false
 	}
 	return decoded, true
+}
+
+func imapDecodeRequiredMailboxName(value string) (string, bool, bool) {
+	name, ok := imapDecodeMailboxName(value)
+	if !ok {
+		return "", false, false
+	}
+	return name, true, name != ""
 }
 
 func imapDecodeMailboxBase64(value string) (string, bool) {

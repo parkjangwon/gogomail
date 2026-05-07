@@ -178,7 +178,10 @@ Recent release-readiness work also includes:
   selected-state event draining before sequence-set commands including
   UID-addressed workflows,
   quoted, escaped, and literal-framed destination mailbox names for COPY/MOVE
-  backend mutations,
+  backend mutations, explicit rejection of empty required mailbox targets for
+  SELECT/EXAMINE, STATUS, mailbox mutation/subscription commands, COPY/MOVE,
+  UID COPY/MOVE, and APPEND while preserving empty LIST/LSUB root/pattern
+  semantics,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,
