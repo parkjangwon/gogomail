@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 GET content-length hardening)
+Last updated: 2026-05-07 (updated after S3 range compatibility length hardening)
 
 ## Current phase
 
@@ -39,6 +39,10 @@ S3-compatible full-object `GET` now rejects contradictory `Content-Length`
 metadata even when Go's normalized response length is known to be zero, keeping
 empty-object and non-empty-object identity from depending on which metadata
 surface a provider filled.
+S3-compatible offset-zero `200 OK` range compatibility now applies the same
+raw-header versus normalized-length agreement when both metadata surfaces are
+known, so a downgraded full-window range response cannot contradict its own
+zero-length metadata before exposing a bounded reader.
 
 Webmail capability discovery now advertises only runtime-backed `GET
 /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and

@@ -46,6 +46,10 @@ Current state:
 - S3-compatible full-object `GET` now rejects contradictory `Content-Length`
   metadata even when Go's normalized response length is known to be zero,
   preserving exact provider length identity before exposing a bounded reader.
+- S3-compatible offset-zero `200 OK` range compatibility now applies the same
+  raw-header versus normalized-length agreement when both metadata surfaces are
+  known, preventing downgraded full-window range reads from trusting
+  contradictory zero-length provider metadata.
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.

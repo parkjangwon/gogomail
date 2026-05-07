@@ -90,8 +90,10 @@ Recent release-readiness work also includes:
   strict contract: list pages recheck returned keys against the requested
   logical prefix, object sizes and full/range content lengths use exact unsigned
   decimal grammar without whitespace padding, full-object `GET` rejects
-  contradictory known zero-length `Content-Length` metadata, duplicate
-  `Content-Length` and range `Content-Range` headers fail closed,
+  contradictory known zero-length `Content-Length` metadata, offset-zero
+  `200 OK` range compatibility also rejects contradictory known zero-length
+  `Content-Length` metadata, duplicate `Content-Length` and range
+  `Content-Range` headers fail closed,
   `HEAD`/`Stat` rejects malformed or contradictory
   `Content-Length` metadata, blank or malformed present `Last-Modified`,
   `ETag`, and RFC-shaped ASCII `Content-Type` metadata including duplicate
