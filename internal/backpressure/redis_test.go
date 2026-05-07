@@ -1,9 +1,46 @@
 package backpressure
 
 import (
+	"context"
 	"testing"
 	"time"
 )
+
+func TestRedisBackpressureNilClientAcceptAllows(t *testing.T) {
+	t.Parallel()
+
+	b := NewRedisBackpressure(nil, DefaultStateKey)
+	accepted, err := b.Accept(context.Background())
+	if err != nil {
+		t.Fatalf("Accept error = %v, want nil", err)
+	}
+	if !accepted {
+		t.Fatalf("accepted = false, want true for nil client")
+	}
+}
+
+func TestRedisBackpressureNilClientStateReturnsNormal(t *testing.T) {
+	t.Parallel()
+
+	b := NewRedisBackpressure(nil, DefaultStateKey)
+	state, err := b.State(context.Background())
+	if err != nil {
+		t.Fatalf("State error = %v, want nil", err)
+	}
+	if state.Level != "normal" {
+		t.Fatalf("state.Level = %q, want normal", state.Level)
+	}
+}
+
+func TestRedisBackpressureNilClientSetStateErrors(t *testing.T) {
+	t.Parallel()
+
+	b := NewRedisBackpressure(nil, DefaultStateKey)
+	_, err := b.SetState(context.Background(), StateUpdate{Level: "danger"})
+	if err == nil {
+		t.Fatal("SetState accepted nil client without error")
+	}
+}
 
 func TestAcceptsState(t *testing.T) {
 	t.Parallel()

@@ -24,7 +24,10 @@ Before changing code, read:
   instead of panicking, matching the defensive pattern in `RedisFixedWindowLimiter.Allow`.
 - `RedisDeduplicator.CheckAndSet` now guards against nil Redis client, returning
   `(true, nil)` (new duplicate, allow) instead of panicking.
-- Both fixes include unit test coverage for nil client behavior.
+- `RedisBackpressure.Accept` and `RedisBackpressure.State` now guard against nil
+  Redis client, returning permissive defaults (accept/allow). `SetState` returns an
+  error for nil client since explicit state write requires a backend.
+- All nil guard fixes include unit test coverage for nil client behavior.
 
 ### Storage portability
 

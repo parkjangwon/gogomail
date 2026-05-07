@@ -24,10 +24,12 @@ Ignored `Close()` errors for shared infrastructure (Redis, Postgres, TCP
 listeners) and local spool resources are now captured and logged across all
 service entry points, ensuring resource leak diagnostics are available in
 production logs.
-Redis-backed module nil safety: `RedisLimiter.Allow` and `RedisDeduplicator.CheckAndSet` now
-guard against nil Redis clients, returning permissive defaults (allow/ok) instead of panicking.
-This matches the defensive pattern already used in `RedisFixedWindowLimiter.Allow` and
-prevents crashes when rate limiting or deduplication is configured without a Redis backend.
+Redis-backed module nil safety: `RedisLimiter.Allow`, `RedisDeduplicator.CheckAndSet`,
+and `RedisBackpressure.Accept/State` now guard against nil Redis clients, returning
+permissive defaults instead of panicking. `RedisBackpressure.SetState` returns an error
+for nil client since explicit state write requires a backend. All nil guards include
+unit test coverage. This prevents crashes when Redis-optional features are configured
+without a Redis backend.
 IMAP `STORE`, `MOVE`, `EXPUNGE`, and their `UID` equivalents now use flattened
 dispatch branches, removing redundant syntax checks that were previously
 duplicated between the tag-based and UID-based handlers.
