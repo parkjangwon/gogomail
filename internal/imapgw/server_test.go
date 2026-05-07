@@ -633,14 +633,15 @@ func TestServerRejectsMalformedQuotedCommandArguments(t *testing.T) {
 	if _, err := reader.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
-	if _, err := client.Write([]byte("a1 LOGIN \"user\"secret pass\r\na2 LOGIN \"user\\n\" pass\r\na3 LOGOUT\r\n")); err != nil {
+	if _, err := client.Write([]byte("a1 LOGIN \"user\"secret pass\r\na2 LOGIN \"user\\n\" pass\r\na3 LOGIN \"user\x80\" pass\r\na4 LOGOUT\r\n")); err != nil {
 		t.Fatalf("write malformed quoted arguments: %v", err)
 	}
 	want := []string{
 		"a1 BAD malformed command\r\n",
 		"a2 BAD malformed command\r\n",
+		"a3 BAD malformed command\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
-		"a3 OK LOGOUT completed\r\n",
+		"a4 OK LOGOUT completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -2474,6 +2475,9 @@ func TestIMAPIDArgumentsValidEnforcesRFC2971Limits(t *testing.T) {
 	}
 	if imapIDArgumentsValid(`("name" "bad\q")`) {
 		t.Fatal("imapIDArgumentsValid accepted unsupported quoted escape")
+	}
+	if imapIDArgumentsValid("(\"name\" \"bad\x80value\")") {
+		t.Fatal("imapIDArgumentsValid accepted non-ascii quoted value")
 	}
 	if imapIDArgumentsValid(`("name""value")`) {
 		t.Fatal("imapIDArgumentsValid accepted adjacent quoted tokens")
@@ -11975,6 +11979,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	if _, err := parseIMAPFields("a1 LOGIN \"user\nbad\" secret"); err == nil {
 		t.Fatal("parseIMAPFields accepted quoted control character")
 	}
+	if _, err := parseIMAPFields("a1 LOGIN \"user\x80bad\" secret"); err == nil {
+		t.Fatal("parseIMAPFields accepted non-ascii quoted string")
+	}
 	if _, err := parseIMAPFields(`a1 LOGIN "user"secret pass`); err == nil {
 		t.Fatal("parseIMAPFields accepted adjacent quoted token")
 	}
@@ -12001,6 +12008,9 @@ func TestParseIMAPFieldsRejectsMalformedQuotedStrings(t *testing.T) {
 	}
 	if _, err := parseIMAPFieldsWithLiteral("a1 STORE 1 (FLAGS {3})extra", []string{"foo"}); err == nil {
 		t.Fatal("parseIMAPFieldsWithLiteral accepted literal marker with trailing atom data")
+	}
+	if _, err := parseIMAPFields("a1 STORE 1 +FLAGS (\"bad\x80flag\")"); err == nil {
+		t.Fatal("parseIMAPFields accepted non-ascii parenthesized quoted string")
 	}
 	if _, err := parseIMAPFieldsWithLiteral("a1 NOOP", []string{"unused"}); err == nil {
 		t.Fatal("parseIMAPFieldsWithLiteral accepted unused literal data")
