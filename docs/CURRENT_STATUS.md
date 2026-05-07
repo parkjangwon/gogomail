@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after S3 structured metadata text hardening)
+Last updated: 2026-05-07 (updated after IMAP parenthesized literal hardening)
 
 ## Current phase
 
@@ -644,9 +644,12 @@ normal matcher/status path instead of failing during command field splitting.
 It also accepts synchronizing and non-synchronizing literals as pattern-list
 members immediately after `(`, so native clients can send the same spaced
 mailbox pattern as `LIST "" ({12} "INBOX") ...` without losing the literal at
-the command parser boundary. Embedded atom fragments such as `Archive{12}`
-remain rejected, keeping literal markers token-delimited instead of widening
-the IMAP atom grammar.
+the command parser boundary. Those parenthesized literals now must remain
+printable ASCII before being wrapped for list parsing, so control-bearing or
+raw non-ASCII literal bytes cannot be normalized into a different mailbox
+pattern. Embedded atom fragments such as `Archive{12}` remain rejected,
+keeping literal markers token-delimited instead of widening the IMAP atom
+grammar.
 IMAP `COPY`/`UID COPY` now carry an explicit source UID to destination summary
 mapping through the gateway, service, and PostgreSQL repository boundary, and
 `MOVE`/`UID MOVE` now build UIDPLUS `COPYUID` source sets from the returned

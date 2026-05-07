@@ -4401,6 +4401,12 @@ Implementation order:
       unmarshalling can ignore ambiguous provider content, while preserving
       known namespace-free/AWS child elements for compatible-provider
       metadata.
+1519. IMAP parenthesized literal parsing now requires literal values embedded
+      in grouped control operands, including LIST pattern-lists, to remain
+      printable ASCII before they are wrapped as quoted strings for later
+      parsing. This prevents control-bearing or raw non-ASCII literal bytes
+      from being normalized into a different mailbox pattern while preserving
+      literal-framed modified UTF-7 mailbox names.
 
 ## Deferred until backend contracts stabilize
 
