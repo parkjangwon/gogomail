@@ -2398,8 +2398,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   host nstrings now use the same bounded UTF-8-safe metadata text path before
   response quoting, so oversized backend metadata cannot amplify FETCH
   responses.
-- IMAP ENVELOPE address lists are capped before rendering so abnormal recipient
-  fan-out metadata cannot amplify FETCH responses.
+- IMAP ENVELOPE address lists are capped after placeholder filtering so
+  abnormal recipient fan-out metadata cannot amplify FETCH responses and
+  malformed empty entries cannot hide later valid addresses.
 - Malformed empty ENVELOPE address entries are dropped before rendering, so
   backend placeholder data cannot emit stray `(NIL NIL NIL NIL)` address tuples.
 - IMAP `SEARCH`/`UID SEARCH` now accepts `CHARSET US-ASCII` and
