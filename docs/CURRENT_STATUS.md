@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP repository mailbox lookup hardening)
+Last updated: 2026-05-07 (updated after IMAP APPEND mailbox lookup hardening)
 
 ## Current phase
 
@@ -2985,6 +2985,10 @@ The platform hardening sprint completed the following:
   as `INBOX` and slash-trimmed paths remain available for unpadded inputs, but
   names with real leading/trailing spaces no longer fall through to trimmed
   aliases before storage lookup.
+- IMAP service-backed `APPEND` now preserves the decoded destination mailbox
+  ID after validation before resolving the append target, so literal storage
+  and UID assignment begin from the same mailbox identity semantics as
+  `SELECT`/`EXAMINE`.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.

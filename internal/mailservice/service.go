@@ -760,7 +760,6 @@ func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessag
 		return imapgw.AppendMessageResult{}, fmt.Errorf("imap append storage is required")
 	}
 	req.UserID = imapgw.UserID(strings.TrimSpace(string(req.UserID)))
-	req.MailboxID = imapgw.MailboxID(strings.TrimSpace(string(req.MailboxID)))
 	if err := validateServiceResourceID("user_id", string(req.UserID)); err != nil {
 		return imapgw.AppendMessageResult{}, err
 	}
