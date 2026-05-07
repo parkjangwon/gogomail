@@ -3805,6 +3805,7 @@ const (
 	maxIMAPSearchLiteralBytes    = 1 << 20
 	maxIMAPCommandLiteralBytes   = 10 << 20
 	maxIMAPBodyMetadataTextBytes = 1024
+	maxIMAPEnvelopeAddressCount  = 100
 )
 
 func (s *Server) imapMessageMatchesBodySearch(ctx context.Context, state *imapConnState, summary MessageSummary, criterion string, query string) (bool, error) {
@@ -6609,6 +6610,9 @@ func imapEnvelopeDate(value time.Time) string {
 func imapAddressList(addresses []Address) string {
 	if len(addresses) == 0 {
 		return "NIL"
+	}
+	if len(addresses) > maxIMAPEnvelopeAddressCount {
+		addresses = addresses[:maxIMAPEnvelopeAddressCount]
 	}
 	parts := make([]string, 0, len(addresses))
 	for _, address := range addresses {

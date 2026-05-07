@@ -12121,6 +12121,22 @@ func TestIMAPEnvelopeBoundsMetadataStrings(t *testing.T) {
 	}
 }
 
+func TestIMAPAddressListBoundsAddressCount(t *testing.T) {
+	t.Parallel()
+
+	addresses := make([]Address, 0, maxIMAPEnvelopeAddressCount+5)
+	for i := 0; i < maxIMAPEnvelopeAddressCount+5; i++ {
+		addresses = append(addresses, Address{Mailbox: fmt.Sprintf("user-%03d", i), Host: "example.net"})
+	}
+	got := imapAddressList(addresses)
+	if strings.Contains(got, fmt.Sprintf("user-%03d", maxIMAPEnvelopeAddressCount)) {
+		t.Fatalf("imapAddressList included address beyond cap: %q", got)
+	}
+	if !strings.Contains(got, fmt.Sprintf("user-%03d", maxIMAPEnvelopeAddressCount-1)) {
+		t.Fatalf("imapAddressList omitted final capped address: %q", got)
+	}
+}
+
 func TestIMAPAppendOptionsParseFlagsAndInternalDate(t *testing.T) {
 	t.Parallel()
 
