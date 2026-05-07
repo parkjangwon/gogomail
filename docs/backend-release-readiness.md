@@ -2177,7 +2177,9 @@ This checklist tracks the backend surfaces needed for the first webmail-focused 
   parameter-list names, and transfer-encoding tokens against RFC 2045-style
   token boundaries, falling back to safe defaults when stored or parsed source
   metadata contains tspecial/control-bearing malformed tokens or empty
-  parameter values.
+  parameter values. Canonical duplicate parameter names are collapsed before
+  rendering so malformed MIME source metadata cannot emit repeated structure
+  keys.
 - IMAP metadata-only `BODYSTRUCTURE` fetches now use the streaming
   MIME-structure parser to return multipart child order, subtype, parameters,
   transfer encodings, dispositions, body octets, and text line counts without

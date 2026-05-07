@@ -379,6 +379,9 @@ IMAP BODY/BODYSTRUCTURE rendering now validates MIME media type, subtype,
 parameter-list names, and transfer-encoding tokens against RFC 2045-style
 token boundaries, falling back to conservative defaults instead of emitting
 malformed tspecial/control-bearing tokens or empty parameter values to clients.
+Canonical duplicate parameter names are collapsed before rendering so a
+malformed or inconsistent MIME source cannot emit repeated `BODYSTRUCTURE`
+parameter keys.
 IMAP listener startup now accepts an optional `GOGOMAIL_IMAP_MAX_CONNECTIONS`
 cap, passed from YAML/env config into the protocol server. When the cap is
 positive, accepted sessions hold a bounded slot for the lifetime of
