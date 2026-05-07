@@ -104,7 +104,7 @@ Recent release-readiness work also includes:
   standard list metadata, duplicate simple root metadata, inconsistent
   `KeyCount`, present-but-blank `KeyCount`/`MaxKeys`, malformed or
   under-counting `MaxKeys`, mismatched returned
-  `Prefix` and nonblank bucket `Name` echoes when present, any returned
+  nonblank exact `Prefix` and bucket `Name` echoes when present, any returned
   `EncodingType`, missing-request or mismatched returned `ContinuationToken`
   echoes when present, and any returned `StartAfter`, requester-pays response
   headers across S3 adapter success paths, delimiter/grouping controls, and

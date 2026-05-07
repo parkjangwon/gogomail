@@ -2121,6 +2121,7 @@ func TestS3StoreListValidatesResponsePrefix(t *testing.T) {
 		responsePrefix string
 		want           string
 	}{
+		{name: "blank", requestPrefix: "messages", responsePrefix: ""},
 		{name: "logical_prefix_mismatch", requestPrefix: "messages", responsePrefix: "archive/"},
 		{name: "storage_prefix_mismatch", storePrefix: "mail", requestPrefix: "messages", responsePrefix: "messages/"},
 	} {

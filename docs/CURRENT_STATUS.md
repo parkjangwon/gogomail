@@ -193,9 +193,10 @@ distinguish omission from present-but-blank elements: missing remains
 compatible, while blank values fail the same numeric boundary as malformed
 values.
 S3-compatible `ListObjectsV2` root `Prefix` metadata, when providers echo it,
-now must exactly match the signed provider prefix requested by gogomail,
-including any configured storage prefix, so diagnostics cannot depend on a
-misleading list echo while compatible providers may still omit the field.
+now must be nonblank and exactly match the signed provider prefix requested by
+gogomail, including any configured storage prefix, so diagnostics cannot
+depend on a misleading list echo while compatible providers may still omit the
+field.
 S3-compatible `ListObjectsV2` root `Name` metadata, when present, must also
 be nonblank and match the configured bucket name, preventing wrong-bucket or
 blank-bucket compatible-provider responses from looking like ordinary empty or
