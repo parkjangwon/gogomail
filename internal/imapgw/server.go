@@ -795,9 +795,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 	case "THREAD":
 		return s.handleThread(writer, tag, fields, state, false)
 	case "STORE":
-		if len(fields) < 5 {
-			return s.handleStore(writer, tag, fields, state)
-		}
 		return s.handleStore(writer, tag, fields, state)
 	case "COPY":
 		return s.handleCopy(writer, tag, fields, state)
@@ -2093,22 +2090,13 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "THREAD":
 		return s.handleThread(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
-		if len(fields) < 6 {
 			return s.handleUIDStore(writer, tag, fields, state)
-		}
-		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
-		if len(fields) != 4 {
 			return s.handleUIDExpunge(writer, tag, fields, state)
-		}
-		return s.handleUIDExpunge(writer, tag, fields, state)
 	case "COPY":
 		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
-		if len(fields) != 5 {
 			return s.handleUIDMove(writer, tag, fields, state)
-		}
-		return s.handleUIDMove(writer, tag, fields, state)
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err
