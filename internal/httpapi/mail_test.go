@@ -397,7 +397,7 @@ func TestWebmailCapabilitiesHandler(t *testing.T) {
 	if got.Compose.MaxRecipients != mailservice.MaxComposeRecipients || got.Compose.MaxAttachmentIDs != mailservice.MaxComposeAttachments {
 		t.Fatalf("compose caps = %#v", got.Compose)
 	}
-	wantSearchFilters := []string{"q", "folder_id", "from", "subject", "has_attachment"}
+	wantSearchFilters := []string{"q", "folder_id", "from", "to", "cc", "bcc", "subject", "has_attachment"}
 	if !slices.Equal(got.Search.Filters, wantSearchFilters) {
 		t.Fatalf("search filters = %#v, want %#v", got.Search.Filters, wantSearchFilters)
 	}
@@ -952,7 +952,7 @@ func TestSearchMessagesHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	RegisterMailRoutes(mux, service, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=%20hello%20&folder_id=%20folder-1%20&from=%20sender%20&subject=%20search%20&has_attachment=true&limit=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/search?user_id=user-1&q=%20hello%20&folder_id=%20folder-1%20&from=%20sender%20&to=%20alice%20&cc=%20bob%20&bcc=%20carol%20&subject=%20search%20&has_attachment=true&limit=10", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -972,6 +972,9 @@ func TestSearchMessagesHandler(t *testing.T) {
 	}
 	if service.lastSearch.UserID != "user-1" || service.lastSearch.Query != "hello" || service.lastSearch.FolderID != "folder-1" || service.lastSearch.From != "sender" || service.lastSearch.Subject != "search" {
 		t.Fatalf("lastSearch = %+v", service.lastSearch)
+	}
+	if service.lastSearch.To != "alice" || service.lastSearch.Cc != "bob" || service.lastSearch.Bcc != "carol" {
+		t.Fatalf("lastSearch to/cc/bcc = %q/%q/%q", service.lastSearch.To, service.lastSearch.Cc, service.lastSearch.Bcc)
 	}
 	if service.lastSearch.HasAttachment == nil || !*service.lastSearch.HasAttachment {
 		t.Fatalf("HasAttachment = %+v", service.lastSearch.HasAttachment)
@@ -1053,6 +1056,9 @@ func TestSearchMessagesHandlerRejectsUnsafeFilters(t *testing.T) {
 		"/api/v1/search?user_id=user-1&q=hello%0Abad",
 		"/api/v1/search?user_id=user-1&folder_id=" + strings.Repeat("f", maxHTTPResourceIDBytes+1),
 		"/api/v1/search?user_id=user-1&from=" + strings.Repeat("s", maxHTTPQueryBytes+1),
+		"/api/v1/search?user_id=user-1&to=alice%0Dbad",
+		"/api/v1/search?user_id=user-1&cc=bob%0Abad",
+		"/api/v1/search?user_id=user-1&bcc=" + strings.Repeat("s", maxHTTPQueryBytes+1),
 		"/api/v1/search?user_id=user-1&subject=receipt%0Dbad",
 	}
 	for _, target := range tests {

@@ -267,7 +267,7 @@ func currentWebmailCapabilities() webmailCapabilities {
 		Search: webmailSearchCapabilities{
 			Messages:       true,
 			Drafts:         true,
-			Filters:        []string{"q", "folder_id", "from", "subject", "has_attachment"},
+			Filters:        []string{"q", "folder_id", "from", "to", "cc", "bcc", "subject", "has_attachment"},
 			Highlights:     true,
 			OpaqueCursors:  true,
 			MaxQueryBytes:  maxHTTPQueryBytes,
@@ -572,7 +572,7 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -619,6 +619,18 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 		if !ok {
 			return
 		}
+		to, ok := parseBoundedHTTPQuery(w, r, "to", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		cc, ok := parseBoundedHTTPQuery(w, r, "cc", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
+		bcc, ok := parseBoundedHTTPQuery(w, r, "bcc", false, maxHTTPQueryBytes)
+		if !ok {
+			return
+		}
 		subject, ok := parseBoundedHTTPQuery(w, r, "subject", false, maxHTTPQueryBytes)
 		if !ok {
 			return
@@ -628,6 +640,9 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 			Query:             queryText,
 			FolderID:          folderID,
 			From:              from,
+			To:                to,
+			Cc:                cc,
+			Bcc:               bcc,
 			Subject:           subject,
 			HasAttachment:     hasAttachment,
 			Limit:             limit,

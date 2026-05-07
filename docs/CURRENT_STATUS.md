@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after draft search to/cc/bcc filter expansion)
+Last updated: 2026-05-07 (updated after message search to/cc/bcc filter expansion)
 
 ## Current phase
 
