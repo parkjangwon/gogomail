@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP parenthesized literal hardening)
+Last updated: 2026-05-07 (updated after S3 requester-pays header hardening)
 
 ## Current phase
 
@@ -31,6 +31,10 @@ structured standard object metadata wrappers such as `Owner` and
 `RestoreStatus`, while still accepting known namespace-free/AWS child elements.
 This keeps provider compatibility for standard AWS metadata without allowing
 ignored wrapper text to cross the shared storage boundary.
+S3-compatible success responses that include requester-pays
+`x-amz-request-charged` metadata now classify blank or whitespace-only values
+as invalid provider metadata before rejecting nonblank requester-pays mode as
+unsupported.
 
 Webmail capability discovery now advertises only runtime-backed `GET
 /api/v1/search` filters (`q`, `folder_id`, `from`, `subject`, and

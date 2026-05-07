@@ -4407,6 +4407,10 @@ Implementation order:
       parsing. This prevents control-bearing or raw non-ASCII literal bytes
       from being normalized into a different mailbox pattern while preserving
       literal-framed modified UTF-7 mailbox names.
+1520. S3-compatible requester-pays response metadata now treats blank or
+      whitespace-only `x-amz-request-charged` values as invalid provider
+      metadata before rejecting nonblank requester-pays mode as unsupported
+      across adapter success paths.
 
 ## Deferred until backend contracts stabilize
 

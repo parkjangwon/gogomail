@@ -39,6 +39,10 @@ Current state:
   structured standard object metadata wrappers such as `Owner` and
   `RestoreStatus`, keeping ignored provider text from crossing the storage
   adapter while preserving known AWS child metadata compatibility.
+- S3-compatible success responses that include requester-pays
+  `x-amz-request-charged` metadata now treat blank or whitespace-only values as
+  invalid provider metadata before rejecting nonblank requester-pays mode as
+  unsupported across adapter success paths.
 - CalDAV and CardDAV discovery now advertise `sync-collection` in both
   `OPTIONS` DAV tokens and collection `supported-report-set` only when the
   runtime store implements the relevant sync change-log interface.
