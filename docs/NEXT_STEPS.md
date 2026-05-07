@@ -1897,10 +1897,11 @@ Current state:
   APPEND-target lookup now allows compatibility alias fallback only for inputs
   without leading/trailing whitespace. Service-backed `APPEND` target lookup
   now preserves decoded destination mailbox ID before repository delegation,
-  and read-side `FETCH`/message listing follows the same identity boundary.
-  Next, the remaining service-level flag, copy/move, and expunge paths should
-  be reviewed so direct service calls do not trim mailbox identities before
-  storage lookup.
+  read-side `FETCH`/message listing follows the same identity boundary, and
+  service-level `STORE`, `COPY`, `MOVE`, and `EXPUNGE` now preserve decoded
+  mailbox IDs through repository and event boundaries. Next, review whether
+  admin-only UID backfill should continue trimming operator-supplied IDs or
+  move to the same exact mailbox identity semantics.
 - `SUBSCRIBE` can now retain missing mailbox names so `LSUB` can expose them
   with `\Noselect`, matching client migration and deleted-mailbox recovery
   behavior that expects subscriptions to outlive selectable mailboxes.

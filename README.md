@@ -190,7 +190,9 @@ Recent release-readiness work also includes:
   lookup path separates exact mailbox-name matching from compatibility aliases,
   with service-backed `APPEND` target lookup following the same mailbox
   identity boundary and read-side `FETCH`/message listing preserving decoded
-  mailbox IDs before repository delegation,
+  mailbox IDs before repository delegation, plus flag/copy/move/expunge
+  mutation paths preserving decoded mailbox IDs through repository and event
+  boundaries,
   bounded and UTF-8-safe ENVELOPE/BODY metadata rendering, capped ENVELOPE
   address lists, and dropping malformed empty or incomplete address
   placeholders before they can render as stray address tuples,

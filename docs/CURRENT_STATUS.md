@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-07 (updated after IMAP read mailbox lookup hardening)
+Last updated: 2026-05-07 (updated after IMAP mutation mailbox identity hardening)
 
 ## Current phase
 
@@ -2993,6 +2993,10 @@ The platform hardening sprint completed the following:
   IDs after validation before repository delegation, keeping read-side storage
   access aligned with exact selected-mailbox identity rather than a trimmed
   service-local variant.
+- IMAP service-backed `STORE`, `COPY`, `MOVE`, and `EXPUNGE` now preserve
+  decoded mailbox IDs after validation before repository delegation. Mutation
+  event fan-out continues to use repository-returned summary mailbox IDs, so
+  exact selected-mailbox identity is not collapsed by the service layer.
 - IMAP `SUBSCRIBE` can retain a mailbox name even when that mailbox does not
   currently exist, allowing `LSUB` to expose it with `\Noselect` for
   standards-friendly client migration and deleted-mailbox recovery flows.

@@ -700,7 +700,7 @@ func (s *Service) StoreIMAPFlags(ctx context.Context, req imapgw.StoreFlagsReque
 		return nil, fmt.Errorf("imap flag repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
-	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	mailboxID := string(req.MailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}
@@ -884,8 +884,8 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 		return nil, fmt.Errorf("imap copy repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
-	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
-	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
+	sourceMailboxID := string(req.SourceMailboxID)
+	destMailboxID := string(req.DestMailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}
@@ -914,8 +914,8 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 		return nil, fmt.Errorf("imap move repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
-	sourceMailboxID := strings.TrimSpace(string(req.SourceMailboxID))
-	destMailboxID := strings.TrimSpace(string(req.DestMailboxID))
+	sourceMailboxID := string(req.SourceMailboxID)
+	destMailboxID := string(req.DestMailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}
@@ -944,7 +944,7 @@ func (s *Service) ExpungeIMAPMessages(ctx context.Context, req imapgw.ExpungeReq
 		return nil, fmt.Errorf("imap expunge repository is required")
 	}
 	userID := strings.TrimSpace(string(req.UserID))
-	mailboxID := strings.TrimSpace(string(req.MailboxID))
+	mailboxID := string(req.MailboxID)
 	if err := validateServiceResourceID("user_id", userID); err != nil {
 		return nil, err
 	}
