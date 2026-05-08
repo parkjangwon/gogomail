@@ -80,6 +80,10 @@ type ObjectWalker interface {
 	WalkAddressBookObjects(ctx context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error
 }
 
+type PrincipalSearchStore interface {
+	SearchAddressBookObjects(ctx context.Context, userID string, addressBookID string, property string, match string, test string) ([]ContactObject, error)
+}
+
 type InvalidSyncTokenError struct {
 	Token string
 }
@@ -1152,6 +1156,11 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 		}
 		responses, _, err := h.syncCollectionReport(ctx, userID, resource, report, currentUserPrivileges)
 		return responses, err
+	case ReportPrincipalPropertySearch:
+		if resource.Kind != ResourcePrincipal && resource.Kind != ResourcePrincipalCollection {
+			return nil, fmt.Errorf("principal-property-search requires a principal resource")
+		}
+		return h.principalPropertySearchResponses(ctx, userID, resource, report, currentUserPrivileges)
 	default:
 		return nil, fmt.Errorf("REPORT %s is not implemented", report.Kind)
 	}
@@ -1280,6 +1289,55 @@ func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker Obje
 	})
 	if err != nil {
 		return nil, err
+	}
+	return responses, nil
+}
+
+func (h *Handler) principalPropertySearchResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+	store, ok := h.Store.(PrincipalSearchStore)
+	if !ok {
+		return nil, fmt.Errorf("carddav principal search store is not configured")
+	}
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0)
+	books, err := h.Store.ListAddressBookCollections(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	for _, book := range books {
+		if len(responses) >= limit {
+			break
+		}
+		objects, err := store.SearchAddressBookObjects(ctx, userID, book.ID, report.PrincipalPropertySearchMatch, report.PrincipalPropertySearchTest, report.PrincipalPropertySearchMatch)
+		if err != nil {
+			return nil, err
+		}
+		for _, object := range objects {
+			if len(responses) >= limit {
+				break
+			}
+			props, err := ContactObjectProperties(userID, object)
+			if err != nil {
+				return nil, err
+			}
+			props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
+			if containsXMLName(report.Properties, PropAddressData) {
+				dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+				if err != nil {
+					return nil, err
+				}
+				props = append(props, dataProp)
+			}
+			href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
+			if err != nil {
+				return nil, err
+			}
+			responses = append(responses, responseForProperties(href, propfind, props))
+		}
 	}
 	return responses, nil
 }

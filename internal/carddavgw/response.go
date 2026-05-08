@@ -33,6 +33,8 @@ var (
 	PropSupportedCollationSet  = XMLName{Space: CardDAVNamespace, Local: "supported-collation-set"}
 	PropMaxResourceSize        = XMLName{Space: CardDAVNamespace, Local: "max-resource-size"}
 	PropGetCTag                = XMLName{Space: CalendarServerNamespace, Local: "getctag"}
+	PropCalendarUserType       = XMLName{Space: CardDAVNamespace, Local: "calendar-user-type"}
+	PropResourceID             = XMLName{Space: DAVNamespace, Local: "resource-id"}
 )
 
 var (
@@ -170,6 +172,8 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 		{Name: PropPrincipalURL, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropAddressBookHomeSet, Value: PropertyValue{Hrefs: []string{principal.AddressBookHomePath}}, Found: true},
+		{Name: PropCalendarUserType, Value: PropertyValue{Text: principal.CalendarUserType}, Found: principal.CalendarUserType != ""},
+		{Name: PropResourceID, Value: PropertyValue{Hrefs: []string{principal.ResourceID}}, Found: principal.ResourceID != ""},
 	}
 }
 
@@ -242,6 +246,7 @@ func SupportedAddressBookReports(includeSyncCollection bool) []XMLName {
 	reports := []XMLName{
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookQuery)},
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookMulti)},
+		{Space: CardDAVNamespace, Local: string(ReportPrincipalPropertySearch)},
 	}
 	if includeSyncCollection {
 		reports = append(reports, XMLName{Space: DAVNamespace, Local: string(ReportSyncCollection)})

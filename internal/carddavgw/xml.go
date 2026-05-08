@@ -85,22 +85,26 @@ type MKAddressBookRequest struct {
 type ReportKind string
 
 const (
-	ReportAddressBookQuery ReportKind = "addressbook-query"
-	ReportAddressBookMulti ReportKind = "addressbook-multiget"
-	ReportSyncCollection   ReportKind = "sync-collection"
+	ReportAddressBookQuery        ReportKind = "addressbook-query"
+	ReportAddressBookMulti        ReportKind = "addressbook-multiget"
+	ReportSyncCollection          ReportKind = "sync-collection"
+	ReportPrincipalPropertySearch ReportKind = "principal-property-search"
 )
 
 type ReportRequest struct {
-	Kind                  ReportKind
-	Properties            []XMLName
-	AddressDataProperties []string
-	Hrefs                 []string
-	SyncToken             string
-	HasSyncToken          bool
-	SyncLevel             string
-	Limit                 int
-	HasFilter             bool
-	Filter                AddressBookQueryFilter
+	Kind                         ReportKind
+	Properties                   []XMLName
+	AddressDataProperties        []string
+	Hrefs                        []string
+	SyncToken                    string
+	HasSyncToken                 bool
+	SyncLevel                    string
+	Limit                        int
+	HasFilter                    bool
+	Filter                       AddressBookQueryFilter
+	PrincipalPropertySearchTest  string
+	PrincipalPropertySearchMatch string
+	HasPrincipalSearch           bool
 }
 
 type UnsupportedAddressDataError struct {
@@ -402,6 +406,14 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 					return ReportRequest{}, err
 				}
 				req.Filter = filter
+			case sameXMLName(tok.Name, CardDAVNamespace, "principal-property-search"):
+				searchReq, err := parsePrincipalPropertySearch(dec, tok)
+				if err != nil {
+					return ReportRequest{}, err
+				}
+				req.HasPrincipalSearch = true
+				req.PrincipalPropertySearchTest = searchReq.Test
+				req.PrincipalPropertySearchMatch = searchReq.Match
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return ReportRequest{}, err
@@ -645,6 +657,8 @@ func classifyReportRoot(name xml.Name) (ReportRequest, error) {
 		return ReportRequest{Kind: ReportAddressBookMulti}, nil
 	case sameXMLName(name, DAVNamespace, "sync-collection"):
 		return ReportRequest{Kind: ReportSyncCollection}, nil
+	case sameXMLName(name, CardDAVNamespace, "principal-property-search"):
+		return ReportRequest{Kind: ReportPrincipalPropertySearch}, nil
 	default:
 		return ReportRequest{}, fmt.Errorf("unsupported REPORT root {%s}%s", name.Space, name.Local)
 	}
@@ -672,6 +686,13 @@ func validateReportRequest(req ReportRequest) error {
 		}
 		if len(req.Properties) == 0 {
 			return fmt.Errorf("sync-collection REPORT requires at least one property")
+		}
+	case ReportPrincipalPropertySearch:
+		if !req.HasPrincipalSearch {
+			return fmt.Errorf("principal-property-search REPORT requires a search element")
+		}
+		if len(req.Properties) == 0 {
+			return fmt.Errorf("principal-property-search REPORT requires at least one property")
 		}
 	}
 	return nil
@@ -828,6 +849,11 @@ type AddressBookQueryFilter struct {
 	PropFilters []CardDAVPropFilter
 }
 
+type PrincipalPropertySearchRequest struct {
+	Test  string
+	Match string
+}
+
 type CardDAVPropFilter struct {
 	Name         string
 	Test         string
@@ -912,6 +938,84 @@ func parseAddressBookFilterChildren(dec *xml.Decoder, filterName xml.Name, depth
 		case xml.EndElement:
 			if sameName(tok.Name, filterName) {
 				return filter, nil
+			}
+		}
+	}
+}
+
+func parsePrincipalPropertySearch(dec *xml.Decoder, el xml.StartElement) (PrincipalPropertySearchRequest, error) {
+	test, err := filterTestAttribute(el, "principal-property-search")
+	if err != nil {
+		return PrincipalPropertySearchRequest{}, err
+	}
+	req := PrincipalPropertySearchRequest{Test: test}
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return PrincipalPropertySearchRequest{}, fmt.Errorf("unterminated principal-property-search element")
+		}
+		if err != nil {
+			return PrincipalPropertySearchRequest{}, fmt.Errorf("decode principal-property-search element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, CardDAVNamespace, "prop"):
+				prop, err := parsePrincipalSearchProp(dec, tok)
+				if err != nil {
+					return PrincipalPropertySearchRequest{}, err
+				}
+				req.Match = prop
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return PrincipalPropertySearchRequest{}, err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, el.Name) {
+				return req, nil
+			}
+		}
+	}
+}
+
+func parsePrincipalSearchProp(dec *xml.Decoder, el xml.StartElement) (string, error) {
+	var match string
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return "", fmt.Errorf("unterminated principal-search prop element")
+		}
+		if err != nil {
+			return "", fmt.Errorf("decode principal-search prop element: %w", err)
+		}
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
+				if match != "" {
+					return "", fmt.Errorf("principal-property-search prop already set")
+				}
+				match = "displayname"
+				if err := skipElement(dec, tok.Name); err != nil {
+					return "", err
+				}
+			case sameXMLName(tok.Name, CardDAVNamespace, "calendar-user-type"):
+				if match != "" {
+					return "", fmt.Errorf("principal-property-search prop already set")
+				}
+				match = "calendar-user-type"
+				if err := skipElement(dec, tok.Name); err != nil {
+					return "", err
+				}
+			default:
+				if err := skipElement(dec, tok.Name); err != nil {
+					return "", err
+				}
+			}
+		case xml.EndElement:
+			if sameName(tok.Name, el.Name) {
+				return match, nil
 			}
 		}
 	}

@@ -388,6 +388,7 @@ func TestSupportedAddressBookReportsMatchesParsedReports(t *testing.T) {
 	want := []XMLName{
 		{Space: CardDAVNamespace, Local: "addressbook-query"},
 		{Space: CardDAVNamespace, Local: "addressbook-multiget"},
+		{Space: CardDAVNamespace, Local: "principal-property-search"},
 		{Space: DAVNamespace, Local: "sync-collection"},
 	}
 	if len(reports) != len(want) {
