@@ -4525,6 +4525,12 @@ Target outcome:
          up the calendar's timezone and pass it to these functions, so DTSTART,
          DTEND, DUE, and recurrence expansion use the calendar's configured
          timezone instead of always UTC.
+ 1541. CalDAV recurrence expansion now covers broader RFC 5545 edge cases.
+         Unit tests verify WEEKLY with BYDAY (e.g., `MO,WE,FR`), MONTHLY with
+         BYMONTHDAY (e.g., day 15), YEARLY with BYMONTH (e.g., June/December),
+         ordinal BYDAY patterns (`1SA` = first Saturday), INTERVAL modifiers
+         (`INTERVAL=3`), and timezone-aware matching all expand and match
+         correctly through `CalendarObjectMatchesTimeRange`.
 
 ## Deferred until backend contracts stabilize
 
@@ -4541,7 +4547,8 @@ Target outcome:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility, including broader recurrence edge
-  cases, native-client scheduling (iMIP/RFC 6047), and broader Apple/Android/Windows/macOS
+  cases (complete), native-client scheduling (iMIP/RFC 6047), production
+  sync-token retention-age policy, and broader Apple/Android/Windows/macOS
   compatibility tests. ADR 0015 timezone support (RFC 7809) is now partially
   implemented: calendar-timezone property storage, PROPFIND/PROPPATCH/MKCALENDAR
   support, timezone service endpoint, and time-range interpretation are complete.

@@ -879,9 +879,9 @@ native CalDAV/iCalendar clients can share a protocol-correct backend.
 
 CalDAV remains an experimental/backend-only release slice: useful protocol
 building blocks now exist, but the module is not yet advertised as public
-client-ready. The next compatibility gates are broader recurrence edge cases,
-scheduling semantics, production retention-age policy, broader native-client
-testing, and the platform boundaries below.
+client-ready. The next compatibility gates are broader recurrence edge cases
+(complete), scheduling semantics, production retention-age policy, broader
+native-client testing, and the platform boundaries below.
 CalDAV `calendar-query` and `free-busy-query` now expand bounded VEVENT
 recurrence sets from RFC 5545 `RRULE`/`EXDATE`/`RDATE` parsing when evaluating
 time ranges, so recurring events can be discovered and included in VFREEBUSY
@@ -891,6 +891,13 @@ unbounded recurrence rules. CalDAV iCalendar validation now also permits the
 common recurring-object shape of one VEVENT master plus same-UID
 `RECURRENCE-ID` detached override VEVENTs, and time-range/free-busy evaluation
 uses detached overrides while excluding the replaced master occurrences.
+CalDAV recurrence expansion now covers broader RFC 5545 edge cases including
+`FREQ=WEEKLY;BYDAY=MO,WE,FR`, `FREQ=MONTHLY;BYMONTHDAY=15`,
+`FREQ=YEARLY;BYMONTH=6,12`, ordinal BYDAY patterns like `1SA` (first Saturday),
+`INTERVAL` modifiers, and timezone-aware matching through the calendar's
+configured timezone. Unit tests verify WEEKLY/MONTHLY/YEARLY expansion,
+BYDAY/MONTHDAY patterns, complex rules, timezone-aware matching, and
+INTERVAL modifiers work correctly.
 CalDAV `calendar-query` and `free-busy-query` now interpret time ranges in the
 calendar's configured timezone (RFC 7809 Section 5.2 `calendar-timezone`
 property) when evaluating VEVENT/VTODO overlap. `CalendarObjectMatchesTimeRange`,

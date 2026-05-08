@@ -2882,7 +2882,7 @@ Current state:
 Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
-  gates are closed: broader recurrence edge cases, production sync-token
+  gates are closed: broader recurrence edge cases (complete), production sync-token
   retention-age policy, ADR 0014 slug/alias implementation (complete),
   ADR 0015 timezone time-range interpretation (complete), scheduling semantics,
   and broader Apple/Android/Windows/macOS compatibility tests.
