@@ -7,28 +7,26 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-002
-- **제목**: Phase 2-A — Runtime Config Store (PostgreSQL JSONB + LISTEN/NOTIFY)
-- **배경**: 회사(Company) → 도메인(Domain) → 사용자(User) 3단 계층으로 설정이 상속·독립 운영된다.
-  설정 변경이 재배포나 스키마 마이그레이션 없이 모든 프로세스에 즉시 반영된다.
-- **구현 대상**: migration, internal/configstore, Admin API, propgate API
+- **ID**: TASK-003
+- **제목**: Phase 2-B — 2FA / TOTP (RFC 6238)
+- **배경**: Runtime config store의 `auth.mfa.mode` 설정을 기반으로 TOTP 기반 2FA를 구현한다.
+  사용자는 선택적/강제 2FA를 설정할 수 있으며, 로그인 시 TOTP 코드 검증이 필요하다.
+- **구현 대상**: migration, internal/authmfa, JWT claims, auth flow 연동
 
 ### 완료 조건
 
-- [ ] Migration 0073: `runtime_config` 테이블, `companies.parent_id` 추가
-- [ ] `internal/configstore.ConfigStore` 인터페이스 + `PostgresConfigStore` 구현 (LISTEN/NOTIFY)
-- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`
-- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/domains/{id}/config/{key}`
-- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/users/{id}/config/{key}`
-- [ ] Propagate API: `POST /admin/v1/companies/{id}/config/propagate?scope=subtree|children|domains`
-- [ ] 생성 훅: 자회사/도메인 생성 시 직속 부모 설정 자동 복사
-- [ ] 테스트: 트리 해결 순서, locked 차단, propagate 전파 범위, 생성 복사
+- [ ] Migration: `user_mfa_secrets`, `totp_used_codes` 테이블
+- [ ] `internal/authmfa` 패키지: TOTP 생성/검증, ±2 window, 리플레이 방지
+- [ ] Recovery codes (8개 단일 사용)
+- [ ] Auth flow 연동: `auth.mfa.mode` 설정값 기반 강제/선택/비활성화
+- [ ] JWT 클레임 `mfa_verified: true` 추가
+- [ ] 테스트: TOTP 생성/검증, window, 리플레이 방지, recovery codes
 - [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-002 — Phase 2-A Runtime Config Store**
+현재 다음 태스크: **TASK-004 — Phase 2-C Batch Worker & Distributed Job Lock**
 
 ---
 
