@@ -125,6 +125,10 @@ func (r *Repository) LookupCalendar(ctx context.Context, userID string, calendar
 	return r.GetCalendar(ctx, GetCalendarRequest{UserID: userID, CalendarID: calendarID, Status: CalendarStatusActive})
 }
 
+func (r *Repository) LookupCalendarBySlug(ctx context.Context, userID string, slug string) (Calendar, error) {
+	return r.GetCalendarBySlug(ctx, GetCalendarBySlugRequest{UserID: userID, Slug: slug, Status: CalendarStatusActive})
+}
+
 func (r *Repository) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
 	return r.ListObjects(ctx, ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: CalendarStatusActive})
 }

@@ -192,7 +192,7 @@ func (r *Repository) CreateCalendarAtPath(ctx context.Context, req CreateCalenda
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
 	}
-	req, normalizedName, syncToken, err := ValidateCreateCalendarAtPathRequest(req)
+	req, normalizedName, syncToken, normalizedSlug, err := ValidateCreateCalendarAtPathRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
@@ -201,7 +201,56 @@ func (r *Repository) CreateCalendarAtPath(ctx context.Context, req CreateCalenda
 		return Calendar{}, fmt.Errorf("begin CalDAV calendar create: %w", err)
 	}
 	defer tx.Rollback()
-	const query = `
+	var calendar Calendar
+	if req.Slug != nil {
+		const query = `
+WITH active_user AS (
+  SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
+  FROM users u
+  JOIN domains d ON d.id = u.domain_id
+  JOIN companies c ON c.id = d.company_id
+  WHERE u.id = $1::uuid
+    AND u.status = 'active'
+    AND d.status = 'active'
+    AND c.status = 'active'
+)
+INSERT INTO caldav_calendars (
+  id, company_id, domain_id, user_id, name, normalized_name, slug, color, description, sync_token
+)
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
+FROM active_user
+RETURNING id::text, user_id::text, name, slug, color, description, sync_token, created_at, updated_at`
+		err = tx.QueryRowContext(ctx, query,
+			req.UserID,
+			req.CalendarID,
+			req.Name,
+			normalizedName,
+			normalizedSlug,
+			req.Color,
+			req.Description,
+			syncToken,
+		).Scan(
+			&calendar.ID,
+			&calendar.UserID,
+			&calendar.Name,
+			&calendar.Slug,
+			&calendar.Color,
+			&calendar.Description,
+			&calendar.SyncToken,
+			&calendar.CreatedAt,
+			&calendar.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return Calendar{}, fmt.Errorf("active user not found")
+			}
+			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+				return Calendar{}, fmt.Errorf("calendar slug already exists")
+			}
+			return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
+		}
+	} else {
+		const query = `
 WITH active_user AS (
   SELECT u.id AS user_id, d.id AS domain_id, c.id AS company_id
   FROM users u
@@ -218,25 +267,31 @@ INSERT INTO caldav_calendars (
 SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7
 FROM active_user
 RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
-	var calendar Calendar
-	err = tx.QueryRowContext(ctx, query,
-		req.UserID,
-		req.CalendarID,
-		req.Name,
-		normalizedName,
-		req.Color,
-		req.Description,
-		syncToken,
-	).Scan(
-		&calendar.ID,
-		&calendar.UserID,
-		&calendar.Name,
-		&calendar.Color,
-		&calendar.Description,
-		&calendar.SyncToken,
-		&calendar.CreatedAt,
-		&calendar.UpdatedAt,
-	)
+		err = tx.QueryRowContext(ctx, query,
+			req.UserID,
+			req.CalendarID,
+			req.Name,
+			normalizedName,
+			req.Color,
+			req.Description,
+			syncToken,
+		).Scan(
+			&calendar.ID,
+			&calendar.UserID,
+			&calendar.Name,
+			&calendar.Color,
+			&calendar.Description,
+			&calendar.SyncToken,
+			&calendar.CreatedAt,
+			&calendar.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return Calendar{}, fmt.Errorf("active user not found")
+			}
+			return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Calendar{}, fmt.Errorf("active user not found")
@@ -318,6 +373,67 @@ WHERE user_id = $1::uuid
 		return Calendar{}, fmt.Errorf("get CalDAV calendar: %w", err)
 	}
 	return calendar, nil
+}
+
+type GetCalendarBySlugRequest struct {
+	UserID string
+	Slug   string
+	Status string
+}
+
+func (r *Repository) GetCalendarBySlug(ctx context.Context, req GetCalendarBySlugRequest) (Calendar, error) {
+	if r == nil || r.db == nil {
+		return Calendar{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateGetCalendarBySlugRequest(req)
+	if err != nil {
+		return Calendar{}, err
+	}
+	const query = `
+SELECT id::text, user_id::text, name, slug, color, description, sync_token, created_at, updated_at
+FROM caldav_calendars
+WHERE user_id = $1::uuid
+  AND lower(slug) = lower($2)
+  AND status = $3`
+	var calendar Calendar
+	err = r.db.QueryRowContext(ctx, query, req.UserID, req.Slug, req.Status).Scan(
+		&calendar.ID,
+		&calendar.UserID,
+		&calendar.Name,
+		&calendar.Slug,
+		&calendar.Color,
+		&calendar.Description,
+		&calendar.SyncToken,
+		&calendar.CreatedAt,
+		&calendar.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Calendar{}, fmt.Errorf("CalDAV calendar not found")
+		}
+		return Calendar{}, fmt.Errorf("get CalDAV calendar by slug: %w", err)
+	}
+	return calendar, nil
+}
+
+func ValidateGetCalendarBySlugRequest(req GetCalendarBySlugRequest) (GetCalendarBySlugRequest, error) {
+	userID, err := validateCalDAVID("user_id", req.UserID, true)
+	if err != nil {
+		return GetCalendarBySlugRequest{}, err
+	}
+	slug, err := ValidateSlug(req.Slug)
+	if err != nil {
+		return GetCalendarBySlugRequest{}, err
+	}
+	status, err := ValidateCalendarStatus(req.Status)
+	if err != nil {
+		return GetCalendarBySlugRequest{}, err
+	}
+	return GetCalendarBySlugRequest{
+		UserID: userID,
+		Slug:   slug,
+		Status: status,
+	}, nil
 }
 
 func (r *Repository) UpsertObject(ctx context.Context, req UpsertObjectRequest) (CalendarObject, error) {
@@ -1046,18 +1162,26 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 	return CreateCalendarRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
 }
 
-func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, error) {
+func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, *string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", err
+		return CreateCalendarAtPathRequest{}, "", "", nil, err
 	}
 	calendarID, err := ValidateCalendarPathID(req.CalendarID)
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", err
+		return CreateCalendarAtPathRequest{}, "", "", nil, err
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		name = calendarID
+	}
+	var normalizedSlug *string
+	if req.Slug != nil {
+		ns, err := NormalizeSlug(*req.Slug)
+		if err != nil {
+			return CreateCalendarAtPathRequest{}, "", "", nil, fmt.Errorf("slug: %w", err)
+		}
+		normalizedSlug = &ns
 	}
 	create, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
 		UserID:      userID,
@@ -1067,16 +1191,17 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 		Description: req.Description,
 	})
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", err
+		return CreateCalendarAtPathRequest{}, "", "", nil, err
 	}
 	return CreateCalendarAtPathRequest{
 		UserID:      create.UserID,
 		ActorUserID: create.ActorUserID,
 		CalendarID:  calendarID,
 		Name:        create.Name,
+		Slug:        normalizedSlug,
 		Color:       create.Color,
 		Description: create.Description,
-	}, normalizedName, syncToken, nil
+	}, normalizedName, syncToken, normalizedSlug, nil
 }
 
 func ValidateListCalendarsRequest(req ListCalendarsRequest) (ListCalendarsRequest, error) {

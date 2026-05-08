@@ -38,7 +38,7 @@ func TestValidateCreateCalendarRequest(t *testing.T) {
 func TestValidateCreateCalendarAtPathRequest(t *testing.T) {
 	t.Parallel()
 
-	req, normalizedName, syncToken, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+	req, normalizedName, syncToken, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
 		UserID:      " user-1 ",
 		CalendarID:  "11111111-1111-4111-8111-111111111111",
 		Name:        " Project ",
@@ -89,7 +89,7 @@ func TestValidateCreateCalendarAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) 
 		t.Run(calendarID, func(t *testing.T) {
 			t.Parallel()
 
-			if _, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+			if _, _, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
 				UserID:     "user-1",
 				CalendarID: calendarID,
 				Name:       "Work",

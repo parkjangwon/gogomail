@@ -135,6 +135,7 @@ type Store interface {
 	GetPrincipal(userID string) (Principal, error)
 	ListCalendars(userID string) ([]Calendar, error)
 	GetCalendar(userID string, calendarID string) (Calendar, error)
+	GetCalendarBySlug(userID string, slug string) (Calendar, error)
 	GetObject(userID string, calendarID string, objectName string) (CalendarObject, error)
 }
 
