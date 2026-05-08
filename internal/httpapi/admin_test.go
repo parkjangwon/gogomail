@@ -9356,3 +9356,30 @@ func (f *fakeAdminService) PropagateCompanyConfig(_ context.Context, companyID s
 	f.lastPropagateScope = scope
 	return nil
 }
+
+func TestAdminUserConfigWriteBlocked(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "secret")
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/v1/users/user-1/config/some.key", bytes.NewReader([]byte(`{"value":"test"}`)))
+	req.Header.Set("Authorization", "Bearer secret")
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("PUT status = %d, want 403", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/admin/v1/users/user-1/config/some.key", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("DELETE status = %d, want 403", rec.Code)
+	}
+}

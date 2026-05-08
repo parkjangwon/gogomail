@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after batch worker feature)
+Last updated: 2026-05-09 (updated after SSE + scope security feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -50,6 +50,13 @@ only one instance executes a given job across multiple worker instances. The
 include ScheduledMailFlusher (5m), QuotaAlertCheck (15m), MFAGracePeriod (1h),
 TokenCleanup (30m), and UsedCodeCleanup (5m). In-memory lock fallback is used
 when database is unavailable for testing.
+
+SSE config streaming (`GET /admin/v1/config/stream`) provides real-time config
+change events via Server-Sent Events. The endpoint streams `connected` events
+and will be extended to push actual config change notifications from the
+configstore Notifier interface. Scope security prevents administrators from
+directly modifying user-level config entries; PUT and DELETE on
+`/admin/v1/users/{id}/config/{key}` return 403 Forbidden.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
