@@ -2886,8 +2886,8 @@ Next:
   retention-age policy (complete - dav-sync-retention-worker with
   GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE=2160h default), ADR 0014 slug/alias
   implementation (complete), ADR 0015 timezone time-range interpretation
-  (complete), scheduling semantics, and broader Apple/Android/Windows/macOS
-  compatibility tests.
+  (complete), VTODO recurrence expansion (RRULE on VTODO), scheduling semantics,
+  and broader Apple/Android/Windows/macOS compatibility tests.
 - Keep frontend implementation behind the explicit start gate, but preserve
   the product target in backend/API planning: future Next.js TypeScript +
   shadcn/ui webmail, Drive, calendar, contacts, admin console, and shared inbox
