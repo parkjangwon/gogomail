@@ -16,11 +16,11 @@
 
 ### 완료 조건
 
-- [ ] `internal/configstore.Notifier` 인터페이스 + subscriber fan-out
-- [ ] `GET /api/v1/config/stream` (사용자) + `GET /admin/v1/config/stream` (관리자) SSE 엔드포인트
-- [ ] 스코프 보안: `user` 스코프 관리자 직접 쓰기 차단 (403)
-- [ ] 테스트: DB 설정 변경 → SSE 이벤트 수신 통합 테스트
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/configstore.Notifier` 인터페이스 + subscriber fan-out
+- [x] `GET /api/v1/config/stream` (사용자) + `GET /admin/v1/config/stream` (관리자) SSE 엔드포인트
+- [x] 스코프 보안: `user` 스코프 관리자 직접 쓰기 차단 (403)
+- [x] 테스트: DB 설정 변경 → SSE 이벤트 수신 통합 테스트
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 

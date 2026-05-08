@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -1202,74 +1203,31 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
-		if !rejectUnknownQueryKeys(w, r) {
-			return
-		}
-		id, ok := parseBoundedAdminPathValue(w, r, "id")
-		if !ok {
-			return
-		}
-		key, ok := parseBoundedAdminPathValue(w, r, "key")
-		if !ok {
-			return
-		}
-		var req adminConfigSetRequest
-		if err := decodeJSONBody(r, &req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON body")
-			return
-		}
-		entry, err := service.SetUserConfig(r.Context(), id, key, req.Value, req.Locked, req.Version)
-		if err != nil {
-			if errors.Is(err, configstore.ErrVersionConflict) {
-				writeError(w, http.StatusConflict, err.Error())
-				return
-			}
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
 	}))
 
 	mux.HandleFunc("DELETE /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
+		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
+	}))
+
+	mux.HandleFunc("GET /admin/v1/config/stream", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
-		id, ok := parseBoundedAdminPathValue(w, r, "id")
-		if !ok {
-			return
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.WriteHeader(http.StatusOK)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
 		}
-		key, ok := parseBoundedAdminPathValue(w, r, "key")
-		if !ok {
-			return
+		fmt.Fprintf(w, "data: %s\n\n", `{"type":"connected"}`)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
 		}
-		version := int64(-1)
-		if v := r.URL.Query().Get("version"); v != "" {
-			var err error
-			version, err = strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				writeError(w, http.StatusBadRequest, "invalid version")
-				return
-			}
-		}
-		if err := service.DeleteUserConfig(r.Context(), id, key, version); err != nil {
-			if errors.Is(err, configstore.ErrConfigNotFound) {
-				writeError(w, http.StatusNotFound, err.Error())
-				return
-			}
-			if errors.Is(err, configstore.ErrConfigLocked) {
-				writeError(w, http.StatusForbidden, err.Error())
-				return
-			}
-			if errors.Is(err, configstore.ErrVersionConflict) {
-				writeError(w, http.StatusConflict, err.Error())
-				return
-			}
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+		<-r.Context().Done()
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
