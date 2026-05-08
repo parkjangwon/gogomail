@@ -15,11 +15,11 @@
 
 ### 완료 조건
 
-- [ ] `internal/webdavgw` 패키지: WebDAV 핸들러
-- [ ] PROPFIND: 파일/폴더 속성 조회
-- [ ] GET/PUT/DELETE/MKCOL 기본 지원
-- [ ] 테스트: WebDAV ops, 속성 정확성
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/webdavgw` 패키지: WebDAV 핸들러
+- [x] PROPFIND: 파일/폳더 속성 조회
+- [x] GET/PUT/DELETE/MKCOL 기본 지원
+- [x] 테스트: WebDAV ops, 속성 정확성
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
