@@ -204,6 +204,13 @@ type AdminService interface {
 	RetryOutbox(ctx context.Context, id string) error
 	DeleteSuppressionEntry(ctx context.Context, id string) error
 	BackfillIMAPMailboxUIDs(ctx context.Context, userID string, mailboxID string, limit int) ([]maildb.IMAPMessageUID, error)
+	ListQuotaAlertThresholds(ctx context.Context, req maildb.QuotaAlertThresholdListRequest) ([]maildb.QuotaAlertThresholdView, error)
+	GetQuotaAlertThreshold(ctx context.Context, id string) (maildb.QuotaAlertThresholdView, error)
+	CreateQuotaAlertThreshold(ctx context.Context, req maildb.CreateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error)
+	UpdateQuotaAlertThreshold(ctx context.Context, req maildb.UpdateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error)
+	DeleteQuotaAlertThreshold(ctx context.Context, id string) error
+	ListQuotaAlerts(ctx context.Context, req maildb.QuotaAlertListRequest) ([]maildb.QuotaAlertView, error)
+	GetQuotaAlert(ctx context.Context, id string) (maildb.QuotaAlertView, error)
 }
 
 type adminIMAPUIDBackfillItem struct {
@@ -2587,6 +2594,177 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"quota_correction": result})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "scope") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+		if !ok {
+			return
+		}
+		scope, ok := parseBoundedAdminQuery(w, r, "scope")
+		if !ok {
+			return
+		}
+		thresholds, err := service.ListQuotaAlertThresholds(r.Context(), maildb.QuotaAlertThresholdListRequest{
+			Limit:     limit,
+			CompanyID: companyID,
+			Scope:     scope,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_thresholds": thresholds})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		threshold, err := service.GetQuotaAlertThreshold(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_threshold": threshold})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/quota-alert-thresholds", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req maildb.CreateQuotaAlertThresholdRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		threshold, err := service.CreateQuotaAlertThreshold(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"quota_alert_threshold": threshold})
+	}))
+
+	mux.HandleFunc("PATCH /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		var req maildb.UpdateQuotaAlertThresholdRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = id
+		threshold, err := service.UpdateQuotaAlertThreshold(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_threshold": threshold})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteQuotaAlertThreshold(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/quota-alerts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "user_id", "scope", "alert_type", "since", "until") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+		if !ok {
+			return
+		}
+		domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+		if !ok {
+			return
+		}
+		userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+		if !ok {
+			return
+		}
+		scope, ok := parseBoundedAdminQuery(w, r, "scope")
+		if !ok {
+			return
+		}
+		alertType, ok := parseBoundedAdminQuery(w, r, "alert_type")
+		if !ok {
+			return
+		}
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
+		until, ok := parseOptionalRFC3339Query(w, r, "until")
+		if !ok {
+			return
+		}
+		alerts, err := service.ListQuotaAlerts(r.Context(), maildb.QuotaAlertListRequest{
+			Limit:     limit,
+			CompanyID: companyID,
+			DomainID:  domainID,
+			UserID:    userID,
+			Scope:     scope,
+			AlertType: alertType,
+			Since:     since,
+			Until:     until,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_alerts": alerts})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/quota-alerts/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		alert, err := service.GetQuotaAlert(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"quota_alert": alert})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

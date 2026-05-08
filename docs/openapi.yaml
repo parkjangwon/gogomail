@@ -3931,6 +3931,198 @@ paths:
           $ref: "#/components/responses/QuotaCorrection"
         default:
           $ref: "#/components/responses/Error"
+  /quota-alert-thresholds:
+    get:
+      operationId: listAdminQuotaAlertThresholds
+      summary: Admin quota alert threshold configuration list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit rows to one company.
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [company, domain, user]
+          description: Limit rows to one quota scope.
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaAlertThresholdList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminQuotaAlertThreshold
+      summary: Create a quota alert threshold configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        $ref: "#/components/requestBodies/QuotaAlertThresholdCreate"
+      responses:
+        "201":
+          $ref: "#/components/responses/QuotaAlertThreshold"
+        default:
+          $ref: "#/components/responses/Error"
+  /quota-alert-thresholds/{id}:
+    get:
+      operationId: getAdminQuotaAlertThreshold
+      summary: Admin quota alert threshold configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaAlertThreshold"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateAdminQuotaAlertThreshold
+      summary: Update a quota alert threshold configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        $ref: "#/components/requestBodies/QuotaAlertThresholdUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaAlertThreshold"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAdminQuotaAlertThreshold
+      summary: Delete a quota alert threshold configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /quota-alerts:
+    get:
+      operationId: listAdminQuotaAlerts
+      summary: Admin quota alert history list
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit rows to one company.
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit rows to one domain.
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Limit rows to one user.
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [company, domain, user]
+          description: Limit rows to one quota scope.
+        - name: alert_type
+          in: query
+          schema:
+            type: string
+            enum: [warning, critical, exhausted]
+          description: Limit rows to one alert type.
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return rows created at or after this timestamp.
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return rows created at or before this timestamp.
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaAlertList"
+        default:
+          $ref: "#/components/responses/Error"
+  /quota-alerts/{id}:
+    get:
+      operationId: getAdminQuotaAlert
+      summary: Admin quota alert history
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          $ref: "#/components/responses/QuotaAlert"
+        default:
+          $ref: "#/components/responses/Error"
   /delivery-attempts:
     get:
       operationId: listAdminDeliveryAttempts
@@ -5536,6 +5728,30 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QuotaCorrectionEnvelope"
+    QuotaAlertThresholdList:
+      description: Quota alert threshold configuration list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertThresholdListEnvelope"
+    QuotaAlertThreshold:
+      description: Quota alert threshold configuration envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertThresholdEnvelope"
+    QuotaAlertList:
+      description: Quota alert history list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertListEnvelope"
+    QuotaAlert:
+      description: Quota alert history envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertEnvelope"
     DeliveryAttempts:
       description: Delivery attempts envelope
       content:
@@ -6055,6 +6271,18 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QuotaCorrectionRequest"
+    QuotaAlertThresholdCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertThresholdCreateRequest"
+    QuotaAlertThresholdUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/QuotaAlertThresholdUpdateRequest"
   schemas:
     HealthResponse:
       type: object
@@ -9491,6 +9719,143 @@ components:
       properties:
         quota_correction:
           $ref: "#/components/schemas/QuotaCorrection"
+    QuotaAlertThresholdCreateRequest:
+      type: object
+      required: [scope, company_id, warning_ratio, critical_ratio]
+      properties:
+        scope:
+          type: string
+          enum: [company, domain, user]
+          description: Quota scope this threshold applies to.
+        scope_id:
+          type: string
+          format: uuid
+          description: Required when scope is user or domain.
+        company_id:
+          type: string
+          format: uuid
+          description: Company that owns this threshold.
+        warning_ratio:
+          type: number
+          format: double
+          minimum: 0.0001
+          maximum: 1
+          description: Emit warning when usage exceeds this ratio of quota_limit.
+        critical_ratio:
+          type: number
+          format: double
+          minimum: 0.0001
+          maximum: 1
+          description: Emit critical alert when usage exceeds this ratio of quota_limit.
+    QuotaAlertThresholdUpdateRequest:
+      type: object
+      required: [warning_ratio, critical_ratio]
+      properties:
+        warning_ratio:
+          type: number
+          format: double
+          minimum: 0.0001
+          maximum: 1
+          description: Emit warning when usage exceeds this ratio of quota_limit.
+        critical_ratio:
+          type: number
+          format: double
+          minimum: 0.0001
+          maximum: 1
+          description: Emit critical alert when usage exceeds this ratio of quota_limit.
+    QuotaAlertThreshold:
+      type: object
+      required: [id, scope, company_id, warning_ratio, critical_ratio, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [company, domain, user]
+        scope_id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        warning_ratio:
+          type: number
+          format: double
+        critical_ratio:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    QuotaAlertThresholdEnvelope:
+      type: object
+      required: [quota_alert_threshold]
+      properties:
+        quota_alert_threshold:
+          $ref: "#/components/schemas/QuotaAlertThreshold"
+    QuotaAlertThresholdListEnvelope:
+      type: object
+      required: [quota_alert_thresholds]
+      properties:
+        quota_alert_thresholds:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaAlertThreshold"
+    QuotaAlert:
+      type: object
+      required: [id, company_id, scope, alert_type, quota_used, quota_limit, usage_ratio, event_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        domain_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [company, domain, user]
+        alert_type:
+          type: string
+          enum: [warning, critical, exhausted]
+        quota_used:
+          type: integer
+          format: int64
+        quota_limit:
+          type: integer
+          format: int64
+        usage_ratio:
+          type: number
+          format: double
+        event_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+    QuotaAlertEnvelope:
+      type: object
+      required: [quota_alert]
+      properties:
+        quota_alert:
+          $ref: "#/components/schemas/QuotaAlert"
+    QuotaAlertListEnvelope:
+      type: object
+      required: [quota_alerts]
+      properties:
+        quota_alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuotaAlert"
     AttachmentCleanupRunRequest:
       type: object
       required: [before]
