@@ -2092,6 +2092,55 @@ paths:
           $ref: "#/components/responses/MailFlowLogStats"
         default:
           $ref: "#/components/responses/Error"
+  /mail-flow-logs/daily-stats:
+    get:
+      operationId: getAdminMailFlowLogDailyStats
+      summary: Admin mail flow log daily statistics time series
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: direction
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Filter by mail flow direction (inbound or outbound).
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for mail flow log creation timestamps.
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 upper bound for mail flow log creation timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/MailFlowLogDailyStats"
+        default:
+          $ref: "#/components/responses/Error"
   /mail-flow-logs/{id}:
     get:
       operationId: getAdminMailFlowLog
@@ -5450,6 +5499,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/MailFlowLogStatsEnvelope"
+    MailFlowLogDailyStats:
+      description: Mail flow log daily statistics time series envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MailFlowLogDailyStatsEnvelope"
     DirectoryPrincipalList:
       description: Directory principal search envelope
       content:
@@ -8243,6 +8298,43 @@ components:
           type: integer
           format: int64
         rejected:
+          type: integer
+          format: int64
+    MailFlowLogDailyStatsEnvelope:
+      type: object
+      required: [mail_flow_daily_stats]
+      properties:
+        mail_flow_daily_stats:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailFlowLogDailyStatsView"
+    MailFlowLogDailyStatsView:
+      type: object
+      required: [date, inbound_messages, outbound_messages, delivered, failed, bounced]
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date of the stats (UTC, date-only portion).
+        inbound_messages:
+          type: integer
+          format: int64
+        outbound_messages:
+          type: integer
+          format: int64
+        inbound_size_bytes:
+          type: integer
+          format: int64
+        outbound_size_bytes:
+          type: integer
+          format: int64
+        delivered:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        bounced:
           type: integer
           format: int64
     DirectoryPrincipal:

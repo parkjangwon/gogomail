@@ -87,14 +87,38 @@ type MailFlowLogStatsRequest struct {
 }
 
 type MailFlowLogStatsView struct {
-	TotalMessages  int64 `json:"total_messages"`
-	UniqueSenders  int64 `json:"unique_senders"`
-	UniqueDomains  int64 `json:"unique_domains"`
-	Delivered      int64 `json:"delivered"`
-	Failed         int64 `json:"failed"`
-	Bounced        int64 `json:"bounced"`
-	Filtered       int64 `json:"filtered"`
-	Rejected       int64 `json:"rejected"`
+	TotalMessages   int64   `json:"total_messages"`
+	UniqueSenders   int64   `json:"unique_senders"`
+	UniqueDomains   int64   `json:"unique_domains"`
+	TotalSizeBytes int64   `json:"total_size_bytes"`
+	AverageSizeBytes float64 `json:"average_size_bytes"`
+	MaxSizeBytes   int64   `json:"max_size_bytes"`
+	Delivered      int64   `json:"delivered"`
+	Failed         int64   `json:"failed"`
+	Bounced        int64   `json:"bounced"`
+	Filtered       int64   `json:"filtered"`
+	Rejected       int64   `json:"rejected"`
+	DeliveryRate   float64  `json:"delivery_rate"`
+}
+
+type MailFlowLogDailyStatsView struct {
+	Date            time.Time `json:"date"`
+	InboundMessages int64     `json:"inbound_messages"`
+	OutboundMessages int64    `json:"outbound_messages"`
+	InboundSize     int64     `json:"inbound_size_bytes"`
+	OutboundSize    int64     `json:"outbound_size_bytes"`
+	Delivered       int64     `json:"delivered"`
+	Failed          int64     `json:"failed"`
+	Bounced         int64     `json:"bounced"`
+}
+
+type MailFlowLogDailyStatsRequest struct {
+	Direction  string
+	CompanyID  string
+	DomainID   string
+	UserID     string
+	Since      time.Time
+	Until      time.Time
 }
 
 func (r *Repository) ListMailFlowLogs(ctx context.Context, req MailFlowLogListRequest) ([]MailFlowLogView, error) {
@@ -305,6 +329,9 @@ SELECT
   COUNT(DISTINCT message_id) AS total_messages,
   COUNT(DISTINCT from_addr) AS unique_senders,
   COUNT(DISTINCT COALESCE(NULLIF(split_part(from_addr, '@', 2), ''), mail_from)) AS unique_domains,
+  COALESCE(SUM(size), 0) AS total_size_bytes,
+  COALESCE(AVG(size), 0) AS average_size_bytes,
+  COALESCE(MAX(size), 0) AS max_size_bytes,
   COUNT(*) FILTER (WHERE flow_status = 'delivered') AS delivered,
   COUNT(*) FILTER (WHERE flow_status = 'failed') AS failed,
   COUNT(*) FILTER (WHERE flow_status = 'bounced') AS bounced,
@@ -315,10 +342,15 @@ FROM mail_flow_logs%s`, where)
 	row := r.db.QueryRowContext(ctx, query, args...)
 	var stats MailFlowLogStatsView
 	var uniqueDomains sql.NullInt64
+	var totalSize, maxSize sql.NullInt64
+	var avgSize sql.NullFloat64
 	if err := row.Scan(
 		&stats.TotalMessages,
 		&stats.UniqueSenders,
 		&uniqueDomains,
+		&totalSize,
+		&avgSize,
+		&maxSize,
 		&stats.Delivered,
 		&stats.Failed,
 		&stats.Bounced,
@@ -330,7 +362,111 @@ FROM mail_flow_logs%s`, where)
 	if uniqueDomains.Valid {
 		stats.UniqueDomains = uniqueDomains.Int64
 	}
+	if totalSize.Valid {
+		stats.TotalSizeBytes = totalSize.Int64
+	}
+	if avgSize.Valid {
+		stats.AverageSizeBytes = avgSize.Float64
+	}
+	if maxSize.Valid {
+		stats.MaxSizeBytes = maxSize.Int64
+	}
+	if stats.TotalMessages > 0 {
+		stats.DeliveryRate = float64(stats.Delivered) / float64(stats.TotalMessages)
+	}
 	return stats, nil
+}
+
+func (r *Repository) GetMailFlowLogDailyStats(ctx context.Context, req MailFlowLogDailyStatsRequest) ([]MailFlowLogDailyStatsView, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req = normalizeMailFlowLogDailyStatsRequest(req)
+
+	var conditions []string
+	var args []any
+	if req.Direction != "" {
+		args = append(args, req.Direction)
+		conditions = append(conditions, fmt.Sprintf("direction = $%d", len(args)))
+	}
+	if req.CompanyID != "" {
+		args = append(args, req.CompanyID)
+		conditions = append(conditions, fmt.Sprintf("company_id::text = $%d", len(args)))
+	}
+	if req.DomainID != "" {
+		args = append(args, req.DomainID)
+		conditions = append(conditions, fmt.Sprintf("domain_id::text = $%d", len(args)))
+	}
+	if req.UserID != "" {
+		args = append(args, req.UserID)
+		conditions = append(conditions, fmt.Sprintf("user_id::text = $%d", len(args)))
+	}
+	if !req.Since.IsZero() {
+		args = append(args, req.Since.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", len(args)))
+	}
+	if !req.Until.IsZero() {
+		args = append(args, req.Until.UTC())
+		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", len(args)))
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = "\nWHERE " + strings.Join(conditions, "\n  AND ")
+	}
+
+	query := fmt.Sprintf(`
+SELECT
+  DATE(created_at AT TIME ZONE 'UTC') AS date,
+  COUNT(*) FILTER (WHERE direction = 'inbound') AS inbound_messages,
+  COUNT(*) FILTER (WHERE direction = 'outbound') AS outbound_messages,
+  COALESCE(SUM(size) FILTER (WHERE direction = 'inbound'), 0) AS inbound_size,
+  COALESCE(SUM(size) FILTER (WHERE direction = 'outbound'), 0) AS outbound_size,
+  COUNT(*) FILTER (WHERE flow_status = 'delivered') AS delivered,
+  COUNT(*) FILTER (WHERE flow_status = 'failed') AS failed,
+  COUNT(*) FILTER (WHERE flow_status = 'bounced') AS bounced
+FROM mail_flow_logs%s
+GROUP BY DATE(created_at AT TIME ZONE 'UTC')
+ORDER BY date DESC`, where)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get mail flow log daily stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []MailFlowLogDailyStatsView
+	for rows.Next() {
+		var s MailFlowLogDailyStatsView
+		var date sql.NullTime
+		if err := rows.Scan(
+			&date,
+			&s.InboundMessages,
+			&s.OutboundMessages,
+			&s.InboundSize,
+			&s.OutboundSize,
+			&s.Delivered,
+			&s.Failed,
+			&s.Bounced,
+		); err != nil {
+			return nil, fmt.Errorf("scan mail flow log daily stats: %w", err)
+		}
+		if date.Valid {
+			s.Date = date.Time.UTC()
+		}
+		stats = append(stats, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate mail flow log daily stats: %w", err)
+	}
+	return stats, nil
+}
+
+func normalizeMailFlowLogDailyStatsRequest(req MailFlowLogDailyStatsRequest) MailFlowLogDailyStatsRequest {
+	req.Direction = strings.TrimSpace(req.Direction)
+	req.CompanyID = strings.TrimSpace(req.CompanyID)
+	req.DomainID = strings.TrimSpace(req.DomainID)
+	req.UserID = strings.TrimSpace(req.UserID)
+	return req
 }
 
 func normalizeMailFlowLogListRequest(req MailFlowLogListRequest) MailFlowLogListRequest {

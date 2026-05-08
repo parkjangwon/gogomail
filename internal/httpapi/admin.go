@@ -115,6 +115,7 @@ type AdminService interface {
 	ListMailFlowLogs(ctx context.Context, req maildb.MailFlowLogListRequest) ([]maildb.MailFlowLogView, error)
 	GetMailFlowLog(ctx context.Context, id string) (maildb.MailFlowLogView, error)
 	GetMailFlowLogStats(ctx context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error)
+	GetMailFlowLogDailyStats(ctx context.Context, req maildb.MailFlowLogDailyStatsRequest) ([]maildb.MailFlowLogDailyStatsView, error)
 	ListQuotaUsage(ctx context.Context, req maildb.QuotaUsageListRequest) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
@@ -1071,6 +1072,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_stats": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/daily-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "direction", "company_id", "domain_id", "user_id", "since", "until") {
+			return
+		}
+		req, ok := parseMailFlowLogDailyStatsRequest(w, r)
+		if !ok {
+			return
+		}
+		stats, err := service.GetMailFlowLogDailyStats(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_daily_stats": stats})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/mail-flow-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -3690,6 +3707,41 @@ func parseMailFlowLogStatsRequest(w http.ResponseWriter, r *http.Request) (maild
 		return maildb.MailFlowLogStatsRequest{}, false
 	}
 	return maildb.MailFlowLogStatsRequest{
+		Direction: direction,
+		CompanyID: companyID,
+		DomainID:  domainID,
+		UserID:    userID,
+		Since:     since,
+		Until:     until,
+	}, true
+}
+
+func parseMailFlowLogDailyStatsRequest(w http.ResponseWriter, r *http.Request) (maildb.MailFlowLogDailyStatsRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogDailyStatsRequest{}, false
+	}
+	return maildb.MailFlowLogDailyStatsRequest{
 		Direction: direction,
 		CompanyID: companyID,
 		DomainID:  domainID,

@@ -89,6 +89,43 @@ func TestNormalizeMailFlowLogStatsRequest(t *testing.T) {
 	}
 }
 
+func TestNormalizeMailFlowLogDailyStatsRequest(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		req   MailFlowLogDailyStatsRequest
+		want  MailFlowLogDailyStatsRequest
+	}{
+		{
+			name:  "empty request",
+			req:   MailFlowLogDailyStatsRequest{},
+			want:  MailFlowLogDailyStatsRequest{},
+		},
+		{
+			name:  "trims whitespace",
+			req:   MailFlowLogDailyStatsRequest{Direction: " outbound ", CompanyID: " abc ", DomainID: " def ", UserID: " ghi "},
+			want:  MailFlowLogDailyStatsRequest{Direction: "outbound", CompanyID: "abc", DomainID: "def", UserID: "ghi"},
+		},
+		{
+			name:  "preserves time values",
+			req:   MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+			want:  MailFlowLogDailyStatsRequest{Since: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := normalizeMailFlowLogDailyStatsRequest(tt.req)
+			if got != tt.want {
+				t.Errorf("normalizeMailFlowLogDailyStatsRequest() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMailFlowDirectionConstants(t *testing.T) {
 	t.Parallel()
 

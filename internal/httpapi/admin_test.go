@@ -8434,9 +8434,11 @@ type fakeAdminService struct {
 	mailFlowLogs                                []maildb.MailFlowLogView
 	mailFlowLog                                 maildb.MailFlowLogView
 	mailFlowLogStats                            maildb.MailFlowLogStatsView
+	mailFlowLogDailyStats                       []maildb.MailFlowLogDailyStatsView
 	lastMailFlowLogList                         maildb.MailFlowLogListRequest
 	lastMailFlowLogID                           string
 	lastMailFlowLogStats                        maildb.MailFlowLogStatsRequest
+	lastMailFlowLogDailyStats                   maildb.MailFlowLogDailyStatsRequest
 	quotaAlertThresholds                        []maildb.QuotaAlertThresholdView
 	quotaAlertThreshold                         maildb.QuotaAlertThresholdView
 	quotaAlerts                                []maildb.QuotaAlertView
@@ -8622,6 +8624,11 @@ func (f *fakeAdminService) GetMailFlowLog(_ context.Context, id string) (maildb.
 func (f *fakeAdminService) GetMailFlowLogStats(_ context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error) {
 	f.lastMailFlowLogStats = req
 	return f.mailFlowLogStats, nil
+}
+
+func (f *fakeAdminService) GetMailFlowLogDailyStats(_ context.Context, req maildb.MailFlowLogDailyStatsRequest) ([]maildb.MailFlowLogDailyStatsView, error) {
+	f.lastMailFlowLogDailyStats = req
+	return f.mailFlowLogDailyStats, nil
 }
 
 func (f *fakeAdminService) SearchDirectoryPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {
