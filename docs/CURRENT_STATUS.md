@@ -897,7 +897,9 @@ CalDAV recurrence expansion now covers broader RFC 5545 edge cases including
 `INTERVAL` modifiers, and timezone-aware matching through the calendar's
 configured timezone. Unit tests verify WEEKLY/MONTHLY/YEARLY expansion,
 BYDAY/MONTHDAY patterns, complex rules, timezone-aware matching, and
-INTERVAL modifiers work correctly.
+INTERVAL modifiers work correctly. Timezone-aware busy period calculation is
+also verified with a dedicated test for `CalendarObjectBusyPeriods` using
+a non-UTC timezone.
 CalDAV `calendar-query` and `free-busy-query` now interpret time ranges in the
 calendar's configured timezone (RFC 7809 Section 5.2 `calendar-timezone`
 property) when evaluating VEVENT/VTODO overlap. `CalendarObjectMatchesTimeRange`,
