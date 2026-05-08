@@ -21,6 +21,7 @@ import (
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailflow"
 )
 
 const maxBackpressureAuditReasonBytes = 512
@@ -87,6 +88,7 @@ type adminService struct {
 		CountStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadSessionCount, error)
 		ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	}
+	mailFlowStats mailflow.MailFlowStatsProvider
 }
 
 const apiUsageExportLocalEd25519Backend = "local-ed25519"
@@ -1204,4 +1206,68 @@ func apiUsageLedgerRequestFromBatch(batch maildb.APIUsageExportBatchView, limit 
 		req.To = batch.WindowEnd.UTC()
 	}
 	return req
+}
+
+func (s adminService) GetMailFlowLogStats(ctx context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error) {
+	if s.mailFlowStats == nil {
+		return maildb.MailFlowLogStatsView{}, fmt.Errorf("mail flow stats provider is not configured")
+	}
+	mailflowReq := mailflow.MailFlowStatsRequest{
+		Direction: req.Direction,
+		CompanyID: req.CompanyID,
+		DomainID:  req.DomainID,
+		UserID:    req.UserID,
+		Since:     req.Since,
+		Until:     req.Until,
+	}
+	result, err := s.mailFlowStats.GetStats(ctx, mailflowReq)
+	if err != nil {
+		return maildb.MailFlowLogStatsView{}, err
+	}
+	return maildb.MailFlowLogStatsView{
+		TotalMessages:     result.TotalMessages,
+		UniqueSenders:     result.UniqueSenders,
+		UniqueDomains:     result.UniqueDomains,
+		TotalSizeBytes:   result.TotalSizeBytes,
+		AverageSizeBytes: result.AverageSizeBytes,
+		MaxSizeBytes:     result.MaxSizeBytes,
+		Delivered:        result.Delivered,
+		Failed:           result.Failed,
+		Bounced:          result.Bounced,
+		Filtered:         result.Filtered,
+		Rejected:         result.Rejected,
+		DeliveryRate:     result.DeliveryRate,
+	}, nil
+}
+
+func (s adminService) GetMailFlowLogDailyStats(ctx context.Context, req maildb.MailFlowLogDailyStatsRequest) ([]maildb.MailFlowLogDailyStatsView, error) {
+	if s.mailFlowStats == nil {
+		return nil, fmt.Errorf("mail flow stats provider is not configured")
+	}
+	mailflowReq := mailflow.MailFlowStatsRequest{
+		Direction: req.Direction,
+		CompanyID: req.CompanyID,
+		DomainID:  req.DomainID,
+		UserID:    req.UserID,
+		Since:     req.Since,
+		Until:     req.Until,
+	}
+	results, err := s.mailFlowStats.GetDailyStats(ctx, mailflowReq)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]maildb.MailFlowLogDailyStatsView, 0, len(results))
+	for _, r := range results {
+		views = append(views, maildb.MailFlowLogDailyStatsView{
+			Date:             r.Date,
+			InboundMessages:  r.InboundMessages,
+			OutboundMessages: r.OutboundMessages,
+			InboundSize:     r.InboundSize,
+			OutboundSize:    r.OutboundSize,
+			Delivered:       r.Delivered,
+			Failed:          r.Failed,
+			Bounced:         r.Bounced,
+		})
+	}
+	return views, nil
 }

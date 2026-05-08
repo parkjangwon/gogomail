@@ -38,6 +38,15 @@ When `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch` and
 to the `mail_flow` OpenSearch index. The `MailFlowStatsSearcher` supports
 aggregation queries for stats and daily breakdowns without taxing PostgreSQL.
 
+Mail flow stats support a configurable backend via `GOGOMAIL_MAIL_FLOW_STATS_BACKEND`
+(auto|postgres|opensearch, default: auto). The `MailFlowStatsProvider` interface
+abstracts the underlying storage, with `PostgresMailFlowStatsProvider` using
+PostgreSQL queries directly and `OpenSearchMailFlowStatsProvider` using the
+`MailFlowStatsSearcher` for scalable aggregation. The admin service bridges
+`mailflow.MailFlowStatsResult` to `maildb.MailFlowLogStatsView` for API
+compatibility. Auto mode uses OpenSearch when `MailFlowOpenSearchBootstrap=true`,
+falling back to PostgreSQL if OpenSearch is unavailable.
+
 API metering fail-open logic now logs recovered panics with full route and
 method context, preventing silent failures when the metering worker or sink is
 saturated.
