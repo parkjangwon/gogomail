@@ -7,24 +7,25 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-004
-- **제목**: Phase 2-C — Batch Worker & Distributed Job Lock
-- **배경**: pg_try_advisory_lock 기반 분산 잡 락을 구현하고, 배치 워커 모드를 추가한다.
-  여러 인스턴스가 동시에 실행필 때 하나만 잡을 실행하도록 보장한다.
-- **구현 대상**: internal/batchlock, batch-worker 모드, job registry, graceful shutdown
+- **ID**: TASK-005
+- **제목**: Phase 2-D — 실시간 설정 전파 (SSE) + 스코프 보안
+- **배경**: ConfigStore의 LISTEN/NOTIFY 기반 캐시 무효화를 확장하여,
+  SSE(Server-Sent Events)를 통해 설정 변경을 실시간으로 클라이언트에 전파한다.
+  또한 관리자가 user 스코프 설정을 직접 수정하지 못하도록 보안 제한을 추가한다.
+- **구현 대상**: SSE 엔드포인트, configstore.Notifier, 스코프 보안
 
 ### 완료 조건
 
-- [x] `internal/batchlock` 패키지: `PostgresJobLock` (`pg_try_advisory_lock`)
-- [x] `--mode=batch-worker` wiring: job registry + ticker loop + graceful shutdown
-- [x] 초기 등록 잡 5개 구현 (ScheduledMailFlusher, QuotaAlertCheck, MFAGracePeriod, TokenCleanup 등)
-- [x] 테스트: 동시 2 인스턴스 → 하나만 실행 검증
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/configstore.Notifier` 인터페이스 + subscriber fan-out
+- [ ] `GET /api/v1/config/stream` (사용자) + `GET /admin/v1/config/stream` (관리자) SSE 엔드포인트
+- [ ] 스코프 보안: `user` 스코프 관리자 직접 쓰기 차단 (403)
+- [ ] 테스트: DB 설정 변경 → SSE 이벤트 수신 통합 테스트
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-005 — Phase 2-D 실시간 설정 전파 (SSE) + 스코프 보안**
+현재 다음 태스크: **TASK-006 — Phase 2-E Open API 키 관리 (도메인 관리자용)**
 
 ---
 
