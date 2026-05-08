@@ -22,6 +22,8 @@ type MessageSearchQuery struct {
 	Bcc               string
 	Subject           string
 	HasAttachment     *bool
+	Since             string
+	Until             string
 	Limit             int
 	Sort              string
 	Cursor            MessageListCursor

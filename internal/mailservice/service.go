@@ -311,6 +311,8 @@ func (s *Service) searchMessagesByExternalIDs(ctx context.Context, query maildb.
 		Bcc:               query.Bcc,
 		Subject:           query.Subject,
 		HasAttachment:     query.HasAttachment,
+		Since:             query.Since,
+		Until:             query.Until,
 		IncludeHighlights: query.IncludeHighlights,
 		Limit:             query.Limit,
 	})

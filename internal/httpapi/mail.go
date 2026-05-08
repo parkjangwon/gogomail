@@ -610,7 +610,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "limit", "cursor", "has_attachment", "include_rank", "include_highlights", "sort", "q", "folder_id", "from", "to", "cc", "bcc", "subject", "since", "until") {
 			return
 		}
 		userID, ok := userIDFromRequest(w, r, tokenManager)
@@ -686,6 +686,14 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !ok {
 			return
 		}
+		since, ok := parseOptionalRFC3339Query(w, r, "since")
+		if !ok {
+			return
+		}
+		until, ok := parseOptionalRFC3339Query(w, r, "until")
+		if !ok {
+			return
+		}
 		messages, err := service.SearchMessages(r.Context(), maildb.MessageSearchQuery{
 			UserID:            userID,
 			Query:             queryText,
@@ -696,6 +704,8 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			Bcc:               bcc,
 			Subject:           subject,
 			HasAttachment:     hasAttachment,
+			Since:             since.Format(time.RFC3339Nano),
+			Until:             until.Format(time.RFC3339Nano),
 			Limit:             limit,
 			Sort:              sortMode,
 			Cursor:            cursor,
