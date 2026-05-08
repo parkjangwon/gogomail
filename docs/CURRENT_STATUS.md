@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after LDAP gateway feature)
+Last updated: 2026-05-09 (updated after SCIM 2.0 feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -70,6 +70,13 @@ for authentication and directory queries. Write operations (`Modify`, `Add`, `De
 `ModDN`) are rejected with `unwillingToPerform`. BER encoding/decoding handles
 LDAP v3 message formats. The package is designed to support LDAPS (port 636) and
 StartTLS for encrypted connections.
+
+SCIM 2.0 provisioning (`internal/scim`) implements RFC 7643/7644 for automated
+user and group lifecycle management. The package supports User resource CRUDL
+operations with standard SCIM JSON format including schemas and metadata.
+Filter parsing handles `eq`, `sw`, `co`, `ew` operators on attributes like
+`userName`, `emails.value`, `displayName`, and `active`. List responses include
+totalResults, startIndex, and itemsPerPage for pagination.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
