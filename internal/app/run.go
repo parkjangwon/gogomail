@@ -1614,6 +1614,40 @@ func mailFlowOpenSearchOptionsForConfig(cfg config.Config) searchindex.OpenSearc
 	}
 }
 
+func mailFlowStatsProviderForConfig(cfg config.Config, repo *maildb.Repository) mailflow.MailFlowStatsProvider {
+	backend := strings.ToLower(strings.TrimSpace(cfg.MailFlowStatsBackend))
+	if backend == "" {
+		backend = "auto"
+	}
+	switch backend {
+	case "postgres":
+		return mailflow.NewPostgresMailFlowStatsProvider(repo)
+	case "opensearch":
+		searcher, err := searchindex.NewMailFlowStatsSearcher(mailFlowOpenSearchOptionsForConfig(cfg))
+		if err != nil {
+			logger := slog.Default()
+			logger.Warn("failed to create mail flow OpenSearch stats searcher, falling back to postgres", "error", err)
+			return mailflow.NewPostgresMailFlowStatsProvider(repo)
+		}
+		return mailflow.NewOpenSearchMailFlowStatsProvider(&searcher)
+	case "auto":
+		if !cfg.MailFlowOpenSearchBootstrap {
+			return mailflow.NewPostgresMailFlowStatsProvider(repo)
+		}
+		searcher, err := searchindex.NewMailFlowStatsSearcher(mailFlowOpenSearchOptionsForConfig(cfg))
+		if err != nil {
+			logger := slog.Default()
+			logger.Warn("failed to create mail flow OpenSearch stats searcher, falling back to postgres", "error", err)
+			return mailflow.NewPostgresMailFlowStatsProvider(repo)
+		}
+		return mailflow.NewOpenSearchMailFlowStatsProvider(&searcher)
+	default:
+		logger := slog.Default()
+		logger.Warn("unknown mail flow stats backend, using postgres", "backend", backend)
+		return mailflow.NewPostgresMailFlowStatsProvider(repo)
+	}
+}
+
 func runAPIMeteringWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if strings.EqualFold(strings.TrimSpace(cfg.APIMeteringAggregateBackend), "disabled") {
 		return waitForShutdown(ctx, logger, ModeAPIMeteringWorker)
@@ -2095,6 +2129,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		readinessChecks = append(readinessChecks, storageReadinessCheck("admin_storage", store))
 		repository := maildb.NewRepository(db)
+		mailFlowStatsProvider := mailFlowStatsProviderForConfig(cfg, repository)
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
 			backpressure:                pressure,
@@ -2109,6 +2144,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			calDAVSyncRetention:         caldavgw.NewRepository(db),
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
+			mailFlowStats:              mailFlowStatsProvider,
 		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)))
 		logger.Info("admin api routes registered")
 	}

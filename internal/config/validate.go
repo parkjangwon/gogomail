@@ -538,6 +538,9 @@ func (c Config) Validate() error {
 			return err
 		}
 	}
+	if err := validateEnum("GOGOMAIL_MAIL_FLOW_STATS_BACKEND", c.MailFlowStatsBackend, "auto", "postgres", "opensearch"); err != nil {
+		return err
+	}
 	if strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" {
 		if err := validateEnum("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", c.DeliverySmartHostTLSMode, "opportunistic", "require", "disable"); err != nil {
 			return err
