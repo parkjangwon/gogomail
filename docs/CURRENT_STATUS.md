@@ -891,6 +891,15 @@ unbounded recurrence rules. CalDAV iCalendar validation now also permits the
 common recurring-object shape of one VEVENT master plus same-UID
 `RECURRENCE-ID` detached override VEVENTs, and time-range/free-busy evaluation
 uses detached overrides while excluding the replaced master occurrences.
+CalDAV `calendar-query` and `free-busy-query` now interpret time ranges in the
+calendar's configured timezone (RFC 7809 Section 5.2 `calendar-timezone`
+property) when evaluating VEVENT/VTODO overlap. `CalendarObjectMatchesTimeRange`,
+`eventOverlapsRange`, `todoOverlapsRange`, and `CalendarObjectBusyPeriods` now
+accept an optional `*time.Location` parameter; when nil, UTC is used as the
+default. `calendarQueryResponses` and `freeBusyCalendar` in `handler.go` now
+look up the calendar's timezone and pass it to these functions. This implements
+RFC 7809 Section 5.3 requirement that calendar time ranges be interpreted in the
+calendar's configured timezone rather than always UTC.
 CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
 scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
 traversal controlled by the request body's `sync-level` rather than accidentally
