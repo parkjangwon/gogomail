@@ -28,6 +28,7 @@ import (
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/batchlock"
 	"github.com/gogomail/gogomail/internal/caldavgw"
 	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/config"
@@ -119,10 +120,58 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 	case ModeOutboundMTA:
 		return runSubmissionMTA(ctx, cfg, logger)
 	case ModeBatchWorker:
-		return waitForShutdown(ctx, logger, mode)
+		return runBatchWorker(ctx, cfg, logger)
 	default:
 		return errors.New("unsupported mode")
 	}
+}
+
+func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	registry := batchlock.NewJobRegistry()
+
+	registry.Register("scheduled-mail-flusher", func() error {
+		logger.Info("running scheduled mail flusher")
+		return nil
+	}, 5*time.Minute)
+
+	registry.Register("quota-alert-check", func() error {
+		logger.Info("running quota alert check")
+		return nil
+	}, 15*time.Minute)
+
+	registry.Register("mfa-grace-period", func() error {
+		logger.Info("running MFA grace period check")
+		return nil
+	}, 1*time.Hour)
+
+	registry.Register("token-cleanup", func() error {
+		logger.Info("running token cleanup")
+		return nil
+	}, 30*time.Minute)
+
+	registry.Register("used-code-cleanup", func() error {
+		logger.Info("running used TOTP code cleanup")
+		return nil
+	}, 5*time.Minute)
+
+	worker := batchlock.NewWorker(registry, db)
+	worker.Start()
+
+	logger.Info("batch worker started", "jobs", len(registry.List()))
+
+	<-ctx.Done()
+
+	logger.Info("shutting down batch worker")
+	worker.Stop()
+	logger.Info("batch worker stopped")
+
+	return ctx.Err()
 }
 
 type attachmentCleanupRunner interface {
