@@ -465,6 +465,27 @@ func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectBusyPeriodsWithTimezone(t *testing.T) {
+	t.Parallel()
+
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("America/New_York timezone not available")
+	}
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:tzt@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T140000Z\r\nDTEND:20260501T150000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
+		Start: mustCalDAVTime(t, "20260502T130000Z"),
+		End:   mustCalDAVTime(t, "20260502T150000Z"),
+	}, ny)
+	if err != nil {
+		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
+	}
+	if len(periods) != 1 {
+		t.Fatalf("periods = %+v, want one clipped busy period", periods)
+	}
+}
+
 func TestCalendarObjectBusyPeriodsIncludesVFreeBusySourceObjects(t *testing.T) {
 	t.Parallel()
 
