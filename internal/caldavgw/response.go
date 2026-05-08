@@ -35,6 +35,7 @@ var (
 	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
+	PropCalendarSlug                 = XMLName{Space: "http://apple.com/ns/icalendar/", Local: "calendar-slug"}
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
 	PropSupportedCalendarData         = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-data"}
 	PropMaxResourceSize               = XMLName{Space: CalDAVNamespace, Local: "max-resource-size"}
@@ -173,6 +174,7 @@ func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncC
 		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: calendarCollectionPrivileges()}, Found: true},
 		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description}, Found: true},
 		{Name: PropCalendarColor, Value: PropertyValue{Text: calendar.Color}, Found: calendar.Color != ""},
+		{Name: PropCalendarSlug, Value: PropertyValue{Text: calendarSlugValue(calendar.Slug)}, Found: calendar.Slug != nil},
 		{Name: PropSupportedCalendarComponentSet, Value: PropertyValue{CalendarComponents: []string{ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY}}, Found: true},
 		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
@@ -269,6 +271,13 @@ func schedulingInboxPrivileges() []XMLName {
 
 func schedulingOutboxPrivileges() []XMLName {
 	return []XMLName{PrivilegeWriteContent}
+}
+
+func calendarSlugValue(slug *string) string {
+	if slug == nil {
+		return ""
+	}
+	return *slug
 }
 
 func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {

@@ -220,7 +220,7 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	name := " Product "
 	color := " #aabbcc "
 	description := " Launch dates "
-	req, normalizedName, syncToken, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
+	req, normalizedName, syncToken, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
 		UserID:       " user-1 ",
 		CalendarID:   " calendar-1 ",
 		Name:         &name,
@@ -270,7 +270,7 @@ func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 		t.Run(req.UserID+"/"+req.CalendarID, func(t *testing.T) {
 			t.Parallel()
 
-			if _, _, _, err := ValidateUpdateCalendarRequest(req); err == nil {
+			if _, _, _, _, err := ValidateUpdateCalendarRequest(req); err == nil {
 				t.Fatalf("ValidateUpdateCalendarRequest(%+v) error = nil, want rejection", req)
 			}
 		})

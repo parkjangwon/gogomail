@@ -86,6 +86,7 @@ type ProppatchRequest struct {
 	Name        *string
 	Description *string
 	Color       *string
+	Slug        *string
 	Properties  []XMLName
 }
 
@@ -388,6 +389,19 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				}
 				req.Color = &value
 				req.Properties = append(req.Properties, PropCalendarColor)
+			case sameXMLName(tok.Name, "http://apple.com/ns/icalendar/", "calendar-slug"):
+				value := ""
+				if set {
+					text, err := readSimpleElementText(dec, tok.Name)
+					if err != nil {
+						return err
+					}
+					value = strings.TrimSpace(text)
+				} else if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+				req.Slug = &value
+				req.Properties = append(req.Properties, PropCalendarSlug)
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err

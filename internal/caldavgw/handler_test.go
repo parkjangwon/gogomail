@@ -3040,7 +3040,7 @@ func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateC
 }
 
 func (s *fakeDiscoveryStore) UpdateCalendarProperties(_ context.Context, req UpdateCalendarRequest) (Calendar, error) {
-	validated, _, _, err := ValidateUpdateCalendarRequest(req)
+	validated, _, _, _, err := ValidateUpdateCalendarRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
