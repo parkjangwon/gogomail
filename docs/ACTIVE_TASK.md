@@ -7,24 +7,20 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-015
-- **제목**: Phase 7-B — Delta Sync Boundary
-- **배경**: 디바이스별 델타 싱크 커서와 IMAP IDLE 팬아웃을
-  구현하여 실시간 동기화를 지원한다.
-- **구현 대상**: internal/deltasync, 커서 관리, IMAP IDLE 연동
+- **ID**: COMPLETE
+- **제목**: All backlog tasks completed
+- **배경**: BACKLOG.md의 모든 태스크(TASK-002 ~ TASK-015)가 완료되었다.
+  docs/backend-roadmap.md의 모든 Phase(0 ~ 7)가 구현되었다.
 
-### 완료 조건
+### 상태
 
-- [ ] `internal/deltasync` 패키지: DeltaSync 경계
-- [ ] 디바이스별 delta-sync cursor 관리
-- [ ] IMAP IDLE fan-out 구조
-- [ ] 테스트: 커서 생성, 갱신, 만료, 팬아웃
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] 모든 백로그 태스크 완료
+- [x] 모든 로드맵 Phase 구현 완료
 
-### 커밋 후 다음 태스크
+### 다음 단계
 
-`docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-백로그가 비었으므로 `docs/backend-roadmap.md`에서 다음 Phase 항목을 추가한다.
+사용자로부터 새로운 백로그 항목이나 기능 요청을 받을 때까지
+대기한다. 또는 docs/backend-roadmap.md에 새 Phase를 추가한다.
 
 ---
 
