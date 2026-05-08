@@ -7,28 +7,28 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-001
-- **제목**: iMIP RFC 6047 wire format 테스트 추가
-- **배경**: `internal/scheduling/handler.go`의 `buildMultipartMessage`가 이전에
-  `Content-Type: message/rfc822`를 사용했다 (RFC 6047 위반). 수정은 완료됐지만
-  이 동작을 보장하는 단위 테스트가 없다.
-- **구현 대상**: `internal/scheduling/handler_test.go`
+- **ID**: TASK-002
+- **제목**: Phase 2-A — Runtime Config Store (PostgreSQL JSONB + LISTEN/NOTIFY)
+- **배경**: 회사(Company) → 도메인(Domain) → 사용자(User) 3단 계층으로 설정이 상속·독립 운영된다.
+  설정 변경이 재배포나 스키마 마이그레이션 없이 모든 프로세스에 즉시 반영된다.
+- **구현 대상**: migration, internal/configstore, Admin API, propgate API
 
 ### 완료 조건
 
-- [ ] `TestBuildMultipartMessageContentType`: 반환된 메시지 바이트에
-  `Content-Type: text/calendar; method=REQUEST` 파트가 있고
-  `message/rfc822`가 없음을 assert
-- [ ] `TestBuildMultipartMessageCANCEL`: method=CANCEL이면
-  `Content-Type: text/calendar; method=CANCEL` 파트가 있음을 assert
-- [ ] `TestBuildMultipartMessageHeaderOrder`: 헤더가 From/To/Subject/Date/Message-ID/MIME-Version/Content-Type 순서로 나타남을 assert
-- [ ] `go test ./internal/scheduling/...` 통과
-- [ ] docs/CURRENT_STATUS.md 갱신 (iMIP RFC 6047 테스트 커버리지 추가 반영)
+- [ ] Migration 0073: `runtime_config` 테이블, `companies.parent_id` 추가
+- [ ] `internal/configstore.ConfigStore` 인터페이스 + `PostgresConfigStore` 구현 (LISTEN/NOTIFY)
+- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`
+- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/domains/{id}/config/{key}`
+- [ ] Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/users/{id}/config/{key}`
+- [ ] Propagate API: `POST /admin/v1/companies/{id}/config/propagate?scope=subtree|children|domains`
+- [ ] 생성 훅: 자회사/도메인 생성 시 직속 부모 설정 자동 복사
+- [ ] 테스트: 트리 해결 순서, locked 차단, propagate 전파 범위, 생성 복사
+- [ ] docs/CURRENT_STATUS.md 갱신
 
-### 커밋 후 다음 태스크 후보 (백로그 참고)
+### 커밋 후 다음 태스크
 
-`docs/NEXT_STEPS.md` §4 Pipeline extension hooks:
-"Add first-party FCM/APNs/Web Push sink adapters behind `internal/pushnotify`"
+`docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
+현재 다음 태스크: **TASK-002 — Phase 2-A Runtime Config Store**
 
 ---
 
