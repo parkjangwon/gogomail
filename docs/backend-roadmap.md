@@ -4616,6 +4616,9 @@ Root Company (그룹사, parent_id=NULL)
 
 - 트리 깊이 제한 없음. 실제 배포는 2-3 레벨이 일반적.
 - `domains.company_id`는 그대로 — 도메인은 항상 특정 company에 직속.
+- **도메인 중첩 금지**: `Domain → Sub-domain` 계층은 허용하지 않는다. 도메인은 항상 리프 노드.
+  - 허용: `Company → Domain` (직속 또는 자회사 소속)
+  - 금지: `Domain → Domain` (도메인 하위에 도메인)
 - `organizations` (부서 트리)는 domain 내부 계층이므로 별도 유지.
 
 **설정 상속 모델 — Copy-on-create + 독립 운영**:
