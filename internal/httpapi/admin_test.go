@@ -8431,6 +8431,12 @@ type fakeAdminService struct {
 	lastDeleteTrustedRelayID                    string
 	lastDeleteDeliveryRouteID                   string
 	lastCompanyList                             maildb.CompanyListRequest
+	mailFlowLogs                                []maildb.MailFlowLogView
+	mailFlowLog                                 maildb.MailFlowLogView
+	mailFlowLogStats                            maildb.MailFlowLogStatsView
+	lastMailFlowLogList                         maildb.MailFlowLogListRequest
+	lastMailFlowLogID                           string
+	lastMailFlowLogStats                        maildb.MailFlowLogStatsRequest
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -8587,6 +8593,24 @@ func (f *fakeAdminService) GetAuditLog(_ context.Context, id string) (maildb.Aud
 func (f *fakeAdminService) CheckAuditLogIntegrity(_ context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error) {
 	f.lastAuditLogIntegrity = req
 	return f.auditLogIntegrity, nil
+}
+
+func (f *fakeAdminService) ListMailFlowLogs(_ context.Context, req maildb.MailFlowLogListRequest) ([]maildb.MailFlowLogView, error) {
+	f.lastMailFlowLogList = req
+	return f.mailFlowLogs, nil
+}
+
+func (f *fakeAdminService) GetMailFlowLog(_ context.Context, id string) (maildb.MailFlowLogView, error) {
+	f.lastMailFlowLogID = id
+	if f.mailFlowLog.ID == "" {
+		return maildb.MailFlowLogView{}, fmt.Errorf("mail flow log %q not found", id)
+	}
+	return f.mailFlowLog, nil
+}
+
+func (f *fakeAdminService) GetMailFlowLogStats(_ context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error) {
+	f.lastMailFlowLogStats = req
+	return f.mailFlowLogStats, nil
 }
 
 func (f *fakeAdminService) SearchDirectoryPrincipals(_ context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error) {

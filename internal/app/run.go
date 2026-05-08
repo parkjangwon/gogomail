@@ -45,6 +45,7 @@ import (
 	"github.com/gogomail/gogomail/internal/imapnotify"
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/mailflow"
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/observability"
 	"github.com/gogomail/gogomail/internal/outbound"
@@ -1364,13 +1365,18 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	router := eventstream.NewRouter()
 	auditRepository := audit.NewPostgresRepository(db)
+	mailFlowHandler := mailflow.NewHandler(db)
 	if err := router.Register("mail.stored", eventstream.MultiHandler{
 		imapnotify.NewMailStoredHandler(maildb.NewRepository(db)),
 		audit.NewMailStoredHandler(auditRepository),
+		mailFlowHandler,
 	}); err != nil {
 		return err
 	}
-	if err := router.Register("mail.delivered", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
+	if err := router.Register("mail.delivered", eventstream.MultiHandler{
+		audit.NewDeliveryStatusHandler(auditRepository),
+		mailFlowHandler,
+	}); err != nil {
 		return err
 	}
 	store, err := objectStoreForConfig(cfg)
@@ -1386,10 +1392,14 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			Postmaster:   cfg.DSNPostmaster,
 			Farm:         outbound.FarmGeneral,
 		}),
+		mailFlowHandler,
 	}); err != nil {
 		return err
 	}
-	if err := router.Register("mail.delivery_failed", audit.NewDeliveryStatusHandler(auditRepository)); err != nil {
+	if err := router.Register("mail.delivery_failed", eventstream.MultiHandler{
+		audit.NewDeliveryStatusHandler(auditRepository),
+		mailFlowHandler,
+	}); err != nil {
 		return err
 	}
 	if err := router.Register("mail.delivery_exhausted", eventstream.MultiHandler{
@@ -1401,6 +1411,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			Postmaster:   cfg.DSNPostmaster,
 			Farm:         outbound.FarmGeneral,
 		}),
+		mailFlowHandler,
 	}); err != nil {
 		return err
 	}
