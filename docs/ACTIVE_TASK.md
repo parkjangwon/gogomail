@@ -15,12 +15,12 @@
 
 ### 완료 조건
 
-- [ ] `internal/ldapgw` 패키지: LDAP v3 프로토콜 리스너
-- [ ] BindRequest (simple bind), SearchRequest 지원
-- [ ] Read-only 강제: Modify/Delete/ModifyDN → `unwillingToPerform`
-- [ ] LDAPS (포트 636) + StartTLS 지원
-- [ ] 테스트: Bind 성공/실패, Search 결과, Read-only 거부
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/ldapgw` 패키지: LDAP v3 프로토콜 리스너
+- [x] BindRequest (simple bind), SearchRequest 지원
+- [x] Read-only 강제: Modify/Delete/ModifyDN → `unwillingToPerform`
+- [x] LDAPS (포트 636) + StartTLS 지원
+- [x] 테스트: Bind 성공/실패, Search 결과, Read-only 거부
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 

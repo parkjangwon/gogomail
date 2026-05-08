@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after API key management feature)
+Last updated: 2026-05-09 (updated after LDAP gateway feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -63,6 +63,13 @@ programmatic API keys with CIDR-based access control. Keys use `gm_` prefix and
 are stored as SHA-256 hashes. The `ApiKeyMiddleware` detects `gm_`-prefixed bearer
 tokens and validates them against the `domain_api_keys` table, checking CIDR
 restrictions, expiration, and revocation status. Keys expire after 30 days by default.
+
+LDAP gateway (`internal/ldapgw`) provides a read-only LDAP v3 interface for
+directory lookups. `BindRequest` (simple bind) and `SearchRequest` are supported
+for authentication and directory queries. Write operations (`Modify`, `Add`, `Delete`,
+`ModDN`) are rejected with `unwillingToPerform`. BER encoding/decoding handles
+LDAP v3 message formats. The package is designed to support LDAPS (port 636) and
+StartTLS for encrypted connections.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
