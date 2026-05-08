@@ -341,6 +341,33 @@ func BuildSyncCollectionXML(responses []MultiStatusResponse, syncToken string) (
 	return buildMultiStatusXML(responses, syncToken)
 }
 
+func BuildSyncCollectionTruncatedXML() ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	root := xml.StartElement{
+		Name: xml.Name{Local: "D:multistatus"},
+		Attr: []xml.Attr{
+			{Name: xml.Name{Local: "xmlns:D"}, Value: DAVNamespace},
+			{Name: xml.Name{Local: "xmlns:C"}, Value: CalDAVNamespace},
+			{Name: xml.Name{Local: "xmlns:CS"}, Value: CalendarServerNamespace},
+		},
+	}
+	if err := enc.EncodeToken(root); err != nil {
+		return nil, err
+	}
+	if err := encodeTextElement(enc, "D:number-of-matches", "0"); err != nil {
+		return nil, err
+	}
+	if err := enc.EncodeToken(root.End()); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)

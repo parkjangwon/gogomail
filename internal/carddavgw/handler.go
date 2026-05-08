@@ -641,6 +641,15 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 				writeDAVPreconditionError(w, http.StatusForbidden, "valid-sync-token", err.Error())
 				return
 			}
+			var truncated TruncatedResultsError
+			if errors.As(err, &truncated) {
+				body, _ = BuildSyncCollectionTruncatedXML()
+				w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-store")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write(body)
+				return
+			}
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
