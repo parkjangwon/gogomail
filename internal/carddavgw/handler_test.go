@@ -1887,11 +1887,11 @@ func TestHandlerReportSyncCollectionRejectsDefaultSnapshotTruncation(t *testing.
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "limit would truncate") {
-		t.Fatalf("default snapshot truncation response lacks context: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "<D:number-of-matches>0</D:number-of-matches>") {
+		t.Fatalf("RFC 6578 truncation response missing number-of-matches: %s", rec.Body.String())
 	}
 }
 

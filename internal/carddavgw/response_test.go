@@ -77,6 +77,20 @@ func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
 	}
 }
 
+func TestBuildSyncCollectionTruncatedXMLRendersNumberOfMatchesZero(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildSyncCollectionTruncatedXML()
+	if err != nil {
+		t.Fatalf("BuildSyncCollectionTruncatedXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	if !strings.Contains(text, "<D:number-of-matches>0</D:number-of-matches>") {
+		t.Fatalf("number-of-matches missing:\n%s", text)
+	}
+}
+
 func TestBuildMultiStatusXMLRendersResponseStatus(t *testing.T) {
 	t.Parallel()
 
