@@ -83,6 +83,38 @@ func ValidateCalendarDescription(description string) (string, error) {
 	return description, nil
 }
 
+const (
+	MaxSlugBytes = 255
+	minSlugLen   = 1
+)
+
+func NormalizeSlug(slug string) (string, error) {
+	slug, err := ValidateSlug(slug)
+	if err != nil {
+		return "", err
+	}
+	return strings.ToLower(slug), nil
+}
+
+func ValidateSlug(slug string) (string, error) {
+	slug = strings.TrimSpace(slug)
+	if len(slug) < minSlugLen || len(slug) > MaxSlugBytes {
+		return "", fmt.Errorf("slug must be 1-255 characters")
+	}
+	if slug[0] == '-' || slug[len(slug)-1] == '-' {
+		return "", fmt.Errorf("slug cannot start or end with hyphen")
+	}
+	if strings.Contains(slug, "--") {
+		return "", fmt.Errorf("slug cannot contain consecutive hyphens")
+	}
+	for _, c := range slug {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+			return "", fmt.Errorf("slug must be lowercase alphanumeric with hyphens")
+		}
+	}
+	return slug, nil
+}
+
 func ValidateCalendarStatus(status string) (string, error) {
 	status = strings.TrimSpace(strings.ToLower(status))
 	if status == "" {

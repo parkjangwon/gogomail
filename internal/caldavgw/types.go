@@ -72,6 +72,7 @@ type Calendar struct {
 	ID          string
 	UserID      string
 	Name        string
+	Slug        *string
 	Color       string
 	Description string
 	SyncToken   string
