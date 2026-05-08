@@ -7,18 +7,19 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-012
-- **제목**: Phase 5-B — DNSBL (RFC 5782)
-- **배경**: SMTP 수신 경로에 DNSBL 조회를 추가하여 스팸/악성 IP를
-  차단한다.
-- **구현 대상**: internal/dnsbl, DNSBL 조회 및 평가 경계
+- **ID**: TASK-013
+- **제목**: Phase 6 — POP3 Server (RFC 1939)
+- **배경**: POP3 프로토콜을 구현하여 메일 클라이언트가 수신 메일을
+  다운로드하고 관리할 수 있게 한다.
+- **구현 대상**: internal/pop3d, POP3 명령 처리, UIDL/TOP/STLS 확장
 
 ### 완료 조건
 
-- [ ] `internal/dnsbl` 패키지: DNSBL 조회 인터페이스 및 구현
-- [ ] SMTP 수신 경로에 DNSBL 체크 플러그인 추가
-- [ ] RFC 5782 기반 DNSBL 쿼리 (A 레코드 조회, 반환 코드 해석)
-- [ ] 테스트: DNSBL 조회 모킹, 허용/차단/목록 없음 시나리오
+- [ ] `internal/pop3d` 패키지: POP3 서버 구현
+- [ ] RFC 1939 기본 명령: USER, PASS, STAT, LIST, RETR, DELE, NOOP, RSET, QUIT
+- [ ] 확장: UIDL, TOP, STLS, CAPA, AUTH
+- [ ] POP3S (포트 995) 지원
+- [ ] 테스트: 명령 시퀀스, 인증, 메일 다운로드, 삭제
 - [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
