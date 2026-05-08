@@ -15,12 +15,12 @@
 
 ### 완료 조건
 
-- [ ] `internal/scim` 패키지: SCIM 2.0 User/Group CRUDL
-- [ ] Filter 파싱: userName, email, displayName 등
-- [ ] Bulk operations 지원
-- [ ] SCIM JSON 응답 포맷 (schemas, meta 등)
-- [ ] 테스트: CRUDL, Filter, Bulk
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/scim` 패키지: SCIM 2.0 User/Group CRUDL
+- [x] Filter 파싱: userName, email, displayName 등
+- [x] Bulk operations 지원
+- [x] SCIM JSON 응답 포맷 (schemas, meta 등)
+- [x] 테스트: CRUDL, Filter, Bulk
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
