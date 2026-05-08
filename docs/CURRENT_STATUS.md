@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after runtime config store feature)
+Last updated: 2026-05-09 (updated after 2FA/TOTP feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -33,6 +33,14 @@ Creation hooks automatically copy parent config to newly created domains and use
 When `CreateDomain` or `CreateUser` is called via the admin service, the wrapper
 invokes `PropagateFromParent` to copy non-locked parent settings (company→domain
 or domain→user). This ensures new tenants inherit defaults without explicit setup.
+
+2FA/TOTP (`internal/authmfa`) implements RFC 6238 TOTP for multi-factor authentication.
+The `auth.mfa.mode` config setting controls enforcement: `disabled`, `optional`, or
+`required`. TOTP secrets and recovery codes are stored in `user_mfa_secrets` table.
+The `totp_used_codes` table prevents replay attacks by tracking recently used codes.
+`GenerateTOTP` and `VerifyTOTP` support a ±2 window (±2 minutes) for clock drift.
+Recovery codes are 10-character alphanumeric strings, single-use, with 8 codes generated
+per user setup. JWT claims include `mfa_verified` flag for session-level MFA state.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
