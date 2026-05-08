@@ -3885,8 +3885,8 @@ The platform hardening sprint completed the following:
   or Apple calendar color, creates the collection at the requested URI, returns
   `201 Created` with `Location`, rejects cross-user paths, existing calendars,
   missing homes, and unsafe non-UUID path ids, and advertises `MKCALENDAR` again
-  only because handler semantics now exist. Human-readable slug calendar paths
-  remain future path-alias work.
+  only because handler semantics now exist. ADR 0014 defines the slug/alias
+  storage and path design; implementation is pending.
 - CalDAV now handles `DELETE` on authenticated calendar collection paths,
   soft-deleting the collection and active child objects in one repository
   transaction while rejecting calendar-home or cross-user deletes. Those
