@@ -106,7 +106,7 @@
 
 ## Phase 7: Push Notifications
 
-- [ ] TASK-014: Phase 7-A — FCM / APNs / Web Push Adapters
+- [x] TASK-014: Phase 7-A — FCM / APNs / Web Push Adapters
   - `internal/pushnotify` 패키지: PushSink 인터페이스 + FCM/APNs/WebPush 어댑터
   - device_tokens 테이블, event worker 연동
   - 참고: `docs/backend-roadmap.md` § Phase 7-A
