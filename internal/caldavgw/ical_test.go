@@ -182,7 +182,7 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T013000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestCalendarObjectMatchesTimeRange(t *testing.T) {
 	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260507T000000Z"),
 		End:   mustCalDAVTime(t, "20260508T000000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestCalendarObjectMatchesTimeRangeExpandsRecurringEvent(t *testing.T) {
 	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260520T000000Z"),
 		End:   mustCalDAVTime(t, "20260520T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260502T030000Z"),
 		End:   mustCalDAVTime(t, "20260502T033000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestCalendarObjectMatchesTimeRangeUsesDetachedOverride(t *testing.T) {
 	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260502T010000Z"),
 		End:   mustCalDAVTime(t, "20260502T013000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260501T000000Z"),
 		End:   mustCalDAVTime(t, "20260501T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestCalendarObjectMatchesTimeRangeHonorsRDateAndExDate(t *testing.T) {
 	matches, err = CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestCalendarObjectMatchesVTODOTimeRange(t *testing.T) {
 			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVTODO, &TimeRange{
 				Start: mustCalDAVTime(t, tc.start),
 				End:   mustCalDAVTime(t, tc.end),
-			})
+			}, nil)
 			if err != nil {
 				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 			}
@@ -323,7 +323,7 @@ func TestCalendarObjectMatchesVJOURNALTimeRange(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVJOURNAL, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T080000Z"),
 		End:   mustCalDAVTime(t, "20260506T100000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestCalendarObjectMatchesVFREEBUSYTimeRange(t *testing.T) {
 	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVFREEBUSY, &TimeRange{
 		Start: mustCalDAVTime(t, "20260506T080000Z"),
 		End:   mustCalDAVTime(t, "20260506T100000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestCalendarObjectBusyPeriodsFiltersOpaqueConfirmedEvents(t *testing.T) {
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260506T013000Z"),
 		End:   mustCalDAVTime(t, "20260506T030000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestCalendarObjectBusyPeriodsExpandsRecurringEvent(t *testing.T) {
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260502T000000Z"),
 		End:   mustCalDAVTime(t, "20260504T000000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 	}
@@ -399,7 +399,7 @@ func TestCalendarObjectBusyPeriodsUsesDetachedOverride(t *testing.T) {
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260502T000000Z"),
 		End:   mustCalDAVTime(t, "20260503T000000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestCalendarObjectBusyPeriodsBoundsRecurrenceExpansion(t *testing.T) {
 	_, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260501T000000Z"),
 		End:   mustCalDAVTime(t, "20260502T000000Z"),
-	})
+	}, nil)
 	if err == nil || !strings.Contains(err.Error(), "recurrence expansion exceeds") {
 		t.Fatalf("CalendarObjectBusyPeriods error = %v, want bounded recurrence rejection", err)
 	}
@@ -438,7 +438,7 @@ func TestCalendarObjectBusyPeriodsSkipsTransparentAndCancelledEvents(t *testing.
 			periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 				Start: mustCalDAVTime(t, "20260506T000000Z"),
 				End:   mustCalDAVTime(t, "20260507T000000Z"),
-			})
+			}, nil)
 			if err != nil {
 				t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 			}
@@ -456,7 +456,7 @@ func TestCalendarObjectBusyPeriodsMarksTentativeEvents(t *testing.T) {
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260506T000000Z"),
 		End:   mustCalDAVTime(t, "20260507T000000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestCalendarObjectBusyPeriodsIncludesVFreeBusySourceObjects(t *testing.T) {
 	periods, err := CalendarObjectBusyPeriods(body, TimeRange{
 		Start: mustCalDAVTime(t, "20260506T010000Z"),
 		End:   mustCalDAVTime(t, "20260506T050000Z"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("CalendarObjectBusyPeriods returned error: %v", err)
 	}

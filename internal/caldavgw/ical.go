@@ -264,9 +264,12 @@ func projectICalendarChildren(children []*ical.Component) []*ical.Component {
 	return projected
 }
 
-func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *TimeRange) (bool, error) {
+func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *TimeRange, tz *time.Location) (bool, error) {
 	if timeRange == nil {
 		return true, nil
+	}
+	if tz == nil {
+		tz = time.UTC
 	}
 	cal, err := ical.NewDecoder(bytes.NewReader(body)).Decode()
 	if err != nil {
@@ -292,7 +295,7 @@ func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *Ti
 			if child.Props.Get(ical.PropRecurrenceID) != nil {
 				excluded = nil
 			}
-			matches, err := eventOverlapsRange(child, *timeRange, excluded)
+			matches, err := eventOverlapsRange(child, *timeRange, excluded, tz)
 			if err != nil {
 				return false, err
 			}
@@ -300,7 +303,7 @@ func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *Ti
 				return true, nil
 			}
 		case ComponentVTODO:
-			matches, err := todoOverlapsRange(child, *timeRange)
+			matches, err := todoOverlapsRange(child, *timeRange, tz)
 			if err != nil {
 				return false, err
 			}
@@ -316,17 +319,17 @@ func CalendarObjectMatchesTimeRange(body []byte, component string, timeRange *Ti
 	return false, nil
 }
 
-func eventOverlapsRange(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}) (bool, error) {
-	start, end, duration, err := eventTimeSpanWithDuration(component)
+func eventOverlapsRange(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}, tz *time.Location) (bool, error) {
+	start, end, duration, err := eventTimeSpanWithDuration(component, tz)
 	if err != nil {
 		return false, err
 	}
-	recurrence, err := component.RecurrenceSet(time.UTC)
+	recurrence, err := component.RecurrenceSet(tz)
 	if err != nil {
 		return false, fmt.Errorf("decode VEVENT recurrence: %w", err)
 	}
 	if recurrence == nil {
-		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences)
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences, tz)
 		if err != nil {
 			return false, err
 		}
@@ -360,8 +363,8 @@ func eventOverlapsRange(component *ical.Component, timeRange TimeRange, excluded
 	return false, nil
 }
 
-func todoOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, error) {
-	start, hasStart, err := componentDateTime(component, ical.PropDateTimeStart)
+func todoOverlapsRange(component *ical.Component, timeRange TimeRange, tz *time.Location) (bool, error) {
+	start, hasStart, err := componentDateTime(component, ical.PropDateTimeStart, tz)
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO DTSTART: %w", err)
 	}
@@ -369,15 +372,15 @@ func todoOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, er
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO DURATION: %w", err)
 	}
-	due, hasDue, err := componentDateTime(component, ical.PropDue)
+	due, hasDue, err := componentDateTime(component, ical.PropDue, tz)
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO DUE: %w", err)
 	}
-	completed, hasCompleted, err := componentDateTime(component, ical.PropCompleted)
+	completed, hasCompleted, err := componentDateTime(component, ical.PropCompleted, tz)
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO COMPLETED: %w", err)
 	}
-	created, hasCreated, err := componentDateTime(component, ical.PropCreated)
+	created, hasCreated, err := componentDateTime(component, ical.PropCreated, tz)
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO CREATED: %w", err)
 	}
@@ -406,12 +409,15 @@ func todoOverlapsRange(component *ical.Component, timeRange TimeRange) (bool, er
 	}
 }
 
-func componentDateTime(component *ical.Component, name string) (time.Time, bool, error) {
+func componentDateTime(component *ical.Component, name string, tz *time.Location) (time.Time, bool, error) {
+	if tz == nil {
+		tz = time.UTC
+	}
 	prop := component.Props.Get(name)
 	if prop == nil {
 		return time.Time{}, false, nil
 	}
-	value, err := prop.DateTime(time.UTC)
+	value, err := prop.DateTime(tz)
 	if err != nil {
 		return time.Time{}, false, err
 	}
@@ -430,7 +436,10 @@ func componentDuration(component *ical.Component, name string) (time.Duration, b
 	return value, true, nil
 }
 
-func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, error) {
+func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange, tz *time.Location) ([]BusyPeriod, error) {
+	if tz == nil {
+		tz = time.UTC
+	}
 	cal, err := ical.NewDecoder(bytes.NewReader(body)).Decode()
 	if err != nil {
 		return nil, fmt.Errorf("decode iCalendar object: %w", err)
@@ -451,7 +460,7 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 			if child.Props.Get(ical.PropRecurrenceID) != nil {
 				excluded = nil
 			}
-			objectPeriods, err := eventBusyPeriods(child, timeRange, excluded)
+			objectPeriods, err := eventBusyPeriods(child, timeRange, excluded, tz)
 			if err != nil {
 				return nil, err
 			}
@@ -467,7 +476,7 @@ func CalendarObjectBusyPeriods(body []byte, timeRange TimeRange) ([]BusyPeriod, 
 	return periods, nil
 }
 
-func eventBusyPeriods(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}) ([]BusyPeriod, error) {
+func eventBusyPeriods(component *ical.Component, timeRange TimeRange, excludedRecurrences map[int64]struct{}, tz *time.Location) ([]BusyPeriod, error) {
 	event := ical.Event{Component: component}
 	status, err := event.Status()
 	if err != nil {
@@ -483,7 +492,7 @@ func eventBusyPeriods(component *ical.Component, timeRange TimeRange, excludedRe
 	if strings.EqualFold(transparency, "TRANSPARENT") {
 		return nil, nil
 	}
-	start, end, duration, err := eventTimeSpanWithDuration(component)
+	start, end, duration, err := eventTimeSpanWithDuration(component, tz)
 	if err != nil {
 		return nil, err
 	}
@@ -491,12 +500,12 @@ func eventBusyPeriods(component *ical.Component, timeRange TimeRange, excludedRe
 	if strings.EqualFold(string(status), string(ical.EventTentative)) {
 		busyType = "BUSY-TENTATIVE"
 	}
-	recurrence, err := component.RecurrenceSet(time.UTC)
+	recurrence, err := component.RecurrenceSet(tz)
 	if err != nil {
 		return nil, fmt.Errorf("decode VEVENT recurrence: %w", err)
 	}
 	if recurrence == nil {
-		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences)
+		explicitStarts, explicit, err := explicitRecurrenceStarts(component, start, excludedRecurrences, tz)
 		if err != nil {
 			return nil, err
 		}
@@ -688,13 +697,16 @@ func parseICalendarDuration(value string) (time.Duration, error) {
 	return total, nil
 }
 
-func eventTimeSpan(component *ical.Component) (time.Time, time.Time, error) {
+func eventTimeSpan(component *ical.Component, tz *time.Location) (time.Time, time.Time, error) {
+	if tz == nil {
+		tz = time.UTC
+	}
 	event := ical.Event{Component: component}
-	start, err := event.DateTimeStart(time.UTC)
+	start, err := event.DateTimeStart(tz)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("decode VEVENT DTSTART: %w", err)
 	}
-	end, err := event.DateTimeEnd(time.UTC)
+	end, err := event.DateTimeEnd(tz)
 	if err != nil || end.IsZero() {
 		end = start
 	}
@@ -704,8 +716,8 @@ func eventTimeSpan(component *ical.Component) (time.Time, time.Time, error) {
 	return start.UTC(), end.UTC(), nil
 }
 
-func eventTimeSpanWithDuration(component *ical.Component) (time.Time, time.Time, time.Duration, error) {
-	start, end, err := eventTimeSpan(component)
+func eventTimeSpanWithDuration(component *ical.Component, tz *time.Location) (time.Time, time.Time, time.Duration, error) {
+	start, end, err := eventTimeSpan(component, tz)
 	if err != nil {
 		return time.Time{}, time.Time{}, 0, err
 	}
@@ -717,11 +729,14 @@ func eventTimeSpanWithDuration(component *ical.Component) (time.Time, time.Time,
 	return start, end, duration, nil
 }
 
-func explicitRecurrenceStarts(component *ical.Component, start time.Time, excludedRecurrences map[int64]struct{}) ([]time.Time, bool, error) {
+func explicitRecurrenceStarts(component *ical.Component, start time.Time, excludedRecurrences map[int64]struct{}, tz *time.Location) ([]time.Time, bool, error) {
+	if tz == nil {
+		tz = time.UTC
+	}
 	explicit := len(component.Props[ical.PropRecurrenceDates]) > 0 || len(component.Props[ical.PropExceptionDates]) > 0
 	starts := []time.Time{start.UTC()}
 	for _, prop := range component.Props[ical.PropRecurrenceDates] {
-		date, err := prop.DateTime(time.UTC)
+		date, err := prop.DateTime(tz)
 		if err != nil {
 			return nil, explicit, fmt.Errorf("decode VEVENT RDATE: %w", err)
 		}
@@ -729,7 +744,7 @@ func explicitRecurrenceStarts(component *ical.Component, start time.Time, exclud
 	}
 	excluded := make(map[int64]struct{}, len(component.Props[ical.PropExceptionDates]))
 	for _, prop := range component.Props[ical.PropExceptionDates] {
-		date, err := prop.DateTime(time.UTC)
+		date, err := prop.DateTime(tz)
 		if err != nil {
 			return nil, explicit, fmt.Errorf("decode VEVENT EXDATE: %w", err)
 		}
