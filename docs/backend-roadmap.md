@@ -4717,6 +4717,62 @@ Body: { "key": "...", "value": ..., "locked": true/false }
 5. Admin API: 특정 사용자 MFA 강제 초기화 (관리자 지원 시).
 6. JWT에 `mfa_verified: true` 클레임 포함 — API는 required 도메인에서 이 클레임 없는 토큰 거부.
 
+### 2-C. Batch Worker & Distributed Job Lock
+
+**`--mode=batch-worker`** 는 주기적 반복 작업을 담당하는 단독 실행 가능 컴포넌트다.
+다중화(수평 확장) 시 동일 잡의 **중복 실행을 원천 차단**하는 설계를 내장한다.
+
+**작업 유형별 중복 방지 전략**:
+
+| 작업 유형 | 메커니즘 |
+|---|---|
+| 큐 기반 (outbox, 예약 메일) | `SELECT FOR UPDATE SKIP LOCKED` — 행 단위 원자적 분배 |
+| 주기적 반복 잡 (cleanup, sync 등) | PostgreSQL Advisory Lock — 전역 잠금, 크래시 시 자동 해제 |
+
+**Advisory Lock 선택 이유**:
+- PostgreSQL이 이미 필수 의존성 → 추가 인프라 없음
+- 프로세스 크래시 시 연결 종료와 함께 잠금 자동 해제 (Redis TTL 만료 대기 없음)
+- 강한 일관성 보장
+
+**`internal/batchlock` 패키지**:
+
+```go
+type JobLock interface {
+    TryAcquire(ctx context.Context, jobName string) (acquired bool, release func(), err error)
+}
+
+// PostgresJobLock: pg_try_advisory_lock(hashtext('batch:' + jobName))
+// acquired=false → 다른 인스턴스 실행 중, 정상 skip
+// 크래시 → PG 연결 종료 시 pg_advisory_unlock 자동 호출
+```
+
+**모든 주기적 잡의 표준 패턴**:
+
+```go
+func (j *SomePeriodicJob) Run(ctx context.Context) error {
+    acquired, release, err := j.lock.TryAcquire(ctx, "job-name")
+    if err != nil { return err }
+    if !acquired { return nil }  // 다른 인스턴스 실행 중 — skip
+    defer release()
+    return j.doWork(ctx)
+}
+```
+
+**초기 등록 잡 목록**:
+
+1. `ScheduledMailFlusherJob` — `available_at <= now()` 예약 메일 상태 점검 및 enqueue 확인
+2. `OrgChartSyncJob` — 외부 HR 시스템 연동 조직도 주기적 동기화 (인터페이스만, 어댑터는 플러그인)
+3. `QuotaAlertCheckJob` — 사용자/도메인/회사 할당량 임계치 초과 시 알림 이벤트 emit
+4. `MFAGracePeriodJob` — 2FA 유예기간 만료 사용자 처리
+5. `TokenCleanupJob` — 만료된 TOTP used-codes, 세션 토큰 정리
+
+**구현 순서**:
+
+1. `internal/batchlock` 패키지: `PostgresJobLock` 구현 + `TryAcquire` 단위 테스트.
+2. `batch-worker` 모드 wiring: job registry + ticker loop + graceful shutdown.
+3. 각 잡 구현 (인터페이스 기반, 잡별 interval 환경변수 설정).
+4. 테스트: 동시 2개 인스턴스 → 하나만 실행되고 나머지는 skip 검증.
+
 ---
 
 ## Phase 3: Enterprise Identity & Directory
