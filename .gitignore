@@ -11,5 +11,43 @@
 .env.*
 !.env.example
 
-# OpenCode agent sessions
+# ── AI agent workspace files ──────────────────────────────────────────
+# Claude Code
+.claude/
+
+# OpenCode / Oh-My-Claude
 .omc/
+
+# Cursor
+.cursor/
+.cursorignore
+.cursorindexingignore
+
+# GitHub Copilot
+.copilot/
+.github/copilot-instructions.md
+
+# Windsurf (Codeium)
+.windsurf/
+.codeium/
+
+# Aider
+.aider/
+.aider.chat.history.md
+.aider.input.history
+
+# Continue.dev
+.continue/
+
+# Tabnine
+.tabnine/
+
+# Qodo (CodiumAI)
+.qodo/
+
+# Zed AI
+.zed/
+
+# Generic AI session/cache artifacts
+*.ai-history
+*.ai-cache
