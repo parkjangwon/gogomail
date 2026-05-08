@@ -3015,7 +3015,7 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 }
 
 func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateCalendarAtPathRequest) (Calendar, error) {
-	validated, _, syncToken, _, err := ValidateCreateCalendarAtPathRequest(req)
+	validated, _, syncToken, _, _, err := ValidateCreateCalendarAtPathRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
@@ -3040,7 +3040,7 @@ func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateC
 }
 
 func (s *fakeDiscoveryStore) UpdateCalendarProperties(_ context.Context, req UpdateCalendarRequest) (Calendar, error) {
-	validated, _, _, _, err := ValidateUpdateCalendarRequest(req)
+	validated, _, _, _, _, err := ValidateUpdateCalendarRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}

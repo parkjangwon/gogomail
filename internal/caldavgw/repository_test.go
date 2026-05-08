@@ -38,7 +38,7 @@ func TestValidateCreateCalendarRequest(t *testing.T) {
 func TestValidateCreateCalendarAtPathRequest(t *testing.T) {
 	t.Parallel()
 
-	req, normalizedName, syncToken, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+	req, normalizedName, syncToken, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
 		UserID:      " user-1 ",
 		CalendarID:  "11111111-1111-4111-8111-111111111111",
 		Name:        " Project ",
@@ -89,7 +89,7 @@ func TestValidateCreateCalendarAtPathRequestRejectsNonUUIDPathIDs(t *testing.T) 
 		t.Run(calendarID, func(t *testing.T) {
 			t.Parallel()
 
-			if _, _, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
+			if _, _, _, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
 				UserID:     "user-1",
 				CalendarID: calendarID,
 				Name:       "Work",
@@ -220,7 +220,7 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	name := " Product "
 	color := " #aabbcc "
 	description := " Launch dates "
-	req, normalizedName, syncToken, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
+	req, normalizedName, syncToken, _, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
 		UserID:       " user-1 ",
 		CalendarID:   " calendar-1 ",
 		Name:         &name,
@@ -270,7 +270,7 @@ func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 		t.Run(req.UserID+"/"+req.CalendarID, func(t *testing.T) {
 			t.Parallel()
 
-			if _, _, _, _, err := ValidateUpdateCalendarRequest(req); err == nil {
+			if _, _, _, _, _, err := ValidateUpdateCalendarRequest(req); err == nil {
 				t.Fatalf("ValidateUpdateCalendarRequest(%+v) error = nil, want rejection", req)
 			}
 		})

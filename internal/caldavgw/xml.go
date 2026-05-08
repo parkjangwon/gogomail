@@ -80,6 +80,7 @@ type MKCalendarRequest struct {
 	Description string
 	Color       string
 	Slug        *string
+	Timezone    *string
 }
 
 type ProppatchRequest struct {
@@ -87,6 +88,7 @@ type ProppatchRequest struct {
 	Description *string
 	Color       *string
 	Slug        *string
+	Timezone    *string
 	Properties  []XMLName
 }
 
@@ -402,6 +404,19 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				}
 				req.Slug = &value
 				req.Properties = append(req.Properties, PropCalendarSlug)
+			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-timezone"):
+				value := ""
+				if set {
+					text, err := readSimpleElementText(dec, tok.Name)
+					if err != nil {
+						return err
+					}
+					value = strings.TrimSpace(text)
+				} else if err := skipElement(dec, tok.Name); err != nil {
+					return err
+				}
+				req.Timezone = &value
+				req.Properties = append(req.Properties, PropCalendarTimezone)
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err
@@ -487,6 +502,15 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 				slug := strings.TrimSpace(text)
 				if slug != "" {
 					req.Slug = &slug
+				}
+			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-timezone"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				tz := strings.TrimSpace(text)
+				if tz != "" {
+					req.Timezone = &tz
 				}
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
