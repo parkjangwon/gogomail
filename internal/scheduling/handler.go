@@ -17,9 +17,12 @@ import (
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/redis/go-redis/v9"
 )
 
 const EventNameSchedulingOutbox = "scheduling.outbox"
+
+const DeliveryStream = "mail.outbound.general"
 
 type Handler struct {
 	logger *slog.Logger
@@ -33,6 +36,30 @@ type ObjectStore interface {
 
 type Queue interface {
 	Enqueue(ctx context.Context, topic string, partitionKey string, payload []byte) error
+}
+
+type DeliveryQueue struct {
+	client *redis.Client
+}
+
+func NewDeliveryQueue(client *redis.Client) *DeliveryQueue {
+	return &DeliveryQueue{client: client}
+}
+
+func (q *DeliveryQueue) Enqueue(ctx context.Context, topic string, partitionKey string, payload []byte) error {
+	if q.client == nil {
+		return fmt.Errorf("redis client is required")
+	}
+
+	values := map[string]any{
+		"partition_key": partitionKey,
+		"payload":       string(payload),
+	}
+
+	return q.client.XAdd(ctx, &redis.XAddArgs{
+		Stream: DeliveryStream,
+		Values: values,
+	}).Err()
 }
 
 func NewHandler(logger *slog.Logger, queue Queue, store ObjectStore) *Handler {
