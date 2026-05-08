@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -113,6 +114,25 @@ func ValidateSlug(slug string) (string, error) {
 		}
 	}
 	return slug, nil
+}
+
+func NormalizeTimezone(tz string) (string, error) {
+	tz, err := ValidateTimezone(tz)
+	if err != nil {
+		return "", err
+	}
+	return tz, nil
+}
+
+func ValidateTimezone(tz string) (string, error) {
+	tz = strings.TrimSpace(tz)
+	if tz == "" {
+		return "", nil
+	}
+	if _, err := time.LoadLocation(tz); err != nil {
+		return "", fmt.Errorf("unsupported timezone: %s", tz)
+	}
+	return tz, nil
 }
 
 func ValidateCalendarStatus(status string) (string, error) {

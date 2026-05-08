@@ -36,6 +36,7 @@ var (
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
 	PropCalendarSlug                 = XMLName{Space: "http://apple.com/ns/icalendar/", Local: "calendar-slug"}
+	PropCalendarTimezone             = XMLName{Space: CalDAVNamespace, Local: "calendar-timezone"}
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
 	PropSupportedCalendarData         = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-data"}
 	PropMaxResourceSize               = XMLName{Space: CalDAVNamespace, Local: "max-resource-size"}
@@ -175,6 +176,7 @@ func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncC
 		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description}, Found: true},
 		{Name: PropCalendarColor, Value: PropertyValue{Text: calendar.Color}, Found: calendar.Color != ""},
 		{Name: PropCalendarSlug, Value: PropertyValue{Text: calendarSlugValue(calendar.Slug)}, Found: calendar.Slug != nil},
+		{Name: PropCalendarTimezone, Value: PropertyValue{Text: calendarTimezoneValue(calendar.Timezone)}, Found: calendar.Timezone != nil},
 		{Name: PropSupportedCalendarComponentSet, Value: PropertyValue{CalendarComponents: []string{ComponentVEVENT, ComponentVTODO, ComponentVJOURNAL, ComponentVFREEBUSY}}, Found: true},
 		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
 		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
@@ -278,6 +280,13 @@ func calendarSlugValue(slug *string) string {
 		return ""
 	}
 	return *slug
+}
+
+func calendarTimezoneValue(tz *string) string {
+	if tz == nil {
+		return ""
+	}
+	return *tz
 }
 
 func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {

@@ -34,6 +34,7 @@ type CreateCalendarAtPathRequest struct {
 	CalendarID  string
 	Name        string
 	Slug        *string
+	Timezone    *string
 	Color       string
 	Description string
 }
@@ -96,6 +97,7 @@ type UpdateCalendarRequest struct {
 	CalendarID   string
 	Name         *string
 	Slug         *string
+	Timezone     *string
 	Color        *string
 	Description  *string
 	ObservedETag string
@@ -193,7 +195,7 @@ func (r *Repository) CreateCalendarAtPath(ctx context.Context, req CreateCalenda
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
 	}
-	req, normalizedName, syncToken, normalizedSlug, err := ValidateCreateCalendarAtPathRequest(req)
+	req, normalizedName, syncToken, normalizedSlug, normalizedTimezone, err := ValidateCreateCalendarAtPathRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
@@ -216,17 +218,18 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO caldav_calendars (
-  id, company_id, domain_id, user_id, name, normalized_name, slug, color, description, sync_token
+  id, company_id, domain_id, user_id, name, normalized_name, slug, timezone, color, description, sync_token
 )
-SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8, $9
 FROM active_user
-RETURNING id::text, user_id::text, name, slug, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.CalendarID,
 			req.Name,
 			normalizedName,
 			normalizedSlug,
+			normalizedTimezone,
 			req.Color,
 			req.Description,
 			syncToken,
@@ -235,6 +238,7 @@ RETURNING id::text, user_id::text, name, slug, color, description, sync_token, c
 			&calendar.UserID,
 			&calendar.Name,
 			&calendar.Slug,
+			&calendar.Timezone,
 			&calendar.Color,
 			&calendar.Description,
 			&calendar.SyncToken,
@@ -263,16 +267,17 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO caldav_calendars (
-  id, company_id, domain_id, user_id, name, normalized_name, color, description, sync_token
+  id, company_id, domain_id, user_id, name, normalized_name, timezone, color, description, sync_token
 )
-SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
 FROM active_user
-RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.CalendarID,
 			req.Name,
 			normalizedName,
+			normalizedTimezone,
 			req.Color,
 			req.Description,
 			syncToken,
@@ -280,6 +285,7 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 			&calendar.ID,
 			&calendar.UserID,
 			&calendar.Name,
+			&calendar.Timezone,
 			&calendar.Color,
 			&calendar.Description,
 			&calendar.SyncToken,
@@ -292,12 +298,6 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 			}
 			return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
 		}
-	}
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return Calendar{}, fmt.Errorf("active user not found")
-		}
-		return Calendar{}, fmt.Errorf("create CalDAV calendar at path: %w", err)
 	}
 	if err := insertCalendarSyncChange(ctx, tx, calendar.UserID, req.ActorUserID, calendar.ID, calendar.SyncToken, "collection-created", "", ""); err != nil {
 		return Calendar{}, err
@@ -317,7 +317,7 @@ func (r *Repository) ListCalendars(ctx context.Context, req ListCalendarsRequest
 		return nil, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND status = $2
@@ -331,7 +331,7 @@ LIMIT $3`
 	var calendars []Calendar
 	for rows.Next() {
 		var calendar Calendar
-		if err := rows.Scan(&calendar.ID, &calendar.UserID, &calendar.Name, &calendar.Color, &calendar.Description, &calendar.SyncToken, &calendar.CreatedAt, &calendar.UpdatedAt); err != nil {
+		if err := rows.Scan(&calendar.ID, &calendar.UserID, &calendar.Name, &calendar.Timezone, &calendar.Color, &calendar.Description, &calendar.SyncToken, &calendar.CreatedAt, &calendar.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CalDAV calendar: %w", err)
 		}
 		calendars = append(calendars, calendar)
@@ -351,7 +351,7 @@ func (r *Repository) GetCalendar(ctx context.Context, req GetCalendarRequest) (C
 		return Calendar{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND id = $2::uuid
@@ -361,6 +361,7 @@ WHERE user_id = $1::uuid
 		&calendar.ID,
 		&calendar.UserID,
 		&calendar.Name,
+		&calendar.Timezone,
 		&calendar.Color,
 		&calendar.Description,
 		&calendar.SyncToken,
@@ -391,7 +392,7 @@ func (r *Repository) GetCalendarBySlug(ctx context.Context, req GetCalendarBySlu
 		return Calendar{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, slug, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND lower(slug) = lower($2)
@@ -402,6 +403,7 @@ WHERE user_id = $1::uuid
 		&calendar.UserID,
 		&calendar.Name,
 		&calendar.Slug,
+		&calendar.Timezone,
 		&calendar.Color,
 		&calendar.Description,
 		&calendar.SyncToken,
@@ -728,7 +730,7 @@ func (r *Repository) UpdateCalendarProperties(ctx context.Context, req UpdateCal
 	if r == nil || r.db == nil {
 		return Calendar{}, fmt.Errorf("database handle is required")
 	}
-	req, normalizedName, syncToken, normalizedSlug, err := ValidateUpdateCalendarRequest(req)
+	req, normalizedName, syncToken, normalizedSlug, normalizedTimezone, err := ValidateUpdateCalendarRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
@@ -750,6 +752,7 @@ func (r *Repository) UpdateCalendarProperties(ctx context.Context, req UpdateCal
 	}
 	nameValue, nameSet := optionalStringArg(req.Name)
 	slugValue, slugSet := optionalStringArg(normalizedSlug)
+	timezoneValue, timezoneSet := optionalStringArg(normalizedTimezone)
 	colorValue, colorSet := optionalStringArg(req.Color)
 	descriptionValue, descriptionSet := optionalStringArg(req.Description)
 	const query = `
@@ -758,14 +761,15 @@ SET
   name = CASE WHEN $3 THEN $4 ELSE name END,
   normalized_name = CASE WHEN $3 THEN $5 ELSE normalized_name END,
   slug = CASE WHEN $6 THEN $7 ELSE slug END,
-  color = CASE WHEN $8 THEN $9 ELSE color END,
-  description = CASE WHEN $10 THEN $11 ELSE description END,
-  sync_token = $12,
+  timezone = CASE WHEN $8 THEN $9 ELSE timezone END,
+  color = CASE WHEN $10 THEN $11 ELSE color END,
+  description = CASE WHEN $12 THEN $13 ELSE description END,
+  sync_token = $14,
   updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
-RETURNING id::text, user_id::text, name, slug, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at`
 	var calendar Calendar
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
@@ -775,6 +779,8 @@ RETURNING id::text, user_id::text, name, slug, color, description, sync_token, c
 		normalizedName,
 		slugSet,
 		slugValue,
+		timezoneSet,
+		timezoneValue,
 		colorSet,
 		colorValue,
 		descriptionSet,
@@ -785,6 +791,7 @@ RETURNING id::text, user_id::text, name, slug, color, description, sync_token, c
 		&calendar.UserID,
 		&calendar.Name,
 		&calendar.Slug,
+		&calendar.Timezone,
 		&calendar.Color,
 		&calendar.Description,
 		&calendar.SyncToken,
@@ -1171,14 +1178,14 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 	return CreateCalendarRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
 }
 
-func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, *string, error) {
+func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, *string, *string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", nil, err
+		return CreateCalendarAtPathRequest{}, "", "", nil, nil, err
 	}
 	calendarID, err := ValidateCalendarPathID(req.CalendarID)
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", nil, err
+		return CreateCalendarAtPathRequest{}, "", "", nil, nil, err
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -1188,9 +1195,17 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 	if req.Slug != nil {
 		ns, err := NormalizeSlug(*req.Slug)
 		if err != nil {
-			return CreateCalendarAtPathRequest{}, "", "", nil, fmt.Errorf("slug: %w", err)
+			return CreateCalendarAtPathRequest{}, "", "", nil, nil, fmt.Errorf("slug: %w", err)
 		}
 		normalizedSlug = &ns
+	}
+	var timezone *string
+	if req.Timezone != nil {
+		tz, err := NormalizeTimezone(*req.Timezone)
+		if err != nil {
+			return CreateCalendarAtPathRequest{}, "", "", nil, nil, fmt.Errorf("timezone: %w", err)
+		}
+		timezone = &tz
 	}
 	create, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
 		UserID:      userID,
@@ -1200,7 +1215,7 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 		Description: req.Description,
 	})
 	if err != nil {
-		return CreateCalendarAtPathRequest{}, "", "", nil, err
+		return CreateCalendarAtPathRequest{}, "", "", nil, nil, err
 	}
 	return CreateCalendarAtPathRequest{
 		UserID:      create.UserID,
@@ -1208,9 +1223,10 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 		CalendarID:  calendarID,
 		Name:        create.Name,
 		Slug:        normalizedSlug,
+		Timezone:    timezone,
 		Color:       create.Color,
 		Description: create.Description,
-	}, normalizedName, syncToken, normalizedSlug, nil
+	}, normalizedName, syncToken, normalizedSlug, timezone, nil
 }
 
 func ValidateListCalendarsRequest(req ListCalendarsRequest) (ListCalendarsRequest, error) {
@@ -1381,36 +1397,36 @@ func ValidateDeleteCalendarRequest(req DeleteCalendarRequest) (DeleteCalendarReq
 	return DeleteCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, ObservedETag: observedETag}, nil
 }
 
-func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarRequest, string, string, *string, error) {
+func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarRequest, string, string, *string, *string, error) {
 	userID, err := validateCalDAVID("user_id", req.UserID, true)
 	if err != nil {
-		return UpdateCalendarRequest{}, "", "", nil, err
+		return UpdateCalendarRequest{}, "", "", nil, nil, err
 	}
 	actorUserID, err := validateCalDAVActorUserID(req.ActorUserID, userID)
 	if err != nil {
-		return UpdateCalendarRequest{}, "", "", nil, err
+		return UpdateCalendarRequest{}, "", "", nil, nil, err
 	}
 	calendarID, err := validateCalDAVID("calendar_id", req.CalendarID, true)
 	if err != nil {
-		return UpdateCalendarRequest{}, "", "", nil, err
+		return UpdateCalendarRequest{}, "", "", nil, nil, err
 	}
 	observedETag, err := validateOptionalETag(req.ObservedETag)
 	if err != nil {
-		return UpdateCalendarRequest{}, "", "", nil, err
+		return UpdateCalendarRequest{}, "", "", nil, nil, err
 	}
-	if req.Name == nil && req.Color == nil && req.Description == nil && req.Slug == nil {
-		return UpdateCalendarRequest{}, "", "", nil, fmt.Errorf("at least one calendar property is required")
+	if req.Name == nil && req.Color == nil && req.Description == nil && req.Slug == nil && req.Timezone == nil {
+		return UpdateCalendarRequest{}, "", "", nil, nil, fmt.Errorf("at least one calendar property is required")
 	}
 	var normalizedName string
 	var name *string
 	if req.Name != nil {
 		value, err := ValidateCalendarName(*req.Name)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, err
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		normalizedName, err = NormalizeCalendarName(value)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, err
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		name = &value
 	}
@@ -1419,20 +1435,34 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 	if req.Slug != nil {
 		value, err := ValidateSlug(*req.Slug)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, fmt.Errorf("slug: %w", err)
+			return UpdateCalendarRequest{}, "", "", nil, nil, fmt.Errorf("slug: %w", err)
 		}
 		ns, err := NormalizeSlug(value)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, err
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		slug = &value
 		normalizedSlug = &ns
+	}
+	var normalizedTimezone *string
+	var timezone *string
+	if req.Timezone != nil {
+		value, err := ValidateTimezone(*req.Timezone)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", nil, nil, fmt.Errorf("timezone: %w", err)
+		}
+		nt, err := NormalizeTimezone(value)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
+		}
+		timezone = &value
+		normalizedTimezone = &nt
 	}
 	var color *string
 	if req.Color != nil {
 		value, err := ValidateCalendarColor(*req.Color)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, err
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		color = &value
 	}
@@ -1440,12 +1470,12 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 	if req.Description != nil {
 		value, err := ValidateCalendarDescription(*req.Description)
 		if err != nil {
-			return UpdateCalendarRequest{}, "", "", nil, err
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		description = &value
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, "collection-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Slug: slug, Color: color, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, normalizedSlug, nil
+	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Slug: slug, Timezone: timezone, Color: color, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, normalizedSlug, normalizedTimezone, nil
 }
 
 func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {
