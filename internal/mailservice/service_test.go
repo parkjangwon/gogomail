@@ -3213,6 +3213,23 @@ func (f *fakeRepository) StoreAttachmentUploadSessionBody(_ context.Context, req
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: req.ReceivedSize, StoragePath: req.StoragePath, ChecksumSHA256: req.ChecksumSHA256, Status: "uploading"}, nil
 }
 
+func (f *fakeRepository) StoreAttachmentUploadSessionChunk(_ context.Context, req maildb.StoreAttachmentUploadSessionChunkRequest) (maildb.AttachmentUploadSession, error) {
+	chunkSize := req.ContentRange.LastByte - req.ContentRange.FirstByte + 1
+	if f.uploadSession.ID != "" {
+		f.uploadSession.ReceivedSize += chunkSize
+		f.uploadSession.StoragePath = req.StoragePath
+		f.uploadSession.Status = "uploading"
+		return f.uploadSession, nil
+	}
+	return maildb.AttachmentUploadSession{
+		ID:           req.SessionID,
+		UserID:       req.UserID,
+		ReceivedSize: chunkSize,
+		StoragePath:  req.StoragePath,
+		Status:       "uploading",
+	}, nil
+}
+
 func (f *fakeRepository) FinalizeAttachmentUploadSession(_ context.Context, req maildb.FinalizeAttachmentUploadSessionRequest) (maildb.Attachment, error) {
 	f.lastFinalizeUploadSession = req
 	return maildb.Attachment{ID: "att-1", UploadID: "upload-1", StoragePath: "upload-sessions/user-1/session-1/body", Filename: "large.bin", Size: 7, MIMEType: "application/octet-stream", Status: "uploading"}, nil

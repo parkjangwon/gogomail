@@ -41,10 +41,17 @@ type CreateAttachmentUploadSessionRequest struct {
 	ExpiresAt    time.Time
 }
 
+type ContentRange struct {
+	FirstByte int64
+	LastByte  int64
+	TotalSize int64
+}
+
 type StoreAttachmentUploadSessionBodyRequest struct {
 	UserID                 string
 	SessionID              string
 	ExpectedChecksumSHA256 string
+	ContentRange           *ContentRange
 	Body                   io.Reader
 }
 
@@ -129,6 +136,21 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 	}
 	if req.Body == nil {
 		return fmt.Errorf("attachment upload session body is required")
+	}
+	if req.ContentRange != nil {
+		cr := req.ContentRange
+		if cr.FirstByte < 0 {
+			return fmt.Errorf("content-range first-byte must not be negative")
+		}
+		if cr.LastByte < cr.FirstByte {
+			return fmt.Errorf("content-range last-byte must be >= first-byte")
+		}
+		if cr.TotalSize <= 0 {
+			return fmt.Errorf("content-range total-size must be positive")
+		}
+		if cr.LastByte >= cr.TotalSize {
+			return fmt.Errorf("content-range last-byte must be < total-size")
+		}
 	}
 	return nil
 }
