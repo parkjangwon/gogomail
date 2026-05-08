@@ -65,7 +65,7 @@
   - ETag 기반 낙관적 잠금, 페이지네이션, 감사 로그
   - 참고: `docs/backend-roadmap.md` § Phase 3 › 3-B
 
-- [ ] TASK-009: Phase 3-C — SAML 2.0 / OIDC SSO
+- [x] TASK-009: Phase 3-C — SAML 2.0 / OIDC SSO
   - SAML 2.0 SP 모드 + OIDC Relying Party 모드 (PKCE, RFC 7636)
   - 도메인별 IdP 설정, JIT 프로비저닝
   - Admin API `/admin/v1/sso-configurations` CRUD
