@@ -7,16 +7,15 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-018
-- **제목**: IMAP FETCH BODY 실제 클라이언트 픽스처 확장
-- **배경**: `internal/imapgw` MIME literal fetch가 기본 케이스만 커버.
-  Apple Mail, Thunderbird, K-9 Mail 형태의 `BODY[TEXT]`, `BODY[HEADER]`, `BODY[1.TEXT]`
-  literal 응답 픽스처를 추가해 회귀 방지.
-- **구현 대상**: `internal/imapgw/*_test.go` 픽스처 추가
+- **ID**: TASK-019
+- **제목**: Drive 파일 공유 — Directory delegation 통합
+- **배경**: `internal/drive` HTTP API는 구현됨. `internal/accesspolicy.DelegatedAccessAuthorizer`도 존재.
+  Drive HTTP 엔드포인트에 `drive` scope delegation 체크가 없어 크로스 유저 접근이 미구현.
+- **구현 대상**: `internal/httpapi/drive.go` — cross-user 경로에 `DelegatedAccessAuthorizer` 적용
 - **완료 조건**:
-  - [ ] `go test ./internal/imapgw/...` 통과
-  - [ ] 새 픽스처 최소 5종 추가
-- **다음 태스크**: TASK-019 — Drive 파일 공유 — Directory delegation 통합
+  - [ ] `go test ./...` 통과
+  - [ ] 위임된 read/write/manage 롤로 Drive 접근 테스트
+- **다음 태스크**: TASK-020 — OpenAPI → TypeScript 클라이언트 생성
 
 ---
 
