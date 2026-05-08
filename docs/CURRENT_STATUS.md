@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after SSE + scope security feature)
+Last updated: 2026-05-09 (updated after API key management feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -57,6 +57,12 @@ and will be extended to push actual config change notifications from the
 configstore Notifier interface. Scope security prevents administrators from
 directly modifying user-level config entries; PUT and DELETE on
 `/admin/v1/users/{id}/config/{key}` return 403 Forbidden.
+
+API key management (`internal/apikeys`) enables domain administrators to create
+programmatic API keys with CIDR-based access control. Keys use `gm_` prefix and
+are stored as SHA-256 hashes. The `ApiKeyMiddleware` detects `gm_`-prefixed bearer
+tokens and validates them against the `domain_api_keys` table, checking CIDR
+restrictions, expiration, and revocation status. Keys expire after 30 days by default.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
