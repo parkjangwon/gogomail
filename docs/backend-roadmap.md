@@ -4504,8 +4504,16 @@ Target outcome:
        CRUD endpoints for address books and contacts for webmail frontend integration.
        Supports `text/vcard`, `application/vcard+xml`, and `text/x-vcard` content types,
        ETag-based conditional requests, and `user_id` query parameter authentication
-       when `tokenManager` is nil. Comprehensive unit tests with `fakeContactRepo`
-       provide coverage.
+        when `tokenManager` is nil. Comprehensive unit tests with `fakeContactRepo`
+        provide coverage.
+ 1539. Quota alert system: Admin API now exposes quota alert threshold CRUD
+        (`GET/POST /quota-alert-thresholds`, `GET/PATCH/DELETE
+        /quota-alert-thresholds/{id}`) and quota alert history
+        (`GET /quota-alerts`, `GET /quota-alerts/{id}`) endpoints.
+        Migration 0068 creates `quota_alert_thresholds` and `quota_alerts`
+        tables with scope (user/domain/company), configurable warning/critical
+        ratios, and event tracking. `mail.quota_warning` event emission
+        remains a future enhancement for async threshold-based alerting.
 
 ## Deferred until backend contracts stabilize
 

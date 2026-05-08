@@ -8437,6 +8437,17 @@ type fakeAdminService struct {
 	lastMailFlowLogList                         maildb.MailFlowLogListRequest
 	lastMailFlowLogID                           string
 	lastMailFlowLogStats                        maildb.MailFlowLogStatsRequest
+	quotaAlertThresholds                        []maildb.QuotaAlertThresholdView
+	quotaAlertThreshold                         maildb.QuotaAlertThresholdView
+	quotaAlerts                                []maildb.QuotaAlertView
+	quotaAlert                                 maildb.QuotaAlertView
+	lastQuotaAlertThresholdList                maildb.QuotaAlertThresholdListRequest
+	lastQuotaAlertThresholdID                  string
+	lastCreateQuotaAlertThreshold              maildb.CreateQuotaAlertThresholdRequest
+	lastUpdateQuotaAlertThreshold              maildb.UpdateQuotaAlertThresholdRequest
+	lastDeleteQuotaAlertThresholdID           string
+	lastQuotaAlertList                        maildb.QuotaAlertListRequest
+	lastQuotaAlertID                          string
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -9186,4 +9197,41 @@ func (f *fakeAdminService) RetryOutbox(_ context.Context, id string) error {
 func (f *fakeAdminService) DeleteSuppressionEntry(_ context.Context, id string) error {
 	f.lastDeleteSuppressionID = id
 	return nil
+}
+
+func (f *fakeAdminService) ListQuotaAlertThresholds(_ context.Context, req maildb.QuotaAlertThresholdListRequest) ([]maildb.QuotaAlertThresholdView, error) {
+	f.lastQuotaAlertThresholdList = req
+	f.lastLimit = req.Limit
+	return f.quotaAlertThresholds, nil
+}
+
+func (f *fakeAdminService) GetQuotaAlertThreshold(_ context.Context, id string) (maildb.QuotaAlertThresholdView, error) {
+	f.lastQuotaAlertThresholdID = id
+	return f.quotaAlertThreshold, nil
+}
+
+func (f *fakeAdminService) CreateQuotaAlertThreshold(_ context.Context, req maildb.CreateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error) {
+	f.lastCreateQuotaAlertThreshold = req
+	return f.quotaAlertThreshold, nil
+}
+
+func (f *fakeAdminService) UpdateQuotaAlertThreshold(_ context.Context, req maildb.UpdateQuotaAlertThresholdRequest) (maildb.QuotaAlertThresholdView, error) {
+	f.lastUpdateQuotaAlertThreshold = req
+	return f.quotaAlertThreshold, nil
+}
+
+func (f *fakeAdminService) DeleteQuotaAlertThreshold(_ context.Context, id string) error {
+	f.lastDeleteQuotaAlertThresholdID = id
+	return nil
+}
+
+func (f *fakeAdminService) ListQuotaAlerts(_ context.Context, req maildb.QuotaAlertListRequest) ([]maildb.QuotaAlertView, error) {
+	f.lastQuotaAlertList = req
+	f.lastLimit = req.Limit
+	return f.quotaAlerts, nil
+}
+
+func (f *fakeAdminService) GetQuotaAlert(_ context.Context, id string) (maildb.QuotaAlertView, error) {
+	f.lastQuotaAlertID = id
+	return f.quotaAlert, nil
 }
