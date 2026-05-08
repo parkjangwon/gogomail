@@ -56,6 +56,19 @@ type StoreAttachmentUploadSessionBodyRequest struct {
 	ChecksumSHA256 string
 }
 
+type ContentRange struct {
+	FirstByte int64
+	LastByte  int64
+	TotalSize int64
+}
+
+type StoreAttachmentUploadSessionChunkRequest struct {
+	UserID       string
+	SessionID    string
+	ContentRange ContentRange
+	StoragePath  string
+}
+
 type FinalizeAttachmentUploadSessionRequest struct {
 	UserID    string
 	SessionID string
@@ -157,6 +170,31 @@ func ValidateStoreAttachmentUploadSessionBodyRequest(req StoreAttachmentUploadSe
 		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
 			return fmt.Errorf("checksum_sha256 must be a lowercase SHA-256 hex digest")
 		}
+	}
+	return nil
+}
+
+func ValidateStoreAttachmentUploadSessionChunkRequest(req StoreAttachmentUploadSessionChunkRequest) error {
+	if err := validateAttachmentUploadSessionIdentity(req.UserID, req.SessionID); err != nil {
+		return err
+	}
+	if req.ContentRange.FirstByte < 0 {
+		return fmt.Errorf("content-range first-byte must not be negative")
+	}
+	if req.ContentRange.LastByte < req.ContentRange.FirstByte {
+		return fmt.Errorf("content-range last-byte must be >= first-byte")
+	}
+	if req.ContentRange.TotalSize <= 0 {
+		return fmt.Errorf("content-range total-size must be positive")
+	}
+	if req.ContentRange.LastByte >= req.ContentRange.TotalSize {
+		return fmt.Errorf("content-range last-byte must be < total-size")
+	}
+	if strings.TrimSpace(req.StoragePath) == "" {
+		return fmt.Errorf("storage_path is required")
+	}
+	if err := validateUploadSessionStoragePath(req.StoragePath); err != nil {
+		return err
 	}
 	return nil
 }
@@ -580,6 +618,133 @@ RETURNING
 		}
 		return AttachmentUploadSession{}, fmt.Errorf("store attachment upload session body: %w", err)
 	}
+	return session, nil
+}
+
+func (r *Repository) StoreAttachmentUploadSessionChunk(ctx context.Context, req StoreAttachmentUploadSessionChunkRequest) (AttachmentUploadSession, error) {
+	if r.db == nil {
+		return AttachmentUploadSession{}, fmt.Errorf("database handle is required")
+	}
+	if err := ValidateStoreAttachmentUploadSessionChunkRequest(req); err != nil {
+		return AttachmentUploadSession{}, err
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AttachmentUploadSession{}, fmt.Errorf("begin store chunk transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var session AttachmentUploadSession
+	var currentReceivedSize int64
+	const selectQuery = `
+SELECT
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  COALESCE(storage_path, ''),
+  COALESCE(checksum_sha256, ''),
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at
+FROM attachment_upload_sessions
+WHERE user_id = $1
+  AND id = $2
+  AND status IN ('pending', 'uploading', 'failed')
+  AND expires_at > now()
+FOR UPDATE`
+
+	err = tx.QueryRowContext(ctx, selectQuery, strings.TrimSpace(req.UserID), strings.TrimSpace(req.SessionID)).Scan(
+		&session.ID,
+		&session.UserID,
+		&session.DraftID,
+		&session.UploadID,
+		&session.Filename,
+		&session.DeclaredSize,
+		&currentReceivedSize,
+		&session.MIMEType,
+		&session.Status,
+		&session.StorageBackend,
+		&session.StoragePath,
+		&session.ChecksumSHA256,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+		&session.UpdatedAt,
+		&session.FinalizedAt,
+		&session.CanceledAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q not found", req.SessionID)
+		}
+		return AttachmentUploadSession{}, fmt.Errorf("get session for chunk storage: %w", err)
+	}
+
+	chunkSize := req.ContentRange.LastByte - req.ContentRange.FirstByte + 1
+	if currentReceivedSize > req.ContentRange.FirstByte {
+		return AttachmentUploadSession{}, fmt.Errorf("chunk range overlap: bytes %d-%d conflicts with already received %d bytes", req.ContentRange.FirstByte, req.ContentRange.LastByte, currentReceivedSize)
+	}
+	if currentReceivedSize < req.ContentRange.FirstByte {
+		return AttachmentUploadSession{}, fmt.Errorf("chunk gap: bytes %d-%d does not start at received boundary %d", req.ContentRange.FirstByte, req.ContentRange.LastByte, currentReceivedSize)
+	}
+
+	newReceivedSize := currentReceivedSize + chunkSize
+	if newReceivedSize > session.DeclaredSize {
+		return AttachmentUploadSession{}, fmt.Errorf("chunk would exceed declared size: %d + %d > %d", currentReceivedSize, chunkSize, session.DeclaredSize)
+	}
+
+	const updateQuery = `
+UPDATE attachment_upload_sessions
+SET status = 'uploading',
+    received_size = $3,
+    storage_path = $4,
+    updated_at = now()
+WHERE user_id = $1
+  AND id = $2
+RETURNING
+  id::text,
+  user_id::text,
+  COALESCE(draft_id::text, ''),
+  upload_id,
+  filename,
+  declared_size,
+  received_size,
+  mime_type,
+  status,
+  storage_backend,
+  storage_path,
+  checksum_sha256,
+  expires_at,
+  created_at,
+  updated_at,
+  finalized_at,
+  canceled_at`
+
+	session, err = scanAttachmentUploadSession(tx.QueryRowContext(
+		ctx,
+		updateQuery,
+		strings.TrimSpace(req.UserID),
+		strings.TrimSpace(req.SessionID),
+		newReceivedSize,
+		strings.TrimSpace(req.StoragePath),
+	))
+	if err != nil {
+		return AttachmentUploadSession{}, fmt.Errorf("update session after chunk storage: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return AttachmentUploadSession{}, fmt.Errorf("commit chunk storage: %w", err)
+	}
+
 	return session, nil
 }
 

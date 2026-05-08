@@ -76,6 +76,7 @@ type AttachmentUploadSessionRepository interface {
 	CancelAttachmentUploadSession(ctx context.Context, req maildb.CancelAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	GetAttachmentUploadSession(ctx context.Context, req maildb.GetAttachmentUploadSessionRequest) (maildb.AttachmentUploadSession, error)
 	StoreAttachmentUploadSessionBody(ctx context.Context, req maildb.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error)
+	StoreAttachmentUploadSessionChunk(ctx context.Context, req maildb.StoreAttachmentUploadSessionChunkRequest) (maildb.AttachmentUploadSession, error)
 	FinalizeAttachmentUploadSession(ctx context.Context, req maildb.FinalizeAttachmentUploadSessionRequest) (maildb.Attachment, error)
 	ExpireAttachmentUploadSessions(ctx context.Context, req maildb.ExpireAttachmentUploadSessionsRequest) ([]maildb.AttachmentUploadSession, error)
 }
@@ -1682,6 +1683,10 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("attachment upload session %q is expired", req.SessionID)
 	}
 
+	if req.ContentRange != nil {
+		return s.storeChunk(ctx, repo, session, req)
+	}
+
 	path := strings.Join([]string{
 		"upload-sessions",
 		safeObjectPathSegment(req.UserID),
@@ -1723,6 +1728,46 @@ func (s *Service) StoreAttachmentUploadSessionBody(ctx context.Context, req Stor
 		if previousPath, err := validateUploadSessionObjectPath(previousPath); err == nil {
 			_ = s.store.Delete(ctx, previousPath)
 		}
+	}
+	return stored, nil
+}
+
+func (s *Service) storeChunk(ctx context.Context, repo AttachmentUploadSessionRepository, session maildb.AttachmentUploadSession, req StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
+	cr := req.ContentRange
+	path := strings.Join([]string{
+		"upload-sessions",
+		safeObjectPathSegment(req.UserID),
+		safeObjectPathSegment(req.SessionID),
+		"chunks",
+		fmt.Sprintf("%d-%d", cr.FirstByte, cr.LastByte),
+	}, "/")
+	chunkSize := cr.LastByte - cr.FirstByte + 1
+	counter := &countingReader{reader: req.Body}
+	limitedBody := &io.LimitedReader{R: counter, N: chunkSize + 1}
+	if err := s.store.Put(ctx, path, limitedBody); err != nil {
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("store chunk: %w", err)
+	}
+	if limitedBody.N == 0 {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk body exceeds chunk size %d", chunkSize)
+	}
+	if counter.n != chunkSize {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk body size %d does not match Content-Range size %d", counter.n, chunkSize)
+	}
+	stored, err := repo.StoreAttachmentUploadSessionChunk(ctx, maildb.StoreAttachmentUploadSessionChunkRequest{
+		UserID:       req.UserID,
+		SessionID:    req.SessionID,
+		ContentRange: maildb.ContentRange{
+			FirstByte: cr.FirstByte,
+			LastByte:  cr.LastByte,
+			TotalSize: cr.TotalSize,
+		},
+		StoragePath: path,
+	})
+	if err != nil {
+		_ = s.store.Delete(ctx, path)
+		return maildb.AttachmentUploadSession{}, err
 	}
 	return stored, nil
 }

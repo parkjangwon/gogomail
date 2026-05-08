@@ -2518,7 +2518,7 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsOversizedBody(t *testing.
 	}
 }
 
-func TestStoreAttachmentUploadSessionBodyHandlerRejectsContentRange(t *testing.T) {
+func TestStoreAttachmentUploadSessionBodyHandlerAcceptsContentRangeChunk(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeMessageService{}
@@ -2526,16 +2526,79 @@ func TestStoreAttachmentUploadSessionBodyHandlerRejectsContentRange(t *testing.T
 	RegisterMailRoutes(mux, service, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("content"))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Range", "bytes 0-6/7")
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Range", "bytes 0-6/100")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastStoreUploadSessionID != "" {
-		t.Fatalf("service should not be called for range upload: session=%q", service.lastStoreUploadSessionID)
+	if service.lastStoreUploadSessionID != "session-1" {
+		t.Fatalf("session = %q, want %q", service.lastStoreUploadSessionID, "session-1")
+	}
+	if !strings.Contains(rec.Body.String(), `"attachment_upload_session"`) {
+		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyHandlerRejectsOverlappingChunks(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	// First chunk
+	req1 := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("first"))
+	req1.Header.Set("Content-Type", "application/octet-stream")
+	req1.Header.Set("Content-Range", "bytes 0-4/100")
+	rec1 := httptest.NewRecorder()
+	mux.ServeHTTP(rec1, req1)
+
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("first chunk status = %d, body = %s", rec1.Code, rec1.Body.String())
+	}
+
+	// Overlapping chunk - should be rejected with 416
+	req2 := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("overlap"))
+	req2.Header.Set("Content-Type", "application/octet-stream")
+	req2.Header.Set("Content-Range", "bytes 3-8/100")
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("overlapping chunk status = %d, want %d, body = %s", rec2.Code, http.StatusRequestedRangeNotSatisfiable, rec2.Body.String())
+	}
+}
+
+func TestStoreAttachmentUploadSessionBodyHandlerRejectsGaps(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	// First chunk
+	req1 := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("first"))
+	req1.Header.Set("Content-Type", "application/octet-stream")
+	req1.Header.Set("Content-Range", "bytes 0-4/100")
+	rec1 := httptest.NewRecorder()
+	mux.ServeHTTP(rec1, req1)
+
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("first chunk status = %d, body = %s", rec1.Code, rec1.Body.String())
+	}
+
+	// Gap in range - should be rejected with 416
+	req2 := httptest.NewRequest(http.MethodPut, "/api/v1/attachments/upload-sessions/session-1/body?user_id=user-1", strings.NewReader("gap"))
+	req2.Header.Set("Content-Type", "application/octet-stream")
+	req2.Header.Set("Content-Range", "bytes 10-14/100")
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("gap chunk status = %d, want %d, body = %s", rec2.Code, http.StatusRequestedRangeNotSatisfiable, rec2.Body.String())
 	}
 }
 
@@ -2651,7 +2714,7 @@ func TestAttachmentUploadCapabilitiesHandler(t *testing.T) {
 		`"upload_session_body":true`,
 		`"upload_session_checksum":true`,
 		`"finalize_upload_sessions":true`,
-		`"resumable_chunked_uploads":false`,
+		`"resumable_chunked_uploads":true`,
 		`"requires_declared_size":true`,
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
@@ -3360,6 +3423,7 @@ type fakeMessageService struct {
 	lastSearch                  maildb.MessageSearchQuery
 	lastDraftSearch             maildb.DraftSearchQuery
 	lastLimit                   int
+	uploadSessionReceivedSizes  map[string]int64
 }
 
 func (f *fakeMessageService) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -3595,18 +3659,47 @@ func (f *fakeMessageService) CancelAttachmentUploadSession(_ context.Context, us
 func (f *fakeMessageService) GetAttachmentUploadSession(_ context.Context, userID string, sessionID string) (maildb.AttachmentUploadSession, error) {
 	f.lastUserID = userID
 	f.lastGetUploadSessionID = sessionID
-	return maildb.AttachmentUploadSession{ID: sessionID, UserID: userID, Status: "pending"}, nil
+	if f.uploadSessionReceivedSizes == nil {
+		f.uploadSessionReceivedSizes = make(map[string]int64)
+	}
+	receivedSize := f.uploadSessionReceivedSizes[sessionID]
+	return maildb.AttachmentUploadSession{
+		ID:           sessionID,
+		UserID:       userID,
+		Status:       "pending",
+		ReceivedSize: receivedSize,
+		DeclaredSize: 100,
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}, nil
 }
 
 func (f *fakeMessageService) StoreAttachmentUploadSessionBody(_ context.Context, req mailservice.StoreAttachmentUploadSessionBodyRequest) (maildb.AttachmentUploadSession, error) {
 	f.lastUserID = req.UserID
 	f.lastStoreUploadSessionID = req.SessionID
 	f.lastUploadSessionChecksum = req.ExpectedChecksumSHA256
+	if f.uploadSessionReceivedSizes == nil {
+		f.uploadSessionReceivedSizes = make(map[string]int64)
+	}
 	raw, err := io.ReadAll(req.Body)
 	if err != nil {
 		return maildb.AttachmentUploadSession{}, err
 	}
 	f.lastUploadSessionBody = string(raw)
+	if req.ContentRange != nil {
+		currentSize := f.uploadSessionReceivedSizes[req.SessionID]
+		cr := req.ContentRange
+		if currentSize > cr.FirstByte {
+			return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk range overlap: bytes %d-%d conflicts with already received %d bytes", cr.FirstByte, cr.LastByte, currentSize)
+		}
+		if currentSize < cr.FirstByte {
+			return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk gap: bytes %d-%d does not start at received boundary %d", cr.FirstByte, cr.LastByte, currentSize)
+		}
+		chunkSize := cr.LastByte - cr.FirstByte + 1
+		newSize := currentSize + chunkSize
+		f.uploadSessionReceivedSizes[req.SessionID] = newSize
+		return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: newSize, Status: "uploading"}, nil
+	}
+	f.uploadSessionReceivedSizes[req.SessionID] = int64(len(raw))
 	return maildb.AttachmentUploadSession{ID: req.SessionID, UserID: req.UserID, ReceivedSize: int64(len(raw)), Status: "uploading"}, nil
 }
 

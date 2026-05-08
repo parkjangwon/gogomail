@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after Milter adapter feature)
+Last updated: 2026-05-09 (updated after Resumable Chunked Upload feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -3549,9 +3549,10 @@ The platform hardening sprint completed the following:
   upload cleanup.
 - Mail API now exposes resumable upload session create/read/cancel endpoints under
   `/api/v1/attachments/upload-sessions`, reserving declared quota at session
-  creation while keeping chunked upload capability disabled until upload/finalize
-  routes land. Session creation rejects already-expired `expires_at` values
-  before quota reservation.
+  creation. Chunked upload is now enabled: `PUT /api/v1/attachments/upload-sessions/{id}/body`
+  accepts `Content-Range: bytes first-last/total` headers for incremental chunk commits.
+  Overlapping or gapped ranges return HTTP 416. Session creation rejects
+  already-expired `expires_at` values before quota reservation.
 - Attachment upload capabilities now distinguish upload session availability
   from full resumable chunk support so generated clients can adopt the staged
   lifecycle without assuming chunk receive/finalize routes exist, and expose
@@ -3569,8 +3570,10 @@ The platform hardening sprint completed the following:
   edited rows.
 - Upload session body storage can verify an optional client-provided
   `X-Content-SHA256` digest before recording the staged body.
-- Upload session body storage now rejects repeated `Content-Range` or
-  `X-Content-SHA256` control headers before reading or storing the body.
+- Upload session body storage accepts `Content-Range: bytes first-last/total` headers
+  for chunked uploads, storing each chunk at `upload-sessions/{user}/{session}/chunks/{first}-{last}`
+  paths. Overlapping or gapped chunks return HTTP 416. Repeated `X-Content-SHA256`
+  control headers are still rejected before reading or storing the body.
 - Attachment upload capabilities now advertise upload session checksum
   precondition support separately from body storage and finalization support.
 - Upload session finalization now converts a ready stored session body into the

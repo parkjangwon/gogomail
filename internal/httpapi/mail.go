@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -1558,7 +1559,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 				"upload_session_body":        true,
 				"upload_session_checksum":    true,
 				"finalize_upload_sessions":   true,
-				"resumable_chunked_uploads":  false,
+				"resumable_chunked_uploads":  true,
 				"requires_declared_size":     true,
 				"quota_reserved_on_metadata": true,
 			},
@@ -1648,13 +1649,18 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		if !ok {
 			return
 		}
-		contentRange, ok := singleHTTPHeaderValue(w, r, "Content-Range", maxHTTPAuthHeaderBytes)
+		contentRangeHdr, ok := singleHTTPHeaderValue(w, r, "Content-Range", maxHTTPAuthHeaderBytes)
 		if !ok {
 			return
 		}
-		if contentRange != "" {
-			writeError(w, http.StatusBadRequest, "content-range is not supported for upload session body storage")
-			return
+		var contentRange *mailservice.ContentRange
+		if contentRangeHdr != "" {
+			cr, err := parseContentRange(contentRangeHdr)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			contentRange = cr
 		}
 		checksum, ok := singleHTTPHeaderValue(w, r, "X-Content-SHA256", maxHTTPAuthHeaderBytes)
 		if !ok {
@@ -1665,6 +1671,7 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			UserID:                 userID,
 			SessionID:              sessionID,
 			ExpectedChecksumSHA256: checksum,
+			ContentRange:           contentRange,
 			Body:                   body,
 		})
 		if err != nil {
@@ -2013,6 +2020,41 @@ func parseBoundedHTTPPathPair(w http.ResponseWriter, r *http.Request, firstKey s
 	return first, second, true
 }
 
+func parseContentRange(hdr string) (*mailservice.ContentRange, error) {
+	hdr = strings.TrimSpace(hdr)
+	if !strings.HasPrefix(hdr, "bytes ") {
+		return nil, fmt.Errorf("content-range must start with 'bytes'")
+	}
+	rest := strings.TrimPrefix(hdr, "bytes ")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("content-range must be 'bytes first-last/total'")
+	}
+	rangePart := strings.TrimSpace(parts[0])
+	totalPart := strings.TrimSpace(parts[1])
+	rangeBounds := strings.Split(rangePart, "-")
+	if len(rangeBounds) != 2 {
+		return nil, fmt.Errorf("content-range range must be 'first-last'")
+	}
+	first, err := strconv.ParseInt(rangeBounds[0], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("content-range first-byte is invalid")
+	}
+	last, err := strconv.ParseInt(rangeBounds[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("content-range last-byte is invalid")
+	}
+	total, err := strconv.ParseInt(totalPart, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("content-range total-size is invalid")
+	}
+	return &mailservice.ContentRange{
+		FirstByte: first,
+		LastByte:  last,
+		TotalSize: total,
+	}, nil
+}
+
 func parseBoundedHTTPQuery(w http.ResponseWriter, r *http.Request, key string, required bool, maxBytes int) (string, bool) {
 	value, ok := singleQueryValue(w, r, key)
 	if !ok {
@@ -2300,5 +2342,10 @@ func writeMailServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusRequestEntityTooLarge, "attachment upload request is too large")
 		return
 	}
-	writeError(w, http.StatusBadRequest, err.Error())
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "chunk range overlap") || strings.Contains(errMsg, "chunk gap") {
+		writeError(w, http.StatusRequestedRangeNotSatisfiable, errMsg)
+		return
+	}
+	writeError(w, http.StatusBadRequest, errMsg)
 }

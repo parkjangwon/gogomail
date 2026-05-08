@@ -1683,13 +1683,32 @@ paths:
   /attachments/upload-sessions/{id}/body:
     put:
       operationId: storeAttachmentUploadSessionBody
-      summary: Store a complete resumable attachment upload session body
+      summary: Store a complete or chunked resumable attachment upload session body
+      description: |
+        Stores a complete body or commits a chunk to an upload session.
+
+        Without a `Content-Range` header, stores the entire body as a single upload.
+
+        With a `Content-Range: bytes first-last/total` header, commits a chunk.
+        Chunks must be uploaded sequentially without gaps or overlaps.
+        Overlapping or gapped ranges return HTTP 416.
       servers:
         - url: /api/v1
           description: Mail API
       parameters:
         - $ref: "#/components/parameters/PathID"
         - $ref: "#/components/parameters/UserIDFallback"
+        - name: Content-Range
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: "^bytes \\d+-\\d+/\\d+$"
+          description: |
+            RFC 7233 Content-Range header for chunked uploads.
+            Format: `bytes first-last/total` where first and last are 0-based byte indices.
+            Example: `bytes 0-1023/4096` for the first 1KB of a 4KB file.
+            When present, the body is treated as a chunk rather than a complete body.
         - name: X-Content-SHA256
           in: header
           required: false
@@ -1703,6 +1722,8 @@ paths:
         "200":
           $ref: "#/components/responses/AttachmentUploadSession"
         "413":
+          $ref: "#/components/responses/Error"
+        "416":
           $ref: "#/components/responses/Error"
         default:
           $ref: "#/components/responses/Error"
