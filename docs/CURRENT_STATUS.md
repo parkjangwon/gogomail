@@ -3885,8 +3885,9 @@ The platform hardening sprint completed the following:
   or Apple calendar color, creates the collection at the requested URI, returns
   `201 Created` with `Location`, rejects cross-user paths, existing calendars,
   missing homes, and unsafe non-UUID path ids, and advertises `MKCALENDAR` again
-  only because handler semantics now exist. ADR 0014 defines the slug/alias
-  storage and path design; implementation is pending.
+  only because handler semantics now exist. ADR 0014 slug/alias implementation
+  is complete: calendars support slug-based paths, MKCALENDAR accepts slug
+  paths and `calendar-slug` property, and PROPPATCH can update slug.
 - CalDAV now handles `DELETE` on authenticated calendar collection paths,
   soft-deleting the collection and active child objects in one repository
   transaction while rejecting calendar-home or cross-user deletes. Those

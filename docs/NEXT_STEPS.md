@@ -2883,8 +2883,7 @@ Next:
 
 - Keep CalDAV in an experimental/backend-only release tier until client-ready
   gates are closed: broader recurrence edge cases, production sync-token
-  retention-age policy, ADR 0014 slug/alias implementation (storage migration,
-  path resolution, MKCALENDAR with slug, PROPPATCH slug property),
+  retention-age policy, ADR 0014 slug/alias implementation (complete),
   scheduling semantics, and broader
   Apple/Android/Windows/macOS compatibility tests.
 - Keep frontend implementation behind the explicit start gate, but preserve
