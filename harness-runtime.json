@@ -1,0 +1,31 @@
+{
+  "bootstrap_status": "configured",
+  "run_mode": "bootstrap",
+  "sync_status": "healthy",
+  "last_updated": "2026-05-08",
+  "interview_step": "complete",
+  "confirmed_fields": [
+    "push_policy",
+    "pre_commit_hook_mode",
+    "task_structure",
+    "communication_language",
+    "verification_policy",
+    "change_posture"
+  ],
+  "pending_fields": [],
+  "language_detection": {
+    "confidence": "high",
+    "source": "user-messages + repo-readme",
+    "value": "ko"
+  },
+  "managed_files": [
+    "PROJECT_HARNESS.md",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    "harness-contract.json",
+    "harness-runtime.json",
+    "docs/ACTIVE_TASK.md",
+    ".git/hooks/pre-commit"
+  ]
+}

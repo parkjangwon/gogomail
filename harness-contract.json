@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "name": "gogomail",
+    "type": "backend-service",
+    "description": "High-performance Go mail server — SMTP/IMAP/CalDAV/CardDAV — targeting national-scale deployments",
+    "primary_language": "go",
+    "test_command": "go test ./...",
+    "build_command": "go build ./...",
+    "package_manager": "go-modules",
+    "root": "/Users/pjw/dev/project/gogomail"
+  },
+  "communication": {
+    "language": "ko",
+    "tone": "concise-direct"
+  },
+  "change_posture": "autonomous",
+  "verification_policy": "tdd-enforced",
+  "approval_policy": {
+    "default": "none",
+    "exceptions": [
+      {
+        "trigger": "frontend-implementation",
+        "action": "pause-and-notify-user",
+        "description": "Before creating apps/shell, apps/webmail, apps/admin, or shared UI packages"
+      }
+    ]
+  },
+  "push_policy": "test-gated-auto",
+  "pre_commit_hook": {
+    "mode": "strict",
+    "rules": [
+      {
+        "id": "tests-must-pass",
+        "command": "go test ./...",
+        "on_failure": "block-commit"
+      },
+      {
+        "id": "docs-required-with-code",
+        "description": "Production code changes (internal/*.go excl _test.go, migrations/*.sql) require at least one docs/ file staged",
+        "on_failure": "block-commit"
+      }
+    ]
+  },
+  "task_structure": {
+    "active_task_file": "docs/ACTIVE_TASK.md",
+    "backlog_file": "docs/NEXT_STEPS.md",
+    "pattern": "single-active-task",
+    "description": "Agent reads ACTIVE_TASK.md only. After commit, advances to next backlog item."
+  },
+  "autonomous_loop": {
+    "steps": [
+      "read docs/ACTIVE_TASK.md",
+      "write failing test (_test.go) first",
+      "implement until go test ./... passes",
+      "update docs/CURRENT_STATUS.md, docs/backend-roadmap.md, openapi.yaml as needed",
+      "update docs/ACTIVE_TASK.md acceptance checklist to fully checked",
+      "git add (code + tests + docs), git commit",
+      "git push origin main (only if go test ./... passes)",
+      "advance docs/ACTIVE_TASK.md to next backlog item from docs/NEXT_STEPS.md"
+    ],
+    "blocked_by": [
+      "test-failure — fix before continuing",
+      "ambiguous-acceptance-criteria — stop and describe blocker in ACTIVE_TASK.md"
+    ]
+  },
+  "commit_rules": {
+    "code_and_docs_same_commit": true,
+    "never_docs_only_commit": true,
+    "never_code_without_docs": true,
+    "message_style": "conventional",
+    "co_author": "must not add AI co-author lines unless user requests"
+  },
+  "domain_rules": {
+    "rfc_compliance": "mandatory — not optional enhancement",
+    "hot_path_allocation": "streaming-first, allocation-aware",
+    "protocol_product_separation": "enforced — no spam/product logic in SMTP core",
+    "library_over_adhoc": "use well-maintained libraries for protocol parsing, no ad-hoc string parsing",
+    "tdd_order": "failing test before implementation, always"
+  },
+  "rule_strengths": {
+    "tests-must-pass-before-commit": "enforced",
+    "docs-required-with-production-code": "enforced",
+    "rfc-compliance": "enforced",
+    "frontend-gate": "enforced",
+    "tdd-order": "guided",
+    "commit-message-style": "advisory"
+  },
+  "context_files": {
+    "must_read_before_work": [
+      "PROJECT_HARNESS.md",
+      "docs/ACTIVE_TASK.md",
+      "docs/backend-roadmap.md",
+      "git log --oneline -10"
+    ],
+    "read_when_relevant": [
+      "docs/CURRENT_STATUS.md",
+      "docs/backend-api-contracts.md",
+      "docs/openapi.yaml",
+      "docs/adr/"
+    ]
+  },
+  "change_history": [
+    {
+      "date": "2026-05-08",
+      "change": "initial bootstrap — test-gated push, strict pre-commit hook, ACTIVE_TASK.md single-task pattern, Korean communication"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# gogomail — Codex / OpenAI Agents
+# gogomail — Gemini CLI
 
 **전체 계약은 [PROJECT_HARNESS.md](PROJECT_HARNESS.md)에 있다. 이 파일보다 PROJECT_HARNESS.md가 우선한다.**
 
@@ -14,7 +14,3 @@
 ## 현재 태스크
 
 → `docs/ACTIVE_TASK.md` 를 읽어라. 다른 파일을 먼저 읽지 않는다.
-
-## 이 파일과 CLAUDE.md 동기화
-
-두 파일을 항상 같은 커밋에서 함께 수정한다.
