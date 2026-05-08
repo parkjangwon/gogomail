@@ -33,6 +33,7 @@ type CreateCalendarAtPathRequest struct {
 	ActorUserID string
 	CalendarID  string
 	Name        string
+	Slug        *string
 	Color       string
 	Description string
 }
