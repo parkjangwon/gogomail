@@ -43,6 +43,20 @@ Before changing code, read:
 - Added tests for SPF neutral (`?all`), all mechanisms (a, mx, ptr), and DMARC
   policies (none, quarantine, reject) to improve RFC 7208/6376 compliance verification.
 
+### Mail flow log hybrid storage with configurable stats backend (completed)
+
+- Mail flow logs use hybrid storage: PostgreSQL for ACID audit compliance,
+  OpenSearch for scalable aggregation queries.
+- `GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP=true` enables OpenSearch indexing.
+- `GOGOMAIL_MAIL_FLOW_STATS_BACKEND=auto|postgres|opensearch` configures stats backend.
+- `MailFlowStatsProvider` interface abstracts PostgreSQL and OpenSearch implementations.
+- `PostgresMailFlowStatsProvider` uses existing `maildb.Repository` methods directly.
+- `OpenSearchMailFlowStatsProvider` uses `MailFlowStatsSearcher` for aggregation.
+- Auto mode uses OpenSearch when bootstrap is enabled, falls back to PostgreSQL
+  if OpenSearch is unavailable.
+- `adminService` bridges `mailflow.MailFlowStatsResult` to `maildb.MailFlowLogStatsView`
+  for API compatibility.
+
 ### Storage portability
 
 Current state:
