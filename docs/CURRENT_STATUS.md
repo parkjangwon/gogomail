@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after WebDAV gateway feature)
+Last updated: 2026-05-09 (updated after Milter adapter feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -92,6 +92,16 @@ include resource properties (displayname, getcontentlength, getcontenttype,
 getlastmodified, resourcetype). The package handles XML serialization for
 multistatus responses and parses propfind requests for selective property retrieval.
 Href normalization preserves trailing slashes for collection resources.
+
+Milter adapter (`internal/milter`) provides a sendmail milter v2/v6 protocol
+implementation for integrating with external MTAs (Postfix, Sendmail) for
+mail filtering, virus scanning, and policy enforcement. The package defines a
+`Handler` interface with callbacks for SMTP connection stages: `OnConnect`,
+`OnHelo`, `OnMail`, `OnRcpt`, `OnData`, and `OnEOB`. Packet encoding/decoding
+follows the milter wire format (4-byte big-endian length + 1-byte command +
+data payload). Supported commands include Connect, Helo, Mail, Rcpt, Data, EOB,
+Abort, and Body chunks. Response actions include continue, reject, tempfail,
+accept, and discard.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,

@@ -84,7 +84,7 @@
 
 ## Phase 5: Mail Security
 
-- [ ] TASK-011: Phase 5-A — Milter Adapter
+- [x] TASK-011: Phase 5-A — Milter Adapter
   - `internal/milter` 패키지: sendmail milter v2/v6 프로토콜
   - 참고: `docs/backend-roadmap.md` § Phase 5
 

@@ -7,24 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-011
-- **제목**: Phase 5-A — Milter Adapter
-- **배경**: Sendmail Milter 프로토콜을 구현하여 외부 필터/스캐너와
-  SMTP 메일 흐름을 연동한다.
-- **구현 대상**: internal/milter, SMFIC_* 명령 처리
+- **ID**: TASK-012
+- **제목**: Phase 5-B — DNSBL (RFC 5782)
+- **배경**: SMTP 수신 경로에 DNSBL 조회를 추가하여 스팸/악성 IP를
+  차단한다.
+- **구현 대상**: internal/dnsbl, DNSBL 조회 및 평가 경계
 
 ### 완료 조건
 
-- [ ] `internal/milter` 패키지: Milter 프로토콜 핸들러
-- [ ] SMFIC_CONNECT, SMFIC_HELO, SMFIC_MAIL, SMFIC_RCPT, SMFIC_DATA, SMFIC_EOB 지원
-- [ ] SMFIR_CONTINUE, SMFIR_REJECT, SMFIR_TEMPFAIL 응답
-- [ ] 테스트: Milter 명령 인코딩/디코딩
+- [ ] `internal/dnsbl` 패키지: DNSBL 조회 인터페이스 및 구현
+- [ ] SMTP 수신 경로에 DNSBL 체크 플러그인 추가
+- [ ] RFC 5782 기반 DNSBL 쿼리 (A 레코드 조회, 반환 코드 해석)
+- [ ] 테스트: DNSBL 조회 모킹, 허용/차단/목록 없음 시나리오
 - [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-012 — Phase 5-B DNSBL (RFC 5782)**
+현재 다음 태스크: **TASK-013 — Phase 6 POP3 Server (RFC 1939)**
 
 ---
 
