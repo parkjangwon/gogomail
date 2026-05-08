@@ -52,7 +52,7 @@
 
 ## Phase 3: Enterprise Identity & Directory
 
-- [ ] TASK-007: Phase 3-A — LDAP Gateway (RFC 4511)
+- [x] TASK-007: Phase 3-A — LDAP Gateway (RFC 4511)
   - `internal/ldapgw` 패키지: LDAP v3 프로토콜 리스너
   - BindRequest (simple bind), SearchRequest (cn/mail/uid/displayName 등 RFC 4519 속성)
   - Read-only 강제: Modify/Delete/ModifyDN → `unwillingToPerform`
