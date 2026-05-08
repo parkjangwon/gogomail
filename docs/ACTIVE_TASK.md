@@ -13,14 +13,18 @@
   TS 타입/클라이언트 생성 파이프라인 추가. 프론트엔드 게이트와 무관한 백엔드 계약 작업.
 - **구현 대상**: `Makefile` 또는 `scripts/gen-ts-client.sh`, `clients/typescript/` 생성물
 - **완료 조건**:
-  - [ ] `make gen-ts-client` 실행 시 `clients/typescript/` 아래 타입 파일 생성
-  - [ ] `go test ./...` 통과
-- **다음 태스크**: NEXT_STEPS.md Next: 항목에서 다음 선택
+  - [x] `make gen-ts-client` 실행 시 `clients/typescript/` 아래 타입 파일 생성 ✅
+  - [x] `go test ./...` 통과 ✅
+- **다음 태스크**: NEXT_STEPS.md 백로그 테이블 항목 모두 완료. "Next:" 섹션에서 다음 작업 선택.
 
 ---
 
 ## 완료됨
 
+- **TASK-020**: OpenAPI → TypeScript 클라이언트 생성 ✅ (2026-05-09)
+  - `Makefile`에 `gen-ts-client` 타겟 추가
+  - `openapi-typescript` v7.13.0으로 `docs/openapi.yaml` → `clients/typescript/index.ts` 생성 (383KB, 11986줄)
+  - `go test ./...` 통과
 - **TASK-019**: Drive 파일 공유 — Directory delegation 통합 ✅ (2026-05-09)
   - `internal/httpapi/drive.go`에 `DelegatedAccessAuthorizer` 적용
   - `checkDriveDelegatedAccess` 헬퍼로 owner/actor/role 기반 권한 체크
