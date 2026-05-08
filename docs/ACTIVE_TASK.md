@@ -7,25 +7,26 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-013
-- **제목**: Phase 6 — POP3 Server (RFC 1939)
-- **배경**: POP3 프로토콜을 구현하여 메일 클라이언트가 수신 메일을
-  다운로드하고 관리할 수 있게 한다.
-- **구현 대상**: internal/pop3d, POP3 명령 처리, UIDL/TOP/STLS 확장
+- **ID**: TASK-014
+- **제목**: Phase 7-A — FCM / APNs / Web Push Adapters
+- **배경**: 푸시 알림 어댑터를 구현하여 모바일/웹 클라이언트에
+  실시간 알림을 전달한다.
+- **구현 대상**: internal/pushnotify, PushSink 인터페이스, FCM/APNs/WebPush
 
 ### 완료 조건
 
-- [ ] `internal/pop3d` 패키지: POP3 서버 구현
-- [ ] RFC 1939 기본 명령: USER, PASS, STAT, LIST, RETR, DELE, NOOP, RSET, QUIT
-- [ ] 확장: UIDL, TOP, STLS, CAPA, AUTH
-- [ ] POP3S (포트 995) 지원
-- [ ] 테스트: 명령 시퀀스, 인증, 메일 다운로드, 삭제
+- [ ] `internal/pushnotify` 패키지: PushSink 인터페이스 + 어댑터
+- [ ] FCM (Firebase Cloud Messaging) 어댑터
+- [ ] APNs (Apple Push Notification service) 어댑터
+- [ ] Web Push (RFC 8030) 어댑터
+- [ ] device_tokens 테이블 연동
+- [ ] 테스트: 푸시 전송, 토큰 관리, 어댑터 선택
 - [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-013 — Phase 6 POP3 Server (RFC 1939)**
+현재 다음 태스크: **TASK-015 — Phase 7-B Delta Sync Boundary**
 
 ---
 

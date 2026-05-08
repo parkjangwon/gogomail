@@ -96,7 +96,7 @@
 
 ## Phase 6: POP3
 
-- [ ] TASK-013: Phase 6 — POP3 Server (RFC 1939)
+- [x] TASK-013: Phase 6 — POP3 Server (RFC 1939)
   - `internal/pop3d` 패키지: USER/PASS/STAT/LIST/RETR/DELE/NOOP/RSET/QUIT
   - UIDL/TOP/STLS/CAPA/AUTH 확장
   - POP3S (포트 995)

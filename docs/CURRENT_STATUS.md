@@ -112,6 +112,17 @@ specific octet encoding the list reason. The `Resolver` interface abstracts
 DNS lookups for testability, with `NetResolver` using `net.LookupHost` as the
 production backend.
 
+POP3 server (`internal/pop3d`) implements RFC 1939 for mail retrieval with
+standard commands (USER, PASS, STAT, LIST, RETR, DELE, NOOP, RSET, QUIT)
+and extensions (UIDL, TOP, CAPA, STLS). The server operates in three states:
+AUTHORIZATION, TRANSACTION, and UPDATE. Authentication transitions from
+AUTHORIZATION to TRANSACTION; QUIT in TRANSACTION transitions to UPDATE
+where pending deletions are applied. The `Store` interface abstracts user
+authentication and mailbox access, while the `Mailbox` interface provides
+message count, size, UIDL, content retrieval, and deletion tracking.
+TLS support via `STLS` command and implicit POP3S (port 995) are supported
+through a configurable `tls.Config`.
+
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
 rcpt_to), auth results (DKIM/SPF/DMARC), spam score, and delivery status
