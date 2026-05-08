@@ -17,6 +17,7 @@ import (
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/caldavgw"
 	"github.com/gogomail/gogomail/internal/carddavgw"
+	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
@@ -89,6 +90,14 @@ type adminService struct {
 		ListStaleAttachmentUploadSessions(ctx context.Context, before time.Time, limit int) ([]maildb.StaleAttachmentUploadSessionCandidate, error)
 	}
 	mailFlowStats mailflow.MailFlowStatsProvider
+	configStore   interface {
+		Get(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string) (*configstore.ConfigEntry, error)
+		Set(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, value json.RawMessage, locked bool, expectedVersion int64) (*configstore.ConfigEntry, error)
+		Delete(ctx context.Context, scopeType configstore.ScopeType, scopeID, key string, expectedVersion int64) error
+		List(ctx context.Context, scopeType configstore.ScopeType, scopeID string) ([]configstore.ConfigEntry, error)
+		Propagate(ctx context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error
+		PropagateFromParent(ctx context.Context, scopeType configstore.ScopeType, scopeID string, parentScopeType configstore.ScopeType, parentScopeID string) error
+	}
 }
 
 const apiUsageExportLocalEd25519Backend = "local-ed25519"
@@ -1270,4 +1279,141 @@ func (s adminService) GetMailFlowLogDailyStats(ctx context.Context, req maildb.M
 		})
 	}
 	return views, nil
+}
+
+func (s adminService) GetCompanyConfig(ctx context.Context, companyID, key string) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Get(ctx, configstore.ScopeCompany, companyID, key)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) SetCompanyConfig(ctx context.Context, companyID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Set(ctx, configstore.ScopeCompany, companyID, key, value, locked, expectedVersion)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) DeleteCompanyConfig(ctx context.Context, companyID, key string, expectedVersion int64) error {
+	if s.configStore == nil {
+		return fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.Delete(ctx, configstore.ScopeCompany, companyID, key, expectedVersion)
+}
+
+func (s adminService) ListCompanyConfig(ctx context.Context, companyID string) ([]configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return nil, fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.List(ctx, configstore.ScopeCompany, companyID)
+}
+
+func (s adminService) GetDomainConfig(ctx context.Context, domainID, key string) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Get(ctx, configstore.ScopeDomain, domainID, key)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) SetDomainConfig(ctx context.Context, domainID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Set(ctx, configstore.ScopeDomain, domainID, key, value, locked, expectedVersion)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) DeleteDomainConfig(ctx context.Context, domainID, key string, expectedVersion int64) error {
+	if s.configStore == nil {
+		return fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.Delete(ctx, configstore.ScopeDomain, domainID, key, expectedVersion)
+}
+
+func (s adminService) ListDomainConfig(ctx context.Context, domainID string) ([]configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return nil, fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.List(ctx, configstore.ScopeDomain, domainID)
+}
+
+func (s adminService) GetUserConfig(ctx context.Context, userID, key string) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Get(ctx, configstore.ScopeUser, userID, key)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) SetUserConfig(ctx context.Context, userID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return configstore.ConfigEntry{}, fmt.Errorf("config store is not configured")
+	}
+	entry, err := s.configStore.Set(ctx, configstore.ScopeUser, userID, key, value, locked, expectedVersion)
+	if err != nil {
+		return configstore.ConfigEntry{}, err
+	}
+	return *entry, nil
+}
+
+func (s adminService) DeleteUserConfig(ctx context.Context, userID, key string, expectedVersion int64) error {
+	if s.configStore == nil {
+		return fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.Delete(ctx, configstore.ScopeUser, userID, key, expectedVersion)
+}
+
+func (s adminService) ListUserConfig(ctx context.Context, userID string) ([]configstore.ConfigEntry, error) {
+	if s.configStore == nil {
+		return nil, fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.List(ctx, configstore.ScopeUser, userID)
+}
+
+func (s adminService) PropagateCompanyConfig(ctx context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error {
+	if s.configStore == nil {
+		return fmt.Errorf("config store is not configured")
+	}
+	return s.configStore.Propagate(ctx, companyID, scope, key, value, locked)
+}
+
+func (s adminService) CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error) {
+	domain, err := s.Repository.CreateDomain(ctx, req)
+	if err != nil {
+		return domain, err
+	}
+	if s.configStore != nil {
+		_ = s.configStore.PropagateFromParent(ctx, configstore.ScopeDomain, domain.ID, configstore.ScopeCompany, domain.CompanyID)
+	}
+	return domain, nil
+}
+
+func (s adminService) CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error) {
+	user, err := s.Repository.CreateUser(ctx, req)
+	if err != nil {
+		return user, err
+	}
+	if s.configStore != nil {
+		_ = s.configStore.PropagateFromParent(ctx, configstore.ScopeUser, user.ID, configstore.ScopeDomain, user.DomainID)
+	}
+	return user, nil
 }

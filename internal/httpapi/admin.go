@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
@@ -212,6 +215,19 @@ type AdminService interface {
 	DeleteQuotaAlertThreshold(ctx context.Context, id string) error
 	ListQuotaAlerts(ctx context.Context, req maildb.QuotaAlertListRequest) ([]maildb.QuotaAlertView, error)
 	GetQuotaAlert(ctx context.Context, id string) (maildb.QuotaAlertView, error)
+	GetCompanyConfig(ctx context.Context, companyID, key string) (configstore.ConfigEntry, error)
+	SetCompanyConfig(ctx context.Context, companyID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
+	DeleteCompanyConfig(ctx context.Context, companyID, key string, expectedVersion int64) error
+	ListCompanyConfig(ctx context.Context, companyID string) ([]configstore.ConfigEntry, error)
+	GetDomainConfig(ctx context.Context, domainID, key string) (configstore.ConfigEntry, error)
+	SetDomainConfig(ctx context.Context, domainID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
+	DeleteDomainConfig(ctx context.Context, domainID, key string, expectedVersion int64) error
+	ListDomainConfig(ctx context.Context, domainID string) ([]configstore.ConfigEntry, error)
+	GetUserConfig(ctx context.Context, userID, key string) (configstore.ConfigEntry, error)
+	SetUserConfig(ctx context.Context, userID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error)
+	DeleteUserConfig(ctx context.Context, userID, key string, expectedVersion int64) error
+	ListUserConfig(ctx context.Context, userID string) ([]configstore.ConfigEntry, error)
+	PropagateCompanyConfig(ctx context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error
 }
 
 type adminIMAPUIDBackfillItem struct {
@@ -409,6 +425,18 @@ type adminDAVSyncRetentionRunRequest struct {
 	ConfirmReady bool   `json:"confirm_ready,omitempty"`
 }
 
+type adminConfigSetRequest struct {
+	Value    json.RawMessage `json:"value"`
+	Locked   bool            `json:"locked"`
+	Version  int64          `json:"version,omitempty"`
+}
+
+type adminConfigPropagateRequest struct {
+	Key    string          `json:"key"`
+	Value  json.RawMessage `json:"value"`
+	Locked bool            `json:"locked"`
+}
+
 func parseAdminAttachmentCleanupRequest(w http.ResponseWriter, req adminAttachmentCleanupRunRequest) (time.Time, bool) {
 	beforeRaw := strings.TrimSpace(req.Before)
 	if beforeRaw == "" {
@@ -516,6 +544,151 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		entries, err := service.ListCompanyConfig(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		entry, err := service.GetCompanyConfig(r.Context(), id, key)
+		if err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		var req adminConfigSetRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		entry, err := service.SetCompanyConfig(r.Context(), id, key, req.Value, req.Locked, req.Version)
+		if err != nil {
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		version := int64(-1)
+		if v := r.URL.Query().Get("version"); v != "" {
+			var err error
+			version, err = strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid version")
+				return
+			}
+		}
+		if err := service.DeleteCompanyConfig(r.Context(), id, key, version); err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrConfigLocked) {
+				writeError(w, http.StatusForbidden, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies/{id}/config/propagate", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r, "scope") {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		scopeStr := r.URL.Query().Get("scope")
+		if scopeStr == "" {
+			writeError(w, http.StatusBadRequest, "scope is required")
+			return
+		}
+		scope := configstore.PropagateScope(scopeStr)
+		if !scope.IsValid() {
+			writeError(w, http.StatusBadRequest, "invalid scope")
+			return
+		}
+		var req adminConfigPropagateRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := service.PropagateCompanyConfig(r.Context(), id, scope, req.Key, req.Value, req.Locked); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -707,6 +880,119 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
+	mux.HandleFunc("GET /admin/v1/domains/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		entries, err := service.ListDomainConfig(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		entry, err := service.GetDomainConfig(r.Context(), id, key)
+		if err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		var req adminConfigSetRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		entry, err := service.SetDomainConfig(r.Context(), id, key, req.Value, req.Locked, req.Version)
+		if err != nil {
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		version := int64(-1)
+		if v := r.URL.Query().Get("version"); v != "" {
+			var err error
+			version, err = strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid version")
+				return
+			}
+		}
+		if err := service.DeleteDomainConfig(r.Context(), id, key, version); err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrConfigLocked) {
+				writeError(w, http.StatusForbidden, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	}))
+
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -871,6 +1157,119 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/users/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		entries, err := service.ListUserConfig(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		entry, err := service.GetUserConfig(r.Context(), id, key)
+		if err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		var req adminConfigSetRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		entry, err := service.SetUserConfig(r.Context(), id, key, req.Value, req.Locked, req.Version)
+		if err != nil {
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		key, ok := parseBoundedAdminPathValue(w, r, "key")
+		if !ok {
+			return
+		}
+		version := int64(-1)
+		if v := r.URL.Query().Get("version"); v != "" {
+			var err error
+			version, err = strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid version")
+				return
+			}
+		}
+		if err := service.DeleteUserConfig(r.Context(), id, key, version); err != nil {
+			if errors.Is(err, configstore.ErrConfigNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrConfigLocked) {
+				writeError(w, http.StatusForbidden, err.Error())
+				return
+			}
+			if errors.Is(err, configstore.ErrVersionConflict) {
+				writeError(w, http.StatusConflict, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

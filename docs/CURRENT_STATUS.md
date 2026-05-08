@@ -1,9 +1,8 @@
 # gogomail current status
 
-Last updated: 2026-05-08 (updated after mail flow log feature)
+Last updated: 2026-05-09 (updated after runtime config store feature)
 
 ## Current phase
-
 gogomail is in the backend platform hardening phase.
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
@@ -16,6 +15,24 @@ RFC-sensitive core, but current work should balance:
 - DNS/DKIM/domain onboarding
 - quota and policy enforcement
 - OpenAPI drift prevention
+
+Runtime config store (`internal/configstore`) enables hierarchical configuration
+with company → domain → user inheritance. Settings are stored in PostgreSQL JSONB
+with LISTEN/NOTIFY-based cache invalidation. The `PostgresConfigStore` maintains
+an in-memory cache that is synchronized across processes via NOTIFY broadcasts.
+
+Admin API CRUD endpoints: `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`,
+`GET/POST/PUT/DELETE /admin/v1/domains/{id}/config/{key}`,
+`GET/POST/PUT/DELETE /admin/v1/users/{id}/config/{key}`.
+The `Resolve` method implements tree-order lookup (user overrides domain overrides
+company). Locked entries prevent updates at lower scopes. The Propagate API
+(`POST /admin/v1/companies/{id}/config/propagate?scope=subtree|children|domains`)
+pushes a company-level config value down to child companies, domains, or both.
+
+Creation hooks automatically copy parent config to newly created domains and users.
+When `CreateDomain` or `CreateUser` is called via the admin service, the wrapper
+invokes `PropagateFromParent` to copy non-locked parent settings (company→domain
+or domain→user). This ensures new tenants inherit defaults without explicit setup.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
