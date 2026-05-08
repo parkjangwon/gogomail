@@ -75,7 +75,7 @@
 
 ## Phase 4: Storage (WebDAV)
 
-- [ ] TASK-010: Phase 4 — Drive WebDAV Gateway (RFC 4918)
+- [x] TASK-010: Phase 4 — Drive WebDAV Gateway (RFC 4918)
   - `internal/webdavgw` 패키지: PROPFIND/PROPPATCH/MKCOL/COPY/MOVE/LOCK/UNLOCK
   - RFC 3744 ACL, RFC 4331 quota 헤더
   - 참고: `docs/backend-roadmap.md` § Phase 4

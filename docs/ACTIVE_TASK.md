@@ -7,24 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-010
-- **제목**: Phase 4 — Drive WebDAV Gateway (RFC 4918)
-- **배경**: Drive 파일을 WebDAV 프로토콜로 노출하여 외부 클라이언트가
-  파일을 마운트하고 동기화할 수 있도록 한다.
-- **구현 대상**: internal/webdavgw, PROPFIND, GET, PUT, DELETE, MKCOL
+- **ID**: TASK-011
+- **제목**: Phase 5-A — Milter Adapter
+- **배경**: Sendmail Milter 프로토콜을 구현하여 외부 필터/스캐너와
+  SMTP 메일 흐름을 연동한다.
+- **구현 대상**: internal/milter, SMFIC_* 명령 처리
 
 ### 완료 조건
 
-- [x] `internal/webdavgw` 패키지: WebDAV 핸들러
-- [x] PROPFIND: 파일/폳더 속성 조회
-- [x] GET/PUT/DELETE/MKCOL 기본 지원
-- [x] 테스트: WebDAV ops, 속성 정확성
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/milter` 패키지: Milter 프로토콜 핸들러
+- [ ] SMFIC_CONNECT, SMFIC_HELO, SMFIC_MAIL, SMFIC_RCPT, SMFIC_DATA, SMFIC_EOB 지원
+- [ ] SMFIR_CONTINUE, SMFIR_REJECT, SMFIR_TEMPFAIL 응답
+- [ ] 테스트: Milter 명령 인코딩/디코딩
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-011 — Phase 5-A Milter Adapter**
+현재 다음 태스크: **TASK-012 — Phase 5-B DNSBL (RFC 5782)**
 
 ---
 
