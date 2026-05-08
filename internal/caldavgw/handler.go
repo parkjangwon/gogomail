@@ -17,6 +17,7 @@ type DiscoveryStore interface {
 	LookupPrincipal(ctx context.Context, userID string) (Principal, error)
 	ListCalendarCollections(ctx context.Context, userID string) ([]Calendar, error)
 	LookupCalendar(ctx context.Context, userID string, calendarID string) (Calendar, error)
+	LookupCalendarBySlug(ctx context.Context, userID string, slug string) (Calendar, error)
 	ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error)
 	LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error)
 }

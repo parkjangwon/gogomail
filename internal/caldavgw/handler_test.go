@@ -2830,6 +2830,10 @@ func (s *noSyncCalendarDiscoveryStore) LookupCalendar(ctx context.Context, userI
 	return s.store.LookupCalendar(ctx, userID, calendarID)
 }
 
+func (s *noSyncCalendarDiscoveryStore) LookupCalendarBySlug(ctx context.Context, userID string, slug string) (Calendar, error) {
+	return s.store.LookupCalendarBySlug(ctx, userID, slug)
+}
+
 func (s *noSyncCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
 	return s.store.ListCalendarObjects(ctx, userID, calendarID)
 }
@@ -2937,6 +2941,15 @@ func (s *fakeDiscoveryStore) LookupCalendar(_ context.Context, userID string, ca
 	return Calendar{}, errFakeNotFound
 }
 
+func (s *fakeDiscoveryStore) LookupCalendarBySlug(_ context.Context, userID string, slug string) (Calendar, error) {
+	for _, calendar := range s.calendars {
+		if calendar.UserID == userID && calendar.Slug != nil && *calendar.Slug == slug {
+			return calendar, nil
+		}
+	}
+	return Calendar{}, errFakeNotFound
+}
+
 func (s *fakeDiscoveryStore) ListCalendarObjects(_ context.Context, userID string, calendarID string) ([]CalendarObject, error) {
 	if _, err := s.LookupCalendar(context.Background(), userID, calendarID); err != nil {
 		return nil, err
@@ -3002,7 +3015,7 @@ func (s *fakeDiscoveryStore) UpsertObject(_ context.Context, req UpsertObjectReq
 }
 
 func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateCalendarAtPathRequest) (Calendar, error) {
-	validated, _, syncToken, err := ValidateCreateCalendarAtPathRequest(req)
+	validated, _, syncToken, _, err := ValidateCreateCalendarAtPathRequest(req)
 	if err != nil {
 		return Calendar{}, err
 	}
