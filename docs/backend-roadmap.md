@@ -2930,6 +2930,10 @@ Target outcome:
       sync-specific one-extra-object repository list paths, so omitted-limit
       snapshots cannot be silently clipped by generic list defaults while still
       returning current collection sync tokens.
+1186a. CalDAV and CardDAV `sync-collection` truncation now returns RFC 6578
+      compliant HTTP 403 with `<D:number-of-matches>0</D:number-of-matches>`
+      instead of HTTP 400 with a generic error message, aligning bounded
+      sync responses with the RFC requirement for explicit truncation signaling.
 1187. IMAP command framing now turns oversized command literals into a tagged
       `BAD` response when the command tag is available, followed by `BYE` and a
       clean connection close. This keeps literal-size enforcement observable to
