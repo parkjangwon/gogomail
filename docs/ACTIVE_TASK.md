@@ -7,15 +7,16 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-017
-- **제목**: CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처
-- **배경**: Phase 4-B 하드닝 항목. Apple iCal, Thunderbird Lightning, DAVx⁵ 실제 요청 형태를
-  픽스처로 캡처해 `internal/caldavgw` / `internal/carddavgw` 회귀 테스트 추가.
-- **구현 대상**: `internal/caldavgw/*_test.go`, `internal/carddavgw/*_test.go` 픽스처 추가
+- **ID**: TASK-018
+- **제목**: IMAP FETCH BODY 실제 클라이언트 픽스처 확장
+- **배경**: `internal/imapgw` MIME literal fetch가 기본 케이스만 커버.
+  Apple Mail, Thunderbird, K-9 Mail 형태의 `BODY[TEXT]`, `BODY[HEADER]`, `BODY[1.TEXT]`
+  literal 응답 픽스처를 추가해 회귀 방지.
+- **구현 대상**: `internal/imapgw/*_test.go` 픽스처 추가
 - **완료 조건**:
-  - [ ] `go test ./internal/caldavgw/... ./internal/carddavgw/...` 통과
+  - [ ] `go test ./internal/imapgw/...` 통과
   - [ ] 새 픽스처 최소 5종 추가
-- **다음 태스크**: TASK-018 — IMAP FETCH BODY 실제 클라이언트 픽스처 확장
+- **다음 태스크**: TASK-019 — Drive 파일 공유 — Directory delegation 통합
 
 ---
 
