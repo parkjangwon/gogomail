@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after SAML/OIDC SSO feature)
+Last updated: 2026-05-09 (updated after WebDAV gateway feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -85,6 +85,13 @@ OIDC features include discovery document parsing, state generation with constant
 verification, authorization code flow preparation, and JWT ID token validation
 (issuer, audience, expiry, issued-at checks). SHA-256 nonce hashing is provided for
 PKCE and nonce validation.
+
+WebDAV gateway (`internal/webdavgw`) exposes Drive files via RFC 4918 WebDAV
+protocol for external client mounting and synchronization. PROPFIND responses
+include resource properties (displayname, getcontentlength, getcontenttype,
+getlastmodified, resourcetype). The package handles XML serialization for
+multistatus responses and parses propfind requests for selective property retrieval.
+Href normalization preserves trailing slashes for collection resources.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
