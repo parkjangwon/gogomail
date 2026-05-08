@@ -541,6 +541,181 @@ func TestBuildFreeBusyCalendar(t *testing.T) {
 	}
 }
 
+func TestCalendarObjectMatchesTimeRangeRecurrenceWEEKLYBYDAY(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:weekly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T100000Z\r\nDTEND:20260501T110000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=12\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	tests := []struct {
+		name  string
+		start string
+		end   string
+		want  bool
+	}{
+		{"Mon overlap", "20260504T090000Z", "20260504T110000Z", true},
+		{"Wed overlap", "20260506T090000Z", "20260506T110000Z", true},
+		{"Fri overlap", "20260508T090000Z", "20260508T110000Z", true},
+		{"Tue miss", "20260505T090000Z", "20260505T110000Z", false},
+		{"Sat miss", "20260509T090000Z", "20260509T110000Z", false},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+				Start: mustCalDAVTime(t, tc.start),
+				End:   mustCalDAVTime(t, tc.end),
+			}, nil)
+			if err != nil {
+				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+			}
+			if matches != tc.want {
+				t.Fatalf("matches = %v, want %v", matches, tc.want)
+			}
+		})
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeRecurrenceMONTHLYBYMONTHDAY(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:monthly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T100000Z\r\nDTEND:20260501T110000Z\r\nRRULE:FREQ=MONTHLY;BYMONTHDAY=15;COUNT=6\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	tests := []struct {
+		name  string
+		start string
+		end   string
+		want  bool
+	}{
+		{"15th overlap", "20260515T090000Z", "20260515T110000Z", true},
+		{"June 15th overlap", "20260615T090000Z", "20260615T110000Z", true},
+		{"14th miss", "20260514T090000Z", "20260514T110000Z", false},
+		{"16th miss", "20260516T090000Z", "20260516T110000Z", false},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+				Start: mustCalDAVTime(t, tc.start),
+				End:   mustCalDAVTime(t, tc.end),
+			}, nil)
+			if err != nil {
+				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+			}
+			if matches != tc.want {
+				t.Fatalf("matches = %v, want %v", matches, tc.want)
+			}
+		})
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeRecurrenceYEARLYBYMONTH(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:yearly@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T100000Z\r\nDTEND:20260501T110000Z\r\nRRULE:FREQ=YEARLY;BYMONTH=6,12;COUNT=6\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	tests := []struct {
+		name  string
+		start string
+		end   string
+		want  bool
+	}{
+		{"June overlap", "20260501T090000Z", "20260501T110000Z", false},
+		{"June event", "20260601T090000Z", "20260601T110000Z", true},
+		{"Dec event", "20261201T090000Z", "20261201T110000Z", true},
+		{"next June", "20260601T090000Z", "20260601T110000Z", true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+				Start: mustCalDAVTime(t, tc.start),
+				End:   mustCalDAVTime(t, tc.end),
+			}, nil)
+			if err != nil {
+				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+			}
+			if matches != tc.want {
+				t.Fatalf("matches = %v, want %v", matches, tc.want)
+			}
+		})
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeRecurrenceComplexRule(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:complex@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T100000Z\r\nDTEND:20260501T110000Z\r\nRRULE:FREQ=MONTHLY;BYDAY=1SA;COUNT=12\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+		Start: mustCalDAVTime(t, "20260606T090000Z"),
+		End:   mustCalDAVTime(t, "20260606T110000Z"),
+	}, nil)
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want first Saturday of June match")
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeRecurrenceWithTimezone(t *testing.T) {
+	t.Parallel()
+
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skip("America/New_York timezone not available")
+	}
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:tz@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T140000Z\r\nDTEND:20260501T150000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+		Start: mustCalDAVTime(t, "20260502T130000Z"),
+		End:   mustCalDAVTime(t, "20260502T150000Z"),
+	}, ny)
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
+	if !matches {
+		t.Fatal("matches = false, want timezone-aware match")
+	}
+}
+
+func TestCalendarObjectMatchesTimeRangeRecurrenceINTERVAL(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:interval@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T100000Z\r\nDTEND:20260501T110000Z\r\nRRULE:FREQ=DAILY;INTERVAL=3;COUNT=5\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	tests := []struct {
+		name  string
+		start string
+		end   string
+		want  bool
+	}{
+		{"Day 1 match", "20260501T090000Z", "20260501T110000Z", true},
+		{"Day 4 match (INTERVAL=3)", "20260504T090000Z", "20260504T110000Z", true},
+		{"Day 7 match (INTERVAL=3)", "20260507T090000Z", "20260507T110000Z", true},
+		{"Day 2 miss", "20260502T090000Z", "20260502T110000Z", false},
+		{"Day 3 miss", "20260503T090000Z", "20260503T110000Z", false},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			matches, err := CalendarObjectMatchesTimeRange(body, ComponentVEVENT, &TimeRange{
+				Start: mustCalDAVTime(t, tc.start),
+				End:   mustCalDAVTime(t, tc.end),
+			}, nil)
+			if err != nil {
+				t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+			}
+			if matches != tc.want {
+				t.Fatalf("matches = %v, want %v", matches, tc.want)
+			}
+		})
+	}
+}
+
 func mustCalDAVTime(t *testing.T, value string) time.Time {
 	t.Helper()
 
