@@ -7,24 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-009
-- **제목**: Phase 3-C — SAML 2.0 / OIDC SSO
-- **배경**: SAML 2.0 및 OIDC 기반 Single Sign-On을 지원하여
-  기업 고객이 외부 IdP와 연동할 수 있도록 한다.
-- **구현 대상**: internal/sso, SAML metadata, OIDC discovery
+- **ID**: TASK-010
+- **제목**: Phase 4 — Drive WebDAV Gateway (RFC 4918)
+- **배경**: Drive 파일을 WebDAV 프로토콜로 노출하여 외부 클라이언트가
+  파일을 마운트하고 동기화할 수 있도록 한다.
+- **구현 대상**: internal/webdavgw, PROPFIND, GET, PUT, DELETE, MKCOL
 
 ### 완료 조건
 
-- [x] `internal/sso` 패키지: SAML 2.0 SP 지원
-- [x] SAML AuthnRequest 생성 / Assertion Consumer Service
-- [x] OIDC Discovery + Authorization Code Flow
-- [x] JWT ID token 검증
-- [x] 테스트: SAML request/response, OIDC flow
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/webdavgw` 패키지: WebDAV 핸들러
+- [ ] PROPFIND: 파일/폴더 속성 조회
+- [ ] GET/PUT/DELETE/MKCOL 기본 지원
+- [ ] 테스트: WebDAV ops, 속성 정확성
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
-백로그에 추가 태스크가 없으면 새로운 기능을 제안한다.
+`docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
+현재 다음 태스크: **TASK-011 — Phase 5-A Milter Adapter**
 
 ---
 
