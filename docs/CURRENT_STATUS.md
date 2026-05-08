@@ -919,8 +919,17 @@ calendar's configured timezone rather than always UTC.
  extracts ATTENDEE and ORGANIZER from iCalendar payloads (using direct Value field
  access for CAL-ADDRESS type properties) and builds RFC 6047 compliant iTIP
  messages with multipart/alternative MIME format. The DeliveryQueue publishes directly
- to `mail.outbound.general` for SMTP delivery by the delivery worker.
-CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
+to `mail.outbound.general` for SMTP delivery by the delivery worker.
+ CalDAV scheduling now includes attendee resolution via Directory and CardDAV: the
+ `scheduling.Handler` accepts an optional `AttendeeResolver` that chains Directory
+ user lookup (`ResolveUserByEmail`), Directory alias resolution, and CardDAV contact
+ email search to classify each ATTENDEE address as internal-user, directory-alias,
+ carddav-contact, or external. The `DefaultAttendeeResolver` implements this chain
+ using exact `user_addresses` lookup for internal users, `directory_aliases` for
+ alias addresses, and vCard EMAIL property search across the user's address books for
+ CardDAV contacts. Resolution is logged per-attendee and included in iTIP delivery
+ metadata, enabling future internal routing without changing the existing SMTP path.
+ CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
 scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
 traversal controlled by the request body's `sync-level` rather than accidentally
 mixing in a broader HTTP `Depth: 1` traversal. CalDAV `calendar-query` now also

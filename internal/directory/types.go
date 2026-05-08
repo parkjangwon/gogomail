@@ -66,6 +66,11 @@ type ResolvePrincipalRequest struct {
 	ActiveOnly bool
 }
 
+type ResolveUserByEmailRequest struct {
+	Email      string
+	ActiveOnly bool
+}
+
 type SearchPrincipalsRequest struct {
 	CompanyID      string
 	DomainID       string
