@@ -1441,7 +1441,7 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 
-	schedulingHandler := scheduling.NewHandler(logger)
+	schedulingHandler := scheduling.NewHandler(logger, nil, nil)
 	if err := router.Register("scheduling.outbox", schedulingHandler); err != nil {
 		return err
 	}
