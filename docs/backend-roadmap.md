@@ -4568,36 +4568,107 @@ Target outcome:
 
 ---
 
-## Phase 2: Runtime Config Store
+## Phase 2: Runtime Config Store & Settings Hierarchy
 
 Target outcome:
 
 > 설정 변경이 재배포나 스키마 마이그레이션 없이 모든 프로세스에 즉시 반영된다.
+> 회사(Company) → 도메인(Domain) → 사용자(User) 3단 계층으로 설정이 상속·독립 운영된다.
 
-Design principles:
+### 2-A. Runtime Config Store (PostgreSQL JSONB + LISTEN/NOTIFY)
 
-- `runtime_config (namespace TEXT, key TEXT, value JSONB, version BIGINT, updated_at TIMESTAMPTZ)` — JSONB 스키마이므로 새 설정 키 추가 시 ALTER/migration 불필요.
-- 각 프로세스는 시작 시 DB에서 전체 설정을 메모리 캐시로 로드. 이후 설정 읽기는 DB 커넥션 없이 메모리에서만 수행 — 런타임 DB 부하 제로.
-- PostgreSQL `LISTEN/NOTIFY`로 변경 이벤트 브로드캐스트: Admin API가 설정을 쓰면 `NOTIFY 'config_changed'`가 동일 PG에 연결된 모든 프로세스에 즉시 전달.
-- 재접속 / failover 시 자동 full reload — NOTIFY 유실 방어.
-- `version` 컬럼 낙관적 잠금으로 동시 수정 충돌 방어.
-- 다중화 서버 환경 커버: 물리 서버 수와 무관하게 PG primary에 LISTEN 중인 모든 프로세스가 브로드캐스트 수신.
-- `ConfigStore` interface를 처음부터 분리해 프로세스 수가 수백 개를 초과하는 시점에 etcd backend로 swap 가능.
+**스키마 설계**:
 
-Implementation order:
+```sql
+runtime_config (
+  scope_type  TEXT,          -- 'global' | 'company' | 'domain' | 'user'
+  scope_id    UUID,          -- NULL(global), company_id, domain_id, user_id
+  key         TEXT,
+  value       JSONB,
+  locked      BOOLEAN DEFAULT false,  -- true이면 하위 스코프가 재정의 불가
+  version     BIGINT  DEFAULT 0,
+  updated_at  TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (scope_type, scope_id, key)
+)
+```
 
-1. Migration `runtime_config` 테이블: `(namespace, key, value JSONB, version BIGINT, updated_at)`, unique constraint `(namespace, key)`.
+**설정 상속 모델 — Copy-on-create + 독립 운영**:
+
+```
+Company (전사)
+  설정 A = X  [locked=false]    ← 도메인이 재정의 가능
+  설정 B = Y  [locked=true]     ← 도메인이 재정의 불가 (전사 강제)
+      │
+      ├─ Domain A (도메인 생성 시 회사 설정 전체 복사)
+      │    설정 A = X → 도메인 관리자가 Z로 변경 가능
+      │    설정 B = Y → 변경 불가 (company locked)
+      │        └─ User (domain 기준 상속 + 개인 재정의 가능)
+      │
+      └─ Domain B (독립적으로 A = W 로 운영)
+```
+
+- **도메인 생성 시**: 회사의 모든 설정이 해당 도메인 스코프로 자동 복사됨 (`locked=false` 키만).
+- **이후 독립 운영**: 도메인 관리자가 자신의 스코프 설정을 자유롭게 변경. 회사 변경이 자동 전파되지 않음.
+- **회사 locked 설정**: 도메인/사용자가 재정의 시도 시 `403 Forbidden`. 항상 회사 값이 우선.
+- **회사 설정 강제 전파**: Admin API `POST /admin/v1/companies/{id}/config/propagate` — 특정 키를 하위 도메인 전체에 강제 덮어쓰기 (locked 여부와 무관).
+
+**유효 값 해결 순서** (읽기 시):
+
+```
+user scope (개인 재정의, domain이 locked 아닐 경우)
+  → domain scope (도메인 설정, company가 locked 아닐 경우)
+    → company scope (전사 기본값)
+      → global scope (시스템 기본값)
+```
+
+**구현 순서**:
+
+1. Migration `runtime_config` 테이블 (scope_type/scope_id/key/value/locked/version/updated_at).
 2. `internal/configstore` package:
-   - `ConfigStore` interface: `Get(namespace, key string) (json.RawMessage, error)` / `Watch(namespace, key string, fn func(json.RawMessage))`.
-   - `PostgresConfigStore`: 시작 시 full load → in-memory map → `LISTEN config_changed` goroutine.
-   - reconnect/failover handler: 재연결 후 full reload → re-LISTEN.
-   - `EtcdConfigStore` stub: 인터페이스만 정의, 구현은 deferred.
-3. Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/runtime-config/{namespace}/{key}`.
-4. Optimistic locking: `UPDATE ... WHERE version = $expected` — 충돌 시 `409 Conflict`.
-5. `NOTIFY config_changed` payload: `{"namespace":"...","key":"..."}` — 변경 키만 부분 리로드.
-6. 감사 로그: `config_change_log (namespace, key, old_value, new_value, changed_by, changed_at)`.
-7. 기존 env-var 기반 config와 공존: 컴포넌트별로 점진적으로 동적 설정으로 이관.
-8. 테스트: LISTEN/NOTIFY 브로드캐스트, reconnect 후 full reload, 낙관적 잠금 충돌 검증.
+   - `ConfigStore` interface: `Resolve(scopeType, scopeID, key) (json.RawMessage, error)`.
+   - `PostgresConfigStore`: 시작 시 full load → in-memory 계층 맵 → `LISTEN config_changed` goroutine.
+   - reconnect/failover handler: 재연결 후 full reload.
+   - `EtcdConfigStore` stub: 인터페이스만, 구현 deferred.
+3. Admin API:
+   - `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`
+   - `GET/POST/PUT/DELETE /admin/v1/domains/{id}/config/{key}`
+   - `GET/POST/PUT/DELETE /admin/v1/users/{id}/config/{key}`
+   - `POST /admin/v1/companies/{id}/config/propagate` — locked 강제 전파
+4. 도메인 생성 훅: company 설정 자동 복사 (unlocked 키만).
+5. Optimistic locking: `UPDATE ... WHERE version = $expected` → 충돌 시 `409 Conflict`.
+6. 감사 로그: `config_change_log (scope_type, scope_id, key, old_value, new_value, changed_by, changed_at)`.
+7. 기존 env-var config와 공존: 점진적으로 동적 설정으로 이관.
+8. 테스트: LISTEN/NOTIFY 브로드캐스트, 계층 해결 순서, locked 강제, 도메인 생성 복사, 낙관적 잠금.
+
+### 2-B. 2FA / TOTP (RFC 6238)
+
+2FA 정책은 설정 계층의 일부로 동작한다. 도메인 정책에 따라 강제/선택/비활성화.
+
+**설정 키**:
+```json
+"auth.mfa.mode":     "optional" | "required" | "disabled"
+"auth.mfa.methods":  ["totp"]              // 향후 SMS, WebAuthn 확장 가능
+"auth.mfa.grace_period_hours": 24          // 신규 사용자 유예 기간
+```
+
+- 회사 기본값 설정 → 도메인이 독립 재정의 가능 (회사가 locked하지 않는 한).
+- 예: 회사 기본 `optional`, 특정 보안 도메인에서 `required`로 재정의.
+
+**TOTP 구현 (RFC 6238)**:
+
+1. `internal/authmfa` package:
+   - TOTP 시크릿 생성 (32바이트 랜덤, Base32 인코딩).
+   - QR코드 URI: `otpauth://totp/{issuer}:{email}?secret={secret}&issuer={issuer}&digits=6&period=30` (RFC 6238).
+   - 코드 검증: 현재 시간 ±1 window (±30초 허용, 클럭 스큐 대응).
+   - 리플레이 방지: 검증된 코드 `totp_used_codes` 테이블에 기록, 같은 코드 재사용 차단.
+2. Migration: `user_mfa_secrets (user_id, secret_encrypted, verified, created_at, last_used_at)`.
+3. Recovery codes: 8개 단일 사용 복구 코드 생성/검증/재생성.
+4. Auth flow 연동:
+   - `auth.mfa.mode=required`: 1차 인증(비밀번호/SSO) 성공 후 TOTP 입력 단계 강제.
+   - `auth.mfa.mode=optional`: 사용자가 설정에서 활성화 선택.
+   - `auth.mfa.mode=disabled`: TOTP 등록/검증 경로 비활성화.
+5. Admin API: 특정 사용자 MFA 강제 초기화 (관리자 지원 시).
+6. JWT에 `mfa_verified: true` 클레임 포함 — API는 required 도메인에서 이 클레임 없는 토큰 거부.
 
 ---
 
@@ -4807,5 +4878,6 @@ Target outcome:
 | DSN / bounce | RFC 3461, RFC 3464, RFC 5321 §4.5.5 (VERP) |
 | Push notifications (Web) | RFC 8030 |
 | TLS (all protocols) | RFC 8446 (TLS 1.3), RFC 5246 (TLS 1.2 minimum) |
+| 2FA / TOTP | RFC 6238 (TOTP), RFC 4226 (HOTP) |
 | JWT auth | RFC 7519 |
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.
