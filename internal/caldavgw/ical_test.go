@@ -327,8 +327,24 @@ func TestCalendarObjectMatchesVTODOTimeRangeWithRecurrence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
 	}
+	if !matches {
+		t.Fatal("matches = false, want true for VTODO with RRULE (3rd occurrence overlaps time range)")
+	}
+}
+
+func TestCalendarObjectMatchesVTODOTimeRangeRecurrenceMiss(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:recur-todo@example.com\r\nDTSTAMP:20260501T000000Z\r\nDTSTART:20260501T090000Z\r\nDUE:20260501T100000Z\r\nRRULE:FREQ=DAILY;COUNT=5\r\nSUMMARY:Weekly Review\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	matches, err := CalendarObjectMatchesTimeRange(body, ComponentVTODO, &TimeRange{
+		Start: mustCalDAVTime(t, "20260510T080000Z"),
+		End:   mustCalDAVTime(t, "20260510T110000Z"),
+	}, nil)
+	if err != nil {
+		t.Fatalf("CalendarObjectMatchesTimeRange returned error: %v", err)
+	}
 	if matches {
-		t.Fatal("matches = true, want false for VTODO with RRULE (current implementation does not expand VTODO recurrence)")
+		t.Fatal("matches = true, want false for VTODO RRULE outside COUNT window")
 	}
 }
 

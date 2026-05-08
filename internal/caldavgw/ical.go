@@ -384,6 +384,48 @@ func todoOverlapsRange(component *ical.Component, timeRange TimeRange, tz *time.
 	if err != nil {
 		return false, fmt.Errorf("decode VTODO CREATED: %w", err)
 	}
+
+	effectiveStart := start
+	effectiveEnd := due
+	if hasStart && hasDuration && !hasDue {
+		effectiveEnd = start.Add(duration)
+	}
+
+	recurrence, err := component.RecurrenceSet(tz)
+	if err != nil {
+		return false, fmt.Errorf("decode VTODO recurrence: %w", err)
+	}
+	if recurrence != nil {
+		excludedRecurrences := todoOverrideRecurrenceIDs(component)
+		windowStart := recurrenceWindowStart(timeRange.Start, time.Hour)
+		next := recurrence.Iterator()
+		scanned := 0
+		for occurrenceStart, ok := next(); ok; occurrenceStart, ok = next() {
+			scanned++
+			if scanned > MaxICalendarRecurrenceInstances {
+				return false, fmt.Errorf("VTODO recurrence expansion exceeds %d instances", MaxICalendarRecurrenceInstances)
+			}
+			occurrenceStart = occurrenceStart.UTC()
+			if occurrenceStart.Before(windowStart) {
+				continue
+			}
+			if !occurrenceStart.Before(timeRange.End) {
+				return false, nil
+			}
+			if recurrenceExcluded(occurrenceStart, excludedRecurrences) {
+				continue
+			}
+			occStart, occEnd, ok := todoOccurrenceTimeSpan(occurrenceStart, effectiveStart, effectiveEnd, hasDue, hasStart, hasDuration)
+			if !ok {
+				continue
+			}
+			if todoTimeSpansOverlap(occStart, occEnd, timeRange) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
 	switch {
 	case hasStart && hasDuration && !hasDue:
 		effectiveDue := start.Add(duration)
@@ -407,6 +449,57 @@ func todoOverlapsRange(component *ical.Component, timeRange TimeRange, tz *time.
 	default:
 		return false, nil
 	}
+}
+
+func todoOccurrenceTimeSpan(occurrenceStart time.Time, effectiveStart, effectiveEnd time.Time, hasDue, hasStart, hasDuration bool) (time.Time, time.Time, bool) {
+	if !hasStart && !hasDue {
+		return time.Time{}, time.Time{}, false
+	}
+	if hasDue && !effectiveEnd.IsZero() {
+		dur := effectiveEnd.Sub(effectiveStart)
+		if dur <= 0 {
+			dur = time.Nanosecond
+		}
+		occEnd := occurrenceStart.Add(dur)
+		return occurrenceStart, occEnd, true
+	}
+	if hasDue {
+		return occurrenceStart, effectiveEnd, true
+	}
+	if hasStart && hasDuration {
+		dur := effectiveEnd.Sub(effectiveStart)
+		if dur <= 0 {
+			dur = time.Nanosecond
+		}
+		return occurrenceStart, occurrenceStart.Add(dur), true
+	}
+	return occurrenceStart, occurrenceStart.Add(time.Nanosecond), true
+}
+
+func todoTimeSpansOverlap(start, end time.Time, timeRange TimeRange) bool {
+	return start.Before(timeRange.End) && end.After(timeRange.Start)
+}
+
+func todoOverrideRecurrenceIDs(component *ical.Component) map[int64]struct{} {
+	excluded := make(map[int64]struct{})
+	if component.Props.Get(ical.PropRecurrenceID) != nil {
+		return excluded
+	}
+	uid, err := calendarComponentUID(component)
+	if err != nil {
+		return excluded
+	}
+	key := uid + ":" + component.Name
+	excluded[hashString(key)] = struct{}{}
+	return excluded
+}
+
+func hashString(s string) int64 {
+	var h int64
+	for _, c := range s {
+		h = 31*h + int64(c)
+	}
+	return h
 }
 
 func componentDateTime(component *ical.Component, name string, tz *time.Location) (time.Time, bool, error) {
