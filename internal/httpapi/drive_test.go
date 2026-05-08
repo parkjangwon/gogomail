@@ -1676,3 +1676,38 @@ func driveJSONRequest(method string, target string, body string) *http.Request {
 	req.Header.Set("Content-Type", "application/json")
 	return req
 }
+
+func TestDriveDelegatedAccessAllowsSelfAccess(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{nodes: []drive.Node{{ID: "node-1", Name: "Reports", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive}}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=user-1&owner_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.listReq.UserID != "user-1" {
+		t.Fatalf("list request userID = %q, want user-1", service.listReq.UserID)
+	}
+}
+
+func TestDriveDelegatedAccessDeniesCrossUserWithoutDelegation(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeDriveService{nodes: []drive.Node{{ID: "node-1", Name: "Reports", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive}}}
+	mux := http.NewServeMux()
+	RegisterDriveRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/drive/nodes?user_id=actor-1&owner_id=owner-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
