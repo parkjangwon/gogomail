@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -107,10 +108,11 @@ type SourceThreadRepository interface {
 }
 
 type Service struct {
-	repository     Repository
-	store          storage.Store
-	searchIDSource SearchIDSource
-	imapEvents     IMAPMailboxEventPublisher
+	repository         Repository
+	store              storage.Store
+	searchIDSource     SearchIDSource
+	imapEvents         IMAPMailboxEventPublisher
+	quotaAlertEmitter  maildb.QuotaWarningEmitterInterface
 }
 
 func New(repository Repository, store storage.Store) *Service {
@@ -133,6 +135,20 @@ func (s *Service) WithSearchIDSource(source SearchIDSource) *Service {
 func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Service {
 	s.imapEvents = publisher
 	return s
+}
+
+func (s *Service) WithQuotaAlertEmitter(emitter maildb.QuotaWarningEmitterInterface) *Service {
+	s.quotaAlertEmitter = emitter
+	return s
+}
+
+func (s *Service) emitQuotaWarningIfNeeded(ctx context.Context, userID string) {
+	if s.quotaAlertEmitter == nil {
+		return
+	}
+	if err := s.quotaAlertEmitter.EmitIfNeeded(ctx, userID); err != nil {
+		slog.Warn("failed to emit quota warning", "user_id", userID, "error", err)
+	}
 }
 
 func (s *Service) ListFolders(ctx context.Context, userID string) ([]maildb.Folder, error) {
@@ -836,6 +852,7 @@ func (s *Service) AppendIMAPMessage(ctx context.Context, req imapgw.AppendMessag
 		return imapgw.AppendMessageResult{}, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, string(req.UserID), []imapgw.MessageSummary{result.Summary})
+	s.emitQuotaWarningIfNeeded(ctx, string(req.UserID))
 	return result, nil
 }
 
@@ -923,6 +940,7 @@ func (s *Service) CopyIMAPMessages(ctx context.Context, req imapgw.CopyMessagesR
 		return nil, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExists, userID, imapCopyDestinationSummaries(summaries))
+	s.emitQuotaWarningIfNeeded(ctx, userID)
 	return summaries, nil
 }
 
@@ -953,6 +971,7 @@ func (s *Service) MoveIMAPMessages(ctx context.Context, req imapgw.MoveMessagesR
 		return nil, err
 	}
 	_ = s.publishIMAPSummaryEvents(ctx, imapgw.MailboxEventExpunge, userID, imapMoveSourceSummaries(results))
+	s.emitQuotaWarningIfNeeded(ctx, userID)
 	return results, nil
 }
 

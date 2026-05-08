@@ -202,9 +202,12 @@ type imapServerOptions struct {
 	MaxConnections    int
 }
 
-func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator) imapGatewayRuntime {
+func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator, quotaAlertEmitter maildb.QuotaWarningEmitterInterface) imapGatewayRuntime {
 	events := imapgw.NewMailboxEventBroker(32)
 	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
+	if quotaAlertEmitter != nil {
+		service = service.WithQuotaAlertEmitter(quotaAlertEmitter)
+	}
 	return imapGatewayRuntime{
 		service: service,
 		store:   mailservice.NewIMAPStoreAdapter(service),
@@ -260,7 +263,6 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 	repository := maildb.NewRepository(db)
-	runtime := newIMAPGatewayRuntime(repository, store, repository)
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	if err := redisClient.Ping(runCtx).Err(); err != nil {
 		if err := redisClient.Close(); err != nil {
@@ -269,6 +271,8 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 	defer redisClient.Close()
+	quotaAlertEmitter := maildb.NewQuotaWarningEmitter(db, redisClient, cfg.EventStream)
+	runtime := newIMAPGatewayRuntime(repository, store, repository, quotaAlertEmitter)
 
 	router, err := newIMAPMailboxEventRouter(repository, runtime.events)
 	if err != nil {
