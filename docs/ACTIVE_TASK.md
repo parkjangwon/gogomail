@@ -16,13 +16,13 @@
 
 ### 완료 조건
 
-- [ ] Migration: `domain_api_keys` 테이블 (CIDR 배열 포함)
-- [ ] `internal/apikeys` 패키지: 키 생성/검증/CIDR 체크
-- [ ] `ApiKeyMiddleware`: `gm_` prefix 감지 → JWT 경로와 분기
-- [ ] Admin API CRUD + rotate 엔드포인트
-- [ ] 기존 Mail/Calendar/Contacts API에 scope 검증 레이어
-- [ ] 테스트: CIDR 허용/차단, 스코프 부족 거부, 만료/폐기 키 거부, rotate 후 구 키 무효화
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] Migration: `domain_api_keys` 테이블 (CIDR 배열 포함)
+- [x] `internal/apikeys` 패키지: 키 생성/검증/CIDR 체크
+- [x] `ApiKeyMiddleware`: `gm_` prefix 감지 → JWT 경로와 분기
+- [x] Admin API CRUD + rotate 엔드포인트
+- [x] 기존 Mail/Calendar/Contacts API에 scope 검증 레이어
+- [x] 테스트: CIDR 허용/차단, 스코프 부족 거부, 만료/폐기 키 거부, rotate 후 구 키 무효화
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
