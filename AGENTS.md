@@ -152,6 +152,19 @@ After finishing meaningful work, update documentation when applicable:
 - Add or update an ADR under `docs/adr/` when an architectural direction or boundary changes.
 - Use `docs/CHANGE_CHECKLIST.md` before the final commit/push.
 
+## Commit and push protocol
+
+**Code changes and documentation updates MUST be in the same commit.** A feature is not complete until its documentation reflects the implementation.
+
+When committing:
+1. `git add` all changed files: code (`internal/`), tests (`_test.go`), AND docs (`docs/`)
+2. Single commit containing both implementation and documentation
+3. Commit message: concise summary of what changed
+
+**Never commit documentation separately from code.** If you find documentation was omitted, amend the commit or create a fixup commit that includes both.
+
+**Never push a docs-only commit.** If documentation was pushed separately, consolidate with a fixup commit.
+
 ADR-worthy changes include tenant/domain boundaries, SMTP core boundaries,
 queue/storage/auth/policy architecture, delivery routing, frontend start gate,
 spam integration strategy, API contract versioning, and release/deployment
