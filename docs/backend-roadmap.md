@@ -4592,53 +4592,97 @@ runtime_config (
 )
 ```
 
+**회사 트리 구조 (companies 자기참조)**:
+
+현재 `companies` 테이블은 flat. 자회사 지원을 위해 `parent_id` 컬럼 추가:
+
+```sql
+-- Migration: companies 자기참조 트리
+ALTER TABLE companies
+  ADD COLUMN parent_id uuid REFERENCES companies(id) ON DELETE SET NULL;
+
+-- 기존 rows는 parent_id = NULL → 루트 회사로 유지
+```
+
+```
+Root Company (그룹사, parent_id=NULL)
+  ├── Sub-Company A (자회사, parent_id=root)
+  │     ├── Domain A-1  ← Sub-Company A 소속
+  │     └── Domain A-2
+  ├── Sub-Company B (자회사, parent_id=root)
+  │     └── Domain B-1
+  └── Domain C          ← Root Company 직속 도메인 (자회사 없이)
+```
+
+- 트리 깊이 제한 없음. 실제 배포는 2-3 레벨이 일반적.
+- `domains.company_id`는 그대로 — 도메인은 항상 특정 company에 직속.
+- `organizations` (부서 트리)는 domain 내부 계층이므로 별도 유지.
+
 **설정 상속 모델 — Copy-on-create + 독립 운영**:
 
 ```
-Company (전사)
-  설정 A = X  [locked=false]    ← 도메인이 재정의 가능
-  설정 B = Y  [locked=true]     ← 도메인이 재정의 불가 (전사 강제)
-      │
-      ├─ Domain A (도메인 생성 시 회사 설정 전체 복사)
-      │    설정 A = X → 도메인 관리자가 Z로 변경 가능
-      │    설정 B = Y → 변경 불가 (company locked)
-      │        └─ User (domain 기준 상속 + 개인 재정의 가능)
-      │
-      └─ Domain B (독립적으로 A = W 로 운영)
+Root Company  [설정 A=X, locked=false] [설정 B=Y, locked=true]
+     │
+     ├── Sub-Company A  → 생성 시 Root 설정 복사
+     │     설정 A=X (재정의 가능)  설정 B=Y (locked, 재정의 불가)
+     │     │
+     │     ├── Domain A-1 → 생성 시 Sub-Company A 설정 복사, 독립 운영
+     │     │      └── User → 개인 재정의 (domain locked 아닌 키만)
+     │     └── Domain A-2 → 독립 운영
+     │
+     └── Domain C → 생성 시 Root Company 설정 복사, 독립 운영
 ```
 
-- **도메인 생성 시**: 회사의 모든 설정이 해당 도메인 스코프로 자동 복사됨 (`locked=false` 키만).
-- **이후 독립 운영**: 도메인 관리자가 자신의 스코프 설정을 자유롭게 변경. 회사 변경이 자동 전파되지 않음.
-- **회사 locked 설정**: 도메인/사용자가 재정의 시도 시 `403 Forbidden`. 항상 회사 값이 우선.
-- **회사 설정 강제 전파**: Admin API `POST /admin/v1/companies/{id}/config/propagate` — 특정 키를 하위 도메인 전체에 강제 덮어쓰기 (locked 여부와 무관).
+- **생성 시 복사**: 자회사/도메인 생성 시 **직속 부모**의 현재 설정이 자동 복사. 이후 독립.
+- **locked 상속**: 상위 어느 레벨에서든 `locked=true`면 해당 키는 모든 하위 스코프에서 재정의 불가.
+- **자동 전파 없음**: 부모가 나중에 설정을 바꿔도 자식에게 자동 전파되지 않음. 명시적 propagate API로만 전파.
 
-**유효 값 해결 순서** (읽기 시):
+**유효 값 해결 순서** (읽기 시, 트리 루트까지 순회):
 
 ```
-user scope (개인 재정의, domain이 locked 아닐 경우)
-  → domain scope (도메인 설정, company가 locked 아닐 경우)
-    → company scope (전사 기본값)
-      → global scope (시스템 기본값)
+User
+  → Domain (domain이 locked 아닌 경우)
+    → Company (직속 부모)
+      → Parent Company (grandparent, ...)
+        → Root Company
+          → Global (시스템 기본값)
+
+※ 어느 레벨에서든 locked=true를 만나면 그 이하 스코프는 즉시 차단
+```
+
+- 트리 순회는 `companies.parent_id` 체인을 루트까지 따라감.
+- 실제 배포에서 depth ≤ 3이므로 조회 비용 무시 가능.
+- 메모리 캐시에 company 트리 + config를 함께 유지하여 런타임 DB 조회 없음.
+
+**Propagate API (명시적 전파)**:
+
+```
+POST /admin/v1/companies/{id}/config/propagate
+  ?scope=subtree   ← 이 회사 + 모든 하위 자회사 + 그들의 도메인에 강제 적용
+  ?scope=children  ← 즉각 자식 자회사만
+  ?scope=domains   ← 이 회사 직속 도메인만
+Body: { "key": "...", "value": ..., "locked": true/false }
 ```
 
 **구현 순서**:
 
-1. Migration `runtime_config` 테이블 (scope_type/scope_id/key/value/locked/version/updated_at).
-2. `internal/configstore` package:
-   - `ConfigStore` interface: `Resolve(scopeType, scopeID, key) (json.RawMessage, error)`.
-   - `PostgresConfigStore`: 시작 시 full load → in-memory 계층 맵 → `LISTEN config_changed` goroutine.
+1. Migration: `companies.parent_id UUID REFERENCES companies(id) ON DELETE SET NULL`.
+2. Migration `runtime_config` 테이블: `(scope_type, scope_id, key, value JSONB, locked BOOLEAN, version BIGINT, updated_at)`, unique `(scope_type, scope_id, key)`.
+3. `internal/configstore` package:
+   - `ConfigStore` interface: `Resolve(ctx, userID, domainID, companyID, key) (json.RawMessage, error)`.
+   - `PostgresConfigStore`: 시작 시 full load (company 트리 포함) → in-memory 계층 맵 → `LISTEN config_changed` goroutine.
    - reconnect/failover handler: 재연결 후 full reload.
    - `EtcdConfigStore` stub: 인터페이스만, 구현 deferred.
-3. Admin API:
+4. Admin API:
    - `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`
    - `GET/POST/PUT/DELETE /admin/v1/domains/{id}/config/{key}`
    - `GET/POST/PUT/DELETE /admin/v1/users/{id}/config/{key}`
-   - `POST /admin/v1/companies/{id}/config/propagate` — locked 강제 전파
-4. 도메인 생성 훅: company 설정 자동 복사 (unlocked 키만).
-5. Optimistic locking: `UPDATE ... WHERE version = $expected` → 충돌 시 `409 Conflict`.
-6. 감사 로그: `config_change_log (scope_type, scope_id, key, old_value, new_value, changed_by, changed_at)`.
-7. 기존 env-var config와 공존: 점진적으로 동적 설정으로 이관.
-8. 테스트: LISTEN/NOTIFY 브로드캐스트, 계층 해결 순서, locked 강제, 도메인 생성 복사, 낙관적 잠금.
+   - `POST /admin/v1/companies/{id}/config/propagate?scope=subtree|children|domains`
+5. 생성 훅: 자회사/도메인 생성 시 직속 부모 설정 자동 복사 (unlocked 키만).
+6. Optimistic locking: `UPDATE ... WHERE version = $expected` → 충돌 시 `409 Conflict`.
+7. 감사 로그: `config_change_log (scope_type, scope_id, key, old_value, new_value, changed_by, changed_at)`.
+8. 기존 env-var config와 공존: 점진적으로 동적 설정으로 이관.
+9. 테스트: 트리 해결 순서 (루트→자회사→도메인→사용자), locked 차단, propagate 전파 범위, 생성 복사.
 
 ### 2-B. 2FA / TOTP (RFC 6238)
 
@@ -4659,7 +4703,7 @@ user scope (개인 재정의, domain이 locked 아닐 경우)
 1. `internal/authmfa` package:
    - TOTP 시크릿 생성 (32바이트 랜덤, Base32 인코딩).
    - QR코드 URI: `otpauth://totp/{issuer}:{email}?secret={secret}&issuer={issuer}&digits=6&period=30` (RFC 6238).
-   - 코드 검증: 현재 시간 ±1 window (±30초 허용, 클럭 스큐 대응).
+   - 코드 검증: 현재 시간 ±2 window (±60초 허용, 클럭 스큐 대응).
    - 리플레이 방지: 검증된 코드 `totp_used_codes` 테이블에 기록, 같은 코드 재사용 차단.
 2. Migration: `user_mfa_secrets (user_id, secret_encrypted, verified, created_at, last_used_at)`.
 3. Recovery codes: 8개 단일 사용 복구 코드 생성/검증/재생성.
