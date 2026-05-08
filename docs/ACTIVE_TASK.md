@@ -7,20 +7,26 @@
 
 ## 현재 태스크
 
-- **ID**: COMPLETE
-- **제목**: All backlog tasks completed
-- **배경**: BACKLOG.md의 모든 태스크(TASK-002 ~ TASK-015)가 완료되었다.
-  docs/backend-roadmap.md의 모든 Phase(0 ~ 7)가 구현되었다.
-
-### 상태
-
-- [x] 모든 백로그 태스크 완료
-- [x] 모든 로드맵 Phase 구현 완료
-
-### 다음 단계
-
-사용자로부터 새로운 백로그 항목이나 기능 요청을 받을 때까지
-대기한다. 또는 docs/backend-roadmap.md에 새 Phase를 추가한다.
+- **ID**: TASK-016
+- **제목**: Resumable Chunked Upload — Content-Range 범위 커밋
+- **배경**: `attachment_upload_sessions` 테이블과 `maildb` create/cancel/expire 경로는 이미 구현됨.
+  `PUT /api/v1/attachments/upload-sessions/{id}/body`는 전체 body 단일 PUT만 지원.
+  ADR 0007에 정의된 "range-aware chunk commits"가 아직 미구현이고
+  `resumable_chunked_uploads` capability가 false로 고정되어 있음.
+- **구현 대상**:
+  - `internal/maildb` — 세션에 수신 바이트 범위(offset, received_bytes) 기록
+  - `internal/mailservice` — chunk append / size 검증 / finalize 경로
+  - `internal/httpapi/mail.go` — `Content-Range: bytes first-last/total` 파싱, chunk PUT
+  - `docs/openapi.yaml` — 청크 업로드 엔드포인트 스펙
+- **완료 조건**:
+  - [ ] `go test ./...` 통과
+  - [ ] `Content-Range: bytes 0-N/total` 요청으로 청크 커밋 동작
+  - [ ] finalize 시 staged chunks로 attachment 생성
+  - [ ] 범위 겹침/갭 → HTTP 416 반환
+  - [ ] `resumable_chunked_uploads: true` capability 노출
+  - [ ] docs/CURRENT_STATUS.md 갱신
+  - [ ] docs/openapi.yaml 갱신
+- **다음 태스크**: TASK-017 — CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처
 
 ---
 
