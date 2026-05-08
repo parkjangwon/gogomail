@@ -7,26 +7,15 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-016
-- **제목**: Resumable Chunked Upload — Content-Range 범위 커밋
-- **배경**: `attachment_upload_sessions` 테이블과 `maildb` create/cancel/expire 경로는 이미 구현됨.
-  `PUT /api/v1/attachments/upload-sessions/{id}/body`는 전체 body 단일 PUT만 지원.
-  ADR 0007에 정의된 "range-aware chunk commits"가 아직 미구현이고
-  `resumable_chunked_uploads` capability가 false로 고정되어 있음.
-- **구현 대상**:
-  - `internal/maildb` — 세션에 수신 바이트 범위(offset, received_bytes) 기록
-  - `internal/mailservice` — chunk append / size 검증 / finalize 경로
-  - `internal/httpapi/mail.go` — `Content-Range: bytes first-last/total` 파싱, chunk PUT
-  - `docs/openapi.yaml` — 청크 업로드 엔드포인트 스펙
+- **ID**: TASK-017
+- **제목**: CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처
+- **배경**: Phase 4-B 하드닝 항목. Apple iCal, Thunderbird Lightning, DAVx⁵ 실제 요청 형태를
+  픽스처로 캡처해 `internal/caldavgw` / `internal/carddavgw` 회귀 테스트 추가.
+- **구현 대상**: `internal/caldavgw/*_test.go`, `internal/carddavgw/*_test.go` 픽스처 추가
 - **완료 조건**:
-  - [ ] `go test ./...` 통과
-  - [ ] `Content-Range: bytes 0-N/total` 요청으로 청크 커밋 동작
-  - [ ] finalize 시 staged chunks로 attachment 생성
-  - [ ] 범위 겹침/갭 → HTTP 416 반환
-  - [ ] `resumable_chunked_uploads: true` capability 노출
-  - [ ] docs/CURRENT_STATUS.md 갱신
-  - [ ] docs/openapi.yaml 갱신
-- **다음 태스크**: TASK-017 — CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처
+  - [ ] `go test ./internal/caldavgw/... ./internal/carddavgw/...` 통과
+  - [ ] 새 픽스처 최소 5종 추가
+- **다음 태스크**: TASK-018 — IMAP FETCH BODY 실제 클라이언트 픽스처 확장
 
 ---
 
