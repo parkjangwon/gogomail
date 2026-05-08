@@ -2181,8 +2181,8 @@ Target outcome:
       namespace-aware creation properties for display name, description, and
       CalendarServer/Apple color, creating the collection at the requested URI,
       and returning `201 Created` with `Location`. The `Allow` header advertises
-      `MKCALENDAR` again only after those semantics exist; human-readable slug
-      aliases remain future compatibility work.
+      `MKCALENDAR` again only after those semantics exist; ADR 0014 defines slug
+      alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
       repository transaction while keeping calendar-home and cross-user deletes
