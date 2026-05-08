@@ -15,13 +15,13 @@
 
 ### 완료 조건
 
-- [ ] Migration: `user_mfa_secrets`, `totp_used_codes` 테이블
-- [ ] `internal/authmfa` 패키지: TOTP 생성/검증, ±2 window, 리플레이 방지
-- [ ] Recovery codes (8개 단일 사용)
-- [ ] Auth flow 연동: `auth.mfa.mode` 설정값 기반 강제/선택/비활성화
-- [ ] JWT 클레임 `mfa_verified: true` 추가
-- [ ] 테스트: TOTP 생성/검증, window, 리플레이 방지, recovery codes
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] Migration: `user_mfa_secrets`, `totp_used_codes` 테이블
+- [x] `internal/authmfa` 패키지: TOTP 생성/검증, ±2 window, 리플레이 방지
+- [x] Recovery codes (8개 단일 사용)
+- [x] Auth flow 연동: `auth.mfa.mode` 설정값 기반 강제/선택/비활성화
+- [x] JWT 클레임 `mfa_verified: true` 추가
+- [x] 테스트: TOTP 생성/검증, window, 리플레이 방지, recovery codes
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 

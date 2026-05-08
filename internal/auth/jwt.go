@@ -35,6 +35,7 @@ type Claims struct {
 	DomainID       string    `json:"domain_id"`
 	Role           string    `json:"role"`
 	SessionVersion int64     `json:"session_ver,omitempty"`
+	MFAVerified    bool      `json:"mfa_verified,omitempty"`
 	Expires        time.Time `json:"-"`
 	Expiry         int64     `json:"exp"`
 	IssuedAt       int64     `json:"iat"`
@@ -225,4 +226,21 @@ func (m *TokenManager) sign(input string) string {
 	mac := hmac.New(sha256.New, m.secret)
 	_, _ = mac.Write([]byte(input))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// MFAMode represents the multi-factor authentication enforcement level.
+type MFAMode string
+
+const (
+	MFAModeDisabled  MFAMode = "disabled"
+	MFAModeOptional  MFAMode = "optional"
+	MFAModeRequired  MFAMode = "required"
+)
+
+func (m MFAMode) IsValid() bool {
+	switch m {
+	case MFAModeDisabled, MFAModeOptional, MFAModeRequired:
+		return true
+	}
+	return false
 }
