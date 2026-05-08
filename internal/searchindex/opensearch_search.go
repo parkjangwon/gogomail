@@ -34,6 +34,8 @@ type OpenSearchSearchQuery struct {
 	Subject           string
 	HasAttachment     *bool
 	IncludeHighlights bool
+	Since             string
+	Until             string
 	Limit             int
 }
 
@@ -216,6 +218,16 @@ func openSearchSearchPayload(query OpenSearchSearchQuery, userID string, limit i
 	}
 	if query.HasAttachment != nil {
 		must = append(must, map[string]any{"term": map[string]any{"has_attachment": *query.HasAttachment}})
+	}
+	if query.Since != "" || query.Until != "" {
+		rangeFilter := map[string]any{}
+		if query.Since != "" {
+			rangeFilter["gte"] = query.Since
+		}
+		if query.Until != "" {
+			rangeFilter["lte"] = query.Until
+		}
+		must = append(must, map[string]any{"range": map[string]any{"received_at": rangeFilter}})
 	}
 	payload := map[string]any{
 		"size": limit,

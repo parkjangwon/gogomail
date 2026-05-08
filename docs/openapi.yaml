@@ -1021,6 +1021,18 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: since
+          in: query
+          description: Inclusive RFC3339 lower bound for message received_at timestamp.
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          description: Inclusive RFC3339 upper bound for message received_at timestamp.
+          schema:
+            type: string
+            format: date-time
       responses:
         "200":
           $ref: "#/components/responses/MessageListPage"
