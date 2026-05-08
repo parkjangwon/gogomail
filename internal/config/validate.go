@@ -527,6 +527,17 @@ func (c Config) Validate() error {
 	if c.SearchIndexOpenSearchTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT must be positive")
 	}
+	if c.MailFlowOpenSearchBootstrap {
+		if strings.TrimSpace(c.SearchIndexOpenSearchEndpoint) == "" {
+			return fmt.Errorf("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_ENDPOINT is required when GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP=true")
+		}
+		if strings.TrimSpace(c.MailFlowOpenSearchIndex) == "" {
+			return fmt.Errorf("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX is required when GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP=true")
+		}
+		if err := validateOpenSearchIndexName("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX", c.MailFlowOpenSearchIndex); err != nil {
+			return err
+		}
+	}
 	if strings.TrimSpace(c.DeliverySmartHostTLSMode) != "" {
 		if err := validateEnum("GOGOMAIL_DELIVERY_SMARTHOST_TLS_MODE", c.DeliverySmartHostTLSMode, "opportunistic", "require", "disable"); err != nil {
 			return err

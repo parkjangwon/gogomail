@@ -1370,6 +1370,18 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	router := eventstream.NewRouter()
 	auditRepository := audit.NewPostgresRepository(db)
 	mailFlowHandler := mailflow.NewHandler(db)
+
+	if cfg.MailFlowOpenSearchBootstrap && strings.EqualFold(strings.TrimSpace(cfg.SearchIndexBackend), "opensearch") {
+		opts := mailFlowOpenSearchOptionsForConfig(cfg)
+		indexer, err := searchindex.NewMailFlowIndexer(opts)
+		if err != nil {
+			return fmt.Errorf("create mail flow indexer: %w", err)
+		}
+		if err := indexer.EnsureIndex(ctx); err != nil {
+			return fmt.Errorf("bootstrap mail flow index: %w", err)
+		}
+		mailFlowHandler = mailflow.NewHandlerWithIndexer(db, &indexer)
+	}
 	if err := router.Register("mail.stored", eventstream.MultiHandler{
 		imapnotify.NewMailStoredHandler(maildb.NewRepository(db)),
 		audit.NewMailStoredHandler(auditRepository),
@@ -1582,6 +1594,20 @@ func openSearchOptionsForConfig(cfg config.Config) searchindex.OpenSearchOptions
 	return searchindex.OpenSearchOptions{
 		Endpoint: cfg.SearchIndexOpenSearchEndpoint,
 		Index:    cfg.SearchIndexOpenSearchIndex,
+		Client:   &http.Client{Timeout: timeout},
+		Username: cfg.SearchIndexOpenSearchUsername,
+		Password: cfg.SearchIndexOpenSearchPassword,
+	}
+}
+
+func mailFlowOpenSearchOptionsForConfig(cfg config.Config) searchindex.OpenSearchOptions {
+	timeout := cfg.SearchIndexOpenSearchTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	return searchindex.OpenSearchOptions{
+		Endpoint: cfg.SearchIndexOpenSearchEndpoint,
+		Index:    cfg.MailFlowOpenSearchIndex,
 		Client:   &http.Client{Timeout: timeout},
 		Username: cfg.SearchIndexOpenSearchUsername,
 		Password: cfg.SearchIndexOpenSearchPassword,
