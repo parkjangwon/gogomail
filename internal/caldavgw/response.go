@@ -44,14 +44,16 @@ var (
 )
 
 var (
-	ResourceTypeCollection = XMLName{Space: DAVNamespace, Local: "collection"}
-	ResourceTypePrincipal  = XMLName{Space: DAVNamespace, Local: "principal"}
-	ResourceTypeCalendar   = XMLName{Space: CalDAVNamespace, Local: "calendar"}
-	PrivilegeRead          = XMLName{Space: DAVNamespace, Local: "read"}
-	PrivilegeBind          = XMLName{Space: DAVNamespace, Local: "bind"}
-	PrivilegeUnbind        = XMLName{Space: DAVNamespace, Local: "unbind"}
-	PrivilegeWriteContent  = XMLName{Space: DAVNamespace, Local: "write-content"}
-	PrivilegeWriteProps    = XMLName{Space: DAVNamespace, Local: "write-properties"}
+	ResourceTypeCollection     = XMLName{Space: DAVNamespace, Local: "collection"}
+	ResourceTypePrincipal      = XMLName{Space: DAVNamespace, Local: "principal"}
+	ResourceTypeCalendar       = XMLName{Space: CalDAVNamespace, Local: "calendar"}
+	ResourceTypeScheduleInbox  = XMLName{Space: CalDAVNamespace, Local: "schedule-inbox"}
+	ResourceTypeScheduleOutbox = XMLName{Space: CalDAVNamespace, Local: "schedule-outbox"}
+	PrivilegeRead              = XMLName{Space: DAVNamespace, Local: "read"}
+	PrivilegeBind              = XMLName{Space: DAVNamespace, Local: "bind"}
+	PrivilegeUnbind            = XMLName{Space: DAVNamespace, Local: "unbind"}
+	PrivilegeWriteContent      = XMLName{Space: DAVNamespace, Local: "write-content"}
+	PrivilegeWriteProps        = XMLName{Space: DAVNamespace, Local: "write-properties"}
 )
 
 type PropertyValue struct {
@@ -179,6 +181,40 @@ func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncC
 	}, nil
 }
 
+func SchedulingInboxProperties(userID string) ([]PropertyResult, error) {
+	principalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
+	return []PropertyResult{
+		{Name: PropDisplayName, Value: PropertyValue{Text: "Scheduling Inbox"}, Found: true},
+		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeScheduleInbox}}, Found: true},
+		{Name: PropGetETag, Value: PropertyValue{Text: ""}, Found: true},
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: schedulingInboxPrivileges()}, Found: true},
+		{Name: PropSupportedCalendarComponentSet, Value: PropertyValue{CalendarComponents: []string{ComponentVEVENT}}, Found: true},
+		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
+		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
+		{Name: PropSupportedReportSet, Value: PropertyValue{Reports: []XMLName{{Space: CalDAVNamespace, Local: string(ReportCalendarMulti)}}}, Found: true},
+	}, nil
+}
+
+func SchedulingOutboxProperties(userID string) ([]PropertyResult, error) {
+	principalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
+	return []PropertyResult{
+		{Name: PropDisplayName, Value: PropertyValue{Text: "Scheduling Outbox"}, Found: true},
+		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeScheduleOutbox}}, Found: true},
+		{Name: PropGetETag, Value: PropertyValue{Text: ""}, Found: true},
+		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
+		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: schedulingOutboxPrivileges()}, Found: true},
+		{Name: PropSupportedCalendarData, Value: PropertyValue{CalendarDataTypes: []CalendarDataType{{ContentType: "text/calendar", Version: "2.0"}}}, Found: true},
+		{Name: PropMaxResourceSize, Value: PropertyValue{Text: strconv.Itoa(MaxCalendarObjectBytes)}, Found: true},
+	}, nil
+}
+
 func SupportedCalendarReports(includeSyncCollection bool) []XMLName {
 	reports := []XMLName{
 		{Space: CalDAVNamespace, Local: string(ReportCalendarQuery)},
@@ -225,6 +261,14 @@ func calendarCollectionPrivileges() []XMLName {
 
 func writableObjectPrivileges() []XMLName {
 	return []XMLName{PrivilegeRead, PrivilegeWriteContent}
+}
+
+func schedulingInboxPrivileges() []XMLName {
+	return []XMLName{PrivilegeRead, PrivilegeWriteContent}
+}
+
+func schedulingOutboxPrivileges() []XMLName {
+	return []XMLName{PrivilegeWriteContent}
 }
 
 func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {

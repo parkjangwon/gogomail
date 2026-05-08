@@ -1357,6 +1357,36 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
 		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
+	case ResourceInbox:
+		href, err := ScheduleInboxPath(userID)
+		if err != nil {
+			return nil, err
+		}
+		props, err := SchedulingInboxProperties(userID)
+		if err != nil {
+			return nil, err
+		}
+		props, err = withCurrentUserPrincipal(props, actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		props = withCurrentUserPrivileges(props, ResourceInbox, currentUserPrivileges)
+		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
+	case ResourceOutbox:
+		href, err := ScheduleOutboxPath(userID)
+		if err != nil {
+			return nil, err
+		}
+		props, err := SchedulingOutboxProperties(userID)
+		if err != nil {
+			return nil, err
+		}
+		props, err = withCurrentUserPrincipal(props, actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		props = withCurrentUserPrivileges(props, ResourceOutbox, currentUserPrivileges)
+		return []MultiStatusResponse{responseForProperties(href, propfind, props)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported CalDAV resource")
 	}
@@ -1422,6 +1452,16 @@ func currentUserPrivilegesForResource(kind ResourceKind, privileges []XMLName) [
 	case ResourceCalendarObject:
 		if role == CalendarAccessRoleWrite || role == CalendarAccessRoleManage {
 			return writableObjectPrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceInbox:
+		if role == CalendarAccessRoleWrite || role == CalendarAccessRoleManage {
+			return schedulingInboxPrivileges()
+		}
+		return readOnlyPrivileges()
+	case ResourceOutbox:
+		if role == CalendarAccessRoleWrite || role == CalendarAccessRoleManage {
+			return schedulingOutboxPrivileges()
 		}
 		return readOnlyPrivileges()
 	default:

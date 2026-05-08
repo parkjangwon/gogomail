@@ -60,6 +60,16 @@ func calDAVPrincipalFromDirectory(resolved directory.Principal, aliases ...[]dir
 	}
 	principal.PrincipalPath = principalPath
 	principal.CalendarHomePath = homePath
+	inboxPath, err := ScheduleInboxPath(principal.UserID)
+	if err != nil {
+		return Principal{}, err
+	}
+	principal.ScheduleInboxPath = inboxPath
+	outboxPath, err := ScheduleOutboxPath(principal.UserID)
+	if err != nil {
+		return Principal{}, err
+	}
+	principal.ScheduleOutboxPath = outboxPath
 	var aliasList []directory.Alias
 	if len(aliases) > 0 {
 		aliasList = aliases[0]
