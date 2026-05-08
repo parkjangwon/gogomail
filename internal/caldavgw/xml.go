@@ -79,6 +79,7 @@ type MKCalendarRequest struct {
 	DisplayName string
 	Description string
 	Color       string
+	Slug        *string
 }
 
 type ProppatchRequest struct {
@@ -464,6 +465,15 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 					return err
 				}
 				req.Color = strings.TrimSpace(text)
+			case sameXMLName(tok.Name, "http://apple.com/ns/icalendar/", "calendar-slug"):
+				text, err := readSimpleElementText(dec, tok.Name)
+				if err != nil {
+					return err
+				}
+				slug := strings.TrimSpace(text)
+				if slug != "" {
+					req.Slug = &slug
+				}
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err

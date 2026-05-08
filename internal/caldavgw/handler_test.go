@@ -2075,7 +2075,7 @@ func TestHandlerMkcalendarAllowsMissingIfNoneMatchStar(t *testing.T) {
 	}
 }
 
-func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
+func TestHandlerMkcalendarAcceptsSlugPath(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
@@ -2083,12 +2083,12 @@ func TestHandlerMkcalendarRejectsUnsafePathID(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestHandlerMkcalendarRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
+func TestHandlerMkcalendarAcceptsSlugPathAndReadsBody(t *testing.T) {
 	t.Parallel()
 
 	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
@@ -2097,15 +2097,15 @@ func TestHandlerMkcalendarRejectsUnsafePathIDBeforeBodyRead(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
-	if body.reads != 0 {
-		t.Fatalf("body reads = %d, want 0", body.reads)
+	if body.reads == 0 {
+		t.Fatalf("body reads = 0, want > 0 (body should be read to parse request)")
 	}
 }
 
-func TestHandlerMkcalendarRejectsUnsafePathIDBeforeConditionalCreate(t *testing.T) {
+func TestHandlerMkcalendarSlugPathWithIfMatchStar(t *testing.T) {
 	t.Parallel()
 
 	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
@@ -2115,8 +2115,8 @@ func TestHandlerMkcalendarRejectsUnsafePathIDBeforeConditionalCreate(t *testing.
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
 	}
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)

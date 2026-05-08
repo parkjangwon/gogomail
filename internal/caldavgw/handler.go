@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type DiscoveryStore interface {
@@ -278,10 +280,6 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav calendar already exists", http.StatusMethodNotAllowed)
 		return
 	}
-	if _, err := ValidateCalendarPathID(resource.CalendarID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	if !h.checkCalendarCollectionCreatePreconditions(w, r, userID, Calendar{}, false) {
 		return
 	}
@@ -290,11 +288,24 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	var calendarID string
+	var slug *string
+	if _, err := ValidateCalendarPathID(resource.CalendarID); err != nil {
+		calendarID = uuid.NewString()
+		slugStr := resource.CalendarID
+		slug = &slugStr
+	} else {
+		calendarID = resource.CalendarID
+	}
+	if req.Slug != nil && *req.Slug != "" {
+		slug = req.Slug
+	}
 	calendar, err = store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
 		UserID:      userID,
 		ActorUserID: actorUserID,
-		CalendarID:  resource.CalendarID,
+		CalendarID:  calendarID,
 		Name:        req.DisplayName,
+		Slug:        slug,
 		Color:       req.Color,
 		Description: req.Description,
 	})
