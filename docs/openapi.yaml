@@ -4898,6 +4898,149 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/config:
+    get:
+      operationId: listAdminCompanyConfig
+      summary: Admin list company runtime config entries
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Company config entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/config/{key}:
+    get:
+      operationId: getAdminCompanyConfig
+      summary: Admin get company runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Company config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setAdminCompanyConfig
+      summary: Admin set company runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigSetRequest"
+      responses:
+        "200":
+          description: Company config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAdminCompanyConfig
+      summary: Admin delete company runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/config/propagate:
+    post:
+      operationId: propagateAdminCompanyConfig
+      summary: Admin propagate company runtime config to children
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [subtree, children, domains]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigPropagateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /domains:
     get:
       operationId: listAdminDomains
@@ -5088,6 +5231,120 @@ paths:
           $ref: "#/components/responses/DomainPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/config:
+    get:
+      operationId: listAdminDomainConfig
+      summary: Admin list domain runtime config entries
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Domain config entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/config/{key}:
+    get:
+      operationId: getAdminDomainConfig
+      summary: Admin get domain runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Domain config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setAdminDomainConfig
+      summary: Admin set domain runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigSetRequest"
+      responses:
+        "200":
+          description: Domain config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAdminDomainConfig
+      summary: Admin delete domain runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /users:
     get:
       operationId: listAdminUsers
@@ -5204,6 +5461,120 @@ paths:
         - $ref: "#/components/parameters/PathID"
       requestBody:
         $ref: "#/components/requestBodies/UserPasswordHashUpdate"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /users/{id}/config:
+    get:
+      operationId: listAdminUserConfig
+      summary: Admin list user runtime config entries
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: User config entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+  /users/{id}/config/{key}:
+    get:
+      operationId: getAdminUserConfig
+      summary: Admin get user runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setAdminUserConfig
+      summary: Admin set user runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigSetRequest"
+      responses:
+        "200":
+          description: User config entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    $ref: "#/components/schemas/ConfigEntry"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAdminUserConfig
+      summary: Admin delete user runtime config entry
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -10661,6 +11032,56 @@ components:
       properties:
         company:
           $ref: "#/components/schemas/Company"
+    ConfigEntry:
+      type: object
+      required: [id, scope_type, scope_id, key, value, locked, version, updated_at]
+      properties:
+        id:
+          type: string
+        scope_type:
+          type: string
+          enum: [company, domain, user]
+        scope_id:
+          type: string
+        key:
+          type: string
+        value:
+          type: object
+          description: JSON value
+        locked:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+        updated_at:
+          type: string
+          format: date-time
+    ConfigSetRequest:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: object
+          description: JSON value
+        locked:
+          type: boolean
+          default: false
+        version:
+          type: integer
+          format: int64
+          description: Expected version for optimistic locking, omit or use -1 to skip
+    ConfigPropagateRequest:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+        value:
+          type: object
+          description: JSON value
+        locked:
+          type: boolean
+          default: false
     Domain:
       type: object
       required: [id, company_id, name, name_ace, status, quota_used, quota_remaining, allocated_user_quota, allocatable_user_quota, over_allocated, created_at]

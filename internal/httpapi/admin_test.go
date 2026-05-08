@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/backpressure"
+	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dnscheck"
@@ -8450,6 +8451,17 @@ type fakeAdminService struct {
 	lastDeleteQuotaAlertThresholdID           string
 	lastQuotaAlertList                        maildb.QuotaAlertListRequest
 	lastQuotaAlertID                          string
+	companyConfig                              []configstore.ConfigEntry
+	domainConfig                               []configstore.ConfigEntry
+	userConfig                                 []configstore.ConfigEntry
+	lastCompanyConfigID                        string
+	lastCompanyConfigKey                        string
+	lastDomainConfigID                          string
+	lastDomainConfigKey                         string
+	lastUserConfigID                            string
+	lastUserConfigKey                           string
+	lastPropagateCompanyID                      string
+	lastPropagateScope                         configstore.PropagateScope
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -9241,4 +9253,106 @@ func (f *fakeAdminService) ListQuotaAlerts(_ context.Context, req maildb.QuotaAl
 func (f *fakeAdminService) GetQuotaAlert(_ context.Context, id string) (maildb.QuotaAlertView, error) {
 	f.lastQuotaAlertID = id
 	return f.quotaAlert, nil
+}
+
+func (f *fakeAdminService) GetCompanyConfig(_ context.Context, companyID, key string) (configstore.ConfigEntry, error) {
+	f.lastCompanyConfigID = companyID
+	f.lastCompanyConfigKey = key
+	if len(f.companyConfig) == 0 {
+		return configstore.ConfigEntry{}, configstore.ErrConfigNotFound
+	}
+	return f.companyConfig[0], nil
+}
+
+func (f *fakeAdminService) SetCompanyConfig(_ context.Context, companyID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	f.lastCompanyConfigID = companyID
+	f.lastCompanyConfigKey = key
+	return configstore.ConfigEntry{
+		ScopeID: companyID,
+		Key:     key,
+		Value:   value,
+		Locked:  locked,
+		Version: 1,
+	}, nil
+}
+
+func (f *fakeAdminService) DeleteCompanyConfig(_ context.Context, companyID, key string, expectedVersion int64) error {
+	f.lastCompanyConfigID = companyID
+	f.lastCompanyConfigKey = key
+	return nil
+}
+
+func (f *fakeAdminService) ListCompanyConfig(_ context.Context, companyID string) ([]configstore.ConfigEntry, error) {
+	f.lastCompanyConfigID = companyID
+	return f.companyConfig, nil
+}
+
+func (f *fakeAdminService) GetDomainConfig(_ context.Context, domainID, key string) (configstore.ConfigEntry, error) {
+	f.lastDomainConfigID = domainID
+	f.lastDomainConfigKey = key
+	if len(f.domainConfig) == 0 {
+		return configstore.ConfigEntry{}, configstore.ErrConfigNotFound
+	}
+	return f.domainConfig[0], nil
+}
+
+func (f *fakeAdminService) SetDomainConfig(_ context.Context, domainID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	f.lastDomainConfigID = domainID
+	f.lastDomainConfigKey = key
+	return configstore.ConfigEntry{
+		ScopeID: domainID,
+		Key:     key,
+		Value:   value,
+		Locked:  locked,
+		Version: 1,
+	}, nil
+}
+
+func (f *fakeAdminService) DeleteDomainConfig(_ context.Context, domainID, key string, expectedVersion int64) error {
+	f.lastDomainConfigID = domainID
+	f.lastDomainConfigKey = key
+	return nil
+}
+
+func (f *fakeAdminService) ListDomainConfig(_ context.Context, domainID string) ([]configstore.ConfigEntry, error) {
+	f.lastDomainConfigID = domainID
+	return f.domainConfig, nil
+}
+
+func (f *fakeAdminService) GetUserConfig(_ context.Context, userID, key string) (configstore.ConfigEntry, error) {
+	f.lastUserConfigID = userID
+	f.lastUserConfigKey = key
+	if len(f.userConfig) == 0 {
+		return configstore.ConfigEntry{}, configstore.ErrConfigNotFound
+	}
+	return f.userConfig[0], nil
+}
+
+func (f *fakeAdminService) SetUserConfig(_ context.Context, userID, key string, value json.RawMessage, locked bool, expectedVersion int64) (configstore.ConfigEntry, error) {
+	f.lastUserConfigID = userID
+	f.lastUserConfigKey = key
+	return configstore.ConfigEntry{
+		ScopeID: userID,
+		Key:     key,
+		Value:   value,
+		Locked:  locked,
+		Version: 1,
+	}, nil
+}
+
+func (f *fakeAdminService) DeleteUserConfig(_ context.Context, userID, key string, expectedVersion int64) error {
+	f.lastUserConfigID = userID
+	f.lastUserConfigKey = key
+	return nil
+}
+
+func (f *fakeAdminService) ListUserConfig(_ context.Context, userID string) ([]configstore.ConfigEntry, error) {
+	f.lastUserConfigID = userID
+	return f.userConfig, nil
+}
+
+func (f *fakeAdminService) PropagateCompanyConfig(_ context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error {
+	f.lastPropagateCompanyID = companyID
+	f.lastPropagateScope = scope
+	return nil
 }

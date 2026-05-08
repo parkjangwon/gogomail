@@ -31,6 +31,7 @@ import (
 	"github.com/gogomail/gogomail/internal/caldavgw"
 	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/config"
+	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
 	"github.com/gogomail/gogomail/internal/dedup"
@@ -2152,6 +2153,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		readinessChecks = append(readinessChecks, storageReadinessCheck("admin_storage", store))
 		repository := maildb.NewRepository(db)
 		mailFlowStatsProvider := mailFlowStatsProviderForConfig(cfg, repository)
+		configStore := configstore.NewPostgresConfigStore(db)
+		if err := configStore.Start(ctx); err != nil {
+			return fmt.Errorf("start config store: %w", err)
+		}
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
 			backpressure:                pressure,
@@ -2167,6 +2172,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:              mailFlowStatsProvider,
+			configStore:                configStore,
 		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)))
 		logger.Info("admin api routes registered")
 	}
