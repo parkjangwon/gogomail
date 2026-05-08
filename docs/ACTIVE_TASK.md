@@ -7,26 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-003
-- **제목**: Phase 2-B — 2FA / TOTP (RFC 6238)
-- **배경**: Runtime config store의 `auth.mfa.mode` 설정을 기반으로 TOTP 기반 2FA를 구현한다.
-  사용자는 선택적/강제 2FA를 설정할 수 있으며, 로그인 시 TOTP 코드 검증이 필요하다.
-- **구현 대상**: migration, internal/authmfa, JWT claims, auth flow 연동
+- **ID**: TASK-004
+- **제목**: Phase 2-C — Batch Worker & Distributed Job Lock
+- **배경**: pg_try_advisory_lock 기반 분산 잡 락을 구현하고, 배치 워커 모드를 추가한다.
+  여러 인스턴스가 동시에 실행필 때 하나만 잡을 실행하도록 보장한다.
+- **구현 대상**: internal/batchlock, batch-worker 모드, job registry, graceful shutdown
 
 ### 완료 조건
 
-- [x] Migration: `user_mfa_secrets`, `totp_used_codes` 테이블
-- [x] `internal/authmfa` 패키지: TOTP 생성/검증, ±2 window, 리플레이 방지
-- [x] Recovery codes (8개 단일 사용)
-- [x] Auth flow 연동: `auth.mfa.mode` 설정값 기반 강제/선택/비활성화
-- [x] JWT 클레임 `mfa_verified: true` 추가
-- [x] 테스트: TOTP 생성/검증, window, 리플레이 방지, recovery codes
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/batchlock` 패키지: `PostgresJobLock` (`pg_try_advisory_lock`)
+- [ ] `--mode=batch-worker` wiring: job registry + ticker loop + graceful shutdown
+- [ ] 초기 등록 잡 5개 구현 (ScheduledMailFlusher, QuotaAlertCheck, MFAGracePeriod, TokenCleanup 등)
+- [ ] 테스트: 동시 2 인스턴스 → 하나만 실행 검증
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-004 — Phase 2-C Batch Worker & Distributed Job Lock**
+현재 다음 태스크: **TASK-005 — Phase 2-D 실시간 설정 전파 (SSE) + 스코프 보안**
 
 ---
 

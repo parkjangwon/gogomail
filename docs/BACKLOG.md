@@ -17,7 +17,7 @@
   - 테스트: 트리 해결 순서, locked 차단, propagate 전파 범위, 생성 복사
   - 참고: `docs/backend-roadmap.md` § Phase 2 › 2-A
 
-- [ ] TASK-003: Phase 2-B — 2FA / TOTP (RFC 6238)
+- [x] TASK-003: Phase 2-B — 2FA / TOTP (RFC 6238)
   - Migration: `user_mfa_secrets`, `totp_used_codes` 테이블
   - `internal/authmfa` 패키지: TOTP 생성/검증, ±2 window, 리플레이 방지
   - Recovery codes (8개 단일 사용)
