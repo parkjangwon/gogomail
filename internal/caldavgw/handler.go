@@ -46,6 +46,26 @@ type SyncChangeStore interface {
 	ListCalendarChangesSince(ctx context.Context, req ListChangesSinceRequest) ([]CalendarChange, error)
 }
 
+type SchedulingStore interface {
+	DeliverSchedulingMessage(ctx context.Context, req DeliverSchedulingMessageRequest) (SchedulingMessage, error)
+	SendSchedulingMessage(ctx context.Context, req SendSchedulingMessageRequest) (SchedulingMessage, error)
+}
+
+type DeliverSchedulingMessageRequest struct {
+	UserID     string
+	Recipient  string
+	Method     ScheduleMethod
+	UID        string
+	ICSPayload []byte
+}
+
+type SendSchedulingMessageRequest struct {
+	UserID     string
+	Method     ScheduleMethod
+	UID        string
+	ICSPayload []byte
+}
+
 type UserResolver func(*http.Request) (string, error)
 
 const (
@@ -138,6 +158,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveDeleteObject(w, r)
 	case MethodMkcalendar:
 		h.serveMkcalendar(w, r)
+	case MethodPost:
+		h.serveSchedulePost(w, r)
 	default:
 		w.Header().Set("Allow", calDAVAllowHeader())
 		w.Header().Set("Cache-Control", "no-store")
@@ -1008,6 +1030,175 @@ func (h *Handler) serveFreeBusyReport(w http.ResponseWriter, r *http.Request, us
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
+}
+
+func (h *Handler) serveSchedulePost(w http.ResponseWriter, r *http.Request) {
+	if h.Store == nil {
+		http.Error(w, "caldav store is not configured", http.StatusInternalServerError)
+		return
+	}
+	if !h.IncludeScheduling {
+		http.Error(w, "caldav scheduling is not enabled", http.StatusForbidden)
+		return
+	}
+	resolve := h.ResolveUser
+	if resolve == nil {
+		resolve = QueryUserResolver
+	}
+	userID, err := resolve(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	resource, err := ParseResourcePath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	switch resource.Kind {
+	case ResourceInbox:
+		h.serveScheduleDeliver(w, r, userID, resource)
+	case ResourceOutbox:
+		h.serveScheduleSend(w, r, userID, resource)
+	default:
+		http.Error(w, "POST is not allowed for this resource", http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *Handler) serveScheduleDeliver(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleWrite)
+	if !ok {
+		return
+	}
+	userID = ownerID
+	store, ok := h.Store.(SchedulingStore)
+	if !ok {
+		http.Error(w, "caldav scheduling store is not configured", http.StatusNotImplemented)
+		return
+	}
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	if contentType == "" {
+		http.Error(w, "Content-Type header is required for scheduling", http.StatusBadRequest)
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil || (!strings.EqualFold(mediaType, "text/calendar") && !strings.EqualFold(mediaType, "message/rfc822") && !strings.EqualFold(mediaType, "application/icalendar+json")) {
+		http.Error(w, "Content-Type must be text/calendar or message/rfc822 for scheduling", http.StatusUnsupportedMediaType)
+		return
+	}
+	body, err := readBoundedCalendarBody(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+		return
+	}
+	parsed, err := ParseICalendarObject(body)
+	if err != nil {
+		http.Error(w, "invalid iCalendar object: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	methodStr, err := ExtractICSMethod(body)
+	if err != nil {
+		http.Error(w, "invalid iCalendar method: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	method := ScheduleMethod(strings.ToUpper(strings.TrimSpace(methodStr)))
+	if method == "" {
+		method = ScheduleMethodRequest
+	}
+	if !isValidScheduleMethod(method) {
+		http.Error(w, fmt.Sprintf("invalid iTIP method: %s", method), http.StatusBadRequest)
+		return
+	}
+	msg, err := store.DeliverSchedulingMessage(r.Context(), DeliverSchedulingMessageRequest{
+		UserID:     userID,
+		Recipient:  userID,
+		Method:     method,
+		UID:        parsed.UID,
+		ICSPayload: body,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if msg.ResponseCode != "" {
+		w.Header().Set("Content-Type", "message/rfc822; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(msg.ICSPayload)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) serveScheduleSend(w http.ResponseWriter, r *http.Request, userID string, resource ResourcePath) {
+	ownerID, _, ok := h.authorizeResource(w, r, userID, resource, CalendarAccessRoleWrite)
+	if !ok {
+		return
+	}
+	userID = ownerID
+	store, ok := h.Store.(SchedulingStore)
+	if !ok {
+		http.Error(w, "caldav scheduling store is not configured", http.StatusNotImplemented)
+		return
+	}
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	if contentType == "" {
+		http.Error(w, "Content-Type header is required for scheduling", http.StatusBadRequest)
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil || (!strings.EqualFold(mediaType, "text/calendar") && !strings.EqualFold(mediaType, "message/rfc822") && !strings.EqualFold(mediaType, "application/icalendar+json")) {
+		http.Error(w, "Content-Type must be text/calendar or message/rfc822 for scheduling", http.StatusUnsupportedMediaType)
+		return
+	}
+	body, err := readBoundedCalendarBody(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+		return
+	}
+	parsed, err := ParseICalendarObject(body)
+	if err != nil {
+		http.Error(w, "invalid iCalendar object: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	methodStr, err := ExtractICSMethod(body)
+	if err != nil {
+		http.Error(w, "invalid iCalendar method: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	method := ScheduleMethod(strings.ToUpper(strings.TrimSpace(methodStr)))
+	if method == "" {
+		method = ScheduleMethodRequest
+	}
+	if !isValidScheduleMethod(method) {
+		http.Error(w, fmt.Sprintf("invalid iTIP method: %s", method), http.StatusBadRequest)
+		return
+	}
+	_, err = store.SendSchedulingMessage(r.Context(), SendSchedulingMessageRequest{
+		UserID:     userID,
+		Method:     method,
+		UID:        parsed.UID,
+		ICSPayload: body,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func isValidScheduleMethod(method ScheduleMethod) bool {
+	switch method {
+	case ScheduleMethodRequest, ScheduleMethodReply, ScheduleMethodCancel,
+		ScheduleMethodAdd, ScheduleMethodCounter, ScheduleMethodDeclineCounter,
+		ScheduleMethodRefresh, ScheduleMethodPublish:
+		return true
+	default:
+		return false
+	}
 }
 
 func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {

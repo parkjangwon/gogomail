@@ -13,6 +13,8 @@ const (
 	RootPath            = "/caldav"
 	PrincipalsPrefix    = "/caldav/principals"
 	CalendarsPrefix     = "/caldav/calendars"
+	InboxName           = "inbox"
+	OutboxName          = "outbox"
 
 	maxSegmentBytes = 200
 )
@@ -55,6 +57,22 @@ func CalendarObjectPath(userID string, calendarID string, objectName string) (st
 		return "", err
 	}
 	return collection + url.PathEscape(objectName), nil
+}
+
+func ScheduleInboxPath(userID string) (string, error) {
+	home, err := CalendarHomePath(userID)
+	if err != nil {
+		return "", err
+	}
+	return home + InboxName + "/", nil
+}
+
+func ScheduleOutboxPath(userID string) (string, error) {
+	home, err := CalendarHomePath(userID)
+	if err != nil {
+		return "", err
+	}
+	return home + OutboxName + "/", nil
 }
 
 func ParseResourcePath(raw string) (ResourcePath, error) {
@@ -114,6 +132,12 @@ func ParseResourcePath(raw string) (ResourcePath, error) {
 			return ResourcePath{}, err
 		}
 		if len(segments) == 4 {
+			if calendarID == InboxName {
+				return ResourcePath{Kind: ResourceInbox, UserID: userID}, nil
+			}
+			if calendarID == OutboxName {
+				return ResourcePath{Kind: ResourceOutbox, UserID: userID}, nil
+			}
 			return ResourcePath{Kind: ResourceCalendarCollection, UserID: userID, CalendarID: calendarID}, nil
 		}
 		if len(segments) == 5 {

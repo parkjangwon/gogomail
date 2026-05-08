@@ -38,6 +38,9 @@ var (
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
 	PropSupportedCalendarData         = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-data"}
 	PropMaxResourceSize               = XMLName{Space: CalDAVNamespace, Local: "max-resource-size"}
+	PropScheduleInboxURL              = XMLName{Space: CalDAVNamespace, Local: "schedule-inbox-URL"}
+	PropScheduleOutboxURL             = XMLName{Space: CalDAVNamespace, Local: "schedule-outbox-URL"}
+	PropCalendarFreeBusySet           = XMLName{Space: CalDAVNamespace, Local: "calendar-free-busy-set"}
 )
 
 var (
@@ -106,6 +109,9 @@ func PrincipalProperties(principal Principal) []PropertyResult {
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principal.PrincipalPath}}, Found: true},
 		{Name: PropCalendarHomeSet, Value: PropertyValue{Hrefs: []string{principal.CalendarHomePath}}, Found: true},
 		{Name: PropCalendarUserAddressSet, Value: PropertyValue{Hrefs: append([]string(nil), principal.CalendarUserAddresses...)}, Found: len(principal.CalendarUserAddresses) > 0},
+		{Name: PropScheduleInboxURL, Value: PropertyValue{Hrefs: []string{principal.ScheduleInboxPath}}, Found: principal.ScheduleInboxPath != ""},
+		{Name: PropScheduleOutboxURL, Value: PropertyValue{Hrefs: []string{principal.ScheduleOutboxPath}}, Found: principal.ScheduleOutboxPath != ""},
+		{Name: PropCalendarFreeBusySet, Value: PropertyValue{Hrefs: []string{principal.CalendarHomePath}}, Found: principal.CalendarHomePath != ""},
 	}
 }
 

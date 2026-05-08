@@ -20,6 +20,8 @@ func TestParseResourcePath(t *testing.T) {
 		{path: "/caldav/calendars/user-1/work/", want: ResourcePath{Kind: ResourceCalendarCollection, UserID: "user-1", CalendarID: "work"}},
 		{path: "/caldav/calendars/user-1/work/event-1.ics", want: ResourcePath{Kind: ResourceCalendarObject, UserID: "user-1", CalendarID: "work", ObjectName: "event-1.ics"}},
 		{path: "/caldav/calendars/user%201/work/event%201.ics", want: ResourcePath{Kind: ResourceCalendarObject, UserID: "user 1", CalendarID: "work", ObjectName: "event 1.ics"}},
+		{path: "/caldav/calendars/user-1/inbox/", want: ResourcePath{Kind: ResourceInbox, UserID: "user-1"}},
+		{path: "/caldav/calendars/user-1/outbox/", want: ResourcePath{Kind: ResourceOutbox, UserID: "user-1"}},
 	}
 	for _, tc := range tests {
 		tc := tc
@@ -128,6 +130,20 @@ func TestBuildCalDAVPaths(t *testing.T) {
 	if _, err := CalendarObjectPath("user-1", "work", "event.txt"); err == nil {
 		t.Fatal("CalendarObjectPath accepted non-ICS object")
 	}
+	inbox, err := ScheduleInboxPath("user-1")
+	if err != nil {
+		t.Fatalf("ScheduleInboxPath returned error: %v", err)
+	}
+	if inbox != "/caldav/calendars/user-1/inbox/" {
+		t.Fatalf("inbox path = %q", inbox)
+	}
+	outbox, err := ScheduleOutboxPath("user-1")
+	if err != nil {
+		t.Fatalf("ScheduleOutboxPath returned error: %v", err)
+	}
+	if outbox != "/caldav/calendars/user-1/outbox/" {
+		t.Fatalf("outbox path = %q", outbox)
+	}
 }
 
 func TestAdvertisedDAVTokens(t *testing.T) {
@@ -150,7 +166,7 @@ func TestImplementedMethodsExcludeFutureCopyMove(t *testing.T) {
 	t.Parallel()
 
 	methods := ImplementedMethods()
-	want := []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodMkcalendar, MethodGet, MethodHead, MethodPut, MethodDelete}
+	want := []string{MethodOptions, MethodPropfind, MethodProppatch, MethodReport, MethodMkcalendar, MethodGet, MethodHead, MethodPut, MethodDelete, MethodPost}
 	if strings.Join(methods, ",") != strings.Join(want, ",") {
 		t.Fatalf("ImplementedMethods = %v, want %v", methods, want)
 	}
