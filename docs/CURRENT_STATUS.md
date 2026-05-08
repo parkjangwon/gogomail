@@ -123,6 +123,16 @@ message count, size, UIDL, content retrieval, and deletion tracking.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 
+Push notification adapters (`internal/pushnotify`) provide a `PushSink`
+interface with FCM, APNs, and Web Push (RFC 8030) implementations. The
+`FCMAdapter` sends via Firebase Cloud Messaging HTTP v1 API, the
+`APNsAdapter` sends via Apple Push Notification service HTTP/2 API, and
+the `WebPushAdapter` sends via the Web Push Protocol. Each adapter uses
+an abstracted `HTTPClient` for testability. The `MultiSink` broadcasts
+to multiple adapters simultaneously. `DeviceTokenStore` abstracts device
+token persistence with `MemoryDeviceTokenStore` as an in-memory reference
+implementation.
+
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
 rcpt_to), auth results (DKIM/SPF/DMARC), spam score, and delivery status
