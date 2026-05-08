@@ -2887,8 +2887,8 @@ Next:
   GOGOMAIL_DAV_SYNC_RETENTION_CUTOFF_AGE=2160h default), ADR 0014 slug/alias
   implementation   (complete), ADR 0015 timezone time-range interpretation
   (complete), VTODO recurrence expansion (RRULE on VTODO, complete), scheduling
-  semantics (infrastructure complete with ATTENDEE/ORGANIZER extraction and iTIP
-  message building, full SMTP sending via Queue/ObjectStore wiring pending),
+  semantics (complete - RFC 6047 iMIP with ATTENDEE/ORGANIZER extraction, iTIP
+  message building, and DeliveryQueue wiring to mail.outbound.general),
   and broader Apple/Android/Windows/macOS compatibility tests.
 - Keep frontend implementation behind the explicit start gate, but preserve
   the product target in backend/API planning: future Next.js TypeScript +
