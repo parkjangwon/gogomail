@@ -249,6 +249,54 @@ Pill style: `border-radius: 4px`, `padding: 2px 8px`, `font-size: 12px`.
 
 ---
 
+## Internationalization (i18n)
+
+**Supported locales (initial)**: `ko` (한국어), `en` (English), `ja` (日本語), `zh-CN` (简体中文)
+
+Designed for extension: adding a new locale requires only a translation file — no code changes.
+
+**Library**: `next-intl` (Next.js App Router compatible, ICU message format)
+
+**Locale resolution order** (highest priority first):
+1. User preference — stored via Runtime Config Store `user:{id}` namespace, key `ui.locale`
+2. Domain default locale — set by domain admin via `domain:{id}` namespace, key `ui.default_locale`
+3. Browser `Accept-Language` header (first-visit fallback)
+4. System fallback: `en`
+
+**Translation files**: `messages/{locale}.json` (ICU message format)
+
+```
+messages/
+  ko.json
+  en.json
+  ja.json
+  zh-CN.json
+```
+
+**Rules**:
+- All user-visible strings must use translation keys. No hardcoded Korean strings in JSX.
+- Dates/times: use `Intl.DateTimeFormat` with the active locale. Never format manually.
+- Numbers/currency: use `Intl.NumberFormat` with locale.
+- Pluralization: use ICU `{count, plural, one{# item} other{# items}}` syntax.
+- RTL: not required for initial 4 locales, but do not use `margin-left`/`margin-right` for directional spacing — use `margin-inline-start`/`margin-inline-end`.
+- Locale switcher: available in user settings (환경설정 → 언어). Applies immediately without page reload.
+- Server components: locale resolved from cookie/header, passed via `next-intl` provider.
+
+**Key namespaces** (translation file structure):
+```json
+{
+  "common": { "save": "저장", "cancel": "취소", ... },
+  "mail": { "inbox": "수신함", "compose": "편지 쓰기", ... },
+  "calendar": { "newEvent": "새 이벤트", ... },
+  "contacts": { "newContact": "새 연락처", ... },
+  "drive": { "upload": "업로드", ... },
+  "settings": { "language": "언어", "theme": "테마 모드", ... },
+  "auth": { "login": "로그인", "mfa.prompt": "인증 코드 입력", ... }
+}
+```
+
+---
+
 ## Dark / Light Mode Switching
 
 - Toggle in Settings (테마 모드: 라이트 / 다크 / 시스템)
