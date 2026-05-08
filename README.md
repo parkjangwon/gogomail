@@ -152,4 +152,4 @@ Full roadmap: `docs/backend-roadmap.md`.
 
 [Elastic License 2.0](LICENSE) — free to use internally (commercial or non-commercial), fork and customize. Selling or hosting gogomail as a product or managed service requires explicit permission from the copyright holder.
 
-Copyright (c) 2024 Park Jangwon.
+Copyright (c) 2026 Park Jangwon.
