@@ -899,9 +899,11 @@ configured timezone. Unit tests verify WEEKLY/MONTHLY/YEARLY expansion,
 BYDAY/MONTHDAY patterns, complex rules, timezone-aware matching, and
 INTERVAL modifiers work correctly. Timezone-aware busy period calculation is
 also verified with a dedicated test for `CalendarObjectBusyPeriods` using
-a non-UTC timezone. Note: VTODO recurrence expansion via RRULE is not yet
-implemented; VTODO components with RRULE are matched against the first
-occurrence only, matching the common case of non-recurring tasks.
+a non-UTC timezone. VTODO recurrence expansion via RRULE is now implemented
+per RFC 5545: `todoOverlapsRange` parses RRULE and iterates recurring
+occurrences with `todoOccurrenceTimeSpan` computing effective end times from
+DTSTART+DURATION or DTSTART+DUE. Override exclusions (RECURRENCE-ID) and
+EXDATE handling via `todoOverrideRecurrenceIDs` is also implemented.
 CalDAV `calendar-query` and `free-busy-query` now interpret time ranges in the
 calendar's configured timezone (RFC 7809 Section 5.2 `calendar-timezone`
 property) when evaluating VEVENT/VTODO overlap. `CalendarObjectMatchesTimeRange`,
