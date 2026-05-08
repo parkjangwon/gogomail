@@ -4507,13 +4507,24 @@ Target outcome:
         when `tokenManager` is nil. Comprehensive unit tests with `fakeContactRepo`
         provide coverage.
  1539. Quota alert system: Admin API now exposes quota alert threshold CRUD
-        (`GET/POST /quota-alert-thresholds`, `GET/PATCH/DELETE
-        /quota-alert-thresholds/{id}`) and quota alert history
-        (`GET /quota-alerts`, `GET /quota-alerts/{id}`) endpoints.
-        Migration 0068 creates `quota_alert_thresholds` and `quota_alerts`
-        tables with scope (user/domain/company), configurable warning/critical
-        ratios, and event tracking. `mail.quota_warning` event emission
-        remains a future enhancement for async threshold-based alerting.
+         (`GET/POST /quota-alert-thresholds`, `GET/PATCH/DELETE
+         /quota-alert-thresholds/{id}`) and quota alert history
+         (`GET /quota-alerts`, `GET /quota-alerts/{id}`) endpoints.
+         Migration 0068 creates `quota_alert_thresholds` and `quota_alerts`
+         tables with scope (user/domain/company), configurable warning/critical
+         ratios, and event tracking. `mail.quota_warning` event emission
+         remains a future enhancement for async threshold-based alerting.
+ 1540. CalDAV now interprets calendar-query and free-busy-query time ranges in
+         the calendar's configured timezone per RFC 7809 Section 5.3. The
+         `calendar-timezone` property (RFC 7809 Section 5.2) is stored in the
+         `caldav_calendars.timezone` column and returned in PROPFIND responses.
+         `CalendarObjectMatchesTimeRange`, `eventOverlapsRange`,
+         `todoOverlapsRange`, and `CalendarObjectBusyPeriods` now accept an
+         optional `*time.Location` parameter, defaulting to UTC when nil.
+         `calendarQueryResponses` and `freeBusyCalendar` in handler.go now look
+         up the calendar's timezone and pass it to these functions, so DTSTART,
+         DTEND, DUE, and recurrence expansion use the calendar's configured
+         timezone instead of always UTC.
 
 ## Deferred until backend contracts stabilize
 
@@ -4530,7 +4541,10 @@ Target outcome:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility, including broader recurrence edge
-  cases and native-client scheduling behavior
+  cases, native-client scheduling (iMIP/RFC 6047), and broader Apple/Android/Windows/macOS
+  compatibility tests. ADR 0015 timezone support (RFC 7809) is now partially
+  implemented: calendar-timezone property storage, PROPFIND/PROPPATCH/MKCALENDAR
+  support, timezone service endpoint, and time-range interpretation are complete.
 - Directory/Identity expansion for delegated relationships, effective
   resource booking policy beyond the initial principal tables, resolver, alias
   lookup, bounded membership expansion, company-scoped delegation relationship
