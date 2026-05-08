@@ -25,7 +25,7 @@
   - JWT 클레임 `mfa_verified: true` 추가
   - 참고: `docs/backend-roadmap.md` § Phase 2 › 2-B
 
-- [ ] TASK-004: Phase 2-C — Batch Worker & Distributed Job Lock
+- [x] TASK-004: Phase 2-C — Batch Worker & Distributed Job Lock
   - `internal/batchlock` 패키지: `PostgresJobLock` (`pg_try_advisory_lock`)
   - `--mode=batch-worker` wiring: job registry + ticker loop + graceful shutdown
   - 초기 등록 잡 5개 구현 (ScheduledMailFlusher, QuotaAlertCheck, MFAGracePeriod, TokenCleanup 등)
