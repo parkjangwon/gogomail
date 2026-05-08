@@ -270,7 +270,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav calendar home not found", http.StatusConflict)
 		return
 	}
-	calendar, err := h.Store.LookupCalendar(r.Context(), userID, resource.CalendarID)
+	calendar, err := h.lookupCalendar(r.Context(), userID, resource.CalendarID)
 	if err == nil {
 		if !h.checkCalendarCollectionCreatePreconditions(w, r, userID, calendar, true) {
 			return
@@ -550,6 +550,17 @@ func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) lookupCalendar(ctx context.Context, userID string, calendarID string) (Calendar, error) {
+	calendar, err := h.Store.LookupCalendar(ctx, userID, calendarID)
+	if err == nil {
+		return calendar, nil
+	}
+	if strings.Contains(err.Error(), "not found") {
+		return h.Store.LookupCalendarBySlug(ctx, userID, calendarID)
+	}
+	return Calendar{}, err
+}
+
 func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, calendarID string) (string, bool) {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
@@ -559,7 +570,7 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 		return "", false
 	}
 	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
-		calendar, err := h.Store.LookupCalendar(r.Context(), userID, calendarID)
+		calendar, err := h.lookupCalendar(r.Context(), userID, calendarID)
 		if err != nil {
 			if ifMatch != "" || ifUnmodifiedSince != "" {
 				http.Error(w, "caldav calendar not found", http.StatusPreconditionFailed)
@@ -1301,7 +1312,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		}
 		return responses, nil
 	case ResourceCalendarCollection:
-		calendar, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID)
+		calendar, err := h.lookupCalendar(ctx, userID, resource.CalendarID)
 		if err != nil {
 			return nil, err
 		}
@@ -1628,7 +1639,7 @@ func calendarObjectMatchesComponent(object CalendarObject, component string) boo
 }
 
 func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource ResourcePath, timeRange TimeRange, includeChildren bool, requestedLimit int) ([]byte, error) {
-	if _, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID); err != nil {
+	if _, err := h.lookupCalendar(ctx, userID, resource.CalendarID); err != nil {
 		return nil, err
 	}
 	if !includeChildren {
@@ -1660,7 +1671,7 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	if resource.Kind != ResourceCalendarCollection {
 		return nil, "", fmt.Errorf("sync-collection requires a calendar collection resource")
 	}
-	calendar, err := h.Store.LookupCalendar(ctx, userID, resource.CalendarID)
+	calendar, err := h.lookupCalendar(ctx, userID, resource.CalendarID)
 	if err != nil {
 		if report.SyncToken == "" {
 			return nil, "", err
