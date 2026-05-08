@@ -103,6 +103,15 @@ data payload). Supported commands include Connect, Helo, Mail, Rcpt, Data, EOB,
 Abort, and Body chunks. Response actions include continue, reject, tempfail,
 accept, and discard.
 
+DNSBL (`internal/dnsbl`) provides DNS-based blacklist lookups per RFC 5782
+for SMTP connection filtering. The `DNSBL` struct queries configured DNSBL
+zones by reversing the client IP octets and performing an A-record lookup.
+IPv4 addresses use dotted-decimal reversal; IPv6 addresses use nibble reversal.
+A returned A record in the 127.0.0.0/8 range indicates a listing, with the
+specific octet encoding the list reason. The `Resolver` interface abstracts
+DNS lookups for testability, with `NetResolver` using `net.LookupHost` as the
+production backend.
+
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
 rcpt_to), auth results (DKIM/SPF/DMARC), spam score, and delivery status

@@ -88,7 +88,7 @@
   - `internal/milter` 패키지: sendmail milter v2/v6 프로토콜
   - 참고: `docs/backend-roadmap.md` § Phase 5
 
-- [ ] TASK-012: Phase 5-B — DNSBL (RFC 5782)
+- [x] TASK-012: Phase 5-B — DNSBL (RFC 5782)
   - SMTP 수신 경로에 DNSBL 조회 플러그인 경계 추가
   - 참고: `docs/backend-roadmap.md` § Phase 5
 
