@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -9,6 +10,16 @@ import (
 	"strings"
 	"time"
 )
+
+// RevocationChecker lets the TokenManager validate session_version on every request.
+type RevocationChecker interface {
+	SessionVersionFor(ctx context.Context, userID string) (int64, error)
+}
+
+// SessionRevoker increments a user's session_version, invalidating all existing tokens.
+type SessionRevoker interface {
+	IncrementSessionVersion(ctx context.Context, userID string) (int64, error)
+}
 
 const (
 	maxJWTTokenBytes            = 8192
@@ -19,18 +30,44 @@ const (
 )
 
 type Claims struct {
-	Subject  string    `json:"sub"`
-	UserID   string    `json:"user_id"`
-	DomainID string    `json:"domain_id"`
-	Role     string    `json:"role"`
-	Expires  time.Time `json:"-"`
-	Expiry   int64     `json:"exp"`
-	IssuedAt int64     `json:"iat"`
+	Subject        string    `json:"sub"`
+	UserID         string    `json:"user_id"`
+	DomainID       string    `json:"domain_id"`
+	Role           string    `json:"role"`
+	SessionVersion int64     `json:"session_ver,omitempty"`
+	Expires        time.Time `json:"-"`
+	Expiry         int64     `json:"exp"`
+	IssuedAt       int64     `json:"iat"`
 }
 
 type TokenManager struct {
-	secret []byte
-	now    func() time.Time
+	secret  []byte
+	now     func() time.Time
+	checker RevocationChecker
+}
+
+func (m *TokenManager) SetRevocationChecker(c RevocationChecker) {
+	m.checker = c
+}
+
+// VerifyFull validates the token signature and expiry, then checks session_version
+// against the RevocationChecker if one is configured. Use this on every authenticated
+// request so that RevokeAllSessions takes effect immediately.
+func (m *TokenManager) VerifyFull(ctx context.Context, token string) (Claims, error) {
+	claims, err := m.Verify(token)
+	if err != nil {
+		return Claims{}, err
+	}
+	if m.checker != nil {
+		ver, err := m.checker.SessionVersionFor(ctx, claims.UserID)
+		if err != nil {
+			return Claims{}, fmt.Errorf("session check: %w", err)
+		}
+		if claims.SessionVersion < ver {
+			return Claims{}, fmt.Errorf("session revoked")
+		}
+	}
+	return claims, nil
 }
 
 func NewTokenManager(secret string) (*TokenManager, error) {
