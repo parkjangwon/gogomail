@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after 2FA/TOTP feature)
+Last updated: 2026-05-09 (updated after batch worker feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -41,6 +41,15 @@ The `totp_used_codes` table prevents replay attacks by tracking recently used co
 `GenerateTOTP` and `VerifyTOTP` support a ±2 window (±2 minutes) for clock drift.
 Recovery codes are 10-character alphanumeric strings, single-use, with 8 codes generated
 per user setup. JWT claims include `mfa_verified` flag for session-level MFA state.
+
+Batch worker (`internal/batchlock`) provides distributed job locking via PostgreSQL
+advisory locks (`pg_try_advisory_lock`). The `--mode=batch-worker` flag starts a
+ticker-based job runner with graceful shutdown support. `PostgresJobLock` ensures
+only one instance executes a given job across multiple worker instances. The
+`JobRegistry` registers periodic jobs with configurable intervals. Initial jobs
+include ScheduledMailFlusher (5m), QuotaAlertCheck (15m), MFAGracePeriod (1h),
+TokenCleanup (30m), and UsedCodeCleanup (5m). In-memory lock fallback is used
+when database is unavailable for testing.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,

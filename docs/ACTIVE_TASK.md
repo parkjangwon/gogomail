@@ -15,11 +15,11 @@
 
 ### 완료 조건
 
-- [ ] `internal/batchlock` 패키지: `PostgresJobLock` (`pg_try_advisory_lock`)
-- [ ] `--mode=batch-worker` wiring: job registry + ticker loop + graceful shutdown
-- [ ] 초기 등록 잡 5개 구현 (ScheduledMailFlusher, QuotaAlertCheck, MFAGracePeriod, TokenCleanup 등)
-- [ ] 테스트: 동시 2 인스턴스 → 하나만 실행 검증
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/batchlock` 패키지: `PostgresJobLock` (`pg_try_advisory_lock`)
+- [x] `--mode=batch-worker` wiring: job registry + ticker loop + graceful shutdown
+- [x] 초기 등록 잡 5개 구현 (ScheduledMailFlusher, QuotaAlertCheck, MFAGracePeriod, TokenCleanup 등)
+- [x] 테스트: 동시 2 인스턴스 → 하나만 실행 검증
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
