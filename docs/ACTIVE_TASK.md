@@ -7,25 +7,27 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-005
-- **제목**: Phase 2-D — 실시간 설정 전파 (SSE) + 스코프 보안
-- **배경**: ConfigStore의 LISTEN/NOTIFY 기반 캐시 무효화를 확장하여,
-  SSE(Server-Sent Events)를 통해 설정 변경을 실시간으로 클라이언트에 전파한다.
-  또한 관리자가 user 스코프 설정을 직접 수정하지 못하도록 보안 제한을 추가한다.
-- **구현 대상**: SSE 엔드포인트, configstore.Notifier, 스코프 보안
+- **ID**: TASK-006
+- **제목**: Phase 2-E — Open API 키 관리 (도메인 관리자용)
+- **배경**: 도메인 관리자가 프로그래밍 방식으로 API를 호출할 수 있도록
+  API 키를 생성하고 관리하는 기능을 구현한다. CIDR 기반 접근 제어와
+  스코프 검증을 포함한다.
+- **구현 대상**: migration, internal/apikeys, ApiKeyMiddleware, Admin API
 
 ### 완료 조건
 
-- [x] `internal/configstore.Notifier` 인터페이스 + subscriber fan-out
-- [x] `GET /api/v1/config/stream` (사용자) + `GET /admin/v1/config/stream` (관리자) SSE 엔드포인트
-- [x] 스코프 보안: `user` 스코프 관리자 직접 쓰기 차단 (403)
-- [x] 테스트: DB 설정 변경 → SSE 이벤트 수신 통합 테스트
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] Migration: `domain_api_keys` 테이블 (CIDR 배열 포함)
+- [ ] `internal/apikeys` 패키지: 키 생성/검증/CIDR 체크
+- [ ] `ApiKeyMiddleware`: `gm_` prefix 감지 → JWT 경로와 분기
+- [ ] Admin API CRUD + rotate 엔드포인트
+- [ ] 기존 Mail/Calendar/Contacts API에 scope 검증 레이어
+- [ ] 테스트: CIDR 허용/차단, 스코프 부족 거부, 만료/폐기 키 거부, rotate 후 구 키 무효화
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-006 — Phase 2-E Open API 키 관리 (도메인 관리자용)**
+현재 다음 태스크: **TASK-007 — Phase 3-A LDAP Gateway (RFC 4511)**
 
 ---
 

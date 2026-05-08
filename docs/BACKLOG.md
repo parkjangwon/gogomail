@@ -32,7 +32,7 @@
   - 테스트: 동시 2 인스턴스 → 하나만 실행 검증
   - 참고: `docs/backend-roadmap.md` § Phase 2 › 2-C
 
-- [ ] TASK-005: Phase 2-D — 실시간 설정 전파 (SSE) + 스코프 보안
+- [x] TASK-005: Phase 2-D — 실시간 설정 전파 (SSE) + 스코프 보안
   - `internal/configstore.Notifier` 인터페이스 + subscriber fan-out
   - `GET /api/v1/config/stream` (사용자) + `GET /admin/v1/config/stream` (관리자) SSE 엔드포인트
   - 스코프 보안: `user` 스코프 관리자 직접 쓰기 차단 (403)
