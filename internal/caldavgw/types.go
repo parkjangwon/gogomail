@@ -10,6 +10,7 @@ const (
 	RFCWebDAVSync       = "RFC 6578"
 	RFCCalDAVDiscovery  = "RFC 6764"
 	RFCCalDAVTimeZones  = "RFC 7809"
+	RFCiMIP             = "RFC 6047"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 	MethodDelete     = "DELETE"
 	MethodCopy       = "COPY"
 	MethodMove       = "MOVE"
+	MethodPost       = "POST"
 )
 
 const (
@@ -45,6 +47,8 @@ const (
 	ResourceCalendarHome        ResourceKind = "calendar_home"
 	ResourceCalendarCollection  ResourceKind = "calendar_collection"
 	ResourceCalendarObject      ResourceKind = "calendar_object"
+	ResourceInbox               ResourceKind = "inbox"
+	ResourceOutbox              ResourceKind = "outbox"
 )
 
 type ResourcePath struct {
@@ -100,6 +104,32 @@ type CalendarChange struct {
 	ChangedAt  time.Time
 }
 
+type ScheduleMethod string
+
+const (
+	ScheduleMethodRequest        ScheduleMethod = "REQUEST"
+	ScheduleMethodReply          ScheduleMethod = "REPLY"
+	ScheduleMethodCancel         ScheduleMethod = "CANCEL"
+	ScheduleMethodAdd            ScheduleMethod = "ADD"
+	ScheduleMethodCounter        ScheduleMethod = "COUNTER"
+	ScheduleMethodDeclineCounter ScheduleMethod = "DECLINECOUNTER"
+	ScheduleMethodRefresh        ScheduleMethod = "REFRESH"
+	ScheduleMethodPublish        ScheduleMethod = "PUBLISH"
+)
+
+type SchedulingMessage struct {
+	ID           string
+	UserID       string
+	Recipient    string
+	Method       ScheduleMethod
+	UID          string
+	ICSPayload   []byte
+	ETag         string
+	ProcessedAt  time.Time
+	ResponseCode string
+	CreatedAt    time.Time
+}
+
 type Store interface {
 	GetPrincipal(userID string) (Principal, error)
 	ListCalendars(userID string) ([]Calendar, error)
@@ -141,5 +171,6 @@ func ImplementedMethods() []string {
 		MethodHead,
 		MethodPut,
 		MethodDelete,
+		MethodPost,
 	}
 }

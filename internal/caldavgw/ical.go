@@ -943,3 +943,19 @@ func validateICalendarBounds(root *ical.Component) error {
 	}
 	return walk(root)
 }
+
+func ExtractICSMethod(body []byte) (string, error) {
+	lines := strings.Split(string(body), "\r\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToUpper(line), "METHOD:") {
+			method := strings.TrimPrefix(line, "METHOD:")
+			method = strings.TrimSpace(method)
+			if method == "" {
+				return "", fmt.Errorf("METHOD property value is empty")
+			}
+			return method, nil
+		}
+	}
+	return "", nil
+}
