@@ -4773,6 +4773,152 @@ func (j *SomePeriodicJob) Run(ctx context.Context) error {
 3. 각 잡 구현 (인터페이스 기반, 잡별 interval 환경변수 설정).
 4. 테스트: 동시 2개 인스턴스 → 하나만 실행되고 나머지는 skip 검증.
 
+### 2-D. 실시간 설정 전파 (SSE) + 스코프 보안
+
+**목표**: 관리 콘솔에서 설정 변경 시 로그인된 모든 프론트엔드 클라이언트에 즉시 반영.
+
+**아키텍처 (백엔드 LISTEN/NOTIFY → SSE)**:
+
+```
+DB 트리거 → NOTIFY 'config_changed' payload
+     │
+     └── ConfigStore LISTEN goroutine
+               │
+               ├── 인메모리 캐시 갱신 (즉시)
+               └── SSE fan-out → 연결된 클라이언트에게 push
+```
+
+- 백엔드 프로세스 간 전파: `LISTEN/NOTIFY`로 이미 커버됨 (2-A 설계 포함).
+- 프론트엔드 클라이언트 전파: SSE 스트림 추가.
+- 클라이언트는 변경된 `scope_type + key` 정보를 받아 UI를 즉시 갱신.
+
+**SSE 엔드포인트**:
+
+```
+GET /api/v1/config/stream
+  Authorization: Bearer <user JWT>
+  Accept: text/event-stream
+
+GET /admin/v1/config/stream
+  Authorization: Bearer <admin token>
+  Accept: text/event-stream
+```
+
+이벤트 포맷:
+```
+event: config_changed
+data: {"scope_type":"domain","scope_id":"...","key":"auth.mfa.mode","version":42}
+```
+
+**구현 순서**:
+
+1. `internal/configstore.Notifier` 인터페이스: `Subscribe() <-chan ConfigChangeEvent`, `Unsubscribe(ch)`.
+2. `PostgresConfigStore`에 subscriber fan-out 추가: NOTIFY 수신 시 모든 채널로 broadcast.
+3. `GET /api/v1/config/stream` — 사용자 JWT 필요, 해당 사용자 스코프(domain + user) 이벤트만 전달.
+4. `GET /admin/v1/config/stream` — 관리자 토큰 필요, 전체 이벤트 스트림.
+5. SSE 연결 유지: 30초 heartbeat (`event: ping`), 클라이언트 연결 종료 시 정리.
+6. 테스트: DB 설정 변경 → SSE 이벤트 수신 확인 (통합 테스트).
+
+**어드민/사용자 스코프 보안 경계**:
+
+| 스코프 | 읽기 | 쓰기 |
+|---|---|---|
+| `global` | 시스템 관리자 전용 | 시스템 관리자 전용 |
+| `company` | 회사 관리자 이상 | 회사 관리자 이상 |
+| `domain` | 도메인 관리자 이상 | 도메인 관리자 이상 |
+| `user` | 해당 사용자 본인만 | 해당 사용자 본인만 |
+
+- 관리자(어드민)는 **`user` 스코프에 직접 쓰기 불가** → `403 Forbidden`.
+- 예외적 관리 작업(MFA 초기화, 비밀번호 리셋)은 별도 감사 로그 기록 전용 엔드포인트를 통해서만.
+- 도메인 관리자는 자신이 관리하는 도메인 범위 내의 `company`/`domain` 스코프만 접근.
+- JWT 클레임에 `admin_scope: domain_id` 포함 → API는 요청 scope_id와 대조 검증.
+
+### 2-E. Open API + API 키 관리 (도메인 관리자용)
+
+**목표**: 써드파티 시스템이 표준 인증된 REST API로 메일/캘린더/주소록 데이터에 접근하고 메일을 발송할 수 있다. 도메인 관리자가 직접 API 키를 발급·관리하며, IP 대역(CIDR) 제한을 설정할 수 있다.
+
+**현황**: `POST /api/v1/messages/send`, `GET /api/v1/messages` 등 Mail REST API는 이미 구현됨. 인증은 사용자 JWT 전용. 써드파티용 API 키 발급/검증 레이어 없음.
+
+**API 키 스키마**:
+
+```sql
+domain_api_keys (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain_id     uuid        NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  name          TEXT        NOT NULL,                  -- 식별용 레이블 (예: "CRM Integration")
+  key_prefix    TEXT        NOT NULL,                  -- 노출용 접두사 (예: "gm_abc12345")
+  key_hash      TEXT        NOT NULL,                  -- bcrypt hash, 원본은 발급 시 1회만 표시
+  scopes        TEXT[]      NOT NULL DEFAULT '{}',     -- ['mail:read','mail:send','calendar:read', ...]
+  cidr_allowlist CIDR[]     NOT NULL DEFAULT '{}',     -- 빈 배열 = ANY (모든 IP 허용)
+  created_by    uuid        REFERENCES users(id),
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  last_used_at  TIMESTAMPTZ,
+  expires_at    TIMESTAMPTZ,                           -- NULL = 만료 없음
+  revoked       BOOLEAN     DEFAULT false,
+  revoked_at    TIMESTAMPTZ,
+  UNIQUE (key_prefix)
+)
+```
+
+**API 키 포맷**: `gm_{prefix8}_{secret32}` (prefix는 저장, secret은 bcrypt 해시만 저장).
+
+**CIDR 제한 동작**:
+- `cidr_allowlist = []` → IP 제한 없음 (ANY).
+- `cidr_allowlist = ['192.168.1.0/24', '203.0.113.5/32']` → 해당 대역만 허용.
+- PostgreSQL `CIDR` 타입 + `<<=` 연산자로 O(n) 검증, 키당 최대 20개 CIDR 허용.
+- 불일치 시 `403 Forbidden` + 로그 기록.
+
+**지원 스코프**:
+
+| 스코프 | 권한 |
+|---|---|
+| `mail:read` | 메일함 읽기, 메시지 목록/상세 조회 |
+| `mail:send` | 메일 발송 (`POST /api/v1/messages/send`) |
+| `mail:manage` | 이동/삭제/폴더 관리 |
+| `calendar:read` | 캘린더/이벤트 읽기 |
+| `calendar:write` | 이벤트 생성/수정/삭제 |
+| `contacts:read` | 주소록 읽기 |
+| `contacts:write` | 주소록 쓰기 |
+| `admin:users` | 도메인 내 사용자 관리 (도메인 관리자용) |
+
+**인증 흐름**:
+
+```
+Authorization: Bearer gm_{prefix}_{secret}
+
+1. prefix로 domain_api_keys 행 조회 (캐시 가능)
+2. bcrypt.Compare(secret, key_hash) 검증
+3. revoked / expires_at 확인
+4. cidr_allowlist ≠ [] → remote_ip << 각 CIDR 검사
+5. 요청 경로의 필요 scope ∈ key.scopes 확인
+6. 검증 통과 → domain_id + scopes를 request context에 주입
+7. last_used_at 비동기 갱신
+```
+
+**도메인 관리자 API (Admin 콘솔)**:
+
+```
+GET    /admin/v1/domains/{id}/api-keys           # 목록 (secret 미포함)
+POST   /admin/v1/domains/{id}/api-keys           # 발급 → 응답에 full key 1회 포함
+GET    /admin/v1/domains/{id}/api-keys/{keyId}   # 상세 (secret 미포함)
+PATCH  /admin/v1/domains/{id}/api-keys/{keyId}   # cidr_allowlist / scopes / name / expires_at 수정
+DELETE /admin/v1/domains/{id}/api-keys/{keyId}   # 즉시 폐기 (revoked=true)
+POST   /admin/v1/domains/{id}/api-keys/{keyId}/rotate  # 시크릿 재발급
+```
+
+**구현 순서**:
+
+1. Migration: `domain_api_keys` 테이블 (CIDR 배열 포함).
+2. `internal/apikeys` 패키지:
+   - `Generate() (fullKey, prefix, hash string)` — crypto/rand 기반.
+   - `Verify(fullKey, hash string) bool` — bcrypt 검증.
+   - `CheckCIDR(ip net.IP, allowlist []net.IPNet) bool` — 빈 배열 = 허용.
+3. `ApiKeyMiddleware`: `Authorization: Bearer gm_...` 패턴 감지 → JWT 검증과 분기.
+4. Admin API CRUD + rotate 엔드포인트.
+5. 기존 Mail/Calendar/Contacts API에 scope 검증 레이어 추가 (JWT 경로는 현행 유지).
+6. 감사 로그: 발급/폐기/CIDR 변경 이벤트 `config_change_log` 기록.
+7. 테스트: CIDR 허용/차단, 스코프 부족 거부, 만료/폐기 키 거부, rotate 후 구 키 무효화.
+
 ---
 
 ## Phase 3: Enterprise Identity & Directory
@@ -4983,4 +5129,6 @@ Target outcome:
 | TLS (all protocols) | RFC 8446 (TLS 1.3), RFC 5246 (TLS 1.2 minimum) |
 | 2FA / TOTP | RFC 6238 (TOTP), RFC 4226 (HOTP) |
 | JWT auth | RFC 7519 |
+| Open API / API key auth | Bearer token + CIDR allowlist (domain_api_keys) |
+| Real-time config SSE | Server-Sent Events (HTML5 EventSource) |
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.
