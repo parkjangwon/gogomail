@@ -5,13 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/accesspolicy"
 	"github.com/gogomail/gogomail/internal/auth"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/ratelimit"
@@ -52,6 +55,8 @@ type DriveService interface {
 type DriveRouteOptions struct {
 	PublicShareLimiter DrivePublicShareLimiter
 	PublicShareAudit   DrivePublicShareAccessRecorder
+	Directory          DriveDirectoryResolver
+	Authorizer         accesspolicy.DelegatedAccessAuthorizer
 }
 
 type DrivePublicShareLimiter interface {
@@ -78,6 +83,82 @@ type DrivePublicShareAccessEvent struct {
 	Status      int
 }
 
+const (
+	DriveAccessRoleRead   = "read"
+	DriveAccessRoleWrite  = "write"
+	DriveAccessRoleManage = "manage"
+)
+
+type DriveAccessRequest struct {
+	ActorUserID  string
+	OwnerUserID  string
+	RequiredRole string
+}
+
+type DriveAccessDecision struct {
+	Allowed bool
+}
+
+type DriveDirectoryResolver interface {
+	ResolvePrincipal(ctx context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error)
+}
+
+type DriveAccessPolicy struct {
+	Directory  DriveDirectoryResolver
+	Authorizer accesspolicy.DelegatedAccessAuthorizer
+}
+
+func (p DriveAccessPolicy) AuthorizeDriveAccess(ctx context.Context, req DriveAccessRequest) (DriveAccessDecision, error) {
+	if p.Directory == nil {
+		return DriveAccessDecision{}, fmt.Errorf("directory resolver is required")
+	}
+	owner, err := p.Directory.ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
+		ID:         req.OwnerUserID,
+		Kind:       directory.PrincipalKindUser,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		if errors.Is(err, directory.ErrPrincipalNotFound) {
+			return DriveAccessDecision{Allowed: false}, nil
+		}
+		return DriveAccessDecision{}, fmt.Errorf("resolve Drive owner principal: %w", err)
+	}
+	if owner.Kind != directory.PrincipalKindUser {
+		return DriveAccessDecision{Allowed: false}, nil
+	}
+	actor, err := p.Directory.ResolvePrincipal(ctx, directory.ResolvePrincipalRequest{
+		ID:         req.ActorUserID,
+		Kind:       directory.PrincipalKindUser,
+		ActiveOnly: true,
+	})
+	if err != nil {
+		if errors.Is(err, directory.ErrPrincipalNotFound) {
+			return DriveAccessDecision{Allowed: false}, nil
+		}
+		return DriveAccessDecision{}, fmt.Errorf("resolve Drive actor principal: %w", err)
+	}
+	if actor.Kind != directory.PrincipalKindUser {
+		return DriveAccessDecision{Allowed: false}, nil
+	}
+	if owner.CompanyID == "" || actor.CompanyID != owner.CompanyID {
+		return DriveAccessDecision{Allowed: false}, nil
+	}
+	decision, err := p.Authorizer.CheckAndRecordDelegatedAccess(ctx, accesspolicy.DelegatedAccessRequest{
+		CompanyID:    owner.CompanyID,
+		Owner:        accesspolicy.Principal(directory.PrincipalKindUser, owner.ID),
+		Actor:        accesspolicy.Principal(directory.PrincipalKindUser, actor.ID),
+		Scope:        directory.DelegationScopeDrive,
+		RequiredRole: req.RequiredRole,
+	})
+	if err != nil {
+		return DriveAccessDecision{}, err
+	}
+	if !decision.Allowed {
+		return DriveAccessDecision{Allowed: false}, nil
+	}
+	return DriveAccessDecision{Allowed: true}, nil
+}
+
 func RegisterDriveRoutes(mux *http.ServeMux, service DriveService, tokenManager *auth.TokenManager) {
 	RegisterDriveRoutesWithOptions(mux, service, tokenManager, DriveRouteOptions{})
 }
@@ -87,10 +168,10 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "parent_id", "status", "node_type", "q", "sort", "all_parents", "limit") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id", "parent_id", "status", "node_type", "q", "sort", "all_parents", "limit") {
 			return
 		}
-		userID, ok := userIDFromRequest(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleRead)
 		if !ok {
 			return
 		}
@@ -147,10 +228,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id", "status") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id", "status") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleRead)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -170,10 +255,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleRead)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -223,10 +312,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleRead)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -243,10 +336,10 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, ok := userIDFromRequest(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleRead)
 		if !ok {
 			return
 		}
@@ -556,10 +649,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -575,10 +672,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -592,10 +693,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 
 	mux.HandleFunc("PATCH /api/v1/drive/nodes/{id}/name", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -616,10 +721,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 
 	mux.HandleFunc("PATCH /api/v1/drive/nodes/{id}/parent", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -640,10 +749,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 
 	mux.HandleFunc("POST /api/v1/drive/nodes/{id}/copy", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -665,10 +778,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 
 	mux.HandleFunc("POST /api/v1/drive/nodes/{id}/share-links", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleWrite)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -874,10 +991,14 @@ func RegisterDriveRoutesWithOptions(mux *http.ServeMux, service DriveService, to
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "user_id") {
+		if !rejectUnknownQueryKeys(w, r, "user_id", "owner_id") {
 			return
 		}
-		userID, nodeID, ok := driveNodeRequestIdentity(w, r, tokenManager)
+		userID, ok := checkDriveDelegatedAccess(r.Context(), w, r, tokenManager, opts, DriveAccessRoleManage)
+		if !ok {
+			return
+		}
+		nodeID, ok := parseBoundedHTTPPathValue(w, r, "id")
 		if !ok {
 			return
 		}
@@ -1147,4 +1268,47 @@ func driveNodeRequestIdentity(w http.ResponseWriter, r *http.Request, tokenManag
 		return "", "", false
 	}
 	return userID, nodeID, true
+}
+
+func driveOwnerIDFromRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
+	ownerID, ok := parseBoundedHTTPQuery(w, r, "owner_id", false, maxHTTPResourceIDBytes)
+	if !ok {
+		return "", false
+	}
+	return ownerID, true
+}
+
+func checkDriveDelegatedAccess(ctx context.Context, w http.ResponseWriter, r *http.Request, tokenManager *auth.TokenManager, opts DriveRouteOptions, requiredRole string) (string, bool) {
+	actorID, ok := userIDFromRequest(w, r, tokenManager)
+	if !ok {
+		return "", false
+	}
+	ownerID, ok := driveOwnerIDFromRequest(w, r)
+	if !ok || ownerID == "" {
+		return actorID, true
+	}
+	if ownerID == actorID {
+		return actorID, true
+	}
+	if opts.Directory == nil || opts.Authorizer.Checker == nil {
+		writeError(w, http.StatusForbidden, "delegation not configured")
+		return "", false
+	}
+	decision, err := DriveAccessPolicy{
+		Directory:  opts.Directory,
+		Authorizer: opts.Authorizer,
+	}.AuthorizeDriveAccess(ctx, DriveAccessRequest{
+		ActorUserID:  actorID,
+		OwnerUserID:  ownerID,
+		RequiredRole: requiredRole,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return "", false
+	}
+	if !decision.Allowed {
+		writeError(w, http.StatusForbidden, "access denied")
+		return "", false
+	}
+	return ownerID, true
 }

@@ -7,15 +7,25 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-019
-- **제목**: Drive 파일 공유 — Directory delegation 통합
-- **배경**: `internal/drive` HTTP API는 구현됨. `internal/accesspolicy.DelegatedAccessAuthorizer`도 존재.
-  Drive HTTP 엔드포인트에 `drive` scope delegation 체크가 없어 크로스 유저 접근이 미구현.
-- **구현 대상**: `internal/httpapi/drive.go` — cross-user 경로에 `DelegatedAccessAuthorizer` 적용
+- **ID**: TASK-020
+- **제목**: OpenAPI → TypeScript 클라이언트 생성
+- **배경**: `docs/openapi.yaml`이 완성되어 있음. `openapi-typescript` 또는 `oapi-codegen`으로
+  TS 타입/클라이언트 생성 파이프라인 추가. 프론트엔드 게이트와 무관한 백엔드 계약 작업.
+- **구현 대상**: `Makefile` 또는 `scripts/gen-ts-client.sh`, `clients/typescript/` 생성물
 - **완료 조건**:
+  - [ ] `make gen-ts-client` 실행 시 `clients/typescript/` 아래 타입 파일 생성
   - [ ] `go test ./...` 통과
-  - [ ] 위임된 read/write/manage 롤로 Drive 접근 테스트
-- **다음 태스크**: TASK-020 — OpenAPI → TypeScript 클라이언트 생성
+- **다음 태스크**: NEXT_STEPS.md Next: 항목에서 다음 선택
+
+---
+
+## 완료됨
+
+- **TASK-019**: Drive 파일 공유 — Directory delegation 통합 ✅ (2026-05-09)
+  - `internal/httpapi/drive.go`에 `DelegatedAccessAuthorizer` 적용
+  - `checkDriveDelegatedAccess` 헬퍼로 owner/actor/role 기반 권한 체크
+  - 역할별 권한: read(List/Get/download), write(Trash/Restore/Rename/Move/Copy/Share), manage(PermanentDelete)
+  - `go test ./...` 통과
 
 ---
 
