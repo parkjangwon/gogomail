@@ -10,8 +10,8 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 
 | ID | 제목 | 상태 |
 |----|------|------|
-| TASK-016 | Resumable Chunked Upload — Content-Range 범위 커밋 | → ACTIVE_TASK.md로 이동됨 |
-| TASK-017 | CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처 | 대기 |
+| TASK-016 | Resumable Chunked Upload — Content-Range 범위 커밋 | 완료 |
+| TASK-017 | CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처 | 완료 |
 | TASK-018 | IMAP FETCH BODY 실제 클라이언트 픽스처 확장 | 대기 |
 | TASK-019 | Drive 파일 공유 — Directory delegation 통합 | 대기 |
 | TASK-020 | OpenAPI → TypeScript 클라이언트 생성 | 대기 |
