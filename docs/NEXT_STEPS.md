@@ -2888,7 +2888,9 @@ Next:
   implementation   (complete), ADR 0015 timezone time-range interpretation
   (complete), VTODO recurrence expansion (RRULE on VTODO, complete), scheduling
   semantics (complete - RFC 6047 iMIP with ATTENDEE/ORGANIZER extraction, iTIP
-  message building, and DeliveryQueue wiring to mail.outbound.general),
+  message building, DeliveryQueue wiring to mail.outbound.general, and attendee
+  resolution via Directory + CardDAV with internal-user/directory-alias/carddav-contact/external
+  classification),
   and broader Apple/Android/Windows/macOS compatibility tests.
 - Keep frontend implementation behind the explicit start gate, but preserve
   the product target in backend/API planning: future Next.js TypeScript +

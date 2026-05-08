@@ -82,6 +82,12 @@ type ContactObject struct {
 	UpdatedAt     time.Time
 }
 
+type SearchContactsByEmailRequest struct {
+	UserID string
+	Email  string
+	Limit  int
+}
+
 type AddressBookChange struct {
 	ID            int64
 	UserID        string

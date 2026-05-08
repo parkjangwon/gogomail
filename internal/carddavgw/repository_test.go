@@ -615,6 +615,10 @@ func TestRepositoryAddressBookMethodsRequireDatabase(t *testing.T) {
 			_, err := repo.DeleteContactObject(ctx, DeleteContactObjectRequest{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf"})
 			return err
 		}},
+		{name: "search contacts by email", run: func() error {
+			_, err := repo.SearchContactsByEmail(ctx, SearchContactsByEmailRequest{UserID: "user-1", Email: "test@example.com"})
+			return err
+		}},
 	}
 	for _, tc := range tests {
 		tc := tc

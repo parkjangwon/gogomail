@@ -14,7 +14,9 @@ import (
 	"time"
 
 	ical "github.com/emersion/go-ical"
+	"github.com/gogomail/gogomail/internal/carddavgw"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/outbound"
 	"github.com/redis/go-redis/v9"
@@ -24,10 +26,32 @@ const EventNameSchedulingOutbox = "scheduling.outbox"
 
 const DeliveryStream = "mail.outbound.general"
 
+type AttendeeKind string
+
+const (
+	AttendeeKindInternalUser     AttendeeKind = "internal-user"
+	AttendeeKindDirectoryAlias   AttendeeKind = "directory-alias"
+	AttendeeKindCardDAVContact  AttendeeKind = "carddav-contact"
+	AttendeeKindExternal        AttendeeKind = "external"
+)
+
+type AttendeeResolution struct {
+	Address   string
+	Kind      AttendeeKind
+	UserID    string
+	Principal directory.Principal
+	Contact   *carddavgw.ContactObject
+}
+
+type AttendeeResolver interface {
+	ResolveAttendees(ctx context.Context, userID string, addresses []string) ([]AttendeeResolution, error)
+}
+
 type Handler struct {
-	logger *slog.Logger
-	queue  Queue
-	store  ObjectStore
+	logger           *slog.Logger
+	queue            Queue
+	store            ObjectStore
+	attendeeResolver AttendeeResolver
 }
 
 type ObjectStore interface {
@@ -62,14 +86,82 @@ func (q *DeliveryQueue) Enqueue(ctx context.Context, topic string, partitionKey 
 	}).Err()
 }
 
-func NewHandler(logger *slog.Logger, queue Queue, store ObjectStore) *Handler {
+type DefaultAttendeeResolver struct {
+	directoryRepo *directory.Repository
+	carddavRepo   *carddavgw.Repository
+}
+
+func NewDefaultAttendeeResolver(dirRepo *directory.Repository, carddavRepo *carddavgw.Repository) *DefaultAttendeeResolver {
+	return &DefaultAttendeeResolver{
+		directoryRepo: dirRepo,
+		carddavRepo:  carddavRepo,
+	}
+}
+
+func (r *DefaultAttendeeResolver) ResolveAttendees(ctx context.Context, userID string, addresses []string) ([]AttendeeResolution, error) {
+	resolutions := make([]AttendeeResolution, 0, len(addresses))
+
+	for _, addr := range addresses {
+		resolution := AttendeeResolution{Address: addr, Kind: AttendeeKindExternal}
+
+		if r.directoryRepo != nil {
+			principal, err := r.directoryRepo.ResolveUserByEmail(ctx, directory.ResolveUserByEmailRequest{
+				Email:      addr,
+				ActiveOnly: true,
+			})
+			if err == nil {
+				resolution.Kind = AttendeeKindInternalUser
+				resolution.UserID = principal.ID
+				resolution.Principal = principal
+				resolutions = append(resolutions, resolution)
+				continue
+			}
+		}
+
+		if r.directoryRepo != nil {
+			alias, err := r.directoryRepo.ResolveAlias(ctx, directory.ResolveAliasRequest{
+				Address:    addr,
+				ActiveOnly: true,
+			})
+			if err == nil {
+				resolution.Kind = AttendeeKindDirectoryAlias
+				resolution.UserID = alias.TargetPrincipal.ID
+				resolution.Principal = alias.TargetPrincipal
+				resolutions = append(resolutions, resolution)
+				continue
+			}
+		}
+
+		if r.carddavRepo != nil {
+			contacts, err := r.carddavRepo.SearchContactsByEmail(ctx, carddavgw.SearchContactsByEmailRequest{
+				UserID: userID,
+				Email:  addr,
+				Limit:  1,
+			})
+			if err == nil && len(contacts) > 0 {
+				contact := contacts[0]
+				resolution.Kind = AttendeeKindCardDAVContact
+				resolution.Contact = &contact
+				resolutions = append(resolutions, resolution)
+				continue
+			}
+		}
+
+		resolutions = append(resolutions, resolution)
+	}
+
+	return resolutions, nil
+}
+
+func NewHandler(logger *slog.Logger, queue Queue, store ObjectStore, attendeeResolver AttendeeResolver) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Handler{
-		logger: logger,
-		queue:  queue,
-		store:  store,
+		logger:           logger,
+		queue:            queue,
+		store:            store,
+		attendeeResolver: attendeeResolver,
 	}
 }
 
@@ -112,6 +204,25 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return nil
 	}
 
+	var resolutions []AttendeeResolution
+	if h.attendeeResolver != nil && len(attendees) > 0 {
+		resolutions, err = h.attendeeResolver.ResolveAttendees(ctx, payload.UserID, attendees)
+		if err != nil {
+			h.logger.Warn("failed to resolve attendees",
+				"uid", payload.UID,
+				"error", err,
+			)
+		} else {
+			for _, res := range resolutions {
+				h.logger.Info("attendee resolved",
+					"uid", payload.UID,
+					"address", res.Address,
+					"kind", res.Kind,
+				)
+			}
+		}
+	}
+
 	itipMessage, err := buildITIPMessage([]byte(payload.ICSPayload), payload.Method, organizer)
 	if err != nil {
 		h.logger.Warn("failed to build iTIP message",
@@ -121,11 +232,20 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 		return nil
 	}
 
+	resolutionByAddr := make(map[string]AttendeeResolution, len(resolutions))
+	for _, res := range resolutions {
+		resolutionByAddr[res.Address] = res
+	}
+
 	for _, attendee := range attendees {
 		if attendee == organizer {
 			continue
 		}
-		if err := h.sendToAttendee(ctx, payload.UID, payload.UserID, organizer, attendee, itipMessage); err != nil {
+		var resolution AttendeeResolution
+		if res, ok := resolutionByAddr[attendee]; ok {
+			resolution = res
+		}
+		if err := h.sendToAttendee(ctx, payload.UID, payload.UserID, organizer, attendee, itipMessage, resolution); err != nil {
 			h.logger.Error("failed to enqueue iTIP for attendee",
 				"uid", payload.UID,
 				"attendee", attendee,
@@ -137,12 +257,13 @@ func (h *Handler) HandleEvent(ctx context.Context, msg eventstream.Message) erro
 	return nil
 }
 
-func (h *Handler) sendToAttendee(ctx context.Context, uid, userID, organizer, attendee string, itipMessage []byte) error {
+func (h *Handler) sendToAttendee(ctx context.Context, uid, userID, organizer, attendee string, itipMessage []byte, resolution AttendeeResolution) error {
 	if h.queue == nil || h.store == nil {
 		h.logger.Info("scheduling would send iTIP to attendee (queue/store not configured)",
 			"uid", uid,
 			"attendee", attendee,
 			"organizer", organizer,
+			"attendee_kind", resolution.Kind,
 		)
 		return nil
 	}
@@ -195,6 +316,7 @@ func (h *Handler) sendToAttendee(ctx context.Context, uid, userID, organizer, at
 		"attendee", attendee,
 		"organizer", organizer,
 		"method", method,
+		"attendee_kind", resolution.Kind,
 	)
 
 	return nil

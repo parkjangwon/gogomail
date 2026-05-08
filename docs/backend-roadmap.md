@@ -4547,7 +4547,8 @@ Target outcome:
 - Vault
 - IMAP
 - CalDAV public/client-ready compatibility, including broader recurrence edge
-  cases (complete), native-client scheduling (iMIP/RFC 6047) (complete), production
+  cases (complete), native-client scheduling (iMIP/RFC 6047) (complete), attendee
+  resolution via Directory + CardDAV (complete), production
   sync-token retention-age policy, and broader Apple/Android/Windows/macOS
   compatibility tests. ADR 0015 timezone support (RFC 7809) is now partially
   implemented: calendar-timezone property storage, PROPFIND/PROPPATCH/MKCALENDAR

@@ -221,7 +221,7 @@ END:VCALENDAR
 func TestHandlerHandleEventNoQueueStore(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(nil, nil, nil)
+	handler := NewHandler(nil, nil, nil, nil)
 
 	eventPayload := `{"event":"scheduling.outbox","schema_version":"2026-05-08.scheduling.v1","dav_kind":"caldav-scheduling","user_id":"user-1","uid":"event-1","method":"REQUEST","payload":"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTART:20260501T090000Z\r\nDTEND:20260501T100000Z\r\nORGANIZER:mailto:organizer@example.com\r\nATTENDEE:mailto:attendee@example.com\r\nSUMMARY:Test Event\r\nEND:VEVENT\r\nEND:VCALENDAR"}`
 
@@ -286,4 +286,45 @@ type fakeStore struct{}
 
 func (f *fakeStore) Put(ctx context.Context, path string, r io.Reader) error {
 	return nil
+}
+
+func TestDefaultAttendeeResolverWithNilReposReturnsExternal(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewDefaultAttendeeResolver(nil, nil)
+	resolutions, err := resolver.ResolveAttendees(context.Background(), "user-1", []string{"external@example.com"})
+	if err != nil {
+		t.Fatalf("ResolveAttendees returned error: %v", err)
+	}
+	if len(resolutions) != 1 {
+		t.Fatalf("len(resolutions) = %d, want 1", len(resolutions))
+	}
+	if resolutions[0].Kind != AttendeeKindExternal {
+		t.Errorf("resolutions[0].Kind = %v, want %v", resolutions[0].Kind, AttendeeKindExternal)
+	}
+	if resolutions[0].Address != "external@example.com" {
+		t.Errorf("resolutions[0].Address = %q, want %q", resolutions[0].Address, "external@example.com")
+	}
+}
+
+func TestDefaultAttendeeResolverWithNilReposMultipleAddresses(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewDefaultAttendeeResolver(nil, nil)
+	addresses := []string{"user1@example.com", "user2@example.com", "external@example.com"}
+	resolutions, err := resolver.ResolveAttendees(context.Background(), "user-1", addresses)
+	if err != nil {
+		t.Fatalf("ResolveAttendees returned error: %v", err)
+	}
+	if len(resolutions) != 3 {
+		t.Fatalf("len(resolutions) = %d, want 3", len(resolutions))
+	}
+	for i, res := range resolutions {
+		if res.Kind != AttendeeKindExternal {
+			t.Errorf("resolutions[%d].Kind = %v, want %v", i, res.Kind, AttendeeKindExternal)
+		}
+		if res.Address != addresses[i] {
+			t.Errorf("resolutions[%d].Address = %q, want %q", i, res.Address, addresses[i])
+		}
+	}
 }

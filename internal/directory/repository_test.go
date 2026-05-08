@@ -1179,6 +1179,26 @@ func TestRepositoryResolveAliasRequiresDatabase(t *testing.T) {
 	}
 }
 
+func TestRepositoryResolveUserByEmailRequiresDatabase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewRepository(nil).ResolveUserByEmail(context.Background(), ResolveUserByEmailRequest{Email: "user@example.com"})
+	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
+		t.Fatalf("error = %v, want database handle requirement", err)
+	}
+}
+
+func TestRepositoryResolveUserByEmailRejectsEmptyEmail(t *testing.T) {
+	t.Parallel()
+
+	repo := NewRepository(nil)
+	ctx := context.Background()
+	_, err := repo.ResolveUserByEmail(ctx, ResolveUserByEmailRequest{Email: ""})
+	if err == nil {
+		t.Fatal("error = nil, want email is required")
+	}
+}
+
 func TestRepositoryListAliasesRequiresDatabase(t *testing.T) {
 	t.Parallel()
 

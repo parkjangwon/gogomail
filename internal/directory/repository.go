@@ -101,6 +101,45 @@ WHERE lower(a.alias_address_ace) = $1
 	return alias, nil
 }
 
+func (r *Repository) ResolveUserByEmail(ctx context.Context, req ResolveUserByEmailRequest) (Principal, error) {
+	if r == nil || r.db == nil {
+		return Principal{}, fmt.Errorf("database handle is required")
+	}
+	if req.Email == "" {
+		return Principal{}, fmt.Errorf("email is required")
+	}
+	const query = `
+SELECT u.id::text,
+       c.id::text,
+       d.id::text,
+       COALESCE(u.org_id::text, ''),
+       u.display_name,
+       COALESCE(a.address, ''),
+       u.status
+FROM users u
+JOIN domains d ON d.id = u.domain_id
+JOIN companies c ON c.id = d.company_id
+JOIN user_addresses a ON a.user_id = u.id AND lower(a.address) = lower($1)
+WHERE ($2::boolean = false OR (u.status = 'active' AND d.status = 'active' AND c.status = 'active'))`
+	var principal Principal
+	principal.Kind = PrincipalKindUser
+	if err := r.db.QueryRowContext(ctx, query, req.Email, req.ActiveOnly).Scan(
+		&principal.ID,
+		&principal.CompanyID,
+		&principal.DomainID,
+		&principal.OrganizationID,
+		&principal.DisplayName,
+		&principal.PrimaryEmail,
+		&principal.Status,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Principal{}, ErrPrincipalNotFound
+		}
+		return Principal{}, fmt.Errorf("resolve user by email: %w", err)
+	}
+	return principal, nil
+}
+
 func (r *Repository) CreateAlias(ctx context.Context, req CreateAliasRequest) (Alias, error) {
 	if r == nil || r.db == nil {
 		return Alias{}, fmt.Errorf("database handle is required")
