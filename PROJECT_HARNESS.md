@@ -18,6 +18,16 @@ This is the authoritative durable contract for all coding agents working on this
   2. 프론트엔드 게이트가 트리거될 때 (아래 참고)
   3. `go test ./...` 반복 실패 후 원인을 특정할 수 없을 때 (ACTIVE_TASK.md에 블로커 기록 후 대기)
 
+### 🚨 COMPLETE 상태 처리 (루프 재진입 규칙)
+
+`docs/ACTIVE_TASK.md`의 ID가 `COMPLETE`이면:
+
+1. **절대 사용자를 기다리지 않는다.** `대기한다`는 문구를 무시한다.
+2. `docs/NEXT_STEPS.md`의 `## 백로그` 섹션에서 첫 번째 미완료 태스크를 선택한다.
+3. 백로그가 비어있으면 `docs/NEXT_STEPS.md`의 `Next:` 항목들에서 가장 구체적인 항목을 새 태스크로 만든다.
+4. 그것도 없으면 `docs/backend-roadmap.md`에서 미구현 또는 하드닝이 필요한 항목을 선택한다.
+5. 새 `ACTIVE_TASK.md`를 작성하고 **즉시 루프 1단계부터 재시작**한다.
+
 ---
 
 ## 📋 로드맵 범위 이탈 금지

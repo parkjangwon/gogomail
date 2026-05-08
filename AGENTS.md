@@ -16,6 +16,7 @@
 ## 현재 태스크
 
 → `docs/ACTIVE_TASK.md` 를 읽어라. 다른 파일을 먼저 읽지 않는다.
+→ ID가 `COMPLETE`이면 **절대 대기하지 않는다** — `PROJECT_HARNESS.md`의 "COMPLETE 상태 처리" 규칙을 즉시 적용한다.
 
 ## 이 파일과 CLAUDE.md 동기화
 
