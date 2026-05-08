@@ -8,7 +8,7 @@
 ## Phase 2: Runtime Config Store & Settings Hierarchy
 
 - [x] TASK-001: iMIP RFC 6047 wire format 테스트 추가 (`internal/scheduling/handler_test.go`)
-- [ ] TASK-002: Phase 2-A — Runtime Config Store
+- [x] TASK-002: Phase 2-A — Runtime Config Store
   - Migration: `runtime_config` 테이블 + `companies.parent_id` 자기참조 컬럼
   - `internal/configstore` 패키지: `ConfigStore` 인터페이스 + `PostgresConfigStore` (LISTEN/NOTIFY + 인메모리 캐시)
   - Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/companies/{id}/config/{key}`, 동일 domain/user 경로
