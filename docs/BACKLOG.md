@@ -39,7 +39,7 @@
   - 테스트: DB 설정 변경 → SSE 이벤트 수신 통합 테스트
   - 참고: `docs/backend-roadmap.md` § Phase 2 › 2-D
 
-- [ ] TASK-006: Phase 2-E — Open API 키 관리 (도메인 관리자용)
+- [x] TASK-006: Phase 2-E — Open API 키 관리 (도메인 관리자용)
   - Migration: `domain_api_keys` 테이블 (CIDR 배열 포함)
   - `internal/apikeys` 패키지: 키 생성/검증/CIDR 체크
   - `ApiKeyMiddleware`: `gm_` prefix 감지 → JWT 경로와 분기

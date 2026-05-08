@@ -7,27 +7,25 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-006
-- **제목**: Phase 2-E — Open API 키 관리 (도메인 관리자용)
-- **배경**: 도메인 관리자가 프로그래밍 방식으로 API를 호출할 수 있도록
-  API 키를 생성하고 관리하는 기능을 구현한다. CIDR 기반 접근 제어와
-  스코프 검증을 포함한다.
-- **구현 대상**: migration, internal/apikeys, ApiKeyMiddleware, Admin API
+- **ID**: TASK-007
+- **제목**: Phase 3-A — LDAP Gateway (RFC 4511)
+- **배경**: LDAP v3 프로토콜 게이트웨이를 구현하여 외부 디렉토리 서비스가
+  gogomail 사용자/그룹 정보를 조회할 수 있도록 한다.
+- **구현 대상**: internal/ldapgw, LDAP v3 프로토콜, Bind/Search
 
 ### 완료 조건
 
-- [x] Migration: `domain_api_keys` 테이블 (CIDR 배열 포함)
-- [x] `internal/apikeys` 패키지: 키 생성/검증/CIDR 체크
-- [x] `ApiKeyMiddleware`: `gm_` prefix 감지 → JWT 경로와 분기
-- [x] Admin API CRUD + rotate 엔드포인트
-- [x] 기존 Mail/Calendar/Contacts API에 scope 검증 레이어
-- [x] 테스트: CIDR 허용/차단, 스코프 부족 거부, 만료/폐기 키 거부, rotate 후 구 키 무효화
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/ldapgw` 패키지: LDAP v3 프로토콜 리스너
+- [ ] BindRequest (simple bind), SearchRequest 지원
+- [ ] Read-only 강제: Modify/Delete/ModifyDN → `unwillingToPerform`
+- [ ] LDAPS (포트 636) + StartTLS 지원
+- [ ] 테스트: Bind 성공/실패, Search 결과, Read-only 거부
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-007 — Phase 3-A LDAP Gateway (RFC 4511)**
+현재 다음 태스크: **TASK-008 — Phase 3-B SCIM 2.0 Provisioning API**
 
 ---
 
