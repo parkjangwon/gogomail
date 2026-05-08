@@ -1441,7 +1441,12 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 
-	schedulingHandler := scheduling.NewHandler(logger, nil, nil)
+	schedulingObjectStore, err := objectStoreForConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("create scheduling object store: %w", err)
+	}
+	schedulingQueue := scheduling.NewDeliveryQueue(redisClient)
+	schedulingHandler := scheduling.NewHandler(logger, schedulingQueue, schedulingObjectStore)
 	if err := router.Register("scheduling.outbox", schedulingHandler); err != nil {
 		return err
 	}
