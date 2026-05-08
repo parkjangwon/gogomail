@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (updated after SCIM 2.0 feature)
+Last updated: 2026-05-09 (updated after SAML/OIDC SSO feature)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
@@ -77,6 +77,14 @@ operations with standard SCIM JSON format including schemas and metadata.
 Filter parsing handles `eq`, `sw`, `co`, `ew` operators on attributes like
 `userName`, `emails.value`, `displayName`, and `active`. List responses include
 totalResults, startIndex, and itemsPerPage for pagination.
+
+SSO (`internal/sso`) supports both SAML 2.0 Service Provider and OIDC Relying Party
+roles. SAML features include AuthnRequest generation with unique IDs, XML
+serialization for SAML protocol messages, and assertion consumer service handling.
+OIDC features include discovery document parsing, state generation with constant-time
+verification, authorization code flow preparation, and JWT ID token validation
+(issuer, audience, expiry, issued-at checks). SHA-256 nonce hashing is provided for
+PKCE and nonce validation.
 
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,

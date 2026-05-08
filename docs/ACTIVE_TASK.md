@@ -15,12 +15,12 @@
 
 ### 완료 조건
 
-- [ ] `internal/sso` 패키지: SAML 2.0 SP 지원
-- [ ] SAML AuthnRequest 생성 / Assertion Consumer Service
-- [ ] OIDC Discovery + Authorization Code Flow
-- [ ] JWT ID token 검증
-- [ ] 테스트: SAML request/response, OIDC flow
-- [ ] docs/CURRENT_STATUS.md 갱신
+- [x] `internal/sso` 패키지: SAML 2.0 SP 지원
+- [x] SAML AuthnRequest 생성 / Assertion Consumer Service
+- [x] OIDC Discovery + Authorization Code Flow
+- [x] JWT ID token 검증
+- [x] 테스트: SAML request/response, OIDC flow
+- [x] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
