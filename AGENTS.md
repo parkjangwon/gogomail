@@ -5,7 +5,9 @@
 ## 빠른 참조
 
 - 스택: Go · `go test ./...` · `go build ./...`
-- **루프**: `docs/ACTIVE_TASK.md` 읽기 → 실패 테스트 작성 → 구현 → docs 갱신 → 커밋 → push
+- **루프**: `docs/ACTIVE_TASK.md` 읽기 → 실패 테스트 작성 → 구현 → docs 갱신 → 커밋 → push → **즉시 다음 태스크로** → 반복
+- **루프 강제**: push 완료 후 사용자 응답을 기다리지 않는다. 블로커 없이 멈추는 것은 하네스 위반이다.
+- **범위 이탈 금지**: `docs/backend-roadmap.md` 에 없는 기능은 구현하지 않는다.
 - **Pre-commit hook**: 테스트 실패 또는 docs 누락 시 커밋 차단
 - **Push**: `go test ./...` 통과 커밋만 자동 push
 - **RFC 준수**: 필수, 선택 아님

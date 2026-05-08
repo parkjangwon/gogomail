@@ -4565,4 +4565,247 @@ Target outcome:
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
+
+---
+
+## Phase 2: Runtime Config Store
+
+Target outcome:
+
+> 설정 변경이 재배포나 스키마 마이그레이션 없이 모든 프로세스에 즉시 반영된다.
+
+Design principles:
+
+- `runtime_config (namespace TEXT, key TEXT, value JSONB, version BIGINT, updated_at TIMESTAMPTZ)` — JSONB 스키마이므로 새 설정 키 추가 시 ALTER/migration 불필요.
+- 각 프로세스는 시작 시 DB에서 전체 설정을 메모리 캐시로 로드. 이후 설정 읽기는 DB 커넥션 없이 메모리에서만 수행 — 런타임 DB 부하 제로.
+- PostgreSQL `LISTEN/NOTIFY`로 변경 이벤트 브로드캐스트: Admin API가 설정을 쓰면 `NOTIFY 'config_changed'`가 동일 PG에 연결된 모든 프로세스에 즉시 전달.
+- 재접속 / failover 시 자동 full reload — NOTIFY 유실 방어.
+- `version` 컬럼 낙관적 잠금으로 동시 수정 충돌 방어.
+- 다중화 서버 환경 커버: 물리 서버 수와 무관하게 PG primary에 LISTEN 중인 모든 프로세스가 브로드캐스트 수신.
+- `ConfigStore` interface를 처음부터 분리해 프로세스 수가 수백 개를 초과하는 시점에 etcd backend로 swap 가능.
+
+Implementation order:
+
+1. Migration `runtime_config` 테이블: `(namespace, key, value JSONB, version BIGINT, updated_at)`, unique constraint `(namespace, key)`.
+2. `internal/configstore` package:
+   - `ConfigStore` interface: `Get(namespace, key string) (json.RawMessage, error)` / `Watch(namespace, key string, fn func(json.RawMessage))`.
+   - `PostgresConfigStore`: 시작 시 full load → in-memory map → `LISTEN config_changed` goroutine.
+   - reconnect/failover handler: 재연결 후 full reload → re-LISTEN.
+   - `EtcdConfigStore` stub: 인터페이스만 정의, 구현은 deferred.
+3. Admin API CRUD: `GET/POST/PUT/DELETE /admin/v1/runtime-config/{namespace}/{key}`.
+4. Optimistic locking: `UPDATE ... WHERE version = $expected` — 충돌 시 `409 Conflict`.
+5. `NOTIFY config_changed` payload: `{"namespace":"...","key":"..."}` — 변경 키만 부분 리로드.
+6. 감사 로그: `config_change_log (namespace, key, old_value, new_value, changed_by, changed_at)`.
+7. 기존 env-var 기반 config와 공존: 컴포넌트별로 점진적으로 동적 설정으로 이관.
+8. 테스트: LISTEN/NOTIFY 브로드캐스트, reconnect 후 full reload, 낙관적 잠금 충돌 검증.
+
+---
+
+## Phase 3: Enterprise Identity & Directory
+
+Standards first — every component maps to a public RFC so operators can swap implementations without vendor lock-in.
+
+Target outcome:
+
+> 기업 디렉토리(LDAP)와 프로비저닝(SCIM 2.0), SSO(SAML/OIDC)가 표준 프로토콜로 동작한다.
+
+### 3-A. LDAP Gateway (RFC 4511)
+
+Read-only LDAP server so mail clients, CalDAV/CardDAV resolvers, and internal autocomplete can query the directory over the standard protocol without a proprietary API.
+
+Implementation order:
+
+1. `internal/ldapgw` package: LDAP v3 protocol listener (RFC 4511).
+2. `BindRequest`: simple bind with domain user credentials, delegating to existing auth boundary.
+3. `SearchRequest`: maps LDAP filter to SQL/repository queries for `cn`, `mail`, `uid`, `displayName`, `givenName`, `sn` attributes (RFC 4519 schema).
+4. `SearchResultEntry`: returns attributes from `users`/`user_addresses`.
+5. Read-only enforced: `AddRequest`, `ModifyRequest`, `DeleteRequest`, `ModifyDNRequest` return `unwillingToPerform`.
+6. TLS: LDAPS (implicit, port 636) and StartTLS (RFC 4511 §4.14) support.
+7. LDAP referral for multi-domain environments.
+8. Metrics boundary for bind/search/error observations.
+
+### 3-B. SCIM 2.0 Provisioning API (RFC 7642, 7643, 7644)
+
+Machine-to-machine user/group provisioning for identity providers (Okta, Azure AD, Google Workspace).
+
+Implementation order:
+
+1. `internal/scimsvc` package: SCIM 2.0 REST server (RFC 7644).
+2. `/scim/v2/Users` CRUD: `GET`/`POST`/`PUT`/`PATCH`/`DELETE` with RFC 7643 User schema.
+3. `/scim/v2/Groups` CRUD: group-to-domain mapping with member management.
+4. `/scim/v2/ServiceProviderConfig` and `/scim/v2/ResourceTypes` discovery endpoints.
+5. Filter operators: `eq`, `ne`, `co`, `sw`, `ew`, `pr`, `gt`, `ge`, `lt`, `le`, `and`, `or`, `not` (RFC 7644 §3.4.2).
+6. Pagination: `startIndex`/`count`/`totalResults` list envelope.
+7. ETag-based optimistic locking for concurrent provisioning conflicts.
+8. SCIM bearer token auth independent of the admin token.
+9. Audit log entries for all provisioning operations.
+
+### 3-C. SAML 2.0 / OIDC SSO
+
+Federated login for enterprise tenants without passwords stored in gogomail.
+
+Implementation order:
+
+1. SAML 2.0 SP mode: consume IdP assertions and issue gogomail session tokens.
+2. OIDC Relying Party mode: PKCE + authorization code flow (RFC 7636); map `sub`/`email` claims to gogomail users.
+3. Per-domain IdP configuration in `sso_configurations` table.
+4. Just-in-time provisioning: create user on first SSO login when domain allows it.
+5. Session token lifetime and refresh policy configurable per domain.
+6. Admin API CRUD at `/admin/v1/sso-configurations`.
+
+---
+
+## Phase 4: Storage & Collaboration
+
+Target outcome:
+
+> Drive 파일 스토리지가 WebDAV 표준 프로토콜로 접근 가능하고, CalDAV/CardDAV가 프로덕션 수준의 클라이언트 호환성을 갖춘다.
+
+### 4-A. Drive WebDAV Gateway (RFC 4918, RFC 3744, RFC 4331)
+
+WebDAV exposes gogomail Drive over the standard protocol so macOS Finder, Windows Explorer, Cyberduck, and rclone can mount it without proprietary plugins.
+
+Implementation order:
+
+1. `internal/webdavgw` package: WebDAV server (RFC 4918).
+2. Methods: `OPTIONS`, `PROPFIND`, `PROPPATCH`, `MKCOL`, `GET`, `PUT`, `DELETE`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`.
+3. Live properties: `DAV:` namespace (`getcontentlength`, `getcontenttype`, `getetag`, `getlastmodified`, `resourcetype`, `creationdate`, `displayname`).
+4. ACL (RFC 3744): `current-user-privilege-set`, `acl`, `supported-privilege-set` — read/write/read-acl for owner and shared principals.
+5. Quota (RFC 4331): `quota-used-bytes`/`quota-available-bytes` delegating to quota ledger.
+6. `Depth:` headers: `0`, `1`, `infinity` with configurable infinity guard.
+7. Locking: shared/exclusive write locks with `Lock-Token` header and `If:` conditional requests.
+8. `PUT` streams body directly to object storage; no full-file buffering.
+9. Auth: bearer token in `Authorization` header; Basic auth over HTTPS only.
+10. Drive quota enforced before `PUT` completes.
+11. Metrics boundary for method/outcome observations.
+
+### 4-B. CalDAV / CardDAV Production Hardening
+
+Promote from experimental to production-ready client compatibility.
+
+1. Compatibility test matrix: Apple iCal, Thunderbird Lightning, DAVx⁵ (Android), Outlook + CalDav Synchronizer.
+2. CardDAV: vCard 3.0/4.0 validation, REPORT parsing, multistatus boundary hardening.
+3. CalDAV: production sync-token retention-age policy, full recurrence edge case coverage.
+4. Well-Known URIs per RFC 6764 (`/.well-known/caldav`, `/.well-known/carddav`).
+5. iOS/macOS autodiscovery via DNS SRV records (`_caldavs._tcp`, `_carddavs._tcp`).
+
+---
+
+## Phase 5: Mail Security & Filter Module
+
+Target outcome:
+
+> milter 프로토콜로 외부 스팸 필터(Rspamd, SpamAssassin, ClamAV)가 gogomail 수신 파이프라인에 연결된다.
+
+### 5-A. Milter Protocol Adapter
+
+Milter is the de-facto MTA filter protocol. gogomail exposes a milter client hook so external milter servers attach at standard pipeline stages without coupling spam logic to SMTP core.
+
+Implementation order:
+
+1. `internal/milter` package: milter client (gogomail connects to external milter server over TCP).
+2. Milter protocol v2/v6 framing: negotiate capabilities, send macro/command frames, receive action responses.
+3. Stages: `CONNECT`, `HELO`, `MAIL FROM`, `RCPT TO`, `HEADER`, `EOH`, `BODY`, `EOM`.
+4. Actions: `ACCEPT`, `REJECT`, `TEMPFAIL`, `DISCARD`, `QUARANTINE`, `SKIP`, header add/modify/delete, body replace.
+5. Hook adapter wires into existing `authentication_checked` and `parsed` SMTP pipeline stages.
+6. Shadow mode: verdict is logged but not enforced (A/B rollout).
+7. Disabled by default (`GOGOMAIL_MILTER_ENABLED=false`); external pre-filtering via smarthost relay is an independent deployment topology.
+8. Multiple milter targets configurable with per-milter policy (accept/reject/timeout).
+9. Milter connection pool with health checks and circuit breaker.
+
+### 5-B. RBL / DNSBL Integration (RFC 5782)
+
+DNS-based block list checks at `RCPT TO` stage before content scanning.
+
+1. Configurable DNSBL zone list (Spamhaus ZEN, Barracuda, etc.).
+2. A-record lookup for `<reversed-ip>.dnsbl.zone`.
+3. Return code interpretation per RFC 5782 §2.2.
+4. Results propagated as `authentication_checked` hook results alongside SPF/DKIM/DMARC.
+5. Per-zone policy: `monitor`, `reject`, or `tag`.
+
+### 5-C. External Spam Pre-processing via Smarthost (already implemented)
+
+When an upstream spam MTA pre-filters before gogomail, the relay/smarthost gateway deployment pattern already works:
+
+- `RelayAuthorizer` trusted-relay CIDR enforcement gates which IPs can submit without auth.
+- Disable internal milter (`GOGOMAIL_MILTER_ENABLED=false`) for this topology.
+- Document as an approved ADR deployment pattern.
+
+---
+
+## Phase 6: POP3
+
+Standards: RFC 1939 (POP3), RFC 2449 (CAPA/extensions), RFC 2595 (STLS), RFC 1734 (AUTH).
+
+Target outcome:
+
+> POP3/POP3S로 모든 메일 클라이언트가 메일을 다운로드할 수 있다.
+
+Implementation order:
+
+1. `internal/pop3d` package: POP3 server.
+2. Commands: `USER`, `PASS`, `STAT`, `LIST`, `RETR`, `DELE`, `NOOP`, `RSET`, `QUIT`.
+3. Extensions: `UIDL`, `TOP`, `STLS` (RFC 2595), `CAPA` (RFC 2449), `AUTH PLAIN/LOGIN` (RFC 1734).
+4. POP3S implicit TLS on port 995 alongside STARTTLS.
+5. Per-user exclusive maildrop lock: no concurrent POP3 access to the same mailbox.
+6. `DELE` marks messages; `QUIT` commits as soft-deletes in `messages` table.
+7. `RETR` streams `.eml` from object storage without full in-memory load.
+8. Metrics boundary for AUTH/RETR/DELE observations.
+9. Pipeline stages parallel to IMAP so quota enforcement and audit logging attach without duplicating logic.
+
+---
+
+## Phase 7: Push Notifications & Mobile Sync
+
+Target outcome:
+
+> 새 메일/캘린더 이벤트가 iOS/Android/Web 디바이스에 즉시 푸시된다.
+
+### 7-A. FCM / APNs / Web Push Adapters (`internal/pushnotify`)
+
+1. `PushSink` interface: `Send(ctx, DeviceToken, Payload) error`.
+2. Concrete adapters: `FCMSink` (Firebase Cloud Messaging), `APNsSink` (Apple Push Notification service), `WebPushSink` (RFC 8030 Web Push).
+3. Per-device registration in `device_tokens` table: platform, token, user binding, expiry.
+4. Event worker consumes `mail.received`, `calendar.event_reminder`, `calendar.invite_received` and fans out to registered devices.
+5. Quiet-hours policy per device: suppress push during configured local-time windows.
+6. Retry with exponential backoff; expired/invalid tokens auto-unregistered.
+7. Admin API `/admin/v1/device-tokens` for listing and revoking device registrations.
+
+### 7-B. Delta Sync Boundary
+
+1. Per-device delta-sync cursor: `last_seen_sequence` for mailbox, calendar, and contacts.
+2. IMAP IDLE fans out real-time mailbox events to connected clients.
+3. CalDAV sync-token retention lets offline clients catch up without full re-sync.
+4. CardDAV ctag/sync-token support for contacts delta sync.
+
+---
+
+## Module × RFC Compliance Map
+
+| Module | Key Standards |
+|---|---|
+| SMTP receive (edge MTA) | RFC 5321, RFC 5322, RFC 2045–2049, RFC 6531/6532 |
+| SMTP submission (outbound MTA) | RFC 5321, RFC 6409, RFC 4954 (AUTH) |
+| SMTP delivery (outbound transport) | RFC 5321, RFC 7505 (null MX), RFC 3461/3464 (DSN) |
+| SMTP relay / smarthost gateway | RFC 5321 (**implemented**) |
+| DKIM signing | RFC 6376 |
+| SPF | RFC 7208 |
+| DMARC | RFC 7489 |
+| IMAP | RFC 9051 (IMAP4rev2), RFC 3501 (IMAP4rev1) |
+| POP3 | RFC 1939, RFC 2449 (CAPA), RFC 2595 (STLS), RFC 1734 (AUTH) |
+| CalDAV | RFC 4791, RFC 5545 (iCalendar), RFC 6638, RFC 7809 (timezone) |
+| iMIP scheduling | RFC 6047 |
+| CardDAV | RFC 6352, RFC 6350 (vCard 4.0), RFC 2426 (vCard 3.0) |
+| Drive WebDAV | RFC 4918, RFC 3744 (ACL), RFC 4331 (quota) |
+| LDAP Gateway | RFC 4511, RFC 4512, RFC 4519 |
+| SCIM 2.0 | RFC 7642, RFC 7643, RFC 7644 |
+| SAML 2.0 | OASIS SAML 2.0 Core |
+| OIDC | OpenID Connect Core 1.0, RFC 7636 (PKCE) |
+| Milter (spam filter hook) | sendmail milter v2/v6 protocol |
+| DNSBL | RFC 5782 |
+| DNS autodiscovery | RFC 6764 (Well-Known URIs, DNS SRV) |
+| DSN / bounce | RFC 3461, RFC 3464, RFC 5321 §4.5.5 (VERP) |
+| Push notifications (Web) | RFC 8030 |
+| TLS (all protocols) | RFC 8446 (TLS 1.3), RFC 5246 (TLS 1.2 minimum) |
+| JWT auth | RFC 7519 |
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.

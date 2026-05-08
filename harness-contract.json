@@ -48,20 +48,46 @@
     "pattern": "single-active-task",
     "description": "Agent reads ACTIVE_TASK.md only. After commit, advances to next backlog item."
   },
+  "loop_policy": {
+    "mode": "infinite",
+    "halt_conditions": [
+      "user-explicit-halt",
+      "frontend-gate-trigger",
+      "unresolvable-test-failure-after-3-attempts"
+    ],
+    "forbidden_halt_conditions": [
+      "task-complete",
+      "awaiting-user-input",
+      "no-more-ideas",
+      "silence-after-push"
+    ],
+    "after_push": "advance-to-next-task-immediately-without-waiting",
+    "description": "Loop is perpetual. Stopping without a listed halt_condition is a harness violation."
+  },
+  "scope_enforcement": {
+    "roadmap_file": "docs/backend-roadmap.md",
+    "backlog_file": "docs/NEXT_STEPS.md",
+    "active_task_file": "docs/ACTIVE_TASK.md",
+    "deviation_policy": "forbidden — implement only what ACTIVE_TASK.md directs",
+    "self_selection_policy": "next task must come from NEXT_STEPS.md backlog only",
+    "backlog_empty_action": "derive next item from backend-roadmap.md phases and append to NEXT_STEPS.md, then continue loop",
+    "out_of_roadmap_action": "forbidden — do not implement features absent from backend-roadmap.md"
+  },
   "autonomous_loop": {
     "steps": [
-      "read docs/ACTIVE_TASK.md",
+      "read docs/ACTIVE_TASK.md — confirm task and acceptance criteria",
       "write failing test (_test.go) first",
       "implement until go test ./... passes",
       "update docs/CURRENT_STATUS.md, docs/backend-roadmap.md, openapi.yaml as needed",
       "update docs/ACTIVE_TASK.md acceptance checklist to fully checked",
       "git add (code + tests + docs), git commit",
       "git push origin main (only if go test ./... passes)",
-      "advance docs/ACTIVE_TASK.md to next backlog item from docs/NEXT_STEPS.md"
+      "advance docs/ACTIVE_TASK.md to next backlog item from docs/NEXT_STEPS.md",
+      "IMMEDIATELY return to step 1 — do not wait for user input"
     ],
     "blocked_by": [
       "test-failure — fix before continuing",
-      "ambiguous-acceptance-criteria — stop and describe blocker in ACTIVE_TASK.md"
+      "ambiguous-acceptance-criteria — record blocker in ACTIVE_TASK.md and wait"
     ]
   },
   "commit_rules": {
@@ -104,6 +130,14 @@
     {
       "date": "2026-05-08",
       "change": "initial bootstrap — test-gated push, strict pre-commit hook, ACTIVE_TASK.md single-task pattern, Korean communication"
+    },
+    {
+      "date": "2026-05-08",
+      "change": "strengthen loop — add loop_policy (infinite, forbidden halt conditions), scope_enforcement (roadmap-bound), explicit step-10 no-wait-for-user, update PROJECT_HARNESS.md/CLAUDE.md/AGENTS.md/GEMINI.md"
+    },
+    {
+      "date": "2026-05-08",
+      "change": "roadmap update — add Phase 2 (Runtime Config Store: PostgreSQL JSONB+LISTEN/NOTIFY), Phase 3 (Enterprise Identity: LDAP/SCIM/SAML/OIDC), Phase 4 (Drive WebDAV), Phase 5 (Milter/DNSBL), Phase 6 (POP3), Phase 7 (Push/Delta Sync), Module×RFC compliance map"
     }
   ]
 }
