@@ -112,6 +112,9 @@ type AdminService interface {
 	ListAuditLogs(ctx context.Context, req maildb.AuditLogListRequest) ([]maildb.AuditLogView, error)
 	GetAuditLog(ctx context.Context, id string) (maildb.AuditLogView, error)
 	CheckAuditLogIntegrity(ctx context.Context, req maildb.AuditLogIntegrityRequest) (maildb.AuditLogIntegrityView, error)
+	ListMailFlowLogs(ctx context.Context, req maildb.MailFlowLogListRequest) ([]maildb.MailFlowLogView, error)
+	GetMailFlowLog(ctx context.Context, id string) (maildb.MailFlowLogView, error)
+	GetMailFlowLogStats(ctx context.Context, req maildb.MailFlowLogStatsRequest) (maildb.MailFlowLogStatsView, error)
 	ListQuotaUsage(ctx context.Context, req maildb.QuotaUsageListRequest) ([]maildb.QuotaUsageView, error)
 	RunAttachmentCleanup(ctx context.Context, before time.Time, limit int) ([]maildb.Attachment, error)
 	CountStaleAttachmentUploads(ctx context.Context, before time.Time, limit int) (maildb.StaleAttachmentUploadCount, error)
@@ -1025,6 +1028,58 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "limit", "direction", "company_id", "domain_id", "user_id", "message_id", "rfc_message_id", "from_addr", "to_addr", "subject", "flow_status", "since", "until") {
+			return
+		}
+		limit, ok := parseQueryLimit(w, r)
+		if !ok {
+			return
+		}
+		req, ok := parseMailFlowLogListRequest(w, r, limit)
+		if !ok {
+			return
+		}
+		logs, err := service.ListMailFlowLogs(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_logs": logs})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, "direction", "company_id", "domain_id", "user_id", "since", "until") {
+			return
+		}
+		req, ok := parseMailFlowLogStatsRequest(w, r)
+		if !ok {
+			return
+		}
+		stats, err := service.GetMailFlowLogStats(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_stats": stats})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		log, err := service.GetMailFlowLog(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_log": log})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/directory/principals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
@@ -3362,6 +3417,107 @@ func parseAuditLogListRequest(w http.ResponseWriter, r *http.Request, limit int)
 		ActorID:      actorID,
 		TargetID:     targetID,
 		Since:        since,
+	}, true
+}
+
+func parseMailFlowLogListRequest(w http.ResponseWriter, r *http.Request, limit int) (maildb.MailFlowLogListRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	messageID, ok := parseBoundedAdminQuery(w, r, "message_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	rfcMessageID, ok := parseBoundedAdminQuery(w, r, "rfc_message_id")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	fromAddr, ok := parseBoundedAdminQuery(w, r, "from_addr")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	toAddr, ok := parseBoundedAdminQuery(w, r, "to_addr")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	subject, ok := parseBoundedAdminQuery(w, r, "subject")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	flowStatus, ok := parseBoundedAdminQuery(w, r, "flow_status")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogListRequest{}, false
+	}
+	return maildb.MailFlowLogListRequest{
+		Limit:        limit,
+		Direction:    direction,
+		CompanyID:    companyID,
+		DomainID:     domainID,
+		UserID:       userID,
+		MessageID:    messageID,
+		RFCMessageID: rfcMessageID,
+		FromAddr:    fromAddr,
+		ToAddr:      toAddr,
+		Subject:     subject,
+		FlowStatus:  flowStatus,
+		Since:       since,
+		Until:       until,
+	}, true
+}
+
+func parseMailFlowLogStatsRequest(w http.ResponseWriter, r *http.Request) (maildb.MailFlowLogStatsRequest, bool) {
+	direction, ok := parseBoundedAdminQuery(w, r, "direction")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	companyID, ok := parseBoundedAdminQuery(w, r, "company_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	domainID, ok := parseBoundedAdminQuery(w, r, "domain_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	userID, ok := parseBoundedAdminQuery(w, r, "user_id")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	since, ok := parseOptionalRFC3339Query(w, r, "since")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	until, ok := parseOptionalRFC3339Query(w, r, "until")
+	if !ok {
+		return maildb.MailFlowLogStatsRequest{}, false
+	}
+	return maildb.MailFlowLogStatsRequest{
+		Direction: direction,
+		CompanyID: companyID,
+		DomainID:  domainID,
+		UserID:    userID,
+		Since:     since,
+		Until:     until,
 	}, true
 }
 

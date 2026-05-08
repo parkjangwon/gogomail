@@ -1946,6 +1946,157 @@ paths:
           $ref: "#/components/responses/AuditLog"
         default:
           $ref: "#/components/responses/Error"
+  /mail-flow-logs:
+    get:
+      operationId: listAdminMailFlowLogs
+      summary: Admin mail flow log list for mail flow forensics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - name: direction
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Filter by mail flow direction (inbound or outbound).
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: message_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: rfc_message_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: RFC5321 Message-ID header value.
+        - name: from_addr
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Substring match on sender address.
+        - name: to_addr
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Substring match on recipient address.
+        - name: subject
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Substring match on subject.
+        - name: flow_status
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Filter by flow status (received, delivered, failed, bounced, filtered, rejected, pending).
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for mail flow log creation timestamps.
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 upper bound for mail flow log creation timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/MailFlowLogList"
+        default:
+          $ref: "#/components/responses/Error"
+  /mail-flow-logs/stats:
+    get:
+      operationId: getAdminMailFlowLogStats
+      summary: Admin mail flow log statistics
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: direction
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+          description: Filter by mail flow direction (inbound or outbound).
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: domain_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            maxLength: 1024
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 lower bound for mail flow log creation timestamps.
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive RFC3339 upper bound for mail flow log creation timestamps.
+      responses:
+        "200":
+          $ref: "#/components/responses/MailFlowLogStats"
+        default:
+          $ref: "#/components/responses/Error"
+  /mail-flow-logs/{id}:
+    get:
+      operationId: getAdminMailFlowLog
+      summary: Admin mail flow log detail
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/MailFlowLog"
+        default:
+          $ref: "#/components/responses/Error"
   /directory/principals:
     get:
       operationId: listAdminDirectoryPrincipals
@@ -5077,6 +5228,24 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/AuditLogIntegrityEnvelope"
+    MailFlowLogList:
+      description: Mail flow log list envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MailFlowLogListEnvelope"
+    MailFlowLog:
+      description: Mail flow log detail envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MailFlowLogEnvelope"
+    MailFlowLogStats:
+      description: Mail flow log statistics envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MailFlowLogStatsEnvelope"
     DirectoryPrincipalList:
       description: Directory principal search envelope
       content:
@@ -7715,6 +7884,127 @@ components:
       properties:
         audit_log_integrity:
           $ref: "#/components/schemas/AuditLogIntegrity"
+    MailFlowLog:
+      type: object
+      required: [id, direction, flow_status, to_addrs, size, created_at]
+      properties:
+        id:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        message_id:
+          type: string
+        rfc_message_id:
+          type: string
+        from_addr:
+          type: string
+        from_name:
+          type: string
+        to_addrs:
+          type: array
+          items:
+            type: string
+        subject:
+          type: string
+        flow_status:
+          type: string
+          enum: [received, delivered, failed, bounced, filtered, rejected, pending]
+        enhanced_status:
+          type: string
+        error_message:
+          type: string
+        spam_score:
+          type: number
+          format: double
+        dkim_result:
+          type: string
+        spf_result:
+          type: string
+        dmarc_result:
+          type: string
+        transport:
+          type: string
+        farm:
+          type: string
+        size:
+          type: integer
+          format: int64
+        received_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+        in_reply_to:
+          type: string
+        references:
+          type: string
+        thread_id:
+          type: string
+        ip_address:
+          type: string
+        mail_from:
+          type: string
+        rcpt_to:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    MailFlowLogListEnvelope:
+      type: object
+      required: [mail_flow_logs]
+      properties:
+        mail_flow_logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailFlowLog"
+    MailFlowLogEnvelope:
+      type: object
+      required: [mail_flow_log]
+      properties:
+        mail_flow_log:
+          $ref: "#/components/schemas/MailFlowLog"
+    MailFlowLogStatsEnvelope:
+      type: object
+      required: [mail_flow_stats]
+      properties:
+        mail_flow_stats:
+          $ref: "#/components/schemas/MailFlowLogStats"
+    MailFlowLogStats:
+      type: object
+      required: [total_messages, unique_senders, unique_domains, delivered, failed, bounced, filtered, rejected]
+      properties:
+        total_messages:
+          type: integer
+          format: int64
+        unique_senders:
+          type: integer
+          format: int64
+        unique_domains:
+          type: integer
+          format: int64
+        delivered:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        bounced:
+          type: integer
+          format: int64
+        filtered:
+          type: integer
+          format: int64
+        rejected:
+          type: integer
+          format: int64
     DirectoryPrincipal:
       type: object
       required: [id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type]
