@@ -906,6 +906,21 @@ Admin operational read models also keep explicit envelope keys:
   supports `limit` and RFC3339 `since`, recomputes each row hash, checks
   in-window `prev_hash` continuity, and returns typed break records without
   mutating audit rows.
+- `GET /admin/v1/mail-flow-logs` returns `{"mail_flow_logs":[...]}` and supports
+  bounded `limit`, `direction`, `company_id`, `domain_id`, `user_id`,
+  `message_id`, `rfc_message_id`, `from_addr` (substring match), `to_addr`
+  (substring match), `subject` (substring match), `flow_status`, and RFC3339
+  `since`/`until` filters for operational forensics over persisted mail flow
+  records. Text filters reject CR/LF-bearing or oversized values before
+  service dispatch.
+- `GET /admin/v1/mail-flow-logs/stats` returns `{"mail_flow_stats":{...}}` with
+  `total_messages`, `unique_senders`, `unique_domains`, `delivered`, `failed`,
+  `bounced`, `filtered`, and `rejected` counts. It supports `direction`,
+  `company_id`, `domain_id`, `user_id`, and RFC3339 `since`/`until` filters.
+- `GET /admin/v1/mail-flow-logs/{id}` returns `{"mail_flow_log":{...}}` with
+  the stored direction, SMTP envelope (mail_from, rcpt_to), auth results
+  (DKIM/SPF/DMARC), spam score, delivery status, and timestamps for one
+  mail flow log entry.
 - `GET /admin/v1/directory/principals` returns
   `{"directory_principals":[...]}` for company-scoped Directory principal
   search across users, organizations, groups, and resources. It supports

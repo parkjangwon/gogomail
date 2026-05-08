@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-08 (updated after Drive Content-Range upload support)
+Last updated: 2026-05-08 (updated after mail flow log feature)
 
 ## Current phase
 
@@ -16,6 +16,17 @@ RFC-sensitive core, but current work should balance:
 - DNS/DKIM/domain onboarding
 - quota and policy enforcement
 - OpenAPI drift prevention
+
+Mail flow log feature now tracks inbound and outbound mail flow for operational
+forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
+rcpt_to), auth results (DKIM/SPF/DMARC), spam score, and delivery status
+(received/delivered/failed/bounced/filtered/rejected/pending). The handler
+consumes `mail.stored`, `mail.delivered`, `mail.bounced`, `mail.delivery_failed`,
+and `mail.delivery_exhausted` events. Admin API exposes GET
+`/admin/v1/mail-flow-logs`, GET `/admin/v1/mail-flow-logs/stats`, and GET
+`/admin/v1/mail-flow-logs/{id}` endpoints with filtering by direction, company,
+domain, user, message_id, rfc_message_id, from/to addresses, subject, flow_status,
+and time range.
 
 API metering fail-open logic now logs recovered panics with full route and
 method context, preventing silent failures when the metering worker or sink is
