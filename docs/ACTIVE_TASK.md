@@ -7,25 +7,25 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-007
-- **제목**: Phase 3-A — LDAP Gateway (RFC 4511)
-- **배경**: LDAP v3 프로토콜 게이트웨이를 구현하여 외부 디렉토리 서비스가
-  gogomail 사용자/그룹 정보를 조회할 수 있도록 한다.
-- **구현 대상**: internal/ldapgw, LDAP v3 프로토콜, Bind/Search
+- **ID**: TASK-008
+- **제목**: Phase 3-B — SCIM 2.0 Provisioning API (RFC 7642/7643/7644)
+- **배경**: SCIM 2.0 표준을 구현하여 외부 IDP에서 사용자/그룹 프로비저닝을
+  자동화한다. Create/Read/Update/Delete/List + Filter를 지원한다.
+- **구현 대상**: internal/scim, Admin API, SCIM JSON 포맷
 
 ### 완료 조건
 
-- [x] `internal/ldapgw` 패키지: LDAP v3 프로토콜 리스너
-- [x] BindRequest (simple bind), SearchRequest 지원
-- [x] Read-only 강제: Modify/Delete/ModifyDN → `unwillingToPerform`
-- [x] LDAPS (포트 636) + StartTLS 지원
-- [x] 테스트: Bind 성공/실패, Search 결과, Read-only 거부
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/scim` 패키지: SCIM 2.0 User/Group CRUDL
+- [ ] Filter 파싱: userName, email, displayName 등
+- [ ] Bulk operations 지원
+- [ ] SCIM JSON 응답 포맷 (schemas, meta 등)
+- [ ] 테스트: CRUDL, Filter, Bulk
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
 `docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-008 — Phase 3-B SCIM 2.0 Provisioning API**
+현재 다음 태스크: **TASK-009 — Phase 3-C SAML 2.0 / OIDC SSO**
 
 ---
 
