@@ -7,25 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-008
-- **제목**: Phase 3-B — SCIM 2.0 Provisioning API (RFC 7642/7643/7644)
-- **배경**: SCIM 2.0 표준을 구현하여 외부 IDP에서 사용자/그룹 프로비저닝을
-  자동화한다. Create/Read/Update/Delete/List + Filter를 지원한다.
-- **구현 대상**: internal/scim, Admin API, SCIM JSON 포맷
+- **ID**: TASK-009
+- **제목**: Phase 3-C — SAML 2.0 / OIDC SSO
+- **배경**: SAML 2.0 및 OIDC 기반 Single Sign-On을 지원하여
+  기업 고객이 외부 IdP와 연동할 수 있도록 한다.
+- **구현 대상**: internal/sso, SAML metadata, OIDC discovery
 
 ### 완료 조건
 
-- [x] `internal/scim` 패키지: SCIM 2.0 User/Group CRUDL
-- [x] Filter 파싱: userName, email, displayName 등
-- [x] Bulk operations 지원
-- [x] SCIM JSON 응답 포맷 (schemas, meta 등)
-- [x] 테스트: CRUDL, Filter, Bulk
-- [x] docs/CURRENT_STATUS.md 갱신
+- [ ] `internal/sso` 패키지: SAML 2.0 SP 지원
+- [ ] SAML AuthnRequest 생성 / Assertion Consumer Service
+- [ ] OIDC Discovery + Authorization Code Flow
+- [ ] JWT ID token 검증
+- [ ] 테스트: SAML request/response, OIDC flow
+- [ ] docs/CURRENT_STATUS.md 갱신
 
 ### 커밋 후 다음 태스크
 
-`docs/BACKLOG.md`의 첫 번째 미완료 항목( `[ ]` )을 꺼낸다.
-현재 다음 태스크: **TASK-009 — Phase 3-C SAML 2.0 / OIDC SSO**
+백로그에 추가 태스크가 없으면 새로운 기능을 제안한다.
 
 ---
 

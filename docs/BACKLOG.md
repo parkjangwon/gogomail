@@ -59,7 +59,7 @@
   - LDAPS (포트 636) + StartTLS 지원
   - 참고: `docs/backend-roadmap.md` § Phase 3 › 3-A
 
-- [ ] TASK-008: Phase 3-B — SCIM 2.0 Provisioning API (RFC 7642/7643/7644)
+- [x] TASK-008: Phase 3-B — SCIM 2.0 Provisioning API (RFC 7642/7643/7644)
   - `internal/scimsvc` 패키지: `/scim/v2/Users` + `/scim/v2/Groups` CRUD
   - ServiceProviderConfig + ResourceTypes 디스커버리 엔드포인트
   - ETag 기반 낙관적 잠금, 페이지네이션, 감사 로그
