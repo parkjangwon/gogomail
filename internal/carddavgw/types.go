@@ -55,6 +55,8 @@ type Principal struct {
 	DisplayName         string
 	PrincipalPath       string
 	AddressBookHomePath string
+	CalendarUserType    string
+	ResourceID          string
 }
 
 type AddressBook struct {
