@@ -2095,6 +2095,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			if err != nil {
 				return err
 			}
+			tokenManager.SetRevocationChecker(repository)
 		}
 		driveRouteOptions := httpapi.DriveRouteOptions{}
 		driveRouteOptions.PublicShareAudit = drivePublicShareAuditRecorder{audit: audit.NewPostgresRepository(db)}
@@ -2111,7 +2112,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			driveRouteOptions.PublicShareLimiter = ratelimit.NewRedisFixedWindowLimiter(redisClient, "drive_share_public", int64(cfg.DriveShareRateLimitPerMinute), time.Minute)
 			logger.Info("drive public share rate limiting enabled", "backend", "redis", "per_minute", cfg.DriveShareRateLimitPerMinute)
 		}
-		httpapi.RegisterMailRoutes(mux, service, tokenManager)
+		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, httpapi.MailRouteOptions{
+			SessionRevoker: repository,
+		})
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(
 			carddavgw.NewRepository(db),

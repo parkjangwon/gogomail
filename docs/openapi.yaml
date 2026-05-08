@@ -46,6 +46,23 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Info"
+  /auth/sessions/revoke-all:
+    post:
+      operationId: revokeAllSessions
+      summary: Invalidate all active sessions for the authenticated user
+      description: |
+        Increments the user's session_version. All existing JWTs issued before
+        this call are immediately rejected. The current token remains valid only
+        until it expires; new tokens issued after this call will carry the updated
+        version and be accepted normally.
+      servers:
+        - url: /api/v1
+          description: Mail API
+      responses:
+        "204":
+          description: All sessions revoked
+        default:
+          $ref: "#/components/responses/Error"
   /webmail/capabilities:
     get:
       operationId: getWebmailCapabilities

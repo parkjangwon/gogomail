@@ -96,6 +96,7 @@ type webmailCapabilitiesEnvelope struct {
 
 type MailRouteOptions struct {
 	MutationLimiter MailMutationLimiter
+	SessionRevoker  auth.SessionRevoker
 }
 
 type MailMutationLimiter interface {
@@ -369,6 +370,32 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 }
 
 func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
+	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-all", func(w http.ResponseWriter, r *http.Request) {
+		if tokenManager == nil {
+			writeError(w, http.StatusServiceUnavailable, "authentication not configured")
+			return
+		}
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if opts.SessionRevoker == nil {
+			writeError(w, http.StatusServiceUnavailable, "session revocation not configured")
+			return
+		}
+		if _, err := opts.SessionRevoker.IncrementSessionVersion(r.Context(), userID); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to revoke sessions")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	mux.HandleFunc("GET /api/v1/webmail/capabilities", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
@@ -2103,7 +2130,7 @@ func claimsFromRequest(w http.ResponseWriter, r *http.Request, tokenManager *aut
 		writeError(w, http.StatusUnauthorized, "bearer token is required")
 		return auth.Claims{}, false
 	}
-	claims, err := tokenManager.Verify(token)
+	claims, err := tokenManager.VerifyFull(r.Context(), token)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err.Error())
 		return auth.Claims{}, false
