@@ -5,6 +5,31 @@ This is the authoritative durable contract for all coding agents working on this
 
 ---
 
+## ⚠️ 루프 강제 실행 — 에이전트는 절대 멈추지 않는다
+
+**이 규칙은 이 파일의 다른 모든 규칙보다 우선한다. 읽는 즉시 적용한다.**
+
+- push 완료 후 **사용자 응답을 기다리지 않는다.** 즉시 다음 태스크로 전진한다.
+- "태스크 완료"는 루프 종료 사유가 아니다.
+- "할 일이 없다"는 없다 — `docs/NEXT_STEPS.md` 백로그가 항상 다음 항목을 갖는다.
+- 블로커 없이 루프를 멈추는 것 자체가 **하네스 위반**이다.
+- 루프가 멈추는 유일한 합법적 조건:
+  1. 사용자가 명시적으로 중단을 요청할 때
+  2. 프론트엔드 게이트가 트리거될 때 (아래 참고)
+  3. `go test ./...` 반복 실패 후 원인을 특정할 수 없을 때 (ACTIVE_TASK.md에 블로커 기록 후 대기)
+
+---
+
+## 📋 로드맵 범위 이탈 금지
+
+- **모든 구현은 `docs/backend-roadmap.md`에 기술된 Phase/항목 내에서만 진행한다.**
+- `docs/NEXT_STEPS.md` 백로그 항목은 반드시 `docs/backend-roadmap.md`에서 파생된다.
+- `docs/ACTIVE_TASK.md`가 지시하지 않은 코드는 작성하지 않는다.
+- 로드맵에 없는 새 기능을 임의로 추가하는 것은 금지.
+- 백로그가 비어있으면 `docs/backend-roadmap.md`에서 다음 항목을 `docs/NEXT_STEPS.md`에 추가한 뒤 루프를 계속한다.
+
+---
+
 ## 자율 개발 루프 (Autonomous Loop)
 
 에이전트는 이 절차를 **번호 순서대로** 반복한다. 순서를 바꾸거나 건너뛰지 않는다.
@@ -19,7 +44,7 @@ This is the authoritative durable contract for all coding agents working on this
 7. git add (코드 + 테스트 + docs 전부), git commit
 8. go test ./... 통과 확인 후 git push origin main
 9. docs/NEXT_STEPS.md 백로그에서 다음 태스크를 ACTIVE_TASK.md로 이동
-10. 1로 돌아가기
+10. 즉시 1로 돌아가기 — 사용자 응답을 기다리지 않는다. 루프는 영속한다.
 ```
 
 ### 절대 금지
@@ -28,11 +53,13 @@ This is the authoritative durable contract for all coding agents working on this
 - 5번(docs 업데이트) 없이 커밋
 - 테스트 실패 상태에서 push
 - ACTIVE_TASK.md를 건너뛰고 임의로 태스크 선택
+- 로드맵/백로그에 없는 기능을 임의로 구현
 - frontend 앱 구현 시작 (아래 프론트엔드 게이트 참고)
+- **루프를 멈추고 사용자 입력을 기다리는 것 (블로커가 없는 경우)**
 
 ### 루프 블로킹 조건
 
-다음 상황에서는 루프를 멈추고 ACTIVE_TASK.md에 블로커를 기록한다:
+다음 상황에서만 루프를 멈추고 ACTIVE_TASK.md에 블로커를 기록한다:
 - `go test ./...` 반복 실패 후 원인 불명
 - 완료 조건이 모호해서 구현 방향 결정 불가
 
