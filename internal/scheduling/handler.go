@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"mime/multipart"
 	"net/mail"
-	"net/textproto"
 	"strings"
 	"time"
 
@@ -280,7 +280,7 @@ func (h *Handler) sendToAttendee(ctx context.Context, uid, userID, organizer, at
 	method := detectMethod(itipMessage)
 	subject := iTIPSubject(method, uid)
 
-	msg := buildMultipartMessage(organizerAddr, attendeeAddr, subject, itipMessage)
+	msg := buildMultipartMessage(organizerAddr, attendeeAddr, subject, method, itipMessage)
 
 	storagePath := fmt.Sprintf("scheduling/%s/%s-%d.ics", userID, uid, time.Now().UnixNano())
 
@@ -322,39 +322,44 @@ func (h *Handler) sendToAttendee(ctx context.Context, uid, userID, organizer, at
 	return nil
 }
 
-func buildMultipartMessage(from *mail.Address, to *mail.Address, subject string, itipBody []byte) []byte {
+func buildMultipartMessage(from *mail.Address, to *mail.Address, subject, method string, itipBody []byte) []byte {
+	if method == "" {
+		method = "REQUEST"
+	}
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
+	boundary := w.Boundary()
 
-	header := make(textproto.MIMEHeader)
-	header.Set("From", from.String())
-	header.Set("To", to.String())
-	header.Set("Subject", subject)
-	header.Set("Date", time.Now().UTC().Format(time.RFC1123Z))
-	header.Set("Message-ID", generateMessageID())
-	header.Set("MIME-Version", "1.0")
-	header.Set("Content-Type", fmt.Sprintf("multipart/alternative; boundary=%q", w.Boundary()))
-
-	for k, v := range header {
-		buf.WriteString(k + ": " + v[0] + "\r\n")
-	}
+	// Write headers in deterministic order (RFC 5322).
+	buf.WriteString("From: " + from.String() + "\r\n")
+	buf.WriteString("To: " + to.String() + "\r\n")
+	buf.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", subject) + "\r\n")
+	buf.WriteString("Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n")
+	buf.WriteString("Message-ID: " + generateMessageID() + "\r\n")
+	buf.WriteString("MIME-Version: 1.0\r\n")
+	buf.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=%q\r\n", boundary))
 	buf.WriteString("\r\n")
 
-	buf.WriteString("--" + w.Boundary() + "\r\n")
+	// text/plain part for non-calendar clients.
+	buf.WriteString("--" + boundary + "\r\n")
 	buf.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
 	buf.WriteString("Content-Transfer-Encoding: 7bit\r\n")
 	buf.WriteString("\r\n")
 	buf.WriteString("This is an iCalendar scheduling message. Please use a compatible calendar client to process this message.\r\n")
 	buf.WriteString("\r\n")
 
-	buf.WriteString("--" + w.Boundary() + "\r\n")
-	buf.WriteString("Content-Type: message/rfc822; charset=utf-8\r\n")
+	// text/calendar part per RFC 6047 §2.1.
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(fmt.Sprintf("Content-Type: text/calendar; method=%s; charset=utf-8\r\n", strings.ToUpper(method)))
 	buf.WriteString("Content-Transfer-Encoding: 7bit\r\n")
 	buf.WriteString("\r\n")
 	buf.Write(itipBody)
+	if len(itipBody) > 0 && itipBody[len(itipBody)-1] != '\n' {
+		buf.WriteString("\r\n")
+	}
 	buf.WriteString("\r\n")
 
-	buf.WriteString("--" + w.Boundary() + "--\r\n")
+	buf.WriteString("--" + boundary + "--\r\n")
 
 	return buf.Bytes()
 }
@@ -476,10 +481,6 @@ func extractParticipants(icsBody []byte) (attendees []string, organizer string, 
 		return nil, "", fmt.Errorf("decode iCalendar: %w", err)
 	}
 	if cal == nil || cal.Component == nil {
-		return nil, "", fmt.Errorf("iCalendar body must contain VCALENDAR root")
-	}
-
-	if cal.Component == nil {
 		return nil, "", fmt.Errorf("iCalendar body must contain VCALENDAR root")
 	}
 

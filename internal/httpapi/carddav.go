@@ -6,29 +6,37 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/carddavgw"
+	"github.com/gogomail/gogomail/internal/directory"
 )
 
 type ContactRepo interface {
 	ListAddressBooks(ctx context.Context, req carddavgw.ListAddressBooksRequest) ([]carddavgw.AddressBook, error)
 	CreateAddressBook(ctx context.Context, req carddavgw.CreateAddressBookRequest) (carddavgw.AddressBook, error)
 	GetAddressBook(ctx context.Context, req carddavgw.GetAddressBookRequest) (carddavgw.AddressBook, error)
-	UpdateAddressBook(ctx context.Context, req carddavgw.UpdateAddressBookRequest) (carddavgw.AddressBook, error)
+	UpdateAddressBookProperties(ctx context.Context, req carddavgw.UpdateAddressBookRequest) (carddavgw.AddressBook, error)
 	DeleteAddressBook(ctx context.Context, req carddavgw.DeleteAddressBookRequest) (carddavgw.AddressBook, error)
 	ListContactObjects(ctx context.Context, req carddavgw.ListContactObjectsRequest) ([]carddavgw.ContactObject, error)
 	GetContactObject(ctx context.Context, req carddavgw.GetContactObjectRequest) (carddavgw.ContactObject, error)
 	UpsertContactObject(ctx context.Context, req carddavgw.UpsertContactObjectRequest) (carddavgw.ContactObject, error)
 	DeleteContactObject(ctx context.Context, req carddavgw.DeleteContactObjectRequest) (carddavgw.ContactObject, error)
+	SearchContacts(ctx context.Context, req carddavgw.SearchContactsRequest) ([]carddavgw.ContactObject, error)
+}
+
+type DirectoryRepo interface {
+	SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
 }
 
 type ContactHandler struct {
-	repo ContactRepo
+	repo        ContactRepo
+	directoryRepo DirectoryRepo
 }
 
-func NewContactHandler(repo ContactRepo) *ContactHandler {
-	return &ContactHandler{repo: repo}
+func NewContactHandler(repo ContactRepo, dirRepo DirectoryRepo) *ContactHandler {
+	return &ContactHandler{repo: repo, directoryRepo: dirRepo}
 }
 
 type AddressBookEnvelope struct {
@@ -45,6 +53,18 @@ type ContactObjectEnvelope struct {
 
 type ContactObjectListEnvelope struct {
 	Contacts []carddavgw.ContactObject `json:"contacts"`
+}
+
+type AutocompleteResult struct {
+	Type          string `json:"type"`
+	ID            string `json:"id"`
+	DisplayName   string `json:"display_name"`
+	Email        string `json:"email"`
+	AddressBookID string `json:"address_book_id,omitempty"`
+}
+
+type AutocompleteResponse struct {
+	Results []AutocompleteResult `json:"results"`
 }
 
 func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenManager *auth.TokenManager) {
@@ -147,7 +167,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		}
 		req.UserID = userID
 		req.AddressBookID = addressBookID
-		addressBook, err := handler.repo.UpdateAddressBook(r.Context(), req)
+		addressBook, err := handler.repo.UpdateAddressBookProperties(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("update address book: %w", err).Error())
 			return
@@ -308,4 +328,147 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+
+	mux.HandleFunc("GET /api/v1/contacts/autocomplete", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		autocompleteAllows := append(append([]string(nil), allows...), "q", "limit")
+		if !rejectUnknownQueryKeys(w, r, autocompleteAllows...) {
+			return
+		}
+
+		var userID, domainID string
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			userID = claims.UserID
+			domainID = claims.DomainID
+		} else {
+			var ok bool
+			userID, ok = userIDFromRequest(w, r, nil)
+			if !ok {
+				return
+			}
+		}
+
+		q := r.URL.Query().Get("q")
+		if q == "" {
+			writeError(w, http.StatusBadRequest, "q parameter is required")
+			return
+		}
+		if len(q) > 200 {
+			writeError(w, http.StatusBadRequest, "q parameter is too long")
+			return
+		}
+		limit := 10
+		if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+			if n, ok := parsePositiveInt(limitStr); ok {
+				limit = n
+			}
+		}
+		if limit > 50 {
+			limit = 50
+		}
+
+		var results []AutocompleteResult
+
+		if handler.directoryRepo != nil && domainID != "" {
+			principals, err := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
+				DomainID:   domainID,
+				Kinds:      []string{directory.PrincipalKindUser},
+				Query:      q,
+				ActiveOnly: true,
+				Limit:      limit,
+			})
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "directory search failed")
+				return
+			}
+			for _, p := range principals {
+				results = append(results, AutocompleteResult{
+					Type:        "user",
+					ID:          p.ID,
+					DisplayName: p.DisplayName,
+					Email:       p.PrimaryEmail,
+				})
+			}
+		}
+
+		if handler.repo != nil && (limit-len(results)) > 0 {
+			contacts, err := handler.repo.SearchContacts(r.Context(), carddavgw.SearchContactsRequest{
+				UserID: userID,
+				Query:  q,
+				Limit:  limit - len(results),
+			})
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "contact search failed")
+				return
+			}
+			seen := make(map[string]bool, len(results))
+			for _, res := range results {
+				if res.Email != "" {
+					seen[strings.ToLower(res.Email)] = true
+				}
+			}
+			for _, c := range contacts {
+				fn := vcardPropValue(c.VCard, "FN")
+				email := vcardPropValue(c.VCard, "EMAIL")
+				if email != "" && seen[strings.ToLower(email)] {
+					continue
+				}
+				results = append(results, AutocompleteResult{
+					Type:          "contact",
+					ID:            c.ID,
+					DisplayName:   fn,
+					Email:         email,
+					AddressBookID: c.AddressBookID,
+				})
+			}
+		}
+
+		writeJSON(w, http.StatusOK, AutocompleteResponse{Results: results})
+	})
+}
+
+// vcardPropValue returns the first value of the named vCard property,
+// handling RFC 6350 CRLF/LF line endings and line unfolding.
+func vcardPropValue(vcard []byte, prop string) string {
+	// Normalise line endings to LF, then unfold continuation lines.
+	text := strings.ReplaceAll(string(vcard), "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	text = strings.ReplaceAll(text, "\n ", "")
+	text = strings.ReplaceAll(text, "\n\t", "")
+
+	prop = strings.ToUpper(prop)
+	for _, line := range strings.Split(text, "\n") {
+		colon := strings.IndexByte(line, ':')
+		if colon < 0 {
+			continue
+		}
+		namePart := line[:colon]
+		if semi := strings.IndexByte(namePart, ';'); semi >= 0 {
+			namePart = namePart[:semi]
+		}
+		if strings.ToUpper(strings.TrimSpace(namePart)) == prop {
+			return strings.TrimSpace(line[colon+1:])
+		}
+	}
+	return ""
+}
+
+func parsePositiveInt(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+	var n int
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n, n > 0
 }

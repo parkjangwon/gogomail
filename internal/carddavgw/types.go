@@ -88,6 +88,12 @@ type SearchContactsByEmailRequest struct {
 	Limit  int
 }
 
+type SearchContactsRequest struct {
+	UserID string
+	Query  string
+	Limit  int
+}
+
 type AddressBookChange struct {
 	ID            int64
 	UserID        string

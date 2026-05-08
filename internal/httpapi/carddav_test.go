@@ -50,7 +50,7 @@ func (f *fakeContactRepo) GetAddressBook(ctx context.Context, req carddavgw.GetA
 	return carddavgw.AddressBook{}, fmt.Errorf("address book not found")
 }
 
-func (f *fakeContactRepo) UpdateAddressBook(ctx context.Context, req carddavgw.UpdateAddressBookRequest) (carddavgw.AddressBook, error) {
+func (f *fakeContactRepo) UpdateAddressBookProperties(ctx context.Context, req carddavgw.UpdateAddressBookRequest) (carddavgw.AddressBook, error) {
 	if f.err != nil {
 		return carddavgw.AddressBook{}, f.err
 	}
@@ -95,6 +95,13 @@ func (f *fakeContactRepo) DeleteContactObject(ctx context.Context, req carddavgw
 		return carddavgw.ContactObject{}, f.err
 	}
 	return carddavgw.ContactObject{ID: "contact-1", ObjectName: req.ObjectName}, nil
+}
+
+func (f *fakeContactRepo) SearchContacts(ctx context.Context, req carddavgw.SearchContactsRequest) ([]carddavgw.ContactObject, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.contacts, nil
 }
 
 func TestContactListAddressBooks(t *testing.T) {
@@ -365,5 +372,45 @@ func TestContactObjectListEnvelopeJSON(t *testing.T) {
 	}
 	if len(out.Contacts) != 2 {
 		t.Fatalf("ContactObjectListEnvelope contacts: got %d, want 2", len(out.Contacts))
+	}
+}
+
+func TestContactAutocompleteRequiresQuery(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	handler := &ContactHandler{repo: &fakeContactRepo{}, directoryRepo: nil}
+	RegisterContactRoutes(mux, handler, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/autocomplete", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("GET /api/v1/contacts/autocomplete without q: got status %d, want 400", rec.Code)
+	}
+}
+
+func TestContactAutocompleteWithNoResults(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	handler := &ContactHandler{repo: &fakeContactRepo{contacts: nil}, directoryRepo: nil}
+	RegisterContactRoutes(mux, handler, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/autocomplete?q=test&user_id=user-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/v1/contacts/autocomplete: got status %d, want 200", rec.Code)
+	}
+
+	var out AutocompleteResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("Unmarshal AutocompleteResponse: %v", err)
+	}
+	if len(out.Results) != 0 {
+		t.Fatalf("AutocompleteResponse results: got %d, want 0", len(out.Results))
 	}
 }

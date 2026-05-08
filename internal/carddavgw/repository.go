@@ -654,6 +654,72 @@ LIMIT $3`
 	return objects, nil
 }
 
+func (r *Repository) SearchContacts(ctx context.Context, req SearchContactsRequest) ([]ContactObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	if req.UserID == "" {
+		return nil, fmt.Errorf("user id is required")
+	}
+	if req.Query == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	const query = `
+SELECT c.id::text,
+       c.user_id::text,
+       c.addressbook_id::text,
+       c.object_name,
+       c.uid,
+       c.etag,
+       c.size,
+       c.vcard,
+       c.created_at,
+       c.updated_at
+FROM carddav_contact_objects c
+JOIN carddav_addressbooks a ON a.id = c.addressbook_id
+WHERE a.user_id = $1::uuid
+  AND a.status = 'active'
+  AND c.status = 'active'
+  AND (lower(c.vcard::text) LIKE '%' || lower($2) || '%')
+ORDER BY c.updated_at DESC
+LIMIT $3`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.Query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search contacts: %w", err)
+	}
+	defer rows.Close()
+	var objects []ContactObject
+	for rows.Next() {
+		var object ContactObject
+		if err := rows.Scan(
+			&object.ID,
+			&object.UserID,
+			&object.AddressBookID,
+			&object.ObjectName,
+			&object.UID,
+			&object.ETag,
+			&object.Size,
+			&object.VCard,
+			&object.CreatedAt,
+			&object.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan contact object: %w", err)
+		}
+		objects = append(objects, object)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate contact objects: %w", err)
+	}
+	return objects, nil
+}
+
 func (r *Repository) DeleteContactObject(ctx context.Context, req DeleteContactObjectRequest) (ContactObject, error) {
 	if r == nil || r.db == nil {
 		return ContactObject{}, fmt.Errorf("database handle is required")
