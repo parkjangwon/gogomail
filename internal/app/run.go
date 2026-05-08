@@ -2113,6 +2113,10 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		httpapi.RegisterMailRoutes(mux, service, tokenManager)
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
+		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(
+			carddavgw.NewRepository(db),
+			directory.NewRepository(db),
+		), tokenManager)
 		logger.Info("mail api routes registered")
 	}
 	if modeIncludesAdminAPI(mode) {
