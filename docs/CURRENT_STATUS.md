@@ -133,6 +133,15 @@ to multiple adapters simultaneously. `DeviceTokenStore` abstracts device
 token persistence with `MemoryDeviceTokenStore` as an in-memory reference
 implementation.
 
+Delta sync (`internal/deltasync`) provides device-specific sync cursor
+management and IMAP IDLE fan-out for real-time mailbox synchronization.
+The `Cursor` struct tracks the highest known change version per device
+and mailbox. `ChangesSince` filters a change set to only entries newer
+than the device's cursor and returns an updated cursor. `FanOut` manages
+per-mailbox channels for broadcasting mailbox events to connected IMAP
+clients. `MemoryCursorStore` provides an in-memory reference implementation
+of `CursorStore` with save, get, list-by-mailbox, and delete operations.
+
 Mail flow log feature now tracks inbound and outbound mail flow for operational
 forensics. The `mail_flow_logs` table records direction, SMTP envelope (mail_from,
 rcpt_to), auth results (DKIM/SPF/DMARC), spam score, and delivery status

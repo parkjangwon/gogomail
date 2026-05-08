@@ -111,7 +111,7 @@
   - device_tokens 테이블, event worker 연동
   - 참고: `docs/backend-roadmap.md` § Phase 7-A
 
-- [ ] TASK-015: Phase 7-B — Delta Sync Boundary
+- [x] TASK-015: Phase 7-B — Delta Sync Boundary
   - 디바이스별 delta-sync cursor, IMAP IDLE fan-out
   - 참고: `docs/backend-roadmap.md` § Phase 7-B
 
