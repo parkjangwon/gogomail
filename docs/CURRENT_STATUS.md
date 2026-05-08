@@ -913,6 +913,12 @@ default. `calendarQueryResponses` and `freeBusyCalendar` in `handler.go` now
 look up the calendar's timezone and pass it to these functions. This implements
 RFC 7809 Section 5.3 requirement that calendar time ranges be interpreted in the
 calendar's configured timezone rather than always UTC.
+CalDAV scheduling iMIP (RFC 6047) infrastructure is now in place: the outbox
+relay publishes all events to `cfg.EventStream` (default `mail.event`) instead
+of per-topic streams, ensuring scheduling.outbox events reach the event worker.
+A `scheduling` package handler extracts ATTENDEE and ORGANIZER from iCalendar
+payloads and logs participant info. Full SMTP sending for iTIP messages remains
+a follow-up item.
 CalDAV `REPORT sync-collection` now also enforces the RFC 6578 HTTP request
 scope by accepting the default/explicit `Depth: 0` only, keeping WebDAV sync
 traversal controlled by the request body's `sync-level` rather than accidentally
