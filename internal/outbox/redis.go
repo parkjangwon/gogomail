@@ -11,10 +11,11 @@ import (
 
 type RedisStreamPublisher struct {
 	client *redis.Client
+	stream string
 }
 
-func NewRedisStreamPublisher(client *redis.Client) *RedisStreamPublisher {
-	return &RedisStreamPublisher{client: client}
+func NewRedisStreamPublisher(client *redis.Client, stream string) *RedisStreamPublisher {
+	return &RedisStreamPublisher{client: client, stream: stream}
 }
 
 func (p *RedisStreamPublisher) Publish(ctx context.Context, event Event) error {
@@ -33,10 +34,10 @@ func (p *RedisStreamPublisher) Publish(ctx context.Context, event Event) error {
 	}
 
 	if err := p.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: event.Topic,
+		Stream: p.stream,
 		Values: values,
 	}).Err(); err != nil {
-		return fmt.Errorf("publish outbox event to redis stream %q: %w", event.Topic, err)
+		return fmt.Errorf("publish outbox event to redis stream %q: %w", p.stream, err)
 	}
 	return nil
 }

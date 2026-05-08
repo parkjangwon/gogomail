@@ -54,6 +54,7 @@ import (
 	"github.com/gogomail/gogomail/internal/ratelimit"
 	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
+	"github.com/gogomail/gogomail/internal/scheduling"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -1332,7 +1333,7 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	relay, err := outbox.NewRelay(outbox.RelayOptions{
 		Store:        outbox.NewPostgresStore(db, cfg.OutboxRelayMaxAttempts),
-		Publisher:    outbox.NewRedisStreamPublisher(redisClient),
+		Publisher:    outbox.NewRedisStreamPublisher(redisClient, cfg.EventStream),
 		BatchSize:    cfg.OutboxRelayBatchSize,
 		PollInterval: cfg.OutboxRelayPollInterval,
 		Logger:       logger,
@@ -1344,6 +1345,7 @@ func runOutboxRelay(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	logger.Info(
 		"outbox relay started",
 		"redis_addr", cfg.RedisAddr,
+		"stream", cfg.EventStream,
 		"batch_size", cfg.OutboxRelayBatchSize,
 		"poll_interval", cfg.OutboxRelayPollInterval.String(),
 		"max_attempts", cfg.OutboxRelayMaxAttempts,
@@ -1436,6 +1438,11 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return err
 	}
 	if err := router.Register(audit.DAVChangeEventContacts, davAuditHandler); err != nil {
+		return err
+	}
+
+	schedulingHandler := scheduling.NewHandler(logger)
+	if err := router.Register("scheduling.outbox", schedulingHandler); err != nil {
 		return err
 	}
 
