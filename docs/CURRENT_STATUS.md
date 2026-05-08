@@ -30,6 +30,14 @@ rfc_message_id, from/to addresses, subject, flow_status, and time range.
 The daily-stats endpoint provides time-series breakdown with date,
 inbound/outbound message counts and sizes, and delivery status counts.
 
+Mail flow logs use a hybrid storage architecture: PostgreSQL provides ACID
+guarantees and referential integrity for audit compliance, while OpenSearch
+provides scalable aggregation queries for statistics and time-series analysis.
+When `GOGOMAIL_SEARCH_INDEX_BACKEND=opensearch` and
+`GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP=true`, mail flow events are indexed
+to the `mail_flow` OpenSearch index. The `MailFlowStatsSearcher` supports
+aggregation queries for stats and daily breakdowns without taxing PostgreSQL.
+
 API metering fail-open logic now logs recovered panics with full route and
 method context, preventing silent failures when the metering worker or sink is
 saturated.
