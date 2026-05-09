@@ -4533,3 +4533,8 @@ Next focus areas:
 - BER length cap: PDUs with declared body > 16 MB are rejected; connection closed
 - Context deadline enforced: ctx.Done() checked before every PDU operation
 - Filter validation: validateFilter() rejects empty, non-context-specific, unsupported, or truncated LDAP filters before processing
+
+## drive chunk upload fixes (TASK-016)
+- TOCTOU race eliminated: StoreUploadSessionBody now uses SELECT FOR UPDATE inside a transaction; concurrent writers for the same session are serialised and the authoritative prior storage_path is returned from the locked row
+- Chunk ordering enforced: ValidateChunkSequence rejects non-asterisk content-range chunks whose Start != session.ReceivedSize; out-of-order and duplicate chunks return an error before any I/O
+- Orphan cleanup: newly written storage objects are deleted immediately on DB failure or validation error so no chunk objects are left stranded
