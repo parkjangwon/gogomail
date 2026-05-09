@@ -146,8 +146,14 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 5*time.Minute)
 
+	quotaAlertRepository := maildb.NewRepository(db)
 	registry.Register("quota-alert-check", func() error {
-		logger.Info("running quota alert check")
+		n, err := quotaAlertRepository.ScanAndRecordQuotaAlerts(ctx, 0.80, 0.95)
+		if err != nil {
+			logger.Error("quota alert check failed", "error", err)
+			return err
+		}
+		logger.Info("quota alert check completed", "alerts", n)
 		return nil
 	}, 15*time.Minute)
 
