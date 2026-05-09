@@ -7,22 +7,24 @@
 
 ## 현재 태스크
 
-**STATUS: COMPLETE** ✅
+**STATUS: IN_PROGRESS** 🚀
 
-- **ID**: TASK-049
-- **제목**: WebDAV Auth — Bearer token + Basic auth over HTTPS ✅ (2026-05-09)
-- **배경**: Phase 4-A 항목 9. WebDAV Gateway는 현재 `user_id` 쿼리 파라미터로 인증을 우회한다.
-  프로덕션 환경에서는 Bearer token(`Authorization: Bearer <token>`) 또는 Basic auth over HTTPS만
-  허용해야 한다. Mail API, Admin API, SCIM 엔드포인트는 이미 Bearer token 인증을 구현했으므로
-  같은 패턴을 재사용한다.
-- **구현 완료**:
-  - ✅ `internal/httpapi/webdav.go`: 모든 WebDAV 핸들러에서 Bearer token 및 Basic auth 검증
-  - ✅ `internal/httpapi/webdav_test.go`: Bearer token/Basic auth 테스트 + 18개 기존 테스트 업데이트
-  - ✅ `go test ./...` 통과 (26 WebDAV 테스트)
-  - ✅ Bearer token 없는 요청 시 401 Unauthorized
-  - ✅ 유효한 Bearer token 요청 시 정상 처리
-  - ✅ Basic auth over HTTPS 시 정상 처리 (HTTP에서는 403)
-  - ✅ 쿼리 파라미터 `user_id` 인증 제거
+- **ID**: TASK-050
+- **제목**: LDAP Auth — maildb.AuthenticateLDAP 커밋 + 단위 테스트
+- **배경**: `internal/maildb/ldap_auth.go`는 구현됐지만 미커밋 상태. 
+  `internal/app/run.go:753`에서 `ldapgw.NewServer(ln, maildb.NewRepository(db), ...)`로
+  이미 연결되어 있으나 git 미추적 + 테스트 없음. 빌드/go test는 통과하나
+  히스토리 및 리뷰 불투명 상태.
+- **구현 대상**:
+  - `internal/maildb/ldap_auth_test.go`: nil DB guard test + 기본 인증 테스트
+  - `internal/maildb/ldap_auth.go`: git add (이미 구현됨)
+  - `internal/ldapgw/pdu_debug_test.go`: git add (이미 구현됨)
+  - `internal/ldapgw/server_debug_test.go`: git add (이미 구현됨)
+- **완료 조건**:
+  - [ ] `go test ./...` 통과
+  - [ ] nil DB에서 패닉 없이 false 반환
+  - [ ] `ldap_auth_test.go` 추가
+  - [ ] 미커밋 파일 3개 커밋
 
 ## 완료됨
 

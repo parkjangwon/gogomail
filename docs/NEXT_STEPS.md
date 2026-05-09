@@ -29,7 +29,8 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-032 | Batch Worker — TOTP Used-Code Pruning (used-code-cleanup 잡, Phase 2-C) | 완료 |
 | TASK-033 | Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) | 완료 |
 | TASK-034 | Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) | 완료 |
-| TASK-049 | WebDAV Auth — Bearer token + Basic auth over HTTPS | 대기 |
+| TASK-049 | WebDAV Auth — Bearer token + Basic auth over HTTPS | 완료 |
+| TASK-050 | LDAP Auth — maildb.AuthenticateLDAP 커밋 + 단위 테스트 | 대기 |
 
 ### TASK-049 상세
 - **제목**: WebDAV Auth — Bearer token + Basic auth over HTTPS
