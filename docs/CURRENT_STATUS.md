@@ -4523,3 +4523,8 @@ Next focus areas:
    native-client shared address-book tests, product/admin sharing UX semantics,
    and Contacts/CardDAV autocomplete integration before webmail contacts,
    attendee auto-complete, or public native CardDAV compatibility are exposed.
+
+## milter security fixes (TASK-025/026)
+- Context deadline enforced in all milter callbacks
+- Header CRLF injection blocked
+- Packet size limits enforced (max 65535 bytes)
