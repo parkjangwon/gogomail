@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (TASK-044~048 code quality fixes)
+Last updated: 2026-05-09 (TASK-013/014 POP3 TLS+CommitDeletes error propagation, HTTP body drain)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.

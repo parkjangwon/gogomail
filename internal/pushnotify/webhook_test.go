@@ -183,3 +183,42 @@ func TestNewWebhookSinkRejectsUnsupportedEndpoint(t *testing.T) {
 		t.Fatal("NewWebhookSink accepted unsupported endpoint")
 	}
 }
+
+// TestWebhookSinkDrainsBodyOnErrorStatus verifies that on a non-2xx response the
+// response body is fully read before closing so that the underlying TCP connection
+// can be reused by the HTTP client's connection pool.
+func TestWebhookSinkDrainsBodyOnErrorStatus(t *testing.T) {
+	t.Parallel()
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestCount++
+		// Return a large error body to make undrained-body bugs obvious.
+		body := strings.Repeat("e", 2048)
+		w.Header().Set("Content-Length", "2048")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
+
+	sink, err := NewWebhookSink(WebhookOptions{Endpoint: server.URL, Client: server.Client()})
+	if err != nil {
+		t.Fatalf("NewWebhookSink: %v", err)
+	}
+
+	// Two requests through the same client; if the body is not drained the
+	// second request will fail or open a new connection instead of reusing.
+	for i := 0; i < 2; i++ {
+		err := sink.EnqueuePush(context.Background(), Notification{MessageID: "msg-1", UserID: "user-1"})
+		if err == nil {
+			t.Fatalf("request %d: expected error for HTTP 500, got nil", i+1)
+		}
+		if !strings.Contains(err.Error(), "HTTP 500") {
+			t.Fatalf("request %d: error = %v, want HTTP 500", i+1, err)
+		}
+	}
+
+	if requestCount != 2 {
+		t.Fatalf("server received %d requests, want 2 (connection reuse failed)", requestCount)
+	}
+}

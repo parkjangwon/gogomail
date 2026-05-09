@@ -397,3 +397,94 @@ func TestPOP3RetrInvalid(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "PASS secret")
 	pop3Cmd(t, tp, "-ERR", "RETR 99")
 }
+
+// commitMailbox wraps mockMailbox and adds a CommitDeletes method.
+type commitMailbox struct {
+	*mockMailbox
+	commitErr error
+}
+
+func (c *commitMailbox) CommitDeletes() error {
+	return c.commitErr
+}
+
+// commitStore is a Store that returns a commitMailbox.
+type commitStore struct {
+	mailbox *commitMailbox
+}
+
+func (s *commitStore) Authenticate(user, pass string) (Mailbox, error) {
+	if user != "alice" || pass != "secret" {
+		return nil, fmt.Errorf("authentication failed")
+	}
+	return s.mailbox, nil
+}
+
+func newCommitServer(t *testing.T, mb *commitMailbox) (*Server, net.Listener) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := &Server{
+		Store:       &commitStore{mailbox: mb},
+		Greeting:    "test",
+		IdleTimeout: 5 * time.Second,
+	}
+	go func() { _ = server.Serve(listener) }()
+	return server, listener
+}
+
+// TestPOP3CommitDeletesErrorRollsBack verifies that when CommitDeletes returns
+// an error on QUIT, the server sends -ERR and rolls back the deletion marks.
+func TestPOP3CommitDeletesErrorRollsBack(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	// QUIT must return -ERR because CommitDeletes fails.
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+
+	// After rollback, the message must no longer be marked deleted.
+	if mb.mockMailbox.Deleted(0) {
+		t.Fatal("expected deletion to be rolled back after CommitDeletes failure")
+	}
+}
+
+// TestPOP3CommitDeletesSuccess verifies that a successful CommitDeletes on QUIT
+// returns +OK to the client.
+func TestPOP3CommitDeletesSuccess(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: nil,
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+}
