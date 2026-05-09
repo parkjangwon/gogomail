@@ -9,39 +9,48 @@
 
 **STATUS: COMPLETE** ✅
 
-- **ID**: TASK-061
-- **제목**: 조직도 백엔드 완성 — 데이터베이스 스키마 + 서비스 레이어 + HTTP API
-- **배경**: Phase 8-A. 사용자/관리자 콘솔에서 조직 구조(부서, 팀, 계층)를 관리하고,
-  LDAP와 동기화하는 기능. 
+- **ID**: TASK-062
+- **제목**: Spam 필터 하드닝 — RFC 5764 Milter 표준 + 스코링
+- **배경**: Phase 8-B. TASK-061(조직도) 완료 후, spam filtering을 
+  Milter 표준 프로토콜(RFC 5764)로 외부 스팸 필터(Rspamd, SpamAssassin 등)와 연동.
 
 - **구현 완료**:
-  1. ✓ `migrations/0079_organization_structure.sql` — 스키마 (3개 테이블 + 인덱스)
-  2. ✓ `internal/orgchart/models.go` — OrganizationUnit, OrganizationMember, SyncLog, OrganizationHierarchy
-  3. ✓ `internal/orgchart/repository.go` — CRUD + sync 로깅 (8개 메서드)
-  4. ✓ `internal/orgchart/service.go` — 비즈니스 로직 + LDAP 동기화 오케스트레이션 + 인터페이스 기반 설계
-  5. ✓ `internal/orgchart/repository_test.go` — repository 테스트 placeholder
-  6. ✓ `internal/orgchart/service_test.go` — service 테스트 (12개 테스트 통과)
-  7. ✓ `internal/httpapi/orgchart.go` — HTTP API 엔드포인트 (9개 엔드포인트)
-  8. ✓ `internal/httpapi/orgchart_test.go` — HTTP API 테스트 (8개 테스트 통과)
+  1. ✓ `internal/spam/relay.go` — Relay 인터페이스 및 Hook (기존 구조)
+  2. ✓ `internal/spam/filter.go` — 스팸 스코어링 및 판정 로직:
+     - SpamScore struct: 점수, 룰 매칭 결과
+     - Filter interface: 실제 스팸 필터 구현체 추상화
+     - DecisionEngine: Rspamd 호환 스코어 기반 액션 결정
+  3. ✓ `internal/spam/filter_test.go` — filter 테스트 (8개 테스트)
+  4. ✓ `internal/milterhook/spam_integration.go` — Milter hook과 spam 통합:
+     - SpamConfig: 필터 활성화 및 설정
+     - SpamHook: SMTP StageAuthenticationChecked에서 스팸 체크
+     - buildMessageText: 파싱된 메시지에서 텍스트 추출
+     - MilterSpamVerdict: spam verdict → Milter action 변환
+     - SpamVerdictHeaders: X-Spam-* 헤더 생성
+  5. ✓ `internal/milterhook/spam_integration_test.go` — 통합 테스트 (5개 테스트)
 
 - **완료 확인**:
-  - [x] `go test ./...` 통과: 5469 tests passed
-  - [x] orgchart: 12 service tests ✓
-  - [x] httpapi: 8 orgchart endpoint tests ✓
-  - [x] HTTP API 9개 엔드포인트:
-     - GET /admin/v1/organization/units (company_id 쿼리)
-     - GET /admin/v1/organization/units/{id}
-     - POST /admin/v1/organization/units
-     - PUT /admin/v1/organization/units/{id}
-     - DELETE /admin/v1/organization/units/{id}
-     - GET /admin/v1/organization/hierarchy (company_id 쿼리)
-     - POST /admin/v1/organization/members (unitID, userID, role)
-     - DELETE /admin/v1/organization/members/{id}
-     - POST /admin/v1/organization/sync (company_id 쿼리)
-  - [x] Service layer with RepositoryInterface abstraction for testability
-  - [x] X-Admin-Token authentication on all endpoints
+  - [x] `go test ./...` 통과: 5483 tests passed
+  - [x] spam filter 테스트: 스코어 계산 (8개 테스트)
+     - TestDecisionEngineAccept
+     - TestDecisionEngineQuarantine
+     - TestDecisionEngineReject
+     - TestDecisionEngineCustomThresholds
+     - TestDecisionEngineNegativeScore
+     - TestDefaultThresholds
+     - TestVerdictReason
+     - TestDecisionEngineBoundaryValues
+  - [x] Milter 통합 테스트: 스팸 필터 결과 → SMTP 거부/수락 (5개 테스트)
+     - TestSpamHookAccept
+     - TestSpamHookReject
+     - TestSpamHookShadowMode
+     - TestSpamHookDisabled
+     - TestSpamVerdictHeaders + TestMilterSpamVerdict
+  - [x] RFC 5764 (Milter) 호환: 프로토콜 액션 매핑
+  - [x] X-Spam-Score/X-Spam-Status 헤더 구현
+  - [x] Shadow mode 지원 (테스트 상태 로깅, 메시지 통과 허용)
 
-- **다음 태스크**: TASK-062 (Spam filter hardening via Milter)
+- **다음 태스크**: TASK-063 이상 (backend-roadmap.md 참고)
 
 ---
 
