@@ -7,20 +7,33 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-021
-- **제목**: WebDAV Gateway — Drive RFC 4918 지원
-- **배경**: `internal/webdavgw`는 WebDAV XML 유틸만 존재. HTTP 핸들러 + Drive 연동 미구현.
-  WebDAV는 OpenAPI로 정의 불가하므로 REST가 아닌 별도 프로토콜로 구현.
-- **구현 대상**: `internal/httpapi/webdav.go` — RFC 4918 PROPFIND/PROPPATCH/MKCOL/GET/PUT/DELETE/COPY/MOVE 지원
+- **ID**: TASK-022
+- **제목**: POP3 게이트웨이 런타임 통합
+- **배경**: `internal/pop3d`에 POP3 서버 핵심 구현 존재. 그러나 앱 런타임에 연결되지 않음.
+  `internal/mailservice`에 POP3 Store/Mailbox 어댑터 없음. `app.Mode`에 `pop3` 없음.
+  AUTH PLAIN/LOGIN 미구현 ("AUTH not implemented"). IMAP 게이트웨이 패턴으로 통합.
+- **구현 대상**:
+  - `internal/pop3d/pop3d.go` — AUTH PLAIN/LOGIN 추가
+  - `internal/mailservice/pop3_adapter.go` — POP3StoreAdapter + pop3Mailbox
+  - `internal/config/config.go` — POP3 설정 필드
+  - `internal/app/mode.go` — ModePOP3 추가
+  - `internal/app/run.go` — runPOP3Gateway + case ModePOP3
 - **완료 조건**:
-  - [ ] `go test ./...` 통과
-  - [ ] WebDAV PROPFIND로 Drive 노드 목록 조회 가능
-- **다음 태스크**: TASK-022
+  - [x] `go test ./...` 통과
+  - [x] AUTH PLAIN 으로 POP3 인증 가능
+  - [x] ModePOP3 모드로 POP3 서버 구동 가능
+- **다음 태스크**: TASK-023
 
 ---
 
 ## 완료됨
 
+- **TASK-022**: POP3 게이트웨이 런타임 통합 ✅ (2026-05-09)
+  - `internal/pop3d/pop3d.go`에 AUTH PLAIN/LOGIN 추가 + CAPA에 SASL 광고
+  - `internal/mailservice/pop3_adapter.go`에 POP3StoreAdapter + pop3Mailbox 구현 (lazy content load, CommitDeletes on QUIT)
+  - `internal/config/config.go`에 POP3Addr/TLS/MaxConnections/IdleTimeout 필드
+  - `internal/app/mode.go`에 ModePOP3, `run.go`에 runPOP3Gateway
+  - `go test ./...` 5131개 통과
 - **TASK-021**: WebDAV Gateway — Drive RFC 4918 지원 ✅ (2026-05-09)
   - `internal/httpapi/webdav.go`에 RFC 4918 WebDAV 핸들러 구현
   - PROPFIND (목록), MKCOL (폴더 생성), GET (다운로드), DELETE (휴지통), MOVE/COPY (이동/복사) 지원

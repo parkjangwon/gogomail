@@ -30,6 +30,11 @@ type Config struct {
 	IMAPNotifyConsumerClaimIdle         time.Duration
 	IMAPNotifyConsumerMaxDeliveries     int64
 	IMAPNotifyConsumerDeadLetterStream  string
+	POP3Addr                            string
+	POP3TLSCertFile                     string
+	POP3TLSKeyFile                      string
+	POP3MaxConnections                  int
+	POP3IdleTimeout                     time.Duration
 	CalDAVAddr                          string
 	CalDAVAllowInsecureAuth             bool
 	CardDAVAddr                         string
@@ -227,6 +232,11 @@ func Load() Config {
 		IMAPNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		IMAPNotifyConsumerMaxDeliveries:     int64EnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", 10),
 		IMAPNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM")),
+		POP3Addr:                            envOrDefault("GOGOMAIL_POP3_ADDR", ":1110"),
+		POP3TLSCertFile:                     envOrDefault("GOGOMAIL_POP3_TLS_CERT_FILE", ""),
+		POP3TLSKeyFile:                      envOrDefault("GOGOMAIL_POP3_TLS_KEY_FILE", ""),
+		POP3MaxConnections:                  intEnvOrDefault("GOGOMAIL_POP3_MAX_CONNECTIONS", 0),
+		POP3IdleTimeout:                     durationEnvOrDefault("GOGOMAIL_POP3_IDLE_TIMEOUT", 10*time.Minute),
 		CalDAVAddr:                          envOrDefault("GOGOMAIL_CALDAV_ADDR", ":8081"),
 		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
