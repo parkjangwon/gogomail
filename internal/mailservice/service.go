@@ -472,6 +472,37 @@ func validateDraftSearchQuery(query maildb.DraftSearchQuery) error {
 	return nil
 }
 
+// FetchRawMessageBody returns the raw EML bytes for a message identified by its
+// database ID. It is used by the POP3 gateway for RETR responses.
+func (s *Service) FetchRawMessageBody(ctx context.Context, userID, messageID string) (string, error) {
+	userID = strings.TrimSpace(userID)
+	messageID = strings.TrimSpace(messageID)
+	if err := validateServiceResourceID("message_id", messageID); err != nil {
+		return "", err
+	}
+	detail, err := s.repository.GetMessage(ctx, userID, messageID)
+	if err != nil {
+		return "", err
+	}
+	if s.store == nil || detail.StoragePath == "" {
+		return "", fmt.Errorf("message body not available")
+	}
+	storagePath, err := requireStoredObjectPath("message body", detail.StoragePath)
+	if err != nil {
+		return "", err
+	}
+	rc, err := s.store.Get(ctx, storagePath)
+	if err != nil {
+		return "", fmt.Errorf("open message body: %w", err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return "", fmt.Errorf("read message body: %w", err)
+	}
+	return string(data), nil
+}
+
 func (s *Service) GetMessage(ctx context.Context, userID string, messageID string) (maildb.MessageDetail, error) {
 	userID = strings.TrimSpace(userID)
 	messageID = strings.TrimSpace(messageID)

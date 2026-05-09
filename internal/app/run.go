@@ -51,6 +51,7 @@ import (
 	"github.com/gogomail/gogomail/internal/mailservice"
 	"github.com/gogomail/gogomail/internal/observability"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/pop3d"
 	"github.com/gogomail/gogomail/internal/outbox"
 	"github.com/gogomail/gogomail/internal/pushnotify"
 	"github.com/gogomail/gogomail/internal/ratelimit"
@@ -97,6 +98,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runEventWorker(ctx, cfg, logger)
 	case ModeIMAP:
 		return runIMAPGateway(ctx, cfg, logger)
+	case ModePOP3:
+		return runPOP3Gateway(ctx, cfg, logger)
 	case ModeCalDAV:
 		return runCalDAVGateway(ctx, cfg, logger)
 	case ModeCardDAV:
@@ -417,6 +420,73 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 			return err
 		}
 		return nil
+	}
+}
+
+func pop3TLSConfig(cfg config.Config) (*tls.Config, error) {
+	if cfg.POP3TLSCertFile == "" && cfg.POP3TLSKeyFile == "" {
+		return nil, nil
+	}
+	if cfg.POP3TLSCertFile == "" || cfg.POP3TLSKeyFile == "" {
+		return nil, errors.New("both POP3 TLS certificate and key files are required")
+	}
+	cert, err := tls.LoadX509KeyPair(cfg.POP3TLSCertFile, cfg.POP3TLSKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}, nil
+}
+
+func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	store, err := objectStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	repository := maildb.NewRepository(db)
+	service := mailservice.New(repository, store)
+
+	tlsConfig, err := pop3TLSConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	server := &pop3d.Server{
+		Store:       mailservice.NewPOP3StoreAdapter(repository, service),
+		TLSConfig:   tlsConfig,
+		Greeting:    "gogomail POP3 ready",
+		IdleTimeout: cfg.POP3IdleTimeout,
+	}
+
+	addr := strings.TrimSpace(cfg.POP3Addr)
+	if addr == "" {
+		addr = ":1110"
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("pop3 listen %s: %w", addr, err)
+	}
+
+	logger.Info("pop3 server listening", "mode", ModePOP3, "addr", ln.Addr().String(), "tls_configured", tlsConfig != nil)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- server.Serve(ln) }()
+
+	select {
+	case <-ctx.Done():
+		server.Close()
+		return nil
+	case err := <-errCh:
+		return err
 	}
 }
 

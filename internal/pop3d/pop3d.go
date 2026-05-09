@@ -3,6 +3,7 @@ package pop3d
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -192,6 +193,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		sess.writer.WriteString("UIDL\r\n")
 		sess.writer.WriteString("TOP\r\n")
 		sess.writer.WriteString("USER\r\n")
+		sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
 		if sess.server.TLSConfig != nil {
 			sess.writer.WriteString("STLS\r\n")
 		}
@@ -215,7 +217,78 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 	case "NOOP":
 		sess.writeOK("")
 	case "AUTH":
-		sess.writeERR("AUTH not implemented")
+		if len(args) == 0 {
+			sess.writeERR("syntax error")
+			return
+		}
+		mechanism := strings.ToUpper(args[0])
+		switch mechanism {
+		case "PLAIN":
+			var encoded string
+			if len(args) >= 2 {
+				encoded = args[1]
+			} else {
+				sess.writeLine("+ ")
+				line, err := sess.reader.ReadString('\n')
+				if err != nil {
+					sess.conn.Close()
+					return
+				}
+				encoded = strings.TrimRight(line, "\r\n")
+			}
+			decoded, err := base64.StdEncoding.DecodeString(encoded)
+			if err != nil {
+				sess.writeERR("invalid base64")
+				return
+			}
+			parts := strings.SplitN(string(decoded), "\x00", 3)
+			if len(parts) != 3 {
+				sess.writeERR("invalid credentials format")
+				return
+			}
+			user, pass := parts[1], parts[2]
+			mb, err := sess.server.Store.Authenticate(user, pass)
+			if err != nil {
+				sess.writeERR("authentication failed")
+				return
+			}
+			sess.mailbox = mb
+			sess.state = stateTransaction
+			sess.writeOK("mailbox ready")
+		case "LOGIN":
+			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Username:")))
+			userLine, err := sess.reader.ReadString('\n')
+			if err != nil {
+				sess.conn.Close()
+				return
+			}
+			userDecoded, err := base64.StdEncoding.DecodeString(strings.TrimRight(userLine, "\r\n"))
+			if err != nil {
+				sess.writeERR("invalid base64")
+				return
+			}
+			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Password:")))
+			passLine, err := sess.reader.ReadString('\n')
+			if err != nil {
+				sess.conn.Close()
+				return
+			}
+			passDecoded, err := base64.StdEncoding.DecodeString(strings.TrimRight(passLine, "\r\n"))
+			if err != nil {
+				sess.writeERR("invalid base64")
+				return
+			}
+			mb, err := sess.server.Store.Authenticate(string(userDecoded), string(passDecoded))
+			if err != nil {
+				sess.writeERR("authentication failed")
+				return
+			}
+			sess.mailbox = mb
+			sess.state = stateTransaction
+			sess.writeOK("mailbox ready")
+		default:
+			sess.writeERR("unsupported authentication mechanism")
+		}
 	default:
 		sess.writeERR("unknown command")
 	}
@@ -321,6 +394,9 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.writer.WriteString(".\r\n")
 		sess.writer.Flush()
 	case "QUIT":
+		if committer, ok := sess.mailbox.(interface{ CommitDeletes() error }); ok {
+			committer.CommitDeletes()
+		}
 		sess.writeOK("bye")
 		sess.conn.Close()
 	case "CAPA":
@@ -328,6 +404,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.writer.WriteString("UIDL\r\n")
 		sess.writer.WriteString("TOP\r\n")
 		sess.writer.WriteString("USER\r\n")
+		sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
 		if sess.server.TLSConfig != nil {
 			sess.writer.WriteString("STLS\r\n")
 		}
