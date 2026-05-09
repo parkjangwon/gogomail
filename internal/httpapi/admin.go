@@ -27,6 +27,7 @@ import (
 type adminRouteConfig struct {
 	routeCounters       *delivery.RouteCounters
 	storageCapabilities *storage.BackendCapabilities
+	configNotifier      configstore.Notifier
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -39,6 +40,12 @@ func WithRouteCounters(c *delivery.RouteCounters) AdminRouteOption {
 
 func WithStorageCapabilities(capabilities storage.BackendCapabilities) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.storageCapabilities = &capabilities }
+}
+
+// WithConfigNotifier wires a configstore.Notifier into the SSE config-stream
+// endpoint so that config change events are pushed to connected admin clients.
+func WithConfigNotifier(n configstore.Notifier) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.configNotifier = n }
 }
 
 func rejectUnknownAPIUsageAggregateQuery(w http.ResponseWriter, r *http.Request) bool {
@@ -1225,14 +1232,42 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.WriteHeader(http.StatusOK)
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
+		flush := func() {
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
 		}
+		flush()
 		fmt.Fprintf(w, "data: %s\n\n", `{"type":"connected"}`)
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
+		flush()
+		if cfg.configNotifier == nil {
+			<-r.Context().Done()
+			return
 		}
-		<-r.Context().Done()
+		ch := cfg.configNotifier.Subscribe()
+		defer cfg.configNotifier.Unsubscribe(ch)
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+				payload, err := json.Marshal(map[string]string{
+					"type":       "config.changed",
+					"scope_type": string(event.ScopeType),
+					"scope_id":   event.ScopeID,
+					"key":        event.Key,
+					"action":     event.Action,
+				})
+				if err != nil {
+					continue
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				flush()
+			}
+		}
 	}))
 
 	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

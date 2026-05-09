@@ -7,41 +7,17 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-034
-- **제목**: Batch Worker — Quota Alert Check (quota-alert-check 잡 구현, Phase 2-C)
-- **배경**: Phase 2-C 배치 잡. `quota-alert-check` stub이 존재하나 log only.
-  `quota_alert_thresholds` + `quota_alerts` 테이블 인프라 완비.
-  users/domains/companies에서 할당량 초과 엔티티를 스캔하여 알림을 기록해야 한다.
-- **구현 대상**:
-  - `internal/maildb/quota_alert_scan.go` (신규): `ScanAndRecordQuotaAlerts(ctx, defaultWarning, defaultCritical float64) (int, error)` — 단일 INSERT...SELECT CTE로 구현. 사용률이 임계치를 초과하고 24시간 내 동일 유형 알림이 없는 엔티티에 quota_alerts 행 삽입. 삽입 행 수 반환.
-  - `internal/maildb/quota_alert_scan_test.go` (신규): nil DB 및 잘못된 임계값 테스트
-  - `internal/app/run.go`: `quota-alert-check` stub → `ScanAndRecordQuotaAlerts(ctx, 0.80, 0.95)` 실제 호출
-- **완료 조건**:
-  - [x] `go test ./...` 통과
-  - [x] `ScanAndRecordQuotaAlerts` 테스트 통과 (nil DB, invalid ratio 검증)
-  - [x] `run.go`의 `quota-alert-check` 잡이 실제 스캔 수행
-- **다음 태스크**: TASK-035 (백로그에서 선택)
+> 모든 백로그 항목이 완료되었습니다. 다음 작업이 필요하면 backend-roadmap.md를 참조하세요.
 
 ---
 
 ## 완료됨
 
-- **TASK-033**: Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) ✅ (2026-05-09)
-  - `internal/maildb/token_cleanup.go`: PruneExpiredAttachmentShareLinks + PruneExpiredDriveShareLinks
-  - `internal/maildb/token_cleanup_test.go`: nil DB + zero cutoff 검증 4개 테스트
-  - `internal/app/run.go`: token-cleanup stub → 실제 호출
-  - `go test ./...` 5191개 통과
-
+- **TASK-035**: SSE Config Stream — configstore.Notifier 연동 ✅ (2026-05-09)
+- **TASK-034**: Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) ✅ (2026-05-09)
+- **TASK-033**: Batch Worker — Token Cleanup (token-cleanup 잡) ✅ (2026-05-09)
 - **TASK-032**: Batch Worker — TOTP Used-Code Pruning ✅ (2026-05-09)
-  - `internal/maildb/mfa.go`: PruneExpiredTOTPCodes
-  - `internal/maildb/mfa_test.go`: 2개 테스트
-  - `internal/app/run.go`: used-code-cleanup stub → 실제 호출
-
 - **TASK-031**: Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 ✅ (2026-05-09)
-  - `internal/imapnotify/handler.go`: DeltaSyncNotifier 인터페이스 + WithDeltaSync
-  - `internal/app/run.go`: fanOutAdapter + FanOut 생성 및 연결
-  - `go test ./...` 5185개 통과
-
 - **TASK-030**: Delta Sync Cursor — Postgres 영속 스토어 ✅ (2026-05-09)
 
 ---
