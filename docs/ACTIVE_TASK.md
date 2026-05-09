@@ -9,33 +9,32 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-067
-- **제목**: Audit Logs (Level 1 + 2)
-- **배경**: Phase 8-B. Admin actions 및 security events 감시 로그 구현.
-  - Admin action logging (create, update, delete)
-  - Security event logging (login, permission change)
-  - Audit log querying & filtering
-  - Retention policy enforcement
-  - Log masking (email, content)
+- **ID**: TASK-068
+- **제목**: Identity Provider Abstraction
+- **배경**: Phase 8-C. Pluggable identity provider framework supporting multiple backends.
+  - Abstract identity provider interface
+  - Provider registry & lifecycle management
+  - Multi-tenant provider configuration
+  - Provider-specific field mapping & validation
+  - User sync & reconciliation framework
 
 - **구현 대상**:
-  1. `internal/admin/audit_service.go` — Audit log operations
-  2. `internal/admin/audit_service_test.go` — Unit tests
-  3. Repository methods for audit operations (already in TASK-063)
-  4. Log masking utilities
-  5. Retention cleanup scheduler
+  1. `internal/admin/identity.go` — Identity provider interface & registry
+  2. `internal/admin/identity_test.go` — Unit tests
+  3. `internal/admin/provider_factory.go` — Provider creation & management
+  4. Configuration management for providers
+  5. User sync scheduler framework
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] LogAction for admin operations
-  - [ ] LogSecurityEvent for security events
-  - [ ] QueryAuditLogs with filtering
-  - [ ] Log masking for sensitive data
-  - [ ] Retention policy cleanup
-  - [ ] Login audit tracking
+  - [ ] IdentityProvider interface defined
+  - [ ] Provider registry management
+  - [ ] Multi-tenant provider support
+  - [ ] Provider configuration validation
+  - [ ] Field mapping & transformation
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-066 ✅ (Organization Management) — COMPLETE
+- **이전 태스크**: TASK-067 ✅ (Audit Logs Level 1 + 2) — COMPLETE
 
 ---
 
