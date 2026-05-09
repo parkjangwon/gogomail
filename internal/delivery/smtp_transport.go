@@ -15,6 +15,7 @@ import (
 	"github.com/gogomail/gogomail/internal/dane"
 	"github.com/gogomail/gogomail/internal/mtasts"
 	"github.com/gogomail/gogomail/internal/outbound"
+	"github.com/gogomail/gogomail/internal/tlsrpt"
 )
 
 type MXResolver interface {
@@ -30,27 +31,29 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver      MXResolver
-	Router        Router
-	Timeout       time.Duration
-	Hello         string
-	TLSMode       DeliveryTLSMode
-	TLSConfig     *tls.Config
-	Transformers  TransformChain
-	daneValidator *dane.Validator
-	mtastsClient  *mtasts.Client
-	deliverHost   func(context.Context, Job, Route, string, []outbound.Address) error
+	Resolver       MXResolver
+	Router         Router
+	Timeout        time.Duration
+	Hello          string
+	TLSMode        DeliveryTLSMode
+	TLSConfig      *tls.Config
+	Transformers   TransformChain
+	daneValidator  *dane.Validator
+	mtastsClient   *mtasts.Client
+	tlsrptCollector *tlsrpt.Collector
+	deliverHost    func(context.Context, Job, Route, string, []outbound.Address) error
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
 	dnsResolver := &dane.NetResolver{Resolver: net.DefaultResolver}
 	return &DirectSMTPTransport{
-		Resolver:      net.DefaultResolver,
-		Timeout:       30 * time.Second,
-		Hello:         "localhost",
-		TLSMode:       DeliveryTLSOpportunistic,
-		daneValidator: dane.NewValidator(dnsResolver),
-		mtastsClient:  mtasts.NewClient(),
+		Resolver:        net.DefaultResolver,
+		Timeout:         30 * time.Second,
+		Hello:           "localhost",
+		TLSMode:         DeliveryTLSOpportunistic,
+		daneValidator:   dane.NewValidator(dnsResolver),
+		mtastsClient:    mtasts.NewClient(),
+		tlsrptCollector: tlsrpt.NewCollector("localhost"), // Domain placeholder
 	}
 }
 
@@ -408,6 +411,29 @@ func (t *DirectSMTPTransport) deliveryTLSConfig(host string) *tls.Config {
 		cfg.MinVersion = tls.VersionTLS12
 	}
 	return cfg
+}
+
+// recordTLSResult records TLS delivery result for TLS-RPT reporting.
+func (t *DirectSMTPTransport) recordTLSResult(sendingMTA string, tlsVersion string, tlsCipherSuite string, err error) {
+	if t.tlsrptCollector == nil {
+		return
+	}
+	if err != nil {
+		// Record TLS failure
+		failure := &tlsrpt.FailureDetails{
+			ResultType:       "tlsa", // Could be other types
+			FailureReasonCode: "certificate-host-mismatch", // Simplified
+			FailureReasonText: err.Error(),
+		}
+		t.tlsrptCollector.RecordFailure("tlsa", sendingMTA, failure)
+	} else {
+		// Record TLS success
+		success := &tlsrpt.SuccessDetails{
+			TLSVersion:     tlsVersion,
+			TLSCipherSuite: tlsCipherSuite,
+		}
+		t.tlsrptCollector.RecordSuccess("tlsa", sendingMTA, success)
+	}
 }
 
 func (t *DirectSMTPTransport) route(ctx context.Context, job Job, domain string) (Route, error) {
