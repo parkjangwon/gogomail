@@ -87,6 +87,78 @@ func TestParseOIDCDiscovery(t *testing.T) {
 	}
 }
 
+func TestGenerateOIDCStateForDomain(t *testing.T) {
+	state, err := GenerateOIDCStateForDomain("my-domain-id")
+	if err != nil {
+		t.Fatalf("GenerateOIDCStateForDomain: %v", err)
+	}
+	domainID, err := ParseOIDCStateDomain(state)
+	if err != nil {
+		t.Fatalf("ParseOIDCStateDomain: %v", err)
+	}
+	if domainID != "my-domain-id" {
+		t.Errorf("domainID = %q, want my-domain-id", domainID)
+	}
+}
+
+func TestParseOIDCStateDomainInvalid(t *testing.T) {
+	if _, err := ParseOIDCStateDomain("!!!not-base64!!!"); err == nil {
+		t.Fatal("expected error for invalid state")
+	}
+}
+
+func TestParseSAMLNameID(t *testing.T) {
+	xml := []byte(`<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">` +
+		`<saml:Assertion>` +
+		`<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">alice@example.com</saml:NameID></saml:Subject>` +
+		`</saml:Assertion>` +
+		`</samlp:Response>`)
+	email, err := ParseSAMLNameID(xml)
+	if err != nil {
+		t.Fatalf("ParseSAMLNameID: %v", err)
+	}
+	if email != "alice@example.com" {
+		t.Errorf("email = %q, want alice@example.com", email)
+	}
+}
+
+func TestParseSAMLNameIDEmpty(t *testing.T) {
+	xml := []byte(`<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">` +
+		`<saml:Assertion><saml:Subject><saml:NameID></saml:NameID></saml:Subject></saml:Assertion>` +
+		`</samlp:Response>`)
+	if _, err := ParseSAMLNameID(xml); err == nil {
+		t.Fatal("expected error for empty NameID")
+	}
+}
+
+func TestParseIDTokenEmail(t *testing.T) {
+	// payload: {"sub":"sub123","email":"user@example.com"}
+	payload := "eyJzdWIiOiJzdWIxMjMiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ"
+	token := "eyJhbGciOiJIUzI1NiJ9." + payload + ".fakesig"
+	email, err := ParseIDTokenEmail(token)
+	if err != nil {
+		t.Fatalf("ParseIDTokenEmail: %v", err)
+	}
+	if email != "user@example.com" {
+		t.Errorf("email = %q, want user@example.com", email)
+	}
+}
+
+func TestParseIDTokenEmailMissingClaim(t *testing.T) {
+	// payload: {"sub":"sub123"} — no email field
+	payload := "eyJzdWIiOiJzdWIxMjMifQ"
+	token := "eyJhbGciOiJIUzI1NiJ9." + payload + ".fakesig"
+	if _, err := ParseIDTokenEmail(token); err == nil {
+		t.Fatal("expected error for missing email claim")
+	}
+}
+
+func TestParseIDTokenEmailInvalidFormat(t *testing.T) {
+	if _, err := ParseIDTokenEmail("notajwt"); err == nil {
+		t.Fatal("expected error for non-JWT string")
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
 }
