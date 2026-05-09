@@ -9,33 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-063
-- **제목**: Admin Console Schema + RBAC + Custom Roles
-- **배경**: Phase 8-A 첫 번째 태스크. Admin Console의 기초 데이터 모델과 권한 시스템 구현.
-  - 관리자 역할 정의 (builtin + custom)
-  - 역할별 권한 매트릭스
-  - 사용자-역할 할당
-  - 감시 정책 설정 (Audit Level, Retention, Masking)
+- **ID**: TASK-064
+- **제목**: Admin Auth & Session — JWT, login, refresh
+- **배경**: Phase 8-B. Admin console의 인증 및 세션 관리.
+  - JWT 토큰 발급 및 검증
+  - Admin login endpoint (email + password)
+  - Token refresh mechanism
+  - Session timeout & revocation
 
 - **구현 대상**:
-  1. `internal/admin/models.go` — Admin role, permission, audit policy types
-  2. `migrations/00XX_admin_console_schema.sql` — DB schema (9개 테이블)
-  3. `internal/admin/repository.go` — Admin role CRUD, permission queries
-  4. `internal/admin/service.go` — Service layer (validation, business logic)
-  5. `internal/admin/service_test.go` — Unit tests
-  6. `docs/ADMIN_CONSOLE_SPEC.md` — ✅ 완성된 스펙 문서
+  1. `internal/admin/auth.go` — JWT utility functions, token generation/validation
+  2. `internal/admin/auth_test.go` — Unit tests for JWT operations
+  3. `internal/admin/session.go` — Session management, timeout handling
+  4. API routes for admin login/logout/refresh
+  5. Middleware for JWT validation
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] Schema validation (migration 문법 확인)
-  - [ ] Admin role CRUD 동작 확인
-  - [ ] Custom role 생성/수정/삭제 동작 확인
-  - [ ] Permission matrix 쿼리 동작 확인
-  - [ ] Audit policy 설정 동작 확인
-  - [ ] docs/ADMIN_CONSOLE_SPEC.md 반영 완료
-  - [ ] git status: clean (docs/ADMIN_CONSOLE_SPEC.md, migrations, internal/admin 포함)
+  - [ ] JWT token generation with expiry
+  - [ ] Token refresh endpoint 동작 확인
+  - [ ] Admin login with email/password 동작 확인
+  - [ ] Session timeout & revocation 동작 확인
+  - [ ] JWT validation middleware 동작 확인
+  - [ ] git status: clean
 
-- **다음 태스크**: TASK-064 (Admin Auth & Session)
+- **이전 태스크**: TASK-063 ✅ (Admin Console Schema + RBAC) — COMPLETE
 
 ---
 
