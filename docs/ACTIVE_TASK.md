@@ -9,32 +9,32 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-065
-- **제목**: User Management CRUD
-- **배경**: Phase 8-B. Admin console에서 사용자 관리 기능.
-  - Create/Read/Update/Delete user operations
-  - Bulk import from CSV
-  - Password reset & email verification
-  - User status management (active, archived, disabled)
+- **ID**: TASK-066
+- **제목**: Organization Management
+- **배경**: Phase 8-B. Admin console에서 조직 구조 관리 (departments, teams, units).
+  - Create/Update/Delete organization units
+  - Assign users to units
+  - Hierarchical organization structure
+  - Unit managers and permissions
 
 - **구현 대상**:
-  1. `internal/admin/user_service.go` — User CRUD operations
-  2. `internal/admin/user_service_test.go` — Unit tests
-  3. `internal/admin/bulk_import.go` — CSV bulk import
-  4. API routes for user management
-  5. User search & filtering
+  1. `internal/admin/org_service.go` — Organization unit CRUD
+  2. `internal/admin/org_service_test.go` — Unit tests
+  3. Update models.go with OrganizationUnit struct
+  4. Repository methods for org operations
+  5. API routes for org management
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] CreateUser with validation
-  - [ ] UpdateUser operations
-  - [ ] DeleteUser (soft delete via status)
-  - [ ] ListUsers with pagination & filters
-  - [ ] Bulk import from CSV
-  - [ ] Password reset workflow
+  - [ ] CreateUnit with parent hierarchy
+  - [ ] UpdateUnit operations
+  - [ ] DeleteUnit (cascade handling)
+  - [ ] ListUnits with filtering
+  - [ ] AssignUserToUnit operations
+  - [ ] Unit manager role assignment
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-064 ✅ (Admin Auth & Session — JWT) — COMPLETE
+- **이전 태스크**: TASK-065 ✅ (User Management CRUD) — COMPLETE
 
 ---
 
