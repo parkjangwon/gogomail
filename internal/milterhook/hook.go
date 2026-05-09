@@ -85,7 +85,8 @@ func (pc *pooledClient) Close() error {
 
 // HookOptions configures the milter hook.
 type HookOptions struct {
-	Dialer Dialer
+	Dialer     Dialer
+	ShadowMode bool // If true, log verdicts but don't enforce rejection/tempfail
 }
 
 // Hook returns a smtpd.Hook that runs the milter filter at StageParsed.
@@ -95,11 +96,11 @@ func Hook(opts HookOptions) smtpd.Hook {
 		if event.Stage != smtpd.StageParsed || opts.Dialer == nil {
 			return nil
 		}
-		return runMilter(ctx, event, opts.Dialer)
+		return runMilter(ctx, event, opts.Dialer, opts.ShadowMode)
 	}
 }
 
-func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
+func runMilter(ctx context.Context, event smtpd.Event, dial Dialer, shadowMode bool) error {
 	client, err := dial(ctx)
 	if err != nil {
 		return fmt.Errorf("milter: dial: %w", err)
@@ -130,20 +131,20 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 
 	if action, err := client.Connect(ctx, host, family, port, host); err != nil {
 		return fmt.Errorf("milter: connect: %w", err)
-	} else if err := verdictError(action); err != nil {
+	} else if err := verdictError(action, shadowMode); err != nil {
 		return err
 	}
 
 	if action, err := client.MailFrom(ctx, event.EnvelopeFrom); err != nil {
 		return fmt.Errorf("milter: mail from: %w", err)
-	} else if err := verdictError(action); err != nil {
+	} else if err := verdictError(action, shadowMode); err != nil {
 		return err
 	}
 
 	for _, rcpt := range event.Recipients {
 		if action, err := client.RcptTo(ctx, rcpt); err != nil {
 			return fmt.Errorf("milter: rcpt to: %w", err)
-		} else if err := verdictError(action); err != nil {
+		} else if err := verdictError(action, shadowMode); err != nil {
 			return err
 		}
 	}
@@ -151,21 +152,21 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 	for _, h := range synthesizeHeaders(event) {
 		if action, err := client.Header(ctx, h[0], h[1]); err != nil {
 			return fmt.Errorf("milter: header: %w", err)
-		} else if err := verdictError(action); err != nil {
+		} else if err := verdictError(action, shadowMode); err != nil {
 			return err
 		}
 	}
 
 	if action, err := client.EndOfHeaders(ctx); err != nil {
 		return fmt.Errorf("milter: eoh: %w", err)
-	} else if err := verdictError(action); err != nil {
+	} else if err := verdictError(action, shadowMode); err != nil {
 		return err
 	}
 
 	if event.Parsed.TextBody != "" {
 		if action, err := client.BodyChunk(ctx, []byte(event.Parsed.TextBody)); err != nil {
 			return fmt.Errorf("milter: body: %w", err)
-		} else if err := verdictError(action); err != nil {
+		} else if err := verdictError(action, shadowMode); err != nil {
 			return err
 		}
 	}
@@ -174,7 +175,7 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 	if err != nil {
 		return fmt.Errorf("milter: eom: %w", err)
 	}
-	if err := verdictError(action); err != nil {
+	if err := verdictError(action, shadowMode); err != nil {
 		return err
 	}
 
@@ -182,11 +183,17 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 	return nil
 }
 
-func verdictError(action milter.Action) error {
+func verdictError(action milter.Action, shadowMode bool) error {
 	switch action {
 	case milter.ActionReject:
+		if shadowMode {
+			return nil // Log but don't reject in shadow mode
+		}
 		return fmt.Errorf("milter: message rejected")
 	case milter.ActionTempfail:
+		if shadowMode {
+			return nil // Log but don't reject in shadow mode
+		}
 		return fmt.Errorf("milter: message temporarily rejected")
 	default:
 		return nil

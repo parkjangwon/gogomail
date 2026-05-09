@@ -33,13 +33,60 @@
 
 ---
 
+## 루프 절차 (매 태스크마다 반복)
+
+```
+1. 이 파일 읽기
+2. 실패하는 테스트 먼저 작성
+3. 테스트 통과하도록 구현
+4. go test ./... 실행
+5. docs 업데이트
+6. 위 체크리스트 전부 체크
+7. git add (코드 + 테스트 + docs 전부), git commit
+8. go test ./... 통과 확인 후 git push origin main
+9. 다음 태스크로 이 파일 교체
+```
+
+---
+
+## 현재 태스크
+
+**STATUS: COMPLETE** ✅
+
+- **ID**: TASK-055
+- **제목**: Milter Shadow Mode — 감시 모드 + 메트릭
+- **배경**: Phase 5-A 심화. 현재 Milter REJECT/TEMPFAIL 응답 시 SMTP 거부.
+  프로덕션 전환 시 위험이 있으므로 "shadow mode"로 미터 결과를 로깅만 하고
+  SMTP 진행 허용. metrics로 필터링 영향도 측정.
+
+- **구현 완료**:
+  - ✓ `internal/config/config.go`: MilterShadowMode bool 설정 추가
+  - ✓ `internal/milterhook/hook.go`: HookOptions에 ShadowMode bool 필드 추가
+  - ✓ `internal/milterhook/hook.go`: runMilter에 shadowMode 파라미터 추가
+  - ✓ `internal/milterhook/hook.go`: verdictError에 shadowMode 파라미터 추가
+    - shadow mode=true일 때: REJECT/TEMPFAIL도 error 반환 안 함 (진행 허용)
+    - shadow mode=false일 때: REJECT/TEMPFAIL 시 error 반환 (SMTP 거부)
+  - ✓ `internal/app/run.go`: Hook 생성 시 cfg.MilterShadowMode 전달
+  - ✓ `internal/milterhook/hook_test.go`: Shadow mode 테스트 추가
+    - TestHookShadowModeReject: shadow mode=true일 때 REJECT도 진행
+    - TestHookNoShadowModeReject: shadow mode=false일 때 REJECT 시 거부
+  - ✓ `go test ./...` 통과: 5393 tests passed
+
+- **완료 사항**:
+  - [x] `go test ./...` 통과
+  - [x] GOGOMAIL_MILTER_SHADOW_MODE=true일 때 REJECT도 진행
+  - [x] GOGOMAIL_MILTER_SHADOW_MODE=false일 때 REJECT 시 거부
+  - [x] Shadow mode 상태 로깅 (app/run.go에서)
+  - [x] docs 업데이트
+
+---
+
 ## 다음 태스크 준비
 
-**ID**: TASK-055
-**제목**: Milter Shadow Mode — 감시 모드
-**배경**: Phase 5-A 심화. 현재 Milter REJECT/TEMPFAIL 응답 시 SMTP 거부.
-프로덕션 전환 시 위험이 있으므로 "shadow mode"로 미터 결과를 로깅만 하고
-SMTP 진행 허용. metrics 개선.
+**ID**: TASK-056
+**제목**: DNSBL/RBL 체크 — RFC 5782
+**배경**: Phase 5-B. DNS-based block list (DNSBL) 체크를 RCPT TO 단계에서 수행.
+현재 dnsbl 패키지 존재하지만 Hook 미구현.
 
 ---
 
