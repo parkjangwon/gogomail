@@ -9,31 +9,32 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-064
-- **제목**: Admin Auth & Session — JWT, login, refresh
-- **배경**: Phase 8-B. Admin console의 인증 및 세션 관리.
-  - JWT 토큰 발급 및 검증
-  - Admin login endpoint (email + password)
-  - Token refresh mechanism
-  - Session timeout & revocation
+- **ID**: TASK-065
+- **제목**: User Management CRUD
+- **배경**: Phase 8-B. Admin console에서 사용자 관리 기능.
+  - Create/Read/Update/Delete user operations
+  - Bulk import from CSV
+  - Password reset & email verification
+  - User status management (active, archived, disabled)
 
 - **구현 대상**:
-  1. `internal/admin/auth.go` — JWT utility functions, token generation/validation
-  2. `internal/admin/auth_test.go` — Unit tests for JWT operations
-  3. `internal/admin/session.go` — Session management, timeout handling
-  4. API routes for admin login/logout/refresh
-  5. Middleware for JWT validation
+  1. `internal/admin/user_service.go` — User CRUD operations
+  2. `internal/admin/user_service_test.go` — Unit tests
+  3. `internal/admin/bulk_import.go` — CSV bulk import
+  4. API routes for user management
+  5. User search & filtering
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] JWT token generation with expiry
-  - [ ] Token refresh endpoint 동작 확인
-  - [ ] Admin login with email/password 동작 확인
-  - [ ] Session timeout & revocation 동작 확인
-  - [ ] JWT validation middleware 동작 확인
+  - [ ] CreateUser with validation
+  - [ ] UpdateUser operations
+  - [ ] DeleteUser (soft delete via status)
+  - [ ] ListUsers with pagination & filters
+  - [ ] Bulk import from CSV
+  - [ ] Password reset workflow
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-063 ✅ (Admin Console Schema + RBAC) — COMPLETE
+- **이전 태스크**: TASK-064 ✅ (Admin Auth & Session — JWT) — COMPLETE
 
 ---
 
