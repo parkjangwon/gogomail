@@ -2547,6 +2547,9 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			}, cfg.SCIMToken)
 			logger.Info("scim routes registered")
 		}
+		httpapi.RegisterSSOAdminRoutes(mux, repository, cfg.AdminToken)
+		httpapi.RegisterSSORoutes(mux, repository)
+		logger.Info("sso routes registered")
 	}
 
 	var meteringDB *sql.DB

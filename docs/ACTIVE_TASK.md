@@ -7,43 +7,43 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-037
-- **제목**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B
-- **배경**: `internal/scim` 패키지에 타입/필터 유틸만 존재. HTTP 핸들러 없음.
-  Okta, Azure AD, Google Workspace 등 IdP가 SCIM 2.0으로 gogomail 사용자를 프로비저닝할 수 있어야 한다.
-  AdminAPI와 같은 서버에 `/scim/v2/Users` 엔드포인트를 추가한다.
+- **ID**: TASK-038
+- **제목**: SSO Configuration Admin API + SSO 플로우 핸들러 (Phase 3-C 초기)
+- **배경**: `internal/sso` 패키지에 SAML/OIDC 유틸만 존재. DB 저장소·HTTP 핸들러 없음.
+  도메인별 IdP 설정(sso_configurations)을 Admin API로 관리하고,
+  `/auth/sso/initiate`, `/auth/sso/saml/acs`, `/auth/sso/oidc/callback` 엔드포인트로
+  SAML/OIDC 플로우를 초기 구현한다.
 - **구현 대상**:
-  - `internal/httpapi/scim.go`: SCIM 2.0 REST 핸들러
-    - `RegisterSCIMRoutes(mux, svc SCIMUserService, token string)`
-    - `GET /scim/v2/Users` — 목록 (필터 eq/co/sw, startIndex/count 페이지네이션)
-    - `POST /scim/v2/Users` — 생성
-    - `GET /scim/v2/Users/{id}` — 단건 조회
-    - `PUT /scim/v2/Users/{id}` — 전체 교체
-    - `DELETE /scim/v2/Users/{id}` — 삭제
-    - `GET /scim/v2/ServiceProviderConfig` — 디스커버리
-    - `GET /scim/v2/ResourceTypes` — 디스커버리
-  - `internal/maildb/scim_users.go`: `SCIMUserRepository` (users 테이블 CRUD)
-    - `GetSCIMUser(ctx, id) → scim.UserResource`
-    - `ListSCIMUsers(ctx, filter, offset, limit) → ([]scim.UserResource, int, error)`
-    - `CreateSCIMUser(ctx, req) → scim.UserResource`
-    - `ReplaceSCIMUser(ctx, id, req) → scim.UserResource`
-    - `DeleteSCIMUser(ctx, id) → error`
-  - `internal/httpapi/scim_test.go`: 단위 테스트 (fake service)
-  - `internal/app/run.go`: `RegisterSCIMRoutes`를 AdminAPI에 연결
+  - `internal/maildb/sso_configs.go`: `SSOConfigRepository`
+    - `GetSSOConfig(ctx, domainID) → SSOConfig`
+    - `UpsertSSOConfig(ctx, cfg SSOConfig) error`
+    - `DeleteSSOConfig(ctx, domainID) error`
+    - `SSOConfig` 타입: DomainID, Provider (saml|oidc), EntityID, SSOURL,
+      Certificate, ClientID, ClientSecret, DiscoveryURL, JITProvisioning bool
+  - `internal/httpapi/sso.go`: SSO HTTP 핸들러
+    - `GET /auth/sso/initiate?domain={domain}` — SAML AuthnRequest redirect 또는 OIDC auth code redirect
+    - `POST /auth/sso/saml/acs` — SAML ACS: assertion 파싱 + session token 발급
+    - `GET /auth/sso/oidc/callback?code=&state=` — OIDC code→token 교환 + session 발급
+    - `RegisterSSORoutes(mux, svc SSOService)`
+  - `internal/httpapi/admin.go`에 `/admin/v1/sso-configurations` CRUD 추가
+    - `GET /admin/v1/sso-configurations/{domain_id}`
+    - `PUT /admin/v1/sso-configurations/{domain_id}`
+    - `DELETE /admin/v1/sso-configurations/{domain_id}`
+  - `internal/httpapi/sso_test.go`: 단위 테스트 (fake SSOService)
+  - `internal/maildb/sso_configs_test.go`: nil DB 기본 테스트
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] GET /scim/v2/Users 목록 + 필터 테스트
-  - [x] POST /scim/v2/Users 생성 테스트
-  - [x] GET /scim/v2/Users/{id} 조회 테스트
-  - [x] DELETE /scim/v2/Users/{id} 삭제 테스트
-  - [x] ServiceProviderConfig / ResourceTypes 디스커버리 테스트
-  - [x] run.go AdminAPI에 등록
-- **다음 태스크**: TASK-038
+  - [x] SSOConfig UpsertSSOConfig/GetSSOConfig/DeleteSSOConfig nil-db 테스트
+  - [x] initiate 엔드포인트 → SAML redirect / OIDC redirect 테스트
+  - [x] Admin API CRUD 테스트 (GET/PUT/DELETE /admin/v1/sso-configurations/{domain_id})
+  - [x] run.go에 RegisterSSORoutes 연결
+- **다음 태스크**: TASK-039
 
 ---
 
 ## 완료됨
 
+- **TASK-037**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B ✅ (2026-05-09)
 - **TASK-036**: LDAP Gateway (RFC 4511) — Phase 3-A ✅ (2026-05-09)
 - **TASK-035**: SSE Config Stream — configstore.Notifier 연동 ✅ (2026-05-09)
 - **TASK-034**: Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) ✅ (2026-05-09)
