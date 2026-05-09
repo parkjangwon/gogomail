@@ -3,6 +3,7 @@ package dnsbl_test
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 
 	"github.com/gogomail/gogomail/internal/dnsbl"
@@ -21,7 +22,7 @@ func (r *stubResolver) LookupHost(host string) ([]string, error) {
 	if addrs, ok := r.records[host]; ok {
 		return addrs, nil
 	}
-	return nil, errors.New("NXDOMAIN")
+	return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
 }
 
 func backpressureEvent(remoteAddr string) smtpd.Event {
