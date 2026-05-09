@@ -36,6 +36,7 @@ type OutgoingMessage struct {
 	Bcc             []outbound.Address
 	DSN             smtpd.DSNOptions
 	SentAt          time.Time
+	ScheduledAt     time.Time
 	Size            int64
 	HasAttachment   bool
 	StoragePath     string
@@ -236,11 +237,15 @@ func insertOutgoingOutbox(ctx context.Context, tx *sql.Tx, messageID string, msg
 	}
 
 	const query = `
-INSERT INTO outbox (topic, partition_key, payload, status)
-VALUES ($1, $2, $3::jsonb, 'pending')`
+INSERT INTO outbox (topic, partition_key, payload, status, available_at)
+VALUES ($1, $2, $3::jsonb, 'pending', GREATEST(now(), $4))`
 
 	topic := "mail.outbound." + string(outbound.NormalizeFarm(msg.Farm))
-	if _, err := tx.ExecContext(ctx, query, topic, messageID, string(payload)); err != nil {
+	scheduledAt := msg.ScheduledAt
+	if scheduledAt.IsZero() {
+		scheduledAt = time.Now()
+	}
+	if _, err := tx.ExecContext(ctx, query, topic, messageID, string(payload), scheduledAt); err != nil {
 		return fmt.Errorf("insert outgoing outbox event: %w", err)
 	}
 	return nil

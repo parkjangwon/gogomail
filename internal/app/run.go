@@ -145,8 +145,18 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	registry := batchlock.NewJobRegistry()
 
+	scheduledMailRepository := maildb.NewRepository(db)
 	registry.Register("scheduled-mail-flusher", func() error {
-		logger.Info("running scheduled mail flusher")
+		stuck, err := scheduledMailRepository.CountStuckScheduledMail(ctx, 10*time.Minute)
+		if err != nil {
+			logger.Error("scheduled mail flusher check failed", "error", err)
+			return err
+		}
+		if stuck > 0 {
+			logger.Warn("scheduled mail entries are stuck in outbox", "count", stuck)
+		} else {
+			logger.Info("scheduled mail flusher: no stuck entries")
+		}
 		return nil
 	}, 5*time.Minute)
 
