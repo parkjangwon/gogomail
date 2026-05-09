@@ -19,8 +19,8 @@ FROM outbox
 WHERE topic LIKE 'mail.outbound.batch%'
   AND status = 'pending'
   AND available_at <= now()
-  AND created_at  <= now() - $1::interval`
+  AND created_at  <= now() - ($1 * interval '1 second')`
 	var n int64
-	err := r.db.QueryRowContext(ctx, query, stuckAfter.String()).Scan(&n)
+	err := r.db.QueryRowContext(ctx, query, stuckAfter.Seconds()).Scan(&n)
 	return n, err
 }

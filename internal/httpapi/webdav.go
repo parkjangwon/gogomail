@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,7 +44,6 @@ type WebDAVRouteOptions struct {
 // RegisterWebDAVRoutes registers WebDAV RFC 4918 handlers on mux at /dav/.
 // Supported methods: OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH.
 func RegisterWebDAVRoutes(mux *http.ServeMux, service WebDAVService, opts WebDAVRouteOptions) {
-	_ = opts.DepthInfinityEnabled
 	h := &webdavHandler{
 		service: service,
 		opts:    opts,
@@ -63,7 +63,7 @@ func RegisterWebDAVRoutes(mux *http.ServeMux, service WebDAVService, opts WebDAV
 	// GET — download a file
 	mux.HandleFunc("GET /dav/", h.handleGet)
 
-	// PUT — upload/replace a file (not implemented in v1, returns 501)
+	// PUT — upload/replace a file
 	mux.HandleFunc("PUT /dav/", h.handlePut)
 
 	mux.HandleFunc("DELETE /dav/", h.handleDelete)
@@ -340,6 +340,7 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 		contentLength, _ = strconv.ParseInt(cl, 10, 64)
 	}
 
+	var wasOverwrite bool
 	existingNodes, err := h.service.ListNodes(ctx, drive.ListNodesRequest{
 		UserID:   userID,
 		ParentID: parentID,
@@ -348,7 +349,12 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		for _, n := range existingNodes {
 			if n.Name == name && n.Type == drive.NodeTypeFile {
-				_ = h.service.TrashNode(ctx, drive.TrashNodeRequest{UserID: userID, NodeID: n.ID})
+				if err := h.service.TrashNode(ctx, drive.TrashNodeRequest{UserID: userID, NodeID: n.ID}); err != nil {
+					http.Error(w, "conflict replacing existing file", http.StatusConflict)
+					h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "trash_failed")
+					return
+				}
+				wasOverwrite = true
 				break
 			}
 		}
@@ -363,7 +369,7 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 		MIMEType: mimeType,
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "quota exceeded") {
+		if errors.Is(err, drive.ErrQuotaExceeded) {
 			http.Error(w, "insufficient storage", http.StatusInsufficientStorage)
 			h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "quota_exceeded")
 			return
@@ -374,7 +380,11 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Location", "/dav/"+node.ID+"/"+node.Name)
-	w.WriteHeader(http.StatusCreated)
+	if wasOverwrite {
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultOK, "")
 }
 
@@ -605,6 +615,11 @@ func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = "/" + path
 
+	depth := r.Header.Get("Depth")
+	if depth == "" {
+		depth = "0"
+	}
+
 	token := generateLockToken()
 	lock := webdavLock{
 		Token:  token,
@@ -620,28 +635,20 @@ func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<d:multistatus xmlns:d="DAV:">
-  <d:response>
-    <d:href>` + path + `</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:lockdiscovery>
-          <d:activelock>
-            <d:locktype><d:write/></d:locktype>
-            <d:lockscope><d:exclusive/></d:lockscope>
-            <d:depth>infinity</d:depth>
-            <d:owner><d:href>` + userID + `</d:href></d:owner>
-            <d:timeout>Second-300</d:timeout>
-            <d:locktoken>
-              <d:href>` + drive.LockTokenScheme + token + `</d:href>
-            </d:locktoken>
-          </d:activelock>
-        </d:lockdiscovery>
-      </d:prop>
-      <d:status>HTTP/1.1 200 OK</d:status>
-    </d:propstat>
-  </d:response>
-</d:multistatus>`))
+<d:prop xmlns:d="DAV:">
+  <d:lockdiscovery>
+    <d:activelock>
+      <d:locktype><d:write/></d:locktype>
+      <d:lockscope><d:exclusive/></d:lockscope>
+      <d:depth>` + depth + `</d:depth>
+      <d:owner><d:href>` + userID + `</d:href></d:owner>
+      <d:timeout>Second-300</d:timeout>
+      <d:locktoken>
+        <d:href>` + drive.LockTokenScheme + token + `</d:href>
+      </d:locktoken>
+    </d:activelock>
+  </d:lockdiscovery>
+</d:prop>`))
 	h.observe(ctx, WebDAVMethodLock, userID, path, WebDAVResultOK, "")
 }
 
@@ -671,13 +678,13 @@ func (h *webdavHandler) handleUnlock(w http.ResponseWriter, r *http.Request) {
 
 	existing, ok := h.locks[path]
 	if !ok || existing.UserID != userID || existing.Token != token {
-		http.Error(w, "lock not found or not owned", http.StatusConflict)
+		http.Error(w, "lock not found or not owned", http.StatusLocked)
 		h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultRejected, "lock_not_found")
 		return
 	}
 	if existing.Expiry.Before(time.Now()) {
 		delete(h.locks, path)
-		http.Error(w, "lock expired", http.StatusConflict)
+		http.Error(w, "lock expired", http.StatusLocked)
 		h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultRejected, "lock_expired")
 		return
 	}

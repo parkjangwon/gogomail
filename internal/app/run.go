@@ -208,7 +208,19 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 30*time.Minute)
 
-	orgChartAdapter := orgchart.NoopOrgChartAdapter{}
+	totpRepository := maildb.NewRepository(db)
+	registry.Register("used-code-cleanup", func() error {
+		cutoff := time.Now().UTC().Add(-5 * time.Minute)
+		n, err := totpRepository.PruneExpiredTOTPCodes(ctx, cutoff)
+		if err != nil {
+			logger.Error("TOTP code cleanup failed", "error", err)
+			return err
+		}
+		logger.Info("TOTP code cleanup completed", "pruned", n)
+		return nil
+	}, 5*time.Minute)
+
+	var orgChartAdapter orgchart.OrgChartSyncAdapter = orgchart.NoopOrgChartAdapter{}
 	registry.Register("org-chart-sync", func() error {
 		if err := orgChartAdapter.SyncOrgChart(ctx); err != nil {
 			logger.Error("org chart sync failed", "error", err)

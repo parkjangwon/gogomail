@@ -135,8 +135,11 @@ func (s *Service) CreateFile(ctx context.Context, req CreateFileRequest) (Node, 
 
 	if req.Size > 0 {
 		usage, err := s.repo.GetUsageSummary(ctx, GetUsageSummaryRequest{UserID: req.UserID})
-		if err == nil && usage.QuotaLimit > 0 && usage.QuotaUsed+req.Size > usage.QuotaLimit {
-			return Node{}, fmt.Errorf("drive quota exceeded")
+		if err != nil {
+			return Node{}, fmt.Errorf("quota check failed: %w", err)
+		}
+		if usage.QuotaLimit > 0 && usage.QuotaUsed+req.Size > usage.QuotaLimit {
+			return Node{}, ErrQuotaExceeded
 		}
 	}
 
