@@ -11,6 +11,7 @@ type driveServiceForWebDAV interface {
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	OpenFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
 	CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
+	CreateFile(ctx context.Context, req drive.CreateFileRequest) (drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
 	MoveNode(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
@@ -40,6 +41,10 @@ func (a *WebDAVServiceAdapter) OpenFile(ctx context.Context, req drive.OpenFileR
 
 func (a *WebDAVServiceAdapter) CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error) {
 	return a.svc.CreateFolder(ctx, req)
+}
+
+func (a *WebDAVServiceAdapter) CreateFile(ctx context.Context, req drive.CreateFileRequest) (drive.Node, error) {
+	return a.svc.CreateFile(ctx, req)
 }
 
 func (a *WebDAVServiceAdapter) TrashNode(ctx context.Context, req drive.TrashNodeRequest) error {

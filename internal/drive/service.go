@@ -99,6 +99,70 @@ func (s *Service) CreateFileFromObject(ctx context.Context, req CreateFileFromOb
 	return s.repo.CreateFileFromObject(ctx, store, req)
 }
 
+func (s *Service) defaultStorageBackend() (string, storage.Store, error) {
+	if len(s.stores) == 0 {
+		return "", nil, fmt.Errorf("no storage store configured")
+	}
+	for backend, store := range s.stores {
+		if store != nil {
+			return backend, store, nil
+		}
+	}
+	return "", nil, fmt.Errorf("no storage store configured")
+}
+
+func (s *Service) CreateFile(ctx context.Context, req CreateFileRequest) (Node, error) {
+	if s == nil || s.repo == nil {
+		return Node{}, fmt.Errorf("drive repository is required")
+	}
+	if req.Body == nil {
+		return Node{}, fmt.Errorf("drive file body is required")
+	}
+	storageBackend, store, err := s.defaultStorageBackend()
+	if err != nil {
+		return Node{}, err
+	}
+	_ = storageBackend
+
+	nodeID, err := NewNodeID()
+	if err != nil {
+		return Node{}, err
+	}
+	storagePath, err := BuildNodeObjectPath(req.UserID, nodeID)
+	if err != nil {
+		return Node{}, err
+	}
+
+	if req.Size > 0 {
+		usage, err := s.repo.GetUsageSummary(ctx, GetUsageSummaryRequest{UserID: req.UserID})
+		if err == nil && usage.QuotaLimit > 0 && usage.QuotaUsed+req.Size > usage.QuotaLimit {
+			return Node{}, fmt.Errorf("drive quota exceeded")
+		}
+	}
+
+	hash := sha256.New()
+	counter := &countingReader{reader: req.Body}
+	if err := store.Put(ctx, storagePath, io.TeeReader(counter, hash)); err != nil {
+		return Node{}, fmt.Errorf("store drive file object: %w", err)
+	}
+
+	node, err := s.repo.CreateFileFromObject(ctx, store, CreateFileFromObjectRequest{
+		NodeID:         nodeID,
+		UserID:         req.UserID,
+		ParentID:       req.ParentID,
+		Name:           req.Name,
+		StorageBackend: storageBackend,
+		StoragePath:    storagePath,
+		MIMEType:       req.MIMEType,
+		ChecksumSHA256: hex.EncodeToString(hash.Sum(nil)),
+	})
+	if err != nil {
+		_ = store.Delete(ctx, storagePath)
+		return Node{}, err
+	}
+	return node, nil
+}
+
 func (s *Service) CreateUploadSession(ctx context.Context, req CreateUploadSessionRequest) (UploadSession, error) {
 	if s == nil || s.repo == nil {
 		return UploadSession{}, fmt.Errorf("drive repository is required")

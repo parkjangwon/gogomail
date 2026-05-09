@@ -236,6 +236,26 @@ func TestRetryObjectCleanupFailuresRequiresStore(t *testing.T) {
 	}
 }
 
+func TestCreateFileRequiresBody(t *testing.T) {
+	t.Parallel()
+
+	service := NewService(&Repository{}, map[string]storage.Store{"s3": &recordingStore{}})
+	_, err := service.CreateFile(context.Background(), CreateFileRequest{UserID: "user-1", Name: "file.txt"})
+	if err == nil || !strings.Contains(err.Error(), "drive file body is required") {
+		t.Fatalf("CreateFile err = %v, want body rejection", err)
+	}
+}
+
+func TestCreateFileRequiresStore(t *testing.T) {
+	t.Parallel()
+
+	service := NewService(&Repository{}, nil)
+	_, err := service.CreateFile(context.Background(), CreateFileRequest{UserID: "user-1", Name: "file.txt", Body: strings.NewReader("hello")})
+	if err == nil || !strings.Contains(err.Error(), "no storage store configured") {
+		t.Fatalf("CreateFile err = %v, want store rejection", err)
+	}
+}
+
 type recordingCleanupFailureRecorder struct {
 	calls    int
 	failures []ObjectCleanupFailure

@@ -24,6 +24,7 @@ type WebDAVService interface {
 	GetNode(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
 	OpenFile(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
 	CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
+	CreateFile(ctx context.Context, req drive.CreateFileRequest) (drive.Node, error)
 	TrashNode(ctx context.Context, req drive.TrashNodeRequest) error
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
 	MoveNode(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
@@ -300,8 +301,81 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "PUT not supported; use Drive upload sessions API", http.StatusNotImplemented)
-	h.observe(r.Context(), WebDAVMethodPut, "", "", WebDAVResultRejected, "not_implemented")
+	ctx := r.Context()
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = r.Header.Get("X-WebDAV-User-ID")
+	}
+	if userID == "" {
+		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodPut, "", "", WebDAVResultRejected, "unauthorized")
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/dav/")
+	path = strings.TrimSuffix(path, "/")
+
+	var parentID, name string
+	if idx := strings.LastIndex(path, "/"); idx >= 0 {
+		parentID = path[:idx]
+		name = path[idx+1:]
+	} else {
+		name = path
+	}
+
+	if name == "" {
+		http.Error(w, "file name required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "missing_name")
+		return
+	}
+
+	mimeType := r.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	var contentLength int64
+	if cl := r.Header.Get("Content-Length"); cl != "" {
+		contentLength, _ = strconv.ParseInt(cl, 10, 64)
+	}
+
+	existingNodes, err := h.service.ListNodes(ctx, drive.ListNodesRequest{
+		UserID:   userID,
+		ParentID: parentID,
+		Status:   drive.NodeStatusActive,
+	})
+	if err == nil {
+		for _, n := range existingNodes {
+			if n.Name == name && n.Type == drive.NodeTypeFile {
+				_ = h.service.TrashNode(ctx, drive.TrashNodeRequest{UserID: userID, NodeID: n.ID})
+				break
+			}
+		}
+	}
+
+	node, err := h.service.CreateFile(ctx, drive.CreateFileRequest{
+		UserID:   userID,
+		ParentID: parentID,
+		Name:     name,
+		Body:     r.Body,
+		Size:     contentLength,
+		MIMEType: mimeType,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "quota exceeded") {
+			http.Error(w, "insufficient storage", http.StatusInsufficientStorage)
+			h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultRejected, "quota_exceeded")
+			return
+		}
+		http.Error(w, "create file failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultError, err.Error())
+		return
+	}
+
+	w.Header().Set("Location", "/dav/"+node.ID+"/"+node.Name)
+	w.WriteHeader(http.StatusCreated)
+	h.observe(ctx, WebDAVMethodPut, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {

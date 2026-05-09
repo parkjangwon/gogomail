@@ -88,7 +88,7 @@ PKCE and nonce validation.
 
 WebDAV gateway (`internal/httpapi/webdav.go`) exposes Drive files via RFC 4918 WebDAV
 protocol for external client mounting and synchronization. The `webdavHandler` implements
-OPTIONS, PROPFIND, MKCOL, GET, PUT (returns 501), DELETE, MOVE, COPY, PROPPATCH,
+OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH,
 LOCK, and UNLOCK. Runtime integration: `ModeWebDAV` starts a dedicated HTTP listener
 (`runWebDAVGateway`) that registers WebDAV routes on a fresh `http.ServeMux`.
 `WebDAVServiceAdapter` wraps `drive.Service` to satisfy the `WebDAVService` interface,

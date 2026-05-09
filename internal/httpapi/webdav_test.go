@@ -295,19 +295,68 @@ func TestWebDAVCopyCopiesNode(t *testing.T) {
 	}
 }
 
-func TestWebDAVPutReturnsNotImplemented(t *testing.T) {
+func TestWebDAVPutCreatesFile(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{
+		file: drive.Node{ID: "file-1", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 12, MIMEType: "text/plain"},
+	}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+
+	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt?user_id=user-1", strings.NewReader("hello world"))
+	req.Header.Set("Content-Type", "text/plain")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.createFileReq.UserID != "user-1" || service.createFileReq.Name != "file.txt" {
+		t.Fatalf("createFileReq = %+v", service.createFileReq)
+	}
+	if service.createFileReq.MIMEType != "text/plain" {
+		t.Fatalf("MIMEType = %q, want text/plain", service.createFileReq.MIMEType)
+	}
+}
+
+func TestWebDAVPutRequiresUserID(t *testing.T) {
 	t.Parallel()
 
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
 	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
 
-	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt", strings.NewReader("hello"))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNotImplemented {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotImplemented)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestWebDAVPutOverwritesExistingFile(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{
+		nodes: []drive.Node{
+			{ID: "existing-1", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 5},
+		},
+		file: drive.Node{ID: "file-2", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 12},
+	}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+
+	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt?user_id=user-1", strings.NewReader("hello world"))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.trashReq.NodeID != "existing-1" {
+		t.Fatalf("trashReq.NodeID = %q, want existing-1", service.trashReq.NodeID)
 	}
 }
 
@@ -342,10 +391,12 @@ func TestWebDAVGetDownloadsFile(t *testing.T) {
 type fakeWebDAVService struct {
 	nodes       []drive.Node
 	folder      drive.Node
+	file        drive.Node
 	download    drive.FileDownload
 	openReq     drive.OpenFileRequest
 	listReq     drive.ListNodesRequest
 	createReq   drive.CreateFolderRequest
+	createFileReq drive.CreateFileRequest
 	trashReq    drive.TrashNodeRequest
 	moveReq     drive.MoveNodeRequest
 	copyReq     drive.CopyNodeRequest
@@ -388,6 +439,14 @@ func (f *fakeWebDAVService) CreateFolder(_ context.Context, req drive.CreateFold
 		return drive.Node{}, f.err
 	}
 	return f.folder, nil
+}
+
+func (f *fakeWebDAVService) CreateFile(_ context.Context, req drive.CreateFileRequest) (drive.Node, error) {
+	f.createFileReq = req
+	if f.err != nil {
+		return drive.Node{}, f.err
+	}
+	return f.file, nil
 }
 
 func (f *fakeWebDAVService) TrashNode(_ context.Context, req drive.TrashNodeRequest) error {
