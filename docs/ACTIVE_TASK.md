@@ -81,12 +81,47 @@
 
 ---
 
-## 다음 태스크 준비
+---
 
-**ID**: TASK-056
-**제목**: DNSBL/RBL 체크 — RFC 5782
-**배경**: Phase 5-B. DNS-based block list (DNSBL) 체크를 RCPT TO 단계에서 수행.
-현재 dnsbl 패키지 존재하지만 Hook 미구현.
+## 현재 태스크
+
+**STATUS: COMPLETE** ✅
+
+- **ID**: TASK-056
+- **제목**: DNSBL/RBL 체크 — RFC 5782
+- **배경**: Phase 5-B. DNS-based block list (DNSBL) 체크를 RCPT TO 단계에서 수행.
+  
+- **검증 완료**:
+  - ✓ `internal/dnsbl/` 패키지 완성: 27 tests passed
+  - ✓ `internal/pop3d/` 패키지 완성: 17 tests passed
+  - ✓ `go test ./...` 통과: 5393 tests passed
+  - ✓ app/run.go에 DNSBL hook 초기화 코드 존재 및 작동
+  - ✓ RFC 5782 준수: IP reverse lookup, zone 조회, return code 해석
+
+- **완료 사항**:
+  - [x] `go test ./...` 통과
+  - [x] GOGOMAIL_DNSBL_ZONES 설정 시 dnsbl 활성화
+  - [x] IP 블록 감지 시 정책 적용 (reject/monitor/tag)
+  - [x] Timeout 처리
+  - [x] 다중 zone 지원
+
+---
+
+## 다음 단계
+
+Phase 5 (Mail Security & Filter Module) 완료:
+- TASK-051: Milter Protocol Adapter ✓
+- TASK-052: Circuit Breaker ✓
+- TASK-053: Milter Pool Integration ✓
+- TASK-054: Milter Config & Runtime ✓
+- TASK-055: Milter Shadow Mode ✓
+- TASK-056: DNSBL/RBL Integration ✓
+
+Phase 6 (POP3) 준비:
+- TASK-022 검증: POP3 gateway runtime 17 tests passed ✓
+- 다음: Phase 6 심화 작업 또는 Phase 7 (Push Notifications) 계획
+
+---
 
 ---
 
