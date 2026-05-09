@@ -67,3 +67,32 @@ func TestValidateSSOConfigValidOIDC(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestSSOConfigSessionTTLSecondsField(t *testing.T) {
+	cfg := SSOConfig{
+		DomainID:          "d1",
+		Provider:          "saml",
+		SSOURL:            "https://idp/sso",
+		SessionTTLSeconds: 3600,
+	}
+	if cfg.SessionTTLSeconds != 3600 {
+		t.Errorf("SessionTTLSeconds = %d, want 3600", cfg.SessionTTLSeconds)
+	}
+	cfg2 := SSOConfig{DomainID: "d2", Provider: "oidc", ClientID: "c"}
+	if cfg2.SessionTTLSeconds != 0 {
+		t.Errorf("default SessionTTLSeconds = %d, want 0", cfg2.SessionTTLSeconds)
+	}
+}
+
+func TestUpsertSSOConfigNilDBWithSessionTTL(t *testing.T) {
+	r := &Repository{}
+	err := r.UpsertSSOConfig(nil, SSOConfig{ //nolint:staticcheck
+		DomainID:          "d1",
+		Provider:          "saml",
+		SSOURL:            "https://idp/sso",
+		SessionTTLSeconds: 1800,
+	})
+	if err == nil {
+		t.Fatal("expected error for nil db")
+	}
+}

@@ -470,3 +470,137 @@ func TestSSOOIDCCallbackInvalidState(t *testing.T) {
 		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestSSOSAMLACSCustomTTL(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:          "dom-ttl",
+		Provider:          "saml",
+		SSOURL:            "https://idp.example.com/sso",
+		EntityID:          "https://app.example.com",
+		SessionTTLSeconds: 3600,
+	})
+	svc.users["ttl@example.com"] = maildb.SSOUserInfo{
+		UserID:   "user-ttl",
+		DomainID: "dom-ttl",
+		Email:    "ttl@example.com",
+	}
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("ttl@example.com")},
+		"RelayState":   {"dom-ttl"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var tr struct {
+		Token     string `json:"token"`
+		ExpiresIn int    `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if tr.ExpiresIn != 3600 {
+		t.Errorf("expires_in = %d, want 3600 (domain TTL)", tr.ExpiresIn)
+	}
+}
+
+func TestSSOSAMLACSDefaultTTL(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID: "dom-default-ttl",
+		Provider: "saml",
+		SSOURL:   "https://idp.example.com/sso",
+		EntityID: "https://app.example.com",
+		// SessionTTLSeconds zero → default 900s
+	})
+	svc.users["default@example.com"] = maildb.SSOUserInfo{
+		UserID:   "user-default",
+		DomainID: "dom-default-ttl",
+		Email:    "default@example.com",
+	}
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("default@example.com")},
+		"RelayState":   {"dom-default-ttl"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var tr struct {
+		ExpiresIn int `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if tr.ExpiresIn != 900 {
+		t.Errorf("expires_in = %d, want 900 (default TTL)", tr.ExpiresIn)
+	}
+}
+
+func TestSSOOIDCCallbackCustomTTL(t *testing.T) {
+	email := "oidc-ttl@example.com"
+	idToken := buildMinimalIDToken(email)
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"id_token": idToken}) //nolint:errcheck
+	}))
+	defer tokenSrv.Close()
+
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:          "dom-oidc-ttl",
+		Provider:          "oidc",
+		ClientID:          "client123",
+		SSOURL:            "https://idp.example.com/auth",
+		DiscoveryURL:      tokenSrv.URL,
+		SessionTTLSeconds: 7200,
+	})
+	svc.users[email] = maildb.SSOUserInfo{
+		UserID:   "user-oidc-ttl",
+		DomainID: "dom-oidc-ttl",
+		Email:    email,
+	}
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	state, _, err := sso.GenerateOIDCStateWithPKCE("dom-oidc-ttl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/auth/sso/oidc/callback?code=test-code&state=" + state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var tr struct {
+		ExpiresIn int `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if tr.ExpiresIn != 7200 {
+		t.Errorf("expires_in = %d, want 7200 (domain TTL)", tr.ExpiresIn)
+	}
+}
