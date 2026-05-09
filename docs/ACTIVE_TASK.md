@@ -9,20 +9,23 @@
 
 **STATUS: COMPLETE** ✅
 
-- **ID**: TASK-051
-- **제목**: Milter Protocol Adapter — `internal/milter` 풀 + 연결 관리 ✅ (2026-05-09)
-- **배경**: Phase 5-A. Milter 프로토콜 구현은 완료되었으나, 연결 풀 미구현.
-  TCP 연결 풀, 유휴 큐 관리, maxConns 제한이 필요.
+- **ID**: TASK-052
+- **제목**: Milter Circuit Breaker — State Machine + Failure Recovery ✅ (2026-05-09)
+- **배경**: Phase 5-A 항목 9. 연결 풀(TASK-051) 다음 단계.
+  외부 milter 서버 다운 시 빠르게 실패하고 복구하는 circuit breaker 필요.
 
 - **구현 완료**:
-  - ✅ `internal/milter/pool.go`: 연결 풀 (Get/Put/Close)
-  - ✅ `internal/milter/pool_test.go`: 풀 테스트 3개 (DialConnect, MaxConns, Reuses)
-  - ✅ FIFO 유휴 큐, atomic 카운터, context 기반 대기
-  - ✅ maxConns 제한 + 재연결 지원
-  - ✅ `go test ./...` 통과 (5378 tests)
-  - ✅ commit: TBD (다음 단계)
+  - ✅ `internal/milter/circuit.go`: State machine (CLOSED → OPEN → HALF_OPEN → CLOSED)
+  - ✅ `internal/milter/circuit_test.go`: 6개 테스트
+    - ClosedState, OpensAfterFailures, TransitionsToHalfOpen
+    - ClosesAfterSuccess, ReopensAfterFailureInHalfOpen, Metrics
+  - ✅ failureThreshold + resetTimeout 설정 가능
+  - ✅ AllowRequest() 상태별 제어 (CLOSED/OPEN/HALF_OPEN)
+  - ✅ Atomic 메트릭 (success/failure count)
+  - ✅ `go test ./...` 통과 (5385 tests)
+  - ✅ commit: TBD
 
-- **다음 태스크**: TASK-052 (Milter Hook Adapter — SMTP 파이프라인 통합)
+- **다음 태스크**: TASK-053 (Milter Pool Integration — Circuit breaker 연동)
 
 ---
 
