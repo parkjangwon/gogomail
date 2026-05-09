@@ -340,3 +340,129 @@ func TestClientConnectFamily(t *testing.T) {
 		})
 	}
 }
+
+// --- Security fix tests ---
+
+func TestContextTimeoutEnforced(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	// Server answers OPTNEG then stalls -- never responds to Connect.
+	go func() {
+		defer serverConn.Close()
+		cmd, _, err := recvPacket(serverConn)
+		if err != nil || cmd != cmdOptneg {
+			return
+		}
+		data := make([]byte, 12)
+		binary.BigEndian.PutUint32(data[0:4], 6)
+		binary.BigEndian.PutUint32(data[4:8], 0x7F)
+		binary.BigEndian.PutUint32(data[8:12], 0)
+		sendPacket(serverConn, cmdOptneg, data)
+		// Stall: never respond to the next command.
+		select {}
+	}()
+
+	// Zero timeout so no conn deadline from Client; only ctx enforces timing.
+	c := NewClient(clientConn, 0)
+	defer c.Close()
+
+	ctx := context.Background()
+	if err := c.Negotiate(ctx); err != nil {
+		t.Fatalf("Negotiate: %v", err)
+	}
+
+	deadlineCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+
+	_, err := c.Connect(deadlineCtx, "mx.example.com", FamilyIPv4, 25, "1.2.3.4")
+	if err == nil {
+		t.Fatal("expected error due to context deadline, got nil")
+	}
+}
+
+func TestHeaderCRLFInjectionBlocked(t *testing.T) {
+	cases := []struct {
+		label string
+		name  string
+		value string
+	}{
+		{"CR in name", "Subject\r\nX-Injected", "legitimate value"},
+		{"CRLF in value", "Subject", "value\r\nX-Injected: bad"},
+		{"LF in value", "Subject", "value\nX-Injected: bad"},
+		{"LF in name", "Subject\n", "value"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.label, func(t *testing.T) {
+			c, srv := newTestClient(t)
+			defer c.Close()
+			stubServer(t, srv, respContinue)
+
+			ctx := context.Background()
+			if err := c.Negotiate(ctx); err != nil {
+				t.Fatalf("Negotiate: %v", err)
+			}
+
+			_, err := c.Header(ctx, tc.name, tc.value)
+			if err == nil {
+				t.Fatalf("Header(%q, %q): expected CRLF injection error, got nil", tc.name, tc.value)
+			}
+		})
+	}
+}
+
+func TestOversizedPacketRejected(t *testing.T) {
+	t.Run("send oversized", func(t *testing.T) {
+		c, srv := newTestClient(t)
+		defer c.Close()
+		stubServer(t, srv, respContinue)
+
+		ctx := context.Background()
+		if err := c.Negotiate(ctx); err != nil {
+			t.Fatalf("Negotiate: %v", err)
+		}
+
+		oversized := make([]byte, maxPacketSize+1)
+		_, err := c.BodyChunk(ctx, oversized)
+		if err == nil {
+			t.Fatal("expected error for oversized outgoing packet, got nil")
+		}
+	})
+
+	t.Run("recv oversized", func(t *testing.T) {
+		clientConn, serverConn := net.Pipe()
+		c := NewClient(clientConn, 5*time.Second)
+		defer c.Close()
+
+		go func() {
+			defer serverConn.Close()
+			cmd, _, err := recvPacket(serverConn)
+			if err != nil || cmd != cmdOptneg {
+				return
+			}
+			data := make([]byte, 12)
+			binary.BigEndian.PutUint32(data[0:4], 6)
+			binary.BigEndian.PutUint32(data[4:8], 0x7F)
+			binary.BigEndian.PutUint32(data[8:12], 0)
+			sendPacket(serverConn, cmdOptneg, data)
+			// Consume the Connect command.
+			recvPacket(serverConn)
+			// Send length header claiming maxPacketSize+2 payload bytes
+			// (+1 for cmd byte = maxPacketSize+3 total).
+			var hdr [4]byte
+			binary.BigEndian.PutUint32(hdr[:], uint32(maxPacketSize+3))
+			serverConn.Write(hdr[:])
+			serverConn.Write([]byte{respContinue})
+		}()
+
+		ctx := context.Background()
+		if err := c.Negotiate(ctx); err != nil {
+			t.Fatalf("Negotiate: %v", err)
+		}
+
+		_, err := c.Connect(ctx, "mx.example.com", FamilyIPv4, 25, "1.2.3.4")
+		if err == nil {
+			t.Fatal("expected error for oversized incoming packet, got nil")
+		}
+	})
+}
