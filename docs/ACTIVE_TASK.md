@@ -7,24 +7,24 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-048
-- **제목**: WebDAV PUT — 스트리밍 파일 업로드 + Drive 쿼터 적용
-- **배경**: Phase 4 항목 8. WebDAV Gateway는 현재 PROPFIND/MKCOL/GET/DELETE/MOVE/COPY/LOCK/UNLOCK을 지원하지만
-  PUT은 501 Not Implemented를 반환한다. macOS Finder, Windows Explorer, Cyberduck 등 프로덕션 클라이언트는
-  파일 업로드를 위해 PUT을 기대함. 로드맵 항목 8: "PUT streams body directly to object storage; no full-file buffering",
-  항목 10: "Drive quota enforced before PUT completes."
+- **ID**: TASK-049
+- **제목**: WebDAV Auth — Bearer token + Basic auth over HTTPS
+- **배경**: Phase 4-A 항목 9. WebDAV Gateway는 현재 `user_id` 쿼리 파라미터로 인증을 우회한다.
+  프로덕션 환경에서는 Bearer token(`Authorization: Bearer <token>`) 또는 Basic auth over HTTPS만
+  허용해야 한다. Mail API, Admin API, SCIM 엔드포인트는 이미 Bearer token 인증을 구현했으므로
+  같은 패턴을 재사용한다.
 - **구현 대상**:
-  - `internal/drive/service.go`: `CreateFile` 메서드 추가 — storage.Store에 직접 스트리밍 후 노드 생성
-  - `internal/drive`: `CreateFileRequest` 타입, `BuildNodeObjectPath` 기반 저장소 경로 생성
-  - `internal/httpapi/webdav.go`: `WebDAVService` 인터페이스에 `CreateFile` 추가, `handlePut` 구현
-  - `internal/httpapi/webdav_service.go`: 어댑터에 `CreateFile` 위임
-  - `internal/httpapi/webdav_test.go`: PUT 업로드/덮어쓰기/쿼터 초과 테스트
+  - `internal/httpapi/webdav.go`: `handlePut`, `handleGet`, `handlePropfind` 등 모든 WebDAV 핸들러에서
+    `Authorization` 헤더 파싱 — Bearer token 우선, Basic auth 폴
+백
+  - `internal/httpapi/webdav.go`: `X-WebDAV-User-ID` 헤더 및 쿼리 파라미터 `user_id` 인증 제거
+  - `internal/httpapi/webdav_test.go`: Bearer token 인증 성공/실패 테스트, Basic auth 테스트
 - **완료 조건**:
-  - [x] `go test ./...` 통과
-  - [x] WebDAV PUT으로 파일 업로드 후 GET으로 다운로드 가능
-  - [x] 같은 경로 PUT 두 번 시 기존 파일 덮어쓰기(또는 적절한 에러)
-  - [x] Drive 쿼터 초과 시 507 Insufficient Storage 반환
-  - [x] Content-Type 헤더 기반 MIMEType 저장
+  - [ ] `go test ./...` 통과
+  - [ ] Bearer token 없는 요청 시 401 Unauthorized
+  - [ ] 유효한 Bearer token 요청 시 정상 처리
+  - [ ] Basic auth over HTTPS 시 정상 처리 (HTTP에서는 403)
+  - [ ] 쿼리 파라미터 `user_id` 인증 제거
 
 ## 완료됨
 

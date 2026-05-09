@@ -29,6 +29,26 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-032 | Batch Worker — TOTP Used-Code Pruning (used-code-cleanup 잡, Phase 2-C) | 완료 |
 | TASK-033 | Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) | 완료 |
 | TASK-034 | Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) | 완료 |
+| TASK-049 | WebDAV Auth — Bearer token + Basic auth over HTTPS | 대기 |
+
+### TASK-049 상세
+- **제목**: WebDAV Auth — Bearer token + Basic auth over HTTPS
+- **배경**: Phase 4-A 항목 9. WebDAV Gateway는 현재 `user_id` 쿼리 파라미터로 인증을 우회한다.
+  프로덕션 환경에서는 Bearer token(`Authorization: Bearer <token>`) 또는 Basic auth over HTTPS만
+  허용해야 한다. Mail API, Admin API, SCIM 엔드포인트는 이미 Bearer token 인증을 구현했으므로
+  같은 패턴을 재사용한다.
+- **구현 대상**:
+  - `internal/httpapi/webdav.go`: `handlePut`, `handleGet`, `handlePropfind` 등 모든 WebDAV 핸들러에서
+    `Authorization` 헤더 파싱 — Bearer token 우선, Basic auth 폴백
+  - `internal/httpapi/webdav.go`: `X-WebDAV-User-ID` 헤더 제거 (쿼리 파라미터 인증 대체)
+  - `internal/httpapi/webdav_test.go`: Bearer token 인증 성공/실패 테스트, Basic auth 테스트
+- **완료 조건**:
+  - [ ] `go test ./...` 통과
+  - [ ] Bearer token 없는 요청 시 401 Unauthorized
+  - [ ] 유효한 Bearer token 요청 시 정상 처리
+  - [ ] Basic auth over HTTPS 시 정상 처리 (HTTP에서는 403)
+  - [ ] 쿼리 파라미터 `user_id` 인증 제거
+- **다음 태스크**: TASK-050
 
 ### TASK-023 상세
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
