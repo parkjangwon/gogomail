@@ -1,0 +1,162 @@
+package admin
+
+import (
+	"context"
+	"fmt"
+)
+
+var (
+	ErrInvalidOrgType = fmt.Errorf("invalid organization unit type")
+)
+
+const (
+	OrgTypeDepartment = "department"
+	OrgTypeTeam       = "team"
+	OrgTypeDivision   = "division"
+)
+
+var validOrgTypes = map[string]bool{
+	OrgTypeDepartment: true,
+	OrgTypeTeam:       true,
+	OrgTypeDivision:   true,
+}
+
+// OrgService handles organization unit operations.
+type OrgService struct {
+	orgRepo OrgRepository
+}
+
+// NewOrgService creates a new organization service.
+func NewOrgService(orgRepo OrgRepository) *OrgService {
+	return &OrgService{
+		orgRepo: orgRepo,
+	}
+}
+
+// CreateUnit creates a new organization unit.
+func (s *OrgService) CreateUnit(ctx context.Context, unit *OrganizationUnit) error {
+	if err := s.validateUnit(unit); err != nil {
+		return err
+	}
+
+	if unit.Status == "" {
+		unit.Status = "active"
+	}
+
+	// If has parent, verify parent exists
+	if unit.ParentID != "" {
+		parent, err := s.orgRepo.GetUnit(ctx, unit.ParentID)
+		if err != nil {
+			return fmt.Errorf("parent unit not found: %w", err)
+		}
+		// Parent must be in same company
+		if parent.CompanyID != unit.CompanyID {
+			return fmt.Errorf("parent unit in different company")
+		}
+	}
+
+	return s.orgRepo.CreateUnit(ctx, unit)
+}
+
+// GetUnit retrieves an organization unit.
+func (s *OrgService) GetUnit(ctx context.Context, unitID string) (*OrganizationUnit, error) {
+	if unitID == "" {
+		return nil, fmt.Errorf("%w: unitID", ErrMissingRequiredField)
+	}
+	return s.orgRepo.GetUnit(ctx, unitID)
+}
+
+// UpdateUnit updates an organization unit.
+func (s *OrgService) UpdateUnit(ctx context.Context, unit *OrganizationUnit) error {
+	if err := s.validateUnit(unit); err != nil {
+		return err
+	}
+
+	if unit.ID == "" {
+		return fmt.Errorf("%w: id", ErrMissingRequiredField)
+	}
+
+	return s.orgRepo.UpdateUnit(ctx, unit)
+}
+
+// DeleteUnit deletes an organization unit.
+func (s *OrgService) DeleteUnit(ctx context.Context, unitID string) error {
+	if unitID == "" {
+		return fmt.Errorf("%w: unitID", ErrMissingRequiredField)
+	}
+
+	// Check for child units
+	unit, err := s.orgRepo.GetUnit(ctx, unitID)
+	if err != nil {
+		return err
+	}
+
+	children, _ := s.orgRepo.GetUnitsByParent(ctx, unit.CompanyID, unitID)
+	if len(children) > 0 {
+		return fmt.Errorf("cannot delete unit with child units - reassign or archive first")
+	}
+
+	return s.orgRepo.DeleteUnit(ctx, unitID)
+}
+
+// ListUnits lists organization units with filtering.
+func (s *OrgService) ListUnits(ctx context.Context, filter *OrgUnitFilter) ([]*OrganizationUnit, int64, error) {
+	if filter.CompanyID == "" {
+		return nil, 0, fmt.Errorf("%w: companyID", ErrMissingRequiredField)
+	}
+	return s.orgRepo.ListUnits(ctx, filter)
+}
+
+// GetUnitHierarchy gets the hierarchy for a unit and all descendants.
+func (s *OrgService) GetUnitHierarchy(ctx context.Context, unitID string) (*OrganizationUnit, []*OrganizationUnit, error) {
+	unit, err := s.GetUnit(ctx, unitID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	children, _ := s.orgRepo.GetUnitsByParent(ctx, unit.CompanyID, unitID)
+	return unit, children, nil
+}
+
+// SetUnitManager sets the manager for a unit.
+func (s *OrgService) SetUnitManager(ctx context.Context, unitID, userID string) error {
+	if unitID == "" {
+		return fmt.Errorf("%w: unitID", ErrMissingRequiredField)
+	}
+	if userID == "" {
+		return fmt.Errorf("%w: userID", ErrMissingRequiredField)
+	}
+
+	unit, err := s.GetUnit(ctx, unitID)
+	if err != nil {
+		return err
+	}
+
+	unit.ManagerID = userID
+	return s.orgRepo.UpdateUnit(ctx, unit)
+}
+
+// validateUnit validates organization unit data.
+func (s *OrgService) validateUnit(unit *OrganizationUnit) error {
+	if unit == nil {
+		return fmt.Errorf("%w: unit", ErrMissingRequiredField)
+	}
+
+	if unit.CompanyID == "" {
+		return fmt.Errorf("%w: companyID", ErrMissingRequiredField)
+	}
+
+	if unit.Name == "" {
+		return fmt.Errorf("%w: name", ErrMissingRequiredField)
+	}
+
+	if unit.Type == "" {
+		return fmt.Errorf("%w: type", ErrMissingRequiredField)
+	}
+
+	if !validOrgTypes[unit.Type] {
+		return fmt.Errorf("%w: %s", ErrInvalidOrgType, unit.Type)
+	}
+
+	return nil
+}
