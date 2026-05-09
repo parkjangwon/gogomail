@@ -1,9 +1,11 @@
 package dnsbl
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 // Resolver abstracts DNS lookups for testability.
@@ -20,6 +22,26 @@ func (netResolver) LookupHost(host string) ([]string, error) {
 
 // NetResolver is the default DNS resolver.
 var NetResolver Resolver = netResolver{}
+
+// timeoutResolver wraps net.Resolver with a per-lookup timeout.
+type timeoutResolver struct {
+	r       *net.Resolver
+	timeout time.Duration
+}
+
+func (t *timeoutResolver) LookupHost(host string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	defer cancel()
+	return t.r.LookupHost(ctx, host)
+}
+
+// NewResolverWithTimeout returns a Resolver that enforces a per-lookup deadline.
+func NewResolverWithTimeout(timeout time.Duration) Resolver {
+	if timeout <= 0 {
+		return NetResolver
+	}
+	return &timeoutResolver{r: &net.Resolver{PreferGo: true}, timeout: timeout}
+}
 
 // Result is the outcome of a DNSBL check.
 type Result struct {
@@ -94,6 +116,39 @@ func isNotFound(err error) bool {
 	}
 	s := err.Error()
 	return strings.Contains(s, "NXDOMAIN") || strings.Contains(s, "no such host") || strings.Contains(s, "not found")
+}
+
+// Checker checks an IP against multiple DNSBL zones using a single resolver.
+type Checker struct {
+	zones    []*DNSBL
+}
+
+// NewChecker creates a multi-zone DNSBL checker.
+func NewChecker(zones []string, resolver Resolver) *Checker {
+	dnsbls := make([]*DNSBL, len(zones))
+	for i, z := range zones {
+		dnsbls[i] = New(z, resolver)
+	}
+	return &Checker{zones: dnsbls}
+}
+
+// CheckAddr checks addr (IP or IP:port) against all configured zones.
+// Returns the first match, or Result{Listed:false} when none match.
+func (c *Checker) CheckAddr(addr string) (Result, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	for _, d := range c.zones {
+		result, err := d.Check(host)
+		if err != nil {
+			return result, err
+		}
+		if result.Listed {
+			return result, nil
+		}
+	}
+	return Result{Listed: false}, nil
 }
 
 func reverseIPv4(ip string) (string, error) {
