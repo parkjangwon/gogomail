@@ -7,24 +7,35 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-032
-- **제목**: Batch Worker — TOTP Used-Code Pruning (used-code-cleanup 잡 구현, Phase 2-C)
-- **배경**: Phase 2-C "TokenCleanupJob — 만료된 TOTP used-codes, 세션 토큰 정리".
-  `totp_used_codes` 테이블이 정의되어 있으나, `used-code-cleanup` 배치 잡은 stub (log only).
-  TOTP 코드 재사용 방지를 위해 테이블이 무한히 늘어나는 것을 막아야 한다.
+- **ID**: TASK-034
+- **제목**: Batch Worker — Quota Alert Check (quota-alert-check 잡 구현, Phase 2-C)
+- **배경**: Phase 2-C 배치 잡. `quota-alert-check` stub이 존재하나 log only.
+  `quota_alert_thresholds` + `quota_alerts` 테이블 인프라 완비.
+  users/domains/companies에서 할당량 초과 엔티티를 스캔하여 알림을 기록해야 한다.
 - **구현 대상**:
-  - `internal/maildb/mfa.go` (신규): `PruneExpiredTOTPCodes(ctx, cutoff time.Time) (int, error)` — `totp_used_codes` WHERE `used_at < cutoff` 삭제, 삭제 행 수 반환
-  - `internal/maildb/mfa_test.go` (신규): 단위 테스트 (fakeDB or integration skip)
-  - `internal/app/run.go`: `used-code-cleanup` 잡 stub → `PruneExpiredTOTPCodes` 실제 호출 (cutoff = now - 5분, config 오버라이드 가능)
+  - `internal/maildb/quota_alert_scan.go` (신규): `ScanAndRecordQuotaAlerts(ctx, defaultWarning, defaultCritical float64) (int, error)` — 단일 INSERT...SELECT CTE로 구현. 사용률이 임계치를 초과하고 24시간 내 동일 유형 알림이 없는 엔티티에 quota_alerts 행 삽입. 삽입 행 수 반환.
+  - `internal/maildb/quota_alert_scan_test.go` (신규): nil DB 및 잘못된 임계값 테스트
+  - `internal/app/run.go`: `quota-alert-check` stub → `ScanAndRecordQuotaAlerts(ctx, 0.80, 0.95)` 실제 호출
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] `PruneExpiredTOTPCodes` 테스트 통과 (nil DB, zero cutoff 검증)
-  - [x] `run.go`의 `used-code-cleanup` 잡이 실제 pruning 수행
-- **다음 태스크**: TASK-033 (백로그에서 선택)
+  - [x] `ScanAndRecordQuotaAlerts` 테스트 통과 (nil DB, invalid ratio 검증)
+  - [x] `run.go`의 `quota-alert-check` 잡이 실제 스캔 수행
+- **다음 태스크**: TASK-035 (백로그에서 선택)
 
 ---
 
 ## 완료됨
+
+- **TASK-033**: Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) ✅ (2026-05-09)
+  - `internal/maildb/token_cleanup.go`: PruneExpiredAttachmentShareLinks + PruneExpiredDriveShareLinks
+  - `internal/maildb/token_cleanup_test.go`: nil DB + zero cutoff 검증 4개 테스트
+  - `internal/app/run.go`: token-cleanup stub → 실제 호출
+  - `go test ./...` 5191개 통과
+
+- **TASK-032**: Batch Worker — TOTP Used-Code Pruning ✅ (2026-05-09)
+  - `internal/maildb/mfa.go`: PruneExpiredTOTPCodes
+  - `internal/maildb/mfa_test.go`: 2개 테스트
+  - `internal/app/run.go`: used-code-cleanup stub → 실제 호출
 
 - **TASK-031**: Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 ✅ (2026-05-09)
   - `internal/imapnotify/handler.go`: DeltaSyncNotifier 인터페이스 + WithDeltaSync
