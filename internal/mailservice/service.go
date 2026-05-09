@@ -2323,6 +2323,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		Cc:              req.Cc,
 		Bcc:             req.Bcc,
 		SentAt:          now,
+		ScheduledAt:     req.ScheduledAt,
 		Size:            composed.Size,
 		HasAttachment:   len(req.AttachmentIDs) > 0,
 		StoragePath:     path,

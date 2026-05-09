@@ -7,34 +7,32 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-044
-- **제목**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1)
-- **배경**: `run.go`의 `scheduled-mail-flusher` 잡이 no-op 스텁. `OutgoingMessage` 구조체에
-  `ScheduledAt` 필드가 없어 예약 메일이 즉시 outbox에 들어간다(`available_at = now()`).
-  flusher 잡이 실제 작동하려면 ① `ScheduledAt` 필드 추가 + outbox `available_at` 반영,
-  ② 잡이 `mail.outbound.batch` 토픽에서 오래된 `pending` 항목을 감지해 경고를 로깅해야 한다.
+- **ID**: TASK-045
+- **제목**: Batch Worker — OrgChartSyncJob 인터페이스 + 플러그인 경계 (Phase 2-C item 2)
+- **배경**: Phase 2-C item 2("OrgChartSyncJob — 인터페이스만, 어댑터는 플러그인")가 미구현.
+  배치 워커에 `org-chart-sync` 잡이 등록되어 있지 않다.
+  외부 HR 시스템 어댑터가 없을 때는 no-op으로 skip하고,
+  어댑터가 주입되면 그것을 호출하는 플러그인 경계만 구현한다.
 - **구현 대상**:
-  - `internal/maildb/outgoing.go`:
-    - `OutgoingMessage`에 `ScheduledAt time.Time` 필드 추가
-    - `insertOutgoingOutbox` SQL에 `available_at = GREATEST(now(), $N)` 적용
-  - `internal/mailservice/service.go`: `RecordOutgoing` 호출 시 `req.ScheduledAt` 전달
-  - `internal/maildb/scheduled_mail.go`:
-    - `CountStuckScheduledMail(ctx context.Context, stuckAfter time.Duration) (int64, error)` —
-      `mail.outbound.batch` topic, status=pending, `available_at <= now()`, created older than stuckAfter
-  - `internal/maildb/scheduled_mail_test.go`: nil-db 테스트
-  - `internal/app/run.go`: `scheduled-mail-flusher` 잡에 실제 로직 연결
-    — `CountStuckScheduledMail(ctx, 10*time.Minute)` 호출 → stuck > 0이면 경고 로그
+  - `internal/orgchart/sync.go`:
+    - `OrgChartSyncAdapter` 인터페이스: `SyncOrgChart(ctx context.Context) error`
+    - `NoopOrgChartAdapter` struct: 항상 nil 반환 (어댑터 미설정 기본값)
+  - `internal/orgchart/sync_test.go`:
+    - `TestNoopAdapterReturnsNil`
+  - `internal/app/run.go`: `org-chart-sync` 잡 등록 — `NoopOrgChartAdapter` 사용
+    (어댑터를 인터페이스로 받아 외부 플러그인이 주입 가능한 구조)
 - **완료 조건**:
   - [ ] `go test ./...` 통과
-  - [ ] `OutgoingMessage.ScheduledAt` 필드 존재, outbox `available_at` 반영
-  - [ ] `CountStuckScheduledMail` nil-db 테스트 통과
-  - [ ] `scheduled-mail-flusher` 잡이 no-op에서 실제 DB 조회로 교체됨
-- **다음 태스크**: TASK-045
+  - [ ] `OrgChartSyncAdapter` 인터페이스 정의 존재
+  - [ ] `org-chart-sync` 잡이 배치 워커에 등록됨
+  - [ ] NoopAdapter 단위 테스트 통과
+- **다음 태스크**: TASK-046
 
 ---
 
 ## 완료됨
 
+- **TASK-044**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1) ✅ (2026-05-09)
 - **TASK-043**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4) ✅ (2026-05-09)
 - **TASK-042**: DNS SRV 자동발견 — CalDAV/CardDAV (Phase 4-B item 5) ✅ (2026-05-09)
 - **TASK-041**: SSO DB 마이그레이션 + 도메인별 세션 수명 (Phase 3-C item 5) ✅ (2026-05-09)
