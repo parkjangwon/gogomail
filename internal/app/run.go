@@ -2356,7 +2356,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:              mailFlowStatsProvider,
 			configStore:                configStore,
-		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)))
+		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore))
 		logger.Info("admin api routes registered")
 	}
 
