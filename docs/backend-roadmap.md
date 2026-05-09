@@ -5132,3 +5132,116 @@ Target outcome:
 | Open API / API key auth | Bearer token + CIDR allowlist (domain_api_keys) |
 | Real-time config SSE | Server-Sent Events (HTML5 EventSource) |
 - Built-in spam filtering and pattern filtering; SMTP core should keep only pluggable boundaries and optional external relay adapters.
+
+---
+
+## Phase 8: Admin Console & Enterprise Features
+
+Target outcome:
+
+> 엔터프라이즈급 Admin Console으로 SaaS/On-Premises 모두 지원하고, AWS급의 강력한 관리, 모니터링, 감사 기능을 제공한다.
+
+### 8-A. Core Admin Console (다중테넌시, RBAC, Identity Provider 추상화)
+
+1. Admin Console은 SaaS 모드(multitenancy)와 On-Premises 모드 동시 지원.
+2. System Admin (전역) vs Domain Admin (회사/도메인별) 계층.
+3. 7개 내장 역할: System Admin, Domain Admin, Security Officer, HR Officer, Monitoring Officer, Auditor, Support Specialist.
+4. 커스텀 역할: Domain Admin이 추가 역할 정의 및 세밀한 권한 설정 (resource × action × scope).
+5. Identity Provider 추상화: Database Only, LDAP/Active Directory, Azure AD, External RDBMS 플러그인식 지원.
+6. Database Mode (기본): gogomail 자체 DB로 사용자/조직도 관리.
+7. LDAP Mode: 외부 LDAP/AD와 동기화, 주기적 또는 수동 sync, 속성 매핑.
+8. Azure AD Mode: Microsoft Azure AD 연동, 사용자 자동 프로비저닝.
+9. External RDBMS Mode: 외부 HR DB의 독자 스키마에서 SQL 쿼리로 사용자/조직도 읽기, 필드 매핑.
+10. Identity Mode 전환: Database ↔ LDAP ↔ Azure ↔ RDBMS 변경 가능, 전환 전 미리보기.
+11. Organization Management: 계층적 부서/팀 구조, 드래그앤드롭 이동, 부서별 관리자 위임.
+12. User Management: 생성/수정/삭제, 비밀번호 초기화, 2FA 관리, 일괄 import (CSV).
+13. Role Management: 내장 역할은 읽기 전용, 커스텀 역할은 CRUD.
+14. Permission Delegation: Domain Admin이 다른 사용자에게 역할 부여, 임시 위임 지원.
+15. Admin Session: JWT 기반 인증, secure token storage, session timeout.
+
+### 8-B. Monitoring & Analytics
+
+16. Dashboard: System Admin은 전체 통계, Domain Admin은 자신 회사만, 실시간 메일 트래픽, 트렌드.
+17. Mail Log: 발신/수신 로그, 검색 (sender, recipient, date range), 상세 조회 (headers, Authentication-Results).
+18. Spam Monitoring (활성화시): 일일 스팸 차단율, 상위 규칙, false positive 신고.
+19. Login Audit: 로그인 이력 (시간, IP, 디바이스), 성공/실패, 의심 활동 감지.
+20. User Activity Stats: DAU/WAU/MAU, 활동도별 분포, 상위 활동 사용자.
+21. Storage Stats: 전체 사용률, 사용자별 분포, 예상 소진 날짜, 1년 이상 된 메일 크기.
+22. API Metering (Domain Admin 보기): 월별 호출량, 일별 추이, 엔드포인트별 상위, 오류율, 응답시간.
+23. Statistics Export: CSV (모든 통계), PDF (월간 리포트), NDJSON (대용량 분석).
+24. Stats Cache: 대시보드 통계를 사전 계산해 성능 최적화, 배치 롤업 (daily, monthly).
+
+### 8-C. Audit & Compliance
+
+25. Audit Levels (Domain Admin 선택):
+    - Level 1 (기본): Admin 행위만 (user CRUD, policy change).
+    - Level 2 (권장): Level 1 + 로그인/보안 이벤트, API 오류.
+    - Level 3 (규제 필수): Level 2 + 모든 사용자 행위 (mail read/delete, attachment download).
+26. Audit Log: timestamp, actor, action, resource, changes (before/after), ip, user_agent, status.
+27. Log Retention: 최근 30일 온라인, 30-90일 압축 아카이브, 90일+ 자동 삭제 또는 cold storage.
+28. Data Masking (Level 3): 메일 내용 저장 안함, 수신자 이메일 마스킹 (선택), API request body 민감 정보 제외.
+29. Audit Query UI: 필터 (기간, 사용자, 액션), 정렬, 상세 조회, CSV/JSON 내보내기.
+30. Permission-based Log Access: System Admin 전체, Domain Admin 자신 회사만, Security Officer 보안 이벤트만, Auditor 감시 로그만.
+
+### 8-D. UI/UX & Settings
+
+31. Admin Console UI: AWS Console 스타일 (정보 밀도, 다크 테마, 고대비), 테이블 컴팩트, 여백 최소화, 하나의 페이지에 많은 데이터.
+32. Navigation: 좌측 접이식 사이드바 (220px), 상단 최소 네비게이션, 커맨드 팔레트 (Cmd+K), 빵부스러기.
+33. Table Interactions: 정렬, 필터, 검색, 다중 선택, 우클릭 컨텍스트 메뉴, 인라인 편집 (더블클릭), 열 재정렬 (드래그).
+34. Forms: 인라인 폼 선호, Modal 최소화 (side panel), 저장/취소 always visible.
+35. Charts: Recharts 기반, 호버 시 상세 정보, 범위 선택, 축소/확대.
+36. Accessibility: 키보드 네비게이션, 스크린 리더 지원, 높은 대비.
+37. Domain Settings: TLS 정책, Quota (사용자당 스토리지), IP 화이트리스트, 2FA 요구, 세션 타임아웃, 비밀번호 정책.
+38. API Settings: API Key 관리 (생성, 회전, 삭제), Rate Limit 설정, CIDR Allowlist, OpenAPI 문서 링크.
+39. Alerts & Notifications: 임계값 기반 자동 알림 (스토리지 > 80%, 로그인 실패 > 10회/시간, API 오류율 > 5%).
+40. Alert Channels: 이메일, 웹훅, 대시보드 팝업.
+
+### 8-E. Backend APIs
+
+41. Auth API: login, logout, me, refresh-token.
+42. User API: CRUD, bulk-import, reset-password, assign-role.
+43. Organization API: unit CRUD, hierarchy, member assign/remove.
+44. Identity Config API: identity-mode select, LDAP/Azure/RDBMS config CRUD, test-connection, validate-query, sync.
+45. Log APIs: mail, login, audit, spam logs with filters.
+46. Stats APIs: dashboard, mail-volume, users, storage, api-usage.
+47. Settings APIs: domain-settings, api-settings, audit-policy.
+48. Role APIs: list (builtin + custom), CRUD (custom only), assign/revoke.
+
+### 8-F. Data Model
+
+49. Admin roles: `admin_role_definitions` (builtin + custom), `admin_role_permissions` (matrix), `admin_user_roles` (assignment).
+50. Audit: `audit_logs` (admin actions), `login_audit_logs` (login history), `audit_policy_configs` (level, retention, masking).
+51. Identity: `domain_identity_config` (mode, sync settings), `ldap_sync_configs`, `external_rdbms_configs`.
+52. Stats: `api_usage_daily` (metering), `admin_stats_cache` (dashboard cache).
+
+---
+
+### Phase 8 구현 로드맵
+
+| TASK | 제목 | 설명 |
+|------|------|------|
+| TASK-063 | Admin Console Architecture | Schema + RBAC + Custom Roles |
+| TASK-064 | Admin Auth & Session | JWT, login, refresh-token |
+| TASK-065 | User Management CRUD | Create/Read/Update/Delete users |
+| TASK-066 | Organization Management | Unit CRUD, hierarchy, members |
+| TASK-067 | Audit Logs (Level 1+2) | Admin actions + security events |
+| TASK-068 | Identity Provider Abstraction | Database/LDAP/Azure/RDBMS plugin |
+| TASK-069 | Database Identity Mode | Default implementation |
+| TASK-070 | LDAP Identity Config & Sync | LDAP server config, test, sync |
+| TASK-071 | LDAP Sync UI & Logs | Admin console LDAP management |
+| TASK-072 | External RDBMS Config & Sync | HR DB connection, query, mapping |
+| TASK-073 | External RDBMS Sync UI & Logs | Admin console RDBMS management |
+| TASK-074 | Mail Log Queries & UI | Send/receive logs, search, detail |
+| TASK-075 | Login/Security Audit Logs | Login history, suspicious activity |
+| TASK-076 | Statistics & Dashboard | Mail volume, user activity, storage |
+| TASK-077 | API Metering | Daily rollup, per-domain visibility |
+| TASK-078 | Dashboard UI | System/Domain admin views |
+| TASK-079 | Audit Policy Config UI | Level selection, retention, masking |
+| TASK-080 | Export & Reports | CSV, PDF, NDJSON |
+| TASK-081 | Role Management UI | Builtin roles view, custom role CRUD |
+| TASK-082 | Domain Settings UI | TLS, quota, IP whitelist, 2FA |
+| TASK-083 | API Settings UI | API key management, rate limit |
+| TASK-084 | Alerts & Notifications | Threshold-based alerts, channels |
+| TASK-085 | Admin Console Frontend (Phase 1) | Login, dashboard, user list |
+| TASK-086 | Admin Console Frontend (Phase 2) | Organization, settings pages |
+| TASK-087 | Admin Console Frontend (Phase 3) | Logs, analytics, exports |

@@ -7,50 +7,35 @@
 
 ## 현재 태스크
 
-**STATUS: COMPLETE** ✅
+**STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-062
-- **제목**: Spam 필터 하드닝 — RFC 5764 Milter 표준 + 스코링
-- **배경**: Phase 8-B. TASK-061(조직도) 완료 후, spam filtering을 
-  Milter 표준 프로토콜(RFC 5764)로 외부 스팸 필터(Rspamd, SpamAssassin 등)와 연동.
+- **ID**: TASK-063
+- **제목**: Admin Console Schema + RBAC + Custom Roles
+- **배경**: Phase 8-A 첫 번째 태스크. Admin Console의 기초 데이터 모델과 권한 시스템 구현.
+  - 관리자 역할 정의 (builtin + custom)
+  - 역할별 권한 매트릭스
+  - 사용자-역할 할당
+  - 감시 정책 설정 (Audit Level, Retention, Masking)
 
-- **구현 완료**:
-  1. ✓ `internal/spam/relay.go` — Relay 인터페이스 및 Hook (기존 구조)
-  2. ✓ `internal/spam/filter.go` — 스팸 스코어링 및 판정 로직:
-     - SpamScore struct: 점수, 룰 매칭 결과
-     - Filter interface: 실제 스팸 필터 구현체 추상화
-     - DecisionEngine: Rspamd 호환 스코어 기반 액션 결정
-  3. ✓ `internal/spam/filter_test.go` — filter 테스트 (8개 테스트)
-  4. ✓ `internal/milterhook/spam_integration.go` — Milter hook과 spam 통합:
-     - SpamConfig: 필터 활성화 및 설정
-     - SpamHook: SMTP StageAuthenticationChecked에서 스팸 체크
-     - buildMessageText: 파싱된 메시지에서 텍스트 추출
-     - MilterSpamVerdict: spam verdict → Milter action 변환
-     - SpamVerdictHeaders: X-Spam-* 헤더 생성
-  5. ✓ `internal/milterhook/spam_integration_test.go` — 통합 테스트 (5개 테스트)
+- **구현 대상**:
+  1. `internal/admin/models.go` — Admin role, permission, audit policy types
+  2. `migrations/00XX_admin_console_schema.sql` — DB schema (9개 테이블)
+  3. `internal/admin/repository.go` — Admin role CRUD, permission queries
+  4. `internal/admin/service.go` — Service layer (validation, business logic)
+  5. `internal/admin/service_test.go` — Unit tests
+  6. `docs/ADMIN_CONSOLE_SPEC.md` — ✅ 완성된 스펙 문서
 
-- **완료 확인**:
-  - [x] `go test ./...` 통과: 5483 tests passed
-  - [x] spam filter 테스트: 스코어 계산 (8개 테스트)
-     - TestDecisionEngineAccept
-     - TestDecisionEngineQuarantine
-     - TestDecisionEngineReject
-     - TestDecisionEngineCustomThresholds
-     - TestDecisionEngineNegativeScore
-     - TestDefaultThresholds
-     - TestVerdictReason
-     - TestDecisionEngineBoundaryValues
-  - [x] Milter 통합 테스트: 스팸 필터 결과 → SMTP 거부/수락 (5개 테스트)
-     - TestSpamHookAccept
-     - TestSpamHookReject
-     - TestSpamHookShadowMode
-     - TestSpamHookDisabled
-     - TestSpamVerdictHeaders + TestMilterSpamVerdict
-  - [x] RFC 5764 (Milter) 호환: 프로토콜 액션 매핑
-  - [x] X-Spam-Score/X-Spam-Status 헤더 구현
-  - [x] Shadow mode 지원 (테스트 상태 로깅, 메시지 통과 허용)
+- **완료 조건**:
+  - [ ] `go test ./...` 통과 (새 테스트 포함)
+  - [ ] Schema validation (migration 문법 확인)
+  - [ ] Admin role CRUD 동작 확인
+  - [ ] Custom role 생성/수정/삭제 동작 확인
+  - [ ] Permission matrix 쿼리 동작 확인
+  - [ ] Audit policy 설정 동작 확인
+  - [ ] docs/ADMIN_CONSOLE_SPEC.md 반영 완료
+  - [ ] git status: clean (docs/ADMIN_CONSOLE_SPEC.md, migrations, internal/admin 포함)
 
-- **다음 태스크**: TASK-063 이상 (backend-roadmap.md 참고)
+- **다음 태스크**: TASK-064 (Admin Auth & Session)
 
 ---
 

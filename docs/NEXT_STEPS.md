@@ -30,7 +30,34 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-033 | Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) | 완료 |
 | TASK-034 | Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) | 완료 |
 | TASK-049 | WebDAV Auth — Bearer token + Basic auth over HTTPS | 완료 |
-| TASK-050 | LDAP Auth — maildb.AuthenticateLDAP 커밋 + 단위 테스트 | 대기 |
+| TASK-050 | LDAP Auth — maildb.AuthenticateLDAP 커밋 + 단위 테스트 | 완료 |
+| TASK-061 | Organization Structure — 조직도 백엔드 (LDAP 연동) | 완료 |
+| TASK-062 | Spam Filter Hardening — RFC 5764 Milter 표준 + 스코링 | 완료 |
+| TASK-063 | Admin Console Schema + RBAC + Custom Roles | 대기 |
+| TASK-064 | Admin Auth & Session — JWT, login, refresh | 대기 |
+| TASK-065 | User Management CRUD | 대기 |
+| TASK-066 | Organization Management | 대기 |
+| TASK-067 | Audit Logs (Level 1 + 2) | 대기 |
+| TASK-068 | Identity Provider Abstraction | 대기 |
+| TASK-069 | Database Identity Mode | 대기 |
+| TASK-070 | LDAP Identity Config & Sync | 대기 |
+| TASK-071 | LDAP Sync UI & Logs | 대기 |
+| TASK-072 | External RDBMS Config & Sync | 대기 |
+| TASK-073 | External RDBMS Sync UI | 대기 |
+| TASK-074 | Mail Log Queries & UI | 대기 |
+| TASK-075 | Login/Security Audit Logs | 대기 |
+| TASK-076 | Statistics & Dashboard | 대기 |
+| TASK-077 | API Metering | 대기 |
+| TASK-078 | Dashboard UI | 대기 |
+| TASK-079 | Audit Policy Config UI | 대기 |
+| TASK-080 | Export & Reports | 대기 |
+| TASK-081 | Role Management UI | 대기 |
+| TASK-082 | Domain Settings UI | 대기 |
+| TASK-083 | API Settings UI | 대기 |
+| TASK-084 | Alerts & Notifications | 대기 |
+| TASK-085 | Admin Console Frontend (Phase 1) | 대기 |
+| TASK-086 | Admin Console Frontend (Phase 2) | 대기 |
+| TASK-087 | Admin Console Frontend (Phase 3) | 대기 |
 
 ### TASK-049 상세
 - **제목**: WebDAV Auth — Bearer token + Basic auth over HTTPS
