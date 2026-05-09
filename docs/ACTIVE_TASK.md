@@ -7,10 +7,23 @@
 
 ## 현재 태스크
 
-- **ID**: COMPLETE
-- **제목**: 백로그 소진 — 다음 태스크 없음
-- **배경**: TASK-024까지 모든 백로그 항목 완료. NEXT_STEPS.md에 추가 태스크 없음.
-- **완료 조건**: N/A
+- **ID**: TASK-025
+- **제목**: Milter Protocol Client (Phase 5-A) — SMTP 파이프라인 필터 훅
+- **배경**: Phase 5-A 항목. 외부 스팸 필터(Rspamd, SpamAssassin, ClamAV)가 milter 프로토콜로 gogomail
+  수신 파이프라인에 연결된다. gogomail은 milter 클라이언트로서 외부 milter 서버에 TCP 연결하여
+  메일 수신 각 단계에서 필터 판정을 받는다.
+- **구현 대상**:
+  - `internal/milter/milter.go` — milter 클라이언트 패키지
+    - milter 프로토콜 v2 프레이밍: negotiate, CONNECT, HELO, MAIL, RCPT, HEADER, EOH, BODY, EOM 커맨드
+    - 액션 파싱: ACCEPT, REJECT, TEMPFAIL, DISCARD, CONTINUE
+    - `Client` struct: TCP 연결, 타임아웃, 연결 풀 없이 단일 연결
+  - `internal/milter/milter_test.go` — 테스트 (in-process net.Conn pair 사용)
+  - 기존 SMTP 파이프라인 (`internal/smtpd`) 훅은 이번 태스크 범위 외 — 클라이언트 패키지만 구현
+- **완료 조건**:
+  - [x] `go test ./internal/milter/...` 통과
+  - [x] ACCEPT / REJECT / TEMPFAIL 응답 파싱 검증
+  - [x] `go test ./...` 통과
+- **다음 태스크**: TASK-026
 
 ---
 
