@@ -104,6 +104,7 @@ type Config struct {
 	MilterTimeout                       time.Duration
 	MilterMaxConns                      int
 	MilterHealthCheckInterval           time.Duration
+	MilterShadowMode                    bool
 	DNSBLZones                          []string
 	DNSBLTimeout                        time.Duration
 	DNSBLPolicy                         string
@@ -324,6 +325,7 @@ func Load() Config {
 		MilterTimeout:                       durationEnvOrDefault("GOGOMAIL_MILTER_TIMEOUT", 30*time.Second),
 		MilterMaxConns:                      intEnvOrDefault("GOGOMAIL_MILTER_MAX_CONNS", 10),
 		MilterHealthCheckInterval:           durationEnvOrDefault("GOGOMAIL_MILTER_HEALTH_CHECK_INTERVAL", 30*time.Second),
+		MilterShadowMode:                    boolEnvOrDefault("GOGOMAIL_MILTER_SHADOW_MODE", false),
 		DNSBLZones:                          splitCSV(os.Getenv("GOGOMAIL_DNSBL_ZONES")),
 		DNSBLTimeout:                        durationEnvOrDefault("GOGOMAIL_DNSBL_TIMEOUT", 5*time.Second),
 		DNSBLPolicy:                         envOrDefault("GOGOMAIL_DNSBL_POLICY", "reject"),

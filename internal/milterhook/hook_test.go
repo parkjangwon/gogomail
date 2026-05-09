@@ -276,3 +276,23 @@ func TestPoolDialerCircuitBreakerOpen(t *testing.T) {
 		t.Fatal("expected error from open circuit")
 	}
 }
+
+func TestHookShadowModeReject(t *testing.T) {
+	h := milterhook.Hook(milterhook.HookOptions{
+		Dialer:     pipeDialer(t, func(conn net.Conn) { stubServer(conn, 'r') }),
+		ShadowMode: true,
+	})
+	if err := h(context.Background(), parsedEvent()); err != nil {
+		t.Fatalf("shadow mode: unexpected error on reject: %v", err)
+	}
+}
+
+func TestHookNoShadowModeReject(t *testing.T) {
+	h := milterhook.Hook(milterhook.HookOptions{
+		Dialer:     pipeDialer(t, func(conn net.Conn) { stubServer(conn, 'r') }),
+		ShadowMode: false,
+	})
+	if err := h(context.Background(), parsedEvent()); err == nil {
+		t.Fatal("non-shadow mode: expected error on reject, got nil")
+	}
+}
