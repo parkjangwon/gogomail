@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (TASK-013/014 POP3 TLS+CommitDeletes error propagation, HTTP body drain)
+Last updated: 2026-05-09 (security: JWT claim validation, WebDAV Bearer auth, SAML size limit)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
