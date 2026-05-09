@@ -7,25 +7,23 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-027
-- **제목**: DNSBL/RBL 통합 (Phase 5-B) — RFC 5782 DNS 기반 차단 목록
-- **배경**: Phase 5-B 항목. RCPT TO 단계 이전에 송신 IP를 DNS 블랙리스트(DNSBL)에 조회하여
-  스팸/악성 메일 서버를 차단한다. RFC 5782 §2.2 반환 코드 해석 포함.
-  기본 비활성화 (`GOGOMAIL_DNSBL_ZONES=""`) — 운영자가 zone 목록을 설정해야 활성화.
-- **구현 대상**:
-  - `internal/dnsbl/dnsbl.go` — DNSBL 조회 패키지
-    - `Checker` struct: zone 목록 + net.Resolver
-    - `Check(ctx, ip) (Result, error)` — reversed-IP A 레코드 조회
-    - `Result`: Listed bool, Zone, ReturnCode
-  - `internal/dnsbl/dnsbl_test.go` — 테스트 (fake resolver 사용)
-  - `internal/dnsbl/hook.go` — smtpd.Hook 어댑터 (StageAuthenticationChecked에서 실행)
-  - `internal/config/config.go` — `DNSBLZones`, `DNSBLTimeout`, `DNSBLPolicy` 추가
-  - `internal/app/run.go` — SMTP 수신 파이프라인에 DNSBL 훅 조건부 등록
-- **완료 조건**:
-  - [x] `go test ./internal/dnsbl/...` 통과
-  - [x] listed IP → SMTP 거부, unlisted IP → 통과
-  - [x] `go test ./...` 통과
-- **다음 태스크**: TASK-028
+- **ID**: COMPLETE
+- **제목**: 모든 정의된 태스크 완료
+- **배경**: TASK-029까지 모든 백로그 태스크 완료. NEXT_STEPS.md에 다음 태스크 없음.
+- **완료 조건**: 사용자가 새 태스크를 추가할 때까지 대기
+
+---
+
+## 완료됨
+
+- **TASK-029**: 디바이스 토큰 Admin API (Phase 7-A 완성) ✅ (2026-05-09)
+  - `internal/maildb/push_devices.go`: `DeleteAllPushDevices` 추가
+  - `internal/httpapi/admin_device_tokens.go`: 3개 엔드포인트 구현
+    - `GET /admin/v1/users/{id}/device-tokens`
+    - `DELETE /admin/v1/users/{id}/device-tokens/{device_id}`
+    - `DELETE /admin/v1/users/{id}/device-tokens`
+  - `internal/httpapi/admin_device_tokens_test.go`: 7개 테스트
+  - `go test ./...` 5182개 통과
 
 ---
 

@@ -8462,6 +8462,12 @@ type fakeAdminService struct {
 	lastUserConfigKey                           string
 	lastPropagateCompanyID                      string
 	lastPropagateScope                         configstore.PropagateScope
+	pushDevices                                []maildb.PushDevice
+	lastListDevicesUserID                      string
+	lastDeleteDeviceUserID                     string
+	lastDeleteDeviceID                         string
+	lastDeleteAllDevicesUserID                 string
+	deleteAllDevicesCount                      int
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -9118,6 +9124,22 @@ func (f *fakeAdminService) UpdatePushNotificationOutcome(_ context.Context, req 
 func (f *fakeAdminService) GetPushNotificationStats(_ context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error) {
 	f.lastPushNotificationStats = req
 	return f.pushNotificationStats, nil
+}
+
+func (f *fakeAdminService) ListPushDevices(_ context.Context, userID string, _ int) ([]maildb.PushDevice, error) {
+	f.lastListDevicesUserID = userID
+	return f.pushDevices, nil
+}
+
+func (f *fakeAdminService) DeletePushDevice(_ context.Context, userID string, id string) error {
+	f.lastDeleteDeviceUserID = userID
+	f.lastDeleteDeviceID = id
+	return nil
+}
+
+func (f *fakeAdminService) DeleteAllPushDevices(_ context.Context, userID string) (int, error) {
+	f.lastDeleteAllDevicesUserID = userID
+	return f.deleteAllDevicesCount, nil
 }
 
 func (f *fakeAdminService) ListSuppressionEntries(_ context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error) {

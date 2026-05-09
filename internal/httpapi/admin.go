@@ -193,6 +193,9 @@ type AdminService interface {
 	GetPushNotificationAttempt(ctx context.Context, id string) (maildb.PushNotificationAttemptView, error)
 	UpdatePushNotificationOutcome(ctx context.Context, req maildb.UpdatePushNotificationOutcomeRequest) error
 	GetPushNotificationStats(ctx context.Context, req maildb.PushNotificationStatsRequest) (maildb.PushNotificationStatsView, error)
+	ListPushDevices(ctx context.Context, userID string, limit int) ([]maildb.PushDevice, error)
+	DeletePushDevice(ctx context.Context, userID string, id string) error
+	DeleteAllPushDevices(ctx context.Context, userID string) (int, error)
 	ListSuppressionEntries(ctx context.Context, req maildb.SuppressionEntryListRequest) ([]maildb.SuppressionEntry, error)
 	ListTrustedRelays(ctx context.Context, req maildb.TrustedRelayListRequest) ([]maildb.TrustedRelayView, error)
 	CreateTrustedRelay(ctx context.Context, req maildb.CreateTrustedRelayRequest) (maildb.TrustedRelayView, error)
@@ -1211,6 +1214,8 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
 	}))
+
+	registerAdminDeviceTokenRoutes(mux, service, token)
 
 	mux.HandleFunc("GET /admin/v1/config/stream", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
