@@ -28,6 +28,7 @@ const (
 	ModePOP3              Mode = "pop3"
 	ModeCalDAV            Mode = "caldav"
 	ModeCardDAV           Mode = "carddav"
+	ModeWebDAV            Mode = "webdav"
 	ModeAuthServer        Mode = "auth-server"
 	ModeMailAPI           Mode = "mail-api"
 	ModeAdminAPI          Mode = "admin-api"
@@ -54,6 +55,7 @@ var knownModes = map[Mode]struct{}{
 	ModePOP3:              {},
 	ModeCalDAV:            {},
 	ModeCardDAV:           {},
+	ModeWebDAV:            {},
 	ModeAuthServer:        {},
 	ModeMailAPI:           {},
 	ModeAdminAPI:          {},

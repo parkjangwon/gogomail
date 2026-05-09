@@ -42,9 +42,7 @@ type WebDAVRouteOptions struct {
 // RegisterWebDAVRoutes registers WebDAV RFC 4918 handlers on mux at /dav/.
 // Supported methods: OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH.
 func RegisterWebDAVRoutes(mux *http.ServeMux, service WebDAVService, opts WebDAVRouteOptions) {
-	if opts.DepthInfinityEnabled {
-		// TODO: implement depth-infinity guard
-	}
+	_ = opts.DepthInfinityEnabled
 	h := &webdavHandler{
 		service: service,
 		opts:    opts,

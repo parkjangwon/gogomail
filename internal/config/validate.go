@@ -84,6 +84,9 @@ func (c Config) Validate() error {
 	if err := validateTCPAddr("GOGOMAIL_CARDDAV_ADDR", c.CardDAVAddr, true); err != nil {
 		return err
 	}
+	if err := validateTCPAddr("GOGOMAIL_WEBDAV_ADDR", c.WebDAVAddr, true); err != nil {
+		return err
+	}
 	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_CERT_FILE", c.IMAPTLSCertFile, 4096); err != nil {
 		return err
 	}

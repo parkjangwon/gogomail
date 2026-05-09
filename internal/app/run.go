@@ -110,6 +110,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runCalDAVGateway(ctx, cfg, logger)
 	case ModeCardDAV:
 		return runCardDAVGateway(ctx, cfg, logger)
+	case ModeWebDAV:
+		return runWebDAVGateway(ctx, cfg, logger)
 	case ModeLDAPGateway:
 		return runLDAPGateway(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
@@ -665,6 +667,61 @@ func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logg
 func newCardDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              strings.TrimSpace(cfg.CardDAVAddr),
+		Handler:           handler,
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
+		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
+		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
+	}
+}
+
+func runWebDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	store, err := objectStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	driveSvc := driveServiceForConfig(db, cfg, store)
+	webdavSvc := httpapi.NewWebDAVService(driveSvc)
+
+	mux := http.NewServeMux()
+	opts := httpapi.WebDAVRouteOptions{
+		DepthInfinityEnabled: cfg.WebDAVDepthInfinityEnabled,
+	}
+	httpapi.RegisterWebDAVRoutes(mux, webdavSvc, opts)
+	server := newWebDAVHTTPServer(cfg, mux)
+
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("webdav gateway listening", "addr", server.Addr)
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return ctx.Err()
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
+}
+
+func newWebDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              strings.TrimSpace(cfg.WebDAVAddr),
 		Handler:           handler,
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		WriteTimeout:      cfg.HTTPWriteTimeout,

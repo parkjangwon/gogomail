@@ -7,24 +7,26 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-046
-- **제목**: Phase 4-A WebDAV Gateway 남은 항목 — LOCK/UNLOCK + Depth:infinity 가드 + 메트릭 (Phase 4-A remaining items)
-- **배경**: Phase 4-A WebDAV Gateway는 기본 PROPFIND/PROPPATCH/MKCOL/GET/DELETE/MOVE/COPY 구현됨.
-  하지만 LOCK/UNLOCK(자원 잠금), Depth:infinity 가드, WebDAV 메트릭 계측이 미구현.
-  macOS Finder, Windows Explorer, Cyberduck, rclone 등 프로덕션 WebDAV 클라이언트는
-  잠금 및 안전 가드를 기대함.
+- **ID**: TASK-047
+- **제목**: WebDAV Gateway 런타임 통합 — WebDAV 핸들러를 앱 런타임에 연결
+- **배경**: TASK-021/024/046에서 WebDAV 핸들러(OPTIONS/PROPFIND/MKCOL/GET/DELETE/MOVE/COPY/PROPPATCH/LOCK/UNLOCK)와
+  Depth:infinity 가드, 메트릭 계측이 구현됨. 하지만 `RegisterWebDAVRoutes`는 테스트에서만 호출되고
+  실제 앱 런타임(`internal/app/run.go`)에는 연결되어 있지 않음. 운영 환경에서 WebDAV 게이트웨이를
+  구동하려면 런타임 통합이 필요함.
 - **구현 대상**:
-  - `internal/httpapi/webdav.go`:
-    - `LOCK` 핸들러: exclusive/shared 잠금 생성, Lock-Token 응답
-    - `UNLOCK` 핸들러: Lock-Token으로 잠금 해제
-    - `Depth: infinity` 가드: `DepthInfinityEnabled=false`(기본)일 때 infinity 요청 거부
-    - WebDAV 메소드별 메트릭: PROPFIND/MKCOL/GET/PUT/DELETE/MOVE/COPY/LOCK/UNLOCK outcomes
-  - `internal/httpapi/webdav_test.go`: LOCK/UNLOCK/DepthInfinity 단위 테스트
+  - `internal/httpapi/webdav_service.go`: `drive.Service`를 감싸는 `WebDAVService` 어댑터
+  - `internal/config/config.go`: `WebDAVAddr`, `WebDAVDepthInfinityEnabled` 설정 추가
+  - `internal/config/config_file.go`, `validate.go`: 설정 파싱/검증
+  - `internal/app/mode.go`: `ModeWebDAV` 모드 추가
+  - `internal/app/run.go`: `runWebDAVGateway` 함수, 모드 스위치, HTTP 서버 구동
+  - `internal/app/run_test.go`: 런타임 통합 테스트
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] LOCK으로 자원 잠금 생성 후 UNLOCK으로 해제 가능
-  - [x] Depth:infinity 가드(default=false) 시 infinity 요청 시 403 Forbidden
-  - [x] WebDAV 메소드별 메트릭record
+  - [x] `ModeWebDAV` 모드로 WebDAV 서버 구동 가능
+  - [x] `WebDAVAddr` 설정으로 리스닝 주소 지정 가능
+  - [x] WebDAV 서버가 `drive.Service`를 통해 실제 Drive 노드 서빙
+  - [x] `LockNode`/`UnlockNode` 어댑터 스텁 (핸들러는 인메모리 락 사용)
+  - [x] `TrashNode` 시그니처 어댑팅 (`drive.Service`는 `(Node, int64, error)` 반환)
 
 ## 완료됨
 
@@ -40,9 +42,9 @@
 - **TASK-037**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B ✅ (2026-05-09)
 - **TASK-036**: LDAP Gateway (RFC 4511) — Phase 3-A ✅ (2026-05-09)
 - **TASK-035**: SSE Config Stream — configstore.Notifier 연동 ✅ (2026-05-09)
-- **TASK-034**: Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) ✅ (2026-05-09)
+- **TASK-034**: Batch Worker — Quota Alert Check (Phase 2-C) ✅ (2026-05-09)
 - **TASK-033**: Batch Worker — Token Cleanup (token-cleanup 잡) ✅ (2026-05-09)
-- **TASK-032**: Batch Worker — TOTP Used-Code Pruning ✅ (2026-05-09)
+- **TASK-032**: Batch Worker — TOTP Used-Code Pruning (Phase 2-C) ✅ (2026-05-09)
 - **TASK-031**: Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 ✅ (2026-05-09)
 - **TASK-030**: Delta Sync Cursor — Postgres 영속 스토어 ✅ (2026-05-09)
 
