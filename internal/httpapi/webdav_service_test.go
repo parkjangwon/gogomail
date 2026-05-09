@@ -9,14 +9,15 @@ import (
 )
 
 type fakeDriveServiceForWebDAV struct {
-	listNodesFunc     func(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
-	getNodeFunc       func(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
-	openFileFunc      func(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
-	createFolderFunc  func(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
-	trashNodeFunc     func(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
-	renameNodeFunc    func(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
-	moveNodeFunc      func(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
-	copyNodeFunc      func(ctx context.Context, req drive.CopyNodeRequest) (drive.Node, error)
+	listNodesFunc       func(ctx context.Context, req drive.ListNodesRequest) ([]drive.Node, error)
+	getNodeFunc         func(ctx context.Context, req drive.GetNodeRequest) (drive.Node, error)
+	openFileFunc        func(ctx context.Context, req drive.OpenFileRequest) (drive.FileDownload, error)
+	createFolderFunc    func(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error)
+	createFileFunc      func(ctx context.Context, req drive.CreateFileRequest) (drive.Node, error)
+	trashNodeFunc       func(ctx context.Context, req drive.TrashNodeRequest) (drive.Node, int64, error)
+	renameNodeFunc      func(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
+	moveNodeFunc        func(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
+	copyNodeFunc        func(ctx context.Context, req drive.CopyNodeRequest) (drive.Node, error)
 	getUsageSummaryFunc func(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
 }
 
@@ -44,6 +45,13 @@ func (f *fakeDriveServiceForWebDAV) OpenFile(ctx context.Context, req drive.Open
 func (f *fakeDriveServiceForWebDAV) CreateFolder(ctx context.Context, req drive.CreateFolderRequest) (drive.Node, error) {
 	if f.createFolderFunc != nil {
 		return f.createFolderFunc(ctx, req)
+	}
+	return drive.Node{}, errors.New("not implemented")
+}
+
+func (f *fakeDriveServiceForWebDAV) CreateFile(ctx context.Context, req drive.CreateFileRequest) (drive.Node, error) {
+	if f.createFileFunc != nil {
+		return f.createFileFunc(ctx, req)
 	}
 	return drive.Node{}, errors.New("not implemented")
 }

@@ -7,29 +7,29 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-047
-- **제목**: WebDAV Gateway 런타임 통합 — WebDAV 핸들러를 앱 런타임에 연결
-- **배경**: TASK-021/024/046에서 WebDAV 핸들러(OPTIONS/PROPFIND/MKCOL/GET/DELETE/MOVE/COPY/PROPPATCH/LOCK/UNLOCK)와
-  Depth:infinity 가드, 메트릭 계측이 구현됨. 하지만 `RegisterWebDAVRoutes`는 테스트에서만 호출되고
-  실제 앱 런타임(`internal/app/run.go`)에는 연결되어 있지 않음. 운영 환경에서 WebDAV 게이트웨이를
-  구동하려면 런타임 통합이 필요함.
+- **ID**: TASK-048
+- **제목**: WebDAV PUT — 스트리밍 파일 업로드 + Drive 쿼터 적용
+- **배경**: Phase 4 항목 8. WebDAV Gateway는 현재 PROPFIND/MKCOL/GET/DELETE/MOVE/COPY/LOCK/UNLOCK을 지원하지만
+  PUT은 501 Not Implemented를 반환한다. macOS Finder, Windows Explorer, Cyberduck 등 프로덕션 클라이언트는
+  파일 업로드를 위해 PUT을 기대함. 로드맵 항목 8: "PUT streams body directly to object storage; no full-file buffering",
+  항목 10: "Drive quota enforced before PUT completes."
 - **구현 대상**:
-  - `internal/httpapi/webdav_service.go`: `drive.Service`를 감싸는 `WebDAVService` 어댑터
-  - `internal/config/config.go`: `WebDAVAddr`, `WebDAVDepthInfinityEnabled` 설정 추가
-  - `internal/config/config_file.go`, `validate.go`: 설정 파싱/검증
-  - `internal/app/mode.go`: `ModeWebDAV` 모드 추가
-  - `internal/app/run.go`: `runWebDAVGateway` 함수, 모드 스위치, HTTP 서버 구동
-  - `internal/app/run_test.go`: 런타임 통합 테스트
+  - `internal/drive/service.go`: `CreateFile` 메서드 추가 — storage.Store에 직접 스트리밍 후 노드 생성
+  - `internal/drive`: `CreateFileRequest` 타입, `BuildNodeObjectPath` 기반 저장소 경로 생성
+  - `internal/httpapi/webdav.go`: `WebDAVService` 인터페이스에 `CreateFile` 추가, `handlePut` 구현
+  - `internal/httpapi/webdav_service.go`: 어댑터에 `CreateFile` 위임
+  - `internal/httpapi/webdav_test.go`: PUT 업로드/덮어쓰기/쿼터 초과 테스트
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] `ModeWebDAV` 모드로 WebDAV 서버 구동 가능
-  - [x] `WebDAVAddr` 설정으로 리스닝 주소 지정 가능
-  - [x] WebDAV 서버가 `drive.Service`를 통해 실제 Drive 노드 서빙
-  - [x] `LockNode`/`UnlockNode` 어댑터 스텁 (핸들러는 인메모리 락 사용)
-  - [x] `TrashNode` 시그니처 어댑팅 (`drive.Service`는 `(Node, int64, error)` 반환)
+  - [x] WebDAV PUT으로 파일 업로드 후 GET으로 다운로드 가능
+  - [x] 같은 경로 PUT 두 번 시 기존 파일 덮어쓰기(또는 적절한 에러)
+  - [x] Drive 쿼터 초과 시 507 Insufficient Storage 반환
+  - [x] Content-Type 헤더 기반 MIMEType 저장
 
 ## 완료됨
 
+- **TASK-048**: WebDAV PUT — 스트리밍 파일 업로드 + Drive 쿼터 적용 ✅ (2026-05-09)
+- **TASK-047**: WebDAV Gateway 런타임 통합 — ModeWebDAV + WebDAVServiceAdapter ✅ (2026-05-09)
 - **TASK-046**: Phase 4-A WebDAV Gateway — LOCK/UNLOCK + Depth:infinity 가드 + 메트릭 ✅ (2026-05-09)
 - **TASK-045**: Batch Worker — OrgChartSyncJob 인터페이스 + 플러그인 경계 (Phase 2-C item 2) ✅ (2026-05-09)
 - **TASK-044**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1) ✅ (2026-05-09)
@@ -59,7 +59,7 @@
 4. go test ./... 실행
 5. docs 업데이트
 6. 위 체크리스트 전부 체크
-7. git add (코드 + docs), git commit
+7. git add (코드 + 테스트 + docs 전부), git commit
 8. go test ./... 통과 확인 후 git push origin main
 9. 다음 태스크로 이 파일 교체
 ```

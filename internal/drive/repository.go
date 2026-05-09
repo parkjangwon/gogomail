@@ -65,6 +65,15 @@ type CreateFolderRequest struct {
 	Name     string
 }
 
+type CreateFileRequest struct {
+	UserID   string
+	ParentID string
+	Name     string
+	Body     io.Reader
+	Size     int64
+	MIMEType string
+}
+
 type CreateFileFromObjectRequest struct {
 	NodeID         string
 	UserID         string
