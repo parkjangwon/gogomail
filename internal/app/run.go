@@ -554,6 +554,7 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 	directoryRepository := directory.NewRepository(db)
 	resolver := caldavgw.NewBasicAuthResolver(accountRepository, cfg.CalDAVAllowInsecureAuth)
 	handler := caldavgw.NewHandler(calendarRepository, resolver.Resolve)
+	handler.IncludeScheduling = cfg.CalDAVScheduling
 	handler.AccessAuthorizer = caldavgw.DelegatedAccessPolicy{
 		Directory: directoryRepository,
 		Authorizer: accesspolicy.DelegatedAccessAuthorizer{

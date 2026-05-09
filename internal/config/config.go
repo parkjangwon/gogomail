@@ -39,6 +39,7 @@ type Config struct {
 	POP3IdleTimeout                     time.Duration
 	CalDAVAddr                          string
 	CalDAVAllowInsecureAuth             bool
+	CalDAVScheduling                    bool
 	CardDAVAddr                         string
 	CardDAVAllowInsecureAuth            bool
 	LDAPAddr                            string
@@ -254,6 +255,7 @@ func Load() Config {
 		POP3IdleTimeout:                     durationEnvOrDefault("GOGOMAIL_POP3_IDLE_TIMEOUT", 10*time.Minute),
 		CalDAVAddr:                          envOrDefault("GOGOMAIL_CALDAV_ADDR", ":8081"),
 		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		CalDAVScheduling:                    boolEnvOrDefault("GOGOMAIL_CALDAV_SCHEDULING", false),
 		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
 		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
