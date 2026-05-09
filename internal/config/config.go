@@ -44,6 +44,8 @@ type Config struct {
 	LDAPAddr                            string
 	LDAPCompanyID                       string
 	LDAPBaseDomain                      string
+	SCIMToken                           string
+	SCIMDefaultDomainID                 string
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxConnections            int
@@ -257,6 +259,8 @@ func Load() Config {
 		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
 		LDAPCompanyID:                       envOrDefault("GOGOMAIL_LDAP_COMPANY_ID", ""),
 		LDAPBaseDomain:                      envOrDefault("GOGOMAIL_LDAP_BASE_DOMAIN", ""),
+		SCIMToken:                           envOrDefault("GOGOMAIL_SCIM_TOKEN", ""),
+		SCIMDefaultDomainID:                 envOrDefault("GOGOMAIL_SCIM_DEFAULT_DOMAIN_ID", ""),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxConnections:            intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", 0),

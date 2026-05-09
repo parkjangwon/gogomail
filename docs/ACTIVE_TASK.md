@@ -7,34 +7,44 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-036
-- **제목**: LDAP Gateway (RFC 4511) — Phase 3-A
-- **배경**: `internal/ldapgw` 패키지에 BER 인코딩/디코딩 유틸만 존재. 실제 LDAP 서버 없음.
-  `internal/directory` 리포지토리로 LDAP 필터를 SQL에 매핑하면 기존 사용자/주소 데이터를
-  LDAP 클라이언트(CalDAV/CardDAV 리졸버, 메일 클라이언트)가 표준 프로토콜로 조회 가능.
+- **ID**: TASK-037
+- **제목**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B
+- **배경**: `internal/scim` 패키지에 타입/필터 유틸만 존재. HTTP 핸들러 없음.
+  Okta, Azure AD, Google Workspace 등 IdP가 SCIM 2.0으로 gogomail 사용자를 프로비저닝할 수 있어야 한다.
+  AdminAPI와 같은 서버에 `/scim/v2/Users` 엔드포인트를 추가한다.
 - **구현 대상**:
-  - `internal/ldapgw/server.go`: TCP 리스너 + LDAP v3 프로토콜 파서
-    - `HandleBind`: simple bind → 기존 auth 경계에 위임 (directory.LookupUser)
-    - `HandleSearch`: LDAP 필터 → `directory.SearchPrincipals` 매핑, `SearchResultEntry` 응답
-    - read-only 적용: `Add/Modify/Delete/ModifyDN` → `unwillingToPerform`
-    - `unbind` → 연결 종료
-  - `internal/ldapgw/bind.go`: BindRequest BER 디코딩 + BindResponse 인코딩
-  - `internal/ldapgw/search.go`: SearchRequest 디코딩 + SearchResultEntry/ResultDone 인코딩
-  - `internal/ldapgw/server_test.go`: fake directory를使った 단위 테스트
-  - `internal/app/run.go`: LDAP 서버를 AdminAPI 모드에 런타임 연동 (`ldapgw.NewServer`)
-  - `internal/app/mode.go`: `ModeLDAPGateway` 추가
+  - `internal/httpapi/scim.go`: SCIM 2.0 REST 핸들러
+    - `RegisterSCIMRoutes(mux, svc SCIMUserService, token string)`
+    - `GET /scim/v2/Users` — 목록 (필터 eq/co/sw, startIndex/count 페이지네이션)
+    - `POST /scim/v2/Users` — 생성
+    - `GET /scim/v2/Users/{id}` — 단건 조회
+    - `PUT /scim/v2/Users/{id}` — 전체 교체
+    - `DELETE /scim/v2/Users/{id}` — 삭제
+    - `GET /scim/v2/ServiceProviderConfig` — 디스커버리
+    - `GET /scim/v2/ResourceTypes` — 디스커버리
+  - `internal/maildb/scim_users.go`: `SCIMUserRepository` (users 테이블 CRUD)
+    - `GetSCIMUser(ctx, id) → scim.UserResource`
+    - `ListSCIMUsers(ctx, filter, offset, limit) → ([]scim.UserResource, int, error)`
+    - `CreateSCIMUser(ctx, req) → scim.UserResource`
+    - `ReplaceSCIMUser(ctx, id, req) → scim.UserResource`
+    - `DeleteSCIMUser(ctx, id) → error`
+  - `internal/httpapi/scim_test.go`: 단위 테스트 (fake service)
+  - `internal/app/run.go`: `RegisterSCIMRoutes`를 AdminAPI에 연결
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] BindRequest (simple bind) 처리 테스트
-  - [x] SearchRequest → directory principals 매핑 + SearchResultEntry 응답 테스트
-  - [x] read-only 연산 거부 테스트
-  - [x] run.go에 LDAP 서버 등록
-- **다음 태스크**: TASK-037 (백로그에서 선택)
+  - [x] GET /scim/v2/Users 목록 + 필터 테스트
+  - [x] POST /scim/v2/Users 생성 테스트
+  - [x] GET /scim/v2/Users/{id} 조회 테스트
+  - [x] DELETE /scim/v2/Users/{id} 삭제 테스트
+  - [x] ServiceProviderConfig / ResourceTypes 디스커버리 테스트
+  - [x] run.go AdminAPI에 등록
+- **다음 태스크**: TASK-038
 
 ---
 
 ## 완료됨
 
+- **TASK-036**: LDAP Gateway (RFC 4511) — Phase 3-A ✅ (2026-05-09)
 - **TASK-035**: SSE Config Stream — configstore.Notifier 연동 ✅ (2026-05-09)
 - **TASK-034**: Batch Worker — Quota Alert Check (quota-alert-check 잡, Phase 2-C) ✅ (2026-05-09)
 - **TASK-033**: Batch Worker — Token Cleanup (token-cleanup 잡) ✅ (2026-05-09)
