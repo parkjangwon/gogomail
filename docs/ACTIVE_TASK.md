@@ -7,25 +7,45 @@
 
 ## 현재 태스크
 
-**STATUS: COMPLETE** ✅
+**STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-052
-- **제목**: Milter Circuit Breaker — State Machine + Failure Recovery ✅ (2026-05-09)
-- **배경**: Phase 5-A 항목 9. 연결 풀(TASK-051) 다음 단계.
-  외부 milter 서버 다운 시 빠르게 실패하고 복구하는 circuit breaker 필요.
+- **ID**: TASK-054
+- **제목**: Milter Config & Runtime — SMTP 훅 통합
+- **배경**: Phase 5-A 완성. Milter 클라이언트(TASK-051), circuit breaker(TASK-052), 
+  pool(TASK-053) 모두 완성. 이제 설정 + 런타임에 SMTP 파이프라인 연동.
+  
+- **구현 대상**:
+  - `internal/config/config.go`: Milter 설정 구조 추가
+    - `MilterEnabled bool`
+    - `MilterAddress string` (TCP 주소)
+    - `MilterTimeout time.Duration` (기본 5초)
+    - `MilterMaxConns int` (기본 10)
+    - `MilterHealthCheckInterval time.Duration` (기본 30초)
+  - `internal/app/run.go`: Milter 풀 초기화 + 종료
+  - `internal/mailservice/smtp_adapter.go` 또는 SMTP 파이프라인:
+    - `authentication_checked` 단계 후 RCPT TO 진행 전 milter RCPT 호출
+    - `parsed` 단계 (MAIL FROM, HELO, HEADERS, BODY) 단계별 milter 호출
+  - `internal/milterhook/milterhook.go`: Milter 훅 구현 (SMTP 파이프라인 통합)
+    - `OnHelo()`, `OnMailFrom()`, `OnRcptTo()`, `OnHeaderEnd()`, `OnBodyChunk()`, `OnEndOfMessage()`
+    - 각 메서드: pool에서 클라이언트 가져오기, 명령 보내기, Action 응답 처리
+    - Action 처리: ACCEPT(통과), REJECT(거부), TEMPFAIL(임시 실패), DISCARD(폐기)
+  - 환경 변수:
+    - `GOGOMAIL_MILTER_ENABLED` (기본 false)
+    - `GOGOMAIL_MILTER_ADDRESS` (예: "127.0.0.1:11332")
+    - `GOGOMAIL_MILTER_TIMEOUT` (기본 5s)
 
-- **구현 완료**:
-  - ✅ `internal/milter/circuit.go`: State machine (CLOSED → OPEN → HALF_OPEN → CLOSED)
-  - ✅ `internal/milter/circuit_test.go`: 6개 테스트
-    - ClosedState, OpensAfterFailures, TransitionsToHalfOpen
-    - ClosesAfterSuccess, ReopensAfterFailureInHalfOpen, Metrics
-  - ✅ failureThreshold + resetTimeout 설정 가능
-  - ✅ AllowRequest() 상태별 제어 (CLOSED/OPEN/HALF_OPEN)
-  - ✅ Atomic 메트릭 (success/failure count)
-  - ✅ `go test ./...` 통과 (5385 tests)
-  - ✅ commit: TBD
+- **완료 조건**:
+  - [ ] `go test ./...` 통과 (기존 + 새 milter hook 테스트)
+  - [ ] GOGOMAIL_MILTER_ENABLED=false일 때 milter 비활성화
+  - [ ] GOGOMAIL_MILTER_ENABLED=true + valid address일 때 풀 초기화
+  - [ ] HELO/MAIL/RCPT/HEADERS/BODY 단계에서 milter 호출
+  - [ ] milter REJECT 응답 시 SMTP 거부 (error 반환)
+  - [ ] milter ACCEPT 응답 시 SMTP 진행
+  - [ ] circuit breaker 적용: 실패 시 자동 OPEN
+  - [ ] milter 비활성 상태에서도 SMTP 정상 작동
+  - [ ] docs 업데이트
 
-- **다음 태스크**: TASK-053 (Milter Pool Integration — Circuit breaker 연동)
+- **다음 태스크**: TASK-055 (Milter Shadow Mode — 감시 모드)
 
 ---
 

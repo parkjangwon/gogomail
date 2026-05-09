@@ -21,6 +21,11 @@ type Pool struct {
 	idleMu    sync.Mutex
 	idleConns []*Client // FIFO queue of idle clients
 
+	// circuit breaker (optional)
+	breaker     *CircuitBreaker
+	healthTick  *time.Ticker
+	healthStopCh chan struct{}
+
 	closeMu  sync.Mutex
 	closed   bool
 	closeCh  chan struct{} // signals shutdown
@@ -43,9 +48,81 @@ func NewPool(network, address string, timeout time.Duration, maxConns int) (*Poo
 	}, nil
 }
 
-// Get returns a milter client. If no idle client is available,
-// it dials a new one (up to maxConns). Blocks if the pool is at capacity.
+// NewPoolWithCircuitBreaker creates a pool with circuit breaker and health check.
+// failureThreshold: failures before opening circuit.
+// resetTimeout: time to wait before HALF_OPEN attempt.
+// healthInterval: health check frequency.
+func NewPoolWithCircuitBreaker(network, address string, timeout time.Duration, maxConns int, failureThreshold int64, resetTimeout time.Duration) (*Pool, error) {
+	pool, err := NewPool(network, address, timeout, maxConns)
+	if err != nil {
+		return nil, err
+	}
+
+	pool.breaker = NewCircuitBreaker(failureThreshold, resetTimeout)
+	pool.healthTick = time.NewTicker(resetTimeout)
+	pool.healthStopCh = make(chan struct{})
+
+	// Start health check goroutine
+	go pool.healthCheckLoop()
+
+	return pool, nil
+}
+
+// healthCheckLoop periodically checks milter server health.
+func (p *Pool) healthCheckLoop() {
+	for {
+		select {
+		case <-p.healthTick.C:
+			p.healthCheck()
+		case <-p.healthStopCh:
+			p.healthTick.Stop()
+			return
+		case <-p.closeCh:
+			p.healthTick.Stop()
+			return
+		}
+	}
+}
+
+// healthCheck attempts to dial and ping the milter server.
+func (p *Pool) healthCheck() {
+	if p.breaker == nil {
+		return
+	}
+
+	// Check state first to trigger OPEN→HALF_OPEN transitions
+	state := p.breaker.State()
+	if state == StateOpen {
+		// Circuit is still open, don't attempt yet
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+	defer cancel()
+
+	client, err := Dial(ctx, p.network, p.address, p.timeout)
+	if err != nil {
+		p.breaker.RecordFailure()
+		return
+	}
+	defer client.Close()
+
+	// Perform negotiation as health check
+	if err := client.Negotiate(ctx); err != nil {
+		p.breaker.RecordFailure()
+		return
+	}
+
+	p.breaker.RecordSuccess()
+}
+
+// Get returns a milter client. If circuit breaker is open, returns error immediately.
+// If no idle client is available, dials a new one (up to maxConns). Blocks if the pool is at capacity.
 func (p *Pool) Get(ctx context.Context) (*Client, error) {
+	// Check circuit breaker first
+	if p.breaker != nil && !p.breaker.AllowRequest() {
+		return nil, fmt.Errorf("milter: circuit breaker is open")
+	}
 	// Try to get an idle client first
 	p.idleMu.Lock()
 	if len(p.idleConns) > 0 {
@@ -126,6 +203,15 @@ func (p *Pool) Close() error {
 	}
 	p.closed = true
 	p.closeMu.Unlock()
+
+	// Stop health check if running
+	if p.healthStopCh != nil {
+		select {
+		case <-p.healthStopCh:
+		default:
+			close(p.healthStopCh)
+		}
+	}
 
 	// Signal shutdown
 	p.stopOnce.Do(func() {
