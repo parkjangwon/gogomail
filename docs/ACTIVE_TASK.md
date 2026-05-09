@@ -35,7 +35,7 @@
   - [ ] Password reset capability
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-068 ✅ (Identity Provider Abstraction) — COMPLETE
+- **이전 태스크**: TASK-069 ✅ (Database Identity Mode) — COMPLETE
 
 ---
 
