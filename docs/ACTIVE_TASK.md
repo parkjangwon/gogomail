@@ -9,32 +9,33 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-066
-- **제목**: Organization Management
-- **배경**: Phase 8-B. Admin console에서 조직 구조 관리 (departments, teams, units).
-  - Create/Update/Delete organization units
-  - Assign users to units
-  - Hierarchical organization structure
-  - Unit managers and permissions
+- **ID**: TASK-067
+- **제목**: Audit Logs (Level 1 + 2)
+- **배경**: Phase 8-B. Admin actions 및 security events 감시 로그 구현.
+  - Admin action logging (create, update, delete)
+  - Security event logging (login, permission change)
+  - Audit log querying & filtering
+  - Retention policy enforcement
+  - Log masking (email, content)
 
 - **구현 대상**:
-  1. `internal/admin/org_service.go` — Organization unit CRUD
-  2. `internal/admin/org_service_test.go` — Unit tests
-  3. Update models.go with OrganizationUnit struct
-  4. Repository methods for org operations
-  5. API routes for org management
+  1. `internal/admin/audit_service.go` — Audit log operations
+  2. `internal/admin/audit_service_test.go` — Unit tests
+  3. Repository methods for audit operations (already in TASK-063)
+  4. Log masking utilities
+  5. Retention cleanup scheduler
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] CreateUnit with parent hierarchy
-  - [ ] UpdateUnit operations
-  - [ ] DeleteUnit (cascade handling)
-  - [ ] ListUnits with filtering
-  - [ ] AssignUserToUnit operations
-  - [ ] Unit manager role assignment
+  - [ ] LogAction for admin operations
+  - [ ] LogSecurityEvent for security events
+  - [ ] QueryAuditLogs with filtering
+  - [ ] Log masking for sensitive data
+  - [ ] Retention policy cleanup
+  - [ ] Login audit tracking
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-065 ✅ (User Management CRUD) — COMPLETE
+- **이전 태스크**: TASK-066 ✅ (Organization Management) — COMPLETE
 
 ---
 
