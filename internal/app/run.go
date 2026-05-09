@@ -161,8 +161,15 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 30*time.Minute)
 
+	totpRepository := maildb.NewRepository(db)
 	registry.Register("used-code-cleanup", func() error {
-		logger.Info("running used TOTP code cleanup")
+		cutoff := time.Now().Add(-5 * time.Minute)
+		n, err := totpRepository.PruneExpiredTOTPCodes(ctx, cutoff)
+		if err != nil {
+			logger.Error("used TOTP code cleanup failed", "error", err)
+			return err
+		}
+		logger.Info("used TOTP code cleanup completed", "pruned", n)
 		return nil
 	}, 5*time.Minute)
 

@@ -7,30 +7,31 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-031
-- **제목**: Delta Sync FanOut — mail.stored 이벤트 → deltasync.FanOut 연동 (Phase 7-B item 2)
-- **배경**: Phase 7-B "IMAP IDLE fans out real-time mailbox events to connected clients".
-  `deltasync.FanOut`이 정의되어 있으나 `imapnotify.MailStoredHandler`와 연결되지 않음.
-  mail.stored 이벤트 처리 시 `MailboxEventBroker`(IMAP IDLE)와 동시에 `FanOut`(델타 싱크)에도 알림이 가야 함.
+- **ID**: TASK-032
+- **제목**: Batch Worker — TOTP Used-Code Pruning (used-code-cleanup 잡 구현, Phase 2-C)
+- **배경**: Phase 2-C "TokenCleanupJob — 만료된 TOTP used-codes, 세션 토큰 정리".
+  `totp_used_codes` 테이블이 정의되어 있으나, `used-code-cleanup` 배치 잡은 stub (log only).
+  TOTP 코드 재사용 방지를 위해 테이블이 무한히 늘어나는 것을 막아야 한다.
 - **구현 대상**:
-  - `internal/imapnotify/handler.go`: `DeltaSyncNotifier` 인터페이스 + `WithDeltaSync` 추가; `HandleEvent`에서 FanOut 알림 호출
-  - `internal/app/run.go`: `deltasync.FanOut` 생성, `fanOutAdapter` 구현, `newIMAPMailboxEventRouter`에 연결
+  - `internal/maildb/mfa.go` (신규): `PruneExpiredTOTPCodes(ctx, cutoff time.Time) (int, error)` — `totp_used_codes` WHERE `used_at < cutoff` 삭제, 삭제 행 수 반환
+  - `internal/maildb/mfa_test.go` (신규): 단위 테스트 (fakeDB or integration skip)
+  - `internal/app/run.go`: `used-code-cleanup` 잡 stub → `PruneExpiredTOTPCodes` 실제 호출 (cutoff = now - 5분, config 오버라이드 가능)
 - **완료 조건**:
-  - [x] `go test ./...` 통과 (5185개)
-  - [x] `TestMailStoredHandlerNotifiesDeltaSync` 통과 — mail.stored 처리 시 DeltaSyncNotifier 호출 확인
-  - [x] `TestMailStoredHandlerSkipsDeltaSyncWhenNil` 통과 — nil notifier 안전 처리
-  - [x] `run.go` FanOut 연결 확인
-- **다음 태스크**: TASK-032 (백로그에서 선택)
+  - [x] `go test ./...` 통과
+  - [x] `PruneExpiredTOTPCodes` 테스트 통과 (nil DB, zero cutoff 검증)
+  - [x] `run.go`의 `used-code-cleanup` 잡이 실제 pruning 수행
+- **다음 태스크**: TASK-033 (백로그에서 선택)
 
 ---
 
 ## 완료됨
 
+- **TASK-031**: Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 ✅ (2026-05-09)
+  - `internal/imapnotify/handler.go`: DeltaSyncNotifier 인터페이스 + WithDeltaSync
+  - `internal/app/run.go`: fanOutAdapter + FanOut 생성 및 연결
+  - `go test ./...` 5185개 통과
+
 - **TASK-030**: Delta Sync Cursor — Postgres 영속 스토어 ✅ (2026-05-09)
-  - `migrations/0076_device_sync_cursors.sql`: `device_sync_cursors` 테이블 + 인덱스
-  - `internal/deltasync/postgres.go`: `PostgresCursorStore` — Save/Get/ListByMailbox/Delete
-  - `internal/deltasync/postgres_integration_test.go`: 5개 통합 테스트 (DB 없으면 skip)
-  - `go test ./...` 5182개 통과
 
 ---
 
