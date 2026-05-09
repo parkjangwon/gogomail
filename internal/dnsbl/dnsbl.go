@@ -2,6 +2,7 @@ package dnsbl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -111,11 +112,11 @@ func reverseIPv6Str(ip net.IP) string {
 }
 
 func isNotFound(err error) bool {
-	if err == nil {
-		return false
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return dnsErr.IsNotFound
 	}
-	s := err.Error()
-	return strings.Contains(s, "NXDOMAIN") || strings.Contains(s, "no such host") || strings.Contains(s, "not found")
+	return false
 }
 
 // Checker checks an IP against multiple DNSBL zones using a single resolver.

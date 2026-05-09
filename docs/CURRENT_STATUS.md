@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (security: JWT claim validation, WebDAV Bearer auth, SAML size limit)
+Last updated: 2026-05-09 (TASK-015/030/031: concurrency fixes — fanout channel close race, background error handling, cursor mutex)
 
 ## Current phase
 gogomail is in the backend platform hardening phase.
