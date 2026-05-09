@@ -25,6 +25,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-028 | Push Notification 패키지 (FCM/APNs/WebPush) | 완료 |
 | TASK-029 | 디바이스 토큰 Admin API (Phase 7-A 완성) | 완료 |
 | TASK-030 | Delta Sync Cursor — Postgres 영속 스토어 (Phase 7-B) | 완료 |
+| TASK-031 | Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 (Phase 7-B item 2) | 완료 |
 
 ### TASK-023 상세
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견

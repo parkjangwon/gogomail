@@ -37,6 +37,7 @@ import (
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
+	"github.com/gogomail/gogomail/internal/deltasync"
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
 	"github.com/gogomail/gogomail/internal/directory"
@@ -248,6 +249,20 @@ type imapGatewayRuntime struct {
 	store   mailservice.IMAPStoreAdapter
 	backend mailservice.IMAPBackendAdapter
 	events  *imapgw.MailboxEventBroker
+	fanOut  *deltasync.FanOut
+}
+
+// fanOutAdapter implements imapnotify.DeltaSyncNotifier using deltasync.FanOut.
+type fanOutAdapter struct {
+	fanOut *deltasync.FanOut
+}
+
+func (a *fanOutAdapter) NotifyMailboxChange(mailboxID string, version int64) {
+	a.fanOut.Notify(mailboxID, deltasync.Event{
+		MailboxID: mailboxID,
+		Type:      "mail.stored",
+		Version:   version,
+	})
 }
 
 type imapServerOptions struct {
@@ -260,6 +275,7 @@ type imapServerOptions struct {
 
 func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator, quotaAlertEmitter maildb.QuotaWarningEmitterInterface) imapGatewayRuntime {
 	events := imapgw.NewMailboxEventBroker(32)
+	fanOut := deltasync.NewFanOut()
 	service := mailservice.New(repository, store).WithIMAPMailboxEvents(events)
 	if quotaAlertEmitter != nil {
 		service = service.WithQuotaAlertEmitter(quotaAlertEmitter)
@@ -269,6 +285,7 @@ func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Stor
 		store:   mailservice.NewIMAPStoreAdapter(service),
 		backend: mailservice.NewIMAPBackendAdapter(authenticator, service),
 		events:  events,
+		fanOut:  fanOut,
 	}
 }
 
@@ -296,9 +313,13 @@ func newIMAPServer(opts imapServerOptions) (*imapgw.Server, error) {
 	})
 }
 
-func newIMAPMailboxEventRouter(uidEnsurer imapnotify.UIDEnsurer, events imapnotify.MailboxEventPublisher) (*eventstream.Router, error) {
+func newIMAPMailboxEventRouter(uidEnsurer imapnotify.UIDEnsurer, events imapnotify.MailboxEventPublisher, deltaSync imapnotify.DeltaSyncNotifier) (*eventstream.Router, error) {
 	router := eventstream.NewRouter()
-	if err := router.Register("mail.stored", imapnotify.NewMailStoredHandler(uidEnsurer).WithMailboxEvents(events)); err != nil {
+	handler := imapnotify.NewMailStoredHandler(uidEnsurer).WithMailboxEvents(events)
+	if deltaSync != nil {
+		handler = handler.WithDeltaSync(deltaSync)
+	}
+	if err := router.Register("mail.stored", handler); err != nil {
 		return nil, err
 	}
 	return router, nil
@@ -330,7 +351,7 @@ func runIMAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	quotaAlertEmitter := maildb.NewQuotaWarningEmitter(db, redisClient, cfg.EventStream)
 	runtime := newIMAPGatewayRuntime(repository, store, repository, quotaAlertEmitter)
 
-	router, err := newIMAPMailboxEventRouter(repository, runtime.events)
+	router, err := newIMAPMailboxEventRouter(repository, runtime.events, &fanOutAdapter{fanOut: runtime.fanOut})
 	if err != nil {
 		return err
 	}
