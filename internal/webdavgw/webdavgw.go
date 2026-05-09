@@ -9,12 +9,15 @@ import (
 )
 
 type Resource struct {
-	Href         string
-	Name         string
-	Size         int64
-	IsCollection bool
-	Modified     time.Time
-	ContentType  string
+	Href                string
+	Name                string
+	Size                int64
+	IsCollection        bool
+	Modified            time.Time
+	ContentType         string
+	// RFC 4331 quota properties; nil means the property is not reported.
+	QuotaUsedBytes      *int64
+	QuotaAvailableBytes *int64
 }
 
 type propfindRequest struct {
@@ -43,11 +46,13 @@ type propstat struct {
 }
 
 type properties struct {
-	DisplayName      string   `xml:"d:displayname,omitempty"`
-	ResourceType     *resType `xml:"d:resourcetype,omitempty"`
-	ContentLength    int64    `xml:"d:getcontentlength,omitempty"`
-	ContentType      string   `xml:"d:getcontenttype,omitempty"`
-	LastModified     string   `xml:"d:getlastmodified,omitempty"`
+	DisplayName         string   `xml:"d:displayname,omitempty"`
+	ResourceType        *resType `xml:"d:resourcetype,omitempty"`
+	ContentLength       int64    `xml:"d:getcontentlength,omitempty"`
+	ContentType         string   `xml:"d:getcontenttype,omitempty"`
+	LastModified        string   `xml:"d:getlastmodified,omitempty"`
+	QuotaUsedBytes      *int64   `xml:"d:quota-used-bytes"`
+	QuotaAvailableBytes *int64   `xml:"d:quota-available-bytes"`
 }
 
 type resType struct {
@@ -61,10 +66,12 @@ func MarshalPropfindResponse(resources []Resource) ([]byte, error) {
 
 	for _, r := range resources {
 		props := properties{
-			DisplayName:   r.Name,
-			ContentLength: r.Size,
-			ContentType:   r.ContentType,
-			LastModified:  r.Modified.UTC().Format(httpTimeFormat),
+			DisplayName:         r.Name,
+			ContentLength:       r.Size,
+			ContentType:         r.ContentType,
+			LastModified:        r.Modified.UTC().Format(httpTimeFormat),
+			QuotaUsedBytes:      r.QuotaUsedBytes,
+			QuotaAvailableBytes: r.QuotaAvailableBytes,
 		}
 		if r.IsCollection {
 			props.ResourceType = &resType{Collection: &struct{}{}}

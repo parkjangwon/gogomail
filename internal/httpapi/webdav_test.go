@@ -329,6 +329,10 @@ func (f *fakeWebDAVService) CopyNode(_ context.Context, req drive.CopyNodeReques
 	return f.folder, nil
 }
 
+func (f *fakeWebDAVService) GetUsageSummary(_ context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error) {
+	return drive.UsageSummary{}, nil
+}
+
 func timeNow() time.Time {
 	return time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
 }
