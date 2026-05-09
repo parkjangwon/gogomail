@@ -9,32 +9,33 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-068
-- **제목**: Identity Provider Abstraction
-- **배경**: Phase 8-C. Pluggable identity provider framework supporting multiple backends.
-  - Abstract identity provider interface
-  - Provider registry & lifecycle management
-  - Multi-tenant provider configuration
-  - Provider-specific field mapping & validation
-  - User sync & reconciliation framework
+- **ID**: TASK-069
+- **제목**: Database Identity Mode
+- **배경**: Phase 8-C. Implement database-backed identity provider (default mode).
+  - User authentication against users table
+  - Password hashing & verification
+  - Multi-company user isolation
+  - User CRUD via identity provider interface
+  - Session & token management
 
 - **구현 대상**:
-  1. `internal/admin/identity.go` — Identity provider interface & registry
-  2. `internal/admin/identity_test.go` — Unit tests
-  3. `internal/admin/provider_factory.go` — Provider creation & management
-  4. Configuration management for providers
-  5. User sync scheduler framework
+  1. `internal/admin/database_provider.go` — Database identity provider implementation
+  2. `internal/admin/database_provider_test.go` — Unit tests
+  3. User authentication service layer
+  4. Password management & reset workflows
+  5. User account status management
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] IdentityProvider interface defined
-  - [ ] Provider registry management
-  - [ ] Multi-tenant provider support
-  - [ ] Provider configuration validation
-  - [ ] Field mapping & transformation
+  - [ ] DatabaseProvider implements IdentityProvider
+  - [ ] Authenticate with password verification
+  - [ ] GetUser operations
+  - [ ] ListUsers with pagination
+  - [ ] SyncUsers (no-op for database mode)
+  - [ ] Password reset capability
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-067 ✅ (Audit Logs Level 1 + 2) — COMPLETE
+- **이전 태스크**: TASK-068 ✅ (Identity Provider Abstraction) — COMPLETE
 
 ---
 
