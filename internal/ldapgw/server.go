@@ -7,6 +7,9 @@ import (
 	"sync"
 )
 
+// maxBERMessageSize is the maximum allowed BER-encoded PDU body size (16 MB).
+const maxBERMessageSize = 16 * 1024 * 1024
+
 type LDAPAuthenticator interface {
 	AuthenticateLDAP(ctx context.Context, username, password string) (bool, error)
 }
@@ -34,15 +37,18 @@ type DirectorySearchRequest struct {
 }
 
 type LDAPServer struct {
-	ln    net.Listener
-	auth  LDAPAuthenticator
-	quer  DirectoryQuerier
-	closed bool
+	ln      net.Listener
+	auth    LDAPAuthenticator
+	quer    DirectoryQuerier
+	closed  bool
 	closeMu sync.Mutex
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 func NewServer(ln net.Listener, auth LDAPAuthenticator, quer DirectoryQuerier) *LDAPServer {
-	return &LDAPServer{ln: ln, auth: auth, quer: quer}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &LDAPServer{ln: ln, auth: auth, quer: quer, ctx: ctx, cancel: cancel}
 }
 
 func (s *LDAPServer) Serve() error {
@@ -57,7 +63,7 @@ func (s *LDAPServer) Serve() error {
 			s.closeMu.Unlock()
 			return err
 		}
-		go s.handleConn(conn)
+		go s.handleConn(s.ctx, conn)
 	}
 }
 
@@ -65,15 +71,23 @@ func (s *LDAPServer) Close() error {
 	s.closeMu.Lock()
 	s.closed = true
 	s.closeMu.Unlock()
+	s.cancel()
 	return s.ln.Close()
 }
 
-func (s *LDAPServer) handleConn(conn net.Conn) {
+func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 8192)
 	readOffset := 0
 
 	for {
+		// Check context before blocking on read.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		n, err := conn.Read(buf[readOffset:])
 		if n > 0 {
 			readOffset += n
@@ -83,7 +97,18 @@ func (s *LDAPServer) handleConn(conn net.Conn) {
 		}
 
 		for readOffset > 0 {
-			pduLen, headerLen := parsePDULength(buf[:readOffset])
+			// Check context before processing each PDU.
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			pduLen, headerLen, pduErr := parsePDULengthWithError(buf[:readOffset])
+			if pduErr != nil {
+				// Declared length exceeds the safety cap — drop the connection.
+				return
+			}
 			if pduLen == 0 {
 				break
 			}
@@ -91,17 +116,18 @@ func (s *LDAPServer) handleConn(conn net.Conn) {
 			if readOffset < totalLen {
 				break
 			}
-			pdu := buf[:totalLen]
+			pdu := make([]byte, totalLen)
+			copy(pdu, buf[:totalLen])
 			copy(buf, buf[totalLen:readOffset])
 			readOffset -= totalLen
 
 			msgID, opTag, opData, err := decodeLDAPPacket(pdu)
 			if err != nil {
 				resp := encodeLDAPResponse(0, opTag, mustEncodeNotSupported())
-				conn.Write(resp)
+				conn.Write(resp) //nolint:errcheck
 				return
 			}
-			resp := s.handleOperation(msgID, opTag, opData)
+			resp := s.handleOperation(ctx, msgID, opTag, opData)
 			if len(resp) > 0 {
 				if _, err := conn.Write(resp); err != nil {
 					return
@@ -114,47 +140,65 @@ func (s *LDAPServer) handleConn(conn net.Conn) {
 	}
 }
 
+// parsePDULength is the original two-value wrapper kept for callers that do
+// not need the error (e.g. tests that build PDUs they know are valid).
 func parsePDULength(data []byte) (pduLen int, headerLen int) {
+	pduLen, headerLen, _ = parsePDULengthWithError(data)
+	return
+}
+
+// parsePDULengthWithError returns an error when the BER-declared length
+// exceeds maxBERMessageSize.
+func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error) {
 	if len(data) < 2 || data[0] != tagSequence {
-		return 0, 0
+		return 0, 0, nil
 	}
-	length, rest, err := decodeLength(data[1:])
-	if err != nil {
-		return 0, 0
+	length, rest, decErr := decodeLength(data[1:])
+	if decErr != nil {
+		return 0, 0, nil
+	}
+	if length > maxBERMessageSize {
+		return 0, 0, fmt.Errorf("BER message size %d exceeds maximum %d", length, maxBERMessageSize)
 	}
 	headerLen = len(data) - len(rest)
 	if length < 128 {
-		return length, headerLen
+		return length, headerLen, nil
 	}
 	numLenBytes := int(data[1] & 0x7f)
-	if len(data) < 1+numLenBytes {
-		return 0, 0
+	if len(data) < 2+numLenBytes {
+		return 0, 0, nil
 	}
-	rest = data[2 : 2+numLenBytes]
+	raw := data[2 : 2+numLenBytes]
 	pduLen = 0
 	for i := 0; i < numLenBytes; i++ {
-		pduLen = pduLen<<8 | int(rest[i])
+		pduLen = pduLen<<8 | int(raw[i])
 	}
-	return pduLen, 1 + 1 + numLenBytes
+	if pduLen > maxBERMessageSize {
+		return 0, 0, fmt.Errorf("BER message size %d exceeds maximum %d", pduLen, maxBERMessageSize)
+	}
+	return pduLen, 1 + 1 + numLenBytes, nil
 }
 
-func (s *LDAPServer) handleOperation(msgID int, opTag int, opData []byte) []byte {
+func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte) []byte {
 	switch opTag {
 	case opBindRequest:
-		return s.handleBindRequest(msgID, opData)
+		return s.handleBindRequest(ctx, msgID, opData)
 	case opSearchRequest:
-		return s.handleSearchRequest(msgID, opData)
+		return s.handleSearchRequest(ctx, msgID, opData)
 	case opUnbindRequest:
 		return nil
 	default:
-		if isReadOnlyOperation(opTag) {
-			return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported())
-		}
 		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported())
 	}
 }
 
-func (s *LDAPServer) handleBindRequest(msgID int, opData []byte) []byte {
+func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) []byte {
+	select {
+	case <-ctx.Done():
+		return encodeBindResponse(msgID, resultUnwillingToPerform, "", "operation timed out")
+	default:
+	}
+
 	req, err := decodeBindRequestData(opData)
 	if err != nil {
 		return encodeBindResponse(msgID, resultUnwillingToPerform, "", "malformed bind request")
@@ -163,7 +207,7 @@ func (s *LDAPServer) handleBindRequest(msgID int, opData []byte) []byte {
 		return encodeBindResponse(msgID, resultAuthMethodNotSupported, "", "unsupported LDAP version")
 	}
 
-	ok, err := s.auth.AuthenticateLDAP(context.Background(), req.name, string(req.auth))
+	ok, err := s.auth.AuthenticateLDAP(ctx, req.name, string(req.auth))
 	if err != nil || !ok {
 		return encodeBindResponse(msgID, resultInvalidCredentials, "", "invalid credentials")
 	}
@@ -193,10 +237,20 @@ func decodeBindRequestData(data []byte) (*bindRequest, error) {
 	return &bindRequest{version: version, name: name, auth: auth}, nil
 }
 
-func (s *LDAPServer) handleSearchRequest(msgID int, opData []byte) []byte {
+func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData []byte) []byte {
+	select {
+	case <-ctx.Done():
+		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", "operation timed out")
+	default:
+	}
+
 	baseObject, scope, filter, _, err := decodeSearchRequest(opData)
 	if err != nil {
 		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", err.Error())
+	}
+
+	if err := validateFilter(filter); err != nil {
+		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", fmt.Sprintf("invalid filter: %v", err))
 	}
 
 	ldapFilter, err := parseLDAPFilter(filter)
@@ -204,7 +258,7 @@ func (s *LDAPServer) handleSearchRequest(msgID int, opData []byte) []byte {
 		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", "malformed filter")
 	}
 
-	principals, err := s.quer.SearchPrincipals(context.Background(), DirectorySearchRequest{
+	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
 		BaseDN: baseObject,
 		Scope:  scope,
 		Filter: ldapFilter,
@@ -301,7 +355,6 @@ func decodeSequence(data []byte) ([][]byte, error) {
 			pos += 1 + len(elemHeader) + elemLen
 		} else if content[pos]&0x80 != 0 && content[pos]&0x40 != 0 {
 			// Context-specific constructed tag (e.g., LDAP filter 0x83).
-			// Contains sub-elements; decode similarly to SEQUENCE.
 			elemLen, elemHeader, err := decodeLength(content[pos+1:])
 			if err != nil || pos+1+len(content[pos+1:])-len(elemHeader) < elemLen {
 				break
@@ -395,6 +448,44 @@ func parseLDAPFilter(data []byte) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// validateFilter checks that filter data is well-formed before processing.
+// It rejects empty input, non-context-specific tags, unrecognised filter
+// types, and content whose declared length exceeds the available bytes.
+func validateFilter(data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("filter is empty")
+	}
+	if data[0]&0x80 == 0 {
+		return fmt.Errorf("filter tag 0x%02x is not context-specific", data[0])
+	}
+	filterType := int(data[0] & 0x1f)
+	switch filterType {
+	case filterAnd, filterOr, filterNot,
+		filterEqualityMatch, filterSubstrings,
+		filterGreaterOrEqual, filterLessOrEqual,
+		filterPresent, filterApproxMatch:
+		// valid
+	default:
+		return fmt.Errorf("unsupported filter type %d", filterType)
+	}
+	if len(data) < 2 {
+		return fmt.Errorf("filter too short")
+	}
+	declLen, _, err := decodeLength(data[1:])
+	if err != nil {
+		return fmt.Errorf("filter length: %w", err)
+	}
+	// Compute how many bytes the tag+length header occupies.
+	headerLen := 2 // tag byte + one length byte (short form)
+	if data[1]&0x80 != 0 {
+		headerLen = 1 + 1 + int(data[1]&0x7f) // tag + 0x8n + n bytes
+	}
+	if len(data) < headerLen+declLen {
+		return fmt.Errorf("filter truncated: need %d bytes after header, have %d", declLen, len(data)-headerLen)
+	}
+	return nil
 }
 
 func mustEncodeNotSupported() []byte {

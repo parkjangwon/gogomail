@@ -248,6 +248,24 @@ func (s *Service) ListStaleUploadSessions(ctx context.Context, req ExpireUploadS
 }
 
 func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSessionBodyRequest) (UploadSession, error) {
+	return s.storeUploadSessionBodyWithRange(ctx, req, ContentRange{})
+}
+
+// storeUploadSessionBodyWithRange is the core implementation used by both
+// StoreUploadSessionBody (no range) and callers supplying a Content-Range
+// header for chunked uploads.
+//
+// Chunk ordering: when contentRange is a non-zero, non-asterisk range, its
+// Start must equal session.ReceivedSize — the next expected byte offset. This
+// rejects out-of-order and duplicate chunks before any I/O.
+//
+// TOCTOU mitigation: repo.StoreUploadSessionBody uses SELECT FOR UPDATE so
+// concurrent writers for the same session are serialised and the prior
+// storage_path returned is authoritative (not stale from the pre-flight read).
+//
+// Orphan cleanup: any object written to storage that cannot be committed to the
+// DB is deleted immediately so orphaned chunk objects do not accumulate.
+func (s *Service) storeUploadSessionBodyWithRange(ctx context.Context, req StoreUploadSessionBodyRequest, contentRange ContentRange) (UploadSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -258,6 +276,8 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 	if err != nil {
 		return UploadSession{}, err
 	}
+	// Pre-flight read: cheap state check and storage-backend lookup before I/O.
+	// Authoritative status/expiry is re-validated inside the DB lock below.
 	session, err := s.repo.GetUploadSession(ctx, GetUploadSessionRequest{UserID: req.UserID, SessionID: req.SessionID})
 	if err != nil {
 		return UploadSession{}, err
@@ -268,11 +288,16 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 	if !session.ExpiresAt.After(time.Now().UTC()) {
 		return UploadSession{}, fmt.Errorf("drive upload session is expired")
 	}
-	oldStoragePath := ""
-	if strings.TrimSpace(session.StoragePath) != "" {
-		oldStoragePath, err = validateUserObjectPath(session.UserID, session.StoragePath)
-		if err != nil {
-			return UploadSession{}, fmt.Errorf("existing drive upload session storage path is invalid: %w", err)
+	// Chunk sequence validation: reject out-of-order chunks before writing.
+	// Asterisk-form and zero-value ranges are treated as complete uploads (no
+	// sequence constraint). For all other ranges the chunk must start exactly
+	// at session.ReceivedSize — the next byte the session expects to receive.
+	if !contentRange.IsAsteriskForm && contentRange != (ContentRange{}) {
+		if contentRange.Start != session.ReceivedSize {
+			return UploadSession{}, fmt.Errorf(
+				"chunk out of order: content-range start %d does not match expected offset %d",
+				contentRange.Start, session.ReceivedSize,
+			)
 		}
 	}
 	store := s.stores[session.StorageBackend]
@@ -287,7 +312,6 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 	if err != nil {
 		return UploadSession{}, err
 	}
-
 	counter := &countingReader{reader: req.Body}
 	limited := &io.LimitedReader{R: counter, N: session.DeclaredSize + 1}
 	hash := sha256.New()
@@ -295,15 +319,19 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 		return UploadSession{}, fmt.Errorf("store drive upload session body: %w", err)
 	}
 	if counter.bytesRead > session.DeclaredSize {
+		// Oversized: delete the just-written object immediately (no orphan).
 		_ = store.Delete(ctx, storagePath)
 		return UploadSession{}, fmt.Errorf("drive upload session body exceeds declared_size")
 	}
 	checksum := hex.EncodeToString(hash.Sum(nil))
 	if req.ExpectedChecksumSHA256 != "" && checksum != req.ExpectedChecksumSHA256 {
+		// Checksum mismatch: delete immediately (no orphan).
 		_ = store.Delete(ctx, storagePath)
 		return UploadSession{}, fmt.Errorf("drive upload session checksum mismatch")
 	}
-	updated, err := s.repo.StoreUploadSessionBody(ctx, RecordUploadSessionBodyRequest{
+	// Atomic lock + update. Returns the authoritative prior path from the
+	// locked row — not the potentially-stale pre-flight read above.
+	updated, priorPath, err := s.repo.StoreUploadSessionBody(ctx, RecordUploadSessionBodyRequest{
 		UserID:         req.UserID,
 		SessionID:      req.SessionID,
 		ReceivedSize:   counter.bytesRead,
@@ -311,11 +339,16 @@ func (s *Service) StoreUploadSessionBody(ctx context.Context, req StoreUploadSes
 		ChecksumSHA256: checksum,
 	})
 	if err != nil {
+		// DB update failed: delete the newly written object to prevent orphans.
 		_ = store.Delete(ctx, storagePath)
 		return UploadSession{}, err
 	}
-	if oldStoragePath != "" && oldStoragePath != storagePath {
-		_ = store.Delete(ctx, oldStoragePath)
+	// Delete the object that was just replaced. Use the path from the locked
+	// row (authoritative), not the pre-flight read which may be stale.
+	if priorPath != "" && priorPath != storagePath {
+		if validated, valErr := validateUserObjectPath(session.UserID, priorPath); valErr == nil {
+			_ = store.Delete(ctx, validated)
+		}
 	}
 	return updated, nil
 }
