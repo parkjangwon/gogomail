@@ -26,9 +26,15 @@ type MailboxEventPublisher interface {
 	Publish(ctx context.Context, event imapgw.MailboxEvent) error
 }
 
+// DeltaSyncNotifier receives mailbox change notifications for delta sync fanout.
+type DeltaSyncNotifier interface {
+	NotifyMailboxChange(mailboxID string, version int64)
+}
+
 type MailStoredHandler struct {
-	uidEnsurer UIDEnsurer
-	events     MailboxEventPublisher
+	uidEnsurer  UIDEnsurer
+	events      MailboxEventPublisher
+	deltaSync   DeltaSyncNotifier
 }
 
 func NewMailStoredHandler(uidEnsurer UIDEnsurer) *MailStoredHandler {
@@ -37,6 +43,11 @@ func NewMailStoredHandler(uidEnsurer UIDEnsurer) *MailStoredHandler {
 
 func (h *MailStoredHandler) WithMailboxEvents(events MailboxEventPublisher) *MailStoredHandler {
 	h.events = events
+	return h
+}
+
+func (h *MailStoredHandler) WithDeltaSync(notifier DeltaSyncNotifier) *MailStoredHandler {
+	h.deltaSync = notifier
 	return h
 }
 
@@ -64,6 +75,9 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 		}); err != nil {
 			return fmt.Errorf("publish imap exists for stored message %q: %w", event.MessageID, err)
 		}
+	}
+	if h.deltaSync != nil {
+		h.deltaSync.NotifyMailboxChange(string(uid.MailboxID), int64(uid.UID))
 	}
 	return nil
 }

@@ -615,7 +615,7 @@ func TestNewIMAPMailboxEventRouterPublishesStoredMailToBroker(t *testing.T) {
 	}
 	defer cancel()
 
-	router, err := newIMAPMailboxEventRouter(fakeIMAPUIDEnsurer{}, broker)
+	router, err := newIMAPMailboxEventRouter(fakeIMAPUIDEnsurer{}, broker, nil)
 	if err != nil {
 		t.Fatalf("newIMAPMailboxEventRouter returned error: %v", err)
 	}

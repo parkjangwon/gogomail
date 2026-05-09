@@ -139,6 +139,69 @@ func TestDecodeMailStoredEventRejectsOversizedIDs(t *testing.T) {
 	}
 }
 
+func TestMailStoredHandlerNotifiesDeltaSync(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{}
+	notifier := &fakeDeltaSyncNotifier{}
+	handler := NewMailStoredHandler(ensurer).WithDeltaSync(notifier)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(notifier.calls) != 1 {
+		t.Fatalf("DeltaSyncNotifier calls = %d, want 1", len(notifier.calls))
+	}
+	call := notifier.calls[0]
+	if call.mailboxID != "inbox-1" || call.version != 1 {
+		t.Fatalf("DeltaSyncNotifier call = %+v, want mailboxID=inbox-1 version=1", call)
+	}
+}
+
+func TestMailStoredHandlerSkipsDeltaSyncWhenNil(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{}
+	handler := NewMailStoredHandler(ensurer)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+}
+
+func TestMailStoredHandlerSkipsDeltaSyncOnInactiveMessage(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{err: maildb.ErrIMAPMessageNotActive}
+	notifier := &fakeDeltaSyncNotifier{}
+	handler := NewMailStoredHandler(ensurer).WithDeltaSync(notifier)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(notifier.calls) != 0 {
+		t.Fatalf("DeltaSyncNotifier calls = %d, want 0 for inactive message", len(notifier.calls))
+	}
+}
+
 type fakeUIDEnsurer struct {
 	userID    string
 	mailboxID string
@@ -168,4 +231,17 @@ type fakeMailboxEventPublisher struct {
 func (f *fakeMailboxEventPublisher) Publish(_ context.Context, event imapgw.MailboxEvent) error {
 	f.events = append(f.events, event)
 	return nil
+}
+
+type deltaSyncCall struct {
+	mailboxID string
+	version   int64
+}
+
+type fakeDeltaSyncNotifier struct {
+	calls []deltaSyncCall
+}
+
+func (f *fakeDeltaSyncNotifier) NotifyMailboxChange(mailboxID string, version int64) {
+	f.calls = append(f.calls, deltaSyncCall{mailboxID: mailboxID, version: version})
 }

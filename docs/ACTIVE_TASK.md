@@ -7,9 +7,20 @@
 
 ## 현재 태스크
 
-- **ID**: COMPLETE
-- **제목**: TASK-030 완료, 다음 태스크 대기 중
-- **배경**: TASK-030 (Delta Sync Cursor Postgres 스토어) 완료.
+- **ID**: TASK-031
+- **제목**: Delta Sync FanOut — mail.stored 이벤트 → deltasync.FanOut 연동 (Phase 7-B item 2)
+- **배경**: Phase 7-B "IMAP IDLE fans out real-time mailbox events to connected clients".
+  `deltasync.FanOut`이 정의되어 있으나 `imapnotify.MailStoredHandler`와 연결되지 않음.
+  mail.stored 이벤트 처리 시 `MailboxEventBroker`(IMAP IDLE)와 동시에 `FanOut`(델타 싱크)에도 알림이 가야 함.
+- **구현 대상**:
+  - `internal/imapnotify/handler.go`: `DeltaSyncNotifier` 인터페이스 + `WithDeltaSync` 추가; `HandleEvent`에서 FanOut 알림 호출
+  - `internal/app/run.go`: `deltasync.FanOut` 생성, `fanOutAdapter` 구현, `newIMAPMailboxEventRouter`에 연결
+- **완료 조건**:
+  - [x] `go test ./...` 통과 (5185개)
+  - [x] `TestMailStoredHandlerNotifiesDeltaSync` 통과 — mail.stored 처리 시 DeltaSyncNotifier 호출 확인
+  - [x] `TestMailStoredHandlerSkipsDeltaSyncWhenNil` 통과 — nil notifier 안전 처리
+  - [x] `run.go` FanOut 연결 확인
+- **다음 태스크**: TASK-032 (백로그에서 선택)
 
 ---
 
@@ -20,72 +31,6 @@
   - `internal/deltasync/postgres.go`: `PostgresCursorStore` — Save/Get/ListByMailbox/Delete
   - `internal/deltasync/postgres_integration_test.go`: 5개 통합 테스트 (DB 없으면 skip)
   - `go test ./...` 5182개 통과
-
----
-
-## 완료됨
-
-- **TASK-029**: 디바이스 토큰 Admin API (Phase 7-A 완성) ✅ (2026-05-09)
-  - `internal/maildb/push_devices.go`: `DeleteAllPushDevices` 추가
-  - `internal/httpapi/admin_device_tokens.go`: 3개 엔드포인트 구현
-    - `GET /admin/v1/users/{id}/device-tokens`
-    - `DELETE /admin/v1/users/{id}/device-tokens/{device_id}`
-    - `DELETE /admin/v1/users/{id}/device-tokens`
-  - `internal/httpapi/admin_device_tokens_test.go`: 7개 테스트
-  - `go test ./...` 5182개 통과
-
----
-
-## 완료됨
-
-- **ID**: TASK-023
-- **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
-- **배경**: Phase 4-B 항목. Apple Mail, iOS, macOS, Thunderbird는 `/.well-known/caldav`와
-  `/.well-known/carddav` URI로 CalDAV/CardDAV 서버를 자동 발견한다. 현재 미구현.
-- **구현 대상**: `internal/httpapi/wellknown.go`
-  - `GET /.well-known/caldav` → `301` to `/caldav/`
-  - `GET /.well-known/carddav` → `301` to `/carddav/`
-  - `PROPFIND /.well-known/{caldav,carddav}` → `301` (WebDAV 클라이언트 지원)
-  - HTTP mux에 등록 (`internal/httpapi/server.go` 또는 라우터)
-- **완료 조건**:
-  - [x] `go test ./...` 통과
-  - [x] `/.well-known/caldav` → 301 리다이렉트
-  - [x] `/.well-known/carddav` → 301 리다이렉트
-- **다음 태스크**: TASK-024
-
----
-
-## 완료됨
-
-- **TASK-024**: WebDAV Quota (RFC 4331) — quota-used-bytes / quota-available-bytes ✅ (2026-05-09)
-  - `internal/webdavgw/webdavgw.go`: Resource에 QuotaUsedBytes/QuotaAvailableBytes 추가, MarshalPropfindResponse에 quota 속성 반영
-  - `internal/httpapi/webdav.go`: WebDAVService에 GetUsageSummary 추가, PROPFIND root collection에 RFC 4331 quota 속성 삽입
-  - `go test ./...` 5141개 통과
-- **TASK-023**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 ✅ (2026-05-09)
-  - `internal/httpapi/wellknown.go`에 RegisterWellKnownRoutes 구현
-  - GET/PROPFIND/OPTIONS 모든 메서드 301 리다이렉트 지원
-  - `GOGOMAIL_WELL_KNOWN_CALDAV_URL` / `GOGOMAIL_WELL_KNOWN_CARDDAV_URL` 설정 가능
-  - `go test ./...` 5141개 통과
-- **TASK-022**: POP3 게이트웨이 런타임 통합 ✅ (2026-05-09)
-  - `internal/pop3d/pop3d.go`에 AUTH PLAIN/LOGIN 추가 + CAPA에 SASL 광고
-  - `internal/mailservice/pop3_adapter.go`에 POP3StoreAdapter + pop3Mailbox 구현 (lazy content load, CommitDeletes on QUIT)
-  - `internal/config/config.go`에 POP3Addr/TLS/MaxConnections/IdleTimeout 필드
-  - `internal/app/mode.go`에 ModePOP3, `run.go`에 runPOP3Gateway
-  - `go test ./...` 5131개 통과
-- **TASK-021**: WebDAV Gateway — Drive RFC 4918 지원 ✅ (2026-05-09)
-  - `internal/httpapi/webdav.go`에 RFC 4918 WebDAV 핸들러 구현
-  - PROPFIND (목록), MKCOL (폴더 생성), GET (다운로드), DELETE (휴지통), MOVE/COPY (이동/복사) 지원
-  - `internal/httpapi/webdav_test.go`에 11개 테스트 (모두 통과)
-  - `go test ./...` 통과
-- **TASK-020**: OpenAPI → TypeScript 클라이언트 생성 ✅ (2026-05-09)
-  - `Makefile`에 `gen-ts-client` 타겟 추가
-  - `openapi-typescript` v7.13.0으로 `docs/openapi.yaml` → `clients/typescript/index.ts` 생성 (383KB, 11986줄)
-  - `go test ./...` 통과
-- **TASK-019**: Drive 파일 공유 — Directory delegation 통합 ✅ (2026-05-09)
-  - `internal/httpapi/drive.go`에 `DelegatedAccessAuthorizer` 적용
-  - `checkDriveDelegatedAccess` 헬퍼로 owner/actor/role 기반 권한 체크
-  - 역할별 권한: read(List/Get/download), write(Trash/Restore/Rename/Move/Copy/Share), manage(PermanentDelete)
-  - `go test ./...` 통과
 
 ---
 
