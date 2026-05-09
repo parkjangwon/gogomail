@@ -31,6 +31,7 @@ const (
 	ModeAuthServer        Mode = "auth-server"
 	ModeMailAPI           Mode = "mail-api"
 	ModeAdminAPI          Mode = "admin-api"
+	ModeLDAPGateway       Mode = "ldap-gateway"
 )
 
 var knownModes = map[Mode]struct{}{
@@ -56,6 +57,7 @@ var knownModes = map[Mode]struct{}{
 	ModeAuthServer:        {},
 	ModeMailAPI:           {},
 	ModeAdminAPI:          {},
+	ModeLDAPGateway:       {},
 }
 
 func ParseMode(raw string) (Mode, error) {

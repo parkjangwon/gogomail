@@ -31,6 +31,7 @@ func TestParseModeAcceptsKnownBackendModes(t *testing.T) {
 		{name: "auth server", raw: "auth-server", want: ModeAuthServer},
 		{name: "mail api", raw: "mail-api", want: ModeMailAPI},
 		{name: "admin api", raw: "admin-api", want: ModeAdminAPI},
+		{name: "ldap gateway", raw: "ldap-gateway", want: ModeLDAPGateway},
 	}
 
 	for _, tt := range tests {

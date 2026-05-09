@@ -48,6 +48,7 @@ import (
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/imapnotify"
+	"github.com/gogomail/gogomail/internal/ldapgw"
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
@@ -107,6 +108,8 @@ func Run(ctx context.Context, mode Mode, cfg config.Config, logger *slog.Logger)
 		return runCalDAVGateway(ctx, cfg, logger)
 	case ModeCardDAV:
 		return runCardDAVGateway(ctx, cfg, logger)
+	case ModeLDAPGateway:
+		return runLDAPGateway(ctx, cfg, logger)
 	case ModeSearchIndexWorker:
 		return runSearchIndexWorker(ctx, cfg, logger)
 	case ModeAPIMeteringWorker:
@@ -646,6 +649,98 @@ func newCardDAVHTTPServer(cfg config.Config, handler http.Handler) *http.Server 
 		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
 		MaxHeaderBytes:    cfg.HTTPMaxHeaderBytes,
 	}
+}
+
+func runLDAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	auth := maildb.NewRepository(db)
+	querier := &ldapDirectoryQuerier{
+		repo:       directory.NewRepository(db),
+		companyID:  cfg.LDAPCompanyID,
+		baseDomain: cfg.LDAPBaseDomain,
+	}
+
+	addr := cfg.LDAPAddr
+	if addr == "" {
+		addr = ":389"
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	srv := ldapgw.NewServer(ln, auth, querier)
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("ldap gateway listening", "mode", ModeLDAPGateway, "addr", ln.Addr().String())
+		errCh <- srv.Serve()
+	}()
+
+	select {
+	case <-ctx.Done():
+		if err := srv.Close(); err != nil {
+			logger.Warn("close ldap server", "error", err)
+		}
+		return ctx.Err()
+	case err := <-errCh:
+		return err
+	}
+}
+
+type ldapDirectoryQuerier struct {
+	repo       *directory.Repository
+	companyID  string
+	baseDomain string
+}
+
+func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.DirectorySearchRequest) ([]ldapgw.PrincipalEntry, error) {
+	query := ldapFilterToQuery(req.Filter)
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	principals, err := q.repo.SearchPrincipals(ctx, directory.SearchPrincipalsRequest{
+		CompanyID:  q.companyID,
+		Query:      query,
+		ActiveOnly: true,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]ldapgw.PrincipalEntry, 0, len(principals))
+	baseDN := q.baseDomain
+	if baseDN == "" {
+		baseDN = "dc=local"
+	}
+	for _, p := range principals {
+		dn := fmt.Sprintf("uid=%s,ou=users,%s", p.ID, baseDN)
+		entries = append(entries, ldapgw.PrincipalEntry{
+			DN:          dn,
+			CN:          p.DisplayName,
+			Mail:        p.PrimaryEmail,
+			UID:         p.ID,
+			DisplayName: p.DisplayName,
+		})
+	}
+	return entries, nil
+}
+
+func ldapFilterToQuery(filter string) string {
+	filter = strings.TrimSpace(filter)
+	filter = strings.TrimPrefix(filter, "(")
+	filter = strings.TrimSuffix(filter, ")")
+	if idx := strings.Index(filter, "="); idx >= 0 {
+		val := filter[idx+1:]
+		val = strings.TrimSuffix(val, "*")
+		return val
+	}
+	return ""
 }
 
 func runAttachmentCleanupWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
