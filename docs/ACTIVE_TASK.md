@@ -7,31 +7,11 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-045
-- **제목**: Batch Worker — OrgChartSyncJob 인터페이스 + 플러그인 경계 (Phase 2-C item 2)
-- **배경**: Phase 2-C item 2("OrgChartSyncJob — 인터페이스만, 어댑터는 플러그인")가 미구현.
-  배치 워커에 `org-chart-sync` 잡이 등록되어 있지 않다.
-  외부 HR 시스템 어댑터가 없을 때는 no-op으로 skip하고,
-  어댑터가 주입되면 그것을 호출하는 플러그인 경계만 구현한다.
-- **구현 대상**:
-  - `internal/orgchart/sync.go`:
-    - `OrgChartSyncAdapter` 인터페이스: `SyncOrgChart(ctx context.Context) error`
-    - `NoopOrgChartAdapter` struct: 항상 nil 반환 (어댑터 미설정 기본값)
-  - `internal/orgchart/sync_test.go`:
-    - `TestNoopAdapterReturnsNil`
-  - `internal/app/run.go`: `org-chart-sync` 잡 등록 — `NoopOrgChartAdapter` 사용
-    (어댑터를 인터페이스로 받아 외부 플러그인이 주입 가능한 구조)
-- **완료 조건**:
-  - [ ] `go test ./...` 통과
-  - [ ] `OrgChartSyncAdapter` 인터페이스 정의 존재
-  - [ ] `org-chart-sync` 잡이 배치 워커에 등록됨
-  - [ ] NoopAdapter 단위 테스트 통과
-- **다음 태스크**: TASK-046
-
----
+<!-- TASK-046 미구성 — 백로그에 TASK-046 항목 없음 -->
 
 ## 완료됨
 
+- **TASK-045**: Batch Worker — OrgChartSyncJob 인터페이스 + 플러그인 경계 (Phase 2-C item 2) ✅ (2026-05-09)
 - **TASK-044**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1) ✅ (2026-05-09)
 - **TASK-043**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4) ✅ (2026-05-09)
 - **TASK-042**: DNS SRV 자동발견 — CalDAV/CardDAV (Phase 4-B item 5) ✅ (2026-05-09)
