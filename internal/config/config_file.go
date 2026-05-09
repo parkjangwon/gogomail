@@ -69,6 +69,10 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.CardDAVAddr, key)
 	case "carddav_allow_insecure_auth":
 		return setYAMLBool(value, &cfg.CardDAVAllowInsecureAuth, key)
+	case "webdav_addr":
+		return setYAMLString(value, &cfg.WebDAVAddr, key)
+	case "webdav_depth_infinity_enabled":
+		return setYAMLBool(value, &cfg.WebDAVDepthInfinityEnabled, key)
 	case "submission_addr":
 		return setYAMLString(value, &cfg.SubmissionAddr, key)
 	case "submission_smtps_addr":

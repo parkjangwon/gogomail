@@ -42,6 +42,8 @@ type Config struct {
 	CalDAVScheduling                    bool
 	CardDAVAddr                         string
 	CardDAVAllowInsecureAuth            bool
+	WebDAVAddr                          string
+	WebDAVDepthInfinityEnabled          bool
 	LDAPAddr                            string
 	LDAPCompanyID                       string
 	LDAPBaseDomain                      string
@@ -258,6 +260,8 @@ func Load() Config {
 		CalDAVScheduling:                    boolEnvOrDefault("GOGOMAIL_CALDAV_SCHEDULING", false),
 		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
 		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		WebDAVAddr:                          envOrDefault("GOGOMAIL_WEBDAV_ADDR", ":8083"),
+		WebDAVDepthInfinityEnabled:          boolEnvOrDefault("GOGOMAIL_WEBDAV_DEPTH_INFINITY_ENABLED", false),
 		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
 		LDAPCompanyID:                       envOrDefault("GOGOMAIL_LDAP_COMPANY_ID", ""),
 		LDAPBaseDomain:                      envOrDefault("GOGOMAIL_LDAP_BASE_DOMAIN", ""),

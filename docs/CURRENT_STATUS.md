@@ -86,10 +86,18 @@ verification, authorization code flow preparation, and JWT ID token validation
 (issuer, audience, expiry, issued-at checks). SHA-256 nonce hashing is provided for
 PKCE and nonce validation.
 
-WebDAV gateway (`internal/webdavgw`) exposes Drive files via RFC 4918 WebDAV
-protocol for external client mounting and synchronization. PROPFIND responses
-include resource properties (displayname, getcontentlength, getcontenttype,
-getlastmodified, resourcetype). The package handles XML serialization for
+WebDAV gateway (`internal/httpapi/webdav.go`) exposes Drive files via RFC 4918 WebDAV
+protocol for external client mounting and synchronization. The `webdavHandler` implements
+OPTIONS, PROPFIND, MKCOL, GET, PUT (returns 501), DELETE, MOVE, COPY, PROPPATCH,
+LOCK, and UNLOCK. Runtime integration: `ModeWebDAV` starts a dedicated HTTP listener
+(`runWebDAVGateway`) that registers WebDAV routes on a fresh `http.ServeMux`.
+`WebDAVServiceAdapter` wraps `drive.Service` to satisfy the `WebDAVService` interface,
+adapting `TrashNode`'s `(Node, int64, error)` signature to `error` and providing
+stubs for `LockNode`/`UnlockNode` (the handler uses in-memory locks).
+Configuration: `GOGOMAIL_WEBDAV_ADDR` (default `:8083`), `GOGOMAIL_WEBDAV_DEPTH_INFINITY_ENABLED`
+(default `false`). Depth:infinity requests are rejected with 403 when disabled.
+PROPFIND responses include resource properties (displayname, getcontentlength,
+getcontenttype, getlastmodified, resourcetype). The package handles XML serialization for
 multistatus responses and parses propfind requests for selective property retrieval.
 Href normalization preserves trailing slashes for collection resources.
 
