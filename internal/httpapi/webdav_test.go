@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -352,11 +353,52 @@ func TestWebDAVPutOverwritesExistingFile(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d (overwrite should return 204), body = %s", rec.Code, http.StatusNoContent, rec.Body.String())
 	}
 	if service.trashReq.NodeID != "existing-1" {
 		t.Fatalf("trashReq.NodeID = %q, want existing-1", service.trashReq.NodeID)
+	}
+}
+
+func TestWebDAVPutQuotaExceeded(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{
+		err: drive.ErrQuotaExceeded,
+	}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+
+	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/file.txt?user_id=user-1", strings.NewReader("content"))
+	req.Header.Set("Content-Length", "1000000000")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInsufficientStorage {
+		t.Fatalf("status = %d, want %d (quota exceeded), body = %s", rec.Code, http.StatusInsufficientStorage, rec.Body.String())
+	}
+}
+
+func TestWebDAVPutTrashFails(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{
+		nodes: []drive.Node{
+			{ID: "file-1", Name: "doc.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive},
+		},
+		trashErr: fmt.Errorf("trash operation failed"),
+		file:     drive.Node{ID: "file-2", Name: "doc.txt", Type: drive.NodeTypeFile},
+	}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+
+	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/doc.txt?user_id=user-1", strings.NewReader("content"))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d (trash failed), body = %s", rec.Code, http.StatusConflict, rec.Body.String())
 	}
 }
 
@@ -407,6 +449,8 @@ type fakeWebDAVService struct {
 	lockNode    drive.Node
 	unlocked    bool
 	err         error
+	trashErr    error
+	createFileErr error
 }
 
 func (f *fakeWebDAVService) ListNodes(_ context.Context, req drive.ListNodesRequest) ([]drive.Node, error) {
@@ -443,6 +487,9 @@ func (f *fakeWebDAVService) CreateFolder(_ context.Context, req drive.CreateFold
 
 func (f *fakeWebDAVService) CreateFile(_ context.Context, req drive.CreateFileRequest) (drive.Node, error) {
 	f.createFileReq = req
+	if f.createFileErr != nil {
+		return drive.Node{}, f.createFileErr
+	}
 	if f.err != nil {
 		return drive.Node{}, f.err
 	}
@@ -451,6 +498,9 @@ func (f *fakeWebDAVService) CreateFile(_ context.Context, req drive.CreateFileRe
 
 func (f *fakeWebDAVService) TrashNode(_ context.Context, req drive.TrashNodeRequest) error {
 	f.trashReq = req
+	if f.trashErr != nil {
+		return f.trashErr
+	}
 	return f.err
 }
 
