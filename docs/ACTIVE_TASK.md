@@ -37,6 +37,27 @@
 
 ---
 
+## 현재 태스크
+
+**STATUS: IN_PROGRESS** 🔄
+
+- **ID**: TASK-060
+- **제목**: TLS-RPT + BIMI 통합 — 발신 메일 검증 및 로고 표시
+- **배경**: Phase 6 완성. TASK-058(DANE/MTA-STS/TLS-RPT)과 TASK-059(BIMI)를 
+  실제 delivery 파이프라인에 통합. TLS 실패 리포팅 및 발신자 로고 표시.
+
+- **구현 계획**:
+  1. `internal/delivery/`: TLS-RPT 수집 및 리포팅
+     - DirectSMTPTransport에 Collector 초기화
+     - TLS 오류 시 RecordFailure() 호출
+     - Daily 리포트 생성 및 DNS `_tlsrpt.domain` 정책 확인 후 RUA 주소로 전송
+  2. `internal/outbound/`: BIMI 헤더 추가 (Mail API integration)
+     - DMARC pass 확인 후 BIMI 정책 조회
+     - 로고 URL 추가 (BIMI-Selector 헤더 또는 Authentication-Results)
+  3. Tests: TLS-RPT 수집, 리포트 생성, BIMI 헤더 추가
+
+---
+
 ## 완료된 태스크
 
 **STATUS: COMPLETE** ✅
