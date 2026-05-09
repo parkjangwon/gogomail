@@ -16,6 +16,32 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-019 | Drive 파일 공유 — Directory delegation 통합 | 완료 |
 | TASK-020 | OpenAPI → TypeScript 클라이언트 생성 | 완료 |
 | TASK-021 | WebDAV Gateway — Drive RFC 4918 지원 | 완료 |
+| TASK-022 | POP3 게이트웨이 런타임 통합 | 완료 |
+| TASK-023 | Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 | 대기 |
+
+### TASK-023 상세
+- **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
+- **배경**: Phase 4-B 항목. Apple Mail, iOS, macOS, Thunderbird는 `/.well-known/caldav`와
+  `/.well-known/carddav` URI로 서버를 자동 발견한다. 현재 미구현으로 사용자가 서버 주소를
+  직접 입력해야 한다.
+- **구현 대상**: `internal/httpapi/wellknown.go` — RFC 6764 §5 준수 리다이렉트 핸들러
+  - `GET /.well-known/caldav` → `301` to `/caldav/`
+  - `GET /.well-known/carddav` → `301` to `/carddav/`
+  - `PROPFIND /.well-known/caldav` → `301` (WebDAV 클라이언트 지원)
+  - HTTP/HTTPS 양쪽에서 동작
+- **완료 조건**:
+  - [ ] `go test ./...` 통과
+  - [ ] `/.well-known/caldav` 요청 시 301 리다이렉트 응답
+  - [ ] `/.well-known/carddav` 요청 시 301 리다이렉트 응답
+- **다음 태스크**: TASK-024
+
+### TASK-022 상세
+- **제목**: POP3 게이트웨이 런타임 통합
+- **배경**: `internal/pop3d`에 POP3 서버 핵심 구현 존재. 앱 런타임 미연결, AUTH 미구현.
+- **구현 대상**: `internal/pop3d/pop3d.go`, `internal/mailservice/pop3_adapter.go`,
+  `internal/config/config.go`, `internal/app/mode.go`, `internal/app/run.go`
+- **완료 조건**: `go test ./...` 통과 + AUTH PLAIN + ModePOP3 구동
+- **다음 태스크**: TASK-023
 
 ### TASK-017 상세
 - **제목**: CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처

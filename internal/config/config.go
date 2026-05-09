@@ -30,6 +30,8 @@ type Config struct {
 	IMAPNotifyConsumerClaimIdle         time.Duration
 	IMAPNotifyConsumerMaxDeliveries     int64
 	IMAPNotifyConsumerDeadLetterStream  string
+	WellKnownCalDAVURL                  string
+	WellKnownCardDAVURL                 string
 	POP3Addr                            string
 	POP3TLSCertFile                     string
 	POP3TLSKeyFile                      string
@@ -232,6 +234,8 @@ func Load() Config {
 		IMAPNotifyConsumerClaimIdle:         durationEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_CLAIM_IDLE", 5*time.Minute),
 		IMAPNotifyConsumerMaxDeliveries:     int64EnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_MAX_DELIVERIES", 10),
 		IMAPNotifyConsumerDeadLetterStream:  strings.TrimSpace(os.Getenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM")),
+		WellKnownCalDAVURL:                  envOrDefault("GOGOMAIL_WELL_KNOWN_CALDAV_URL", ""),
+		WellKnownCardDAVURL:                 envOrDefault("GOGOMAIL_WELL_KNOWN_CARDDAV_URL", ""),
 		POP3Addr:                            envOrDefault("GOGOMAIL_POP3_ADDR", ":1110"),
 		POP3TLSCertFile:                     envOrDefault("GOGOMAIL_POP3_TLS_CERT_FILE", ""),
 		POP3TLSKeyFile:                      envOrDefault("GOGOMAIL_POP3_TLS_KEY_FILE", ""),

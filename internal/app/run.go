@@ -2306,6 +2306,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		meteringDB = db
 		readinessChecks = append(readinessChecks, databaseReadinessCheck("api_metering_database", db, cfg.MigrationDir))
 	}
+	httpapi.RegisterWellKnownRoutes(mux, cfg.WellKnownCalDAVURL, cfg.WellKnownCardDAVURL)
 	httpapi.RegisterHealthRoutesWithChecks(mux, readinessChecks...)
 
 	handler := apiMeteringHandler(mux, cfg, logger, meteringDB, tokenManager, cfg.AdminToken)
