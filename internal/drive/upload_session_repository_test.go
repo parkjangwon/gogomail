@@ -136,7 +136,7 @@ func TestStoreUploadSessionBodyRequiresDatabase(t *testing.T) {
 	t.Parallel()
 
 	repo := NewRepository(nil)
-	_, err := repo.StoreUploadSessionBody(context.Background(), RecordUploadSessionBodyRequest{})
+	_, _, err := repo.StoreUploadSessionBody(context.Background(), RecordUploadSessionBodyRequest{})
 	if err == nil || !strings.Contains(err.Error(), "database handle is required") {
 		t.Fatalf("StoreUploadSessionBody err = %v, want database handle rejection first", err)
 	}

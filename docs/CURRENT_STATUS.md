@@ -4528,3 +4528,8 @@ Next focus areas:
 - Context deadline enforced in all milter callbacks
 - Header CRLF injection blocked
 - Packet size limits enforced (max 65535 bytes)
+
+## ldapgw security fixes (TASK-007)
+- BER length cap: PDUs with declared body > 16 MB are rejected; connection closed
+- Context deadline enforced: ctx.Done() checked before every PDU operation
+- Filter validation: validateFilter() rejects empty, non-context-specific, unsupported, or truncated LDAP filters before processing

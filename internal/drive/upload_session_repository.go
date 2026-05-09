@@ -482,14 +482,92 @@ LIMIT $2`
 	return sessions, nil
 }
 
-func (r *Repository) StoreUploadSessionBody(ctx context.Context, req RecordUploadSessionBodyRequest) (UploadSession, error) {
+// lockWritableUploadSession acquires a FOR UPDATE row lock inside tx.
+// Concurrent writers for the same session block until this transaction ends,
+// eliminating the TOCTOU window between reading the old storage_path and
+// overwriting it. Returns the locked session so the caller has an authoritative
+// view of the current state (including the prior storage_path).
+func lockWritableUploadSession(ctx context.Context, tx *sql.Tx, userID, sessionID string) (UploadSession, error) {
+	const query = `
+SELECT
+  s.id::text,
+  s.user_id::text,
+  COALESCE(s.parent_id::text, ''),
+  s.upload_id,
+  s.name,
+  s.declared_size,
+  s.received_size,
+  s.mime_type,
+  s.status,
+  s.storage_backend,
+  COALESCE(s.storage_path, ''),
+  COALESCE(s.checksum_sha256, ''),
+  s.expires_at,
+  s.created_at,
+  s.updated_at,
+  s.finalized_at,
+  s.canceled_at
+FROM drive_upload_sessions s
+JOIN users u ON u.id = s.user_id
+JOIN domains d ON d.id = u.domain_id
+WHERE s.id = $2::uuid
+  AND s.user_id = $1::uuid
+  AND u.status = 'active'
+  AND d.status = 'active'
+  AND s.status IN ('pending', 'uploading', 'failed')
+  AND s.expires_at > now()
+FOR UPDATE`
+	var session UploadSession
+	var finalizedAt sql.NullTime
+	var canceledAt sql.NullTime
+	err := tx.QueryRowContext(ctx, query, userID, sessionID).Scan(
+		&session.ID, &session.UserID, &session.ParentID,
+		&session.UploadID, &session.Name,
+		&session.DeclaredSize, &session.ReceivedSize,
+		&session.MIMEType, &session.Status, &session.StorageBackend,
+		&session.StoragePath, &session.ChecksumSHA256,
+		&session.ExpiresAt, &session.CreatedAt, &session.UpdatedAt,
+		&finalizedAt, &canceledAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return UploadSession{}, fmt.Errorf("writable drive upload session not found")
+		}
+		return UploadSession{}, fmt.Errorf("lock drive upload session for write: %w", err)
+	}
+	if finalizedAt.Valid {
+		session.FinalizedAt = finalizedAt.Time
+	}
+	if canceledAt.Valid {
+		session.CanceledAt = canceledAt.Time
+	}
+	return session, nil
+}
+
+// StoreUploadSessionBody atomically locks the session row, records the new
+// storage_path, and returns the prior storage_path alongside the updated
+// session. The FOR UPDATE lock serialises concurrent chunk writes for the same
+// session so the caller can safely delete the replaced object without racing.
+func (r *Repository) StoreUploadSessionBody(ctx context.Context, req RecordUploadSessionBodyRequest) (UploadSession, string, error) {
 	if r == nil || r.db == nil {
-		return UploadSession{}, fmt.Errorf("database handle is required")
+		return UploadSession{}, "", fmt.Errorf("database handle is required")
 	}
 	req, err := ValidateRecordUploadSessionBodyRequest(req)
 	if err != nil {
-		return UploadSession{}, err
+		return UploadSession{}, "", err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return UploadSession{}, "", fmt.Errorf("begin store upload session body transaction: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	locked, err := lockWritableUploadSession(ctx, tx, req.UserID, req.SessionID)
+	if err != nil {
+		return UploadSession{}, "", err
+	}
+	priorPath := locked.StoragePath // authoritative old path from the locked row
+
 	const query = `
 UPDATE drive_upload_sessions s
 SET
@@ -529,38 +607,22 @@ RETURNING
 	var session UploadSession
 	var finalizedAt sql.NullTime
 	var canceledAt sql.NullTime
-	err = r.db.QueryRowContext(
-		ctx,
-		query,
-		req.UserID,
-		req.SessionID,
-		req.ReceivedSize,
-		req.StoragePath,
-		req.ChecksumSHA256,
+	err = tx.QueryRowContext(ctx, query,
+		req.UserID, req.SessionID, req.ReceivedSize, req.StoragePath, req.ChecksumSHA256,
 	).Scan(
-		&session.ID,
-		&session.UserID,
-		&session.ParentID,
-		&session.UploadID,
-		&session.Name,
-		&session.DeclaredSize,
-		&session.ReceivedSize,
-		&session.MIMEType,
-		&session.Status,
-		&session.StorageBackend,
-		&session.StoragePath,
-		&session.ChecksumSHA256,
-		&session.ExpiresAt,
-		&session.CreatedAt,
-		&session.UpdatedAt,
-		&finalizedAt,
-		&canceledAt,
+		&session.ID, &session.UserID, &session.ParentID,
+		&session.UploadID, &session.Name,
+		&session.DeclaredSize, &session.ReceivedSize,
+		&session.MIMEType, &session.Status, &session.StorageBackend,
+		&session.StoragePath, &session.ChecksumSHA256,
+		&session.ExpiresAt, &session.CreatedAt, &session.UpdatedAt,
+		&finalizedAt, &canceledAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return UploadSession{}, fmt.Errorf("writable drive upload session not found")
+			return UploadSession{}, "", fmt.Errorf("writable drive upload session not found")
 		}
-		return UploadSession{}, fmt.Errorf("store drive upload session body: %w", err)
+		return UploadSession{}, "", fmt.Errorf("store drive upload session body: %w", err)
 	}
 	if finalizedAt.Valid {
 		session.FinalizedAt = finalizedAt.Time
@@ -568,7 +630,10 @@ RETURNING
 	if canceledAt.Valid {
 		session.CanceledAt = canceledAt.Time
 	}
-	return session, nil
+	if err := tx.Commit(); err != nil {
+		return UploadSession{}, "", fmt.Errorf("commit store upload session body transaction: %w", err)
+	}
+	return session, priorPath, nil
 }
 
 type uploadSessionScanner interface {
