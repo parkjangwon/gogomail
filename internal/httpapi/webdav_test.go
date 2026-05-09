@@ -402,6 +402,33 @@ func TestWebDAVPutTrashFails(t *testing.T) {
 	}
 }
 
+func TestWebDAVUnlockLockMismatchReturns423(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+
+	// Acquire a lock.
+	lockReq := httptest.NewRequest("LOCK", "/dav/node-1?user_id=user-1", nil)
+	lockRec := httptest.NewRecorder()
+	mux.ServeHTTP(lockRec, lockReq)
+	if lockRec.Code != http.StatusOK {
+		t.Fatalf("LOCK status = %d, want %d", lockRec.Code, http.StatusOK)
+	}
+
+	// Attempt UNLOCK with a wrong token.
+	unlockReq := httptest.NewRequest("UNLOCK", "/dav/node-1?user_id=user-1", nil)
+	unlockReq.Header.Set("Lock-Token", "<urn:uuid:wrong-token-value>")
+	unlockRec := httptest.NewRecorder()
+	mux.ServeHTTP(unlockRec, unlockReq)
+
+	if unlockRec.Code != http.StatusLocked {
+		t.Fatalf("status = %d, want %d (token mismatch should return 423), body = %s",
+			unlockRec.Code, http.StatusLocked, unlockRec.Body.String())
+	}
+}
+
 func TestWebDAVGetDownloadsFile(t *testing.T) {
 	t.Parallel()
 
