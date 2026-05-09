@@ -8,9 +8,18 @@
 ## 현재 태스크
 
 - **ID**: COMPLETE
-- **제목**: 모든 정의된 태스크 완료
-- **배경**: TASK-029까지 모든 백로그 태스크 완료. NEXT_STEPS.md에 다음 태스크 없음.
-- **완료 조건**: 사용자가 새 태스크를 추가할 때까지 대기
+- **제목**: TASK-030 완료, 다음 태스크 대기 중
+- **배경**: TASK-030 (Delta Sync Cursor Postgres 스토어) 완료.
+
+---
+
+## 완료됨
+
+- **TASK-030**: Delta Sync Cursor — Postgres 영속 스토어 ✅ (2026-05-09)
+  - `migrations/0076_device_sync_cursors.sql`: `device_sync_cursors` 테이블 + 인덱스
+  - `internal/deltasync/postgres.go`: `PostgresCursorStore` — Save/Get/ListByMailbox/Delete
+  - `internal/deltasync/postgres_integration_test.go`: 5개 통합 테스트 (DB 없으면 skip)
+  - `go test ./...` 5182개 통과
 
 ---
 
