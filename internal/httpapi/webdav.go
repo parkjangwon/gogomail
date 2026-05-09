@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -9,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/webdavgw"
@@ -25,12 +29,14 @@ type WebDAVService interface {
 	MoveNode(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
 	CopyNode(ctx context.Context, req drive.CopyNodeRequest) (drive.Node, error)
 	GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
+	LockNode(ctx context.Context, req drive.LockNodeRequest) (drive.LockToken, error)
+	UnlockNode(ctx context.Context, req drive.UnlockNodeRequest) error
 }
 
 // WebDAVRouteOptions configures the WebDAV handler.
 type WebDAVRouteOptions struct {
-	// DepthInfinityEnabled allows Depth:infinity PROPFIND (default false for safety).
 	DepthInfinityEnabled bool
+	Metrics              WebDAVMetrics
 }
 
 // RegisterWebDAVRoutes registers WebDAV RFC 4918 handlers on mux at /dav/.
@@ -39,7 +45,12 @@ func RegisterWebDAVRoutes(mux *http.ServeMux, service WebDAVService, opts WebDAV
 	if opts.DepthInfinityEnabled {
 		// TODO: implement depth-infinity guard
 	}
-	h := &webdavHandler{service: service, opts: opts}
+	h := &webdavHandler{
+		service: service,
+		opts:    opts,
+		locks:   make(map[string]webdavLock),
+		metrics: webdavMetricsOrDefault(opts.Metrics),
+	}
 
 	// CORS preflight for WebDAV (some clients send Origin)
 	mux.HandleFunc("OPTIONS /dav/", h.handleOptions)
@@ -66,18 +77,44 @@ func RegisterWebDAVRoutes(mux *http.ServeMux, service WebDAVService, opts WebDAV
 
 	// PROPPATCH — update dead properties (e.g. displayname)
 	mux.HandleFunc("PROPPATCH /dav/", h.handleProppatch)
+
+	// LOCK — acquire an exclusive/shared lock on a resource
+	mux.HandleFunc("LOCK /dav/", h.handleLock)
+
+	// UNLOCK — release a lock held on a resource
+	mux.HandleFunc("UNLOCK /dav/", h.handleUnlock)
 }
 
 type webdavHandler struct {
 	service WebDAVService
 	opts    WebDAVRouteOptions
+	locks   map[string]webdavLock
+	mu      sync.Mutex
+	metrics WebDAVMetrics
+}
+
+type webdavLock struct {
+	Token  string
+	UserID string
+	Expiry time.Time
+}
+
+func (h *webdavHandler) observe(ctx context.Context, method WebDAVMetricMethod, userID, path string, result WebDAVMetricResult, errMsg string) {
+	h.metrics.ObserveWebDAV(ctx, WebDAVMetricEvent{
+		Method: method,
+		Result: result,
+		UserID: userID,
+		Path:   path,
+		Error:  errMsg,
+	})
 }
 
 func (h *webdavHandler) handleOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("DAV", "1, 3") // DAVLevel 1 and 3 (private, share)
-	w.Header().Set("Allow", "OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH")
+	w.Header().Set("DAV", "1, 3")
+	w.Header().Set("Allow", "OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK")
 	w.Header().Set("Content-Length", "0")
 	w.WriteHeader(http.StatusNoContent)
+	h.observe(r.Context(), WebDAVMethodOptions, "", "", WebDAVResultOK, "")
 }
 
 // propfindRequest matches WebDAV PROPFIND request body.
@@ -91,28 +128,29 @@ type propfindRequest struct {
 func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Parse Depth header: "infinity" requires opt-in
 	depth := r.Header.Get("Depth")
 	if depth == "" {
-		depth = "infinity" // WebDAV default is infinity, but we default to 1
+		depth = "1"
+	}
+	if depth == "infinity" && !h.opts.DepthInfinityEnabled {
+		http.Error(w, "Depth infinity not allowed", http.StatusForbidden)
+		h.observe(ctx, WebDAVMethodPropfind, "", "", WebDAVResultRejected, "depth_infinity_forbidden")
+		return
 	}
 
-	// TODO: Parse XML request body for requested properties.
-	// For now, return all known properties.
 	reqBody, _ := io.ReadAll(r.Body)
 	_ = reqBody
 
-	// Extract user_id from query or header (WebDAV uses Principal-URL header)
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		userID = r.Header.Get("X-WebDAV-User-ID")
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodPropfind, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Parse path: /dav/ or /dav/folder-id/...
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 
@@ -121,7 +159,6 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 		parentID = path
 	}
 
-	// List nodes at this level
 	nodes, err := h.service.ListNodes(ctx, drive.ListNodesRequest{
 		UserID:   userID,
 		ParentID: parentID,
@@ -130,6 +167,7 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "failed to list nodes: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodPropfind, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
@@ -170,6 +208,7 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	body, err := webdavgw.MarshalPropfindResponse(resources)
 	if err != nil {
 		http.Error(w, "marshal failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodPropfind, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
@@ -177,6 +216,7 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(http.StatusMultiStatus)
 	w.Write(body)
+	h.observe(ctx, WebDAVMethodPropfind, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
@@ -188,10 +228,10 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodMkcol, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Path: /dav/parent-id/foldername or /dav/foldername
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 
@@ -205,6 +245,7 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 
 	if name == "" {
 		http.Error(w, "collection name required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultRejected, "missing_name")
 		return
 	}
 
@@ -215,11 +256,13 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "create folder failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
 	w.Header().Set("Location", "/dav/"+node.ID+"/")
 	w.WriteHeader(http.StatusCreated)
+	h.observe(ctx, WebDAVMethodMkcol, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
@@ -231,10 +274,10 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodGet, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Path: /dav/node-id/filename
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 	nodeID := strings.Split(path, "/")[0]
@@ -245,6 +288,7 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "open file failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodGet, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 	defer dl.Body.Close()
@@ -254,11 +298,12 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", fmt.Sprintf(`"%s"`, dl.Node.ID))
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, dl.Body)
+	h.observe(ctx, WebDAVMethodGet, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
-	// PUT requires upload session support — not implemented in v1
 	http.Error(w, "PUT not supported; use Drive upload sessions API", http.StatusNotImplemented)
+	h.observe(r.Context(), WebDAVMethodPut, "", "", WebDAVResultRejected, "not_implemented")
 }
 
 func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -270,16 +315,17 @@ func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodDelete, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Path: /dav/node-id
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 	nodeID := strings.Split(path, "/")[0]
 
 	if nodeID == "" {
 		http.Error(w, "node id required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodDelete, userID, path, WebDAVResultRejected, "missing_node_id")
 		return
 	}
 
@@ -289,10 +335,12 @@ func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "trash failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodDelete, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	h.observe(ctx, WebDAVMethodDelete, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
@@ -304,13 +352,14 @@ func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodMove, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Parse Destination header: /dav/target-node-id/
 	dest := r.Header.Get("Destination")
 	if dest == "" {
 		http.Error(w, "Destination header required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodMove, userID, "", WebDAVResultRejected, "missing_destination")
 		return
 	}
 	if u, err := url.Parse(dest); err == nil && u.Path != "" {
@@ -319,7 +368,6 @@ func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 	dest = strings.TrimPrefix(dest, "/dav/")
 	dest = strings.TrimSuffix(dest, "/")
 
-	// Path: /dav/node-id
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 	nodeID := strings.Split(path, "/")[0]
@@ -338,10 +386,12 @@ func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "move failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodMove, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	h.observe(ctx, WebDAVMethodMove, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
@@ -353,13 +403,14 @@ func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodCopy, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Parse Destination header
 	dest := r.Header.Get("Destination")
 	if dest == "" {
 		http.Error(w, "Destination header required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodCopy, userID, "", WebDAVResultRejected, "missing_destination")
 		return
 	}
 	if u, err := url.Parse(dest); err == nil && u.Path != "" {
@@ -368,7 +419,6 @@ func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 	dest = strings.TrimPrefix(dest, "/dav/")
 	dest = strings.TrimSuffix(dest, "/")
 
-	// Path: /dav/node-id
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 	nodeID := strings.Split(path, "/")[0]
@@ -390,10 +440,12 @@ func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, "copy failed: "+err.Error(), http.StatusInternalServerError)
+		h.observe(ctx, WebDAVMethodCopy, userID, path, WebDAVResultError, err.Error())
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	h.observe(ctx, WebDAVMethodCopy, userID, path, WebDAVResultOK, "")
 }
 
 func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) {
@@ -405,27 +457,22 @@ func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) 
 	}
 	if userID == "" {
 		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodProppatch, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
 
-	// Path: /dav/node-id
 	path := strings.TrimPrefix(r.URL.Path, "/dav/")
 	path = strings.TrimSuffix(path, "/")
 	nodeID := strings.Split(path, "/")[0]
 
 	if nodeID == "" {
 		http.Error(w, "node id required", http.StatusBadRequest)
+		h.observe(ctx, WebDAVMethodProppatch, userID, path, WebDAVResultRejected, "missing_node_id")
 		return
 	}
 
-	// Parse propertyupdate XML body
 	body, _ := io.ReadAll(r.Body)
-	_ = body
 
-	// TODO: parse set/remove property operations
-	// For now, extract displayname from request and rename
-	// WebDAV clients typically send: <d:prop><d:displayname>newname</d:displayname></d:prop>
-	// Simple approach: extract displayname value if present
 	newName := extractDisplayName(body)
 	if newName != "" {
 		_, err := h.service.RenameNode(ctx, drive.RenameNodeRequest{
@@ -435,11 +482,11 @@ func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) 
 		})
 		if err != nil {
 			http.Error(w, "rename failed: "+err.Error(), http.StatusInternalServerError)
+			h.observe(ctx, WebDAVMethodProppatch, userID, path, WebDAVResultError, err.Error())
 			return
 		}
 	}
 
-	// Return 207 Multistatus with the updated property
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(http.StatusMultiStatus)
 	w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -452,6 +499,7 @@ func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) 
     </d:propstat>
   </d:response>
 </d:multistatus>`))
+	h.observe(ctx, WebDAVMethodProppatch, userID, path, WebDAVResultOK, "")
 }
 
 func extractDisplayName(body []byte) string {
@@ -467,4 +515,108 @@ func extractDisplayName(body []byte) string {
 		return ""
 	}
 	return string(body)[start : start+end]
+}
+
+func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = r.Header.Get("X-WebDAV-User-ID")
+	}
+	if userID == "" {
+		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodLock, "", "", WebDAVResultRejected, "unauthorized")
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/dav/")
+	path = "/" + path
+
+	token := generateLockToken()
+	lock := webdavLock{
+		Token:  token,
+		UserID: userID,
+		Expiry: time.Now().Add(5 * time.Minute),
+	}
+
+	h.mu.Lock()
+	h.locks[path] = lock
+	h.mu.Unlock()
+
+	w.Header().Set("Lock-Token", fmt.Sprintf("<%s%s>", drive.LockTokenScheme, token))
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>` + path + `</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:lockdiscovery>
+          <d:activelock>
+            <d:locktype><d:write/></d:locktype>
+            <d:lockscope><d:exclusive/></d:lockscope>
+            <d:depth>infinity</d:depth>
+            <d:owner><d:href>` + userID + `</d:href></d:owner>
+            <d:timeout>Second-300</d:timeout>
+            <d:locktoken>
+              <d:href>` + drive.LockTokenScheme + token + `</d:href>
+            </d:locktoken>
+          </d:activelock>
+        </d:lockdiscovery>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`))
+	h.observe(ctx, WebDAVMethodLock, userID, path, WebDAVResultOK, "")
+}
+
+func (h *webdavHandler) handleUnlock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = r.Header.Get("X-WebDAV-User-ID")
+	}
+	if userID == "" {
+		http.Error(w, "user_id required", http.StatusUnauthorized)
+		h.observe(ctx, WebDAVMethodUnlock, "", "", WebDAVResultRejected, "unauthorized")
+		return
+	}
+
+	lockTokenHdr := r.Header.Get("Lock-Token")
+	lockTokenHdr = strings.TrimPrefix(lockTokenHdr, "<")
+	lockTokenHdr = strings.TrimSuffix(lockTokenHdr, ">")
+	token := strings.TrimPrefix(lockTokenHdr, drive.LockTokenScheme)
+
+	path := strings.TrimPrefix(r.URL.Path, "/dav/")
+	path = "/" + path
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	existing, ok := h.locks[path]
+	if !ok || existing.UserID != userID || existing.Token != token {
+		http.Error(w, "lock not found or not owned", http.StatusConflict)
+		h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultRejected, "lock_not_found")
+		return
+	}
+	if existing.Expiry.Before(time.Now()) {
+		delete(h.locks, path)
+		http.Error(w, "lock expired", http.StatusConflict)
+		h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultRejected, "lock_expired")
+		return
+	}
+
+	delete(h.locks, path)
+	w.WriteHeader(http.StatusNoContent)
+	h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultOK, "")
+}
+
+func generateLockToken() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }

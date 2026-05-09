@@ -126,3 +126,21 @@ func escapeDriveNodeLikeQuery(query string) string {
 	query = strings.ReplaceAll(query, `_`, `\_`)
 	return query
 }
+
+type LockNodeRequest struct {
+	UserID   string
+	NodeID   string
+	LockRoot string
+}
+
+type UnlockNodeRequest struct {
+	UserID    string
+	NodeID    string
+	LockToken string
+}
+
+type LockToken struct {
+	Token string
+}
+
+const LockTokenScheme = "urn:uuid:"

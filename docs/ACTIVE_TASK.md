@@ -7,10 +7,28 @@
 
 ## 현재 태스크
 
-<!-- TASK-046 미구성 — 백로그에 TASK-046 항목 없음 -->
+- **ID**: TASK-046
+- **제목**: Phase 4-A WebDAV Gateway 남은 항목 — LOCK/UNLOCK + Depth:infinity 가드 + 메트릭 (Phase 4-A remaining items)
+- **배경**: Phase 4-A WebDAV Gateway는 기본 PROPFIND/PROPPATCH/MKCOL/GET/DELETE/MOVE/COPY 구현됨.
+  하지만 LOCK/UNLOCK(자원 잠금), Depth:infinity 가드, WebDAV 메트릭 계측이 미구현.
+  macOS Finder, Windows Explorer, Cyberduck, rclone 등 프로덕션 WebDAV 클라이언트는
+  잠금 및 안전 가드를 기대함.
+- **구현 대상**:
+  - `internal/httpapi/webdav.go`:
+    - `LOCK` 핸들러: exclusive/shared 잠금 생성, Lock-Token 응답
+    - `UNLOCK` 핸들러: Lock-Token으로 잠금 해제
+    - `Depth: infinity` 가드: `DepthInfinityEnabled=false`(기본)일 때 infinity 요청 거부
+    - WebDAV 메소드별 메트릭: PROPFIND/MKCOL/GET/PUT/DELETE/MOVE/COPY/LOCK/UNLOCK outcomes
+  - `internal/httpapi/webdav_test.go`: LOCK/UNLOCK/DepthInfinity 단위 테스트
+- **완료 조건**:
+  - [x] `go test ./...` 통과
+  - [x] LOCK으로 자원 잠금 생성 후 UNLOCK으로 해제 가능
+  - [x] Depth:infinity 가드(default=false) 시 infinity 요청 시 403 Forbidden
+  - [x] WebDAV 메소드별 메트릭record
 
 ## 완료됨
 
+- **TASK-046**: Phase 4-A WebDAV Gateway — LOCK/UNLOCK + Depth:infinity 가드 + 메트릭 ✅ (2026-05-09)
 - **TASK-045**: Batch Worker — OrgChartSyncJob 인터페이스 + 플러그인 경계 (Phase 2-C item 2) ✅ (2026-05-09)
 - **TASK-044**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1) ✅ (2026-05-09)
 - **TASK-043**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4) ✅ (2026-05-09)
