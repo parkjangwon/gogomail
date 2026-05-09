@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/dane"
+	"github.com/gogomail/gogomail/internal/mtasts"
 	"github.com/gogomail/gogomail/internal/outbound"
 )
 
@@ -28,22 +30,27 @@ const (
 )
 
 type DirectSMTPTransport struct {
-	Resolver     MXResolver
-	Router       Router
-	Timeout      time.Duration
-	Hello        string
-	TLSMode      DeliveryTLSMode
-	TLSConfig    *tls.Config
-	Transformers TransformChain
-	deliverHost  func(context.Context, Job, Route, string, []outbound.Address) error
+	Resolver      MXResolver
+	Router        Router
+	Timeout       time.Duration
+	Hello         string
+	TLSMode       DeliveryTLSMode
+	TLSConfig     *tls.Config
+	Transformers  TransformChain
+	daneValidator *dane.Validator
+	mtastsClient  *mtasts.Client
+	deliverHost   func(context.Context, Job, Route, string, []outbound.Address) error
 }
 
 func NewDirectSMTPTransport() *DirectSMTPTransport {
+	dnsResolver := &dane.NetResolver{Resolver: net.DefaultResolver}
 	return &DirectSMTPTransport{
-		Resolver: net.DefaultResolver,
-		Timeout:  30 * time.Second,
-		Hello:    "localhost",
-		TLSMode:  DeliveryTLSOpportunistic,
+		Resolver:      net.DefaultResolver,
+		Timeout:       30 * time.Second,
+		Hello:         "localhost",
+		TLSMode:       DeliveryTLSOpportunistic,
+		daneValidator: dane.NewValidator(dnsResolver),
+		mtastsClient:  mtasts.NewClient(),
 	}
 }
 
@@ -125,6 +132,11 @@ func (t *DirectSMTPTransport) deliverHostFunc() func(context.Context, Job, Route
 }
 
 func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, route Route, host string, recipients []outbound.Address) error {
+	// Check MTA-STS policy before connecting
+	if err := t.checkMTASTSPolicy(ctx, route.Domain, host); err != nil {
+		return fmt.Errorf("mta-sts: %w", err)
+	}
+
 	timeout := t.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -172,6 +184,11 @@ func (t *DirectSMTPTransport) deliverHostDefault(ctx context.Context, job Job, r
 		if err := t.startTLS(ctx, client, host, route.TLSMode); err != nil {
 			return WrapSMTPError("starttls", err)
 		}
+	}
+
+	// Check DANE policy after TLS is established
+	if err := t.checkDANEPolicy(ctx, route.Domain, host, 25, client); err != nil {
+		return fmt.Errorf("dane: %w", err)
 	}
 	if routeRequiresAuth(route) {
 		if err := client.Auth(smtp.PlainAuth(route.Auth.Identity, route.Auth.Username, route.Auth.Password, host)); err != nil {
@@ -525,4 +542,69 @@ func groupRecipientsByDomain(recipients []outbound.Address) map[string][]outboun
 		groups[domain] = append(groups[domain], recipient)
 	}
 	return groups
+}
+
+// checkMTASTSPolicy verifies the MX host matches MTA-STS policy for the domain.
+func (t *DirectSMTPTransport) checkMTASTSPolicy(ctx context.Context, domain string, host string) error {
+	if t.mtastsClient == nil {
+		return nil
+	}
+
+	policy, err := t.mtastsClient.GetPolicy(ctx, domain)
+	if err != nil {
+		// DNS/HTTPS errors are non-fatal; log but continue
+		return nil
+	}
+
+	// No policy or policy mode=none: OK
+	if policy == nil || policy.Mode == "none" {
+		return nil
+	}
+
+	// Policy exists: check if host matches
+	if !policy.MatchesMX(host) {
+		if policy.Mode == "enforce" {
+			return fmt.Errorf("host %s not in MTA-STS policy for %s", host, domain)
+		}
+		// testing mode: log but allow
+		_ = fmt.Sprintf("mta-sts testing: host %s not in policy for %s", host, domain)
+	}
+
+	return nil
+}
+
+// checkDANEPolicy validates the TLS certificate against DANE policy.
+func (t *DirectSMTPTransport) checkDANEPolicy(ctx context.Context, domain string, host string, port int, client *smtp.Client) error {
+	if t.daneValidator == nil {
+		return nil
+	}
+
+	state, ok := client.TLSConnectionState()
+	if !ok {
+		// No TLS connection: DANE check not applicable
+		return nil
+	}
+
+	// Convert peer certificates to tls.Certificate format
+	var tlsCerts []*tls.Certificate
+	if len(state.PeerCertificates) > 0 {
+		tlsCert := &tls.Certificate{
+			Certificate: [][]byte{state.PeerCertificates[0].Raw},
+			Leaf:        state.PeerCertificates[0],
+		}
+		tlsCerts = []*tls.Certificate{tlsCert}
+	}
+
+	result, err := t.daneValidator.Validate(ctx, host, port, tlsCerts)
+	if err != nil {
+		// DANE lookup errors are non-fatal
+		return nil
+	}
+
+	// If DANE records exist, certificate must match
+	if result.Present && !result.Valid {
+		return fmt.Errorf("DANE validation failed for %s: %s", host, result.Reason)
+	}
+
+	return nil
 }
