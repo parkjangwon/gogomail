@@ -3185,3 +3185,107 @@ type fakeExistsError struct{}
 func (fakeExistsError) Error() string { return "already exists" }
 
 var errFakeExists fakeExistsError
+
+// fakeSchedulingStore embeds fakeDiscoveryStore and also implements SchedulingStore.
+type fakeSchedulingStore struct {
+	fakeDiscoveryStore
+	delivered []DeliverSchedulingMessageRequest
+	sent      []SendSchedulingMessageRequest
+}
+
+func (s *fakeSchedulingStore) DeliverSchedulingMessage(_ context.Context, req DeliverSchedulingMessageRequest) (SchedulingMessage, error) {
+	s.delivered = append(s.delivered, req)
+	return SchedulingMessage{
+		UserID:      req.UserID,
+		Recipient:   req.Recipient,
+		Method:      req.Method,
+		UID:         req.UID,
+		ICSPayload:  req.ICSPayload,
+		ProcessedAt: time.Now(),
+	}, nil
+}
+
+func (s *fakeSchedulingStore) SendSchedulingMessage(_ context.Context, req SendSchedulingMessageRequest) (SchedulingMessage, error) {
+	s.sent = append(s.sent, req)
+	return SchedulingMessage{
+		UserID:      req.UserID,
+		Method:      req.Method,
+		UID:         req.UID,
+		ICSPayload:  req.ICSPayload,
+		ProcessedAt: time.Now(),
+	}, nil
+}
+
+// minimalSchedulingICS is a valid VCALENDAR body for scheduling tests.
+// The handler defaults to ScheduleMethodRequest when no METHOD property is present
+// (ParseICalendarObject rejects METHOD on stored objects per RFC 4791).
+const minimalSchedulingICS = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//test//EN\r\nBEGIN:VEVENT\r\n" +
+	"UID:sched-test-uid-1234\r\n" +
+	"DTSTART:20260601T100000Z\r\nDTEND:20260601T110000Z\r\n" +
+	"SUMMARY:Test Meeting\r\n" +
+	"ORGANIZER:mailto:org@example.com\r\n" +
+	"ATTENDEE:mailto:user-1@example.com\r\n" +
+	"END:VEVENT\r\nEND:VCALENDAR\r\n"
+
+func TestHandlerSchedulingPostInboxDelivers(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeSchedulingStore{}
+	handler := NewHandler(store, fixedUser("user-1"))
+	handler.IncludeScheduling = true
+
+	req := httptest.NewRequest(http.MethodPost, "/caldav/calendars/user-1/inbox/",
+		strings.NewReader(minimalSchedulingICS))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.delivered) != 1 {
+		t.Fatalf("delivered count = %d, want 1", len(store.delivered))
+	}
+	if store.delivered[0].UID != "sched-test-uid-1234" {
+		t.Errorf("UID = %q, want sched-test-uid-1234", store.delivered[0].UID)
+	}
+}
+
+func TestHandlerSchedulingPostInboxForbiddenWithoutFlag(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeSchedulingStore{}
+	handler := NewHandler(store, fixedUser("user-1"))
+	// IncludeScheduling defaults to false
+
+	req := httptest.NewRequest(http.MethodPost, "/caldav/calendars/user-1/inbox/",
+		strings.NewReader(minimalSchedulingICS))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 (scheduling not enabled)", rec.Code)
+	}
+}
+
+func TestHandlerSchedulingPostOutboxSends(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeSchedulingStore{}
+	handler := NewHandler(store, fixedUser("user-1"))
+	handler.IncludeScheduling = true
+
+	req := httptest.NewRequest(http.MethodPost, "/caldav/calendars/user-1/outbox/",
+		strings.NewReader(minimalSchedulingICS))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(store.sent))
+	}
+}

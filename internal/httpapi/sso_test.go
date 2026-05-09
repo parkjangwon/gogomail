@@ -257,6 +257,13 @@ func TestSSOInitiateOIDCRedirect(t *testing.T) {
 	if resp.StatusCode != http.StatusFound {
 		t.Errorf("status = %d, want 302", resp.StatusCode)
 	}
+	loc := resp.Header.Get("Location")
+	if !strings.Contains(loc, "code_challenge_method=S256") {
+		t.Errorf("Location %q missing code_challenge_method=S256 (PKCE not applied)", loc)
+	}
+	if !strings.Contains(loc, "code_challenge=") {
+		t.Errorf("Location %q missing code_challenge", loc)
+	}
 }
 
 func TestSSOInitiateDomainNotConfigured(t *testing.T) {
@@ -378,8 +385,12 @@ func TestSSOOIDCCallbackKnownUser(t *testing.T) {
 	email := "bob@example.com"
 	idToken := buildMinimalIDToken(email)
 
-	// Start a mock token endpoint server.
+	var receivedCodeVerifier string
+	// Start a mock token endpoint server that captures code_verifier.
 	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err == nil {
+			receivedCodeVerifier = r.FormValue("code_verifier")
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"id_token": idToken}) //nolint:errcheck
 	}))
@@ -403,7 +414,8 @@ func TestSSOOIDCCallbackKnownUser(t *testing.T) {
 	srv := newSSOFlowServer(svc, tm)
 	defer srv.Close()
 
-	state, err := sso.GenerateOIDCStateForDomain("dom-oidc")
+	// Use PKCE state so code_verifier is forwarded to the token endpoint.
+	state, _, err := sso.GenerateOIDCStateWithPKCE("dom-oidc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -423,6 +435,9 @@ func TestSSOOIDCCallbackKnownUser(t *testing.T) {
 	}
 	if tr.Token == "" {
 		t.Error("expected non-empty token")
+	}
+	if receivedCodeVerifier == "" {
+		t.Error("token endpoint did not receive code_verifier (PKCE not forwarded)")
 	}
 }
 

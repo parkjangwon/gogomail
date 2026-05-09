@@ -107,6 +107,46 @@ func TestParseOIDCStateDomainInvalid(t *testing.T) {
 	}
 }
 
+func TestGenerateOIDCStateWithPKCE(t *testing.T) {
+	state, verifier, err := GenerateOIDCStateWithPKCE("dom-pkce")
+	if err != nil {
+		t.Fatalf("GenerateOIDCStateWithPKCE: %v", err)
+	}
+	if verifier == "" {
+		t.Fatal("expected non-empty code_verifier")
+	}
+	domainID, gotVerifier, err := ParseOIDCStateFields(state)
+	if err != nil {
+		t.Fatalf("ParseOIDCStateFields: %v", err)
+	}
+	if domainID != "dom-pkce" {
+		t.Errorf("domainID = %q, want dom-pkce", domainID)
+	}
+	if gotVerifier != verifier {
+		t.Errorf("code_verifier round-trip mismatch")
+	}
+}
+
+func TestPKCEChallenge(t *testing.T) {
+	// RFC 7636 Appendix B test vector
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	want := "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	got := PKCEChallenge(verifier)
+	if got != want {
+		t.Errorf("PKCEChallenge = %q, want %q", got, want)
+	}
+}
+
+func TestPKCEChallengeNonEmpty(t *testing.T) {
+	challenge := PKCEChallenge("some-verifier-string")
+	if challenge == "" {
+		t.Fatal("expected non-empty PKCE challenge")
+	}
+	if len(challenge) < 32 {
+		t.Errorf("challenge too short: %d", len(challenge))
+	}
+}
+
 func TestParseSAMLNameID(t *testing.T) {
 	xml := []byte(`<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">` +
 		`<saml:Assertion>` +

@@ -100,12 +100,12 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			}
 			http.Redirect(w, r, redirectURL, http.StatusFound)
 		case "oidc":
-			state, err := sso.GenerateOIDCStateForDomain(domainID)
+			state, codeVerifier, err := sso.GenerateOIDCStateWithPKCE(domainID)
 			if err != nil {
 				http.Error(w, "SSO initiation failed", http.StatusInternalServerError)
 				return
 			}
-			redirectURL := buildOIDCRedirectURL(cfg, state, returnURL)
+			redirectURL := buildOIDCRedirectURL(cfg, state, codeVerifier, returnURL)
 			http.Redirect(w, r, redirectURL, http.StatusFound)
 		default:
 			http.Error(w, "unsupported SSO provider", http.StatusBadRequest)
@@ -171,7 +171,7 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 		state := r.URL.Query().Get("state")
-		domainID, err := sso.ParseOIDCStateDomain(state)
+		domainID, codeVerifier, err := sso.ParseOIDCStateFields(state)
 		if err != nil {
 			http.Error(w, "invalid state parameter", http.StatusBadRequest)
 			return
@@ -189,7 +189,7 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
-		idToken, err := exchangeOIDCCode(r.Context(), tokenEndpoint, cfg.ClientID, cfg.ClientSecret, code)
+		idToken, err := exchangeOIDCCode(r.Context(), tokenEndpoint, cfg.ClientID, cfg.ClientSecret, code, codeVerifier)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("OIDC code exchange failed: %v", err), http.StatusUnauthorized)
 			return
@@ -246,13 +246,17 @@ type oidcCodeResponse struct {
 }
 
 // exchangeOIDCCode sends a code exchange request to the OIDC token endpoint
-// and returns the raw ID token string.
-func exchangeOIDCCode(ctx context.Context, tokenURL, clientID, clientSecret, code string) (string, error) {
+// and returns the raw ID token string. codeVerifier is included when PKCE was
+// used in the authorization request (RFC 7636 §4.5).
+func exchangeOIDCCode(ctx context.Context, tokenURL, clientID, clientSecret, code, codeVerifier string) (string, error) {
 	form := url.Values{
 		"grant_type":   {"authorization_code"},
 		"code":         {code},
 		"client_id":    {clientID},
 		"client_secret": {clientSecret},
+	}
+	if codeVerifier != "" {
+		form.Set("code_verifier", codeVerifier)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -302,7 +306,7 @@ func buildSAMLRedirectURL(cfg maildb.SSOConfig, returnURL string) (string, error
 	return cfg.SSOURL, nil
 }
 
-func buildOIDCRedirectURL(cfg maildb.SSOConfig, state, returnURL string) string {
+func buildOIDCRedirectURL(cfg maildb.SSOConfig, state, codeVerifier, returnURL string) string {
 	_ = returnURL
 	base := cfg.SSOURL
 	if base == "" {
@@ -311,5 +315,10 @@ func buildOIDCRedirectURL(cfg maildb.SSOConfig, state, returnURL string) string 
 	if base == "" {
 		return ""
 	}
-	return base + "?client_id=" + cfg.ClientID + "&state=" + state + "&response_type=code&scope=openid+email"
+	u := base + "?client_id=" + cfg.ClientID + "&state=" + state + "&response_type=code&scope=openid+email"
+	if codeVerifier != "" {
+		challenge := sso.PKCEChallenge(codeVerifier)
+		u += "&code_challenge=" + challenge + "&code_challenge_method=S256"
+	}
+	return u
 }

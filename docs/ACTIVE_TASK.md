@@ -7,42 +7,39 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-039
-- **제목**: SSO 플로우 완성 — SAML ACS + OIDC Callback + JIT 프로비저닝 (Phase 3-C 완성)
-- **배경**: TASK-038에서 `/auth/sso/saml/acs`와 `/auth/sso/oidc/callback`이 501 스텁으로 남았다.
-  이번 태스크에서 실제 assertion 파싱·토큰 교환·JIT 프로비저닝·JWT 발급을 완성한다.
+- **ID**: TASK-040
+- **제목**: OIDC PKCE (RFC 7636) — S256 code_challenge + CalDAV IncludeScheduling 활성화
+- **배경**: Phase 3-C item 2는 "PKCE + authorization code flow (RFC 7636)"을 요구하나
+  TASK-038/039에서 state만 사용하고 code_challenge는 미구현. 또한 CalDAV handler의
+  `IncludeScheduling` 플래그가 false로 남아 POST /inbox, /outbox가 403을 반환함.
 - **구현 대상**:
-  - `internal/sso/sso.go` 추가:
-    - `ParseSAMLNameID(xmlData []byte) (string, error)` — SAML XML에서 NameID(email) 추출
-    - `GenerateOIDCStateForDomain(domainID string) (string, error)` — domainID 인코딩 state 생성
-    - `ParseOIDCStateDomain(state string) (string, error)` — state에서 domainID 추출
-    - `ParseIDTokenEmail(idToken string) (string, error)` — JWT payload에서 email 클레임 추출
-  - `internal/maildb/sso_user.go` 신규:
-    - `SSOUserInfo{UserID, DomainID, CompanyID, Email string}`
-    - `GetUserByEmail(ctx, email) (SSOUserInfo, error)`
-    - `JITCreateSSOUser(ctx, email, domainID, displayName string) (SSOUserInfo, error)`
-  - `internal/httpapi/sso.go` 변경:
-    - `SSOFlowService` 인터페이스에 `GetUserByEmail`, `JITCreateSSOUser` 추가
-    - `RegisterSSORoutes(mux, svc, tm *auth.TokenManager)` — tokenManager 인자 추가
-    - SAML ACS 완성: base64 디코드 → XML 파싱 → 사용자 조회/프로비저닝 → JWT 발급
-    - OIDC callback 완성: state 디코딩 → 코드 교환 → ID token 파싱 → JWT 발급
-  - `internal/app/run.go`: `RegisterSSORoutes(mux, repository, tokenManager)` 업데이트
-  - `internal/maildb/sso_user_test.go`: nil-db 테스트
-  - `internal/httpapi/sso_test.go`: SAML ACS + OIDC callback 테스트 추가
+  - `internal/sso/sso.go`:
+    - `GenerateOIDCStateWithPKCE(domainID string) (state, codeVerifier string, error)` — code_verifier 생성 + state 인코딩
+    - `ParseOIDCStateFields(state string) (domainID, codeVerifier string, error)` — state 디코딩 (도메인 + code_verifier 분리)
+    - `PKCEChallenge(verifier string) string` — BASE64URL(SHA256(verifier))
+  - `internal/httpapi/sso.go`:
+    - OIDC initiate: `GenerateOIDCStateWithPKCE` 사용, `code_challenge=S256` 포함
+    - OIDC callback: `ParseOIDCStateFields`로 code_verifier 추출, 토큰 교환 시 전달
+    - `exchangeOIDCCode`에 `codeVerifier string` 인자 추가
+  - `internal/app/run.go`:
+    - `caldavgw.Handler.IncludeScheduling = true` (GOGOMAIL_CALDAV_SCHEDULING 환경변수 게이트)
+  - `internal/config/config.go`: `CalDAVScheduling bool` 필드 추가
+  - 테스트:
+    - `internal/sso/sso_test.go`: PKCE round-trip 테스트
+    - `internal/httpapi/sso_test.go`: OIDC initiate에 code_challenge 포함 검증, callback code_verifier 전달 검증
 - **완료 조건**:
   - [x] `go test ./...` 통과
-  - [x] `ParseSAMLNameID` 단위 테스트 통과
-  - [x] `ParseIDTokenEmail` 단위 테스트 통과
-  - [x] GetUserByEmail / JITCreateSSOUser nil-db 테스트 통과
-  - [x] SAML ACS — SAMLResponse → 200 + JWT 토큰 테스트 통과
-  - [x] OIDC callback — code exchange → 200 + JWT 토큰 테스트 통과
-  - [x] JIT 프로비저닝 — 미존재 사용자 자동 생성 테스트 통과
-- **다음 태스크**: TASK-040
+  - [x] `PKCEChallenge(v)` = `BASE64URL(SHA256(v))` 테스트
+  - [x] OIDC initiate Location 헤더에 `code_challenge_method=S256` 포함
+  - [x] OIDC callback — token endpoint에 `code_verifier` 전달됨
+  - [x] CalDAV POST /inbox (IncludeScheduling=true) → 204 테스트
+- **다음 태스크**: TASK-041
 
 ---
 
 ## 완료됨
 
+- **TASK-039**: SSO 플로우 완성 — SAML ACS + OIDC Callback + JIT 프로비저닝 (Phase 3-C 완성) ✅ (2026-05-09)
 - **TASK-038**: SSO Configuration Admin API + SSO 플로우 핸들러 (Phase 3-C 초기) ✅ (2026-05-09)
 - **TASK-037**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B ✅ (2026-05-09)
 - **TASK-036**: LDAP Gateway (RFC 4511) — Phase 3-A ✅ (2026-05-09)

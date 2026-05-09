@@ -128,15 +128,48 @@ func GenerateOIDCStateForDomain(domainID string) (string, error) {
 
 // ParseOIDCStateDomain extracts the domainID encoded by GenerateOIDCStateForDomain.
 func ParseOIDCStateDomain(state string) (string, error) {
+	domainID, _, err := ParseOIDCStateFields(state)
+	return domainID, err
+}
+
+// GenerateOIDCStateWithPKCE generates a state that encodes both the domainID and a
+// PKCE code_verifier (RFC 7636). The code_verifier is returned separately so the
+// caller can compute the code_challenge for the authorization request.
+func GenerateOIDCStateWithPKCE(domainID string) (state, codeVerifier string, err error) {
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		return "", "", fmt.Errorf("generate PKCE verifier: %w", err)
+	}
+	codeVerifier = base64.RawURLEncoding.EncodeToString(b)
+	raw := domainID + "|" + codeVerifier
+	state = base64.RawURLEncoding.EncodeToString([]byte(raw))
+	return state, codeVerifier, nil
+}
+
+// ParseOIDCStateFields decodes a state produced by either GenerateOIDCStateForDomain
+// or GenerateOIDCStateWithPKCE and returns the domainID and optional codeVerifier.
+// When the state was created without PKCE, codeVerifier is empty.
+func ParseOIDCStateFields(state string) (domainID, codeVerifier string, err error) {
 	b, err := base64.RawURLEncoding.DecodeString(state)
 	if err != nil {
-		return "", fmt.Errorf("invalid OIDC state")
+		return "", "", fmt.Errorf("invalid OIDC state")
 	}
 	parts := strings.SplitN(string(b), "|", 2)
-	if len(parts) != 2 || parts[0] == "" {
-		return "", fmt.Errorf("invalid OIDC state format")
+	if len(parts) < 1 || parts[0] == "" {
+		return "", "", fmt.Errorf("invalid OIDC state format")
 	}
-	return parts[0], nil
+	domainID = parts[0]
+	if len(parts) == 2 {
+		codeVerifier = parts[1]
+	}
+	return domainID, codeVerifier, nil
+}
+
+// PKCEChallenge computes the S256 code_challenge from a code_verifier per RFC 7636.
+// code_challenge = BASE64URL(SHA256(ASCII(code_verifier)))
+func PKCEChallenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
 }
 
 // samlXMLResponse holds the minimal subset of a SAML Response needed to extract NameID.
