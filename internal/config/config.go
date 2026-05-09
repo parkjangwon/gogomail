@@ -41,6 +41,9 @@ type Config struct {
 	CalDAVAllowInsecureAuth             bool
 	CardDAVAddr                         string
 	CardDAVAllowInsecureAuth            bool
+	LDAPAddr                            string
+	LDAPCompanyID                       string
+	LDAPBaseDomain                      string
 	SubmissionAddr                      string
 	SubmissionSMTPSAddr                 string
 	SubmissionMaxConnections            int
@@ -251,6 +254,9 @@ func Load() Config {
 		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
 		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
+		LDAPCompanyID:                       envOrDefault("GOGOMAIL_LDAP_COMPANY_ID", ""),
+		LDAPBaseDomain:                      envOrDefault("GOGOMAIL_LDAP_BASE_DOMAIN", ""),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
 		SubmissionSMTPSAddr:                 envOrDefault("GOGOMAIL_SUBMISSION_SMTPS_ADDR", ""),
 		SubmissionMaxConnections:            intEnvOrDefault("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", 0),
