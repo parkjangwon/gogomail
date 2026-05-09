@@ -147,16 +147,18 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
+		samlCfg, _ := svc.GetSSOConfig(r.Context(), domainID)
+		ttl := ssoSessionTTL(samlCfg)
 		token, err := tm.Sign(auth.Claims{
 			UserID:   info.UserID,
 			DomainID: info.DomainID,
 			Role:     "user",
-		}, 15*time.Minute)
+		}, ttl)
 		if err != nil {
 			http.Error(w, "token issuance failed", http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: 900})
+		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: int(ttl.Seconds())})
 	})
 
 	// GET /auth/sso/oidc/callback?code=&state=
@@ -207,17 +209,27 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
+		ttl := ssoSessionTTL(cfg)
 		token, err := tm.Sign(auth.Claims{
 			UserID:   info.UserID,
 			DomainID: info.DomainID,
 			Role:     "user",
-		}, 15*time.Minute)
+		}, ttl)
 		if err != nil {
 			http.Error(w, "token issuance failed", http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: 900})
+		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: int(ttl.Seconds())})
 	})
+}
+
+// ssoSessionTTL returns the per-domain JWT lifetime from the SSO config.
+// Defaults to 15 minutes when SessionTTLSeconds is zero.
+func ssoSessionTTL(cfg maildb.SSOConfig) time.Duration {
+	if cfg.SessionTTLSeconds > 0 {
+		return time.Duration(cfg.SessionTTLSeconds) * time.Second
+	}
+	return 15 * time.Minute
 }
 
 // ssoLookupOrProvision finds the user by email; if not found and the SSO config

@@ -17,9 +17,10 @@ type SSOConfig struct {
 	ClientSecret    string    `json:"client_secret,omitempty"`
 	DiscoveryURL    string    `json:"discovery_url,omitempty"`
 	ACSURL          string    `json:"acs_url,omitempty"`
-	JITProvisioning bool      `json:"jit_provisioning"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	JITProvisioning    bool      `json:"jit_provisioning"`
+	SessionTTLSeconds  int       `json:"session_ttl_seconds"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 func ValidateSSOConfig(cfg SSOConfig) error {
@@ -47,7 +48,8 @@ SELECT domain_id::text, provider,
        COALESCE(entity_id, ''), COALESCE(sso_url, ''),
        COALESCE(certificate, ''), COALESCE(client_id, ''),
        COALESCE(client_secret, ''), COALESCE(discovery_url, ''),
-       COALESCE(acs_url, ''), jit_provisioning, created_at, updated_at
+       COALESCE(acs_url, ''), jit_provisioning, session_ttl_seconds,
+       created_at, updated_at
 FROM sso_configurations
 WHERE domain_id = $1::uuid`
 	var cfg SSOConfig
@@ -56,7 +58,7 @@ WHERE domain_id = $1::uuid`
 		&cfg.EntityID, &cfg.SSOURL,
 		&cfg.Certificate, &cfg.ClientID,
 		&cfg.ClientSecret, &cfg.DiscoveryURL,
-		&cfg.ACSURL, &cfg.JITProvisioning,
+		&cfg.ACSURL, &cfg.JITProvisioning, &cfg.SessionTTLSeconds,
 		&cfg.CreatedAt, &cfg.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -75,25 +77,28 @@ func (r *Repository) UpsertSSOConfig(ctx context.Context, cfg SSOConfig) error {
 	const query = `
 INSERT INTO sso_configurations
   (domain_id, provider, entity_id, sso_url, certificate,
-   client_id, client_secret, discovery_url, acs_url, jit_provisioning)
-VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+   client_id, client_secret, discovery_url, acs_url, jit_provisioning,
+   session_ttl_seconds)
+VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (domain_id) DO UPDATE SET
-  provider         = EXCLUDED.provider,
-  entity_id        = EXCLUDED.entity_id,
-  sso_url          = EXCLUDED.sso_url,
-  certificate      = EXCLUDED.certificate,
-  client_id        = EXCLUDED.client_id,
-  client_secret    = EXCLUDED.client_secret,
-  discovery_url    = EXCLUDED.discovery_url,
-  acs_url          = EXCLUDED.acs_url,
-  jit_provisioning = EXCLUDED.jit_provisioning,
-  updated_at       = NOW()`
+  provider            = EXCLUDED.provider,
+  entity_id           = EXCLUDED.entity_id,
+  sso_url             = EXCLUDED.sso_url,
+  certificate         = EXCLUDED.certificate,
+  client_id           = EXCLUDED.client_id,
+  client_secret       = EXCLUDED.client_secret,
+  discovery_url       = EXCLUDED.discovery_url,
+  acs_url             = EXCLUDED.acs_url,
+  jit_provisioning    = EXCLUDED.jit_provisioning,
+  session_ttl_seconds = EXCLUDED.session_ttl_seconds,
+  updated_at          = NOW()`
 	_, err := r.db.ExecContext(ctx, query,
 		cfg.DomainID, cfg.Provider,
 		cfg.EntityID, cfg.SSOURL,
 		cfg.Certificate, cfg.ClientID,
 		cfg.ClientSecret, cfg.DiscoveryURL,
 		cfg.ACSURL, cfg.JITProvisioning,
+		cfg.SessionTTLSeconds,
 	)
 	return err
 }

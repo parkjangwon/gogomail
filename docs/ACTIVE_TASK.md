@@ -7,38 +7,37 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-040
-- **제목**: OIDC PKCE (RFC 7636) — S256 code_challenge + CalDAV IncludeScheduling 활성화
-- **배경**: Phase 3-C item 2는 "PKCE + authorization code flow (RFC 7636)"을 요구하나
-  TASK-038/039에서 state만 사용하고 code_challenge는 미구현. 또한 CalDAV handler의
-  `IncludeScheduling` 플래그가 false로 남아 POST /inbox, /outbox가 403을 반환함.
+- **ID**: TASK-042
+- **제목**: DNS SRV 자동발견 — CalDAV/CardDAV `_caldavs._tcp` / `_carddavs._tcp` (Phase 4-B item 5)
+- **배경**: TASK-023에서 `/.well-known/caldav` 와 `/.well-known/carddav` Well-Known URI(RFC 6764 §5)를 구현했다.
+  iOS/macOS Calendar·Contacts 앱은 그 전에 DNS SRV 레코드(`_caldavs._tcp.domain`, `_carddavs._tcp.domain`)를 조회한다(RFC 6764 §3).
+  운영자가 레코드 설정을 검증할 수 있는 Admin API가 없고, SRV → Well-Known 전체 파이프라인 검증 도구도 없다.
 - **구현 대상**:
-  - `internal/sso/sso.go`:
-    - `GenerateOIDCStateWithPKCE(domainID string) (state, codeVerifier string, error)` — code_verifier 생성 + state 인코딩
-    - `ParseOIDCStateFields(state string) (domainID, codeVerifier string, error)` — state 디코딩 (도메인 + code_verifier 분리)
-    - `PKCEChallenge(verifier string) string` — BASE64URL(SHA256(verifier))
-  - `internal/httpapi/sso.go`:
-    - OIDC initiate: `GenerateOIDCStateWithPKCE` 사용, `code_challenge=S256` 포함
-    - OIDC callback: `ParseOIDCStateFields`로 code_verifier 추출, 토큰 교환 시 전달
-    - `exchangeOIDCCode`에 `codeVerifier string` 인자 추가
-  - `internal/app/run.go`:
-    - `caldavgw.Handler.IncludeScheduling = true` (GOGOMAIL_CALDAV_SCHEDULING 환경변수 게이트)
-  - `internal/config/config.go`: `CalDAVScheduling bool` 필드 추가
-  - 테스트:
-    - `internal/sso/sso_test.go`: PKCE round-trip 테스트
-    - `internal/httpapi/sso_test.go`: OIDC initiate에 code_challenge 포함 검증, callback code_verifier 전달 검증
+  - `internal/httpapi/dnsdisc.go`:
+    - `SRVResult` struct (Host, Port, Priority, Weight)
+    - `LookupCalDAVSRV(ctx, domain string) ([]SRVResult, error)` — `_caldavs._tcp.{domain}` 조회
+    - `LookupCardDAVSRV(ctx, domain string) ([]SRVResult, error)` — `_carddavs._tcp.{domain}` 조회
+    - `DNSDiscoveryChecker` struct: resolver 주입 가능 (테스트용 mock)
+    - `CheckAutodiscovery(ctx, domain string) AutodiscoveryReport` — SRV + Well-Known 통합 검증
+  - `internal/httpapi/dnsdisc_test.go`:
+    - mock resolver로 SRV 응답 테스트
+    - SRV 없을 때 fallback Well-Known only 동작 테스트
+  - `internal/httpapi/routes.go` (또는 `run.go`):
+    - `GET /admin/v1/autodiscovery/check?domain=X` — `AutodiscoveryReport` JSON 반환
+  - `internal/httpapi/dnsdisc_handler_test.go`: HTTP handler 통합 테스트
 - **완료 조건**:
-  - [x] `go test ./...` 통과
-  - [x] `PKCEChallenge(v)` = `BASE64URL(SHA256(v))` 테스트
-  - [x] OIDC initiate Location 헤더에 `code_challenge_method=S256` 포함
-  - [x] OIDC callback — token endpoint에 `code_verifier` 전달됨
-  - [x] CalDAV POST /inbox (IncludeScheduling=true) → 204 테스트
-- **다음 태스크**: TASK-041
+  - [ ] `go test ./...` 통과
+  - [ ] `LookupCalDAVSRV` / `LookupCardDAVSRV` mock resolver 테스트 통과
+  - [ ] `/admin/v1/autodiscovery/check?domain=X` 200 + JSON report 반환
+  - [ ] SRV 없을 때 report에 `srv_found: false` 포함
+- **다음 태스크**: TASK-043
 
 ---
 
 ## 완료됨
 
+- **TASK-041**: SSO DB 마이그레이션 + 도메인별 세션 수명 (Phase 3-C item 5) ✅ (2026-05-09)
+- **TASK-040**: OIDC PKCE (RFC 7636) + CalDAV IncludeScheduling 활성화 ✅ (2026-05-09)
 - **TASK-039**: SSO 플로우 완성 — SAML ACS + OIDC Callback + JIT 프로비저닝 (Phase 3-C 완성) ✅ (2026-05-09)
 - **TASK-038**: SSO Configuration Admin API + SSO 플로우 핸들러 (Phase 3-C 초기) ✅ (2026-05-09)
 - **TASK-037**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B ✅ (2026-05-09)
