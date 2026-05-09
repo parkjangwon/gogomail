@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
+
+	"github.com/miekg/dns"
 )
 
 // TLSARecord represents a DNS TLSA record (RFC 6698).
@@ -152,13 +155,49 @@ type NetResolver struct {
 	*net.Resolver
 }
 
-// LookupTLSA queries DNS for TLSA records in wire format.
-// This is a simplified implementation; production would decode wire format.
+// LookupTLSA queries DNS for TLSA records at _port._proto.domain (RFC 6698 §3.1).
+// Returns parsed TLSA records from DNS wire format.
 func (r *NetResolver) LookupTLSA(ctx context.Context, domain string) ([]TLSARecord, error) {
-	// TLSA records are in DNS type 52
-	// Go's net.LookupTXT can't directly query TLSA, so this would use:
-	// - Custom DNS library (dns/dns)
-	// - Or delegate to external tool
-	// For now, return empty (no DANE policy enforced)
-	return nil, nil
+	// Query _25._tcp.domain for SMTP (RFC 6698)
+	tlsaDomain := "_25._tcp." + domain
+
+	client := &dns.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	msg := &dns.Msg{}
+	msg.SetQuestion(dns.Fqdn(tlsaDomain), dns.TypeTLSA)
+	msg.RecursionDesired = true
+
+	// Query default nameservers
+	resp, _, err := client.ExchangeContext(ctx, msg, "")
+	if err != nil {
+		return nil, fmt.Errorf("dns query: %w", err)
+	}
+
+	if resp.Rcode != dns.RcodeSuccess {
+		return nil, fmt.Errorf("dns query failed: rcode=%d", resp.Rcode)
+	}
+
+	var records []TLSARecord
+	for _, answer := range resp.Answer {
+		tlsaRR, ok := answer.(*dns.TLSA)
+		if !ok {
+			continue
+		}
+
+		record := TLSARecord{
+			Usage:        int(tlsaRR.Usage),
+			Selector:     int(tlsaRR.Selector),
+			MatchingType: int(tlsaRR.MatchingType),
+			Association:  tlsaRR.Certificate, // Already hex-encoded by miekg/dns
+		}
+		records = append(records, record)
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("no TLSA records found")
+	}
+
+	return records, nil
 }
