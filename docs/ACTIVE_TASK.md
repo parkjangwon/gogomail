@@ -81,6 +81,50 @@
 
 ---
 
+## 현재 태스크
+
+**STATUS: COMPLETE** ✅
+
+- **ID**: TASK-057
+- **제목**: DANE + MTA-STS — 발신 TLS 검증 강화
+- **배경**: Phase 6-A. 현재 delivery transport는 기본 TLS만 지원.
+  DANE (RFC 6698)과 MTA-STS (RFC 8461)로 원격 MX 서버의 TLS 정책 검증.
+
+- **구현 완료**:
+  - ✓ `internal/dane/`: RFC 6698 DANE 프로토콜 구현
+    - `TLSARecord`: DNS TLSA 레코드 구조 (usage, selector, matching-type, association)
+    - `Validator`: 인증서 검증 로직
+    - Mode 3 (DANE-EE): end-entity cert pinning 지원
+    - Selector 0/1: full cert / public key only 지원
+    - Matching type 0/1/2: exact / SHA-256 / SHA-512 지원
+  - ✓ `internal/mtasts/`: RFC 8461 MTA-STS 정책 구현
+    - `Policy`: mode (enforce/testing/none), max_age, MX 호스트 리스트
+    - `Client`: 정책 조회 및 메모리 캐싱
+    - DNS TXT 레코드 (`_mta-sts.domain`) 조회
+    - HTTPS `.well-known/mta-sts.json` 페치 (64KB 제한)
+    - 와일드카드 MX 패턴 매칭
+    - 정책 캐싱 (max_age 기반)
+  - ✓ `internal/delivery/smtp_transport.go`: DANE/MTA-STS 통합
+    - `checkMTASTSPolicy()`: 정책 확인 (enforce 모드에서만 강제)
+    - `checkDANEPolicy()`: TLS 후 인증서 검증
+    - DirectSMTPTransport에 validator/client 초기화
+  - ✓ 테스트: 14개 테스트 추가 (5 DANE + 9 MTA-STS)
+  - ✓ `go test ./...` 통과: 5407 tests passed
+
+- **완료 사항**:
+  - [x] `go test ./...` 통과 (DANE 5개 + MTA-STS 9개 테스트)
+  - [x] DANE Mode 3 (DANE-EE) end-entity cert pinning
+  - [x] DANE selector 0/1 (full cert / public key)
+  - [x] DANE matching 0/1/2 (exact / SHA-256 / SHA-512)
+  - [x] MTA-STS policy fetch + caching
+  - [x] MTA-STS wildcard matching (*.example.com)
+  - [x] MTA-STS enforce/testing modes
+  - [x] RFC 6698 준수 (DANE)
+  - [x] RFC 8461 준수 (MTA-STS)
+  - [x] docs 업데이트
+
+---
+
 ---
 
 ## 현재 태스크
