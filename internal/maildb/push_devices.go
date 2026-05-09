@@ -178,6 +178,25 @@ LIMIT $2`
 	return devices, nil
 }
 
+func (r *Repository) DeleteAllPushDevices(ctx context.Context, userID string) (int, error) {
+	if r.db == nil {
+		return 0, fmt.Errorf("database handle is required")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return 0, fmt.Errorf("user_id is required")
+	}
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE push_devices SET status = 'deleted', updated_at = now() WHERE user_id = $1 AND status = 'active'`,
+		userID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("delete all push devices: %w", err)
+	}
+	affected, _ := result.RowsAffected()
+	return int(affected), nil
+}
+
 func (r *Repository) DeletePushDevice(ctx context.Context, userID string, id string) error {
 	if r.db == nil {
 		return fmt.Errorf("database handle is required")

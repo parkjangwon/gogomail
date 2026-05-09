@@ -19,6 +19,11 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-022 | POP3 게이트웨이 런타임 통합 | 완료 |
 | TASK-023 | Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 | 완료 |
 | TASK-024 | WebDAV Quota (RFC 4331) — quota-used-bytes / quota-available-bytes | 완료 |
+| TASK-025 | Milter 클라이언트 (RFC 5764) — SMTP 필터 프로토콜 | 완료 |
+| TASK-026 | Milter Hook — SMTP 파이프라인 연동 | 완료 |
+| TASK-027 | DNSBL/RBL 체크 (RFC 5782) — 멀티존 IP 블랙리스트 | 완료 |
+| TASK-028 | Push Notification 패키지 (FCM/APNs/WebPush) | 완료 |
+| TASK-029 | 디바이스 토큰 Admin API (Phase 7-A 완성) | 완료 |
 
 ### TASK-023 상세
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
