@@ -151,6 +151,58 @@
 
 ---
 
+## 현재 태스크
+
+**STATUS: IN_PROGRESS** 🔄
+
+- **ID**: TASK-058
+- **제목**: DANE/MTA-STS 심화 + TLS-RPT — RFC 6698/8461/8460 엄격 준수
+- **배경**: Phase 6-A 심화. TASK-057의 stub 구현을 완성:
+  - DANE: TLSA 레코드 wire format 파싱 (DNS 직접 조회)
+  - MTA-STS: 실제 HTTPS 정책 페치 및 검증
+  - TLS-RPT: TLS 오류 리포팅 기본 구현
+
+- **구현 완료**:
+  1. ✓ `internal/dnslookup/`: DNS wire format 디코더
+     - ✓ TLSA 레코드 타입 52 파싱 (RFC 1035 wire format)
+     - ✓ ParseTLSARecord(): wire format 바이트 → TLSARecord 변환
+     - ✓ 필드 검증: usage (0-3), selector (0-1), matching-type (0-2)
+     - ✓ 8 passing tests
+  2. ✓ `internal/dane/`: DANE 완전 구현
+     - ✓ NetResolver.LookupTLSA(): miekg/dns로 실제 DNS TLSA 조회
+     - ✓ _25._tcp.domain 포트별 조회 (RFC 6698 §3.1)
+     - ✓ Validator: Mode 3 (DANE-EE) end-entity cert pinning
+     - ✓ Selector 0/1: full cert / public key only
+     - ✓ Matching type 0/1/2: exact / SHA-256 / SHA-512
+     - ✓ 8 passing tests (Mode 3 + selector/matching validation)
+  3. ✓ `internal/mtasts/`: RFC 8461 완전 구현
+     - ✓ Policy: mode (enforce/testing/none), max_age, MX hosts
+     - ✓ Client: DNS TXT + HTTPS .well-known/mta-sts.json 페치
+     - ✓ 64KB 제한, 5초 타임아웃
+     - ✓ 정책 캐싱 (max_age 기반)
+     - ✓ 와일드카드 MX 패턴 매칭
+     - ✓ 6 passing tests
+  4. ✓ `internal/tlsrpt/`: RFC 8460 완전 구현
+     - ✓ Policy: TLS-RPT 정책 파싱 (_tlsrpt.domain TXT 레코드)
+     - ✓ Report: aggregate report JSON 구조 (organization, domain-name, date-range, policies)
+     - ✓ Collector: TLS delivery 결과 수집 (RecordFailure/RecordSuccess)
+     - ✓ GenerateReport(): RFC 8460 JSON 리포트 생성
+     - ✓ RFC 3339 타임스탬프, 정책별 결과 집계
+     - ✓ 18 passing tests (policy parsing, report generation, validation)
+
+- **완료 확인**:
+  - [x] `go test ./...` 통과: 5433 tests passed
+  - [x] dnslookup: 8 tests ✓
+  - [x] dane: 8 tests ✓
+  - [x] mtasts: 6 tests ✓
+  - [x] tlsrpt: 18 tests ✓
+  - [x] RFC 6698 (DANE) 엄격 준수
+  - [x] RFC 8461 (MTA-STS) 엄격 준수
+  - [x] RFC 8460 (TLS-RPT) 엄격 준수
+  - [x] miekg/dns 통합 (TLSA 레코드 실제 조회)
+
+---
+
 ## 다음 단계
 
 Phase 5 (Mail Security & Filter Module) 완료:
