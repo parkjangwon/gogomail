@@ -161,8 +161,20 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 15*time.Minute)
 
+	mfaGraceRepository := maildb.NewRepository(db)
 	registry.Register("mfa-grace-period", func() error {
-		logger.Info("running MFA grace period check")
+		expired, err := mfaGraceRepository.FindExpiredMFAGraceUsers(ctx, 500)
+		if err != nil {
+			logger.Error("mfa grace period check failed", "error", err)
+			return err
+		}
+		for _, userID := range expired {
+			logger.Warn("MFA grace period expired, enforcement pending", "user_id", userID)
+			if err := mfaGraceRepository.ClearMFAGraceDeadline(ctx, userID); err != nil {
+				logger.Error("clear mfa grace deadline failed", "user_id", userID, "error", err)
+			}
+		}
+		logger.Info("mfa grace period check completed", "enforced", len(expired))
 		return nil
 	}, 1*time.Hour)
 
