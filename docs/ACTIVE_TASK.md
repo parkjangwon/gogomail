@@ -7,35 +7,33 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-042
-- **제목**: DNS SRV 자동발견 — CalDAV/CardDAV `_caldavs._tcp` / `_carddavs._tcp` (Phase 4-B item 5)
-- **배경**: TASK-023에서 `/.well-known/caldav` 와 `/.well-known/carddav` Well-Known URI(RFC 6764 §5)를 구현했다.
-  iOS/macOS Calendar·Contacts 앱은 그 전에 DNS SRV 레코드(`_caldavs._tcp.domain`, `_carddavs._tcp.domain`)를 조회한다(RFC 6764 §3).
-  운영자가 레코드 설정을 검증할 수 있는 Admin API가 없고, SRV → Well-Known 전체 파이프라인 검증 도구도 없다.
+- **ID**: TASK-043
+- **제목**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4)
+- **배경**: `run.go`의 `mfa-grace-period` 잡은 현재 no-op 스텁. Phase 2-C item 4("MFAGracePeriodJob — 2FA 유예기간 만료 사용자 처리")를 실제 구현해야 한다.
+  도메인 정책으로 MFA가 필수이나 아직 설정하지 않은 사용자에게 유예기간을 부여하고,
+  기한 경과 시 배치 잡이 이를 감지해 이벤트를 emit한다.
 - **구현 대상**:
-  - `internal/httpapi/dnsdisc.go`:
-    - `SRVResult` struct (Host, Port, Priority, Weight)
-    - `LookupCalDAVSRV(ctx, domain string) ([]SRVResult, error)` — `_caldavs._tcp.{domain}` 조회
-    - `LookupCardDAVSRV(ctx, domain string) ([]SRVResult, error)` — `_carddavs._tcp.{domain}` 조회
-    - `DNSDiscoveryChecker` struct: resolver 주입 가능 (테스트용 mock)
-    - `CheckAutodiscovery(ctx, domain string) AutodiscoveryReport` — SRV + Well-Known 통합 검증
-  - `internal/httpapi/dnsdisc_test.go`:
-    - mock resolver로 SRV 응답 테스트
-    - SRV 없을 때 fallback Well-Known only 동작 테스트
-  - `internal/httpapi/routes.go` (또는 `run.go`):
-    - `GET /admin/v1/autodiscovery/check?domain=X` — `AutodiscoveryReport` JSON 반환
-  - `internal/httpapi/dnsdisc_handler_test.go`: HTTP handler 통합 테스트
+  - `migrations/0078_mfa_grace_deadline.sql`:
+    `user_mfa_secrets` 테이블에 `mfa_grace_deadline TIMESTAMPTZ NULL` 컬럼 추가
+  - `internal/maildb/mfa_grace.go`:
+    - `SetMFAGraceDeadline(ctx context.Context, userID string, deadline time.Time) error`
+    - `FindExpiredMFAGraceUsers(ctx context.Context, limit int) ([]string, error)` — `enabled=false AND mfa_grace_deadline IS NOT NULL AND mfa_grace_deadline < now()`
+    - `ClearMFAGraceDeadline(ctx context.Context, userID string) error` — 처리 완료 후 null 초기화
+  - `internal/maildb/mfa_grace_test.go`: nil-db 테스트
+  - `internal/app/run.go`: `mfa-grace-period` 잡에 실제 로직 연결
+    — `FindExpiredMFAGraceUsers` 호출 → 각 userID 로그 + `ClearMFAGraceDeadline` 호출
 - **완료 조건**:
   - [ ] `go test ./...` 통과
-  - [ ] `LookupCalDAVSRV` / `LookupCardDAVSRV` mock resolver 테스트 통과
-  - [ ] `/admin/v1/autodiscovery/check?domain=X` 200 + JSON report 반환
-  - [ ] SRV 없을 때 report에 `srv_found: false` 포함
-- **다음 태스크**: TASK-043
+  - [ ] 마이그레이션 파일 0078 존재
+  - [ ] `FindExpiredMFAGraceUsers` nil-db 테스트 통과
+  - [ ] `mfa-grace-period` 잡이 no-op 스텁에서 실제 DB 조회로 교체됨
+- **다음 태스크**: TASK-044
 
 ---
 
 ## 완료됨
 
+- **TASK-042**: DNS SRV 자동발견 — CalDAV/CardDAV (Phase 4-B item 5) ✅ (2026-05-09)
 - **TASK-041**: SSO DB 마이그레이션 + 도메인별 세션 수명 (Phase 3-C item 5) ✅ (2026-05-09)
 - **TASK-040**: OIDC PKCE (RFC 7636) + CalDAV IncludeScheduling 활성화 ✅ (2026-05-09)
 - **TASK-039**: SSO 플로우 완성 — SAML ACS + OIDC Callback + JIT 프로비저닝 (Phase 3-C 완성) ✅ (2026-05-09)
