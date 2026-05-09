@@ -2551,6 +2551,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		httpapi.RegisterSSOAdminRoutes(mux, repository, cfg.AdminToken)
 		httpapi.RegisterSSORoutes(mux, repository, tokenManager)
 		logger.Info("sso routes registered")
+		httpapi.RegisterAutodiscoveryRoutes(mux, cfg.AdminToken, httpapi.NewDNSDiscoveryChecker())
 	}
 
 	var meteringDB *sql.DB
