@@ -117,3 +117,80 @@ func TestAuthWebDAVPutRequiresBearerToken(t *testing.T) {
 		t.Fatalf("PUT without bearer: status = %d, want 401", rec.Code)
 	}
 }
+
+// TestAuthWebDAVBasicAuthHTTPSRequired verifies that Basic auth is rejected over HTTP.
+// Note: In httptest, requests are not HTTPS, so this test verifies the HTTP rejection.
+func TestAuthWebDAVBasicAuthHTTPSRequired(t *testing.T) {
+	t.Parallel()
+
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+
+	service := &fakeWebDAVService{
+		nodes: []drive.Node{},
+	}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
+
+	// Basic auth over HTTP should be rejected with 403 Forbidden.
+	token, err := tm.Sign(auth.Claims{UserID: "user-basic", DomainID: "dom-1", Role: "user"}, 15*time.Minute)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
+	req.Header.Set("Depth", "1")
+	req.SetBasicAuth("user-basic", token) // username: user-basic, password: token
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("basic auth over HTTP: status = %d, want 403", rec.Code)
+	}
+}
+
+// TestAuthWebDAVBasicAuthMissingPassword verifies Basic auth fails if password (token) is invalid.
+func TestAuthWebDAVBasicAuthMissingPassword(t *testing.T) {
+	t.Parallel()
+
+	tm, err := auth.NewTokenManager("test-secret-webdav-auth")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+
+	service := &fakeWebDAVService{}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
+
+	// Basic auth with invalid password (not a valid token).
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
+	req.Header.Set("Depth", "1")
+	req.SetBasicAuth("user-test", "not-a-valid-token")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("basic auth over HTTP with invalid token: status = %d, want 403 (HTTP not HTTPS)", rec.Code)
+	}
+}
+
+// TestAuthWebDAVNoAuthWithoutTokenManager verifies that when TokenManager is nil, requests are rejected.
+func TestAuthWebDAVNoAuthWithoutTokenManager(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeWebDAVService{}
+	mux := http.NewServeMux()
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: nil})
+
+	// Without TokenManager and no Authorization header, should be rejected.
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("no token manager: status = %d, want 401", rec.Code)
+	}
+}

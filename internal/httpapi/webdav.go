@@ -114,21 +114,25 @@ func (h *webdavHandler) observe(ctx context.Context, method WebDAVMetricMethod, 
 }
 
 // webdavUserID extracts the authenticated user ID from the request.
-// When a TokenManager is configured it requires a valid Bearer token and
-// extracts the user ID from the verified claims, enforcing user isolation.
-// Without a TokenManager it falls back to the user_id query param or
-// X-WebDAV-User-ID header (test/dev environments only).
+// Requires a TokenManager configured. Supports Bearer token (primary) or Basic auth over HTTPS.
+// Bearer token is checked first; Basic auth is only allowed over HTTPS.
+// User ID is extracted from verified token claims, enforcing user isolation.
 func (h *webdavHandler) webdavUserID(w http.ResponseWriter, r *http.Request) (string, bool) {
-	if h.opts.TokenManager != nil {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "authorization required", http.StatusUnauthorized)
-			return "", false
-		}
-		if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
-			http.Error(w, "bearer token required", http.StatusUnauthorized)
-			return "", false
-		}
+	if h.opts.TokenManager == nil {
+		http.Error(w, "authentication not configured", http.StatusUnauthorized)
+		return "", false
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "authorization required", http.StatusUnauthorized)
+		return "", false
+	}
+
+	authHeaderLower := strings.ToLower(authHeader)
+
+	// Try Bearer token first
+	if strings.HasPrefix(authHeaderLower, "bearer ") {
 		token := strings.TrimSpace(authHeader[len("bearer "):])
 		if token == "" {
 			http.Error(w, "bearer token required", http.StatusUnauthorized)
@@ -141,15 +145,40 @@ func (h *webdavHandler) webdavUserID(w http.ResponseWriter, r *http.Request) (st
 		}
 		return claims.UserID, true
 	}
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
+
+	// Try Basic auth
+	if strings.HasPrefix(authHeaderLower, "basic ") {
+		// Basic auth only allowed over HTTPS
+		isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+		if !isHTTPS {
+			http.Error(w, "basic auth requires https", http.StatusForbidden)
+			return "", false
+		}
+
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			http.Error(w, "invalid basic auth", http.StatusUnauthorized)
+			return "", false
+		}
+
+		claims, err := h.opts.TokenManager.VerifyFull(r.Context(), password)
+		if err != nil {
+			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+			return "", false
+		}
+
+		// Verify username matches the token claims
+		if username != claims.UserID {
+			http.Error(w, "username does not match token", http.StatusUnauthorized)
+			return "", false
+		}
+
+		return claims.UserID, true
 	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
-		return "", false
-	}
-	return userID, true
+
+	// Authorization header present but neither Bearer nor Basic
+	http.Error(w, "bearer token or basic auth required", http.StatusUnauthorized)
+	return "", false
 }
 
 func (h *webdavHandler) handleOptions(w http.ResponseWriter, r *http.Request) {
