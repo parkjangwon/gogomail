@@ -391,6 +391,24 @@ func parseContentRangeNumber(s string) (int64, error) {
 	return n, nil
 }
 
+// ValidateChunkSequence checks that a content-range chunk is the next expected
+// chunk for an upload session. The chunk's Start must equal session.ReceivedSize
+// (the number of bytes already received) so chunks arrive in order.
+// Out-of-order and duplicate chunks are rejected.
+// Zero-value and asterisk-form ranges are accepted (treated as complete uploads).
+func ValidateChunkSequence(contentRange ContentRange, session UploadSession) error {
+	if contentRange.IsAsteriskForm || contentRange == (ContentRange{}) {
+		return nil
+	}
+	if contentRange.Start != session.ReceivedSize {
+		return fmt.Errorf(
+			"chunk out of order: content-range start %d does not match expected offset %d",
+			contentRange.Start, session.ReceivedSize,
+		)
+	}
+	return nil
+}
+
 func ValidateContentRangeComplete(contentRange ContentRange, declaredSize int64) error {
 	if declaredSize == 0 {
 		return fmt.Errorf("upload session declared size is zero, content-range header is invalid")
