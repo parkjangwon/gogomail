@@ -2,9 +2,16 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/sso"
 )
@@ -16,9 +23,17 @@ type SSOAdminService interface {
 	DeleteSSOConfig(ctx context.Context, domainID string) error
 }
 
-// SSOFlowService provides the SSO initiation redirect URL.
+// SSOFlowService provides the SSO initiation and assertion handling.
 type SSOFlowService interface {
 	GetSSOConfig(ctx context.Context, domainID string) (maildb.SSOConfig, error)
+	GetUserByEmail(ctx context.Context, email string) (maildb.SSOUserInfo, error)
+	JITCreateSSOUser(ctx context.Context, email, domainID, displayName string) (maildb.SSOUserInfo, error)
+}
+
+// ssoTokenResponse is the JSON body returned after a successful SSO login.
+type ssoTokenResponse struct {
+	Token     string `json:"token"`
+	ExpiresIn int    `json:"expires_in"`
 }
 
 // RegisterSSOAdminRoutes mounts /admin/v1/sso-configurations CRUD on mux.
@@ -59,8 +74,9 @@ func RegisterSSOAdminRoutes(mux *http.ServeMux, svc SSOAdminService, token strin
 }
 
 // RegisterSSORoutes mounts /auth/sso/* flow endpoints on mux.
-func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService) {
-	// GET /auth/sso/initiate?domain={domainID}&return={url}
+// tm may be nil; in that case ACS and callback endpoints return 503.
+func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenManager) {
+	// GET /auth/sso/initiate?domain={domainID}
 	mux.HandleFunc("GET /auth/sso/initiate", func(w http.ResponseWriter, r *http.Request) {
 		domainID := r.URL.Query().Get("domain")
 		if domainID == "" {
@@ -84,7 +100,7 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService) {
 			}
 			http.Redirect(w, r, redirectURL, http.StatusFound)
 		case "oidc":
-			state, err := sso.GenerateOIDCState()
+			state, err := sso.GenerateOIDCStateForDomain(domainID)
 			if err != nil {
 				http.Error(w, "SSO initiation failed", http.StatusInternalServerError)
 				return
@@ -98,13 +114,174 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService) {
 
 	// POST /auth/sso/saml/acs — SAML Assertion Consumer Service
 	mux.HandleFunc("POST /auth/sso/saml/acs", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "SAML ACS: full assertion validation not yet implemented", http.StatusNotImplemented)
+		if tm == nil {
+			http.Error(w, "token manager not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		encoded := r.FormValue("SAMLResponse")
+		if encoded == "" {
+			http.Error(w, "SAMLResponse is required", http.StatusBadRequest)
+			return
+		}
+		domainID := r.FormValue("RelayState")
+
+		xmlData, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			http.Error(w, "invalid SAMLResponse encoding", http.StatusBadRequest)
+			return
+		}
+
+		email, err := sso.ParseSAMLNameID(xmlData)
+		if err != nil {
+			http.Error(w, "could not extract NameID from SAML assertion", http.StatusBadRequest)
+			return
+		}
+
+		info, err := ssoLookupOrProvision(r.Context(), svc, email, domainID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("SSO user resolution failed: %v", err), http.StatusUnauthorized)
+			return
+		}
+
+		token, err := tm.Sign(auth.Claims{
+			UserID:   info.UserID,
+			DomainID: info.DomainID,
+			Role:     "user",
+		}, 15*time.Minute)
+		if err != nil {
+			http.Error(w, "token issuance failed", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: 900})
 	})
 
-	// GET /auth/sso/oidc/callback
+	// GET /auth/sso/oidc/callback?code=&state=
 	mux.HandleFunc("GET /auth/sso/oidc/callback", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "OIDC callback: token exchange not yet implemented", http.StatusNotImplemented)
+		if tm == nil {
+			http.Error(w, "token manager not configured", http.StatusServiceUnavailable)
+			return
+		}
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "code parameter is required", http.StatusBadRequest)
+			return
+		}
+		state := r.URL.Query().Get("state")
+		domainID, err := sso.ParseOIDCStateDomain(state)
+		if err != nil {
+			http.Error(w, "invalid state parameter", http.StatusBadRequest)
+			return
+		}
+
+		cfg, err := svc.GetSSOConfig(r.Context(), domainID)
+		if err != nil {
+			http.Error(w, "SSO not configured for this domain", http.StatusNotFound)
+			return
+		}
+
+		tokenEndpoint := cfg.DiscoveryURL
+		if tokenEndpoint == "" {
+			http.Error(w, "OIDC token endpoint not configured", http.StatusInternalServerError)
+			return
+		}
+
+		idToken, err := exchangeOIDCCode(r.Context(), tokenEndpoint, cfg.ClientID, cfg.ClientSecret, code)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("OIDC code exchange failed: %v", err), http.StatusUnauthorized)
+			return
+		}
+
+		email, err := sso.ParseIDTokenEmail(idToken)
+		if err != nil {
+			http.Error(w, "could not extract email from ID token", http.StatusUnauthorized)
+			return
+		}
+
+		info, err := ssoLookupOrProvision(r.Context(), svc, email, domainID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("SSO user resolution failed: %v", err), http.StatusUnauthorized)
+			return
+		}
+
+		token, err := tm.Sign(auth.Claims{
+			UserID:   info.UserID,
+			DomainID: info.DomainID,
+			Role:     "user",
+		}, 15*time.Minute)
+		if err != nil {
+			http.Error(w, "token issuance failed", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, ssoTokenResponse{Token: token, ExpiresIn: 900})
 	})
+}
+
+// ssoLookupOrProvision finds the user by email; if not found and the SSO config
+// allows JIT provisioning, creates the account on demand.
+func ssoLookupOrProvision(ctx context.Context, svc SSOFlowService, email, domainID string) (maildb.SSOUserInfo, error) {
+	info, err := svc.GetUserByEmail(ctx, email)
+	if err == nil {
+		return info, nil
+	}
+	if domainID == "" {
+		return maildb.SSOUserInfo{}, fmt.Errorf("user not found and no domain for JIT provisioning")
+	}
+	cfg, err2 := svc.GetSSOConfig(ctx, domainID)
+	if err2 != nil {
+		return maildb.SSOUserInfo{}, fmt.Errorf("user not found: %w", err)
+	}
+	if !cfg.JITProvisioning {
+		return maildb.SSOUserInfo{}, fmt.Errorf("user not found and JIT provisioning is disabled")
+	}
+	return svc.JITCreateSSOUser(ctx, email, domainID, "")
+}
+
+// oidcCodeResponse is the JSON body returned by an OIDC token endpoint.
+type oidcCodeResponse struct {
+	IDToken string `json:"id_token"`
+}
+
+// exchangeOIDCCode sends a code exchange request to the OIDC token endpoint
+// and returns the raw ID token string.
+func exchangeOIDCCode(ctx context.Context, tokenURL, clientID, clientSecret, code string) (string, error) {
+	form := url.Values{
+		"grant_type":   {"authorization_code"},
+		"code":         {code},
+		"client_id":    {clientID},
+		"client_secret": {clientSecret},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("build token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("token endpoint request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		return "", fmt.Errorf("read token response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, body)
+	}
+
+	var tr oidcCodeResponse
+	if err := json.Unmarshal(body, &tr); err != nil {
+		return "", fmt.Errorf("parse token response: %w", err)
+	}
+	if tr.IDToken == "" {
+		return "", fmt.Errorf("token endpoint did not return id_token")
+	}
+	return tr.IDToken, nil
 }
 
 func buildSAMLRedirectURL(cfg maildb.SSOConfig, returnURL string) (string, error) {

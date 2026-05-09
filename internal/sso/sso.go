@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -111,4 +113,87 @@ func (t *IDToken) Verify(issuer, clientID string, now time.Time) error {
 func HashNonce(nonce string) string {
 	h := sha256.Sum256([]byte(nonce))
 	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+// GenerateOIDCStateForDomain generates a state parameter that encodes the domainID
+// so the callback handler can identify the tenant without a server-side session.
+func GenerateOIDCStateForDomain(domainID string) (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate OIDC state: %w", err)
+	}
+	raw := domainID + "|" + hex.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString([]byte(raw)), nil
+}
+
+// ParseOIDCStateDomain extracts the domainID encoded by GenerateOIDCStateForDomain.
+func ParseOIDCStateDomain(state string) (string, error) {
+	b, err := base64.RawURLEncoding.DecodeString(state)
+	if err != nil {
+		return "", fmt.Errorf("invalid OIDC state")
+	}
+	parts := strings.SplitN(string(b), "|", 2)
+	if len(parts) != 2 || parts[0] == "" {
+		return "", fmt.Errorf("invalid OIDC state format")
+	}
+	return parts[0], nil
+}
+
+// samlXMLResponse holds the minimal subset of a SAML Response needed to extract NameID.
+type samlXMLResponse struct {
+	Assertion samlXMLAssertion `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
+}
+
+type samlXMLAssertion struct {
+	Subject samlXMLSubject `xml:"urn:oasis:names:tc:SAML:2.0:assertion Subject"`
+}
+
+type samlXMLSubject struct {
+	NameID samlXMLNameID `xml:"urn:oasis:names:tc:SAML:2.0:assertion NameID"`
+}
+
+type samlXMLNameID struct {
+	Value string `xml:",chardata"`
+}
+
+// ParseSAMLNameID extracts the NameID value from a SAML Response XML document.
+// The NameID is expected to contain the user's email address.
+func ParseSAMLNameID(xmlData []byte) (string, error) {
+	var resp samlXMLResponse
+	if err := xml.Unmarshal(xmlData, &resp); err != nil {
+		return "", fmt.Errorf("parse SAML response: %w", err)
+	}
+	email := strings.TrimSpace(resp.Assertion.Subject.NameID.Value)
+	if email == "" {
+		return "", fmt.Errorf("SAML NameID is empty")
+	}
+	return email, nil
+}
+
+// oidcTokenPayload holds the fields we care about in an OIDC ID token payload.
+type oidcTokenPayload struct {
+	Email string `json:"email"`
+	Sub   string `json:"sub"`
+}
+
+// ParseIDTokenEmail decodes an OIDC ID token (JWT) and returns the email claim.
+// It does NOT verify the signature — signature verification requires JWKS and
+// is left to a future hardening task.
+func ParseIDTokenEmail(idToken string) (string, error) {
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid ID token format")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("decode ID token payload: %w", err)
+	}
+	var claims oidcTokenPayload
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("parse ID token claims: %w", err)
+	}
+	if claims.Email == "" {
+		return "", fmt.Errorf("ID token missing email claim")
+	}
+	return claims.Email, nil
 }

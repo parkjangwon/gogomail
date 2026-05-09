@@ -3,14 +3,19 @@ package httpapi_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/maildb"
+	"github.com/gogomail/gogomail/internal/sso"
 )
 
 // fakeSSOAdminService is an in-memory SSOAdminService for tests.
@@ -155,13 +160,54 @@ func TestSSOAdminPutInvalidProvider(t *testing.T) {
 	}
 }
 
-// fakeSSOFlowService wraps fakeSSOAdminService for flow route tests.
+// fakeSSOFlowService implements SSOFlowService for flow route tests.
 type fakeSSOFlowService struct {
 	*fakeSSOAdminService
+	users map[string]maildb.SSOUserInfo // keyed by email
+}
+
+func newFakeSSOFlowService() *fakeSSOFlowService {
+	return &fakeSSOFlowService{
+		fakeSSOAdminService: newFakeSSOAdminService(),
+		users:               make(map[string]maildb.SSOUserInfo),
+	}
+}
+
+func (f *fakeSSOFlowService) GetUserByEmail(_ context.Context, email string) (maildb.SSOUserInfo, error) {
+	info, ok := f.users[email]
+	if !ok {
+		return maildb.SSOUserInfo{}, fmt.Errorf("user not found")
+	}
+	return info, nil
+}
+
+func (f *fakeSSOFlowService) JITCreateSSOUser(_ context.Context, email, domainID, _ string) (maildb.SSOUserInfo, error) {
+	info := maildb.SSOUserInfo{
+		UserID:   "jit-user-id",
+		DomainID: domainID,
+		Email:    email,
+	}
+	f.users[email] = info
+	return info, nil
+}
+
+func newFakeTM(t *testing.T) *auth.TokenManager {
+	t.Helper()
+	tm, err := auth.NewTokenManager("test-secret-for-sso-unit-tests")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	return tm
+}
+
+func newSSOFlowServer(svc httpapi.SSOFlowService, tm *auth.TokenManager) *httptest.Server {
+	mux := http.NewServeMux()
+	httpapi.RegisterSSORoutes(mux, svc, tm)
+	return httptest.NewServer(mux)
 }
 
 func TestSSOInitiateSAMLRedirect(t *testing.T) {
-	svc := &fakeSSOFlowService{newFakeSSOAdminService()}
+	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
 		DomainID: "dom-saml",
 		Provider: "saml",
@@ -169,9 +215,7 @@ func TestSSOInitiateSAMLRedirect(t *testing.T) {
 		EntityID: "https://app.example.com",
 	})
 
-	mux := http.NewServeMux()
-	httpapi.RegisterSSORoutes(mux, svc)
-	srv := httptest.NewServer(mux)
+	srv := newSSOFlowServer(svc, newFakeTM(t))
 	defer srv.Close()
 
 	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -191,17 +235,15 @@ func TestSSOInitiateSAMLRedirect(t *testing.T) {
 }
 
 func TestSSOInitiateOIDCRedirect(t *testing.T) {
-	svc := &fakeSSOFlowService{newFakeSSOAdminService()}
+	svc := newFakeSSOFlowService()
 	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
-		DomainID:  "dom-oidc",
-		Provider:  "oidc",
-		ClientID:  "client123",
-		SSOURL:    "https://idp.example.com/auth",
+		DomainID: "dom-oidc",
+		Provider: "oidc",
+		ClientID: "client123",
+		SSOURL:   "https://idp.example.com/auth",
 	})
 
-	mux := http.NewServeMux()
-	httpapi.RegisterSSORoutes(mux, svc)
-	srv := httptest.NewServer(mux)
+	srv := newSSOFlowServer(svc, newFakeTM(t))
 	defer srv.Close()
 
 	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -218,9 +260,7 @@ func TestSSOInitiateOIDCRedirect(t *testing.T) {
 }
 
 func TestSSOInitiateDomainNotConfigured(t *testing.T) {
-	mux := http.NewServeMux()
-	httpapi.RegisterSSORoutes(mux, &fakeSSOFlowService{newFakeSSOAdminService()})
-	srv := httptest.NewServer(mux)
+	srv := newSSOFlowServer(newFakeSSOFlowService(), newFakeTM(t))
 	defer srv.Close()
 
 	resp, err := http.Get(srv.URL + "/auth/sso/initiate?domain=no-config")
@@ -230,5 +270,188 @@ func TestSSOInitiateDomainNotConfigured(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// buildMinimalSAMLResponse constructs a base64-encoded SAML Response XML with the given email as NameID.
+func buildMinimalSAMLResponse(email string) string {
+	const samlNS = "urn:oasis:names:tc:SAML:2.0:assertion"
+	xml := fmt.Sprintf(`<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="%s">`+
+		`<saml:Assertion>`+
+		`<saml:Subject><saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">%s</saml:NameID></saml:Subject>`+
+		`</saml:Assertion>`+
+		`</samlp:Response>`, samlNS, email)
+	return base64.StdEncoding.EncodeToString([]byte(xml))
+}
+
+// buildMinimalIDToken builds a non-signed JWT payload with an email claim.
+func buildMinimalIDToken(email string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"sub123","email":"` + email + `","iss":"https://idp.example.com"}`))
+	sig := base64.RawURLEncoding.EncodeToString([]byte("fakesig"))
+	return header + "." + payload + "." + sig
+}
+
+func TestSSOSAMLACSKnownUser(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID: "dom-saml",
+		Provider: "saml",
+		SSOURL:   "https://idp.example.com/sso",
+		EntityID: "https://app.example.com",
+	})
+	svc.users["alice@example.com"] = maildb.SSOUserInfo{
+		UserID:   "user-alice",
+		DomainID: "dom-saml",
+		Email:    "alice@example.com",
+	}
+
+	tm := newFakeTM(t)
+	srv := newSSOFlowServer(svc, tm)
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("alice@example.com")},
+		"RelayState":   {"dom-saml"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var tr struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if tr.Token == "" {
+		t.Error("expected non-empty token")
+	}
+}
+
+func TestSSOSAMLACSMissingSAMLResponse(t *testing.T) {
+	srv := newSSOFlowServer(newFakeSSOFlowService(), newFakeTM(t))
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader("RelayState=dom"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestSSOSAMLACSJITProvisioning(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:        "dom-jit",
+		Provider:        "saml",
+		SSOURL:          "https://idp.example.com/sso",
+		EntityID:        "https://app.example.com",
+		JITProvisioning: true,
+	})
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	form := url.Values{
+		"SAMLResponse": {buildMinimalSAMLResponse("newuser@example.com")},
+		"RelayState":   {"dom-jit"},
+	}
+	resp, err := http.Post(srv.URL+"/auth/sso/saml/acs", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (JIT provision should create user)", resp.StatusCode)
+	}
+}
+
+func TestSSOOIDCCallbackKnownUser(t *testing.T) {
+	email := "bob@example.com"
+	idToken := buildMinimalIDToken(email)
+
+	// Start a mock token endpoint server.
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"id_token": idToken}) //nolint:errcheck
+	}))
+	defer tokenSrv.Close()
+
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:     "dom-oidc",
+		Provider:     "oidc",
+		ClientID:     "client123",
+		SSOURL:       "https://idp.example.com/auth",
+		DiscoveryURL: tokenSrv.URL, // used as token endpoint in tests
+	})
+	svc.users[email] = maildb.SSOUserInfo{
+		UserID:   "user-bob",
+		DomainID: "dom-oidc",
+		Email:    email,
+	}
+
+	tm := newFakeTM(t)
+	srv := newSSOFlowServer(svc, tm)
+	defer srv.Close()
+
+	state, err := sso.GenerateOIDCStateForDomain("dom-oidc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/auth/sso/oidc/callback?code=test-code&state=" + state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var tr struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if tr.Token == "" {
+		t.Error("expected non-empty token")
+	}
+}
+
+func TestSSOOIDCCallbackMissingCode(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/auth/sso/oidc/callback?state=somestate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestSSOOIDCCallbackInvalidState(t *testing.T) {
+	svc := newFakeSSOFlowService()
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/auth/sso/oidc/callback?code=abc&state=!!!invalid!!!")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
