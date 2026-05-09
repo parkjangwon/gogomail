@@ -15,6 +15,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-018 | IMAP FETCH BODY 실제 클라이언트 픽스처 확장 | 완료 |
 | TASK-019 | Drive 파일 공유 — Directory delegation 통합 | 완료 |
 | TASK-020 | OpenAPI → TypeScript 클라이언트 생성 | 완료 |
+| TASK-021 | WebDAV Gateway — Drive RFC 4918 지원 | 완료 |
 
 ### TASK-017 상세
 - **제목**: CalDAV/CardDAV 네이티브 클라이언트 호환성 픽스처
@@ -47,7 +48,15 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
   TS 타입/클라이언트 생성 파이프라인 추가. 프론트엔드 게이트와 무관한 백엔드 계약 작업.
 - **구현 대상**: `Makefile` 또는 `scripts/gen-ts-client.sh`, `clients/typescript/` 생성물
 - **완료 조건**: `make gen-ts-client` 실행 시 `clients/typescript/` 아래 타입 파일 생성
-- **다음 태스크**: NEXT_STEPS.md Next: 항목에서 다음 선택
+- **다음 태스크**: TASK-021
+
+### TASK-021 상세
+- **제목**: WebDAV Gateway — Drive RFC 4918 지원
+- **배경**: Phase 4-A. `internal/webdavgw`는 WebDAV XML 유틸만 존재. HTTP 핸들러 + Drive 연동 미구현.
+  WebDAV는 OpenAPI로 정의 불가하므로 REST가 아닌 별도 프로토콜로 구현.
+- **구현 대상**: `internal/httpapi/webdav.go` — RFC 4918 PROPFIND/PROPPATCH/MKCOL/GET/PUT/DELETE/COPY/MOVE 지원
+- **완료 조건**: `go test ./...` 통과 + WebDAV PROPFIND로 Drive 노드 목록 조회 가능
+- **다음 태스크**: TASK-022 (백로그 테이블 확장 후)
 
 ---
 
