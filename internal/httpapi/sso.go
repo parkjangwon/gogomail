@@ -134,6 +134,10 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			http.Error(w, "invalid SAMLResponse encoding", http.StatusBadRequest)
 			return
 		}
+		if len(xmlData) > sso.SAMLMaxResponseBytes {
+			http.Error(w, "SAMLResponse too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 
 		email, err := sso.ParseSAMLNameID(xmlData)
 		if err != nil {
@@ -197,9 +201,9 @@ func RegisterSSORoutes(mux *http.ServeMux, svc SSOFlowService, tm *auth.TokenMan
 			return
 		}
 
-		email, err := sso.ParseIDTokenEmail(idToken)
+		email, err := sso.VerifyAndParseIDToken(idToken, cfg.ClientSecret, cfg.ClientID, time.Now())
 		if err != nil {
-			http.Error(w, "could not extract email from ID token", http.StatusUnauthorized)
+			http.Error(w, "could not verify ID token: "+err.Error(), http.StatusUnauthorized)
 			return
 		}
 

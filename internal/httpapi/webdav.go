@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/webdavgw"
 )
@@ -39,6 +40,10 @@ type WebDAVService interface {
 type WebDAVRouteOptions struct {
 	DepthInfinityEnabled bool
 	Metrics              WebDAVMetrics
+	// TokenManager, when non-nil, requires a valid Bearer token on every request.
+	// User isolation is enforced by extracting the user ID from the verified token claims.
+	// When nil, the handler falls back to the user_id query parameter (test/dev mode only).
+	TokenManager *auth.TokenManager
 }
 
 // RegisterWebDAVRoutes registers WebDAV RFC 4918 handlers on mux at /dav/.
@@ -108,6 +113,45 @@ func (h *webdavHandler) observe(ctx context.Context, method WebDAVMetricMethod, 
 	})
 }
 
+// webdavUserID extracts the authenticated user ID from the request.
+// When a TokenManager is configured it requires a valid Bearer token and
+// extracts the user ID from the verified claims, enforcing user isolation.
+// Without a TokenManager it falls back to the user_id query param or
+// X-WebDAV-User-ID header (test/dev environments only).
+func (h *webdavHandler) webdavUserID(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if h.opts.TokenManager != nil {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "authorization required", http.StatusUnauthorized)
+			return "", false
+		}
+		if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			http.Error(w, "bearer token required", http.StatusUnauthorized)
+			return "", false
+		}
+		token := strings.TrimSpace(authHeader[len("bearer "):])
+		if token == "" {
+			http.Error(w, "bearer token required", http.StatusUnauthorized)
+			return "", false
+		}
+		claims, err := h.opts.TokenManager.VerifyFull(r.Context(), token)
+		if err != nil {
+			http.Error(w, "invalid or expired token", http.StatusUnauthorized)
+			return "", false
+		}
+		return claims.UserID, true
+	}
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		userID = r.Header.Get("X-WebDAV-User-ID")
+	}
+	if userID == "" {
+		http.Error(w, "user_id required", http.StatusUnauthorized)
+		return "", false
+	}
+	return userID, true
+}
+
 func (h *webdavHandler) handleOptions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("DAV", "1, 3")
 	w.Header().Set("Allow", "OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK")
@@ -140,12 +184,8 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	reqBody, _ := io.ReadAll(r.Body)
 	_ = reqBody
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodPropfind, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -221,12 +261,8 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodMkcol, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -267,12 +303,8 @@ func (h *webdavHandler) handleMkcol(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodGet, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -303,12 +335,8 @@ func (h *webdavHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodPut, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -391,12 +419,8 @@ func (h *webdavHandler) handlePut(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodDelete, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -428,12 +452,8 @@ func (h *webdavHandler) handleDelete(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodMove, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -479,12 +499,8 @@ func (h *webdavHandler) handleMove(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodCopy, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -533,12 +549,8 @@ func (h *webdavHandler) handleCopy(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleProppatch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodProppatch, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -602,12 +614,8 @@ func extractDisplayName(body []byte) string {
 func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodLock, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}
@@ -655,12 +663,8 @@ func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
 func (h *webdavHandler) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		userID = r.Header.Get("X-WebDAV-User-ID")
-	}
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusUnauthorized)
+	userID, ok := h.webdavUserID(w, r)
+	if !ok {
 		h.observe(ctx, WebDAVMethodUnlock, "", "", WebDAVResultRejected, "unauthorized")
 		return
 	}

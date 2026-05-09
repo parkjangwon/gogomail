@@ -39,6 +39,7 @@
 - **TASK-040**: OIDC PKCE (RFC 7636) + CalDAV IncludeScheduling 활성화 ✅ (2026-05-09)
 - **TASK-039**: SSO 플로우 완성 — SAML ACS + OIDC Callback + JIT 프로비저닝 (Phase 3-C 완성) ✅ (2026-05-09)
 - **TASK-038**: SSO Configuration Admin API + SSO 플로우 핸들러 (Phase 3-C 초기) ✅ (2026-05-09)
+- **TASK-008**: SCIM Boolean Parsing & Case-Insensitive Attributes — parser.go ✅ (2026-05-09)
 - **TASK-037**: SCIM 2.0 Provisioning API (RFC 7643/7644) — Phase 3-B ✅ (2026-05-09)
 - **TASK-036**: LDAP Gateway (RFC 4511) — Phase 3-A ✅ (2026-05-09)
 - **TASK-035**: SSE Config Stream — configstore.Notifier 연동 ✅ (2026-05-09)

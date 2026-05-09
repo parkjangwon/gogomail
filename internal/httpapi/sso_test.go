@@ -291,10 +291,26 @@ func buildMinimalSAMLResponse(email string) string {
 	return base64.StdEncoding.EncodeToString([]byte(xml))
 }
 
-// buildMinimalIDToken builds a non-signed JWT payload with an email claim.
+// buildMinimalIDToken builds a JWT with a valid exp claim (year 2099).
+// ClientSecret is empty in tests so VerifyAndParseIDToken skips signature verification
+// while still enforcing exp/iat/aud claims.
 func buildMinimalIDToken(email string) string {
+	// 4070908800 = 2099-01-01T00:00:00Z — valid for the foreseeable test future.
+	const exp2099 = 4070908800
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
-	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"sub123","email":"` + email + `","iss":"https://idp.example.com"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte(
+		fmt.Sprintf(`{"sub":"sub123","email":%q,"iss":"https://idp.example.com","aud":"client123","exp":%d}`, email, exp2099),
+	))
+	sig := base64.RawURLEncoding.EncodeToString([]byte("fakesig"))
+	return header + "." + payload + "." + sig
+}
+
+// buildExpiredIDToken builds a JWT with exp in the past to test rejection.
+func buildExpiredIDToken(email string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	payload := base64.RawURLEncoding.EncodeToString([]byte(
+		fmt.Sprintf(`{"sub":"sub123","email":%q,"iss":"https://idp.example.com","exp":1000}`, email),
+	))
 	sig := base64.RawURLEncoding.EncodeToString([]byte("fakesig"))
 	return header + "." + payload + "." + sig
 }
@@ -604,3 +620,46 @@ func TestSSOOIDCCallbackCustomTTL(t *testing.T) {
 		t.Errorf("expires_in = %d, want 7200 (domain TTL)", tr.ExpiresIn)
 	}
 }
+
+// TestJWTExpiredIDTokenRejected verifies that an OIDC callback with an expired
+// ID token is rejected with 401.
+func TestJWTExpiredIDTokenRejected(t *testing.T) {
+	expiredToken := buildExpiredIDToken("victim@example.com")
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"id_token": expiredToken}) //nolint:errcheck
+	}))
+	defer tokenSrv.Close()
+
+	svc := newFakeSSOFlowService()
+	svc.UpsertSSOConfig(context.Background(), maildb.SSOConfig{ //nolint:errcheck
+		DomainID:     "dom-expired",
+		Provider:     "oidc",
+		ClientID:     "client123",
+		SSOURL:       "https://idp.example.com/auth",
+		DiscoveryURL: tokenSrv.URL,
+	})
+	svc.users["victim@example.com"] = maildb.SSOUserInfo{
+		UserID:   "user-victim",
+		DomainID: "dom-expired",
+		Email:    "victim@example.com",
+	}
+
+	srv := newSSOFlowServer(svc, newFakeTM(t))
+	defer srv.Close()
+
+	state, _, err := sso.GenerateOIDCStateWithPKCE("dom-expired")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(srv.URL + "/auth/sso/oidc/callback?code=test-code&state=" + state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expired token: status = %d, want 401", resp.StatusCode)
+	}
+}
+
