@@ -25,6 +25,7 @@ import (
 	"github.com/gogomail/gogomail/internal/accesspolicy"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
+	"github.com/gogomail/gogomail/internal/dnsbl"
 	"github.com/gogomail/gogomail/internal/milterhook"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
@@ -1233,6 +1234,16 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			Dialer: milterhook.NetworkDialer(cfg.MilterAddr, cfg.MilterTimeout),
 		}))
 		logger.Info(opts.Component+" milter filter enabled", "addr", cfg.MilterAddr, "timeout", cfg.MilterTimeout)
+	}
+	if len(cfg.DNSBLZones) > 0 {
+		resolver := dnsbl.NewResolverWithTimeout(cfg.DNSBLTimeout)
+		checker := dnsbl.NewChecker(cfg.DNSBLZones, resolver)
+		hooks = append(hooks, dnsbl.Hook(dnsbl.HookOptions{
+			Checker: checker,
+			Policy:  dnsbl.Policy(cfg.DNSBLPolicy),
+			Logger:  logger,
+		}))
+		logger.Info(opts.Component+" DNSBL enabled", "zones", cfg.DNSBLZones, "policy", cfg.DNSBLPolicy)
 	}
 	store, err := objectStoreForConfig(cfg)
 	if err != nil {

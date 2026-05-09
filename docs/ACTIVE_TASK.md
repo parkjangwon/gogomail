@@ -7,24 +7,25 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-026
-- **제목**: Milter SMTP Pipeline Hook (Phase 5-A 완성) — smtpd 수신 파이프라인에 milter 연결
-- **배경**: TASK-025에서 milter 클라이언트 패키지 구현 완료. 이번 태스크는 기존 SMTP 파이프라인
-  (`internal/smtpd`)의 `authentication_checked`와 `parsed` 훅 스테이지에 milter 클라이언트를 연결한다.
-  `GOGOMAIL_MILTER_ENABLED=false`로 기본 비활성화, 활성화 시 외부 milter 서버로 이벤트 전달.
+- **ID**: TASK-027
+- **제목**: DNSBL/RBL 통합 (Phase 5-B) — RFC 5782 DNS 기반 차단 목록
+- **배경**: Phase 5-B 항목. RCPT TO 단계 이전에 송신 IP를 DNS 블랙리스트(DNSBL)에 조회하여
+  스팸/악성 메일 서버를 차단한다. RFC 5782 §2.2 반환 코드 해석 포함.
+  기본 비활성화 (`GOGOMAIL_DNSBL_ZONES=""`) — 운영자가 zone 목록을 설정해야 활성화.
 - **구현 대상**:
-  - `internal/smtpd/milter_hook.go` — smtpd용 MilterHook 구현
-    - `MilterHook` struct: milter.Client를 사용해 SMTP 이벤트를 milter 서버로 중계
-    - `OnConnect`, `OnHelo`, `OnMailFrom`, `OnRcptTo`, `OnHeaders`, `OnBody` 메서드
-    - 판정 결과를 smtpd 파이프라인 결과(accept/reject/tempfail)로 변환
-  - `internal/smtpd/milter_hook_test.go` — 테스트
-  - `internal/config/config.go` — `MilterEnabled`, `MilterAddr`, `MilterTimeout` 필드 추가
-  - `internal/app/run.go` — SMTP 서버 시작 시 MilterHook 조건부 등록
+  - `internal/dnsbl/dnsbl.go` — DNSBL 조회 패키지
+    - `Checker` struct: zone 목록 + net.Resolver
+    - `Check(ctx, ip) (Result, error)` — reversed-IP A 레코드 조회
+    - `Result`: Listed bool, Zone, ReturnCode
+  - `internal/dnsbl/dnsbl_test.go` — 테스트 (fake resolver 사용)
+  - `internal/dnsbl/hook.go` — smtpd.Hook 어댑터 (StageAuthenticationChecked에서 실행)
+  - `internal/config/config.go` — `DNSBLZones`, `DNSBLTimeout`, `DNSBLPolicy` 추가
+  - `internal/app/run.go` — SMTP 수신 파이프라인에 DNSBL 훅 조건부 등록
 - **완료 조건**:
-  - [x] `go test ./internal/milterhook/... ./internal/milter/...` 통과
-  - [x] MILTER_ENABLED=false 시 훅 미등록 (조건부 등록)
+  - [x] `go test ./internal/dnsbl/...` 통과
+  - [x] listed IP → SMTP 거부, unlisted IP → 통과
   - [x] `go test ./...` 통과
-- **다음 태스크**: TASK-027
+- **다음 태스크**: TASK-028
 
 ---
 

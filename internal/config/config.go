@@ -94,6 +94,9 @@ type Config struct {
 	MilterEnabled                       bool
 	MilterAddr                          string
 	MilterTimeout                       time.Duration
+	DNSBLZones                          []string
+	DNSBLTimeout                        time.Duration
+	DNSBLPolicy                         string
 	AttachmentScanBackend               string
 	AttachmentScanWebhookURL            string
 	AttachmentScanWebhookToken          string
@@ -301,6 +304,9 @@ func Load() Config {
 		MilterEnabled:                       boolEnvOrDefault("GOGOMAIL_MILTER_ENABLED", false),
 		MilterAddr:                          envOrDefault("GOGOMAIL_MILTER_ADDR", "127.0.0.1:7357"),
 		MilterTimeout:                       durationEnvOrDefault("GOGOMAIL_MILTER_TIMEOUT", 30*time.Second),
+		DNSBLZones:                          splitCSV(os.Getenv("GOGOMAIL_DNSBL_ZONES")),
+		DNSBLTimeout:                        durationEnvOrDefault("GOGOMAIL_DNSBL_TIMEOUT", 5*time.Second),
+		DNSBLPolicy:                         envOrDefault("GOGOMAIL_DNSBL_POLICY", "reject"),
 		AttachmentScanBackend:               envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "none"),
 		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
 		AttachmentScanWebhookToken:          os.Getenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN"),
