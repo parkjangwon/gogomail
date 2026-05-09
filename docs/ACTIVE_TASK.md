@@ -7,32 +7,35 @@
 
 ## 현재 태스크
 
-- **ID**: TASK-043
-- **제목**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4)
-- **배경**: `run.go`의 `mfa-grace-period` 잡은 현재 no-op 스텁. Phase 2-C item 4("MFAGracePeriodJob — 2FA 유예기간 만료 사용자 처리")를 실제 구현해야 한다.
-  도메인 정책으로 MFA가 필수이나 아직 설정하지 않은 사용자에게 유예기간을 부여하고,
-  기한 경과 시 배치 잡이 이를 감지해 이벤트를 emit한다.
+- **ID**: TASK-044
+- **제목**: Batch Worker — Scheduled Mail Flusher + OutgoingMessage.ScheduledAt (Phase 2-C item 1)
+- **배경**: `run.go`의 `scheduled-mail-flusher` 잡이 no-op 스텁. `OutgoingMessage` 구조체에
+  `ScheduledAt` 필드가 없어 예약 메일이 즉시 outbox에 들어간다(`available_at = now()`).
+  flusher 잡이 실제 작동하려면 ① `ScheduledAt` 필드 추가 + outbox `available_at` 반영,
+  ② 잡이 `mail.outbound.batch` 토픽에서 오래된 `pending` 항목을 감지해 경고를 로깅해야 한다.
 - **구현 대상**:
-  - `migrations/0078_mfa_grace_deadline.sql`:
-    `user_mfa_secrets` 테이블에 `mfa_grace_deadline TIMESTAMPTZ NULL` 컬럼 추가
-  - `internal/maildb/mfa_grace.go`:
-    - `SetMFAGraceDeadline(ctx context.Context, userID string, deadline time.Time) error`
-    - `FindExpiredMFAGraceUsers(ctx context.Context, limit int) ([]string, error)` — `enabled=false AND mfa_grace_deadline IS NOT NULL AND mfa_grace_deadline < now()`
-    - `ClearMFAGraceDeadline(ctx context.Context, userID string) error` — 처리 완료 후 null 초기화
-  - `internal/maildb/mfa_grace_test.go`: nil-db 테스트
-  - `internal/app/run.go`: `mfa-grace-period` 잡에 실제 로직 연결
-    — `FindExpiredMFAGraceUsers` 호출 → 각 userID 로그 + `ClearMFAGraceDeadline` 호출
+  - `internal/maildb/outgoing.go`:
+    - `OutgoingMessage`에 `ScheduledAt time.Time` 필드 추가
+    - `insertOutgoingOutbox` SQL에 `available_at = GREATEST(now(), $N)` 적용
+  - `internal/mailservice/service.go`: `RecordOutgoing` 호출 시 `req.ScheduledAt` 전달
+  - `internal/maildb/scheduled_mail.go`:
+    - `CountStuckScheduledMail(ctx context.Context, stuckAfter time.Duration) (int64, error)` —
+      `mail.outbound.batch` topic, status=pending, `available_at <= now()`, created older than stuckAfter
+  - `internal/maildb/scheduled_mail_test.go`: nil-db 테스트
+  - `internal/app/run.go`: `scheduled-mail-flusher` 잡에 실제 로직 연결
+    — `CountStuckScheduledMail(ctx, 10*time.Minute)` 호출 → stuck > 0이면 경고 로그
 - **완료 조건**:
   - [ ] `go test ./...` 통과
-  - [ ] 마이그레이션 파일 0078 존재
-  - [ ] `FindExpiredMFAGraceUsers` nil-db 테스트 통과
-  - [ ] `mfa-grace-period` 잡이 no-op 스텁에서 실제 DB 조회로 교체됨
-- **다음 태스크**: TASK-044
+  - [ ] `OutgoingMessage.ScheduledAt` 필드 존재, outbox `available_at` 반영
+  - [ ] `CountStuckScheduledMail` nil-db 테스트 통과
+  - [ ] `scheduled-mail-flusher` 잡이 no-op에서 실제 DB 조회로 교체됨
+- **다음 태스크**: TASK-045
 
 ---
 
 ## 완료됨
 
+- **TASK-043**: Batch Worker — MFA Grace Period Job (Phase 2-C item 4) ✅ (2026-05-09)
 - **TASK-042**: DNS SRV 자동발견 — CalDAV/CardDAV (Phase 4-B item 5) ✅ (2026-05-09)
 - **TASK-041**: SSO DB 마이그레이션 + 도메인별 세션 수명 (Phase 3-C item 5) ✅ (2026-05-09)
 - **TASK-040**: OIDC PKCE (RFC 7636) + CalDAV IncludeScheduling 활성화 ✅ (2026-05-09)
