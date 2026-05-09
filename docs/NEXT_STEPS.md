@@ -27,6 +27,7 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-030 | Delta Sync Cursor — Postgres 영속 스토어 (Phase 7-B) | 완료 |
 | TASK-031 | Delta Sync FanOut — mail.stored → deltasync.FanOut 연동 (Phase 7-B item 2) | 완료 |
 | TASK-032 | Batch Worker — TOTP Used-Code Pruning (used-code-cleanup 잡, Phase 2-C) | 완료 |
+| TASK-033 | Batch Worker — Token Cleanup (token-cleanup 잡, 만료 공유 링크 삭제) | 완료 |
 
 ### TASK-023 상세
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견

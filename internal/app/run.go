@@ -156,8 +156,20 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 1*time.Hour)
 
+	tokenCleanupRepository := maildb.NewRepository(db)
 	registry.Register("token-cleanup", func() error {
-		logger.Info("running token cleanup")
+		cutoff := time.Now().UTC()
+		na, err := tokenCleanupRepository.PruneExpiredAttachmentShareLinks(ctx, cutoff)
+		if err != nil {
+			logger.Error("attachment share link cleanup failed", "error", err)
+			return err
+		}
+		nd, err := tokenCleanupRepository.PruneExpiredDriveShareLinks(ctx, cutoff)
+		if err != nil {
+			logger.Error("drive share link cleanup failed", "error", err)
+			return err
+		}
+		logger.Info("token cleanup completed", "attachment_share_links", na, "drive_share_links", nd)
 		return nil
 	}, 30*time.Minute)
 
