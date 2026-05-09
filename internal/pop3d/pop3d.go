@@ -207,6 +207,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		sess.writeOK("Begin TLS negotiation")
 		tlsConn := tls.Server(sess.conn, sess.server.TLSConfig)
 		if err := tlsConn.Handshake(); err != nil {
+			sess.writeERR("TLS handshake failed: " + err.Error())
 			sess.conn.Close()
 			return
 		}
@@ -395,7 +396,11 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.writer.Flush()
 	case "QUIT":
 		if committer, ok := sess.mailbox.(interface{ CommitDeletes() error }); ok {
-			committer.CommitDeletes()
+			if err := committer.CommitDeletes(); err != nil {
+				sess.mailbox.ResetDeleted()
+				sess.writeERR("commit failed: " + err.Error())
+				return
+			}
 		}
 		sess.writeOK("bye")
 		sess.conn.Close()
