@@ -10,12 +10,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/drive"
 )
+
+func newTestTokenManager(t *testing.T) *auth.TokenManager {
+	t.Helper()
+	tm, err := auth.NewTokenManager("test-secret-webdav-test")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	return tm
+}
+
+func signTestToken(t *testing.T, tm *auth.TokenManager, userID string) string {
+	t.Helper()
+	token, err := tm.Sign(auth.Claims{UserID: userID, DomainID: "dom-1", Role: "user"}, 15*time.Minute)
+	if err != nil {
+		t.Fatalf("Sign: %v", err)
+	}
+	return token
+}
 
 func TestWebDAVPropfindListsNodes(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		nodes: []drive.Node{
 			{ID: "folder-1", Name: "Reports", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive, UpdatedAt: timeNow()},
@@ -23,10 +43,12 @@ func TestWebDAVPropfindListsNodes(t *testing.T) {
 		},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(	"PROPFIND", "/dav/?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
 	req.Header.Set("Depth", "1")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -89,11 +111,14 @@ func TestWebDAVOptionsReturnsDavHeader(t *testing.T) {
 func TestWebDAVLockCreatesLock(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest("LOCK", "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("LOCK", "/dav/node-1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -112,11 +137,14 @@ func TestWebDAVLockCreatesLock(t *testing.T) {
 func TestWebDAVUnlockReleasesLock(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	lockReq := httptest.NewRequest("LOCK", "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	lockReq := httptest.NewRequest("LOCK", "/dav/node-1", nil)
+	lockReq.Header.Set("Authorization", "Bearer "+token)
 	lockRec := httptest.NewRecorder()
 	mux.ServeHTTP(lockRec, lockReq)
 	if lockRec.Code != http.StatusOK {
@@ -124,8 +152,9 @@ func TestWebDAVUnlockReleasesLock(t *testing.T) {
 	}
 	lockToken := lockRec.Header().Get("Lock-Token")
 
-	unlockReq := httptest.NewRequest("UNLOCK", "/dav/node-1?user_id=user-1", nil)
+	unlockReq := httptest.NewRequest("UNLOCK", "/dav/node-1", nil)
 	unlockReq.Header.Set("Lock-Token", lockToken)
+	unlockReq.Header.Set("Authorization", "Bearer "+token)
 	unlockRec := httptest.NewRecorder()
 	mux.ServeHTTP(unlockRec, unlockReq)
 
@@ -137,12 +166,15 @@ func TestWebDAVUnlockReleasesLock(t *testing.T) {
 func TestWebDAVDepthInfinityRejected(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{DepthInfinityEnabled: false})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm, DepthInfinityEnabled: false})
 
-	req := httptest.NewRequest("PROPFIND", "/dav/?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
 	req.Header.Set("Depth", "infinity")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -154,16 +186,19 @@ func TestWebDAVDepthInfinityRejected(t *testing.T) {
 func TestWebDAVDepthInfinityAllowed(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		nodes: []drive.Node{
 			{ID: "folder-1", Name: "Reports", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive, UpdatedAt: timeNow()},
 		},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{DepthInfinityEnabled: true})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm, DepthInfinityEnabled: true})
 
-	req := httptest.NewRequest("PROPFIND", "/dav/?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("PROPFIND", "/dav/", nil)
 	req.Header.Set("Depth", "infinity")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -175,13 +210,16 @@ func TestWebDAVDepthInfinityAllowed(t *testing.T) {
 func TestWebDAVMkcolCreatesFolder(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		folder: drive.Node{ID: "new-folder-1", Name: "NewFolder", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest("MKCOL", "/dav/NewFolder?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("MKCOL", "/dav/NewFolder", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -199,14 +237,17 @@ func TestWebDAVMkcolCreatesFolder(t *testing.T) {
 func TestWebDAVMkcolWithParentAndName(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		folder: drive.Node{ID: "folder-2", Name: "SubFolder", Type: drive.NodeTypeFolder, Status: drive.NodeStatusActive},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
 	// /dav/parent-id/subfolder-name
-	req := httptest.NewRequest(	"MKCOL", "/dav/parent-1/SubFolder?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("MKCOL", "/dav/parent-1/SubFolder", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -221,12 +262,15 @@ func TestWebDAVMkcolWithParentAndName(t *testing.T) {
 func TestWebDAVDeleteTrashesNode(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
 	// /dav/node-id
-	req := httptest.NewRequest(http.MethodDelete, "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodDelete, "/dav/node-1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -241,13 +285,16 @@ func TestWebDAVDeleteTrashesNode(t *testing.T) {
 func TestWebDAVMoveMovesNode(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
 	// /dav/node-id -> /dav/new-parent/
-	req := httptest.NewRequest(	"MOVE", "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("MOVE", "/dav/node-1", nil)
 	req.Header.Set("Destination", "http://localhost/dav/new-parent/")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -262,11 +309,14 @@ func TestWebDAVMoveMovesNode(t *testing.T) {
 func TestWebDAVMoveRequiresDestination(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(	"MOVE", "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("MOVE", "/dav/node-1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -278,13 +328,16 @@ func TestWebDAVMoveRequiresDestination(t *testing.T) {
 func TestWebDAVCopyCopiesNode(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
 	// /dav/node-id -> /dav/target-parent/copy-name
-	req := httptest.NewRequest(	"COPY", "/dav/node-1?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest("COPY", "/dav/node-1", nil)
 	req.Header.Set("Destination", "http://localhost/dav/target-parent/copy-name")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -299,14 +352,17 @@ func TestWebDAVCopyCopiesNode(t *testing.T) {
 func TestWebDAVPutCreatesFile(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		file: drive.Node{ID: "file-1", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 12, MIMEType: "text/plain"},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt?user_id=user-1", strings.NewReader("hello world"))
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt", strings.NewReader("hello world"))
 	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -340,6 +396,7 @@ func TestWebDAVPutRequiresUserID(t *testing.T) {
 func TestWebDAVPutOverwritesExistingFile(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		nodes: []drive.Node{
 			{ID: "existing-1", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 5},
@@ -347,9 +404,11 @@ func TestWebDAVPutOverwritesExistingFile(t *testing.T) {
 		file: drive.Node{ID: "file-2", Name: "file.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive, Size: 12},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt?user_id=user-1", strings.NewReader("hello world"))
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodPut, "/dav/file.txt", strings.NewReader("hello world"))
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -364,14 +423,17 @@ func TestWebDAVPutOverwritesExistingFile(t *testing.T) {
 func TestWebDAVPutQuotaExceeded(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		err: drive.ErrQuotaExceeded,
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/file.txt?user_id=user-1", strings.NewReader("content"))
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/file.txt", strings.NewReader("content"))
 	req.Header.Set("Content-Length", "1000000000")
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -383,6 +445,7 @@ func TestWebDAVPutQuotaExceeded(t *testing.T) {
 func TestWebDAVPutTrashFails(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		nodes: []drive.Node{
 			{ID: "file-1", Name: "doc.txt", Type: drive.NodeTypeFile, Status: drive.NodeStatusActive},
@@ -391,9 +454,11 @@ func TestWebDAVPutTrashFails(t *testing.T) {
 		file:     drive.Node{ID: "file-2", Name: "doc.txt", Type: drive.NodeTypeFile},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
-	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/doc.txt?user_id=user-1", strings.NewReader("content"))
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodPut, "/dav/folder-1/doc.txt", strings.NewReader("content"))
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -405,12 +470,15 @@ func TestWebDAVPutTrashFails(t *testing.T) {
 func TestWebDAVUnlockLockMismatchReturns423(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
+	token := signTestToken(t, tm, "user-1")
 	// Acquire a lock.
-	lockReq := httptest.NewRequest("LOCK", "/dav/node-1?user_id=user-1", nil)
+	lockReq := httptest.NewRequest("LOCK", "/dav/node-1", nil)
+	lockReq.Header.Set("Authorization", "Bearer "+token)
 	lockRec := httptest.NewRecorder()
 	mux.ServeHTTP(lockRec, lockReq)
 	if lockRec.Code != http.StatusOK {
@@ -418,8 +486,9 @@ func TestWebDAVUnlockLockMismatchReturns423(t *testing.T) {
 	}
 
 	// Attempt UNLOCK with a wrong token.
-	unlockReq := httptest.NewRequest("UNLOCK", "/dav/node-1?user_id=user-1", nil)
+	unlockReq := httptest.NewRequest("UNLOCK", "/dav/node-1", nil)
 	unlockReq.Header.Set("Lock-Token", "<urn:uuid:wrong-token-value>")
+	unlockReq.Header.Set("Authorization", "Bearer "+token)
 	unlockRec := httptest.NewRecorder()
 	mux.ServeHTTP(unlockRec, unlockReq)
 
@@ -432,6 +501,7 @@ func TestWebDAVUnlockLockMismatchReturns423(t *testing.T) {
 func TestWebDAVGetDownloadsFile(t *testing.T) {
 	t.Parallel()
 
+	tm := newTestTokenManager(t)
 	service := &fakeWebDAVService{
 		download: drive.FileDownload{
 			Node: drive.Node{ID: "file-1", Name: "doc.pdf", MIMEType: "application/pdf", Size: 2048},
@@ -439,10 +509,12 @@ func TestWebDAVGetDownloadsFile(t *testing.T) {
 		},
 	}
 	mux := http.NewServeMux()
-	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{})
+	RegisterWebDAVRoutes(mux, service, WebDAVRouteOptions{TokenManager: tm})
 
 	// /dav/file-1/doc.pdf
-	req := httptest.NewRequest(http.MethodGet, "/dav/file-1/doc.pdf?user_id=user-1", nil)
+	token := signTestToken(t, tm, "user-1")
+	req := httptest.NewRequest(http.MethodGet, "/dav/file-1/doc.pdf", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
