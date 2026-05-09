@@ -61,7 +61,7 @@ func stubServer(conn net.Conn, finalAction byte) {
 // pipeDialer returns a Dialer that connects to a stub server via net.Pipe.
 func pipeDialer(t *testing.T, serverFn func(conn net.Conn)) milterhook.Dialer {
 	t.Helper()
-	return func(ctx context.Context) (*milter.Client, error) {
+	return func(ctx context.Context) (milterhook.Client, error) {
 		clientConn, serverConn := net.Pipe()
 		go serverFn(serverConn)
 		return milter.NewClient(clientConn, 5*time.Second), nil
@@ -85,7 +85,7 @@ func parsedEvent() smtpd.Event {
 
 func TestHookSkipsNonParsedStage(t *testing.T) {
 	called := false
-	dialer := milterhook.Dialer(func(ctx context.Context) (*milter.Client, error) {
+	dialer := milterhook.Dialer(func(ctx context.Context) (milterhook.Client, error) {
 		called = true
 		return nil, nil
 	})
@@ -215,4 +215,64 @@ func TestNetworkDialer(t *testing.T) {
 		t.Fatalf("network dialer: %v", err)
 	}
 	<-done
+}
+
+func TestPoolDialer(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go stubServer(conn, 'a')
+		}
+	}()
+
+	d := milterhook.PoolDialer(ln.Addr().String(), 5*time.Second, 2)
+	h := milterhook.Hook(milterhook.HookOptions{Dialer: d})
+	if err := h(context.Background(), parsedEvent()); err != nil {
+		t.Fatalf("pool dialer: %v", err)
+	}
+}
+
+func TestPoolDialerCircuitBreakerOpen(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+
+	// Server that rejects immediately
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	d := milterhook.PoolDialer(ln.Addr().String(), 5*time.Second, 1)
+	h := milterhook.Hook(milterhook.HookOptions{Dialer: d})
+
+	// First call should fail and open circuit
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := h(ctx, parsedEvent()); err == nil {
+		t.Fatal("expected error from server rejection")
+	}
+
+	// Second call should fail immediately due to open circuit
+	ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := h(ctx, parsedEvent()); err == nil {
+		t.Fatal("expected error from open circuit")
+	}
 }

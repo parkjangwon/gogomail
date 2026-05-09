@@ -11,14 +11,76 @@ import (
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
-// Dialer creates a new milter.Client for a single message filter session.
-type Dialer func(ctx context.Context) (*milter.Client, error)
+// Client is the interface that milter clients must implement.
+type Client interface {
+	Negotiate(ctx context.Context) error
+	Connect(ctx context.Context, hostname string, family byte, port uint16, addr string) (milter.Action, error)
+	MailFrom(ctx context.Context, from string) (milter.Action, error)
+	RcptTo(ctx context.Context, to string) (milter.Action, error)
+	Header(ctx context.Context, name, value string) (milter.Action, error)
+	EndOfHeaders(ctx context.Context) (milter.Action, error)
+	BodyChunk(ctx context.Context, chunk []byte) (milter.Action, error)
+	EndOfMessage(ctx context.Context) (milter.Action, error)
+	Quit(ctx context.Context) error
+	Close() error
+}
+
+// Dialer creates a new Client for a single message filter session.
+type Dialer func(ctx context.Context) (Client, error)
 
 // NetworkDialer returns a Dialer that dials the given TCP address.
 func NetworkDialer(address string, timeout time.Duration) Dialer {
-	return func(ctx context.Context) (*milter.Client, error) {
+	return func(ctx context.Context) (Client, error) {
 		return milter.Dial(ctx, "tcp", address, timeout)
 	}
+}
+
+// PoolDialer returns a Dialer that uses a connection pool with circuit breaker.
+// maxConns limits the number of concurrent connections.
+func PoolDialer(address string, timeout time.Duration, maxConns int) Dialer {
+	const failureThreshold = 3
+	const resetTimeout = 30 * time.Second
+
+	var pool *milter.Pool
+	var initErr error
+
+	return func(ctx context.Context) (Client, error) {
+		// Lazy initialization of the pool
+		if pool == nil && initErr == nil {
+			var err error
+			pool, err = milter.NewPoolWithCircuitBreaker("tcp", address, timeout, maxConns, failureThreshold, resetTimeout)
+			if err != nil {
+				initErr = err
+				return nil, fmt.Errorf("milter pool init: %w", err)
+			}
+		}
+		if initErr != nil {
+			return nil, fmt.Errorf("milter pool init: %w", initErr)
+		}
+
+		c, err := pool.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return a wrapper that puts the client back to the pool on close
+		return &pooledClient{Client: c, pool: pool}, nil
+	}
+}
+
+// pooledClient wraps a milter.Client to return it to the pool on Close.
+// It's used internally by PoolDialer to manage client lifetime.
+type pooledClient struct {
+	*milter.Client
+	pool *milter.Pool
+}
+
+// Close returns the client to the pool instead of closing it.
+func (pc *pooledClient) Close() error {
+	if pc.Client != nil && pc.pool != nil {
+		pc.pool.Put(pc.Client)
+	}
+	return nil
 }
 
 // HookOptions configures the milter hook.
@@ -38,13 +100,13 @@ func Hook(opts HookOptions) smtpd.Hook {
 }
 
 func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
-	c, err := dial(ctx)
+	client, err := dial(ctx)
 	if err != nil {
 		return fmt.Errorf("milter: dial: %w", err)
 	}
-	defer c.Close()
+	defer client.Close()
 
-	if err := c.Negotiate(ctx); err != nil {
+	if err := client.Negotiate(ctx); err != nil {
 		return fmt.Errorf("milter: negotiate: %w", err)
 	}
 
@@ -66,20 +128,20 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 		}
 	}
 
-	if action, err := c.Connect(ctx, host, family, port, host); err != nil {
+	if action, err := client.Connect(ctx, host, family, port, host); err != nil {
 		return fmt.Errorf("milter: connect: %w", err)
 	} else if err := verdictError(action); err != nil {
 		return err
 	}
 
-	if action, err := c.MailFrom(ctx, event.EnvelopeFrom); err != nil {
+	if action, err := client.MailFrom(ctx, event.EnvelopeFrom); err != nil {
 		return fmt.Errorf("milter: mail from: %w", err)
 	} else if err := verdictError(action); err != nil {
 		return err
 	}
 
 	for _, rcpt := range event.Recipients {
-		if action, err := c.RcptTo(ctx, rcpt); err != nil {
+		if action, err := client.RcptTo(ctx, rcpt); err != nil {
 			return fmt.Errorf("milter: rcpt to: %w", err)
 		} else if err := verdictError(action); err != nil {
 			return err
@@ -87,28 +149,28 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 	}
 
 	for _, h := range synthesizeHeaders(event) {
-		if action, err := c.Header(ctx, h[0], h[1]); err != nil {
+		if action, err := client.Header(ctx, h[0], h[1]); err != nil {
 			return fmt.Errorf("milter: header: %w", err)
 		} else if err := verdictError(action); err != nil {
 			return err
 		}
 	}
 
-	if action, err := c.EndOfHeaders(ctx); err != nil {
+	if action, err := client.EndOfHeaders(ctx); err != nil {
 		return fmt.Errorf("milter: eoh: %w", err)
 	} else if err := verdictError(action); err != nil {
 		return err
 	}
 
 	if event.Parsed.TextBody != "" {
-		if action, err := c.BodyChunk(ctx, []byte(event.Parsed.TextBody)); err != nil {
+		if action, err := client.BodyChunk(ctx, []byte(event.Parsed.TextBody)); err != nil {
 			return fmt.Errorf("milter: body: %w", err)
 		} else if err := verdictError(action); err != nil {
 			return err
 		}
 	}
 
-	action, err := c.EndOfMessage(ctx)
+	action, err := client.EndOfMessage(ctx)
 	if err != nil {
 		return fmt.Errorf("milter: eom: %w", err)
 	}
@@ -116,7 +178,7 @@ func runMilter(ctx context.Context, event smtpd.Event, dial Dialer) error {
 		return err
 	}
 
-	_ = c.Quit(ctx)
+	_ = client.Quit(ctx)
 	return nil
 }
 

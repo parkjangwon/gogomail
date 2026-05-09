@@ -1550,9 +1550,9 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 	hooks = append(hooks, attachmentHooks...)
 	if cfg.MilterEnabled {
 		hooks = append(hooks, milterhook.Hook(milterhook.HookOptions{
-			Dialer: milterhook.NetworkDialer(cfg.MilterAddr, cfg.MilterTimeout),
+			Dialer: milterhook.PoolDialer(cfg.MilterAddr, cfg.MilterTimeout, cfg.MilterMaxConns),
 		}))
-		logger.Info(opts.Component+" milter filter enabled", "addr", cfg.MilterAddr, "timeout", cfg.MilterTimeout)
+		logger.Info(opts.Component+" milter filter enabled", "addr", cfg.MilterAddr, "timeout", cfg.MilterTimeout, "maxConns", cfg.MilterMaxConns)
 	}
 	if len(cfg.DNSBLZones) > 0 {
 		resolver := dnsbl.NewResolverWithTimeout(cfg.DNSBLTimeout)
