@@ -9,6 +9,38 @@
 
 **STATUS: COMPLETE** ✅
 
+- **ID**: TASK-059
+- **제목**: BIMI — Brand Indicators for Message Identification (RFC 6651)
+- **배경**: Phase 6-B. TASK-058 (DANE/MTA-STS/TLS-RPT) 완료 후 이제 발신 메시지에 
+  인증된 로고 표시. BIMI는 DMARC pass + VMC(Verified Mark Certificate) 조합으로
+  수신자의 메일 클라이언트에서 발신자 로고를 표시.
+
+- **구현 완료**:
+  1. ✓ `internal/bimi/`: BIMI 정책 및 로고 캐싱
+     - ✓ ParsePolicy(): DNS TXT `_bimi.domain` 파싱 (v=BIMI1, l=<logo-url>, a=<vmc-url>)
+     - ✓ Policy: version, logoURL (HTTPS 검증), vmcURL (optional)
+     - ✓ NetResolver: DNS TXT 레코드 조회 (1시간 TTL)
+     - ✓ LogoCache: HTTPS 로고 캐싱 (32KB max, 24h TTL)
+     - ✓ Validator: BIMI 정책 검증 및 로고 페치
+     - ✓ GetLogoHeader(): Base64 인코딩 + Content-Type detection
+     - ✓ 17 passing tests (policy parsing, HTTPS validation, cache, encoding)
+
+- **완료 확인**:
+  - [x] `go test ./...` 통과: 5450 tests passed
+  - [x] bimi: 17 tests ✓
+  - [x] ParsePolicy(): RFC 6651 정책 파싱
+  - [x] HTTPS 검증: 로고 URL은 반드시 HTTPS
+  - [x] Logo cache: 크기 제한 (32KB), TTL (24h)
+  - [x] Base64 인코딩: RFC 6651 BIMI-Selector 헤더 형식
+  - [x] Content-Type detection: SVG/PNG/JPEG/GIF 자동 감지
+  - [x] RFC 6651 준수
+
+---
+
+## 완료된 태스크
+
+**STATUS: COMPLETE** ✅
+
 - **ID**: TASK-054
 - **제목**: Milter Config & Runtime — SMTP 훅 통합
 - **배경**: Phase 5-A 완성. Milter 클라이언트(TASK-051), circuit breaker(TASK-052), 
