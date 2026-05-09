@@ -25,6 +25,7 @@ import (
 	"github.com/gogomail/gogomail/internal/accesspolicy"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
+	"github.com/gogomail/gogomail/internal/milterhook"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -1227,6 +1228,12 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		return err
 	}
 	hooks = append(hooks, attachmentHooks...)
+	if cfg.MilterEnabled {
+		hooks = append(hooks, milterhook.Hook(milterhook.HookOptions{
+			Dialer: milterhook.NetworkDialer(cfg.MilterAddr, cfg.MilterTimeout),
+		}))
+		logger.Info(opts.Component+" milter filter enabled", "addr", cfg.MilterAddr, "timeout", cfg.MilterTimeout)
+	}
 	store, err := objectStoreForConfig(cfg)
 	if err != nil {
 		return err

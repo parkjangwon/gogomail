@@ -36,10 +36,10 @@ const (
 
 // Family values for the CONNECT command.
 const (
-	FamilyUnknown = 'U'
-	FamilyLocal   = 'L'
-	FamilyIPv4    = '4'
-	FamilyIPv6    = '6'
+	FamilyUnknown byte = 'U'
+	FamilyLocal   byte = 'L'
+	FamilyIPv4    byte = '4'
+	FamilyIPv6    byte = '6'
 )
 
 // milterVersion is the protocol version advertised during OPTNEG.
