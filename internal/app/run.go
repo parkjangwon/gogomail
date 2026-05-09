@@ -50,6 +50,7 @@ import (
 	"github.com/gogomail/gogomail/internal/imapnotify"
 	"github.com/gogomail/gogomail/internal/ldapgw"
 	"github.com/gogomail/gogomail/internal/mailauth"
+	"github.com/gogomail/gogomail/internal/orgchart"
 	"github.com/gogomail/gogomail/internal/scim"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
@@ -205,17 +206,15 @@ func runBatchWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return nil
 	}, 30*time.Minute)
 
-	totpRepository := maildb.NewRepository(db)
-	registry.Register("used-code-cleanup", func() error {
-		cutoff := time.Now().Add(-5 * time.Minute)
-		n, err := totpRepository.PruneExpiredTOTPCodes(ctx, cutoff)
-		if err != nil {
-			logger.Error("used TOTP code cleanup failed", "error", err)
+	orgChartAdapter := orgchart.NoopOrgChartAdapter{}
+	registry.Register("org-chart-sync", func() error {
+		if err := orgChartAdapter.SyncOrgChart(ctx); err != nil {
+			logger.Error("org chart sync failed", "error", err)
 			return err
 		}
-		logger.Info("used TOTP code cleanup completed", "pruned", n)
+		logger.Info("org chart sync completed")
 		return nil
-	}, 5*time.Minute)
+	}, 1*time.Hour)
 
 	worker := batchlock.NewWorker(registry, db)
 	worker.Start()
