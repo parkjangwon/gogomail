@@ -24,6 +24,7 @@ type WebDAVService interface {
 	RenameNode(ctx context.Context, req drive.RenameNodeRequest) (drive.Node, error)
 	MoveNode(ctx context.Context, req drive.MoveNodeRequest) (drive.Node, error)
 	CopyNode(ctx context.Context, req drive.CopyNodeRequest) (drive.Node, error)
+	GetUsageSummary(ctx context.Context, req drive.GetUsageSummaryRequest) (drive.UsageSummary, error)
 }
 
 // WebDAVRouteOptions configures the WebDAV handler.
@@ -133,7 +134,27 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to WebDAV resources
-	resources := make([]webdavgw.Resource, 0, len(nodes))
+	resources := make([]webdavgw.Resource, 0, len(nodes)+1)
+
+	// Root collection with RFC 4331 quota properties
+	rootRes := webdavgw.Resource{
+		Href:         "/dav/",
+		Name:         "Drive",
+		IsCollection: true,
+	}
+	if summary, err := h.service.GetUsageSummary(ctx, drive.GetUsageSummaryRequest{UserID: userID}); err == nil {
+		used := summary.QuotaUsed
+		rootRes.QuotaUsedBytes = &used
+		if summary.QuotaLimit > 0 {
+			avail := summary.QuotaLimit - summary.QuotaUsed
+			if avail < 0 {
+				avail = 0
+			}
+			rootRes.QuotaAvailableBytes = &avail
+		}
+	}
+	resources = append(resources, rootRes)
+
 	for _, n := range nodes {
 		resources = append(resources, webdavgw.Resource{
 			Href:         "/dav/" + n.ID + "/",
@@ -143,11 +164,6 @@ func (h *webdavHandler) handlePropfind(w http.ResponseWriter, r *http.Request) {
 			Modified:     n.UpdatedAt,
 			ContentType:  n.MIMEType,
 		})
-	}
-
-	// Add root entry if depth allows
-	if depth == "1" || depth == "infinity" || parentID == "" {
-		// Root listing — include parent href
 	}
 
 	// Marshal as WebDAV multistatus XML

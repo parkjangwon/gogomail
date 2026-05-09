@@ -7,6 +7,15 @@
 
 ## 현재 태스크
 
+- **ID**: COMPLETE
+- **제목**: 백로그 소진 — 다음 태스크 없음
+- **배경**: TASK-024까지 모든 백로그 항목 완료. NEXT_STEPS.md에 추가 태스크 없음.
+- **완료 조건**: N/A
+
+---
+
+## 완료됨
+
 - **ID**: TASK-023
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
 - **배경**: Phase 4-B 항목. Apple Mail, iOS, macOS, Thunderbird는 `/.well-known/caldav`와
@@ -26,6 +35,10 @@
 
 ## 완료됨
 
+- **TASK-024**: WebDAV Quota (RFC 4331) — quota-used-bytes / quota-available-bytes ✅ (2026-05-09)
+  - `internal/webdavgw/webdavgw.go`: Resource에 QuotaUsedBytes/QuotaAvailableBytes 추가, MarshalPropfindResponse에 quota 속성 반영
+  - `internal/httpapi/webdav.go`: WebDAVService에 GetUsageSummary 추가, PROPFIND root collection에 RFC 4331 quota 속성 삽입
+  - `go test ./...` 5141개 통과
 - **TASK-023**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 ✅ (2026-05-09)
   - `internal/httpapi/wellknown.go`에 RegisterWellKnownRoutes 구현
   - GET/PROPFIND/OPTIONS 모든 메서드 301 리다이렉트 지원

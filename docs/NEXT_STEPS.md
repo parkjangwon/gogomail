@@ -17,7 +17,8 @@ ACTIVE_TASK.md가 COMPLETE이면 여기서 첫 번째 항목을 선택해 ACTIVE
 | TASK-020 | OpenAPI → TypeScript 클라이언트 생성 | 완료 |
 | TASK-021 | WebDAV Gateway — Drive RFC 4918 지원 | 완료 |
 | TASK-022 | POP3 게이트웨이 런타임 통합 | 완료 |
-| TASK-023 | Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 | 대기 |
+| TASK-023 | Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견 | 완료 |
+| TASK-024 | WebDAV Quota (RFC 4331) — quota-used-bytes / quota-available-bytes | 완료 |
 
 ### TASK-023 상세
 - **제목**: Well-Known URIs (RFC 6764) — CalDAV/CardDAV 자동발견
