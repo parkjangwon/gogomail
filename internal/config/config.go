@@ -91,6 +91,9 @@ type Config struct {
 	RateLimitBackend                    string
 	BackpressureBackend                 string
 	MetricsBackend                      string
+	MilterEnabled                       bool
+	MilterAddr                          string
+	MilterTimeout                       time.Duration
 	AttachmentScanBackend               string
 	AttachmentScanWebhookURL            string
 	AttachmentScanWebhookToken          string
@@ -295,6 +298,9 @@ func Load() Config {
 		RateLimitBackend:                    envOrDefault("GOGOMAIL_RATELIMIT_BACKEND", "none"),
 		BackpressureBackend:                 envOrDefault("GOGOMAIL_BACKPRESSURE_BACKEND", "none"),
 		MetricsBackend:                      envOrDefault("GOGOMAIL_METRICS_BACKEND", "none"),
+		MilterEnabled:                       boolEnvOrDefault("GOGOMAIL_MILTER_ENABLED", false),
+		MilterAddr:                          envOrDefault("GOGOMAIL_MILTER_ADDR", "127.0.0.1:7357"),
+		MilterTimeout:                       durationEnvOrDefault("GOGOMAIL_MILTER_TIMEOUT", 30*time.Second),
 		AttachmentScanBackend:               envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_BACKEND", "none"),
 		AttachmentScanWebhookURL:            envOrDefault("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_URL", ""),
 		AttachmentScanWebhookToken:          os.Getenv("GOGOMAIL_ATTACHMENT_SCAN_WEBHOOK_TOKEN"),
