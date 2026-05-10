@@ -4318,6 +4318,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("DELETE /admin/v1/companies/{id}/sessions/{userId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteCompanySession(w, r)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyRateLimitPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyRateLimitPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainRateLimitPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainRateLimitPolicy(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -6001,4 +6017,122 @@ func handleDeleteCompanySession(w http.ResponseWriter, r *http.Request) {
 		"terminated": true,
 		"user_id":    r.PathValue("userId"),
 	})
+}
+
+const rateLimitPolicyKey = "rate_limit_policy"
+
+type rateLimitPolicy struct {
+	Enabled             bool   `json:"enabled"`
+	MaxPerHour          int    `json:"max_per_hour"`
+	MaxPerDay           int    `json:"max_per_day"`
+	MaxRecipientsPerMsg int    `json:"max_recipients_per_msg"`
+	MaxMessageSizeMB    int    `json:"max_message_size_mb"`
+	ActionOnExceed      string `json:"action_on_exceed"`
+	PerUserMaxPerHour   int    `json:"per_user_max_per_hour"`
+	PerUserMaxPerDay    int    `json:"per_user_max_per_day"`
+}
+
+func defaultRateLimitPolicy() rateLimitPolicy {
+	return rateLimitPolicy{
+		Enabled:             false,
+		MaxPerHour:          0,
+		MaxPerDay:           0,
+		MaxRecipientsPerMsg: 100,
+		MaxMessageSizeMB:    25,
+		ActionOnExceed:      "queue",
+		PerUserMaxPerHour:   0,
+		PerUserMaxPerDay:    500,
+	}
+}
+
+func handleGetCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, rateLimitPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRateLimitPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy rateLimitPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanyRateLimitPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy rateLimitPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, rateLimitPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainRateLimitPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, rateLimitPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRateLimitPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy rateLimitPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainRateLimitPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy rateLimitPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, rateLimitPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 }

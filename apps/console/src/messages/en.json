@@ -74,6 +74,7 @@
     "auth_policy": "Auth Policy",
     "retention_policy": "Data Retention",
     "session_mgmt": "Session Management",
+    "rate_limits": "Rate Limits",
     "section_resources": "Resources",
     "section_operations": "Operations",
     "section_access_control": "Access Control",
@@ -489,6 +490,23 @@
       "session_section": "Session Settings",
       "session_timeout": "Session Timeout (minutes)",
       "max_concurrent": "Max Concurrent Sessions (0 = unlimited)",
+      "save": "Save Policy"
+    },
+    "rate_limit_page": {
+      "title": "Send Rate Limit Policy",
+      "description": "Control outbound email send rates per company and per user",
+      "enabled": "Enable Rate Limiting",
+      "company_limits": "Company-wide Limits",
+      "max_per_hour": "Max Emails per Hour (0 = unlimited)",
+      "max_per_day": "Max Emails per Day (0 = unlimited)",
+      "max_recipients": "Max Recipients per Message (0 = unlimited)",
+      "max_size_mb": "Max Message Size (MB, 0 = unlimited)",
+      "action_on_exceed": "Action When Limit Exceeded",
+      "action_queue": "Queue (delay sending)",
+      "action_reject": "Reject (return error to sender)",
+      "per_user_limits": "Per-User Limits",
+      "per_user_hour": "Max Emails per Hour per User (0 = unlimited)",
+      "per_user_day": "Max Emails per Day per User (0 = unlimited)",
       "save": "Save Policy"
     },
     "session_page": {
