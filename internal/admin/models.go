@@ -169,3 +169,28 @@ func DefaultAuditPolicy() AuditPolicyConfig {
 		MaskRecipientEmails: false,
 	}
 }
+
+// APISettings holds API-level configuration for a domain.
+type APISettings struct {
+	DomainID             string    `json:"domain_id"`
+	RateLimitRPS         int       `json:"rate_limit_rps"`      // requests per second
+	RateLimitBPS         int64     `json:"rate_limit_bps"`      // bytes per second (0 = unlimited)
+	CIDRAllowlistEnabled bool      `json:"cidr_allowlist_enabled"`
+	CIDRAllowlist        []string  `json:"cidr_allowlist"`      // CIDR or single IP
+	RequireAPIKey        bool      `json:"require_api_key"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	UpdatedBy            string    `json:"updated_by"`
+}
+
+// APIKey represents an API key for domain access.
+type APIKey struct {
+	ID         string     `json:"id"`
+	DomainID   string     `json:"domain_id"`
+	Name       string     `json:"name"`
+	SecretHash string     `json:"-"` // never expose in JSON
+	CreatedBy  string     `json:"created_by"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	IsActive   bool       `json:"is_active"`
+}

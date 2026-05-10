@@ -2,8 +2,12 @@ package admin
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -306,4 +310,128 @@ func (s *Service) ListLoginAttempts(ctx context.Context, filter LoginAuditFilter
 func (s *Service) CleanupAuditLogs(ctx context.Context, companyID string, retentionDays int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	return s.repo.DeleteAuditLogsBefore(ctx, companyID, cutoff)
+}
+
+// GetDomainSettings retrieves domain-level configuration.
+func (s *Service) GetDomainSettings(ctx context.Context, domainID string) (*DomainSettings, error) {
+	if domainID == "" {
+		return nil, fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	return s.repo.GetDomainSettings(ctx, domainID)
+}
+
+// UpdateDomainSettings updates domain-level configuration.
+func (s *Service) UpdateDomainSettings(ctx context.Context, settings *DomainSettings) error {
+	if settings.DomainID == "" {
+		return fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	if settings.TLSPolicy == "" || (settings.TLSPolicy != "opportunistic" && settings.TLSPolicy != "require" && settings.TLSPolicy != "disable") {
+		return fmt.Errorf("invalid tls_policy: must be opportunistic, require, or disable")
+	}
+	if settings.QuotaPerUser <= 0 {
+		return fmt.Errorf("quota_per_user must be greater than 0")
+	}
+	if settings.SessionTimeoutMinutes <= 0 {
+		return fmt.Errorf("session_timeout_minutes must be greater than 0")
+	}
+	if settings.PasswordMinLength <= 0 {
+		return fmt.Errorf("password_min_length must be greater than 0")
+	}
+	if settings.PasswordExpiryDays < 0 {
+		return fmt.Errorf("password_expiry_days must be >= 0")
+	}
+	return s.repo.UpdateDomainSettings(ctx, settings)
+}
+
+// GetAPISettings retrieves API settings for a domain.
+func (s *Service) GetAPISettings(ctx context.Context, domainID string) (*APISettings, error) {
+	if domainID == "" {
+		return nil, fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	return s.repo.GetAPISettings(ctx, domainID)
+}
+
+// UpdateAPISettings updates API settings for a domain.
+func (s *Service) UpdateAPISettings(ctx context.Context, settings *APISettings) error {
+	if settings.DomainID == "" {
+		return fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	if settings.RateLimitRPS <= 0 {
+		return fmt.Errorf("rate_limit_rps must be greater than 0")
+	}
+	if settings.RateLimitBPS < 0 {
+		return fmt.Errorf("rate_limit_bps must be >= 0")
+	}
+	return s.repo.UpdateAPISettings(ctx, settings)
+}
+
+// CreateAPIKey creates a new API key and returns the secret.
+func (s *Service) CreateAPIKey(ctx context.Context, key *APIKey) (secret string, err error) {
+	if key.DomainID == "" {
+		return "", fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	if key.Name == "" {
+		return "", fmt.Errorf("%w: name", ErrMissingRequiredField)
+	}
+	if key.CreatedBy == "" {
+		return "", fmt.Errorf("%w: createdBy", ErrMissingRequiredField)
+	}
+
+	secret = generateAPIKeySecret(32)
+	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hash api key secret: %w", err)
+	}
+
+	key.SecretHash = string(hash)
+	key.CreatedAt = time.Now()
+	key.IsActive = true
+
+	if err := s.repo.CreateAPIKey(ctx, key); err != nil {
+		return "", err
+	}
+	return secret, nil
+}
+
+// ListAPIKeys lists all API keys for a domain.
+func (s *Service) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error) {
+	if domainID == "" {
+		return nil, fmt.Errorf("%w: domainID", ErrMissingRequiredField)
+	}
+	return s.repo.ListAPIKeys(ctx, domainID)
+}
+
+// DeleteAPIKey deletes an API key.
+func (s *Service) DeleteAPIKey(ctx context.Context, keyID string) error {
+	if keyID == "" {
+		return fmt.Errorf("%w: keyID", ErrMissingRequiredField)
+	}
+	return s.repo.DeleteAPIKey(ctx, keyID)
+}
+
+// RotateAPIKey rotates an API key by creating a new secret.
+func (s *Service) RotateAPIKey(ctx context.Context, keyID string) (newSecret string, err error) {
+	if keyID == "" {
+		return "", fmt.Errorf("%w: keyID", ErrMissingRequiredField)
+	}
+
+	newSecret = generateAPIKeySecret(32)
+	hash, err := bcrypt.GenerateFromPassword([]byte(newSecret), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hash new api key secret: %w", err)
+	}
+
+	if err := s.repo.RotateAPIKeySecret(ctx, keyID, string(hash)); err != nil {
+		return "", fmt.Errorf("rotate api key: %w", err)
+	}
+	return newSecret, nil
+}
+
+// generateAPIKeySecret generates a random API key secret.
+func generateAPIKeySecret(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("failed to generate random bytes: %v", err))
+	}
+	return base64.StdEncoding.EncodeToString(b)
 }

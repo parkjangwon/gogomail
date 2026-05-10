@@ -8469,6 +8469,21 @@ type fakeAdminService struct {
 	lastDeleteDeviceID                         string
 	lastDeleteAllDevicesUserID                 string
 	deleteAllDevicesCount                      int
+	alertRules                                 []admin.AlertRule
+	alertChannels                              []admin.AlertChannel
+	alertEvents                                []admin.AlertEvent
+	lastCreateAlertRule                        *admin.AlertRule
+	lastGetAlertRuleID                         string
+	lastListAlertRulesCompanyID                string
+	lastUpdateAlertRule                        *admin.AlertRule
+	lastDeleteAlertRuleID                      string
+	lastCreateAlertChannel                     *admin.AlertChannel
+	lastGetAlertChannelID                      string
+	lastListAlertChannelsCompanyID             string
+	lastUpdateAlertChannel                     *admin.AlertChannel
+	lastDeleteAlertChannelID                   string
+	lastListAlertEventsFilter                  admin.AlertEventFilter
+	lastLogAlertEvent                          *admin.AlertEvent
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -9402,6 +9417,144 @@ func (f *fakeAdminService) GetDomainSettings(_ context.Context, domainID string)
 
 func (f *fakeAdminService) UpdateDomainSettings(_ context.Context, settings *admin.DomainSettings) error {
 	f.lastDomainID = settings.DomainID
+	return nil
+}
+
+func (f *fakeAdminService) GetAPISettings(_ context.Context, domainID string) (*admin.APISettings, error) {
+	f.lastDomainID = domainID
+	return &admin.APISettings{
+		DomainID:             domainID,
+		RateLimitRPS:         100,
+		RateLimitBPS:         0,
+		CIDRAllowlistEnabled: false,
+		CIDRAllowlist:        []string{},
+		RequireAPIKey:        true,
+		UpdatedAt:            time.Now(),
+		UpdatedBy:            "admin-1",
+	}, nil
+}
+
+func (f *fakeAdminService) UpdateAPISettings(_ context.Context, settings *admin.APISettings) error {
+	f.lastDomainID = settings.DomainID
+	return nil
+}
+
+func (f *fakeAdminService) CreateAPIKey(_ context.Context, key *admin.APIKey) (secret string, err error) {
+	f.lastDomainID = key.DomainID
+	key.ID = "key-" + key.DomainID
+	return "test-secret-" + key.ID, nil
+}
+
+func (f *fakeAdminService) ListAPIKeys(_ context.Context, domainID string) ([]admin.APIKey, error) {
+	f.lastDomainID = domainID
+	return []admin.APIKey{
+		{
+			ID:        "key-1",
+			DomainID:  domainID,
+			Name:      "test-key",
+			CreatedBy: "admin-1",
+			CreatedAt: time.Now(),
+			IsActive:  true,
+		},
+	}, nil
+}
+
+func (f *fakeAdminService) DeleteAPIKey(_ context.Context, keyID string) error {
+	return nil
+}
+
+func (f *fakeAdminService) RotateAPIKey(_ context.Context, keyID string) (newSecret string, err error) {
+	return "new-secret-" + keyID, nil
+}
+
+func (f *fakeAdminService) CreateAlertRule(_ context.Context, rule *admin.AlertRule) error {
+	f.lastCreateAlertRule = rule
+	rule.ID = "rule-123"
+	return nil
+}
+
+func (f *fakeAdminService) GetAlertRule(_ context.Context, ruleID string) (*admin.AlertRule, error) {
+	f.lastGetAlertRuleID = ruleID
+	for _, rule := range f.alertRules {
+		if rule.ID == ruleID {
+			return &rule, nil
+		}
+	}
+	return nil, fmt.Errorf("rule not found")
+}
+
+func (f *fakeAdminService) ListAlertRules(_ context.Context, companyID string) ([]admin.AlertRule, error) {
+	f.lastListAlertRulesCompanyID = companyID
+	var rules []admin.AlertRule
+	for _, rule := range f.alertRules {
+		if rule.CompanyID == companyID {
+			rules = append(rules, rule)
+		}
+	}
+	return rules, nil
+}
+
+func (f *fakeAdminService) UpdateAlertRule(_ context.Context, rule *admin.AlertRule) error {
+	f.lastUpdateAlertRule = rule
+	return nil
+}
+
+func (f *fakeAdminService) DeleteAlertRule(_ context.Context, ruleID string) error {
+	f.lastDeleteAlertRuleID = ruleID
+	return nil
+}
+
+func (f *fakeAdminService) CreateAlertChannel(_ context.Context, channel *admin.AlertChannel) error {
+	f.lastCreateAlertChannel = channel
+	channel.ID = "channel-123"
+	return nil
+}
+
+func (f *fakeAdminService) GetAlertChannel(_ context.Context, channelID string) (*admin.AlertChannel, error) {
+	f.lastGetAlertChannelID = channelID
+	for _, ch := range f.alertChannels {
+		if ch.ID == channelID {
+			return &ch, nil
+		}
+	}
+	return nil, fmt.Errorf("channel not found")
+}
+
+func (f *fakeAdminService) ListAlertChannels(_ context.Context, companyID string) ([]admin.AlertChannel, error) {
+	f.lastListAlertChannelsCompanyID = companyID
+	var channels []admin.AlertChannel
+	for _, ch := range f.alertChannels {
+		if ch.CompanyID == companyID {
+			channels = append(channels, ch)
+		}
+	}
+	return channels, nil
+}
+
+func (f *fakeAdminService) UpdateAlertChannel(_ context.Context, channel *admin.AlertChannel) error {
+	f.lastUpdateAlertChannel = channel
+	return nil
+}
+
+func (f *fakeAdminService) DeleteAlertChannel(_ context.Context, channelID string) error {
+	f.lastDeleteAlertChannelID = channelID
+	return nil
+}
+
+func (f *fakeAdminService) ListAlertEvents(_ context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error) {
+	f.lastListAlertEventsFilter = filter
+	var events []admin.AlertEvent
+	for _, event := range f.alertEvents {
+		if event.CompanyID == filter.CompanyID {
+			events = append(events, event)
+		}
+	}
+	return events, nil
+}
+
+func (f *fakeAdminService) LogAlertEvent(_ context.Context, event *admin.AlertEvent) error {
+	f.lastLogAlertEvent = event
+	event.ID = "event-123"
 	return nil
 }
 
