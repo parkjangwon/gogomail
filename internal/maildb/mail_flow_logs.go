@@ -153,7 +153,7 @@ SELECT
   received_at,
   processed_at,
   in_reply_to,
-  references,
+  "references",
   COALESCE(thread_id::text, ''),
   COALESCE(ip_address::text, ''),
   mail_from,
@@ -272,7 +272,7 @@ SELECT
   received_at,
   processed_at,
   in_reply_to,
-  references,
+  "references",
   COALESCE(thread_id::text, ''),
   COALESCE(ip_address::text, ''),
   mail_from,
@@ -611,7 +611,7 @@ INSERT INTO mail_flow_logs (
   spam_score, dkim_result, spf_result, dmarc_result,
   transport, farm, size,
   received_at, processed_at,
-  in_reply_to, references, thread_id,
+  in_reply_to, "references", thread_id,
   ip_address, mail_from, rcpt_to
 ) VALUES (
   $1, $2, $3, $4,

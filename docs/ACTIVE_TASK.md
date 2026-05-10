@@ -13,6 +13,13 @@
 - `internal/maildb/admin.go`: `NULLIF($N, 0)` → `NULLIF($N::bigint, 0)` — pgx int4 타입 추론 오버플로우 수정 (도메인/사용자/회사 quota 5곳)
 - `apps/console` 도메인 모달 React key prop 경고 수정
 - 웹메일 next-intl 인프라 추가 (ko/en/ja/zh-CN)
+- `internal/maildb/mail_flow_logs.go`: `references` PostgreSQL 예약어 → `"references"` 쿼터 수정 (3곳)
+- `apps/console` admin console CRUD 오류 일괄 수정:
+  - access/* 페이지: company_id 파라미터 누락, 응답 키 오류, 필드명 대소문자 불일치 수정
+  - analytics/* 페이지: 잘못된 API 엔드포인트 URL 수정
+  - config/company: useParams + 올바른 URL 패턴 적용
+  - config/domain, config/user: 도메인/사용자 선택 후 설정 조회 방식으로 재작성
+  - security/api-keys: 도메인 선택 후 키 조회, 생성, 삭제 기능 구현
 
 ### 배경
 

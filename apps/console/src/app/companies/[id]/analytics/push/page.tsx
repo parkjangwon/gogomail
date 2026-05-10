@@ -35,12 +35,12 @@ export default function PushNotificationsPage() {
   const fetchPushMetrics = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/push-notifications?limit=100', {
+      const res = await fetch('/api/admin/push-notification-attempts?limit=100', {
         credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
-        setMetrics(data.metrics || []);
+        setMetrics(data.push_notification_attempts || []);
       }
     } catch (error) {
       console.error('Failed to fetch push metrics:', error);

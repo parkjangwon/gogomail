@@ -15,16 +15,23 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
 interface ConfigEntry {
-  id: string;
-  key: string;
-  value: string;
-  last_updated: string;
+  ID: string;
+  ScopeType: string;
+  ScopeID: string;
+  Key: string;
+  Value: unknown;
+  Locked: boolean;
+  Version: number;
+  UpdatedAt: string;
 }
 
 export default function CompanyConfigPage() {
   const { t } = useI18n();
+  const params = useParams();
+  const companyId = params?.id as string;
   const [configs, setConfigs] = useState<ConfigEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -33,12 +40,12 @@ export default function CompanyConfigPage() {
 
   useEffect(() => {
     fetchCompanyConfig();
-  }, []);
+  }, [companyId]);
 
   const fetchCompanyConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/config/company?limit=100', {
+      const res = await fetch(`/api/admin/companies/${companyId}/config`, {
         credentials: 'include'
       });
       if (res.ok) {
@@ -53,11 +60,12 @@ export default function CompanyConfigPage() {
   };
 
   const handleCreateConfig = async () => {
+    if (!newConfig.key.trim()) return;
     try {
-      await fetch('/api/admin/config/company', {
-        method: 'POST',
+      await fetch(`/api/admin/companies/${companyId}/config/${newConfig.key}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newConfig),
+        body: JSON.stringify({ value: newConfig.value }),
         credentials: 'include',
       });
       setShowModal(false);
@@ -69,7 +77,7 @@ export default function CompanyConfigPage() {
   };
 
   const filteredConfigs = configs.filter(c =>
-    c.key.toLowerCase().includes(filter.toLowerCase())
+    c.Key.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
@@ -103,18 +111,18 @@ export default function CompanyConfigPage() {
           columnDefinitions={[
             {
               header: t('pages.config_company_page.key'),
-              cell: (item: ConfigEntry) => item.key,
+              cell: (item: ConfigEntry) => item.Key,
               width: '30%',
             },
             {
               header: t('pages.config_company_page.value'),
-              cell: (item: ConfigEntry) => item.value,
-              width: '50%',
+              cell: (item: ConfigEntry) => typeof item.Value === 'object' ? JSON.stringify(item.Value) : String(item.Value ?? ''),
+              width: '45%',
             },
             {
               header: t('pages.config_company_page.last_updated'),
-              cell: (item: ConfigEntry) => new Date(item.last_updated).toLocaleString(),
-              width: '20%',
+              cell: (item: ConfigEntry) => item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString() : '—',
+              width: '25%',
             },
           ]}
           items={filteredConfigs}
@@ -136,7 +144,7 @@ export default function CompanyConfigPage() {
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
-              <Button variant="primary" onClick={handleCreateConfig}>
+              <Button variant="primary" onClick={handleCreateConfig} disabled={!newConfig.key.trim()}>
                 {t('pages.config_company_page.add_btn')}
               </Button>
             </SpaceBetween>

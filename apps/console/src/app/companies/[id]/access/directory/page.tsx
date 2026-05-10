@@ -13,35 +13,40 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
 interface Principal {
-  id: string;
-  email: string;
-  name: string;
-  type: string;
-  status: string;
-  created_at: string;
+  ID: string;
+  Kind: string;
+  CompanyID: string;
+  DomainID: string;
+  OrganizationID: string;
+  DisplayName: string;
+  PrimaryEmail: string;
+  Status: string;
 }
 
 export default function DirectoryPage() {
   const { t } = useI18n();
+  const params = useParams();
+  const companyId = params?.id as string;
   const [principals, setPrincipals] = useState<Principal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
     fetchPrincipals();
-  }, []);
+  }, [companyId]);
 
   const fetchPrincipals = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/principals?limit=100', {
+      const res = await fetch(`/api/admin/directory/principals?company_id=${companyId}&limit=100`, {
         credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
-        setPrincipals(data.principals || []);
+        setPrincipals(data.directory_principals || []);
       }
     } catch (error) {
       console.error('Failed to fetch principals:', error);
@@ -51,8 +56,8 @@ export default function DirectoryPage() {
   };
 
   const filteredPrincipals = principals.filter(p =>
-    p.email.toLowerCase().includes(filter.toLowerCase()) ||
-    p.name.toLowerCase().includes(filter.toLowerCase())
+    p.PrimaryEmail.toLowerCase().includes(filter.toLowerCase()) ||
+    p.DisplayName.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
@@ -86,33 +91,28 @@ export default function DirectoryPage() {
           columnDefinitions={[
             {
               header: t('pages.directory_page.email'),
-              cell: (item: Principal) => item.email,
+              cell: (item: Principal) => item.PrimaryEmail,
               width: '30%',
             },
             {
               header: t('pages.directory_page.name'),
-              cell: (item: Principal) => item.name,
+              cell: (item: Principal) => item.DisplayName,
               width: '25%',
             },
             {
               header: t('pages.directory_page.type'),
               cell: (item: Principal) => (
-                <Badge color="blue">{item.type}</Badge>
+                <Badge color="blue">{item.Kind}</Badge>
               ),
               width: '15%',
             },
             {
               header: t('pages.directory_page.status'),
               cell: (item: Principal) => (
-                <Badge color={item.status === 'active' ? 'green' : 'grey'}>
-                  {item.status}
+                <Badge color={item.Status === 'active' ? 'green' : 'grey'}>
+                  {item.Status}
                 </Badge>
               ),
-              width: '15%',
-            },
-            {
-              header: t('pages.directory_page.created'),
-              cell: (item: Principal) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}

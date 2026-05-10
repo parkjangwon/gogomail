@@ -17,14 +17,16 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
 interface GroupMembership {
-  id: string;
-  group_id: string;
-  member_kind: string;
-  member_id: string;
-  role: string;
-  joined_at: string;
+  ID: string;
+  GroupID: string;
+  CompanyID: string;
+  MemberKind: string;
+  MemberID: string;
+  Role: string;
+  Status: string;
 }
 
 type NewMembership = {
@@ -36,6 +38,8 @@ type NewMembership = {
 
 export default function GroupMembershipsPage() {
   const { t } = useI18n();
+  const params = useParams();
+  const companyId = params?.id as string;
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -57,12 +61,12 @@ export default function GroupMembershipsPage() {
   const fetchMemberships = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/directory/group-memberships?limit=100', {
+      const res = await fetch(`/api/admin/directory/group-memberships?company_id=${companyId}&limit=100`, {
         credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
-        setMemberships(data.memberships || []);
+        setMemberships(data.directory_group_memberships || []);
       }
     } catch (error) {
       console.error('Failed to fetch group memberships:', error);
@@ -132,8 +136,8 @@ export default function GroupMembershipsPage() {
 
   const filteredMemberships = memberships.filter(
     (m) =>
-      m.group_id.toLowerCase().includes(filter.toLowerCase()) ||
-      m.member_id.toLowerCase().includes(filter.toLowerCase())
+      m.GroupID.toLowerCase().includes(filter.toLowerCase()) ||
+      m.MemberID.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
@@ -167,15 +171,15 @@ export default function GroupMembershipsPage() {
           columnDefinitions={[
             {
               header: t('pages.groups.group_id'),
-              cell: (item: GroupMembership) => item.group_id,
+              cell: (item: GroupMembership) => item.GroupID,
               width: '25%',
             },
             {
               header: t('pages.groups.member_id'),
               cell: (item: GroupMembership) => (
                 <SpaceBetween size="xxxs">
-                  <Box fontWeight="bold">{item.member_id}</Box>
-                  <Box color="text-body-secondary" fontSize="body-s">{item.member_kind}</Box>
+                  <Box fontWeight="bold">{item.MemberID}</Box>
+                  <Box color="text-body-secondary" fontSize="body-s">{item.MemberKind}</Box>
                 </SpaceBetween>
               ),
               width: '30%',
@@ -183,15 +187,15 @@ export default function GroupMembershipsPage() {
             {
               header: t('pages.groups_page.role'),
               cell: (item: GroupMembership) => (
-                <Badge color={item.role === 'admin' ? 'red' : item.role === 'owner' ? 'blue' : 'grey'}>
-                  {item.role}
+                <Badge color={item.Role === 'admin' ? 'red' : item.Role === 'owner' ? 'blue' : 'grey'}>
+                  {item.Role}
                 </Badge>
               ),
               width: '20%',
             },
             {
-              header: t('pages.groups.created'),
-              cell: (item: GroupMembership) => new Date(item.joined_at).toLocaleDateString(),
+              header: t('pages.groups.status'),
+              cell: (item: GroupMembership) => item.Status || '—',
               width: '15%',
             },
             {
@@ -199,8 +203,8 @@ export default function GroupMembershipsPage() {
               cell: (item: GroupMembership) => (
                 <Button
                   variant="inline-link"
-                  onClick={() => handleDelete(item.id)}
-                  loading={deletingId === item.id}
+                  onClick={() => handleDelete(item.ID)}
+                  loading={deletingId === item.ID}
                 >
                   {t('common.delete')}
                 </Button>
