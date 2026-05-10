@@ -197,11 +197,10 @@ export default function UsersPage() {
     if (!editUser) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/users/${editUser.id}`, {
-        method: 'PUT',
+      await fetch(`/api/admin/users/${editUser.id}/quota`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          display_name: editForm.display_name,
           quota_limit: parseInt(editForm.quota_gb) * 1073741824,
         }),
         credentials: 'include',
@@ -220,7 +219,7 @@ export default function UsersPage() {
     const nextStatus = user.status === 'active' ? 'suspended' : 'active';
     try {
       await fetch(`/api/admin/users/${user.id}/status`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus }),
         credentials: 'include',
@@ -583,10 +582,7 @@ export default function UsersPage() {
       >
         <SpaceBetween size="m">
           <FormField label={t('pages.users_page.display_name_label')}>
-            <Input
-              value={editForm.display_name}
-              onChange={(e) => setEditForm({ ...editForm, display_name: e.detail.value })}
-            />
+            <Input value={editForm.display_name} readOnly onChange={() => {}} />
           </FormField>
           <FormField label={t('pages.users_page.quota_label')}>
             <Input

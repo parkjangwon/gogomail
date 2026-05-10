@@ -31,6 +31,7 @@ export default function SuppressionListPage() {
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newEntry, setNewEntry] = useState({ email: '', reason: '' });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSuppressionList();
@@ -44,7 +45,7 @@ export default function SuppressionListPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setEntries(data.entries || []);
+        setEntries(data.suppression_list || []);
       }
     } catch (error) {
       console.error('Failed to fetch suppression list:', error);
@@ -66,6 +67,21 @@ export default function SuppressionListPage() {
       fetchSuppressionList();
     } catch (error) {
       console.error('Failed to add suppression entry:', error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await fetch(`/api/admin/suppression-list/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      fetchSuppressionList();
+    } catch (error) {
+      console.error('Failed to delete suppression entry:', error);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -118,7 +134,20 @@ export default function SuppressionListPage() {
             {
               header: t('pages.suppression_page.added'),
               cell: (item: SuppressionEntry) => new Date(item.added_at).toLocaleString(),
-              width: '25%',
+              width: '20%',
+            },
+            {
+              header: t('common.actions'),
+              cell: (item: SuppressionEntry) => (
+                <Button
+                  variant="inline-link"
+                  onClick={() => handleDelete(item.id)}
+                  loading={deletingId === item.id}
+                >
+                  {t('common.delete')}
+                </Button>
+              ),
+              width: '5%',
             },
           ]}
           items={filteredEntries}
