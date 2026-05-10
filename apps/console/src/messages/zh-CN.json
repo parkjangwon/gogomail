@@ -73,6 +73,7 @@
     "ip_access": "IP访问控制",
     "retention_policy": "数据保留策略",
     "session_mgmt": "会话管理",
+    "rate_limits": "发送速率限制",
     "section_resources": "资源",
     "section_operations": "运营",
     "section_access_control": "访问控制",
@@ -967,6 +968,23 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "rate_limit_page": {
+      "title": "发送速率限制策略",
+      "description": "控制每个公司和每个用户的出站邮件发送速率",
+      "enabled": "启用速率限制",
+      "company_limits": "公司范围限制",
+      "max_per_hour": "每小时最大邮件数 (0 = 无限制)",
+      "max_per_day": "每天最大邮件数 (0 = 无限制)",
+      "max_recipients": "每封邮件最大收件人数 (0 = 无限制)",
+      "max_size_mb": "最大邮件大小 (MB, 0 = 无限制)",
+      "action_on_exceed": "超出限制时的操作",
+      "action_queue": "排队 (延迟发送)",
+      "action_reject": "拒绝 (向发件人返回错误)",
+      "per_user_limits": "每用户限制",
+      "per_user_hour": "每用户每小时最大邮件数 (0 = 无限制)",
+      "per_user_day": "每用户每天最大邮件数 (0 = 无限制)",
+      "save": "保存策略"
     },
     "session_page": {
       "title": "会话管理",

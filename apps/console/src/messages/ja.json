@@ -73,6 +73,7 @@
     "ip_access": "IPアクセス制御",
     "retention_policy": "データ保持ポリシー",
     "session_mgmt": "セッション管理",
+    "rate_limits": "送信レート制限",
     "section_resources": "リソース",
     "section_operations": "オペレーション",
     "section_access_control": "アクセス制御",
@@ -967,6 +968,23 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "rate_limit_page": {
+      "title": "送信レート制限ポリシー",
+      "description": "会社およびユーザーごとのアウトバウンドメール送信レートを制御します",
+      "enabled": "レート制限を有効にする",
+      "company_limits": "会社全体の制限",
+      "max_per_hour": "1時間あたりの最大メール数 (0 = 無制限)",
+      "max_per_day": "1日あたりの最大メール数 (0 = 無制限)",
+      "max_recipients": "メッセージあたりの最大受信者数 (0 = 無制限)",
+      "max_size_mb": "最大メッセージサイズ (MB, 0 = 無制限)",
+      "action_on_exceed": "制限超過時のアクション",
+      "action_queue": "キュー (送信を遅延)",
+      "action_reject": "拒否 (送信者にエラーを返す)",
+      "per_user_limits": "ユーザーごとの制限",
+      "per_user_hour": "ユーザーあたり1時間の最大メール数 (0 = 無制限)",
+      "per_user_day": "ユーザーあたり1日の最大メール数 (0 = 無制限)",
+      "save": "ポリシーを保存"
     },
     "session_page": {
       "title": "セッション管理",

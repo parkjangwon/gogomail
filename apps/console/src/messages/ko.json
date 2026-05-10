@@ -73,6 +73,7 @@
     "ip_access": "IP 접근 제어",
     "retention_policy": "데이터 보존 정책",
     "session_mgmt": "세션 관리",
+    "rate_limits": "발신 제한",
     "section_resources": "리소스",
     "section_operations": "운영",
     "section_access_control": "접근 제어",
@@ -479,6 +480,23 @@
       "save_btn": "저장",
       "type": "유형",
       "update_btn": "업데이트"
+    },
+    "rate_limit_page": {
+      "title": "발신 속도 제한 정책",
+      "description": "회사 및 사용자별 아웃바운드 이메일 발신 속도를 제어합니다",
+      "enabled": "속도 제한 활성화",
+      "company_limits": "회사 전체 제한",
+      "max_per_hour": "시간당 최대 이메일 수 (0 = 무제한)",
+      "max_per_day": "일일 최대 이메일 수 (0 = 무제한)",
+      "max_recipients": "메시지당 최대 수신자 수 (0 = 무제한)",
+      "max_size_mb": "최대 메시지 크기 (MB, 0 = 무제한)",
+      "action_on_exceed": "제한 초과 시 동작",
+      "action_queue": "큐 (전송 지연)",
+      "action_reject": "거부 (발신자에게 오류 반환)",
+      "per_user_limits": "사용자별 제한",
+      "per_user_hour": "사용자당 시간당 최대 이메일 수 (0 = 무제한)",
+      "per_user_day": "사용자당 일일 최대 이메일 수 (0 = 무제한)",
+      "save": "정책 저장"
     },
     "session_page": {
       "title": "세션 관리",

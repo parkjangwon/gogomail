@@ -7128,6 +7128,128 @@ paths:
                     $ref: "#/components/schemas/RetentionPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/rate-limit:
+    get:
+      operationId: adminGetCompanyRateLimitPolicy
+      summary: Get company send rate limit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rate limit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RateLimitPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanyRateLimitPolicy
+      summary: Set company send rate limit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateLimitPolicy"
+      responses:
+        "200":
+          description: Saved rate limit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RateLimitPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/security/rate-limit:
+    get:
+      operationId: adminGetDomainRateLimitPolicy
+      summary: Get domain send rate limit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rate limit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RateLimitPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutDomainRateLimitPolicy
+      summary: Set domain send rate limit policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RateLimitPolicy"
+      responses:
+        "200":
+          description: Saved rate limit policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RateLimitPolicy"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -8357,6 +8479,26 @@ components:
           type: integer
         auto_purge_enabled:
           type: boolean
+    RateLimitPolicy:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        max_per_hour:
+          type: integer
+        max_per_day:
+          type: integer
+        max_recipients_per_msg:
+          type: integer
+        max_message_size_mb:
+          type: integer
+        action_on_exceed:
+          type: string
+          enum: [queue, reject]
+        per_user_max_per_hour:
+          type: integer
+        per_user_max_per_day:
+          type: integer
     HealthResponse:
       type: object
       required: [status]
