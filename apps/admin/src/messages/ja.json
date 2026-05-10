@@ -229,7 +229,8 @@
       "created": "作成日",
       "dns_check": "DNSチェック",
       "verified": "検証済み",
-      "pending": "保留中"
+      "pending": "保留中",
+      "create_domain": "ドメインを追加"
     },
     "audit_logs": {
       "title": "監査ログ",
@@ -352,7 +353,8 @@
       "last_used": "最終使用",
       "generate_key": "新しいキーを生成",
       "revoke": "取り消し",
-      "copy": "コピー"
+      "copy": "コピー",
+      "create_key": "キーを作成"
     },
     "dkim_keys": {
       "title": "DKIMキー",
@@ -438,7 +440,8 @@
       "delegator": "委任者",
       "delegatee": "被委任者",
       "status": "ステータス",
-      "created": "作成日"
+      "created": "作成日",
+      "create_delegation": "委任を作成"
     },
     "groups": {
       "title": "グループメンバーシップ",
@@ -446,7 +449,10 @@
       "group_name": "グループ名",
       "member_email": "メンバーメール",
       "status": "ステータス",
-      "created": "作成日"
+      "created": "作成日",
+      "create_group": "グループを作成",
+      "member_count": "メンバー数",
+      "members": "メンバー"
     },
     "dashboard_page": {
       "title": "ダッシュボード",
@@ -1031,6 +1037,209 @@
       "response_time": "応答時間",
       "active_db_connections": "アクティブ接続",
       "last_backup": "最終バックアップ"
+    },
+    "alerts": {
+      "condition": "条件",
+      "create_alert": "ルールを作成",
+      "created": "作成日",
+      "description": "システムアラートルールを管理",
+      "enabled": "有効",
+      "rule_name": "ルール名",
+      "title": "アラートルール"
+    },
+    "api_usage": {
+      "daily_average": "日次平均",
+      "description": "API使用統計",
+      "month_to_date": "月間累計",
+      "peak_usage": "ピーク使用量",
+      "title": "API使用状況",
+      "total_requests": "総リクエスト数"
+    },
+    "attachments": {
+      "description": "添付ファイルを管理",
+      "filename": "ファイル名",
+      "size": "サイズ",
+      "title": "添付ファイル",
+      "uploaded": "アップロード日"
+    },
+    "compliance": {
+      "compliant": "準拠",
+      "description": "コンプライアンス状況と監査レポートを監視",
+      "findings": "発見事項",
+      "framework": "フレームワーク",
+      "frameworks": "コンプライアンスフレームワーク",
+      "last_audit": "最終監査",
+      "non_compliant": "非準拠",
+      "partial": "一部",
+      "pending": "保留中",
+      "reports": "レポート",
+      "status": "ステータス",
+      "title": "コンプライアンス",
+      "track": "業界標準および規制のコンプライアンス状況を追跡"
+    },
+    "config_company": {
+      "company_name": "会社名",
+      "description": "会社関連の設定",
+      "logo": "ロゴ",
+      "support_email": "サポートメール",
+      "timezone": "タイムゾーン",
+      "title": "会社設定"
+    },
+    "config_domain": {
+      "description": "ドメイン関連の設定",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "dns_settings": "DNS設定",
+      "spf": "SPF",
+      "title": "ドメイン設定"
+    },
+    "config_user": {
+      "description": "ユーザー関連の設定",
+      "mfa_required": "MFA必須",
+      "password_policy": "パスワードポリシー",
+      "session_timeout": "セッションタイムアウト",
+      "title": "ユーザー設定"
+    },
+    "delivery_attempts": {
+      "attempt_time": "試行時刻",
+      "description": "メール配信試行ログを表示",
+      "next_retry": "次回リトライ",
+      "recipient": "受信者",
+      "status": "ステータス",
+      "title": "配信試行"
+    },
+    "domain_settings": {
+      "description": "ドメイン設定を管理",
+      "dkim_record": "DKIMレコード",
+      "dmarc_record": "DMARCレコード",
+      "spf_record": "SPFレコード",
+      "title": "ドメイン設定"
+    },
+    "drive": {
+      "description": "ドライブ管理",
+      "file_name": "ファイル名",
+      "modified": "更新日",
+      "owner": "オーナー",
+      "size": "サイズ",
+      "title": "ドライブ"
+    },
+    "flow_logs": {
+      "description": "メールフローログを表示",
+      "recipient": "受信者",
+      "sender": "送信者",
+      "status": "ステータス",
+      "subject": "件名",
+      "timestamp": "タイムスタンプ",
+      "title": "メールフローログ"
+    },
+    "monitoring": {
+      "api_health": "APIヘルス",
+      "backpressure": "バックプレッシャー",
+      "description": "システムモニタリング",
+      "queue_stats": "キュー統計",
+      "system_health": "システムヘルス",
+      "title": "モニタリング"
+    },
+    "organization": {
+      "created": "作成日",
+      "departments": "部門",
+      "description": "組織構造を管理",
+      "members": "メンバー",
+      "teams": "チーム",
+      "title": "組織"
+    },
+    "outbox": {
+      "description": "送信ボックスイベントを監視",
+      "event_type": "イベントタイプ",
+      "message_id": "メッセージID",
+      "timestamp": "タイムスタンプ",
+      "title": "送信ボックスイベント"
+    },
+    "push": {
+      "description": "プッシュ通知統計",
+      "failed": "失敗",
+      "success_rate": "成功率",
+      "title": "プッシュ通知",
+      "total_sent": "送信済み合計"
+    },
+    "quota_alerts": {
+      "alert_date": "アラート日",
+      "description": "クォータ超過アラート",
+      "status": "ステータス",
+      "title": "クォータアラート",
+      "user": "ユーザー"
+    },
+    "quota_usage": {
+      "description": "クォータ使用量を表示",
+      "limit": "上限",
+      "percentage": "割合",
+      "title": "クォータ使用量",
+      "used": "使用済み"
+    },
+    "reconciliation": {
+      "adjusted": "調整済み",
+      "description": "クォータ調整を管理",
+      "new_value": "新値",
+      "old_value": "旧値",
+      "title": "クォータ調整",
+      "user": "ユーザー"
+    },
+    "relays": {
+      "create_relay": "リレーを追加",
+      "created": "作成日",
+      "description": "許可リレーサーバーを管理",
+      "hostname": "ホスト名",
+      "ip_address": "IPアドレス",
+      "title": "許可リレー"
+    },
+    "reports": {
+      "create_report": "レポートを作成",
+      "created": "作成日",
+      "description": "システムレポートを生成・表示",
+      "download": "ダウンロード",
+      "report_name": "レポート名",
+      "status": "ステータス",
+      "title": "レポート",
+      "type": "種類"
+    },
+    "routes": {
+      "create_route": "配送ルートを作成",
+      "created": "作成日",
+      "description": "メール配送ルートを管理",
+      "destination": "配送先",
+      "priority": "優先度",
+      "source": "送信元",
+      "title": "配送ルート"
+    },
+    "suppression": {
+      "added": "追加日",
+      "description": "送信ブロックリストのメールアドレスを管理",
+      "email": "メール",
+      "reason": "理由",
+      "remove": "削除",
+      "title": "送信ブロックリスト"
+    },
+    "system_backpressure": {
+      "cpu_usage": "CPU使用率",
+      "critical": "重大",
+      "description": "システム負荷を監視",
+      "disk_usage": "ディスク使用率",
+      "memory_usage": "メモリ使用率",
+      "normal": "正常",
+      "queue_depth": "キュー深度",
+      "title": "バックプレッシャー",
+      "warning": "警告"
+    },
+    "system_health": {
+      "api_server": "APIサーバー",
+      "cache": "キャッシュ",
+      "database": "データベース",
+      "description": "システムヘルス状況を監視",
+      "mail_queue": "メールキュー",
+      "overall_health": "全体ヘルス",
+      "response_time": "応答時間",
+      "title": "システムヘルス",
+      "uptime": "稼働時間"
     }
   },
   "buttons": {

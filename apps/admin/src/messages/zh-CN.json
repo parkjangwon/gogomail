@@ -229,7 +229,8 @@
       "created": "创建时间",
       "dns_check": "DNS检查",
       "verified": "已验证",
-      "pending": "待处理"
+      "pending": "待处理",
+      "create_domain": "新建域名"
     },
     "audit_logs": {
       "title": "审计日志",
@@ -352,7 +353,8 @@
       "last_used": "最后使用",
       "generate_key": "生成新密钥",
       "revoke": "撤销",
-      "copy": "复制"
+      "copy": "复制",
+      "create_key": "创建密钥"
     },
     "dkim_keys": {
       "title": "DKIM密钥",
@@ -438,7 +440,8 @@
       "delegator": "委派人",
       "delegatee": "被委派人",
       "status": "状态",
-      "created": "创建时间"
+      "created": "创建时间",
+      "create_delegation": "创建委托"
     },
     "groups": {
       "title": "组成员",
@@ -446,7 +449,10 @@
       "group_name": "组名",
       "member_email": "成员邮箱",
       "status": "状态",
-      "created": "创建时间"
+      "created": "创建时间",
+      "create_group": "创建组",
+      "member_count": "成员数",
+      "members": "成员"
     },
     "dashboard_page": {
       "title": "仪表板",
@@ -1031,6 +1037,209 @@
       "response_time": "响应时间",
       "active_db_connections": "活动连接",
       "last_backup": "最后备份"
+    },
+    "alerts": {
+      "condition": "条件",
+      "create_alert": "创建规则",
+      "created": "创建时间",
+      "description": "管理系统告警规则",
+      "enabled": "已启用",
+      "rule_name": "规则名称",
+      "title": "告警规则"
+    },
+    "api_usage": {
+      "daily_average": "日均",
+      "description": "API使用统计",
+      "month_to_date": "本月累计",
+      "peak_usage": "峰值用量",
+      "title": "API使用情况",
+      "total_requests": "总请求数"
+    },
+    "attachments": {
+      "description": "管理附件",
+      "filename": "文件名",
+      "size": "大小",
+      "title": "附件",
+      "uploaded": "上传时间"
+    },
+    "compliance": {
+      "compliant": "合规",
+      "description": "监控合规状态和审计报告",
+      "findings": "发现项",
+      "framework": "框架",
+      "frameworks": "合规框架",
+      "last_audit": "上次审计",
+      "non_compliant": "不合规",
+      "partial": "部分",
+      "pending": "待处理",
+      "reports": "报告",
+      "status": "状态",
+      "title": "合规",
+      "track": "跟踪行业标准和法规的合规状态"
+    },
+    "config_company": {
+      "company_name": "公司名称",
+      "description": "公司相关设置",
+      "logo": "Logo",
+      "support_email": "支持邮箱",
+      "timezone": "时区",
+      "title": "公司设置"
+    },
+    "config_domain": {
+      "description": "域名相关设置",
+      "dkim": "DKIM",
+      "dmarc": "DMARC",
+      "dns_settings": "DNS设置",
+      "spf": "SPF",
+      "title": "域名设置"
+    },
+    "config_user": {
+      "description": "用户相关设置",
+      "mfa_required": "需要MFA",
+      "password_policy": "密码策略",
+      "session_timeout": "会话超时",
+      "title": "用户设置"
+    },
+    "delivery_attempts": {
+      "attempt_time": "尝试时间",
+      "description": "查看邮件投递尝试日志",
+      "next_retry": "下次重试",
+      "recipient": "收件人",
+      "status": "状态",
+      "title": "投递尝试"
+    },
+    "domain_settings": {
+      "description": "管理域名设置",
+      "dkim_record": "DKIM记录",
+      "dmarc_record": "DMARC记录",
+      "spf_record": "SPF记录",
+      "title": "域名设置"
+    },
+    "drive": {
+      "description": "云盘管理",
+      "file_name": "文件名",
+      "modified": "修改时间",
+      "owner": "所有者",
+      "size": "大小",
+      "title": "云盘"
+    },
+    "flow_logs": {
+      "description": "查看邮件流程日志",
+      "recipient": "收件人",
+      "sender": "发件人",
+      "status": "状态",
+      "subject": "主题",
+      "timestamp": "时间戳",
+      "title": "邮件流程日志"
+    },
+    "monitoring": {
+      "api_health": "API健康状态",
+      "backpressure": "背压控制",
+      "description": "系统监控",
+      "queue_stats": "队列统计",
+      "system_health": "系统健康",
+      "title": "监控"
+    },
+    "organization": {
+      "created": "创建时间",
+      "departments": "部门",
+      "description": "管理组织结构",
+      "members": "成员",
+      "teams": "团队",
+      "title": "组织"
+    },
+    "outbox": {
+      "description": "监控发件箱事件",
+      "event_type": "事件类型",
+      "message_id": "消息ID",
+      "timestamp": "时间戳",
+      "title": "发件箱事件"
+    },
+    "push": {
+      "description": "推送通知统计",
+      "failed": "失败",
+      "success_rate": "成功率",
+      "title": "推送通知",
+      "total_sent": "发送总数"
+    },
+    "quota_alerts": {
+      "alert_date": "告警时间",
+      "description": "配额超限告警",
+      "status": "状态",
+      "title": "配额告警",
+      "user": "用户"
+    },
+    "quota_usage": {
+      "description": "查看配额用量",
+      "limit": "限额",
+      "percentage": "百分比",
+      "title": "配额用量",
+      "used": "已用"
+    },
+    "reconciliation": {
+      "adjusted": "已调整",
+      "description": "管理配额对账",
+      "new_value": "新值",
+      "old_value": "旧值",
+      "title": "配额对账",
+      "user": "用户"
+    },
+    "relays": {
+      "create_relay": "添加中继",
+      "created": "创建时间",
+      "description": "管理许可中继服务器",
+      "hostname": "主机名",
+      "ip_address": "IP地址",
+      "title": "受信任的中继"
+    },
+    "reports": {
+      "create_report": "生成报告",
+      "created": "创建时间",
+      "description": "生成和查看系统报告",
+      "download": "下载",
+      "report_name": "报告名称",
+      "status": "状态",
+      "title": "报告",
+      "type": "类型"
+    },
+    "routes": {
+      "create_route": "创建路由",
+      "created": "创建时间",
+      "description": "管理邮件投递路由",
+      "destination": "目标",
+      "priority": "优先级",
+      "source": "来源",
+      "title": "投递路由"
+    },
+    "suppression": {
+      "added": "添加时间",
+      "description": "管理已抑制的邮件地址",
+      "email": "邮箱",
+      "reason": "原因",
+      "remove": "移除",
+      "title": "抑制列表"
+    },
+    "system_backpressure": {
+      "cpu_usage": "CPU使用率",
+      "critical": "严重",
+      "description": "监控系统负载",
+      "disk_usage": "磁盘使用率",
+      "memory_usage": "内存使用率",
+      "normal": "正常",
+      "queue_depth": "队列深度",
+      "title": "背压控制",
+      "warning": "警告"
+    },
+    "system_health": {
+      "api_server": "API服务器",
+      "cache": "缓存",
+      "database": "数据库",
+      "description": "监控系统健康状态",
+      "mail_queue": "邮件队列",
+      "overall_health": "总体健康",
+      "response_time": "响应时间",
+      "title": "系统健康",
+      "uptime": "运行时间"
     }
   },
   "buttons": {

@@ -39,9 +39,9 @@
     "organization": "조직",
     "roles": "역할",
     "compliance": "규정 준수",
-    "delivery_mail": "배달 및 메일",
+    "delivery_mail": "메일 발송",
     "delivery_routes": "배달 경로",
-    "trusted_relays": "신뢰된 릴레이",
+    "trusted_relays": "허용 릴레이",
     "mail_flow_logs": "메일 흐름 로그",
     "outbox_events": "발신함 이벤트",
     "delivery_attempts": "배달 시도",
@@ -60,15 +60,15 @@
     "suppression_list": "발송 차단 목록",
     "alert_rules": "알림 규칙",
     "storage_quotas": "저장소 및 할당량",
-    "quota_usage": "할당량 사용",
+    "quota_usage": "스토리지 사용량",
     "quota_alerts": "할당량 알림",
     "attachments": "첨부파일",
     "drive": "드라이브",
     "quota_reconciliation": "할당량 조정",
-    "configuration": "구성",
-    "company_config": "회사 구성",
-    "domain_config": "도메인 구성",
-    "user_config": "사용자 구성"
+    "configuration": "설정",
+    "company_config": "회사 설정",
+    "domain_config": "도메인 설정",
+    "user_config": "사용자 설정"
   },
   "dashboard": {
     "title": "대시보드",
@@ -146,7 +146,11 @@
       "timestamp": "시간",
       "result": "결과",
       "filter": "필터",
-      "date_range": "날짜 범위"
+      "date_range": "날짜 범위",
+      "activity_log": "활동 로그",
+      "export_csv": "CSV로 내보내기",
+      "export_json": "JSON으로 내보내기",
+      "ip_address": "IP 주소"
     },
     "mail_logs": {
       "title": "메일 로그",
@@ -253,7 +257,7 @@
       "created": "생성 시간",
       "last_used": "마지막 사용",
       "generate_key": "새 키 생성",
-      "revoke": "취소",
+      "revoke": "폐기",
       "copy": "복사",
       "create_key": "새 키 생성"
     },
@@ -266,7 +270,7 @@
       "status": "상태",
       "verified": "확인됨",
       "generate": "새 키 생성",
-      "rotate": "회전"
+      "rotate": "갱신"
     },
     "roles": {
       "title": "역할",
@@ -315,15 +319,15 @@
     },
     "directory": {
       "title": "디렉토리",
-      "description": "디렉토리 주체 및 연락처 관리",
-      "add_principal": "+ 주체 추가",
+      "description": "디렉토리 계정 및 연락처 관리",
+      "add_principal": "+ 계정 추가",
       "email": "이메일",
       "name": "이름",
       "type": "유형",
       "status": "상태",
       "created": "만들어진 날",
-      "principals": "주체",
-      "principals_count": "주체"
+      "principals": "계정",
+      "principals_count": "계정"
     },
     "aliases": {
       "title": "별칭",
@@ -339,7 +343,7 @@
       "title": "위임",
       "description": "사용자 권한 위임 관리",
       "delegator": "위임자",
-      "delegatee": "피위임자",
+      "delegatee": "수임자",
       "status": "상태",
       "created": "생성 시간",
       "create_delegation": "새 위임 생성"
@@ -359,14 +363,14 @@
       "title": "규정 준수",
       "description": "규정 준수 상태 및 감사 보고서 모니터링",
       "frameworks": "규정 준수 프레임워크",
-      "track": "업계 표준 및 규정의 규정 준수 상태 추적",
+      "track": "업계 표준 및 규정 준수 현황 모니터링",
       "framework": "프레임워크",
       "status": "상태",
-      "findings": "발견",
+      "findings": "발견 항목",
       "last_audit": "마지막 감사",
       "reports": "보고서",
       "compliant": "준수",
-      "non_compliant": "비준수",
+      "non_compliant": "미준수",
       "pending": "대기 중",
       "partial": "부분"
     },
@@ -383,7 +387,7 @@
       "description": "시스템 모니터링",
       "queue_stats": "큐 통계",
       "backpressure": "백프레셔",
-      "system_health": "시스템 건강 상태",
+      "system_health": "시스템 상태",
       "api_health": "API 상태"
     },
     "reports": {
@@ -480,7 +484,7 @@
       "description": "사용량 할당 현황",
       "used": "사용됨",
       "limit": "제한",
-      "percentage": "백분율"
+      "percentage": "사용률"
     },
     "quota_alerts": {
       "title": "할당 경고",
@@ -522,9 +526,9 @@
       "created": "생성 시간"
     },
     "relays": {
-      "title": "신뢰된 릴레이",
-      "description": "신뢰된 메일 릴레이 관리",
-      "create_relay": "새 릴레이 추가",
+      "title": "허용 릴레이",
+      "description": "허용 릴레이 서버 관리",
+      "create_relay": "릴레이 추가",
       "ip_address": "IP 주소",
       "hostname": "호스트명",
       "created": "생성 시간"
@@ -538,8 +542,8 @@
     },
     "system_health": {
       "title": "시스템 상태",
-      "description": "시스템 건강 상태 모니터링",
-      "overall_health": "전체 건강 상태",
+      "description": "시스템 상태 모니터링",
+      "overall_health": "전체 상태",
       "api_server": "API 서버",
       "database": "데이터베이스",
       "mail_queue": "메일 큐",
@@ -828,7 +832,7 @@
       "title": "배달 경로"
     },
     "relays_page": {
-      "description": "신뢰된 메일 릴레이 관리",
+      "description": "허용 릴레이 서버 관리",
       "host": "호스트",
       "port": "포트",
       "protocol": "프로토콜",
@@ -836,7 +840,7 @@
       "active_connections": "활성 연결",
       "created": "생성 시간",
       "relays": "릴레이",
-      "title": "신뢰할 수 있는 릴레이"
+      "title": "허용 릴레이"
     },
     "queue_stats_page": {
       "topic": "토픽",
@@ -845,7 +849,7 @@
       "ready": "준비",
       "delayed": "지연됨",
       "stale": "정체됨",
-      "oldest_ready": "가장 오래된 준비",
+      "oldest_ready": "가장 오래 대기한 항목",
       "stale_indicator": "정체됨",
       "idle_indicator": "유휴",
       "processing_indicator": "처리 중",
@@ -867,7 +871,7 @@
       "threshold_label": "임계값 (%)",
       "threshold_desc": "0에서 100 사이의 값",
       "update_btn": "업데이트",
-      "modal_header": "역압 임계값 업데이트",
+      "modal_header": "백프레셔 임계값 설정",
       "update": "업데이트"
     },
     "health_page": {
@@ -877,14 +881,14 @@
     },
     "directory_page": {
       "title": "디렉토리",
-      "description": "디렉토리 주체 및 연락처 관리",
-      "add_principal": "+ 주체 추가",
+      "description": "디렉토리 계정 및 연락처 관리",
+      "add_principal": "+ 계정 추가",
       "email": "이메일",
       "name": "이름",
       "type": "유형",
       "status": "상태",
       "created": "생성일",
-      "principals": "주체"
+      "principals": "계정"
     },
     "aliases_page": {
       "title": "별칭",
@@ -899,7 +903,7 @@
     "delegations_page": {
       "description": "사용자 위임 및 권한 관리",
       "delegator": "위임자",
-      "delegate": "피위임자",
+      "delegate": "수임자",
       "permissions": "권한",
       "status": "상태",
       "delegations": "위임"
@@ -989,7 +993,7 @@
       "last_audit": "마지막 감사",
       "reports": "보고서",
       "frameworks_header": "규정 준수 프레임워크",
-      "frameworks_desc": "산업 표준 및 규정에 대한 준수 상태를 추적합니다"
+      "frameworks_desc": "업계 표준 및 규정 준수 현황을 모니터링합니다"
     },
     "quota_usage_page": {
       "description": "테넌트 전체의 스토리지 할당량 사용 모니터링",
@@ -1039,7 +1043,7 @@
       "description": "API 사용 패턴 및 통계 모니터링",
       "daily_api_usage": "일별 API 사용량",
       "daily_desc": "주체 및 엔드포인트별 API 사용량 확인",
-      "principal": "주체",
+      "principal": "사용자/서비스",
       "endpoint": "엔드포인트",
       "method": "메서드",
       "requests": "요청 수",
@@ -1088,18 +1092,18 @@
       "key": "키",
       "value": "값",
       "last_updated": "마지막 업데이트",
-      "add_config": "구성 추가",
-      "add_config_modal": "구성 추가",
+      "add_config": "설정 추가",
+      "add_config_modal": "설정 추가",
       "key_label": "키",
       "value_label": "값",
-      "add_config_btn": "구성 추가",
+      "add_config_btn": "설정 추가",
       "modal_header": "설정 추가",
       "key_placeholder": "예: max_users",
       "value_placeholder": "설정 값",
       "add_btn": "설정 추가"
     },
     "config_domain_page": {
-      "add_config": "+ 구성 추가",
+      "add_config": "+ 설정 추가",
       "domain": "도메인",
       "key": "키",
       "value": "값",
@@ -1108,12 +1112,12 @@
     },
     "config_user_page": {
       "description": "사용자별 설정 구성",
-      "add_config": "+ 구성 추가",
+      "add_config": "+ 설정 추가",
       "user_email": "사용자 이메일",
       "key": "키",
       "value": "값",
       "last_updated": "마지막 업데이트",
-      "title": "사용자 구성",
+      "title": "사용자 설정",
       "add_config_btn": "+ 설정 추가"
     },
     "monitoring_page": {
@@ -1205,5 +1209,71 @@
     "error": "오류",
     "verified": "검증됨",
     "unverified": "미검증"
+  },
+  "admin_users": {
+    "title": "관리자",
+    "description": "관리자 계정 관리",
+    "list": "관리자 목록"
+  },
+  "audit_logs": {
+    "title": "감사 로그",
+    "description": "시스템 감사 로그 조회",
+    "action": "작업",
+    "actor": "사용자",
+    "resource": "리소스",
+    "timestamp": "시간",
+    "result": "결과"
+  },
+  "domains": {
+    "title": "도메인",
+    "description": "도메인 관리",
+    "list": "도메인 목록",
+    "create": "새 도메인",
+    "name": "도메인 이름",
+    "status": "상태",
+    "created": "생성일",
+    "dns_records": "DNS 레코드"
+  },
+  "mail_logs": {
+    "title": "메일 로그",
+    "description": "메일 흐름 로그",
+    "sender": "발신자",
+    "recipient": "수신자",
+    "subject": "제목",
+    "sent": "발송됨",
+    "received": "수신됨",
+    "status": "상태",
+    "size": "크기"
+  },
+  "monitoring": {
+    "title": "모니터링",
+    "description": "시스템 모니터링",
+    "queue_stats": "큐 통계",
+    "backpressure": "백프레셔"
+  },
+  "security": {
+    "api_keys": "API 키"
+  },
+  "settings": {
+    "title": "설정",
+    "description": "시스템 설정",
+    "general": "일반",
+    "security": "보안",
+    "notifications": "알림",
+    "theme": "테마"
+  },
+  "users": {
+    "title": "사용자",
+    "description": "사용자 관리",
+    "list": "사용자 목록",
+    "create": "새 사용자",
+    "name": "이름",
+    "email": "이메일",
+    "role": "역할",
+    "status": "상태",
+    "active": "활성",
+    "inactive": "비활성",
+    "last_login": "마지막 로그인",
+    "created_at": "생성일"
   }
 }
