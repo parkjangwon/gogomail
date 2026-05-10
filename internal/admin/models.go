@@ -91,6 +91,7 @@ type DomainSettings struct {
 	PasswordRequireNumbers      bool      `json:"password_require_numbers"`
 	PasswordRequireSpecialChars bool      `json:"password_require_special_chars"`
 	PasswordExpiryDays          int       `json:"password_expiry_days"`
+	UserRegistrationMode        string    `json:"user_registration_mode"` // 'temp_password' or 'email_invite'
 	UpdatedAt                   time.Time `json:"updated_at"`
 	UpdatedBy                   string    `json:"updated_by"`
 }

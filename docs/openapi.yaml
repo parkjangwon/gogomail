@@ -5940,6 +5940,30 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /users/{id}/invite:
+    post:
+      operationId: createUserInviteToken
+      summary: Generate an invite token for a user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "201":
+          description: Invite token created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invite_token:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
   /users/{id}/config:
     get:
       operationId: listAdminUserConfig
