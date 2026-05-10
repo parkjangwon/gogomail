@@ -1,10 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (Admin console: bootstrap account ready, initial setup flow complete, backend setup endpoint pending)
+Last updated: 2026-05-10 (TASK-083 API Settings complete, TASK-084 Alerts foundation in progress)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
-Now implementing Phase 8-D (Domain Settings UI) — TASK-082.
+Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-084 in progress.
 
 **Deployment Infrastructure**: Complete
 - 4-tier Docker Compose configurations (dev, small, medium, large)
@@ -14,13 +14,27 @@ Now implementing Phase 8-D (Domain Settings UI) — TASK-082.
 - Supporting configs and init scripts
 
 **Admin Console Status**:
-- Phase 8 (Backend): COMPLETE — 240 unit tests
-- Phase 9 (Frontend): COMPLETE — 9 pages, 41 unit tests, 16 E2E tests
-- Phase 8-D (Domain Settings): IN_PROGRESS
-  - [ ] Database schema (domain_settings table)
-  - [ ] API routes (GET/PUT)
-  - [ ] Service layer
-  - [ ] Frontend UI pages
+- Phase 8 (Backend): COMPLETE — 240 unit tests, 3 full-stack admin features
+- Phase 9 (Frontend): COMPLETE — 12 pages, 45+ unit tests, 18+ E2E tests
+- Phase 8-D (Domain Settings): COMPLETE (TASK-082)
+  - [x] Database schema (domain_settings table)
+  - [x] API routes (GET/PUT/DELETE with validation)
+  - [x] Service layer with audit
+  - [x] Frontend UI pages with Cloudscape components
+- Phase 8-D (API Settings): COMPLETE (TASK-083)
+  - [x] Database migrations (api_settings, api_keys)
+  - [x] API key management (create, rotate, delete)
+  - [x] Rate limiting (RPS, BPS)
+  - [x] CIDR allowlist configuration
+  - [x] OpenAPI 3.1.0 documentation
+  - [x] Frontend pages and React Query hooks
+- Phase 8-D (Alerts & Notifications): IN_PROGRESS (TASK-084)
+  - [x] Database schema (alert_rules, alert_channels, alert_events)
+  - [x] Model definitions
+  - [x] Repository layer (CRUD operations)
+  - [ ] Service layer (alert evaluation)
+  - [ ] API routes (REST endpoints)
+  - [ ] Frontend UI (rules, channels, events management)
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
 RFC-sensitive core, but current work should balance:
