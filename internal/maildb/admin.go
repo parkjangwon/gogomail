@@ -789,6 +789,7 @@ type DomainDNSCheckListRequest struct {
 type DomainView struct {
 	ID                   string     `json:"id"`
 	CompanyID            string     `json:"company_id"`
+	CompanyName          string     `json:"company_name"`
 	Name                 string     `json:"name"`
 	NameACE              string     `json:"name_ace"`
 	Status               string     `json:"status"`
@@ -2462,6 +2463,7 @@ func (r *Repository) ListDomains(ctx context.Context, req DomainListRequest) ([]
 SELECT
   d.id::text,
   d.company_id::text,
+  COALESCE(c.name, ''),
   d.name,
   d.name_ace,
   d.status,
@@ -2479,6 +2481,7 @@ SELECT
   latest.checked_at,
   d.created_at
 FROM domains d
+LEFT JOIN companies c ON c.id = d.company_id
 LEFT JOIN LATERAL (
   SELECT status, checked_at
   FROM domain_dns_checks
@@ -2505,6 +2508,7 @@ LIMIT $4`
 		if err := rows.Scan(
 			&domain.ID,
 			&domain.CompanyID,
+			&domain.CompanyName,
 			&domain.Name,
 			&domain.NameACE,
 			&domain.Status,
