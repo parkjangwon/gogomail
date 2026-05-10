@@ -54,10 +54,10 @@ interface User {
 }
 
 interface DomainSetting {
-  id: string;
-  setting_key: string;
-  setting_value: string;
-  last_updated: string;
+  ID: string;
+  Key: string;
+  Value: unknown;
+  UpdatedAt: string;
 }
 
 const STATUS_OPTIONS = [
@@ -99,7 +99,7 @@ export default function DomainDetailPage() {
     Promise.all([
       fetch(`/api/admin/domains/${domainId}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
       fetch(`/api/admin/users?domain_id=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { users: [] }),
-      fetch(`/api/admin/domain-settings?domain=${domainId}&limit=100`, { credentials: 'include' }).then(r => r.ok ? r.json() : { settings: [] }),
+      fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' }).then(r => r.ok ? r.json() : { config: [] }),
     ]).then(([domainData, usersData, settingsData]) => {
       if (domainData?.domain) {
         setDomain(domainData.domain);
@@ -109,17 +109,17 @@ export default function DomainDetailPage() {
         });
       }
       setUsers(usersData.users || []);
-      setSettings(settingsData.settings || []);
+      setSettings(settingsData.config || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [domainId]);
 
   const handleVerifyDNS = async () => {
     setVerifying(true);
     try {
-      const res = await fetch(`/api/admin/domains/${domainId}/verify-dns`, { method: 'POST', credentials: 'include' });
+      const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setDomain(prev => prev ? { ...prev, last_dns_check_status: data.status ?? prev.last_dns_check_status } : prev);
+        setDomain(prev => prev ? { ...prev, last_dns_check_status: data.dns_check?.status ?? prev.last_dns_check_status } : prev);
       }
     } finally {
       setVerifying(false);
@@ -183,17 +183,17 @@ export default function DomainDetailPage() {
     if (!newSetting.key.trim()) return;
     setSavingSetting(true);
     try {
-      const res = await fetch('/api/admin/domain-settings', {
-        method: 'POST',
+      const res = await fetch(`/api/admin/domains/${domainId}/config/${encodeURIComponent(newSetting.key.trim())}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain_name: domain?.name, setting_key: newSetting.key, setting_value: newSetting.value }),
+        body: JSON.stringify({ value: newSetting.value }),
         credentials: 'include',
       });
       if (res.ok) {
         setShowAddSetting(false);
         setNewSetting({ key: '', value: '' });
-        const r = await fetch(`/api/admin/domain-settings?domain=${domainId}&limit=100`, { credentials: 'include' });
-        if (r.ok) { const d = await r.json(); setSettings(d.settings || []); }
+        const r = await fetch(`/api/admin/domains/${domainId}/config`, { credentials: 'include' });
+        if (r.ok) { const d = await r.json(); setSettings(d.config || []); }
       }
     } finally {
       setSavingSetting(false);
@@ -402,9 +402,9 @@ export default function DomainDetailPage() {
                 <SpaceBetween size="l">
                   <Table
                     columnDefinitions={[
-                      { header: t('pages.domain_detail.setting_key'), cell: (s: DomainSetting) => <Box fontWeight="bold">{s.setting_key}</Box>, width: '35%' },
-                      { header: t('pages.domain_detail.setting_value'), cell: (s: DomainSetting) => s.setting_value, width: '45%' },
-                      { header: t('pages.domain_detail.updated'), cell: (s: DomainSetting) => new Date(s.last_updated).toLocaleDateString(), width: '20%' },
+                      { header: t('pages.domain_detail.setting_key'), cell: (s: DomainSetting) => <Box fontWeight="bold">{s.Key}</Box>, width: '35%' },
+                      { header: t('pages.domain_detail.setting_value'), cell: (s: DomainSetting) => typeof s.Value === 'object' ? JSON.stringify(s.Value) : String(s.Value ?? ''), width: '45%' },
+                      { header: t('pages.domain_detail.updated'), cell: (s: DomainSetting) => s.UpdatedAt ? new Date(s.UpdatedAt).toLocaleDateString() : '—', width: '20%' },
                     ]}
                     items={settings}
                     header={

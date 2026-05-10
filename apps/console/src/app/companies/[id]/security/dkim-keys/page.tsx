@@ -59,7 +59,7 @@ export default function DKIMKeysPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setKeys(data.keys || []);
+        setKeys(data.dkim_keys || []);
       }
     } catch (error) {
       console.error('Failed to fetch DKIM keys:', error);

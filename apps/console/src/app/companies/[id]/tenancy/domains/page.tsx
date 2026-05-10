@@ -141,8 +141,7 @@ export default function DomainsPage() {
   const handleVerifyDNS = async (domainId: string) => {
     setVerifying(domainId);
     try {
-      const res = await fetch(`/api/admin/domains/${domainId}/verify-dns`, {
-        method: 'POST',
+      const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, {
         credentials: 'include',
       });
       if (res.ok) fetchDomains();
