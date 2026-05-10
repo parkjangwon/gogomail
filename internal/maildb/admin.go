@@ -1342,7 +1342,7 @@ func (r *Repository) CreateDomain(ctx context.Context, req CreateDomainRequest) 
 
 	const query = `
 INSERT INTO domains (company_id, name, name_ace, quota_limit)
-VALUES ($1, $2, $3, NULLIF($4, 0))
+VALUES ($1, $2, $3, NULLIF($4::bigint, 0))
 RETURNING id::text, company_id::text, name, name_ace, status, quota_used, COALESCE(quota_limit, 0), created_at`
 
 	var domain DomainView
@@ -1640,7 +1640,7 @@ func (r *Repository) UpdateDomainQuota(ctx context.Context, req UpdateDomainQuot
 	var view domainQuotaAuditView
 	if err := tx.QueryRowContext(ctx, `
 UPDATE domains
-SET quota_limit = NULLIF($2, 0),
+SET quota_limit = NULLIF($2::bigint, 0),
     updated_at = now()
 WHERE id = $1
 RETURNING id::text, company_id::text, name, COALESCE(quota_limit, 0)`, strings.TrimSpace(req.ID), req.QuotaLimit).Scan(
@@ -1667,7 +1667,7 @@ WHERE id = $1`, strings.TrimSpace(req.ID), defaultQuota); err != nil {
 		}
 		result, err := tx.ExecContext(ctx, `
 UPDATE users
-SET quota_limit = NULLIF($2, 0),
+SET quota_limit = NULLIF($2::bigint, 0),
     updated_at = now()
 WHERE domain_id = $1
   AND quota_source = 'default'`, strings.TrimSpace(req.ID), defaultQuota)
@@ -1856,7 +1856,7 @@ func (r *Repository) UpdateCompanyQuota(ctx context.Context, req UpdateCompanyQu
 	var view companyQuotaAuditView
 	if err := tx.QueryRowContext(ctx, `
 UPDATE companies
-SET quota_limit = NULLIF($2, 0),
+SET quota_limit = NULLIF($2::bigint, 0),
     updated_at = now()
 WHERE id = $1
 RETURNING id::text, name, status, COALESCE(quota_limit, 0)`, strings.TrimSpace(req.ID), req.QuotaLimit).Scan(
@@ -2038,7 +2038,7 @@ func (r *Repository) UpdateUserQuota(ctx context.Context, req UpdateUserQuotaReq
 UPDATE users u
 SET quota_limit = CASE
       WHEN $3 = 'default' THEN NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
-      ELSE NULLIF($2, 0)
+      ELSE NULLIF($2::bigint, 0)
     END,
     quota_source = $3,
     updated_at = now()

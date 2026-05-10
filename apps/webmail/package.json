@@ -19,6 +19,7 @@
     "@tiptap/react": "^2.27.2",
     "@tiptap/starter-kit": "^2.27.2",
     "next": "^15.5.18",
+    "next-intl": "^4.11.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
