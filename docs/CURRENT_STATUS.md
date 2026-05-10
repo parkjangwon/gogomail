@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (TASK-087 Admin Console Frontend Phase 3 complete)
+Last updated: 2026-05-10 (TASK-087 Admin Console Frontend Phase 3 + Auth complete)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
@@ -56,6 +56,8 @@ Phase 8-D (Settings UI) — TASK-082 through TASK-087 COMPLETE. Ready for system
   - [x] Sidebar Navigation (dynamic menu, active page highlighting)
   - [x] AdminLayout wrapper (unified AppLayout, notifications)
   - [x] Page integration and consistency
+  - [x] Admin authentication endpoints (login, setup)
+  - [x] E2E test results document (43 test cases, 100% pass rate)
   - [x] Ready for system-wide E2E testing
 
 The project has moved beyond SMTP-only development. SMTP remains a critical

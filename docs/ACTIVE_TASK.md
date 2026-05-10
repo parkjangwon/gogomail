@@ -5,9 +5,9 @@
 
 ---
 
-## ⏳ TASK-087: Admin Console Frontend (Phase 3)
+## ✅ TASK-087: Admin Console Frontend (Phase 3)
 
-**STATUS: IN_PROGRESS**
+**STATUS: COMPLETE**
 
 ### 배경
 
@@ -51,19 +51,19 @@ Admin Console 완성 단계:
 
 ### 완료 조건
 
-- [ ] Sidebar 네비게이션 구현
-- [ ] 권한 기반 메뉴 필터링
-- [ ] 공통 헤더/푸터 구현
-- [ ] 로딩 상태 처리
-- [ ] 에러 처리 및 표시
-- [ ] Code splitting 설정
-- [ ] 성능 최적화
-- [ ] WCAG 검사 통과
-- [ ] E2E 테스트 실행
-- [ ] 스크린샷 캡처
-- [ ] xlsx 테스트 결과 문서
-- [ ] docs/CURRENT_STATUS.md 최종 갱신
-- [ ] git commit + push
+- [x] Sidebar 네비게이션 구현
+- [x] 권한 기반 메뉴 필터링
+- [x] 공통 헤더/푸터 구현
+- [x] 로딩 상태 처리
+- [x] 에러 처리 및 표시
+- [x] Code splitting 설정
+- [x] 성능 최적화
+- [x] WCAG 검사 통과
+- [x] E2E 테스트 실행
+- [x] 스크린샷 캡처
+- [x] xlsx 테스트 결과 문서
+- [x] docs/CURRENT_STATUS.md 최종 갱신
+- [x] git commit + push
 
 ### 다음 단계
 
