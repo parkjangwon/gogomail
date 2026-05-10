@@ -79,7 +79,7 @@ services:
 
   # Go Backend - Development
   backend:
-    image: golang:1.23-alpine
+    image: golang:1.25-alpine
     container_name: gogomail-backend-dev
     working_dir: /app
     volumes:
@@ -98,13 +98,7 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: gogomail
       MINIO_SECRET_KEY: gogomail123
-    command: >
-      sh -c "
-      go run ./cmd/gogomail/main.go
-        -mode all-in-one
-        -migrate
-        -config /app/configs/config.dev.yaml
-      "
+    command: sh -c "go run ./cmd/gogomail/main.go -mode all-in-one -migrate -config /app/configs/config.dev.yaml"
     depends_on:
       postgres:
         condition: service_healthy
