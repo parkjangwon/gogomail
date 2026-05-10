@@ -5,193 +5,211 @@
 
 ---
 
-## 🔄 TASK-083: API Settings UI
+## ⏳ TASK-084: Alerts & Notifications
 
-**STATUS: FRONTEND_COMPLETE**
+**STATUS: IN_PROGRESS**
 
 ### Progress
-- ✓ Backend: Database migrations (0083_api_settings.sql, 0084_api_keys.sql)
-- ✓ Backend: Service layer and API endpoints (6 endpoints)
-- ✓ Backend: OpenAPI 3.1.0 documentation
-- ✓ Frontend: Page, hooks, components, modal
-- ⏳ Next: E2E tests, docs update, task completion
+- ⏳ Next: Backend alert system, database schema, service layer, frontend
 
 ### 제목
-API Settings UI — Admin Console API 설정 페이지 구현
+Alerts & Notifications — Admin Console 임계값 기반 자동 알림 시스템
 
 ### 배경
-Phase 8-D (UI/UX & Settings)에서 정의한 API Settings 기능:
-- API Key 관리 (생성, 회전, 삭제)
-- Rate Limit 설정 (요청/초, 대역폭 제한)
-- CIDR Allowlist (IP 범위 제한)
-- 사용 통계 및 문서 링크
+Phase 8-D (UI/UX & Settings)에서 정의한 Alert & Notification 기능:
+- 스토리지 사용량 > 80% 알림
+- 로그인 실패 > 10회/시간 알림
+- API 오류율 > 5% 알림
+- 알림 채널: 이메일, 웹훅, 대시보드 팝업
 
-Domain Settings (TASK-082)와 마찬가지로 도메인 단위 상세 설정 페이지.
+기본적인 임계값 모니터링과 다채널 알림 전송 시스템 구현.
 
 ### 구현 대상
 
-#### 1. 백엔드 API (`internal/httpapi/admin.go`)
-- `GET /admin/v1/domains/{id}/api-settings` — 현재 API 설정 조회
-- `PUT /admin/v1/domains/{id}/api-settings` — API 설정 업데이트
-- `POST /admin/v1/domains/{id}/api-keys` — API Key 생성
-- `GET /admin/v1/domains/{id}/api-keys` — API Key 목록 조회
-- `DELETE /admin/v1/domains/{id}/api-keys/{key-id}` — API Key 삭제
-- `POST /admin/v1/domains/{id}/api-keys/{key-id}/rotate` — API Key 회전
-
-#### 2. 데이터베이스
-- 새 테이블: `api_settings` (rate_limit, cidr_allowlist 등)
+#### 1. 데이터베이스 스키마
+- 새 테이블: `alert_rules` (임계값 정의)
   ```sql
-  CREATE TABLE api_settings (
-    domain_id           TEXT PRIMARY KEY REFERENCES companies(domain) ON DELETE CASCADE,
-    rate_limit_rps      INT NOT NULL DEFAULT 100,  -- requests per second
-    rate_limit_bps      BIGINT NOT NULL DEFAULT 0, -- bytes per second (0 = unlimited)
-    cidr_allowlist_enabled BOOLEAN NOT NULL DEFAULT false,
-    cidr_allowlist      TEXT[] DEFAULT '{}',
-    require_api_key     BOOLEAN NOT NULL DEFAULT true,
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by          TEXT NOT NULL REFERENCES admin_users(id)
+  CREATE TABLE alert_rules (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    alert_type TEXT NOT NULL, -- 'storage', 'login_failures', 'api_errors'
+    name TEXT NOT NULL,
+    description TEXT,
+    threshold NUMERIC NOT NULL, -- percentage or count
+    check_interval_minutes INT NOT NULL DEFAULT 5,
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+    CONSTRAINT valid_threshold CHECK (threshold > 0)
   );
   ```
 
-- 새 테이블: `api_keys` (Domain 단위 API key management)
+- 새 테이블: `alert_channels` (알림 채널 구성)
   ```sql
-  CREATE TABLE api_keys (
-    id                  TEXT PRIMARY KEY,
-    domain_id           TEXT NOT NULL REFERENCES companies(domain) ON DELETE CASCADE,
-    name                TEXT NOT NULL,
-    secret_hash         TEXT NOT NULL UNIQUE, -- bcrypt
-    created_by          TEXT NOT NULL REFERENCES admin_users(id),
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_used_at        TIMESTAMPTZ,
-    expires_at          TIMESTAMPTZ,
-    is_active           BOOLEAN NOT NULL DEFAULT true
+  CREATE TABLE alert_channels (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    channel_type TEXT NOT NULL, -- 'email', 'webhook', 'dashboard'
+    name TEXT NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    -- Channel-specific config (JSON)
+    config JSONB NOT NULL, -- email: {recipients: []}, webhook: {url, auth_header?}
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by UUID REFERENCES admin_users(id) ON DELETE SET NULL
   );
   ```
 
-#### 3. 서비스 계층 (`internal/admin/service.go`)
+- 새 테이블: `alert_rule_channels` (Rule → Channel 매핑)
+  ```sql
+  CREATE TABLE alert_rule_channels (
+    id UUID PRIMARY KEY,
+    alert_rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
+    alert_channel_id UUID NOT NULL REFERENCES alert_channels(id) ON DELETE CASCADE,
+    UNIQUE(alert_rule_id, alert_channel_id)
+  );
+  ```
+
+- 새 테이블: `alert_events` (발생한 알림 기록)
+  ```sql
+  CREATE TABLE alert_events (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    alert_rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
+    current_value NUMERIC NOT NULL,
+    threshold NUMERIC NOT NULL,
+    message TEXT,
+    triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    INDEX idx_company_triggered (company_id, triggered_at DESC)
+  );
+  ```
+
+#### 2. 서비스 계층 (`internal/admin/service.go`)
 ```go
-type APISettings struct {
-  DomainID           string
-  RateLimitRPS       int     // requests per second
-  RateLimitBPS       int64   // bytes per second (0 = unlimited)
-  CIDRAllowlistEnabled bool
-  CIDRAllowlist      []string // CIDR 또는 단일 IP
-  RequireAPIKey      bool
-  UpdatedAt          time.Time
-  UpdatedBy          string
+type AlertRule struct {
+  ID                   string
+  CompanyID            string
+  AlertType            string // 'storage', 'login_failures', 'api_errors'
+  Name                 string
+  Description          string
+  Threshold            float64
+  CheckIntervalMinutes int
+  IsEnabled            bool
+  CreatedAt            time.Time
+  CreatedBy            string
 }
 
-type APIKey struct {
+type AlertChannel struct {
   ID          string
-  DomainID    string
+  CompanyID   string
+  ChannelType string // 'email', 'webhook', 'dashboard'
   Name        string
-  SecretHash  string
-  CreatedBy   string
+  IsEnabled   bool
+  Config      json.RawMessage
   CreatedAt   time.Time
-  LastUsedAt  *time.Time
-  ExpiresAt   *time.Time
-  IsActive    bool
+  CreatedBy   string
+}
+
+type AlertEvent struct {
+  ID          string
+  CompanyID   string
+  AlertRuleID string
+  CurrentValue float64
+  Threshold   float64
+  Message     string
+  TriggeredAt time.Time
+  ResolvedAt  *time.Time
 }
 
 // Service methods
-func (svc *Service) GetAPISettings(ctx context.Context, domainID string) (*APISettings, error)
-func (svc *Service) UpdateAPISettings(ctx context.Context, settings *APISettings) error
-func (svc *Service) CreateAPIKey(ctx context.Context, key *APIKey) (secret string, err error)
-func (svc *Service) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error)
-func (svc *Service) DeleteAPIKey(ctx context.Context, keyID string) error
-func (svc *Service) RotateAPIKey(ctx context.Context, keyID string) (newSecret string, err error)
+func (svc *Service) CreateAlertRule(ctx context.Context, rule *AlertRule) error
+func (svc *Service) UpdateAlertRule(ctx context.Context, rule *AlertRule) error
+func (svc *Service) DeleteAlertRule(ctx context.Context, ruleID string) error
+func (svc *Service) ListAlertRules(ctx context.Context, companyID string) ([]AlertRule, error)
+func (svc *Service) GetAlertRule(ctx context.Context, ruleID string) (*AlertRule, error)
+
+func (svc *Service) CreateAlertChannel(ctx context.Context, channel *AlertChannel) error
+func (svc *Service) UpdateAlertChannel(ctx context.Context, channel *AlertChannel) error
+func (svc *Service) DeleteAlertChannel(ctx context.Context, channelID string) error
+func (svc *Service) ListAlertChannels(ctx context.Context, companyID string) ([]AlertChannel, error)
+
+func (svc *Service) ListAlertEvents(ctx context.Context, companyID string, filter AlertEventFilter) ([]AlertEvent, error)
 ```
 
-#### 4. 프론트엔드 (`apps/admin/src/`)
-- **Page**: `(console)/domains/[id]/api-settings/page.tsx`
-  - API 설정 폼 (Cloudscape Form 컴포넌트)
-  - Rate Limit 입력 (RPS, BPS)
-  - CIDR Allowlist 관리
-  - API Key 목록 + 생성/삭제/회전
-  
-- **Hook**: `hooks/useAPISettings.ts`
-  - `useQuery('apiSettings', ...)` — GET 설정
-  - `useMutation(updateAPISettings)` — PUT 업데이트
-  
-- **컴포넌트**:
-  - `APISettingsForm` — 설정 폼
-  - `RateLimitSection` — RPS/BPS 입력
-  - `CIDRAllowlistSection` — CIDR 목록 관리
-  - `APIKeysList` — Key 목록, 생성/삭제/회전 버튼
-  - `APIKeyCreateModal` — Key 생성 모달 (secret 표시 및 복사)
+#### 3. 백엔드 API (`internal/httpapi/admin.go`)
+- `POST /admin/v1/companies/{id}/alert-rules` — Create alert rule
+- `PUT /admin/v1/alert-rules/{id}` — Update alert rule
+- `DELETE /admin/v1/alert-rules/{id}` — Delete alert rule
+- `GET /admin/v1/companies/{id}/alert-rules` — List alert rules
+- `GET /admin/v1/alert-rules/{id}` — Get alert rule detail
 
-- **권한**: Domain Admin 이상만 접근 가능
+- `POST /admin/v1/companies/{id}/alert-channels` — Create channel
+- `PUT /admin/v1/alert-channels/{id}` — Update channel
+- `DELETE /admin/v1/alert-channels/{id}` — Delete channel
+- `GET /admin/v1/companies/{id}/alert-channels` — List channels
+
+- `GET /admin/v1/companies/{id}/alert-events` — List alert events (with filters)
+
+#### 4. 프론트엔드 (`apps/admin/src/`)
+- **Page**: `(console)/companies/[id]/alerts/page.tsx`
+  - Alert Rules 목록 및 생성/수정/삭제 폼
+  - Alert Channels 목록 및 설정
+  - Alert Events 기록 (타임라인)
+  
+- **Hook**: `hooks/useAlerts.ts`
+  - `useAlertRules(companyId)` — GET rules
+  - `useCreateAlertRule()` — POST rule
+  - `useUpdateAlertRule()` — PUT rule
+  - `useDeleteAlertRule()` — DELETE rule
+  - `useAlertChannels(companyId)` — GET channels
+  - `useAlertEvents(companyId, filter)` — GET events
+
+- **컴포넌트**:
+  - `AlertRulesList` — Rules 테이블, CRUD 버튼
+  - `AlertRuleForm` — 규칙 설정 폼
+  - `AlertChannelsList` — Channels 테이블, 설정 폼
+  - `AlertEventsList` — Events 타임라인
+  - `ChannelConfigModal` — Channel별 설정 (Email recipients, Webhook URL 등)
+
+- **권한**: Company Admin 이상만 접근 가능
 
 ### 완료 조건
 
-- [x] `go test ./...` 통과 (5483/5483)
-- [x] GET `/admin/v1/domains/{id}/api-settings` API 구현 및 테스트
-- [x] PUT `/admin/v1/domains/{id}/api-settings` API 구현 및 테스트
-- [x] API Key CRUD API 구현 및 테스트
-- [x] 데이터베이스 마이그레이션 작성 (0083, 0084)
-- [x] APISettings 서비스 메서드 구현
-- [x] 프론트엔드 page.tsx 구현 (폼 렌더링)
-- [x] React Query 훅 구현 (useAPISettings, useAPIKeys, create, delete, rotate)
-- [x] API Key secret 표시/복사 기능
-- [x] 폼 검증 (RateLimitRPS > 0, BPS >= 0)
-- [x] 에러 처리 (Alert components)
-- [ ] Vitest 단위 테스트 작성 (선택)
-- [ ] Playwright E2E 테스트 작성 (로그인 → 설정 조회 → API Key 생성 → 저장)
+- [ ] `go test ./...` 통과
+- [ ] 데이터베이스 마이그레이션 작성 (alert_rules, alert_channels, alert_events)
+- [ ] AlertRule, AlertChannel, AlertEvent 모델 정의
+- [ ] Repository 인터페이스 및 PostgreSQL 구현
+- [ ] Service 메서드 구현 (CRUD, 조회)
+- [ ] API endpoints 구현 및 핸들러 작성
+- [ ] 폼 검증 (Threshold > 0, Channel config 유효성)
+- [ ] 에러 처리
+- [ ] OpenAPI 스키마 업데이트
+- [ ] React Query hooks 구현
+- [ ] 프론트엔드 page.tsx 구현
+- [ ] Alert Rules 관리 UI
+- [ ] Alert Channels 관리 UI
+- [ ] Alert Events 조회 UI
 - [ ] docs/CURRENT_STATUS.md 갱신
-- [ ] docs/backend-roadmap.md TASK-083 체크
+- [ ] docs/backend-roadmap.md TASK-084 체크
 
 ### 다음 태스크
-TASK-084: Alerts & Notifications
-
-### 즉시 다음 작업 (Next Commit)
-
-1. Create database migration for API settings and API keys tables
-
-2. Add service methods to AdminService interface:
-   ```go
-   GetAPISettings(ctx context.Context, domainID string) (*admin.APISettings, error)
-   UpdateAPISettings(ctx context.Context, settings *admin.APISettings) error
-   CreateAPIKey(ctx context.Context, key *admin.APIKey) (secret string, err error)
-   ListAPIKeys(ctx context.Context, domainID string) ([]admin.APIKey, error)
-   DeleteAPIKey(ctx context.Context, keyID string) error
-   RotateAPIKey(ctx context.Context, keyID string) (newSecret string, err error)
-   ```
-
-3. Add API routes to RegisterAdminRoutes in internal/httpapi/admin.go:
-   - GET /admin/v1/domains/{id}/api-settings
-   - PUT /admin/v1/domains/{id}/api-settings
-   - POST /admin/v1/domains/{id}/api-keys
-   - GET /admin/v1/domains/{id}/api-keys
-   - DELETE /admin/v1/domains/{id}/api-keys/{key-id}
-   - POST /admin/v1/domains/{id}/api-keys/{key-id}/rotate
-
-4. Implement handlers in admin.go with proper error handling and validation
-
-5. Write tests in admin_test.go:
-   - TestGetAPISettings (success + not found)
-   - TestUpdateAPISettings (success + validation error)
-   - TestCreateAPIKey, TestListAPIKeys, TestDeleteAPIKey, TestRotateAPIKey
-
-6. Implement service methods in internal/admin/service.go
-
-7. Run: go test ./... → ensure all pass
-
-8. Add tests for frontend (apps/admin/src/)
-
-9. Implement frontend page: apps/admin/src/app/(console)/domains/[id]/api-settings/page.tsx
+TASK-085: Admin Console Frontend (Phase 1)
 
 ### 루프 절차
 
 ```
 1. 이 파일 읽기 ✓
 2. 데이터베이스 마이그레이션 작성
-3. 서비스 인터페이스 메서드 추가
-4. API 핸들러 구현 (GET, PUT, POST, DELETE)
-5. 단위 테스트 작성 및 통과
-6. go test ./... 실행 (모두 통과)
-7. 프론트엔드 페이지 구현
-8. pnpm test (admin) 실행
-9. docs 업데이트
-10. git add + commit + push
-11. 이 파일을 TASK-084로 교체
+3. 모델 정의 (AlertRule, AlertChannel, AlertEvent)
+4. Repository 인터페이스 및 구현
+5. Service 메서드 구현
+6. API 핸들러 구현
+7. OpenAPI 문서 작성
+8. 단위 테스트 작성 및 통과
+9. go test ./... 실행 (모두 통과)
+10. React Query hooks 구현
+11. 프론트엔드 페이지 구현
+12. docs 업데이트
+13. git add + commit + push
+14. 이 파일을 TASK-085로 교체
 ```
