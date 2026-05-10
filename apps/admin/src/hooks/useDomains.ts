@@ -1,73 +1,68 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
 
 export interface Domain {
   id: string;
   company_id: string;
   name: string;
-  verified: boolean;
-  verification_token?: string;
+  status: 'active' | 'inactive' | 'pending';
+  is_primary: boolean;
   created_at: string;
-  updated_at: string;
+  dkim_configured: boolean;
+  spf_configured: boolean;
+  dmarc_configured: boolean;
 }
 
-export function useDomains(companyId?: string) {
+export function useDomains(companyId: string | undefined) {
   return useQuery({
-    queryKey: ["domains", companyId],
+    queryKey: ['domains', companyId],
     queryFn: async () => {
-      const params = companyId ? { company_id: companyId } : undefined;
-      return api.get<Domain[]>("/domains", { params });
+      if (!companyId) return [];
+      const res = await api.get(`/companies/${companyId}/domains`) as any;
+      return (res.data?.domains || []) as Domain[];
     },
-    staleTime: 30 * 1000,
-  });
-}
-
-export function useDomain(domainId: string) {
-  return useQuery({
-    queryKey: ["domains", domainId],
-    queryFn: () => api.get<Domain>(`/domains/${domainId}`),
-    enabled: !!domainId,
-    staleTime: 30 * 1000,
+    enabled: !!companyId,
   });
 }
 
 export function useCreateDomain() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (data: Omit<Domain, "id" | "created_at" | "updated_at" | "verified">) =>
-      api.post<Domain>("/domains", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["domains"] });
-    },
-  });
-}
-
-export function useUpdateDomain() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
+    mutationFn: async ({
+      companyId,
+      domain,
     }: {
-      id: string;
-      data: Partial<Domain>;
-    }) => api.put<Domain>(`/domains/${id}`, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["domains", variables.id] });
-      queryClient.invalidateQueries({ queryKey: ["domains"] });
+      companyId: string;
+      domain: Omit<Domain, 'id' | 'created_at'>;
+    }) => {
+      const res = await api.post(`/companies/${companyId}/domains`, domain) as any;
+      return res.data as Domain;
+    },
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['domains', companyId] });
     },
   });
 }
 
 export function useDeleteDomain() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (domainId: string) => api.delete(`/domains/${domainId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["domains"] });
+    mutationFn: async ({
+      companyId,
+      domainId,
+    }: {
+      companyId: string;
+      domainId: string;
+    }) => {
+      const res = await api.delete(
+        `/companies/${companyId}/domains/${domainId}`
+      ) as any;
+      return res.data;
+    },
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['domains', companyId] });
     },
   });
 }

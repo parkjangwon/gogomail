@@ -5,79 +5,80 @@
 
 ---
 
-## ✅ TASK-085: Admin Console Frontend (Phase 1)
+## ⏳ TASK-086: Admin Console Frontend (Phase 2)
 
-**STATUS: READY_TO_START**
+**STATUS: IN_PROGRESS**
 
 ### 배경
 
-Phase 8-D (UI/UX & Settings)의 최종 단계로 Admin Console의 프론트엔드 완성:
-- TASK-084 (Alerts & Notifications) 완료로 백엔드 모든 기능 구현 완료
-- 이제 admin console의 2차, 3차 기능 페이지 개발 시작
-- React Query 훅과 Cloudscape Design System 활용
+Phase 8-D (UI/UX & Settings)의 심화 단계로 Admin Console의 고급 기능 구현:
+- TASK-085 (Dashboard, Audit Logs, Organization, Reports, Roles) 완료
+- 이제 정책, 보안, 통합 관리 기능 추가
+- API Key 관리, MFA 정책, SSO 설정 페이지 개발
 
 ### 구현 대상
 
-#### 1. Dashboard & Analytics 페이지
-- 전체 사용자 수, 도메인 수 통계
-- 최근 7일 활동 차트
-- API 사용률 그래프
-- 보안 이벤트 요약
+#### 1. API Key Management 페이지
+- API 키 생성/삭제
+- 키 로테이션
+- CIDR 허용 목록 설정
+- 사용 통계 (요청 수, 마지막 사용)
+- 만료 날짜 설정
 
-#### 2. Advanced Audit Logs UI
-- 필터링 (기간, 사용자, 작업 유형)
-- 페이지네이션 (50/100/200 행 선택)
-- 내보내기 (CSV, JSON)
-- 상세 보기 모달
+#### 2. MFA & 보안 정책
+- MFA 모드 설정 (disabled/optional/required)
+- TOTP 설정 강제 (Grace period 설정)
+- Recovery codes 관리
+- 세션 타임아웃 정책
 
-#### 3. Organization Structure 시각화
-- 조직 계층도 (트리 뷰)
-- 사용자/그룹 관계도
-- Drag-and-drop 계층 변경
-- 벌크 작업 지원
+#### 3. SSO & Identity Provider 관리
+- SSO 제공자 설정 (LDAP, OIDC)
+- 프로비저닝 옵션 설정
+- 속성 매핑 (email, name, groups)
+- 테스트 연결 기능
 
-#### 4. Export & Reports
-- 정기 리포트 설정 (일일, 주간, 월간)
-- 리포트 템플릿 커스터마이징
-- 수신자 그룹 관리
-- 리포트 다운로드 히스토리
+#### 4. 도메인 & 테넌트 관리
+- 도메인 추가/삭제/편집
+- 기본 도메인 설정
+- 도메인별 설정 상속
+- 도메인 상태 모니터링
 
-#### 5. Role Management Advanced
-- 커스텀 권한 조합 UI
-- 권한 매트릭스 (리소스 × 액션)
-- 역할 복제 및 버전 관리
-- 권한 영향도 분석
+#### 5. 정책 & 준수
+- 암호 정책 (길이, 복잡성, 만료)
+- 로그인 정책 (IP 제한, 로그인 시간)
+- 감사 정책 레벨 설정
+- 데이터 보호 규정 (GDPR, HIPAA)
 
 ### 완료 조건
 
-- [ ] Dashboard 페이지 구현 및 스타일링
-- [ ] Audit Logs 고급 필터링 UI
-- [ ] Organization Structure 시각화 컴포넌트
-- [ ] Export & Reports 설정 페이지
-- [ ] Role Management 커스텀 권한 UI
-- [ ] React Query 훅 모든 API 연동 테스트
-- [ ] Cloudscape 컴포넌트 일관성 검증
+- [ ] API Key Management 페이지 구현
+- [ ] MFA & Security Policy 페이지 구현
+- [ ] SSO & Identity Provider 설정 페이지
+- [ ] Domain & Tenant Management 페이지
+- [ ] Policy & Compliance 페이지
+- [ ] React Query 훅 구현 및 테스트
+- [ ] API 엔드포인트 연동 검증
+- [ ] 폼 검증 및 에러 처리
 - [ ] 접근성 검사 (WCAG 2.1 AA)
-- [ ] 반응형 레이아웃 (모바일 미지원 확인)
-- [ ] 성능 최적화 (번들 크기, 로딩 시간)
-- [ ] E2E 테스트 작성 (주요 워크플로우)
+- [ ] 성능 최적화
+- [ ] E2E 테스트 (주요 워크플로우)
 - [ ] docs/CURRENT_STATUS.md 갱신
-- [ ] git add + commit + push
+- [ ] git commit + push
 
 ### 루프 절차
 
 ```
 1. 이 파일 읽기
-2. 각 페이지별 컴포넌트 설계
-3. React Query 훅 작성
-4. UI 구현 및 스타일링
-5. API 연동 테스트
-6. 접근성 및 성능 검증
+2. 각 페이지별 훅 작성
+3. UI 구현 및 스타일링
+4. API 연동 테스트
+5. 검증 및 에러 처리
+6. 접근성 & 성능 검증
 7. E2E 테스트 작성
 8. docs 업데이트
 9. git commit + push
-10. TASK-086으로 이동
+10. TASK-087로 이동
 ```
 
 ### 다음 태스크
-TASK-086: Admin Console Frontend (Phase 2)
+TASK-087: Admin Console Frontend (Phase 3)
