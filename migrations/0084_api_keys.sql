@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
   secret_hash text NOT NULL UNIQUE,
 
   -- Created by and timestamps
-  created_by uuid NOT NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+  created_by uuid NOT NULL REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   last_used_at timestamptz,
   expires_at timestamptz,
