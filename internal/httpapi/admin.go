@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
@@ -111,6 +112,8 @@ type AdminService interface {
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
 	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
+	GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error)
+	UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
 	ListUsers(ctx context.Context, req maildb.UserListRequest) ([]maildb.UserView, error)
 	GetUser(ctx context.Context, id string) (maildb.UserView, error)
 	CreateUser(ctx context.Context, req maildb.CreateUserRequest) (maildb.UserView, error)
@@ -889,6 +892,45 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		settings, err := service.GetDomainSettings(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		var settings admin.DomainSettings
+		if err := decodeJSONBody(r, &settings); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		settings.DomainID = id
+		if err := service.UpdateDomainSettings(r.Context(), &settings); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

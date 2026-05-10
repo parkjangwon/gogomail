@@ -5252,6 +5252,50 @@ paths:
           $ref: "#/components/responses/DomainPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/settings:
+    get:
+      operationId: getAdminDomainSettings
+      summary: Admin get domain settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/DomainSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateAdminDomainSettings
+      summary: Admin update domain settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/DomainSettingsUpdate"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/config:
     get:
       operationId: listAdminDomainConfig
@@ -6367,6 +6411,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainPolicyEnvelope"
+    DomainSettings:
+      description: Domain settings envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainSettingsEnvelope"
     UserList:
       description: User list envelope
       content:
@@ -6706,6 +6756,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainPolicyUpdateRequest"
+    DomainSettingsUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DomainSettingsUpdateRequest"
     DKIMKeyCreate:
       required: true
       content:
@@ -11283,6 +11339,89 @@ components:
       properties:
         domain_policy:
           $ref: "#/components/schemas/DomainPolicy"
+    DomainSettings:
+      type: object
+      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, updated_at, updated_by]
+      properties:
+        domain_id:
+          type: string
+        tls_policy:
+          type: string
+          enum: [opportunistic, require, disable]
+        quota_per_user:
+          type: integer
+          format: int64
+          minimum: 0
+        ip_whitelist_enabled:
+          type: boolean
+        ip_whitelist:
+          type: array
+          items:
+            type: string
+        require_2fa:
+          type: boolean
+        session_timeout_minutes:
+          type: integer
+          minimum: 1
+        password_min_length:
+          type: integer
+          minimum: 1
+        password_require_uppercase:
+          type: boolean
+        password_require_numbers:
+          type: boolean
+        password_require_special_chars:
+          type: boolean
+        password_expiry_days:
+          type: integer
+          minimum: 0
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+    DomainSettingsEnvelope:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          $ref: "#/components/schemas/DomainSettings"
+    DomainSettingsUpdateRequest:
+      type: object
+      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days]
+      properties:
+        domain_id:
+          type: string
+        tls_policy:
+          type: string
+          enum: [opportunistic, require, disable]
+        quota_per_user:
+          type: integer
+          format: int64
+          minimum: 0
+        ip_whitelist_enabled:
+          type: boolean
+        ip_whitelist:
+          type: array
+          items:
+            type: string
+        require_2fa:
+          type: boolean
+        session_timeout_minutes:
+          type: integer
+          minimum: 1
+        password_min_length:
+          type: integer
+          minimum: 1
+        password_require_uppercase:
+          type: boolean
+        password_require_numbers:
+          type: boolean
+        password_require_special_chars:
+          type: boolean
+        password_expiry_days:
+          type: integer
+          minimum: 0
     User:
       type: object
       required: [id, domain_id, username, display_name, role, status, password_configured, quota_used, quota_remaining, quota_source, created_at]

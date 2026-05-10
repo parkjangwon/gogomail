@@ -23,6 +23,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/gogomail/gogomail/internal/accesspolicy"
+	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
 	"github.com/gogomail/gogomail/internal/dnsbl"
@@ -2614,8 +2615,11 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		if err := configStore.Start(ctx); err != nil {
 			return fmt.Errorf("start config store: %w", err)
 		}
+		adminRepo := admin.NewRepository(db)
+		adminSvc := admin.NewService(adminRepo)
 		httpapi.RegisterAdminRoutes(mux, adminService{
 			Repository:                  repository,
+			adminSvc:                    adminSvc,
 			backpressure:                pressure,
 			audit:                       audit.NewPostgresRepository(db),
 			exportStore:                 store,

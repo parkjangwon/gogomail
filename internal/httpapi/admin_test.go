@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
@@ -9376,6 +9377,31 @@ func (f *fakeAdminService) ListUserConfig(_ context.Context, userID string) ([]c
 func (f *fakeAdminService) PropagateCompanyConfig(_ context.Context, companyID string, scope configstore.PropagateScope, key string, value json.RawMessage, locked bool) error {
 	f.lastPropagateCompanyID = companyID
 	f.lastPropagateScope = scope
+	return nil
+}
+
+func (f *fakeAdminService) GetDomainSettings(_ context.Context, domainID string) (*admin.DomainSettings, error) {
+	f.lastDomainID = domainID
+	return &admin.DomainSettings{
+		DomainID:              domainID,
+		TLSPolicy:             "opportunistic",
+		QuotaPerUser:          10737418240,
+		IPWhitelistEnabled:    false,
+		IPWhitelist:           []string{},
+		Require2FA:            false,
+		SessionTimeoutMinutes: 480,
+		PasswordMinLength:     8,
+		PasswordRequireUppercase:    true,
+		PasswordRequireNumbers:      true,
+		PasswordRequireSpecialChars: false,
+		PasswordExpiryDays:    0,
+		UpdatedAt:             time.Now(),
+		UpdatedBy:             "admin-1",
+	}, nil
+}
+
+func (f *fakeAdminService) UpdateDomainSettings(_ context.Context, settings *admin.DomainSettings) error {
+	f.lastDomainID = settings.DomainID
 	return nil
 }
 
