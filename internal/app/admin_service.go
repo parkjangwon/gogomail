@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -39,6 +40,7 @@ type auditWriter interface {
 
 type adminService struct {
 	*maildb.Repository
+	adminSvc                    *admin.Service
 	backpressure                backpressureStore
 	audit                       auditWriter
 	exportStore                 apimeter.ExportArtifactStore
@@ -1416,4 +1418,18 @@ func (s adminService) CreateUser(ctx context.Context, req maildb.CreateUserReque
 		_ = s.configStore.PropagateFromParent(ctx, configstore.ScopeUser, user.ID, configstore.ScopeDomain, user.DomainID)
 	}
 	return user, nil
+}
+
+func (s adminService) GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error) {
+	if s.adminSvc == nil {
+		return nil, fmt.Errorf("admin service is not configured")
+	}
+	return s.adminSvc.GetDomainSettings(ctx, domainID)
+}
+
+func (s adminService) UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error {
+	if s.adminSvc == nil {
+		return fmt.Errorf("admin service is not configured")
+	}
+	return s.adminSvc.UpdateDomainSettings(ctx, settings)
 }
