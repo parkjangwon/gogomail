@@ -5,3 +5,4 @@ export * from "./useAuditPolicy";
 export * from "./useIdentityProviders";
 export * from "./useStatistics";
 export * from "./useReports";
+export * from "./useRoles";
