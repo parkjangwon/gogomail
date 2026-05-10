@@ -69,20 +69,20 @@ Backend Admin Console Phase 8 완료:
 - ✅ Full navigation working (SideNav routes all functional)
 - ✅ Build passing with all pages
 
-### ✅ P2 IN PROGRESS: Advanced Features (1/5 complete)
+### ✅ P2 COMPLETE: Advanced Features
 
 - ✅ Audit Policy Configuration (Level 1-3 radio, scope checkboxes, React Query)
-- [ ] Audit Logs + 필터링 (date range, action filter, admin filter)
-- [ ] Identity Provider 설정 (DB/LDAP/RDBMS 탭)
-- [ ] 통계 & 차트 (real-time dashboard)
-- [ ] CSV/PDF 리포트 다운로드
+- ✅ Audit Logs + 필터링 (date range, action filter, admin filter, pagination)
+- ✅ Identity Provider 설정 (DB/LDAP/RDBMS tabs with config persistence)
+- ✅ 통계 & Dashboard (real-time metrics with auto-refresh 30/60/120 sec)
+- ✅ CSV/PDF 리포트 다운로드 (4 report types: audit logs, statistics, domains, comprehensive)
 
-### P3 TODO: Polish & Production
+### 📋 P3 IN PROGRESS: Polish & Production
 
-- [ ] 역할 및 권한 관리
-- [ ] 폼 검증 및 에러 처리
-- [ ] 유닛 테스트 (Vitest)
-- [ ] E2E 테스트 (Playwright)
+- [ ] 역할 및 권한 관리 (Roles & Permissions: CRUD + permission assignment)
+- [ ] 폼 검증 및 에러 처리 (Form validation, field-level errors, API error display)
+- [ ] 유닛 테스트 (Vitest: components, hooks, utils — target 80% coverage)
+- [ ] E2E 테스트 (Playwright: login flow, CRUD operations, export functionality)
 
 ---
 
