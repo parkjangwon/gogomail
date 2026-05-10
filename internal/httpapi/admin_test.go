@@ -8511,6 +8511,14 @@ func (f *fakeAdminService) UpdateCompanyQuota(_ context.Context, req maildb.Upda
 	return nil
 }
 
+func (f *fakeAdminService) UpdateCompany(_ context.Context, req maildb.UpdateCompanyRequest) (maildb.CompanyView, error) {
+	return maildb.CompanyView{ID: req.ID, Name: req.Name, Status: "active", QuotaLimit: req.QuotaLimit}, nil
+}
+
+func (f *fakeAdminService) DeleteCompany(_ context.Context, id string) error {
+	return nil
+}
+
 func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error) {
 	f.lastDomainList = req
 	f.lastLimit = req.Limit
@@ -8551,6 +8559,10 @@ func (f *fakeAdminService) ListDomainDNSChecks(_ context.Context, req maildb.Dom
 
 func (f *fakeAdminService) UpdateDomainStatus(_ context.Context, req maildb.UpdateDomainStatusRequest) error {
 	f.lastDomainStatus = req
+	return nil
+}
+
+func (f *fakeAdminService) DeleteDomain(_ context.Context, id string) error {
 	return nil
 }
 

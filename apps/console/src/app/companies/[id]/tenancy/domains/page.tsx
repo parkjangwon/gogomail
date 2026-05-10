@@ -17,9 +17,14 @@ import {
   StatusIndicator,
   Alert,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams, useRouter } from 'next/navigation';
+
+const STATUS_OPTIONS = [
+  { label: 'active', value: 'active' },
+  { label: 'suspended', value: 'suspended' },
+];
 
 interface Domain {
   id: string;
@@ -58,6 +63,17 @@ export default function DomainsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
+
+  // Edit modal
+  const [editTarget, setEditTarget] = useState<Domain | null>(null);
+  const [editForm, setEditForm] = useState({ quota_gb: '', status: 'active' });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useState<Domain | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     fetchDomains();
@@ -137,6 +153,67 @@ export default function DomainsPage() {
     }
   };
 
+  const openEdit = useCallback((d: Domain) => {
+    setEditTarget(d);
+    setEditForm({
+      quota_gb: d.quota_limit > 0 ? String(Math.round(d.quota_limit / 1073741824)) : '',
+      status: d.status,
+    });
+    setSaveError('');
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      const quotaBytes = editForm.quota_gb ? parseInt(editForm.quota_gb) * 1073741824 : 0;
+      const [statusRes, quotaRes] = await Promise.all([
+        editTarget.status !== editForm.status
+          ? fetch(`/api/admin/domains/${editTarget.id}/status`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: editForm.status }),
+              credentials: 'include',
+            })
+          : Promise.resolve({ ok: true } as Response),
+        fetch(`/api/admin/domains/${editTarget.id}/quota`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes }),
+          credentials: 'include',
+        }),
+      ]);
+      if (!statusRes.ok || !quotaRes.ok) {
+        const errData = await (statusRes.ok ? quotaRes : statusRes).json().catch(() => ({})) as { error?: { message?: string } };
+        setSaveError(errData.error?.message ?? '저장 실패');
+        return;
+      }
+      setEditTarget(null);
+      fetchDomains();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/admin/domains/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        setDeleteTarget(null);
+        fetchDomains();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        setDeleteError(data.error?.message ?? '삭제 실패');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getDNSBadge = (status: string) => {
     switch (status) {
       case 'pass': return <Badge color="green">Pass</Badge>;
@@ -166,6 +243,7 @@ export default function DomainsPage() {
   }
 
   return (
+    <>
     <ContentLayout
       header={
         <Header
@@ -245,16 +323,24 @@ export default function DomainsPage() {
             {
               header: t('pages.tenancy_domains.actions'),
               cell: (d: Domain) => (
-                <Button
-                  variant="inline-link"
-                  onClick={() => handleVerifyDNS(d.id)}
-                  loading={verifying === d.id}
-                  disabled={d.last_dns_check_status === 'pass'}
-                >
-                  {t('pages.tenancy_domains.verify_dns')}
-                </Button>
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button
+                    variant="inline-link"
+                    onClick={() => handleVerifyDNS(d.id)}
+                    loading={verifying === d.id}
+                    disabled={d.last_dns_check_status === 'pass'}
+                  >
+                    {t('pages.tenancy_domains.verify_dns')}
+                  </Button>
+                  <Button variant="inline-link" onClick={() => openEdit(d)}>
+                    {t('common.edit') || '수정'}
+                  </Button>
+                  <Button variant="inline-link" onClick={() => { setDeleteTarget(d); setDeleteError(''); }}>
+                    {t('common.delete') || '삭제'}
+                  </Button>
+                </SpaceBetween>
               ),
-              width: '10%',
+              width: '20%',
             },
           ]}
           items={filteredDomains}
@@ -345,5 +431,62 @@ export default function DomainsPage() {
 
       </SpaceBetween>
     </ContentLayout>
+
+    {/* Edit Domain Modal */}
+    <Modal
+      visible={!!editTarget}
+      onDismiss={() => { setEditTarget(null); setSaveError(''); }}
+      header={`${t('common.edit') || '도메인 수정'} — ${editTarget?.name ?? ''}`}
+      footer={
+        <Box float="right">
+          <SpaceBetween direction="horizontal" size="xs">
+            <Button onClick={() => { setEditTarget(null); setSaveError(''); }}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={handleSaveEdit} loading={saving}>{t('common.save') || '저장'}</Button>
+          </SpaceBetween>
+        </Box>
+      }
+    >
+      <SpaceBetween size="m">
+        <FormField label={t('pages.domains.status') || '상태'}>
+          <Select
+            selectedOption={STATUS_OPTIONS.find(o => o.value === editForm.status) ?? STATUS_OPTIONS[0]}
+            options={STATUS_OPTIONS}
+            onChange={(e) => setEditForm({ ...editForm, status: e.detail.selectedOption.value ?? 'active' })}
+          />
+        </FormField>
+        <FormField label={t('pages.tenancy_domains.storage_quota_gb') || '스토리지 할당량 (GB)'} description="0 = 무제한">
+          <Input
+            type="number"
+            value={editForm.quota_gb}
+            onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
+            placeholder="0 = 무제한"
+          />
+        </FormField>
+        {saveError ? <Alert type="error">{saveError}</Alert> : null}
+      </SpaceBetween>
+    </Modal>
+
+    {/* Delete Domain Modal */}
+    <Modal
+      visible={!!deleteTarget}
+      onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
+      header={t('common.delete') || '도메인 삭제'}
+      footer={
+        <Box float="right">
+          <SpaceBetween direction="horizontal" size="xs">
+            <Button onClick={() => { setDeleteTarget(null); setDeleteError(''); }}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={handleDelete} loading={deleting}>
+              {t('common.delete') || '삭제'}
+            </Button>
+          </SpaceBetween>
+        </Box>
+      }
+    >
+      <SpaceBetween size="m">
+        <Box><strong>{deleteTarget?.name}</strong> 도메인을 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다.</Box>
+        {deleteError ? <Alert type="error">{deleteError}</Alert> : null}
+      </SpaceBetween>
+    </Modal>
+    </>
   );
 }
