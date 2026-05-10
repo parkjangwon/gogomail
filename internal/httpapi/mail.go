@@ -95,9 +95,14 @@ type webmailCapabilitiesEnvelope struct {
 	WebmailCapabilities webmailCapabilities `json:"webmail_capabilities"`
 }
 
+type UserAuthenticator interface {
+	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
+}
+
 type MailRouteOptions struct {
 	MutationLimiter MailMutationLimiter
 	SessionRevoker  auth.SessionRevoker
+	Authenticator   UserAuthenticator
 }
 
 type MailMutationLimiter interface {
@@ -371,6 +376,55 @@ func RegisterMailRoutes(mux *http.ServeMux, service MessageService, tokenManager
 }
 
 func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, tokenManager *auth.TokenManager, opts MailRouteOptions) {
+	mux.HandleFunc("POST /api/v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
+		if opts.Authenticator == nil {
+			writeError(w, http.StatusServiceUnavailable, "authentication not configured")
+			return
+		}
+		if tokenManager == nil {
+			writeError(w, http.StatusServiceUnavailable, "token signing not configured")
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.Email = strings.TrimSpace(req.Email)
+		req.Password = strings.TrimSpace(req.Password)
+		if req.Email == "" || req.Password == "" {
+			writeError(w, http.StatusBadRequest, "email and password are required")
+			return
+		}
+		user, err := opts.Authenticator.AuthenticateUser(r.Context(), req.Email, req.Password)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+		const tokenTTL = 24 * time.Hour
+		claims := auth.Claims{
+			UserID:         user.UserID,
+			DomainID:       user.DomainID,
+			SessionVersion: user.SessionVersion,
+		}
+		token, err := tokenManager.Sign(claims, tokenTTL)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to issue token")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"token":                token,
+			"expires_at":           time.Now().UTC().Add(tokenTTL).Format(time.RFC3339),
+			"must_change_password": user.MustChangePassword,
+		})
+	})
+
 	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-all", func(w http.ResponseWriter, r *http.Request) {
 		if tokenManager == nil {
 			writeError(w, http.StatusServiceUnavailable, "authentication not configured")
