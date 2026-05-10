@@ -92,6 +92,15 @@ services:
     environment:
       CGO_ENABLED: 0
       GOFLAGS: -v
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: gogomail
+      POSTGRES_PASSWORD: gogomail
+      POSTGRES_DB: gogomail
+      REDIS_ADDR: redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: gogomail
+      MINIO_SECRET_KEY: gogomail123
     command: >
       sh -c "
       go run ./cmd/gogomail/main.go
@@ -108,16 +117,6 @@ services:
         condition: service_healthy
     networks:
       - gogomail-dev
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: gogomail
-      POSTGRES_PASSWORD: gogomail
-      POSTGRES_DB: gogomail
-      REDIS_ADDR: redis:6379
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: gogomail
-      MINIO_SECRET_KEY: gogomail123
 
 volumes:
   postgres-data:
