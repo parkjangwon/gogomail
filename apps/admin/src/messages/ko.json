@@ -24,7 +24,7 @@
     "dashboard": "대시보드",
     "users": "사용자",
     "users_access": "사용자 및 액세스",
-    "admin_users": "관리자 사용자",
+    "admin_users": "관리자",
     "directory": "디렉토리",
     "aliases": "별칭",
     "delegations": "위임",
@@ -57,7 +57,7 @@
     "security": "보안",
     "api_keys": "API 키",
     "dkim_keys": "DKIM 키",
-    "suppression_list": "억제 목록",
+    "suppression_list": "발송 차단 목록",
     "alert_rules": "알림 규칙",
     "storage_quotas": "저장소 및 할당량",
     "quota_usage": "할당량 사용",
@@ -397,8 +397,8 @@
       "download": "다운로드"
     },
     "suppression": {
-      "title": "억제 목록",
-      "description": "억제된 이메일 주소 관리",
+      "title": "발송 차단 목록",
+      "description": "차단된 이메일 주소 관리",
       "email": "이메일",
       "reason": "사유",
       "added": "추가됨",
@@ -758,7 +758,7 @@
       "save_btn": "저장"
     },
     "admin_users_page": {
-      "title": "관리자 사용자",
+      "title": "관리자",
       "add_admin_btn": "+ 관리자 추가",
       "username": "사용자명",
       "email": "이메일",
@@ -934,14 +934,14 @@
       "title": "알림 규칙"
     },
     "suppression_page": {
-      "description": "이메일 억제 목록 관리",
-      "add_email": "+ 이메일 추가",
+      "description": "차단된 이메일 주소 관리",
+      "add_email": "+ 차단 추가",
       "added": "추가됨",
       "entries": "항목",
-      "add_modal": "억제 목록에 추가",
+      "add_modal": "차단 목록에 추가",
       "email_address": "이메일 주소",
       "reason_label": "사유",
-      "reason_desc": "이 이메일이 억제된 이유",
+      "reason_desc": "이 이메일을 차단한 사유",
       "add_btn": "이메일 추가",
       "title": "차단 목록",
       "modal_header": "차단 목록에 추가",
