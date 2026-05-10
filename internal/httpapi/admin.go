@@ -261,6 +261,9 @@ type AdminService interface {
 	DeleteAlertChannel(ctx context.Context, channelID string) error
 	ListAlertEvents(ctx context.Context, filter admin.AlertEventFilter) ([]admin.AlertEvent, error)
 	LogAlertEvent(ctx context.Context, event *admin.AlertEvent) error
+	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
+	ResetUserMFA(ctx context.Context, userID string) error
+	GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error)
 }
 
 type adminIMAPUIDBackfillItem struct {
@@ -1425,6 +1428,52 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		defer r.Body.Close()
 
 		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
+	}))
+
+	// MFA management routes
+	mux.HandleFunc("GET /admin/v1/users/{id}/mfa", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		status, err := service.GetUserMFAStatus(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mfa_status": status})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/users/{id}/mfa", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.ResetUserMFA(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/mfa/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		stats, err := service.GetMFAStats(r.Context(), id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"mfa_stats": stats})
 	}))
 
 	registerAdminDeviceTokenRoutes(mux, service, token)

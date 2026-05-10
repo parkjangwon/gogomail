@@ -9588,3 +9588,15 @@ func TestAdminUserConfigWriteBlocked(t *testing.T) {
 		t.Fatalf("DELETE status = %d, want 403", rec.Code)
 	}
 }
+
+func (f *fakeAdminService) GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error) {
+	return maildb.UserMFAStatus{}, nil
+}
+
+func (f *fakeAdminService) ResetUserMFA(ctx context.Context, userID string) error {
+	return nil
+}
+
+func (f *fakeAdminService) GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error) {
+	return maildb.MFAStats{}, nil
+}
