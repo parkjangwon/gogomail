@@ -100,6 +100,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         content={<div className="admin-content">{children}</div>}
         toolsHide
         maxContentWidth={1600}
+        minContentWidth={0}
         headerSelector="#top-nav"
         notifications={
           notifications.length > 0 ? <Flashbar items={notifications} /> : undefined

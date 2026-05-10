@@ -19,11 +19,14 @@ body {
 }
 
 /* ─── Sidebar navigation scroll ─────────────────────────────── */
-[class*="awsui_navigation-container"] {
+/* Constrain the AppLayout height so the nav pane can scroll */
+main[class*="awsui_layout"] {
   height: calc(100dvh - var(--awsui-app-layout-main-offset-top, 56px));
+  overflow: hidden;
+}
+[class*="awsui_navigation-container"] {
   overflow-y: auto;
-  position: sticky;
-  top: var(--awsui-app-layout-main-offset-top, 56px);
+  height: 100%;
 }
 
 code {
