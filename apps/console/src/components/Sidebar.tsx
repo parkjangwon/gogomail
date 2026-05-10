@@ -97,6 +97,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.ip_access'), href: p('/security/ip-access') },
         { type: 'link', text: t('nav.auth_policy'), href: p('/security/auth-policy') },
         { type: 'link', text: t('nav.retention_policy'), href: p('/security/retention') },
+        { type: 'link', text: t('nav.session_mgmt'), href: p('/security/sessions') },
         { type: 'link', text: t('nav.compliance'), href: p('/compliance') },
       ],
     },

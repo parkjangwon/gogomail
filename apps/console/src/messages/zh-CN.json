@@ -72,6 +72,7 @@
     "mfa_management": "2FA管理",
     "ip_access": "IP访问控制",
     "retention_policy": "数据保留策略",
+    "session_mgmt": "会话管理",
     "section_resources": "资源",
     "section_operations": "运营",
     "section_access_control": "访问控制",
@@ -966,6 +967,24 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "session_page": {
+      "title": "会话管理",
+      "description": "配置会话超时并查看活跃会话",
+      "policy_header": "会话策略",
+      "timeout": "会话超时（分钟）",
+      "idle_timeout": "空闲超时（分钟，0 = 禁用）",
+      "max_concurrent": "最大并发会话数（0 = 无限制）",
+      "require_reauth": "敏感操作需要重新认证",
+      "save": "保存策略",
+      "sessions_header": "活跃会话",
+      "email_col": "用户",
+      "ip_col": "IP地址",
+      "started_col": "开始时间",
+      "last_active_col": "最后活动",
+      "agent_col": "用户代理",
+      "terminate": "终止",
+      "no_sessions": "无活跃会话"
     },
     "retention_page": {
       "title": "数据保留策略",

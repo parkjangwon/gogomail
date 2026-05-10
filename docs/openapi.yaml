@@ -6954,6 +6954,119 @@ paths:
                     $ref: "#/components/schemas/RetentionPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/session-policy:
+    get:
+      operationId: adminGetCompanySessionPolicy
+      summary: Get company session policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanySessionPolicy
+      summary: Set company session policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Saved session policy
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/sessions:
+    get:
+      operationId: adminListCompanySessions
+      summary: List active sessions for a company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active sessions list
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/sessions/{userId}:
+    delete:
+      operationId: adminDeleteCompanySession
+      summary: Terminate a user session
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session terminated
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/security/retention-policy:
     get:
       operationId: adminGetDomainRetentionPolicy

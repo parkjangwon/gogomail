@@ -73,6 +73,7 @@
     "ip_access": "IP Access Control",
     "auth_policy": "Auth Policy",
     "retention_policy": "Data Retention",
+    "session_mgmt": "Session Management",
     "section_resources": "Resources",
     "section_operations": "Operations",
     "section_access_control": "Access Control",
@@ -489,6 +490,24 @@
       "session_timeout": "Session Timeout (minutes)",
       "max_concurrent": "Max Concurrent Sessions (0 = unlimited)",
       "save": "Save Policy"
+    },
+    "session_page": {
+      "title": "Session Management",
+      "description": "Configure session timeouts and view active sessions",
+      "policy_header": "Session Policy",
+      "timeout": "Session Timeout (minutes)",
+      "idle_timeout": "Idle Timeout (minutes, 0 = disabled)",
+      "max_concurrent": "Max Concurrent Sessions (0 = unlimited)",
+      "require_reauth": "Require Re-auth for Sensitive Operations",
+      "save": "Save Policy",
+      "sessions_header": "Active Sessions",
+      "email_col": "User",
+      "ip_col": "IP Address",
+      "started_col": "Started",
+      "last_active_col": "Last Active",
+      "agent_col": "User Agent",
+      "terminate": "Terminate",
+      "no_sessions": "No active sessions"
     },
     "retention_page": {
       "title": "Data Retention Policy",
