@@ -16,6 +16,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
 import { ReadingPane } from '@/components/ReadingPane';
 import { ComposeModal } from '@/components/ComposeModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function MailPage() {
   const router = useRouter();
@@ -199,6 +200,7 @@ export default function MailPage() {
       {showCompose && (
         <ComposeModal onClose={() => setShowCompose(false)} />
       )}
+      <ThemeToggle />
     </div>
   );
 }

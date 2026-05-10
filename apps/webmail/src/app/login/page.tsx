@@ -3,6 +3,7 @@
 import { useState, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/api';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function LoginPage() {
         padding: '24px',
       }}
     >
+      <ThemeToggle />
       <div
         style={{
           width: '100%',
