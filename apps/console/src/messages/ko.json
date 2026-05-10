@@ -70,6 +70,7 @@
     "domain_config": "도메인 설정",
     "user_config": "사용자 설정",
     "mfa_management": "2FA 관리",
+    "ip_access": "IP 접근 제어",
     "section_resources": "리소스",
     "section_operations": "운영",
     "section_access_control": "접근 제어",
@@ -476,6 +477,24 @@
       "save_btn": "저장",
       "type": "유형",
       "update_btn": "업데이트"
+    },
+    "ip_access_page": {
+      "title": "IP 접근 제어",
+      "description": "프로토콜별 IP 주소로 접근을 제어합니다",
+      "enabled_label": "IP 접근 제어 활성화",
+      "allowlist_header": "허용 목록",
+      "allowlist_desc": "이 IP/CIDR만 연결할 수 있습니다. 비어 있으면 모두 허용합니다.",
+      "denylist_header": "차단 목록",
+      "denylist_desc": "이 IP/CIDR는 항상 차단됩니다.",
+      "add_ip": "IP / CIDR 추가",
+      "ip_placeholder": "예: 192.168.1.0/24",
+      "protocols_label": "적용 프로토콜",
+      "action_label": "허용 목록에 없을 때 동작",
+      "action_deny": "연결 거부",
+      "action_log": "허용하되 로그 기록",
+      "save": "정책 저장",
+      "scope_company": "회사 전체 정책",
+      "scope_domain": "도메인별 설정"
     },
     "config_company": {
       "description": "회사 설정",

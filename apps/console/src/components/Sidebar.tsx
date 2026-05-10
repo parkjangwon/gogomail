@@ -94,6 +94,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.dkim_keys'), href: p('/security/dkim-keys') },
         { type: 'link', text: t('nav.api_keys'), href: p('/security/api-keys') },
         { type: 'link', text: t('nav.mfa_management'), href: p('/security/mfa') },
+        { type: 'link', text: t('nav.ip_access'), href: p('/security/ip-access') },
         { type: 'link', text: t('nav.compliance'), href: p('/compliance') },
       ],
     },
