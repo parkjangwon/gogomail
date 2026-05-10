@@ -15,15 +15,15 @@ export function Sidebar() {
 
   const p = (path: string) => `/companies/${cid}${path}`;
 
-  // Memoize by cid+locale so the array reference is stable across pathname changes.
-  // Stable reference = Cloudscape keeps its internal section-expanded state.
+  // Omitting defaultExpanded lets Cloudscape auto-expand the section
+  // containing the active link. Explicitly setting it to false suppresses
+  // that behaviour, which is what caused the bug.
   const navigationItems: SideNavigationProps.Item[] = useMemo(() => [
     { type: 'link', text: t('nav.dashboard'), href: p('/dashboard') },
     { type: 'divider' },
     {
       type: 'section',
       text: 'Resources',
-      defaultExpanded: true,
       items: [
         { type: 'link', text: t('nav.companies'), href: p('/tenancy/companies') },
         { type: 'link', text: t('nav.domains'), href: p('/tenancy/domains') },
@@ -34,7 +34,6 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Operations',
-      defaultExpanded: false,
       items: [
         { type: 'link', text: t('nav.mail_flow_logs'), href: p('/mail/flow-logs') },
         { type: 'link', text: t('nav.outbox_events'), href: p('/mail/outbox') },
@@ -49,7 +48,6 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Access Control',
-      defaultExpanded: false,
       items: [
         { type: 'link', text: t('nav.directory'), href: p('/access/directory') },
         { type: 'link', text: t('nav.aliases'), href: p('/access/aliases') },
@@ -61,7 +59,6 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Governance',
-      defaultExpanded: false,
       items: [
         { type: 'link', text: t('nav.audit_logs'), href: p('/audit-logs') },
         { type: 'link', text: t('nav.alert_rules'), href: p('/security/alerts') },
@@ -75,7 +72,6 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Analytics & Storage',
-      defaultExpanded: false,
       items: [
         { type: 'link', text: t('nav.quota_usage'), href: p('/storage/quota-usage') },
         { type: 'link', text: t('nav.quota_alerts'), href: p('/storage/quota-alerts') },
