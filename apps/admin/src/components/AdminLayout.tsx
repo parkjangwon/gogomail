@@ -82,7 +82,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
       <AppLayout
         navigation={<Sidebar />}
-        content={children}
+        content={<div style={{ paddingLeft: '20px', paddingRight: '20px' }}>{children}</div>}
         toolsHide
         maxContentWidth={1600}
         headerSelector="#top-nav"

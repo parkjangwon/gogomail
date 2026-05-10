@@ -4,6 +4,7 @@ import { SideNavigation, SideNavigationProps } from '@cloudscape-design/componen
 import { useRouter, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useMemo } from 'react';
 
 export function Sidebar() {
   const router = useRouter();
@@ -14,15 +15,11 @@ export function Sidebar() {
 
   const p = (path: string) => `/companies/${cid}${path}`;
 
-  const navigationItems: SideNavigationProps.Item[] = [
-    {
-      type: 'link',
-      text: t('nav.dashboard'),
-      href: p('/dashboard'),
-    },
+  // Memoize by cid+locale so the array reference is stable across pathname changes.
+  // Stable reference = Cloudscape keeps its internal section-expanded state.
+  const navigationItems: SideNavigationProps.Item[] = useMemo(() => [
+    { type: 'link', text: t('nav.dashboard'), href: p('/dashboard') },
     { type: 'divider' },
-
-    // RESOURCES
     {
       type: 'section',
       text: 'Resources',
@@ -34,8 +31,6 @@ export function Sidebar() {
         { type: 'link', text: t('nav.admin_users'), href: p('/admin-users') },
       ],
     },
-
-    // OPERATIONS
     {
       type: 'section',
       text: 'Operations',
@@ -51,8 +46,6 @@ export function Sidebar() {
         { type: 'link', text: t('nav.api_health'), href: p('/system/health') },
       ],
     },
-
-    // ACCESS CONTROL
     {
       type: 'section',
       text: 'Access Control',
@@ -65,8 +58,6 @@ export function Sidebar() {
         { type: 'link', text: t('nav.roles'), href: p('/roles') },
       ],
     },
-
-    // GOVERNANCE
     {
       type: 'section',
       text: 'Governance',
@@ -80,8 +71,6 @@ export function Sidebar() {
         { type: 'link', text: t('nav.compliance'), href: p('/compliance') },
       ],
     },
-
-    // ANALYTICS & STORAGE
     {
       type: 'section',
       text: 'Analytics & Storage',
@@ -96,16 +85,14 @@ export function Sidebar() {
         { type: 'link', text: t('nav.reports'), href: p('/reports') },
       ],
     },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [cid, t]);
 
   return (
     <SideNavigation
       items={navigationItems}
       activeHref={pathname ?? ''}
-      header={{
-        href: p('/dashboard'),
-        text: currentCompany?.name ?? 'GoGoMail',
-      }}
+      header={{ href: p('/dashboard'), text: currentCompany?.name ?? 'GoGoMail' }}
       onFollow={(e) => {
         if (e.detail.external) return;
         e.preventDefault();
