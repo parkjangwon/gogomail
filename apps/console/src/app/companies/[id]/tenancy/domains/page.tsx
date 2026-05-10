@@ -335,11 +335,11 @@ export default function DomainsPage() {
                 onChange={(e) => setNewDomain({ ...newDomain, quota_gb: e.detail.value })}
               />
             </FormField>
-            {createError && (
+            {createError ? (
               <Alert key="error" type="error" onDismiss={() => setCreateError('')}>
                 {createError}
               </Alert>
-            )}
+            ) : null}
           </SpaceBetween>
         </Modal>
 
