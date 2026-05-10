@@ -9,31 +9,32 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-071
-- **제목**: LDAP Sync UI & Logs
-- **배경**: Phase 8-C. Implement LDAP sync configuration and audit logging.
-  - LDAP sync scheduling & manual trigger
-  - Sync progress tracking and logs
-  - User audit trail for sync operations
-  - Sync error handling and retry logic
-  - Real-time sync status dashboard
+- **ID**: TASK-072
+- **제목**: External RDBMS Config & Sync
+- **배경**: Phase 8-C. Implement external RDBMS identity provider backend.
+  - Connection pooling for external databases
+  - User query & sync from remote RDBMS
+  - Field mapping configuration
+  - Data validation and transformation
+  - Error handling and retry logic
 
 - **구현 대상**:
-  1. `internal/admin/ldap_service.go` — LDAP sync service
-  2. `internal/admin/ldap_service_test.go` — Unit tests
-  3. Sync job scheduling
-  4. Audit logging for LDAP operations
-  5. Error handling and recovery
+  1. `internal/admin/rdbms_provider.go` — External RDBMS identity provider
+  2. `internal/admin/rdbms_provider_test.go` — Unit tests
+  3. Connection management
+  4. Query building and execution
+  5. Result transformation
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] LDAPService with sync scheduling
-  - [ ] Sync progress tracking
-  - [ ] Audit log integration
-  - [ ] Error handling & retry
+  - [ ] RDBMSProvider implements IdentityProvider
+  - [ ] Authenticate with query execution
+  - [ ] GetUser operations
+  - [ ] ListUsers with pagination
+  - [ ] SyncUsers capability
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-070 ✅ (LDAP Identity Config) — COMPLETE
+- **이전 태스크**: TASK-071 ✅ (LDAP Sync UI & Logs) — COMPLETE
 
 ---
 
