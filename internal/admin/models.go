@@ -77,6 +77,24 @@ type AuditPolicyConfig struct {
 	UpdatedAt                time.Time `json:"updated_at"`
 }
 
+// DomainSettings holds domain-level configuration.
+type DomainSettings struct {
+	DomainID                    string    `json:"domain_id"`
+	TLSPolicy                   string    `json:"tls_policy"`           // 'opportunistic', 'require', 'disable'
+	QuotaPerUser                int64     `json:"quota_per_user"`       // bytes
+	IPWhitelistEnabled          bool      `json:"ip_whitelist_enabled"`
+	IPWhitelist                 []string  `json:"ip_whitelist"`         // CIDR notation
+	Require2FA                  bool      `json:"require_2fa"`
+	SessionTimeoutMinutes       int       `json:"session_timeout_minutes"`
+	PasswordMinLength           int       `json:"password_min_length"`
+	PasswordRequireUppercase    bool      `json:"password_require_uppercase"`
+	PasswordRequireNumbers      bool      `json:"password_require_numbers"`
+	PasswordRequireSpecialChars bool      `json:"password_require_special_chars"`
+	PasswordExpiryDays          int       `json:"password_expiry_days"`
+	UpdatedAt                   time.Time `json:"updated_at"`
+	UpdatedBy                   string    `json:"updated_by"`
+}
+
 // AuditLog represents a single audit log entry.
 type AuditLog struct {
 	ID            string          `json:"id"`
