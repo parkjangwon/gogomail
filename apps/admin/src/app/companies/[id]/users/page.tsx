@@ -17,6 +17,8 @@ import {
   ColumnLayout,
   Container,
   StatusIndicator,
+  Alert,
+  CopyToClipboard,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -29,9 +31,16 @@ interface User {
   role: string;
   status: string;
   password_configured: boolean;
+  must_change_password: boolean;
   quota_used: number;
   quota_limit: number;
   created_at: string;
+}
+
+interface Domain {
+  id: string;
+  name: string;
+  status: string;
 }
 
 const STATUS_COLORS: Record<string, 'green' | 'red' | 'grey' | 'blue'> = {
@@ -43,13 +52,18 @@ const STATUS_COLORS: Record<string, 'green' | 'red' | 'grey' | 'blue'> = {
 export default function UsersPage() {
   const { t } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+  const [registrationMode, setRegistrationMode] = useState<'temp_password' | 'email_invite'>('temp_password');
+  const [loadingDomainSettings, setLoadingDomainSettings] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
 
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({ display_name: '', quota_gb: '0' });
@@ -57,7 +71,10 @@ export default function UsersPage() {
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    fetchDomains();
+  }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -74,29 +91,103 @@ export default function UsersPage() {
     }
   };
 
+  const fetchDomains = async () => {
+    try {
+      const res = await fetch('/api/admin/domains?limit=100', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setDomains(data.domains || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch domains:', e);
+    }
+  };
+
+  const handleDomainChange = async (domainId: string) => {
+    setNewUser(u => ({ ...u, domain_id: domainId }));
+    if (!domainId) return;
+    setLoadingDomainSettings(true);
+    try {
+      const res = await fetch(`/api/admin/domains/${domainId}/settings`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setRegistrationMode(data.settings?.user_registration_mode ?? 'temp_password');
+      }
+    } catch (e) {
+      console.error('Failed to fetch domain settings:', e);
+    } finally {
+      setLoadingDomainSettings(false);
+    }
+  };
+
+  const selectedDomain = domains.find(d => d.id === newUser.domain_id);
+  const autoAddress = selectedDomain && newUser.username.trim()
+    ? `${newUser.username.trim().toLowerCase()}@${selectedDomain.name}`
+    : '';
+
   const handleCreateUser = async () => {
     if (!newUser.username.trim() || !newUser.domain_id.trim()) return;
+    if (!autoAddress) return;
     setCreating(true);
+    setCreateError('');
+    setInviteLink('');
     try {
+      const body: Record<string, unknown> = {
+        username: newUser.username.trim(),
+        display_name: newUser.display_name.trim() || newUser.username.trim(),
+        domain_id: newUser.domain_id,
+        address: autoAddress,
+        quota_limit: parseInt(newUser.quota_gb) * 1073741824,
+      };
+
+      if (registrationMode === 'temp_password') {
+        if (!newUser.password.trim()) {
+          setCreateError(t('pages.users_page.password_required'));
+          setCreating(false);
+          return;
+        }
+        body.password = newUser.password;
+      }
+
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: newUser.username,
-          display_name: newUser.display_name,
-          domain_id: newUser.domain_id,
-          password: newUser.password,
-          quota_limit: parseInt(newUser.quota_gb) * 1073741824,
-        }),
+        body: JSON.stringify(body),
         credentials: 'include',
       });
-      if (res.ok) {
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setCreateError(err.error || t('pages.users_page.create_failed'));
+        return;
+      }
+
+      const created = await res.json();
+      const userId = created.user?.id;
+
+      if (registrationMode === 'email_invite' && userId) {
+        const invRes = await fetch(`/api/admin/users/${userId}/invite`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (invRes.ok) {
+          const invData = await invRes.json();
+          const token = invData.invite_token?.token;
+          if (token) {
+            const url = `${window.location.origin}/invite/${token}`;
+            setInviteLink(url);
+          }
+        }
+      }
+
+      if (registrationMode === 'temp_password') {
         setShowCreateModal(false);
         setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
-        fetchUsers();
       }
+      fetchUsers();
     } catch (e) {
       console.error('Failed to create user:', e);
+      setCreateError(t('pages.users_page.create_failed'));
     } finally {
       setCreating(false);
     }
@@ -157,6 +248,12 @@ export default function UsersPage() {
     { label: t('pages.users_page.inactive'), value: 'inactive' },
   ];
 
+  const domainOptions = domains.map(d => ({
+    label: d.name,
+    value: d.id,
+    description: d.status,
+  }));
+
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       const matchesText = !filter || u.username.toLowerCase().includes(filter.toLowerCase())
@@ -193,7 +290,11 @@ export default function UsersPage() {
           variant="h1"
           counter={`(${totalUsers})`}
           actions={
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={() => {
+              setShowCreateModal(true);
+              setCreateError('');
+              setInviteLink('');
+            }}>
               {t('pages.users_page.create_user_btn')}
             </Button>
           }
@@ -236,6 +337,9 @@ export default function UsersPage() {
                   {u.display_name && (
                     <Box color="text-body-secondary" fontSize="body-s">{u.display_name}</Box>
                   )}
+                  {u.must_change_password && (
+                    <Badge color="severity-medium">{t('pages.users_page.must_change_pw')}</Badge>
+                  )}
                 </SpaceBetween>
               ),
               width: '22%',
@@ -243,7 +347,9 @@ export default function UsersPage() {
             {
               header: t('pages.users_page.domain'),
               cell: (u: User) => (
-                <Box color="text-body-secondary" fontSize="body-s">{u.domain_id || '—'}</Box>
+                <Box color="text-body-secondary" fontSize="body-s">
+                  {domains.find(d => d.id === u.domain_id)?.name ?? u.domain_id.slice(0, 8) + '…'}
+                </Box>
               ),
               width: '18%',
             },
@@ -335,62 +441,126 @@ export default function UsersPage() {
 
       {/* Create Modal */}
       <Modal
-        onDismiss={() => setShowCreateModal(false)}
+        onDismiss={() => {
+          setShowCreateModal(false);
+          setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+          setInviteLink('');
+          setCreateError('');
+        }}
         visible={showCreateModal}
         size="medium"
         footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
-              <Button
-                variant="primary"
-                onClick={handleCreateUser}
-                loading={creating}
-                disabled={!newUser.username.trim() || !newUser.domain_id.trim()}
-              >
-                {t('pages.users_page.create_btn')}
-              </Button>
-            </SpaceBetween>
-          </Box>
+          inviteLink ? (
+            <Box float="right">
+              <Button onClick={() => {
+                setShowCreateModal(false);
+                setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+                setInviteLink('');
+              }}>{t('common.close')}</Button>
+            </Box>
+          ) : (
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
+                <Button
+                  variant="primary"
+                  onClick={handleCreateUser}
+                  loading={creating}
+                  disabled={!newUser.username.trim() || !newUser.domain_id.trim() || loadingDomainSettings}
+                >
+                  {registrationMode === 'email_invite'
+                    ? t('pages.users_page.create_and_invite_btn')
+                    : t('pages.users_page.create_btn')}
+                </Button>
+              </SpaceBetween>
+            </Box>
+          )
         }
         header={t('pages.users_page.create_modal_title')}
       >
         <SpaceBetween size="m">
-          <FormField label={t('pages.users_page.domain_label')}>
-            <Input
-              value={newUser.domain_id}
-              onChange={(e) => setNewUser({ ...newUser, domain_id: e.detail.value })}
-              placeholder="domain-id"
-            />
-          </FormField>
-          <FormField label={t('pages.users_page.username_label')}>
-            <Input
-              value={newUser.username}
-              onChange={(e) => setNewUser({ ...newUser, username: e.detail.value })}
-              placeholder="john.doe"
-            />
-          </FormField>
-          <FormField label={t('pages.users_page.display_name_label')}>
-            <Input
-              value={newUser.display_name}
-              onChange={(e) => setNewUser({ ...newUser, display_name: e.detail.value })}
-              placeholder="John Doe"
-            />
-          </FormField>
-          <FormField label={t('pages.users_page.password_label')}>
-            <Input
-              type="password"
-              value={newUser.password}
-              onChange={(e) => setNewUser({ ...newUser, password: e.detail.value })}
-            />
-          </FormField>
-          <FormField label={t('pages.users_page.quota_label')}>
-            <Input
-              type="number"
-              value={newUser.quota_gb}
-              onChange={(e) => setNewUser({ ...newUser, quota_gb: e.detail.value })}
-            />
-          </FormField>
+          {inviteLink ? (
+            <SpaceBetween size="m">
+              <Alert type="success">{t('pages.users_page.invite_created')}</Alert>
+              <FormField label={t('pages.users_page.invite_link_label')}
+                description={t('pages.users_page.invite_link_desc')}>
+                <CopyToClipboard
+                  copyButtonText={t('pages.users_page.copy_invite')}
+                  copySuccessText={t('pages.users_page.copy_success')}
+                  copyErrorText={t('pages.users_page.copy_error')}
+                  textToCopy={inviteLink}
+                />
+              </FormField>
+              <Box color="text-body-secondary" fontSize="body-s">
+                {inviteLink}
+              </Box>
+            </SpaceBetween>
+          ) : (
+            <>
+              <FormField label={t('pages.users_page.domain_label')}>
+                <Select
+                  selectedOption={domainOptions.find(o => o.value === newUser.domain_id) ?? null}
+                  options={domainOptions}
+                  onChange={(e) => handleDomainChange(e.detail.selectedOption?.value ?? '')}
+                  placeholder={t('pages.users_page.domain_placeholder')}
+                  statusType={loadingDomainSettings ? 'loading' : 'finished'}
+                  expandToViewport
+                />
+              </FormField>
+
+              {newUser.domain_id && (
+                <Alert type="info">
+                  {registrationMode === 'email_invite'
+                    ? t('pages.users_page.mode_email_invite_info')
+                    : t('pages.users_page.mode_temp_password_info')}
+                </Alert>
+              )}
+
+              <FormField label={t('pages.users_page.username_label')}>
+                <Input
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.detail.value })}
+                  placeholder="john.doe"
+                />
+              </FormField>
+              <FormField label={t('pages.users_page.display_name_label')}>
+                <Input
+                  value={newUser.display_name}
+                  onChange={(e) => setNewUser({ ...newUser, display_name: e.detail.value })}
+                  placeholder="John Doe"
+                />
+              </FormField>
+
+              {autoAddress && (
+                <FormField label={t('pages.users_page.address_label')}>
+                  <Box color="text-body-secondary">{autoAddress}</Box>
+                </FormField>
+              )}
+
+              {registrationMode === 'temp_password' && (
+                <FormField
+                  label={t('pages.users_page.password_label')}
+                  description={t('pages.users_page.temp_password_desc')}
+                >
+                  <Input
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.detail.value })}
+                  />
+                </FormField>
+              )}
+
+              <FormField label={t('pages.users_page.quota_label')} description="GB (0 = domain default)">
+                <Input
+                  type="number"
+                  value={newUser.quota_gb}
+                  onChange={(e) => setNewUser({ ...newUser, quota_gb: e.detail.value })}
+                />
+              </FormField>
+
+              {createError && <Alert type="error">{createError}</Alert>}
+            </>
+          )}
         </SpaceBetween>
       </Modal>
 
