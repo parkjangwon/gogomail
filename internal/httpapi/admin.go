@@ -106,6 +106,8 @@ type AdminService interface {
 	CreateCompany(ctx context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
 	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
+	UpdateCompany(ctx context.Context, req maildb.UpdateCompanyRequest) (maildb.CompanyView, error)
+	DeleteCompany(ctx context.Context, id string) error
 	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
 	GetDomain(ctx context.Context, id string) (maildb.DomainView, error)
 	GetDomainStats(ctx context.Context, id string) (maildb.DomainStatsView, error)
@@ -114,6 +116,7 @@ type AdminService interface {
 	CreateDomain(ctx context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error)
 	UpdateDomainStatus(ctx context.Context, req maildb.UpdateDomainStatusRequest) error
 	UpdateDomainQuota(ctx context.Context, req maildb.UpdateDomainQuotaRequest) error
+	DeleteDomain(ctx context.Context, id string) error
 	UpdateDomainPolicy(ctx context.Context, req maildb.UpdateDomainPolicyRequest) (maildb.DomainPolicyView, error)
 	GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error)
 	UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
@@ -606,6 +609,45 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
+	mux.HandleFunc("PATCH /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req maildb.UpdateCompanyRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
+		company, err := service.UpdateCompany(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"company": company})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteCompany(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/companies/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -938,6 +980,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		if err := service.DeleteDomain(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/domains/{id}/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

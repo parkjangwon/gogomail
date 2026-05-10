@@ -22,7 +22,7 @@ import {
   ProgressBar,
   Tabs,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
@@ -69,6 +69,17 @@ export default function CompaniesPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [companyDomains, setCompanyDomains] = useState<DomainSummary[]>([]);
   const [loadingDomains, setLoadingDomains] = useState(false);
+
+  // Edit modal
+  const [editTarget, setEditTarget] = useState<Company | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', quota_gb: '' });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const itemsPerPage = 20;
 
@@ -129,6 +140,59 @@ export default function CompaniesPage() {
       }
     } finally {
       setCreating(false);
+    }
+  };
+
+  const openEdit = useCallback((c: Company) => {
+    setEditTarget(c);
+    setEditForm({
+      name: c.name,
+      quota_gb: c.quota_limit > 0 ? String(Math.round(c.quota_limit / 1073741824)) : '',
+    });
+    setSaveError('');
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      const res = await fetch(`/api/admin/companies/${editTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          quota_limit: editForm.quota_gb ? parseInt(editForm.quota_gb) * 1073741824 : 0,
+        }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setEditTarget(null);
+        fetchCompanies();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        setSaveError(data.error?.message ?? '저장 실패');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/admin/companies/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        setDeleteTarget(null);
+        fetchCompanies();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        setDeleteError(data.error?.message ?? '삭제 실패');
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -241,15 +305,15 @@ export default function CompaniesPage() {
                   <Button variant="inline-link" onClick={() => handleViewCompany(c)}>
                     {t('pages.companies.view')}
                   </Button>
-                  <Button
-                    variant="inline-link"
-                    onClick={() => router.push(`/companies/${c.id}/tenancy/domains`)}
-                  >
-                    {t('pages.companies.add_domain')}
+                  <Button variant="inline-link" onClick={() => openEdit(c)}>
+                    {t('common.edit') || '수정'}
+                  </Button>
+                  <Button variant="inline-link" onClick={() => { setDeleteTarget(c); setDeleteError(''); }}>
+                    {t('common.delete') || '삭제'}
                   </Button>
                 </SpaceBetween>
               ),
-              width: '20%',
+              width: '25%',
             },
           ]}
           items={paginatedCompanies}
@@ -329,6 +393,64 @@ export default function CompaniesPage() {
               placeholder={t('pages.companies.quota_placeholder')}
             />
           </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* Edit Company Modal */}
+      <Modal
+        visible={!!editTarget}
+        onDismiss={() => { setEditTarget(null); setSaveError(''); }}
+        header={`${t('common.edit') || '회사 수정'} — ${editTarget?.name ?? ''}`}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => { setEditTarget(null); setSaveError(''); }}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleSaveEdit} loading={saving} disabled={!editForm.name.trim()}>
+                {t('common.save') || '저장'}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <FormField label={t('pages.companies.company_name')}>
+            <Input
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.detail.value })}
+              placeholder={t('pages.companies.name_placeholder')}
+            />
+          </FormField>
+          <FormField label={t('pages.companies.quota_label') || '스토리지 할당량 (GB)'} description="0 = 무제한">
+            <Input
+              type="number"
+              value={editForm.quota_gb}
+              onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
+              placeholder="0 = 무제한"
+            />
+          </FormField>
+          {saveError ? <Alert type="error">{saveError}</Alert> : null}
+        </SpaceBetween>
+      </Modal>
+
+      {/* Delete Company Modal */}
+      <Modal
+        visible={!!deleteTarget}
+        onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
+        header={t('common.delete') || '회사 삭제'}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => { setDeleteTarget(null); setDeleteError(''); }}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleDeleteCompany} loading={deleting}>
+                {t('common.delete') || '삭제'}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <Box><strong>{deleteTarget?.name}</strong> 회사를 삭제하시겠습니까? 도메인이 있는 경우 삭제할 수 없습니다.</Box>
+          {deleteError ? <Alert type="error">{deleteError}</Alert> : null}
         </SpaceBetween>
       </Modal>
 

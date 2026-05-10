@@ -861,6 +861,12 @@ type UpdateCompanyQuotaRequest struct {
 	QuotaLimit int64  `json:"quota_limit"`
 }
 
+type UpdateCompanyRequest struct {
+	ID         string `json:"id"`
+	Name       string `json:"name,omitempty"`
+	QuotaLimit int64  `json:"quota_limit,omitempty"`
+}
+
 type UpdateDomainPolicyRequest struct {
 	ID                      string `json:"id"`
 	InboundMode             string `json:"inbound_mode"`
@@ -6998,4 +7004,142 @@ RETURNING id::text, domain_id::text, username, display_name, role, status,
 		return UserView{}, fmt.Errorf("commit accept invite: %w", err)
 	}
 	return user, nil
+}
+
+func (r *Repository) UpdateCompany(ctx context.Context, req UpdateCompanyRequest) (CompanyView, error) {
+	if r.db == nil {
+		return CompanyView{}, fmt.Errorf("database handle is required")
+	}
+	if strings.TrimSpace(req.ID) == "" {
+		return CompanyView{}, fmt.Errorf("id is required")
+	}
+	if req.Name != "" && strings.TrimSpace(req.Name) == "" {
+		return CompanyView{}, fmt.Errorf("name must not be blank")
+	}
+	if req.QuotaLimit < 0 {
+		return CompanyView{}, fmt.Errorf("quota_limit must not be negative")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return CompanyView{}, fmt.Errorf("begin update company transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var view CompanyView
+	if err := tx.QueryRowContext(ctx, `
+UPDATE companies
+SET name        = CASE WHEN $2 <> '' THEN $2 ELSE name END,
+    quota_limit = CASE WHEN $3::bigint >= 0 THEN NULLIF($3::bigint, 0) ELSE quota_limit END,
+    updated_at  = now()
+WHERE id = $1
+RETURNING id::text, name, status, quota_used, COALESCE(quota_limit, 0), created_at`,
+		strings.TrimSpace(req.ID), strings.TrimSpace(req.Name), req.QuotaLimit,
+	).Scan(&view.ID, &view.Name, &view.Status, &view.QuotaUsed, &view.QuotaLimit, &view.CreatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return CompanyView{}, fmt.Errorf("company %q not found", req.ID)
+		}
+		return CompanyView{}, fmt.Errorf("update company: %w", err)
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  view.ID,
+		Category:   "admin",
+		Action:     "company.update",
+		TargetType: "company",
+		TargetID:   view.ID,
+		Result:     "updated",
+	}); err != nil {
+		return CompanyView{}, fmt.Errorf("record company update audit: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return CompanyView{}, fmt.Errorf("commit update company transaction: %w", err)
+	}
+	return view, nil
+}
+
+func (r *Repository) DeleteCompany(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete company transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var domainCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM domains WHERE company_id = $1`, id).Scan(&domainCount); err != nil {
+		return fmt.Errorf("check company domains: %w", err)
+	}
+	if domainCount > 0 {
+		return fmt.Errorf("cannot delete company with %d domain(s); remove all domains first", domainCount)
+	}
+
+	var name string
+	if err := tx.QueryRowContext(ctx, `DELETE FROM companies WHERE id = $1 RETURNING name`, id).Scan(&name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("company %q not found", id)
+		}
+		return fmt.Errorf("delete company: %w", err)
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  id,
+		Category:   "admin",
+		Action:     "company.delete",
+		TargetType: "company",
+		TargetID:   id,
+		Result:     "deleted",
+	}); err != nil {
+		return fmt.Errorf("record company delete audit: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) DeleteDomain(ctx context.Context, id string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete domain transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var userCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE domain_id = $1`, id).Scan(&userCount); err != nil {
+		return fmt.Errorf("check domain users: %w", err)
+	}
+	if userCount > 0 {
+		return fmt.Errorf("cannot delete domain with %d user(s); remove all users first", userCount)
+	}
+
+	var companyID, name string
+	if err := tx.QueryRowContext(ctx, `DELETE FROM domains WHERE id = $1 RETURNING company_id::text, name`, id).Scan(&companyID, &name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("domain %q not found", id)
+		}
+		return fmt.Errorf("delete domain: %w", err)
+	}
+	if err := audit.InsertTx(ctx, tx, audit.Log{
+		CompanyID:  companyID,
+		DomainID:   id,
+		Category:   "admin",
+		Action:     "domain.delete",
+		TargetType: "domain",
+		TargetID:   id,
+		Result:     "deleted",
+	}); err != nil {
+		return fmt.Errorf("record domain delete audit: %w", err)
+	}
+	return tx.Commit()
 }
