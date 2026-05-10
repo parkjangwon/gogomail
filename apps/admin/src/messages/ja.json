@@ -512,7 +512,13 @@
       "unlimited_label": "Unlimited",
       "unlimited_storage": "Unlimited",
       "used_label": "Used",
-      "users_btn": "Users"
+      "users_btn": "Users",
+      "manage_users": "Manage Users",
+      "manage_domains": "Manage Domains",
+      "audit_logs": "Audit Logs",
+      "dkim_keys": "DKIM Keys",
+      "quota_usage": "Quota Usage",
+      "api_health": "API Health"
     },
     "delegations": {
       "create_btn": "Create",

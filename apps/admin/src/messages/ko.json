@@ -498,7 +498,13 @@
       "unlimited_label": "무제한",
       "unlimited_storage": "무제한",
       "used_label": "사용",
-      "users_btn": "사용자"
+      "users_btn": "사용자",
+      "manage_users": "사용자 관리",
+      "manage_domains": "도메인 관리",
+      "audit_logs": "감사 로그",
+      "dkim_keys": "DKIM 키",
+      "quota_usage": "할당량 사용",
+      "api_health": "API 상태"
     },
     "delegations": {
       "create_btn": "위임 추가",
