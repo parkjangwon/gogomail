@@ -9,31 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-073
-- **제목**: External RDBMS Sync UI
-- **배경**: Phase 8-C. Implement RDBMS sync configuration and monitoring UI.
-  - RDBMS sync scheduling & execution
-  - Connection test and validation UI
-  - Field mapping configuration interface
-  - Sync progress tracking
-  - Error logging and recovery
+- **ID**: TASK-074
+- **제목**: Mail Log Queries & UI
+- **배경**: Phase 8-D. Implement mail operation audit logging and query interface.
+  - Log all mail operations (send, receive, delete, move)
+  - Query mail logs by date/user/action
+  - Performance optimization with indexes
+  - Retention policy enforcement
+  - Audit trail compliance
 
 - **구현 대상**:
-  1. `internal/admin/rdbms_service.go` — RDBMS sync service
-  2. `internal/admin/rdbms_service_test.go` — Unit tests
-  3. Sync job management
-  4. Connection pool handling
-  5. Query result transformation
+  1. `internal/admin/mail_log_service.go` — Mail log service
+  2. `internal/admin/mail_log_service_test.go` — Unit tests
+  3. Mail operation logging
+  4. Log query and filtering
+  5. Retention policy management
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] RDBMSService with sync scheduling
-  - [ ] Connection pool management
-  - [ ] Sync progress tracking
-  - [ ] Error handling & recovery
+  - [ ] MailLogService with log recording
+  - [ ] Query by user/date/action
+  - [ ] Pagination support
+  - [ ] Retention policy execution
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-072 ✅ (External RDBMS Config & Sync) — COMPLETE
+- **이전 태스크**: TASK-073 ✅ (External RDBMS Sync UI) — COMPLETE
 
 ---
 
