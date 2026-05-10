@@ -820,6 +820,7 @@ type UserView struct {
 	Role               string    `json:"role"`
 	Status             string    `json:"status"`
 	PasswordConfigured bool      `json:"password_configured"`
+	MustChangePassword bool      `json:"must_change_password"`
 	QuotaUsed          int64     `json:"quota_used"`
 	QuotaLimit         int64     `json:"quota_limit,omitempty"`
 	QuotaRemaining     int64     `json:"quota_remaining"`
@@ -877,12 +878,14 @@ type CreateDomainRequest struct {
 }
 
 type CreateUserRequest struct {
-	DomainID     string `json:"domain_id"`
-	Username     string `json:"username"`
-	DisplayName  string `json:"display_name"`
-	Address      string `json:"address"`
-	PasswordHash string `json:"password_hash,omitempty"`
-	QuotaLimit   int64  `json:"quota_limit,omitempty"`
+	DomainID           string `json:"domain_id"`
+	Username           string `json:"username"`
+	DisplayName        string `json:"display_name"`
+	Address            string `json:"address"`
+	Password           string `json:"password,omitempty"`      // plain text; hashed by caller before reaching DB
+	PasswordHash       string `json:"password_hash,omitempty"` // pre-hashed alternative
+	MustChangePassword bool   `json:"must_change_password,omitempty"`
+	QuotaLimit         int64  `json:"quota_limit,omitempty"`
 }
 
 type UpdateUserStatusRequest struct {
@@ -1396,7 +1399,7 @@ func (r *Repository) CreateUser(ctx context.Context, req CreateUserRequest) (Use
 	}
 
 	const insertUser = `
-INSERT INTO users (domain_id, username, display_name, password_hash, quota_limit, quota_source)
+INSERT INTO users (domain_id, username, display_name, password_hash, quota_limit, quota_source, must_change_password)
 SELECT
   d.id,
   $2,
@@ -1406,13 +1409,14 @@ SELECT
     WHEN $5::bigint > 0 THEN $5::bigint
     ELSE NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
   END,
-  $6
+  $6,
+  $7
 FROM domains d
 WHERE d.id = $1
-RETURNING id::text, domain_id::text, username, display_name, role, status, COALESCE(password_hash, '') <> '', quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
+RETURNING id::text, domain_id::text, username, display_name, role, status, COALESCE(password_hash, '') <> '', must_change_password, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
 
 	var user UserView
-	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource).Scan(
+	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource, req.MustChangePassword).Scan(
 		&user.ID,
 		&user.DomainID,
 		&user.Username,
@@ -1420,6 +1424,7 @@ RETURNING id::text, domain_id::text, username, display_name, role, status, COALE
 		&user.Role,
 		&user.Status,
 		&user.PasswordConfigured,
+		&user.MustChangePassword,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
 		&user.QuotaSource,
@@ -6885,4 +6890,112 @@ func suppressionEntryAuditDetail(entry SuppressionEntry) (json.RawMessage, error
 		return nil, fmt.Errorf("marshal suppression audit detail: %w", err)
 	}
 	return detail, nil
+}
+
+// ─── Invite tokens ───────────────────────────────────────────────────────────
+
+type InviteToken struct {
+	ID         string     `json:"id"`
+	UserID     string     `json:"user_id"`
+	DomainID   string     `json:"domain_id"`
+	Token      string     `json:"token"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	CreatedBy  string     `json:"created_by,omitempty"`
+}
+
+func (r *Repository) CreateInviteToken(ctx context.Context, userID, createdBy string) (InviteToken, error) {
+	if r.db == nil {
+		return InviteToken{}, fmt.Errorf("database handle is required")
+	}
+	rawToken := make([]byte, 32)
+	if _, err := rand.Read(rawToken); err != nil {
+		return InviteToken{}, fmt.Errorf("generate invite token: %w", err)
+	}
+	token := hex.EncodeToString(rawToken)
+	expiresAt := time.Now().Add(72 * time.Hour)
+
+	var it InviteToken
+	err := r.db.QueryRowContext(ctx, `
+INSERT INTO user_invite_tokens (user_id, domain_id, token, expires_at, created_by)
+SELECT u.id, u.domain_id, $2, $3, NULLIF($4, '')::uuid
+FROM users u WHERE u.id = $1
+RETURNING id::text, user_id::text, domain_id::text, token, expires_at, accepted_at, created_at, COALESCE(created_by::text, '')`,
+		userID, token, expiresAt, createdBy,
+	).Scan(&it.ID, &it.UserID, &it.DomainID, &it.Token, &it.ExpiresAt, &it.AcceptedAt, &it.CreatedAt, &it.CreatedBy)
+	if err != nil {
+		return InviteToken{}, fmt.Errorf("create invite token: %w", err)
+	}
+	return it, nil
+}
+
+func (r *Repository) GetInviteToken(ctx context.Context, token string) (InviteToken, error) {
+	if r.db == nil {
+		return InviteToken{}, fmt.Errorf("database handle is required")
+	}
+	var it InviteToken
+	err := r.db.QueryRowContext(ctx, `
+SELECT id::text, user_id::text, domain_id::text, token, expires_at, accepted_at, created_at, COALESCE(created_by::text, '')
+FROM user_invite_tokens WHERE token = $1`, token,
+	).Scan(&it.ID, &it.UserID, &it.DomainID, &it.Token, &it.ExpiresAt, &it.AcceptedAt, &it.CreatedAt, &it.CreatedBy)
+	if err == sql.ErrNoRows {
+		return InviteToken{}, fmt.Errorf("invite token not found")
+	}
+	if err != nil {
+		return InviteToken{}, fmt.Errorf("get invite token: %w", err)
+	}
+	return it, nil
+}
+
+func (r *Repository) AcceptInviteToken(ctx context.Context, token, passwordHash string) (UserView, error) {
+	if r.db == nil {
+		return UserView{}, fmt.Errorf("database handle is required")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return UserView{}, fmt.Errorf("begin accept invite transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var it InviteToken
+	err = tx.QueryRowContext(ctx, `
+SELECT id::text, user_id::text, domain_id::text, token, expires_at, accepted_at
+FROM user_invite_tokens WHERE token = $1 FOR UPDATE`, token,
+	).Scan(&it.ID, &it.UserID, &it.DomainID, &it.Token, &it.ExpiresAt, &it.AcceptedAt)
+	if err == sql.ErrNoRows {
+		return UserView{}, fmt.Errorf("invite token not found")
+	}
+	if err != nil {
+		return UserView{}, fmt.Errorf("lookup invite token: %w", err)
+	}
+	if it.AcceptedAt != nil {
+		return UserView{}, fmt.Errorf("invite token already accepted")
+	}
+	if time.Now().After(it.ExpiresAt) {
+		return UserView{}, fmt.Errorf("invite token expired")
+	}
+
+	var user UserView
+	err = tx.QueryRowContext(ctx, `
+UPDATE users SET password_hash = $2, must_change_password = false, status = 'active'
+WHERE id = $1
+RETURNING id::text, domain_id::text, username, display_name, role, status,
+          COALESCE(password_hash, '') <> '', must_change_password,
+          quota_used, COALESCE(quota_limit, 0), quota_source, created_at`,
+		it.UserID, passwordHash,
+	).Scan(&user.ID, &user.DomainID, &user.Username, &user.DisplayName,
+		&user.Role, &user.Status, &user.PasswordConfigured, &user.MustChangePassword,
+		&user.QuotaUsed, &user.QuotaLimit, &user.QuotaSource, &user.CreatedAt)
+	if err != nil {
+		return UserView{}, fmt.Errorf("set user password: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `UPDATE user_invite_tokens SET accepted_at = now() WHERE id = $1`, it.ID); err != nil {
+		return UserView{}, fmt.Errorf("mark invite accepted: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return UserView{}, fmt.Errorf("commit accept invite: %w", err)
+	}
+	return user, nil
 }

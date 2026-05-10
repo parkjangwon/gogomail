@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/admin"
+	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
@@ -264,6 +266,9 @@ type AdminService interface {
 	GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error)
 	ResetUserMFA(ctx context.Context, userID string) error
 	GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error)
+	CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error)
+	GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error)
+	AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error)
 }
 
 type adminIMAPUIDBackfillItem struct {
@@ -1301,6 +1306,21 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
+		if req.Password != "" && req.PasswordHash == "" {
+			salt := make([]byte, 16)
+			if _, err := rand.Read(salt); err != nil {
+				writeError(w, http.StatusInternalServerError, "generate salt")
+				return
+			}
+			hash, err := auth.HashPasswordPBKDF2SHA256(req.Password, salt, 0)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "hash password: "+err.Error())
+				return
+			}
+			req.PasswordHash = hash
+			req.Password = ""
+			req.MustChangePassword = true
+		}
 		user, err := service.CreateUser(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -1308,6 +1328,64 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"user": user})
 	}))
+
+	mux.HandleFunc("POST /admin/v1/users/{id}/invite", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		it, err := service.CreateInviteToken(r.Context(), id, "")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"invite_token": it})
+	}))
+
+	mux.HandleFunc("POST /admin/invite/{token}/accept", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		rawToken := r.PathValue("token")
+		if len(rawToken) < 8 || len(rawToken) > 128 {
+			writeError(w, http.StatusBadRequest, "invalid token")
+			return
+		}
+		var body struct {
+			Password string `json:"password"`
+		}
+		if err := decodeJSONBody(r, &body); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if len(body.Password) < 8 {
+			writeError(w, http.StatusBadRequest, "password must be at least 8 characters")
+			return
+		}
+		salt := make([]byte, 16)
+		if _, err := rand.Read(salt); err != nil {
+			writeError(w, http.StatusInternalServerError, "generate salt")
+			return
+		}
+		hash, err := auth.HashPasswordPBKDF2SHA256(body.Password, salt, 0)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "hash password: "+err.Error())
+			return
+		}
+		user, err := service.AcceptInviteToken(r.Context(), rawToken, hash)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	})
 
 	mux.HandleFunc("PATCH /admin/v1/users/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()

@@ -9600,3 +9600,15 @@ func (f *fakeAdminService) ResetUserMFA(ctx context.Context, userID string) erro
 func (f *fakeAdminService) GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error) {
 	return maildb.MFAStats{}, nil
 }
+
+func (f *fakeAdminService) CreateInviteToken(ctx context.Context, userID, createdBy string) (maildb.InviteToken, error) {
+	return maildb.InviteToken{}, nil
+}
+
+func (f *fakeAdminService) GetInviteToken(ctx context.Context, token string) (maildb.InviteToken, error) {
+	return maildb.InviteToken{}, nil
+}
+
+func (f *fakeAdminService) AcceptInviteToken(ctx context.Context, token, passwordHash string) (maildb.UserView, error) {
+	return maildb.UserView{}, nil
+}

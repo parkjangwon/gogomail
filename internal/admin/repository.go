@@ -541,13 +541,14 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 		`SELECT domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist,
 		        require_2fa, session_timeout_minutes, password_min_length,
 		        password_require_uppercase, password_require_numbers, password_require_special_chars,
-		        password_expiry_days, updated_at, updated_by
+		        password_expiry_days, user_registration_mode, updated_at, updated_by
 		 FROM domain_settings WHERE domain_id = $1`,
 		domainID,
 	).Scan(&settings.DomainID, &settings.TLSPolicy, &settings.QuotaPerUser, &settings.IPWhitelistEnabled,
 		pq.Array(&settings.IPWhitelist), &settings.Require2FA, &settings.SessionTimeoutMinutes,
 		&settings.PasswordMinLength, &settings.PasswordRequireUppercase, &settings.PasswordRequireNumbers,
-		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UpdatedAt, &settings.UpdatedBy)
+		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UserRegistrationMode,
+		&settings.UpdatedAt, &settings.UpdatedBy)
 	if err != nil {
 		return nil, err
 	}
@@ -563,13 +564,13 @@ func (r *Repository) UpdateDomainSettings(ctx context.Context, settings *DomainS
 		     require_2fa = $5, session_timeout_minutes = $6, password_min_length = $7,
 		     password_require_uppercase = $8, password_require_numbers = $9,
 		     password_require_special_chars = $10, password_expiry_days = $11,
-		     updated_at = $12, updated_by = $13
-		 WHERE domain_id = $14`,
+		     user_registration_mode = $12, updated_at = $13, updated_by = $14
+		 WHERE domain_id = $15`,
 		settings.TLSPolicy, settings.QuotaPerUser, settings.IPWhitelistEnabled, pq.Array(settings.IPWhitelist),
 		settings.Require2FA, settings.SessionTimeoutMinutes, settings.PasswordMinLength,
 		settings.PasswordRequireUppercase, settings.PasswordRequireNumbers,
 		settings.PasswordRequireSpecialChars, settings.PasswordExpiryDays,
-		settings.UpdatedAt, settings.UpdatedBy,
+		settings.UserRegistrationMode, settings.UpdatedAt, settings.UpdatedBy,
 		settings.DomainID,
 	)
 	return err
