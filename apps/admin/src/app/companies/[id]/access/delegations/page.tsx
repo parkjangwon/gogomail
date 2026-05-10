@@ -70,7 +70,7 @@ export default function DelegationsPage() {
       header={
         <Header
           variant="h1"
-          description={t('pages.delegations_page.description')}
+          description={t('pages.delegations.description')}
           actions={
             <Button variant="primary" disabled>
               {t('pages.delegations.create_delegation')}
@@ -95,7 +95,7 @@ export default function DelegationsPage() {
               width: '25%',
             },
             {
-              header: t('pages.delegations_page.permissions'),
+              header: t('pages.delegations.permissions'),
               cell: (item: Delegation) => item.permissions.join(', '),
               width: '35%',
             },

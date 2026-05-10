@@ -346,7 +346,9 @@
       "delegatee": "수임자",
       "status": "상태",
       "created": "생성 시간",
-      "create_delegation": "새 위임 생성"
+      "create_delegation": "새 위임 생성",
+      "delegate": "수임자",
+      "permissions": "권한"
     },
     "groups": {
       "title": "그룹",
@@ -523,7 +525,8 @@
       "source": "원본",
       "destination": "대상",
       "priority": "우선순위",
-      "created": "생성 시간"
+      "created": "생성 시간",
+      "status": "상태"
     },
     "relays": {
       "title": "허용 릴레이",
@@ -531,7 +534,8 @@
       "create_relay": "릴레이 추가",
       "ip_address": "IP 주소",
       "hostname": "호스트명",
-      "created": "생성 시간"
+      "created": "생성 시간",
+      "status": "상태"
     },
     "domain_settings": {
       "title": "도메인 설정",
@@ -688,7 +692,8 @@
       "key_label": "키",
       "key_constraint": "예: max_users, mail_retention_days",
       "value_label": "값",
-      "save_setting": "설정 저장"
+      "save_setting": "설정 저장",
+      "dns_setup_desc": "다음 DNS 레코드를 추가하세요:"
     },
     "tenancy_domains": {
       "description": "모든 회사의 이메일 도메인 관리",

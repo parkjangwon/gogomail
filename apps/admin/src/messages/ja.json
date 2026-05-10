@@ -441,7 +441,9 @@
       "delegatee": "被委任者",
       "status": "ステータス",
       "created": "作成日",
-      "create_delegation": "委任を作成"
+      "create_delegation": "委任を作成",
+      "delegate": "受任者",
+      "permissions": "権限"
     },
     "groups": {
       "title": "グループメンバーシップ",
@@ -580,7 +582,8 @@
       "key_label": "キー",
       "key_constraint": "例: max_users, mail_retention_days",
       "value_label": "値",
-      "save_setting": "設定を保存"
+      "save_setting": "設定を保存",
+      "dns_setup_desc": "以下のDNSレコードを追加してください:"
     },
     "tenancy_domains": {
       "description": "すべての会社のメールドメインを管理",
@@ -1190,7 +1193,8 @@
       "description": "許可リレーサーバーを管理",
       "hostname": "ホスト名",
       "ip_address": "IPアドレス",
-      "title": "許可リレー"
+      "title": "許可リレー",
+      "status": "ステータス"
     },
     "reports": {
       "create_report": "レポートを作成",
@@ -1209,7 +1213,8 @@
       "destination": "配送先",
       "priority": "優先度",
       "source": "送信元",
-      "title": "配送ルート"
+      "title": "配送ルート",
+      "status": "ステータス"
     },
     "suppression": {
       "added": "追加日",

@@ -441,7 +441,9 @@
       "delegatee": "Delegatee",
       "status": "Status",
       "created": "Created",
-      "create_delegation": "Create Delegation"
+      "create_delegation": "Create Delegation",
+      "delegate": "Delegate",
+      "permissions": "Permissions"
     },
     "groups": {
       "title": "Groups",
@@ -618,7 +620,8 @@
       "source": "Source",
       "destination": "Destination",
       "priority": "Priority",
-      "created": "Created"
+      "created": "Created",
+      "status": "Status"
     },
     "relays": {
       "title": "Trusted Relays",
@@ -626,7 +629,8 @@
       "create_relay": "Add Relay",
       "ip_address": "IP Address",
       "hostname": "Hostname",
-      "created": "Created"
+      "created": "Created",
+      "status": "Status"
     },
     "domain_settings": {
       "title": "Domain Settings",
@@ -783,7 +787,8 @@
       "key_label": "Key",
       "key_constraint": "e.g., max_users, mail_retention_days",
       "value_label": "Value",
-      "save_setting": "Save Setting"
+      "save_setting": "Save Setting",
+      "dns_setup_desc": "Add the following DNS records for"
     },
     "tenancy_domains": {
       "description": "Manage email domains across all companies",

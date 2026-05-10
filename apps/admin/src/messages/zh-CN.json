@@ -441,7 +441,9 @@
       "delegatee": "被委派人",
       "status": "状态",
       "created": "创建时间",
-      "create_delegation": "创建委托"
+      "create_delegation": "创建委托",
+      "delegate": "被委托人",
+      "permissions": "权限"
     },
     "groups": {
       "title": "组成员",
@@ -580,7 +582,8 @@
       "key_label": "键",
       "key_constraint": "例如: max_users, mail_retention_days",
       "value_label": "值",
-      "save_setting": "保存设置"
+      "save_setting": "保存设置",
+      "dns_setup_desc": "请为以下域名添加DNS记录："
     },
     "tenancy_domains": {
       "description": "管理所有公司的电子邮件域名",
@@ -1190,7 +1193,8 @@
       "description": "管理许可中继服务器",
       "hostname": "主机名",
       "ip_address": "IP地址",
-      "title": "受信任的中继"
+      "title": "受信任的中继",
+      "status": "状态"
     },
     "reports": {
       "create_report": "生成报告",
@@ -1209,7 +1213,8 @@
       "destination": "目标",
       "priority": "优先级",
       "source": "来源",
-      "title": "投递路由"
+      "title": "投递路由",
+      "status": "状态"
     },
     "suppression": {
       "added": "添加时间",
