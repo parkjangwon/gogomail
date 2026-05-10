@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (Admin bootstrap with initial setup flow, 82 migrations complete)
+Last updated: 2026-05-10 (Admin console: bootstrap account ready, initial setup flow complete, backend setup endpoint pending)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).

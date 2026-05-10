@@ -8,15 +8,7 @@ ALTER TABLE users
 CREATE INDEX IF NOT EXISTS idx_users_requires_initial_setup
   ON users(requires_initial_setup) WHERE requires_initial_setup = true;
 
--- Add constraint to allow non-email usernames only for admin role
-ALTER TABLE users
-  ADD CONSTRAINT admin_or_email_address
-    CHECK (
-      role = 'system_admin'
-      OR address ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    );
-
--- Create default bootstrap company if not exists
+-- Create default bootstrap company and admin user if not exists
 -- +goose StatementBegin
 DO $$
 DECLARE
@@ -46,11 +38,10 @@ BEGIN
   -- Create bootstrap admin user (requires initial setup of username + password)
   INSERT INTO users (
     domain_id, username, display_name, password_hash,
-    auth_source, role, status, address, requires_initial_setup
+    auth_source, role, status, requires_initial_setup
   ) VALUES (
     default_domain_id, 'admin', 'System Administrator',
-    'plain:admin1234', 'local', 'system_admin', 'active',
-    'admin', true
+    'plain:admin1234', 'local', 'system_admin', 'active', true
   )
   ON CONFLICT (domain_id, username) DO UPDATE
     SET requires_initial_setup = true;
@@ -59,9 +50,6 @@ $$;
 -- +goose StatementEnd
 
 -- +goose Down
-
--- Remove constraint
-ALTER TABLE users DROP CONSTRAINT IF EXISTS admin_or_email_address;
 
 -- Remove index
 DROP INDEX IF EXISTS idx_users_requires_initial_setup;
