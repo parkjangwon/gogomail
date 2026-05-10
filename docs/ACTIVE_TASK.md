@@ -10,7 +10,9 @@
 **STATUS: IN_PROGRESS**
 
 ### Progress
-- ⏳ Next: Backend alert system, database schema, service layer, frontend
+- ✅ Backend: Database schema, models, repository, service, API handlers  
+- ✅ Frontend: React Query hooks, admin page with forms and tables
+- ⏳ Next: E2E tests with 38 test cases and screenshots, xlsx results document
 
 ### 제목
 Alerts & Notifications — Admin Console 임계값 기반 자동 알림 시스템

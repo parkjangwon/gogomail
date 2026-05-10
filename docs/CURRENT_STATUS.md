@@ -29,12 +29,17 @@ Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-0
   - [x] OpenAPI 3.1.0 documentation
   - [x] Frontend pages and React Query hooks
 - Phase 8-D (Alerts & Notifications): IN_PROGRESS (TASK-084)
-  - [x] Database schema (alert_rules, alert_channels, alert_events)
-  - [x] Model definitions
-  - [x] Repository layer (CRUD operations)
-  - [ ] Service layer (alert evaluation)
-  - [ ] API routes (REST endpoints)
-  - [ ] Frontend UI (rules, channels, events management)
+  - [x] Database migrations (0085-0087: alert_rules, alert_channels, alert_events)
+  - [x] Model definitions (AlertRule, AlertChannel, AlertEvent)
+  - [x] Repository layer (13 CRUD operations)
+  - [x] Service layer with validation (threshold > 0, channel configs)
+  - [x] API routes (8 REST endpoints)
+  - [x] HTTP handlers with proper error handling
+  - [x] OpenAPI 3.1.0 documentation with schemas
+  - [x] Frontend hooks (useAlertRules, useAlertChannels, useAlertEvents)
+  - [x] Frontend admin page with tabs (rules, channels, events)
+  - [x] Modal forms for create operations
+  - [ ] E2E tests with screenshots (38 test cases)
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
 RFC-sensitive core, but current work should balance:
