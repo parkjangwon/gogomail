@@ -1189,7 +1189,7 @@ Target outcome:
      `LIST (SPECIAL-USE)` / `RETURN (SPECIAL-USE)` forms, filtering special
      role discovery requests while keeping normal `LIST` output compatible.
 813. Development storage portability is now documented in
-     `docs/storage-backends.md`, and `deploy/docker-compose.dev.yml` includes a
+     `docs/storage-backends.md`, and `docker/docker-compose.dev.yml` includes a
      `minio-init` one-shot service that creates the default local `gogomail`
      bucket for MinIO-backed runs.
 814. S3-compatible storage URL generation now has regression coverage for
