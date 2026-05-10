@@ -5831,6 +5831,207 @@ paths:
                 type: string
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/alert-rules:
+    post:
+      operationId: createAlertRule
+      summary: Create alert rule
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertRule"
+      responses:
+        "201":
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listAlertRules
+      summary: List alert rules for company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Alert rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertRule"
+        default:
+          $ref: "#/components/responses/Error"
+  /alert-rules/{ruleid}:
+    get:
+      operationId: getAlertRule
+      summary: Get alert rule
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: ruleid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alert rule detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateAlertRule
+      summary: Update alert rule
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: ruleid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertRule"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteAlertRule
+      summary: Delete alert rule
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: ruleid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/alert-channels:
+    post:
+      operationId: createAlertChannel
+      summary: Create alert channel
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertChannel"
+      responses:
+        "201":
+          description: Alert channel created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertChannel"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listAlertChannels
+      summary: List alert channels for company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Alert channels list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertChannel"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/alert-events:
+    get:
+      operationId: listAlertEvents
+      summary: List alert events for company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Alert events list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertEvent"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -12147,6 +12348,152 @@ components:
           type: string
           maxLength: 512
         until:
+          type: string
+          format: date-time
+    AlertRule:
+      type: object
+      required: [id, company_id, alert_type, name, threshold, check_interval_minutes, is_enabled, created_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        alert_type:
+          type: string
+          enum: [storage, login_failures, api_errors]
+        name:
+          type: string
+        description:
+          type: string
+        threshold:
+          type: number
+        check_interval_minutes:
+          type: integer
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+    CreateAlertRule:
+      type: object
+      required: [alert_type, name, threshold, check_interval_minutes, is_enabled]
+      properties:
+        alert_type:
+          type: string
+          enum: [storage, login_failures, api_errors]
+        name:
+          type: string
+        description:
+          type: string
+        threshold:
+          type: number
+        check_interval_minutes:
+          type: integer
+        is_enabled:
+          type: boolean
+        created_by:
+          type: string
+    UpdateAlertRule:
+      type: object
+      required: [name, threshold, check_interval_minutes, is_enabled]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        threshold:
+          type: number
+        check_interval_minutes:
+          type: integer
+        is_enabled:
+          type: boolean
+    AlertChannel:
+      type: object
+      required: [id, company_id, channel_type, name, config, is_enabled, created_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        channel_type:
+          type: string
+          enum: [email, webhook, dashboard]
+        name:
+          type: string
+        config:
+          type: object
+          properties:
+            recipients:
+              type: array
+              items:
+                type: string
+            url:
+              type: string
+            auth_header:
+              type: string
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+    CreateAlertChannel:
+      type: object
+      required: [channel_type, name, config, is_enabled]
+      properties:
+        channel_type:
+          type: string
+          enum: [email, webhook, dashboard]
+        name:
+          type: string
+        config:
+          type: object
+          properties:
+            recipients:
+              type: array
+              items:
+                type: string
+            url:
+              type: string
+            auth_header:
+              type: string
+        is_enabled:
+          type: boolean
+        created_by:
+          type: string
+    UpdateAlertChannel:
+      type: object
+      required: [name, is_enabled]
+      properties:
+        name:
+          type: string
+        is_enabled:
+          type: boolean
+        config:
+          type: object
+    AlertEvent:
+      type: object
+      required: [id, company_id, alert_rule_id, current_value, threshold, triggered_at]
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        alert_rule_id:
+          type: string
+        current_value:
+          type: number
+        threshold:
+          type: number
+        message:
+          type: string
+        triggered_at:
+          type: string
+          format: date-time
+        resolved_at:
           type: string
           format: date-time
     ErrorEnvelope:
