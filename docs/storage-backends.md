@@ -193,7 +193,7 @@ The development compose stack starts MinIO and creates a `gogomail` bucket via
 the `minio-init` service.
 
 ```sh
-docker compose -f deploy/docker-compose.dev.yml up -d minio minio-init
+docker compose -f docker/docker-compose.dev.yml up -d minio minio-init
 
 GOGOMAIL_STORAGE_BACKEND=minio
 GOGOMAIL_STORAGE_S3_ENDPOINT=http://localhost:19000

@@ -1,4 +1,4 @@
-# Local MinIO storage profile for deploy/docker-compose.dev.yml.
+# Local MinIO storage profile for docker/docker-compose.dev.yml.
 storage_backend: minio
 storage_backend_compat_labels: []
 storage_s3_endpoint: http://localhost:19000
