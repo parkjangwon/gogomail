@@ -1,10 +1,15 @@
+version: '3.9'
+
 services:
+  # PostgreSQL - Development
   postgres:
     image: postgres:16-alpine
+    container_name: gogomail-postgres-dev
     environment:
       POSTGRES_DB: gogomail
       POSTGRES_USER: gogomail
       POSTGRES_PASSWORD: gogomail
+      POSTGRES_LOG_STATEMENT: all
     ports:
       - "${GOGOMAIL_DEV_POSTGRES_PORT:-15432}:5432"
     volumes:
@@ -14,9 +19,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    networks:
+      - gogomail-dev
 
+  # Redis - Development
   redis:
     image: redis:7-alpine
+    container_name: gogomail-redis-dev
     ports:
       - "${GOGOMAIL_DEV_REDIS_PORT:-16379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
@@ -27,13 +36,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    networks:
+      - gogomail-dev
 
+  # MinIO - Development
   minio:
     image: minio/minio:latest
+    container_name: gogomail-minio-dev
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: gogomail
       MINIO_ROOT_PASSWORD: gogomail123
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:19001
     ports:
       - "${GOGOMAIL_DEV_MINIO_PORT:-19000}:9000"
       - "${GOGOMAIL_DEV_MINIO_CONSOLE_PORT:-19001}:9001"
@@ -44,9 +58,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    networks:
+      - gogomail-dev
 
+  # MinIO Init - Create buckets
   minio-init:
     image: minio/mc:latest
+    container_name: gogomail-minio-init-dev
     depends_on:
       minio:
         condition: service_healthy
@@ -58,8 +76,57 @@ services:
         mc mb --ignore-existing local/gogomail
         mc anonymous set none local/gogomail
     restart: "no"
+    networks:
+      - gogomail-dev
+
+  # Go Backend - Development
+  backend:
+    image: golang:1.23-alpine
+    container_name: gogomail-backend-dev
+    working_dir: /app
+    volumes:
+      - /Users/pjw/dev/project/gogomail:/app
+      - /go/pkg/mod:/go/pkg/mod
+    ports:
+      - "${GOGOMAIL_DEV_BACKEND_PORT:-8080}:8080"
+    environment:
+      CGO_ENABLED: 0
+      GOFLAGS: -v
+    command: >
+      sh -c "
+      go run ./cmd/gogomail/main.go
+        -mode all-in-one
+        -migrate
+        -config /app/configs/config.dev.yaml
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - gogomail-dev
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: gogomail
+      POSTGRES_PASSWORD: gogomail
+      POSTGRES_DB: gogomail
+      REDIS_ADDR: redis:6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: gogomail
+      MINIO_SECRET_KEY: gogomail123
 
 volumes:
   postgres-data:
+    driver: local
   redis-data:
+    driver: local
   minio-data:
+    driver: local
+
+networks:
+  gogomail-dev:
+    driver: bridge

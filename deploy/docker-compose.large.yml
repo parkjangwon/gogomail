@@ -1,0 +1,596 @@
+version: '3.9'
+
+# 대규모 배포 (50+ 서버, 다중 데이터센터 준비)
+# 특징: PostgreSQL 클러스터, Redis Cluster, MinIO 분산, ELK 모니터링, 자동 확장
+
+services:
+  # PostgreSQL Cluster Setup with pgHA
+  # Node 1
+  postgres-1:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres-1
+    restart: always
+    hostname: postgres-1
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_INITDB_ARGS: >
+        -c max_connections=500
+        -c shared_buffers=2GB
+        -c effective_cache_size=6GB
+        -c work_mem=10MB
+        -c wal_level=logical
+        -c max_wal_senders=20
+        -c max_replication_slots=20
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-1-data:/var/lib/postgresql/data
+      - ./pg-hba.conf:/etc/postgresql/pg_hba.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gogomail}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # PostgreSQL Node 2
+  postgres-2:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres-2
+    restart: always
+    hostname: postgres-2
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-2-data:/var/lib/postgresql/data
+    depends_on:
+      - postgres-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # PostgreSQL Node 3
+  postgres-3:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres-3
+    restart: always
+    hostname: postgres-3
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-3-data:/var/lib/postgresql/data
+    depends_on:
+      - postgres-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # etcd for PostgreSQL HA coordination
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.10
+    container_name: gogomail-etcd
+    restart: always
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    environment:
+      ETCD_NAME: etcd-1
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
+      ETCD_INITIAL_CLUSTER: etcd-1=http://etcd:2380
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster
+    volumes:
+      - etcd-data:/etcd-data
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Cluster Node 1
+  redis-1:
+    image: redis:7-alpine
+    container_name: gogomail-redis-1
+    restart: always
+    ports:
+      - "6379:6379"
+      - "16379:16379"
+    command: >
+      redis-server
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf
+        --cluster-node-timeout 5000
+        --appendonly yes
+        --maxmemory 2gb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-1-data:/data
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Cluster Node 2
+  redis-2:
+    image: redis:7-alpine
+    container_name: gogomail-redis-2
+    restart: always
+    ports:
+      - "6380:6379"
+      - "16380:16379"
+    command: >
+      redis-server
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf
+        --cluster-node-timeout 5000
+        --appendonly yes
+        --maxmemory 2gb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-2-data:/data
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Cluster Node 3
+  redis-3:
+    image: redis:7-alpine
+    container_name: gogomail-redis-3
+    restart: always
+    ports:
+      - "6381:6379"
+      - "16381:16379"
+    command: >
+      redis-server
+        --cluster-enabled yes
+        --cluster-config-file nodes.conf
+        --cluster-node-timeout 5000
+        --appendonly yes
+        --maxmemory 2gb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-3-data:/data
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # MinIO Distributed - 6 nodes minimum
+  minio-1:
+    image: minio/minio:latest
+    container_name: gogomail-minio-1
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-1-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  minio-2:
+    image: minio/minio:latest
+    container_name: gogomail-minio-2
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-2-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  minio-3:
+    image: minio/minio:latest
+    container_name: gogomail-minio-3
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-3-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  minio-4:
+    image: minio/minio:latest
+    container_name: gogomail-minio-4
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-4-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  minio-5:
+    image: minio/minio:latest
+    container_name: gogomail-minio-5
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-5-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  minio-6:
+    image: minio/minio:latest
+    container_name: gogomail-minio-6
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...6}/data --console-address :9001
+    volumes:
+      - minio-6-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  # Elasticsearch - Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.0.0
+    container_name: gogomail-elasticsearch
+    restart: always
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+      xpack.security.enabled: "false"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"yellow\\|green\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # Kibana - Log Visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.0.0
+    container_name: gogomail-kibana
+    restart: always
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Prometheus - Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gogomail-prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus-large.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command: >
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus
+      --storage.tsdb.retention.time=90d
+      --web.enable-lifecycle
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+  # Grafana - Metrics Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gogomail-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # GoGoMail Backend - Multiple Instances
+  backend-1:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend-1
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres-1
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      REDIS_ADDR: redis-1:6379,redis-2:6379,redis-3:6379
+      REDIS_CLUSTER: "true"
+      MINIO_ENDPOINT: minio-1:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: warn
+      APP_PORT: 8080
+      INSTANCE_ID: backend-1
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - postgres-1
+      - redis-1
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /gogomail/backend
+        awslogs-region: ${AWS_REGION:-us-east-1}
+        awslogs-stream: backend-1
+
+  backend-2:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend-2
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres-2
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      REDIS_ADDR: redis-1:6379,redis-2:6379,redis-3:6379
+      REDIS_CLUSTER: "true"
+      MINIO_ENDPOINT: minio-2:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: warn
+      APP_PORT: 8080
+      INSTANCE_ID: backend-2
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - postgres-1
+      - redis-1
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /gogomail/backend
+        awslogs-region: ${AWS_REGION:-us-east-1}
+        awslogs-stream: backend-2
+
+  backend-3:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend-3
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres-3
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      REDIS_ADDR: redis-1:6379,redis-2:6379,redis-3:6379
+      REDIS_CLUSTER: "true"
+      MINIO_ENDPOINT: minio-3:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: warn
+      APP_PORT: 8080
+      INSTANCE_ID: backend-3
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - postgres-1
+      - redis-1
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: /gogomail/backend
+        awslogs-region: ${AWS_REGION:-us-east-1}
+        awslogs-stream: backend-3
+
+  # HAProxy - Load Balancer & API Gateway
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: gogomail-haproxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8404:8404"
+    volumes:
+      - ./haproxy-large.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./certs:/etc/ssl/certs:ro
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "7"
+
+volumes:
+  postgres-1-data:
+    driver: local
+  postgres-2-data:
+    driver: local
+  postgres-3-data:
+    driver: local
+  etcd-data:
+    driver: local
+  redis-1-data:
+    driver: local
+  redis-2-data:
+    driver: local
+  redis-3-data:
+    driver: local
+  minio-1-data:
+    driver: local
+  minio-2-data:
+    driver: local
+  minio-3-data:
+    driver: local
+  minio-4-data:
+    driver: local
+  minio-5-data:
+    driver: local
+  minio-6-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  gogomail:
+    driver: bridge

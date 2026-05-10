@@ -1,0 +1,379 @@
+version: '3.9'
+
+# 중규모 배포 (5-50대 서버, 단일/다중 데이터센터)
+# 특징: HA 설정, Redis Sentinel, PostgreSQL Replication, MinIO Multi-node
+
+services:
+  # PostgreSQL Primary
+  postgres-primary:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres-primary
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_INITDB_ARGS: >
+        -c max_connections=200
+        -c shared_buffers=512MB
+        -c wal_level=replica
+        -c max_wal_senders=10
+        -c max_replication_slots=10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-primary-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gogomail}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # PostgreSQL Replica
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres-replica
+    restart: always
+    environment:
+      PGUSER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+    command: >
+      bash -c "
+      until pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U replicator -v -W -P; do
+        echo 'Waiting for primary...';
+        sleep 1s;
+      done &&
+      echo 'standby_mode = on' >> /var/lib/postgresql/recovery.conf &&
+      postgres
+      "
+    depends_on:
+      - postgres-primary
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Master
+  redis-master:
+    image: redis:7-alpine
+    container_name: gogomail-redis-master
+    restart: always
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --maxmemory 1gb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-master-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Slave
+  redis-slave:
+    image: redis:7-alpine
+    container_name: gogomail-redis-slave
+    restart: always
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --maxmemory 1gb
+        --maxmemory-policy allkeys-lru
+        --slaveof redis-master 6379
+    volumes:
+      - redis-slave-data:/data
+    depends_on:
+      - redis-master
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Redis Sentinel 1
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: gogomail-redis-sentinel-1
+    restart: always
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel-1.conf:/etc/redis/sentinel.conf
+    command: redis-sentinel /etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-slave
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # MinIO Node 1
+  minio-1:
+    image: minio/minio:latest
+    container_name: gogomail-minio-1
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...3}/data --console-address :9001
+    volumes:
+      - minio-1-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # MinIO Node 2
+  minio-2:
+    image: minio/minio:latest
+    container_name: gogomail-minio-2
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...3}/data --console-address :9001
+    volumes:
+      - minio-2-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # MinIO Node 3
+  minio-3:
+    image: minio/minio:latest
+    container_name: gogomail-minio-3
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+    command: >
+      server http://minio-{1...3}/data --console-address :9001
+    volumes:
+      - minio-3-data:/data
+    depends_on:
+      - minio-1
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # MinIO LB / Console
+  minio-lb:
+    image: nginx:alpine
+    container_name: gogomail-minio-lb
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./nginx-minio.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - minio-1
+      - minio-2
+      - minio-3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prometheus - Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gogomail-prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command: >
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus
+      --storage.tsdb.retention.time=30d
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # GoGoMail Backend - Instance 1
+  backend-1:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend-1
+    restart: always
+    depends_on:
+      - postgres-primary
+      - redis-master
+      - minio-1
+    environment:
+      POSTGRES_HOST: postgres-primary
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      REDIS_ADDR: redis-master:6379
+      MINIO_ENDPOINT: minio-lb:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      MINIO_USE_SSL: "false"
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: info
+      APP_PORT: 8080
+      INSTANCE_ID: backend-1
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # GoGoMail Backend - Instance 2
+  backend-2:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend-2
+    restart: always
+    depends_on:
+      - postgres-primary
+      - redis-master
+      - minio-1
+    environment:
+      POSTGRES_HOST: postgres-primary
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      REDIS_ADDR: redis-master:6379
+      MINIO_ENDPOINT: minio-lb:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      MINIO_USE_SSL: "false"
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: info
+      APP_PORT: 8080
+      INSTANCE_ID: backend-2
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Nginx LB for Backend
+  nginx-lb:
+    image: nginx:alpine
+    container_name: gogomail-nginx-lb
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-backend.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend-1
+      - backend-2
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres-primary-data:
+    driver: local
+  postgres-replica-data:
+    driver: local
+  redis-master-data:
+    driver: local
+  redis-slave-data:
+    driver: local
+  minio-1-data:
+    driver: local
+  minio-2-data:
+    driver: local
+  minio-3-data:
+    driver: local
+  prometheus-data:
+    driver: local
+
+networks:
+  gogomail:
+    driver: bridge

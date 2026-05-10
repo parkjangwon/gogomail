@@ -1,0 +1,50 @@
+# Prometheus configuration for medium deployment
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'medium'
+    environment: 'medium-deployment'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Backend instances
+  - job_name: 'gogomail-backend'
+    static_configs:
+      - targets: ['backend-1:8080', 'backend-2:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL (via postgres_exporter if available)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-primary:5432', 'postgres-replica:5433']
+    scrape_interval: 30s
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-master:6379', 'redis-slave:6380']
+    scrape_interval: 30s
+
+  # MinIO
+  - job_name: 'minio'
+    bearer_token: ''
+    metrics_path: '/minio/v2/metrics/cluster'
+    static_configs:
+      - targets: ['minio-1:9000', 'minio-2:9000', 'minio-3:9000']
+    scrape_interval: 30s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  # - "alert-rules.yml"
+  # - "record-rules.yml"
