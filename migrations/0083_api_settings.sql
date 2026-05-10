@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS api_settings (
 
   -- Audit
   updated_at timestamptz NOT NULL DEFAULT now(),
-  updated_by uuid REFERENCES admin_users(id) ON DELETE SET NULL
+  updated_by uuid REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Index for lookups

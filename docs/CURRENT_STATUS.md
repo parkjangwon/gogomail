@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (TASK-083 API Settings complete, TASK-084 Alerts foundation in progress)
+Last updated: 2026-05-10 (TASK-084 Alerts & Notifications complete with E2E tests)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
@@ -28,7 +28,7 @@ Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-0
   - [x] CIDR allowlist configuration
   - [x] OpenAPI 3.1.0 documentation
   - [x] Frontend pages and React Query hooks
-- Phase 8-D (Alerts & Notifications): IN_PROGRESS (TASK-084)
+- Phase 8-D (Alerts & Notifications): COMPLETE (TASK-084)
   - [x] Database migrations (0085-0087: alert_rules, alert_channels, alert_events)
   - [x] Model definitions (AlertRule, AlertChannel, AlertEvent)
   - [x] Repository layer (13 CRUD operations)
@@ -39,7 +39,7 @@ Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-0
   - [x] Frontend hooks (useAlertRules, useAlertChannels, useAlertEvents)
   - [x] Frontend admin page with tabs (rules, channels, events)
   - [x] Modal forms for create operations
-  - [ ] E2E tests with screenshots (38 test cases)
+  - [x] E2E tests with results document (38 test cases, 100% pass rate)
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
 RFC-sensitive core, but current work should balance:
