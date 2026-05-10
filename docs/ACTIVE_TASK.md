@@ -9,33 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-069
-- **제목**: Database Identity Mode
-- **배경**: Phase 8-C. Implement database-backed identity provider (default mode).
-  - User authentication against users table
-  - Password hashing & verification
-  - Multi-company user isolation
-  - User CRUD via identity provider interface
-  - Session & token management
+- **ID**: TASK-071
+- **제목**: LDAP Sync UI & Logs
+- **배경**: Phase 8-C. Implement LDAP sync configuration and audit logging.
+  - LDAP sync scheduling & manual trigger
+  - Sync progress tracking and logs
+  - User audit trail for sync operations
+  - Sync error handling and retry logic
+  - Real-time sync status dashboard
 
 - **구현 대상**:
-  1. `internal/admin/database_provider.go` — Database identity provider implementation
-  2. `internal/admin/database_provider_test.go` — Unit tests
-  3. User authentication service layer
-  4. Password management & reset workflows
-  5. User account status management
+  1. `internal/admin/ldap_service.go` — LDAP sync service
+  2. `internal/admin/ldap_service_test.go` — Unit tests
+  3. Sync job scheduling
+  4. Audit logging for LDAP operations
+  5. Error handling and recovery
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] DatabaseProvider implements IdentityProvider
-  - [ ] Authenticate with password verification
-  - [ ] GetUser operations
-  - [ ] ListUsers with pagination
-  - [ ] SyncUsers (no-op for database mode)
-  - [ ] Password reset capability
+  - [ ] LDAPService with sync scheduling
+  - [ ] Sync progress tracking
+  - [ ] Audit log integration
+  - [ ] Error handling & retry
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-069 ✅ (Database Identity Mode) — COMPLETE
+- **이전 태스크**: TASK-070 ✅ (LDAP Identity Config) — COMPLETE
 
 ---
 
