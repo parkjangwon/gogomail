@@ -9,7 +9,7 @@ import {
   Box,
 } from '@cloudscape-design/components';
 import { Sidebar } from './Sidebar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -22,11 +22,24 @@ const languageOptions: SelectProps.Option[] = [
   { label: '简体中文', value: 'zh-CN' },
 ];
 
+function useIsMobile(breakpoint = 688) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [notifications] = useState<any[]>([]);
   const { locale, setLocale } = useI18n();
   const { companies, currentCompany, switchCompany } = useCompany();
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   const cid = currentCompany?.id ?? 'default';
 
@@ -36,12 +49,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <TopNavigation
           identity={{
             href: `/companies/${cid}/dashboard`,
-            title: 'GoGoMail Admin',
+            title: isMobile ? 'GGM' : 'GoGoMail Admin',
           }}
           utilities={[
             {
               type: 'menu-dropdown',
-              text: currentCompany?.name ?? 'Select Company',
+              text: isMobile
+                ? (currentCompany?.name?.slice(0, 8) ?? '…')
+                : (currentCompany?.name ?? 'Select Company'),
               description: currentCompany ? `${currentCompany.status}` : '',
               iconName: 'settings',
               items: [
@@ -67,7 +82,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {
               type: 'menu-dropdown',
               iconName: 'user-profile',
-              text: 'Admin',
+              text: isMobile ? '' : 'Admin',
               items: [
                 { id: 'settings', text: 'Settings' },
                 { id: 'signout', text: 'Sign out' },
@@ -82,7 +97,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
       <AppLayout
         navigation={<Sidebar />}
-        content={<div style={{ paddingLeft: '20px', paddingRight: '20px' }}>{children}</div>}
+        content={<div className="admin-content">{children}</div>}
         toolsHide
         maxContentWidth={1600}
         headerSelector="#top-nav"
@@ -90,13 +105,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           notifications.length > 0 ? <Flashbar items={notifications} /> : undefined
         }
         breadcrumbs={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+          <div className="admin-toolbar">
             {currentCompany && (
-              <Box color="text-body-secondary" fontSize="body-s">
-                Company: <strong>{currentCompany.name}</strong>
-              </Box>
+              <span className="admin-toolbar-company">
+                <Box color="text-body-secondary" fontSize="body-s">
+                  Company: <strong>{currentCompany.name}</strong>
+                </Box>
+              </span>
             )}
-            <div style={{ width: '130px' }}>
+            <div style={{ width: isMobile ? '110px' : '130px' }}>
               <Select
                 selectedOption={languageOptions.find(o => o.value === locale) ?? languageOptions[0]}
                 onChange={(e) => {
