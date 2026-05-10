@@ -15,6 +15,7 @@ import {
   TextFilter,
   Select,
   StatusIndicator,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -55,6 +56,7 @@ export default function DomainsPage() {
   const [showModal, setShowModal] = useState(false);
   const [newDomain, setNewDomain] = useState({ name: '', company_id: companyId === 'default' ? '' : companyId, quota_gb: '100' });
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,24 +94,29 @@ export default function DomainsPage() {
   const handleCreateDomain = async () => {
     if (!newDomain.name.trim() || !newDomain.company_id) return;
     setCreating(true);
+    setCreateError('');
     try {
+      const quotaBytes = parseInt(newDomain.quota_gb) * 1024 * 1024 * 1024;
       const res = await fetch('/api/admin/domains', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newDomain.name,
+          name: newDomain.name.trim(),
           company_id: newDomain.company_id,
-          quota_gb: parseInt(newDomain.quota_gb),
+          quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes,
         }),
         credentials: 'include',
       });
       if (res.ok) {
         setShowModal(false);
-        setNewDomain({ name: '', company_id: '', quota_gb: '100' });
+        setNewDomain({ name: '', company_id: companyId === 'default' ? '' : companyId, quota_gb: '100' });
         fetchDomains();
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setCreateError(data.error ?? `오류 ${res.status}`);
       }
     } catch (error) {
-      console.error('Failed to create domain:', error);
+      setCreateError(error instanceof Error ? error.message : '네트워크 오류');
     } finally {
       setCreating(false);
     }
@@ -327,6 +334,11 @@ export default function DomainsPage() {
                 onChange={(e) => setNewDomain({ ...newDomain, quota_gb: e.detail.value })}
               />
             </FormField>
+            {createError && (
+              <Alert type="error" onDismiss={() => setCreateError('')}>
+                {createError}
+              </Alert>
+            )}
           </SpaceBetween>
         </Modal>
 

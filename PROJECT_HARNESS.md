@@ -207,7 +207,7 @@ gogomail은 극도의 성능, 확장성, 가용성을 갖춘 개발자 친화적
 
 백엔드 계약, API 준비, 프론트엔드 계획은 자율적으로 진행 가능.
 
-그러나 `apps/shell`, `apps/webmail`, `apps/admin`, 공유 UI 패키지, 실제 Next.js 화면 구현 시작 전에:
+그러나 `apps/shell`, `apps/webmail`, `apps/console`, 공유 UI 패키지, 실제 Next.js 화면 구현 시작 전에:
 **반드시 사용자에게 알리고 프론트엔드 관련 지시를 기다린다.**
 
 프론트엔드 구현이 허가된 이후에는:

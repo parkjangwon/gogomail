@@ -12,7 +12,7 @@ Enterprise administration console for GoGoMail platform built with Next.js 15 an
 ### Installation
 
 ```bash
-cd apps/admin
+cd apps/console
 pnpm install
 ```
 
