@@ -9,6 +9,13 @@
 
 **STATUS: IN_PROGRESS**
 
+### Progress
+- ✅ Database migration created (0081_domain_settings.sql)
+- ✅ DomainSettings type added to internal/admin/models.go
+- ✅ Documentation updated (ACTIVE_TASK.md, CURRENT_STATUS.md)
+- ✅ Tests passing (5723 passed)
+- ⏳ Next: API routes, service layer implementation
+
 ### 제목
 Domain Settings UI — Admin Console 도메인 설정 페이지 구현
 
@@ -131,16 +138,43 @@ func (svc *AdminService) ValidateDomainSettings(ctx context.Context, settings *D
 ### 다음 태스크
 TASK-083: API Settings UI
 
+### 즉시 다음 작업 (Next Commit)
+
+1. Add service methods to AdminService interface:
+   ```go
+   GetDomainSettings(ctx context.Context, domainID string) (*admin.DomainSettings, error)
+   UpdateDomainSettings(ctx context.Context, settings *admin.DomainSettings) error
+   ```
+
+2. Add API routes to RegisterAdminRoutes in internal/httpapi/admin.go:
+   - GET /admin/v1/domains/{id}/settings
+   - PUT /admin/v1/domains/{id}/settings
+
+3. Implement handlers in admin.go with proper error handling and validation
+
+4. Write tests in admin_test.go:
+   - TestGetDomainSettings (success + not found)
+   - TestUpdateDomainSettings (success + validation error)
+
+5. Implement service methods in internal/admin/service.go
+
+6. Run: go test ./... → ensure all pass
+
+7. Add tests for frontend (apps/admin/src/)
+
+8. Implement frontend page: apps/admin/src/app/(console)/domains/[id]/settings/page.tsx
+
 ### 루프 절차
 
 ```
 1. 이 파일 읽기 ✓
-2. 실패하는 테스트 먼저 작성 (GET, PUT 시나리오)
-3. 백엔드 API 구현 → DB 마이그레이션 → 서비스 로직
-4. 프론트엔드 페이지 + 훅 + 컴포넌트 구현
-5. go test ./... 실행
-6. pnpm test (admin) 실행
-7. docs 업데이트
-8. git add + commit + push
-9. 이 파일을 TASK-083으로 교체
+2. 서비스 인터페이스 메서드 추가
+3. API 핸들러 구현 (GET, PUT)
+4. 단위 테스트 작성 및 통과
+5. go test ./... 실행 (모두 통과)
+6. 프론트엔드 페이지 구현
+7. pnpm test (admin) 실행
+8. docs 업데이트
+9. git add + commit + push
+10. 이 파일을 TASK-083으로 교체
 ```
