@@ -5,7 +5,7 @@ import { Sidebar } from './Sidebar';
 import { useState } from 'react';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications] = useState<any[]>([]);
 
   return (
     <AppLayout
