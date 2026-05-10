@@ -22,7 +22,7 @@ interface DomainConfig {
 }
 
 export default function DomainConfigPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [configs, setConfigs] = useState<DomainConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -55,7 +55,7 @@ export default function DomainConfigPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Domain Config</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.config_domain.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -68,14 +68,14 @@ export default function DomainConfigPage() {
       header={
         <Header
           variant="h1"
-          description="Configure domain-specific settings"
+          description={t('pages.config_domain.description')}
           actions={
             <Button variant="primary" disabled>
               + Add Config
             </Button>
           }
         >
-          Domain Config
+          {t('pages.config_domain.title')}
         </Header>
       }
     >
@@ -104,7 +104,7 @@ export default function DomainConfigPage() {
             },
           ]}
           items={filteredConfigs}
-          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>Config</Header>}
+          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>{t('pages.config_domain.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

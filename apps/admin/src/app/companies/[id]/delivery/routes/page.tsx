@@ -24,7 +24,7 @@ interface DeliveryRoute {
 }
 
 export default function DeliveryRoutesPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -56,7 +56,7 @@ export default function DeliveryRoutesPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Delivery Routes</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.routes.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -72,7 +72,7 @@ export default function DeliveryRoutesPage() {
           description="Configure mail delivery routes"
           actions={
             <Button variant="primary" disabled>
-              + Create Route
+              {t('pages.routes.create_route')}
             </Button>
           }
         >

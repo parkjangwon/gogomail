@@ -25,7 +25,7 @@ interface Company {
 }
 
 export default function CompaniesPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -64,7 +64,7 @@ export default function CompaniesPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Companies</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.companies.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -97,7 +97,7 @@ export default function CompaniesPage() {
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.companies.status'),
               cell: (company: Company) => company.status,
               width: '15%',
             },
@@ -117,7 +117,7 @@ export default function CompaniesPage() {
               width: '12%',
             },
             {
-              header: 'Created',
+              header: t('pages.companies.created'),
               cell: (company: Company) => new Date(company.created_at).toLocaleDateString(),
               width: '15%',
             },

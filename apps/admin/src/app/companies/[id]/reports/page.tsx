@@ -22,7 +22,7 @@ interface Report {
 }
 
 export default function ReportsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +49,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Reports</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.reports.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -104,7 +104,7 @@ export default function ReportsPage() {
             },
           ]}
           items={reports}
-          header={<Header variant="h2" counter={`(${reports.length})`}>Reports</Header>}
+          header={<Header variant="h2" counter={`(${reports.length})`}>{t('pages.reports.title')}</Header>}
         />
       </SpaceBetween>
     </ContentLayout>

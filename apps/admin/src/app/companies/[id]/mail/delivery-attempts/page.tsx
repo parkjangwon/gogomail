@@ -24,7 +24,7 @@ interface DeliveryAttempt {
 }
 
 export default function DeliveryAttemptsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -67,7 +67,7 @@ export default function DeliveryAttemptsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Delivery Attempts</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.delivery_attempts.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -95,7 +95,7 @@ export default function DeliveryAttemptsPage() {
               width: '20%',
             },
             {
-              header: 'Recipient',
+              header: t('pages.delivery_attempts.recipient'),
               cell: (item: DeliveryAttempt) => item.recipient,
               width: '25%',
             },
@@ -105,7 +105,7 @@ export default function DeliveryAttemptsPage() {
               width: '10%',
             },
             {
-              header: 'Status',
+              header: t('pages.delivery_attempts.status'),
               cell: (item: DeliveryAttempt) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}

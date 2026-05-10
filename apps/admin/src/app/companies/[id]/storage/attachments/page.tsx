@@ -22,7 +22,7 @@ interface Attachment {
 }
 
 export default function AttachmentsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -54,7 +54,7 @@ export default function AttachmentsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Attachments</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.attachments.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -103,7 +103,7 @@ export default function AttachmentsPage() {
             },
           ]}
           items={filteredAttachments}
-          header={<Header variant="h2" counter={`(${filteredAttachments.length})`}>Attachments</Header>}
+          header={<Header variant="h2" counter={`(${filteredAttachments.length})`}>{t('pages.attachments.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

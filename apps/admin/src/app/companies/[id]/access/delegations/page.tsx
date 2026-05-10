@@ -24,7 +24,7 @@ interface Delegation {
 }
 
 export default function DelegationsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [delegations, setDelegations] = useState<Delegation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -57,7 +57,7 @@ export default function DelegationsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Delegations</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.delegations.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -73,7 +73,7 @@ export default function DelegationsPage() {
           description="Manage user delegations and permissions"
           actions={
             <Button variant="primary" disabled>
-              + Create Delegation
+              {t('pages.delegations.create_delegation')}
             </Button>
           }
         >
@@ -85,12 +85,12 @@ export default function DelegationsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Delegator',
+              header: t('pages.delegations.delegator'),
               cell: (item: Delegation) => item.delegator,
               width: '25%',
             },
             {
-              header: 'Delegate',
+              header: t('pages.delegations.delegate'),
               cell: (item: Delegation) => item.delegate,
               width: '25%',
             },
@@ -100,7 +100,7 @@ export default function DelegationsPage() {
               width: '35%',
             },
             {
-              header: 'Status',
+              header: t('pages.delegations.status'),
               cell: (item: Delegation) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}
@@ -110,7 +110,7 @@ export default function DelegationsPage() {
             },
           ]}
           items={filteredDelegations}
-          header={<Header variant="h2" counter={`(${filteredDelegations.length})`}>Delegations</Header>}
+          header={<Header variant="h2" counter={`(${filteredDelegations.length})`}>{t('pages.delegations.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

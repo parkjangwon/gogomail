@@ -23,7 +23,7 @@ interface APIUsageRecord {
 }
 
 export default function APIUsagePage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [records, setRecords] = useState<APIUsageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -56,7 +56,7 @@ export default function APIUsagePage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">API Usage</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.api_usage.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

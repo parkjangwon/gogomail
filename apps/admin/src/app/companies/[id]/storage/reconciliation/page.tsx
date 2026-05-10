@@ -23,7 +23,7 @@ interface ReconciliationJob {
 }
 
 export default function ReconciliationPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<ReconciliationJob[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +73,7 @@ export default function ReconciliationPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Quota Reconciliation</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.reconciliation.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

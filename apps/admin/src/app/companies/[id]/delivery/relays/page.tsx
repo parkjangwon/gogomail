@@ -25,7 +25,7 @@ interface TrustedRelay {
 }
 
 export default function TrustedRelaysPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [relays, setRelays] = useState<TrustedRelay[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -57,7 +57,7 @@ export default function TrustedRelaysPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Trusted Relays</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.relays.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -73,7 +73,7 @@ export default function TrustedRelaysPage() {
           description="Manage trusted mail relays"
           actions={
             <Button variant="primary" disabled>
-              + Add Relay
+              {t('pages.relays.create_relay')}
             </Button>
           }
         >

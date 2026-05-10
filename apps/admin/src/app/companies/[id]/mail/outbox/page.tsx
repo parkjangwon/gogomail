@@ -24,7 +24,7 @@ interface OutboxEvent {
 }
 
 export default function OutboxEventsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [events, setEvents] = useState<OutboxEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -67,7 +67,7 @@ export default function OutboxEventsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Outbox Events</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.outbox.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

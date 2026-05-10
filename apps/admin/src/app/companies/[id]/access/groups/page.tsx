@@ -23,7 +23,7 @@ interface GroupMembership {
 }
 
 export default function GroupMembershipsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -56,7 +56,7 @@ export default function GroupMembershipsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Group Memberships</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.groups.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -69,10 +69,10 @@ export default function GroupMembershipsPage() {
       header={
         <Header
           variant="h1"
-          description="Manage group memberships and roles"
+          description={t('pages.groups.description')}
           actions={
             <Button variant="primary" disabled>
-              + Add Member
+              {t('pages.groups.create_group')}
             </Button>
           }
         >
@@ -84,12 +84,12 @@ export default function GroupMembershipsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Group',
+              header: t('pages.groups.group_name'),
               cell: (item: GroupMembership) => item.group_name,
               width: '25%',
             },
             {
-              header: 'Member Email',
+              header: t('pages.groups.members'),
               cell: (item: GroupMembership) => item.member_email,
               width: '35%',
             },
@@ -101,7 +101,7 @@ export default function GroupMembershipsPage() {
               width: '20%',
             },
             {
-              header: 'Joined',
+              header: t('pages.groups.created'),
               cell: (item: GroupMembership) => new Date(item.joined_at).toLocaleDateString(),
               width: '20%',
             },

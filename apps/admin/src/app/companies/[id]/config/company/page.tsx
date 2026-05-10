@@ -24,7 +24,7 @@ interface ConfigEntry {
 }
 
 export default function CompanyConfigPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [configs, setConfigs] = useState<ConfigEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -74,7 +74,7 @@ export default function CompanyConfigPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Company Config</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.config_company.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -87,14 +87,14 @@ export default function CompanyConfigPage() {
       header={
         <Header
           variant="h1"
-          description="Manage company-level configuration"
+          description={t('pages.config_company.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Add Config
+              {t('pages.config_company.title')}
             </Button>
           }
         >
-          Company Config
+          {t('pages.config_company.title')}
         </Header>
       }
     >
@@ -118,7 +118,7 @@ export default function CompanyConfigPage() {
             },
           ]}
           items={filteredConfigs}
-          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>Config</Header>}
+          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>{t('pages.config_company.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

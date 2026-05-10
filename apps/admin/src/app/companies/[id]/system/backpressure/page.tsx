@@ -26,7 +26,7 @@ interface BackpressureState {
 }
 
 export default function BackpressurePage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [state, setState] = useState<BackpressureState | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -81,7 +81,7 @@ export default function BackpressurePage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Backpressure Control</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.backpressure.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -94,14 +94,14 @@ export default function BackpressurePage() {
       header={
         <Header
           variant="h1"
-          description="Monitor and control system backpressure"
+          description={t('pages.backpressure.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
               Update Threshold
             </Button>
           }
         >
-          Backpressure Control
+          {t('pages.backpressure.title')}
         </Header>
       }
     >

@@ -23,7 +23,7 @@ interface PushMetric {
 }
 
 export default function PushNotificationsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [metrics, setMetrics] = useState<PushMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -65,7 +65,7 @@ export default function PushNotificationsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Push Notifications</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.push.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

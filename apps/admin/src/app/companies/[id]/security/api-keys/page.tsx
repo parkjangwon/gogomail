@@ -27,7 +27,7 @@ interface APIKey {
 }
 
 export default function APIKeysPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [keys, setKeys] = useState<APIKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -78,7 +78,7 @@ export default function APIKeysPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">API Keys</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.api_keys.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -94,7 +94,7 @@ export default function APIKeysPage() {
           description="Manage API authentication keys"
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Create Key
+              {t('pages.api_keys.create_key')}
             </Button>
           }
         >
@@ -125,12 +125,12 @@ export default function APIKeysPage() {
               width: '15%',
             },
             {
-              header: 'Last Used',
+              header: t('pages.api_keys.last_used'),
               cell: (item: APIKey) => item.last_used ? new Date(item.last_used).toLocaleString() : 'Never',
               width: '20%',
             },
             {
-              header: 'Created',
+              header: t('pages.api_keys.created'),
               cell: (item: APIKey) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },

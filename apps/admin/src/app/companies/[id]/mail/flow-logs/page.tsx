@@ -25,7 +25,7 @@ interface MailLog {
 }
 
 export default function MailFlowLogsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [logs, setLogs] = useState<MailLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -69,7 +69,7 @@ export default function MailFlowLogsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Mail Flow Logs</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.flow_logs.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -107,12 +107,12 @@ export default function MailFlowLogsPage() {
               width: '20%',
             },
             {
-              header: 'Subject',
+              header: t('pages.flow_logs.subject'),
               cell: (item: MailLog) => item.subject,
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.flow_logs.status'),
               cell: (item: MailLog) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}

@@ -25,7 +25,7 @@ interface DomainSettings {
 }
 
 export default function DomainSettingsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [settings, setSettings] = useState<DomainSettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -60,7 +60,7 @@ export default function DomainSettingsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Domain Settings</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.domain_settings.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

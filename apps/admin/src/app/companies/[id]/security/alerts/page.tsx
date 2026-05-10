@@ -24,7 +24,7 @@ interface AlertRule {
 }
 
 export default function AlertRulesPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -56,7 +56,7 @@ export default function AlertRulesPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Alert Rules</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.alerts.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -72,7 +72,7 @@ export default function AlertRulesPage() {
           description="Configure alert rules and notifications"
           actions={
             <Button variant="primary" disabled>
-              + Create Rule
+              {t('pages.alerts.create_alert')}
             </Button>
           }
         >
@@ -89,7 +89,7 @@ export default function AlertRulesPage() {
               width: '25%',
             },
             {
-              header: 'Condition',
+              header: t('pages.alerts.condition'),
               cell: (item: AlertRule) => item.condition,
               width: '25%',
             },

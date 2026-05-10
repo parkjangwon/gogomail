@@ -23,7 +23,7 @@ interface QueueStats {
 }
 
 export default function MonitoringPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [stats, setStats] = useState<QueueStats>({ total: 0, pending: 0, processing: 0, failed: 0 });
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function MonitoringPage() {
 
   return (
     <ContentLayout
-      header={<Header variant="h1">System Monitoring</Header>}
+      header={<Header variant="h1">{t('pages.monitoring.title')}</Header>}
     >
       <SpaceBetween size="l">
         {/* System Resources */}

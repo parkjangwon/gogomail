@@ -20,7 +20,7 @@ interface HealthCheck {
 }
 
 export default function APIHealthPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [checks, setChecks] = useState<HealthCheck[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +57,7 @@ export default function APIHealthPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">API Health</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.api_health.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -70,9 +70,9 @@ export default function APIHealthPage() {
       header={
         <Header
           variant="h1"
-          description="System API health status and metrics"
+          description={t('pages.api_health.description')}
         >
-          API Health
+          {t('pages.api_health.title')}
         </Header>
       }
     >
@@ -85,7 +85,7 @@ export default function APIHealthPage() {
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.api_health.status'),
               cell: (item: HealthCheck) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}
@@ -105,7 +105,7 @@ export default function APIHealthPage() {
             },
           ]}
           items={checks}
-          header={<Header variant="h2">Health Status</Header>}
+          header={<Header variant="h2">{t('pages.api_health.title')}</Header>}
         />
       </SpaceBetween>
     </ContentLayout>

@@ -22,7 +22,7 @@ interface UserConfig {
 }
 
 export default function UserConfigPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [configs, setConfigs] = useState<UserConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -55,7 +55,7 @@ export default function UserConfigPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">User Config</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.config_user.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -104,7 +104,7 @@ export default function UserConfigPage() {
             },
           ]}
           items={filteredConfigs}
-          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>Config</Header>}
+          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>{t('pages.config_user.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

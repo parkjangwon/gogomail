@@ -25,7 +25,7 @@ interface SuppressionEntry {
 }
 
 export default function SuppressionListPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [entries, setEntries] = useState<SuppressionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -76,7 +76,7 @@ export default function SuppressionListPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Suppression List</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.suppression.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -104,12 +104,12 @@ export default function SuppressionListPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Email',
+              header: t('pages.suppression.email'),
               cell: (item: SuppressionEntry) => item.email,
               width: '40%',
             },
             {
-              header: 'Reason',
+              header: t('pages.suppression.reason'),
               cell: (item: SuppressionEntry) => (
                 <Badge color="red">{item.reason}</Badge>
               ),

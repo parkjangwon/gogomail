@@ -22,7 +22,7 @@ interface DriveNode {
 }
 
 export default function DrivePage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [nodes, setNodes] = useState<DriveNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -55,7 +55,7 @@ export default function DrivePage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Drive Storage</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.drive.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -68,9 +68,9 @@ export default function DrivePage() {
       header={
         <Header
           variant="h1"
-          description="Browse and manage drive storage nodes"
+          description={t('pages.drive.description')}
         >
-          Drive Storage
+          {t('pages.drive.title')}
         </Header>
       }
     >
@@ -78,7 +78,7 @@ export default function DrivePage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.drive.file_name'),
               cell: (item: DriveNode) => item.name,
               width: '25%',
             },
@@ -88,23 +88,23 @@ export default function DrivePage() {
               width: '15%',
             },
             {
-              header: 'Size',
+              header: t('pages.drive.size'),
               cell: (item: DriveNode) => `${(item.size_bytes / 1024 / 1024).toFixed(2)} MB`,
               width: '15%',
             },
             {
-              header: 'Owner',
+              header: t('pages.drive.owner'),
               cell: (item: DriveNode) => item.owner,
               width: '25%',
             },
             {
-              header: 'Created',
+              header: t('pages.drive.modified'),
               cell: (item: DriveNode) => new Date(item.created_at).toLocaleString(),
               width: '20%',
             },
           ]}
           items={filteredNodes}
-          header={<Header variant="h2" counter={`(${filteredNodes.length})`}>Nodes</Header>}
+          header={<Header variant="h2" counter={`(${filteredNodes.length})`}>{t('pages.drive.title')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}

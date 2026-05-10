@@ -24,7 +24,7 @@ interface DKIMKey {
 }
 
 export default function DKIMKeysPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [keys, setKeys] = useState<DKIMKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -57,7 +57,7 @@ export default function DKIMKeysPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">DKIM Keys</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.dkim_keys.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -85,7 +85,7 @@ export default function DKIMKeysPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Domain',
+              header: t('pages.dkim_keys.domain'),
               cell: (item: DKIMKey) => item.domain,
               width: '25%',
             },
@@ -95,7 +95,7 @@ export default function DKIMKeysPage() {
               width: '20%',
             },
             {
-              header: 'Status',
+              header: t('pages.dkim_keys.status'),
               cell: (item: DKIMKey) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}

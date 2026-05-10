@@ -34,7 +34,7 @@ interface Domain {
 }
 
 export default function DomainsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -102,7 +102,7 @@ export default function DomainsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Domains</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.domains.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -118,7 +118,7 @@ export default function DomainsPage() {
           description="Manage email domains and DNS configuration"
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Add Domain
+              {t('pages.domains.create_domain')}
             </Button>
           }
         >
@@ -145,7 +145,7 @@ export default function DomainsPage() {
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.domains.status'),
               cell: (domain: Domain) => (
                 <Badge color={domain.status === 'active' ? 'green' : 'grey'}>
                   {domain.status}
@@ -173,7 +173,7 @@ export default function DomainsPage() {
               width: '12%',
             },
             {
-              header: 'Created',
+              header: t('pages.domains.created'),
               cell: (domain: Domain) => new Date(domain.created_at).toLocaleDateString(),
               width: '15%',
             },

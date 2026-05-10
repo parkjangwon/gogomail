@@ -23,7 +23,7 @@ interface QuotaAlert {
 }
 
 export default function QuotaAlertsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [alerts, setAlerts] = useState<QuotaAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -64,7 +64,7 @@ export default function QuotaAlertsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Quota Alerts</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.quota_alerts.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>

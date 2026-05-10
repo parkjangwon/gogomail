@@ -24,7 +24,7 @@ interface OrgSettings {
 }
 
 export default function OrganizationSettingsPage() {
-  const { t: _unused } = useI18n(); _unused;
+  const { t } = useI18n();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -52,7 +52,7 @@ export default function OrganizationSettingsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Organization Settings</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.organization.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -65,7 +65,7 @@ export default function OrganizationSettingsPage() {
       header={
         <Header
           variant="h1"
-          description="Configure organization settings"
+          description={t('pages.organization.description')}
           actions={
             <Button variant="primary" onClick={() => setEditing(!editing)}>
               {editing ? 'Cancel' : 'Edit Settings'}
