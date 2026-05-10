@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FormField,
   Input,
+  InputProps,
   Button,
   Alert,
 } from '@cloudscape-design/components';
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const passwordRef = useRef<InputProps.Ref>(null);
 
   const handleSubmit = async () => {
     setError('');
@@ -84,6 +86,7 @@ export default function LoginPage() {
               <Input
                 value={email}
                 onChange={(e) => setEmail(e.detail.value)}
+                onKeyDown={(e) => { if (e.detail.key === 'Enter') passwordRef.current?.focus(); }}
                 placeholder="admin@system"
                 type="email"
                 disabled={loading}
@@ -93,8 +96,10 @@ export default function LoginPage() {
 
             <FormField label="Password">
               <Input
+                ref={passwordRef}
                 value={password}
                 onChange={(e) => setPassword(e.detail.value)}
+                onKeyDown={(e) => { if (e.detail.key === 'Enter') handleSubmit(); }}
                 type="password"
                 disabled={loading}
               />
