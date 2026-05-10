@@ -59,11 +59,17 @@ code {
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .admin-toolbar-company {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 }
 
 @media (max-width: 768px) {

@@ -69,7 +69,12 @@
     "company_config": "회사 설정",
     "domain_config": "도메인 설정",
     "user_config": "사용자 설정",
-    "mfa_management": "2FA 관리"
+    "mfa_management": "2FA 관리",
+    "section_resources": "리소스",
+    "section_operations": "운영",
+    "section_access_control": "접근 제어",
+    "section_governance": "거버넌스",
+    "section_analytics_storage": "분석 & 저장"
   },
   "dashboard": {
     "title": "대시보드",

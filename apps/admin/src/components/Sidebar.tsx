@@ -37,7 +37,7 @@ export function Sidebar() {
     { type: 'divider' },
     {
       type: 'section',
-      text: 'Resources',
+      text: t('nav.section_resources'),
       ...e('resources'),
       items: [
         { type: 'link', text: t('nav.companies'), href: p('/tenancy/companies') },
@@ -58,7 +58,7 @@ export function Sidebar() {
     },
     {
       type: 'section',
-      text: 'Operations',
+      text: t('nav.section_operations'),
       ...e('ops'),
       items: [
         { type: 'link', text: t('nav.mail_flow_logs'), href: p('/mail/flow-logs') },
@@ -73,7 +73,7 @@ export function Sidebar() {
     },
     {
       type: 'section',
-      text: 'Access Control',
+      text: t('nav.section_access_control'),
       ...e('access'),
       items: [
         { type: 'link', text: t('nav.directory'), href: p('/access/directory') },
@@ -85,7 +85,7 @@ export function Sidebar() {
     },
     {
       type: 'section',
-      text: 'Governance',
+      text: t('nav.section_governance'),
       ...e('gov'),
       items: [
         { type: 'link', text: t('nav.audit_logs'), href: p('/audit-logs') },
@@ -99,7 +99,7 @@ export function Sidebar() {
     },
     {
       type: 'section',
-      text: 'Analytics & Storage',
+      text: t('nav.section_analytics_storage'),
       ...e('analytics'),
       items: [
         { type: 'link', text: t('nav.quota_usage'), href: p('/storage/quota-usage') },
