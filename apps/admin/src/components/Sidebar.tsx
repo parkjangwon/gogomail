@@ -15,15 +15,29 @@ export function Sidebar() {
 
   const p = (path: string) => `/companies/${cid}${path}`;
 
-  // Omitting defaultExpanded lets Cloudscape auto-expand the section
-  // containing the active link. Explicitly setting it to false suppresses
-  // that behaviour, which is what caused the bug.
+  const activeSectionKey = useMemo(() => {
+    if (!pathname) return 'none';
+    if (pathname.includes('/mail/') || pathname.includes('/delivery/') || pathname.includes('/system/')) return 'ops';
+    if (pathname.includes('/access/') || pathname.includes('/roles')) return 'access';
+    if (pathname.includes('/audit-logs') || pathname.includes('/security/') || pathname.includes('/compliance')) return 'gov';
+    if (pathname.includes('/storage/') || pathname.includes('/analytics/') || pathname.includes('/reports')) return 'analytics';
+    if (pathname.includes('/tenancy/') || pathname.includes('/users') || pathname.includes('/admin-users')) return 'resources';
+    return 'none';
+  }, [pathname]);
+
+  const e = (key: string) => activeSectionKey === key ? {} : { defaultExpanded: false };
+
+  // Sections without defaultExpanded auto-expand when they contain activeHref.
+  // Sections with defaultExpanded: false stay collapsed unless the user opens them.
+  // key={activeSectionKey} remounts the nav when moving between sections so
+  // inactive sections reset to collapsed.
   const navigationItems: SideNavigationProps.Item[] = useMemo(() => [
     { type: 'link', text: t('nav.dashboard'), href: p('/dashboard') },
     { type: 'divider' },
     {
       type: 'section',
       text: 'Resources',
+      ...e('resources'),
       items: [
         { type: 'link', text: t('nav.companies'), href: p('/tenancy/companies') },
         { type: 'link', text: t('nav.domains'), href: p('/tenancy/domains') },
@@ -34,6 +48,7 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Operations',
+      ...e('ops'),
       items: [
         { type: 'link', text: t('nav.mail_flow_logs'), href: p('/mail/flow-logs') },
         { type: 'link', text: t('nav.outbox_events'), href: p('/mail/outbox') },
@@ -48,6 +63,7 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Access Control',
+      ...e('access'),
       items: [
         { type: 'link', text: t('nav.directory'), href: p('/access/directory') },
         { type: 'link', text: t('nav.aliases'), href: p('/access/aliases') },
@@ -59,6 +75,7 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Governance',
+      ...e('gov'),
       items: [
         { type: 'link', text: t('nav.audit_logs'), href: p('/audit-logs') },
         { type: 'link', text: t('nav.alert_rules'), href: p('/security/alerts') },
@@ -72,6 +89,7 @@ export function Sidebar() {
     {
       type: 'section',
       text: 'Analytics & Storage',
+      ...e('analytics'),
       items: [
         { type: 'link', text: t('nav.quota_usage'), href: p('/storage/quota-usage') },
         { type: 'link', text: t('nav.quota_alerts'), href: p('/storage/quota-alerts') },
@@ -83,10 +101,11 @@ export function Sidebar() {
       ],
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [cid, t]);
+  ], [cid, t, activeSectionKey]);
 
   return (
     <SideNavigation
+      key={activeSectionKey}
       items={navigationItems}
       activeHref={pathname ?? ''}
       header={{ href: p('/dashboard'), text: currentCompany?.name ?? 'GoGoMail' }}
