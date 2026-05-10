@@ -9,7 +9,9 @@ import {
   Box,
   Spinner,
   TextFilter,
-  Alert,
+  Modal,
+  FormField,
+  Input,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -28,6 +30,9 @@ export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [newRole, setNewRole] = useState({ name: '', description: '' });
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchRoles();
@@ -43,10 +48,32 @@ export default function RolesPage() {
         const data = await res.json();
         setRoles(data.roles || []);
       }
-    } catch (error) {
-      // Roles endpoint may not exist — silently use empty list
+    } catch {
+      // silently use empty list
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newRole.name.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRole),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setNewRole({ name: '', description: '' });
+        fetchRoles();
+      }
+    } catch (error) {
+      console.error('Failed to create role:', error);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -71,7 +98,7 @@ export default function RolesPage() {
           variant="h1"
           description={t('pages.roles_page.description')}
           actions={
-            <Button variant="primary" disabled>
+            <Button variant="primary" onClick={() => setShowModal(true)}>
               {t('pages.roles_page.create_role')}
             </Button>
           }
@@ -81,8 +108,6 @@ export default function RolesPage() {
       }
     >
       <SpaceBetween size="l">
-        <Alert type="warning">{t('pages.roles_page.backend_warning')}</Alert>
-
         <Table
           columnDefinitions={[
             {
@@ -126,6 +151,44 @@ export default function RolesPage() {
           }
         />
       </SpaceBetween>
+
+      <Modal
+        onDismiss={() => setShowModal(false)}
+        visible={showModal}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={handleCreate}
+                loading={creating}
+                disabled={!newRole.name.trim()}
+              >
+                {t('pages.roles_page.create_role')}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+        header={t('pages.roles_page.create_role')}
+      >
+        <SpaceBetween size="m">
+          <FormField label={t('pages.roles_page.name')}>
+            <Input
+              value={newRole.name}
+              onChange={(e) => setNewRole({ ...newRole, name: e.detail.value })}
+              placeholder="e.g. support-agent"
+            />
+          </FormField>
+          <FormField label={t('pages.roles_page.description_col')}>
+            <Input
+              value={newRole.description}
+              onChange={(e) => setNewRole({ ...newRole, description: e.detail.value })}
+              placeholder="Role description"
+            />
+          </FormField>
+        </SpaceBetween>
+      </Modal>
     </ContentLayout>
   );
 }

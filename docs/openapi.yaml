@@ -6463,6 +6463,253 @@ paths:
                       $ref: "#/components/schemas/AlertEvent"
         default:
           $ref: "#/components/responses/Error"
+  /health:
+    get:
+      operationId: adminGetHealth
+      summary: System health check
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        service:
+                          type: string
+                        status:
+                          type: string
+                        response_time_ms:
+                          type: integer
+                        last_check:
+                          type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /organization/settings:
+    get:
+      operationId: adminGetOrganizationSettings
+      summary: Get organization settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Organization settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settings:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      max_users:
+                        type: integer
+                      max_domains:
+                        type: integer
+                      created_at:
+                        type: string
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminUpdateOrganizationSettings
+      summary: Update organization settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                max_users:
+                  type: integer
+                max_domains:
+                  type: integer
+      responses:
+        "200":
+          description: Updated organization settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settings:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /compliance:
+    get:
+      operationId: adminListCompliance
+      summary: List compliance reports
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Compliance reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        framework:
+                          type: string
+                        status:
+                          type: string
+                        last_audit:
+                          type: string
+                        findings:
+                          type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /roles:
+    get:
+      operationId: adminListRoles
+      summary: List roles
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Roles list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        permissions_count:
+                          type: integer
+                        assigned_users:
+                          type: integer
+                        created_at:
+                          type: string
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: adminCreateRole
+      summary: Create role
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Role created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /reports:
+    get:
+      operationId: adminListReports
+      summary: List reports
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Reports list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        generated_at:
+                          type: string
+                        file_size:
+                          type: integer
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:

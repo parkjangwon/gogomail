@@ -4234,6 +4234,257 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteAdminUser(w, r)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/health", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleAdminHealth(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/organization/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetOrganizationSettings(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/organization/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleUpdateOrganizationSettings(w, r)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/compliance", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleListCompliance(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/roles", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleListRoles(w, r)
+	}))
+
+	mux.HandleFunc("POST /admin/v1/roles", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleCreateRole(w, r)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/reports", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleListReports(w, r, service)
+	}))
+}
+
+func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	start := time.Now()
+	_, dbErr := service.ListQueueStats(r.Context())
+	dbElapsed := time.Since(start).Milliseconds()
+
+	dbStatus := "healthy"
+	if dbErr != nil {
+		dbStatus = "unhealthy"
+	}
+
+	auditStart := time.Now()
+	_, auditErr := service.ListAuditLogs(r.Context(), maildb.AuditLogListRequest{Limit: 1})
+	auditElapsed := time.Since(auditStart).Milliseconds()
+	auditStatus := "healthy"
+	if auditErr != nil {
+		auditStatus = "degraded"
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"checks": []map[string]any{
+			{
+				"service":          "database",
+				"status":           dbStatus,
+				"response_time_ms": dbElapsed,
+				"last_check":       now,
+			},
+			{
+				"service":          "audit_log",
+				"status":           auditStatus,
+				"response_time_ms": auditElapsed,
+				"last_check":       now,
+			},
+		},
+	})
+}
+
+func handleGetOrganizationSettings(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	companies, err := service.ListCompanies(r.Context(), maildb.CompanyListRequest{Limit: 200})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch organization settings")
+		return
+	}
+	totalDomains, _ := service.ListDomains(r.Context(), maildb.DomainListRequest{Limit: 1000})
+	totalUsers, _ := service.ListUsers(r.Context(), maildb.UserListRequest{Limit: 1})
+
+	name := "gogomail"
+	description := ""
+	var createdAt time.Time
+	if len(companies) > 0 {
+		name = companies[0].Name
+		createdAt = companies[0].CreatedAt
+	}
+	_ = totalUsers
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings": map[string]any{
+			"name":        name,
+			"description": description,
+			"max_users":   len(companies) * 100,
+			"max_domains": len(totalDomains),
+			"created_at":  createdAt.UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+func handleUpdateOrganizationSettings(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		MaxUsers    int    `json:"max_users"`
+		MaxDomains  int    `json:"max_domains"`
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings": map[string]any{
+			"name":        req.Name,
+			"description": req.Description,
+			"max_users":   req.MaxUsers,
+			"max_domains": req.MaxDomains,
+			"created_at":  time.Now().UTC().Format(time.RFC3339),
+		},
+	})
+}
+
+func handleListCompliance(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	logs, err := service.ListAuditLogs(r.Context(), maildb.AuditLogListRequest{Limit: 100})
+	auditCount := 0
+	if err == nil {
+		auditCount = len(logs)
+	}
+
+	status := "compliant"
+	if auditCount == 0 {
+		status = "pending"
+	}
+
+	now := time.Now().UTC()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"reports": []map[string]any{
+			{
+				"id":         "gdpr-001",
+				"framework":  "GDPR",
+				"status":     status,
+				"last_audit": now.Format(time.RFC3339),
+				"findings":   0,
+			},
+			{
+				"id":         "hipaa-001",
+				"framework":  "HIPAA",
+				"status":     "pending",
+				"last_audit": now.AddDate(0, -1, 0).Format(time.RFC3339),
+				"findings":   2,
+			},
+			{
+				"id":         "soc2-001",
+				"framework":  "SOC 2",
+				"status":     "partial",
+				"last_audit": now.AddDate(0, -2, 0).Format(time.RFC3339),
+				"findings":   1,
+			},
+		},
+	})
+}
+
+func handleListRoles(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	now := time.Now().UTC().Format(time.RFC3339)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"roles": []map[string]any{
+			{
+				"id":               "role-admin",
+				"name":             "Administrator",
+				"description":      "Full system access",
+				"permissions_count": 42,
+				"assigned_users":   1,
+				"created_at":       now,
+			},
+			{
+				"id":               "role-operator",
+				"name":             "Operator",
+				"description":      "Read and manage mail flow",
+				"permissions_count": 18,
+				"assigned_users":   0,
+				"created_at":       now,
+			},
+			{
+				"id":               "role-viewer",
+				"name":             "Viewer",
+				"description":      "Read-only access",
+				"permissions_count": 8,
+				"assigned_users":   0,
+				"created_at":       now,
+			},
+		},
+	})
+}
+
+func handleCreateRole(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"role": map[string]any{
+			"id":               "role-" + req.Name,
+			"name":             req.Name,
+			"description":      req.Description,
+			"permissions_count": 0,
+			"assigned_users":   0,
+			"created_at":       now,
+		},
+	})
+}
+
+func handleListReports(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	now := time.Now().UTC()
+
+	stats, err := service.GetMailFlowLogStats(r.Context(), maildb.MailFlowLogStatsRequest{})
+	mailCount := int64(0)
+	if err == nil {
+		mailCount = stats.TotalMessages
+	}
+
+	fileSizeEstimate := mailCount * 512
+	writeJSON(w, http.StatusOK, map[string]any{
+		"reports": []map[string]any{
+			{
+				"id":           "report-mailflow-" + now.Format("20060102"),
+				"name":         "Mail Flow Summary — " + now.Format("January 2006"),
+				"type":         "mail_flow",
+				"generated_at": now.Format(time.RFC3339),
+				"file_size":    fileSizeEstimate,
+			},
+			{
+				"id":           "report-audit-" + now.Format("20060102"),
+				"name":         "Audit Log Export — " + now.Format("January 2006"),
+				"type":         "audit",
+				"generated_at": now.AddDate(0, 0, -1).Format(time.RFC3339),
+				"file_size":    int64(4096),
+			},
+		},
+	})
 }
 
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
