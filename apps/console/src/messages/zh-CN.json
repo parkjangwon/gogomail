@@ -70,6 +70,7 @@
     "domain_config": "域配置",
     "user_config": "用户配置",
     "mfa_management": "2FA管理",
+    "ip_access": "IP访问控制",
     "section_resources": "资源",
     "section_operations": "运营",
     "section_access_control": "访问控制",
@@ -964,6 +965,24 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "ip_access_page": {
+      "title": "IP访问控制",
+      "description": "按协议通过IP地址控制访问",
+      "enabled_label": "启用IP访问控制",
+      "allowlist_header": "允许列表",
+      "allowlist_desc": "只有这些IP/CIDR可以连接。为空则允许所有。",
+      "denylist_header": "阻止列表",
+      "denylist_desc": "这些IP/CIDR始终被阻止。",
+      "add_ip": "添加IP / CIDR",
+      "ip_placeholder": "例如: 192.168.1.0/24",
+      "protocols_label": "应用于协议",
+      "action_label": "不在允许列表中时的操作",
+      "action_deny": "拒绝连接",
+      "action_log": "允许但记录日志",
+      "save": "保存策略",
+      "scope_company": "公司范围策略",
+      "scope_domain": "域名覆盖"
     },
     "tenancy_domains": {
       "actions": "Actions",

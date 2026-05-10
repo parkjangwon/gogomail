@@ -6710,6 +6710,128 @@ paths:
                           type: integer
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/ip-policy:
+    get:
+      operationId: adminGetCompanyIPPolicy
+      summary: Get company IP access policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: IP access policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/IPAccessPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanyIPPolicy
+      summary: Set company IP access policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IPAccessPolicy"
+      responses:
+        "200":
+          description: Saved IP access policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/IPAccessPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/security/ip-policy:
+    get:
+      operationId: adminGetDomainIPPolicy
+      summary: Get domain IP access policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: IP access policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/IPAccessPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutDomainIPPolicy
+      summary: Set domain IP access policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IPAccessPolicy"
+      responses:
+        "200":
+          description: Saved IP access policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/IPAccessPolicy"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -7881,6 +8003,26 @@ components:
           schema:
             $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
+    IPAccessPolicy:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        allowlist:
+          type: array
+          items:
+            type: string
+        denylist:
+          type: array
+          items:
+            type: string
+        protocols:
+          type: array
+          items:
+            type: string
+        action:
+          type: string
+          enum: [deny, log]
     HealthResponse:
       type: object
       required: [status]

@@ -4262,6 +4262,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("GET /admin/v1/reports", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleListReports(w, r, service)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyIPPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyIPPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainIPPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainIPPolicy(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -4485,6 +4501,118 @@ func handleListReports(w http.ResponseWriter, r *http.Request, service AdminServ
 			},
 		},
 	})
+}
+
+const ipAccessPolicyKey = "ip_access_policy"
+
+type ipAccessPolicy struct {
+	Enabled   bool     `json:"enabled"`
+	Allowlist []string `json:"allowlist"`
+	Denylist  []string `json:"denylist"`
+	Protocols []string `json:"protocols"`
+	Action    string   `json:"action"`
+}
+
+func defaultIPAccessPolicy() ipAccessPolicy {
+	return ipAccessPolicy{
+		Enabled:   false,
+		Allowlist: []string{},
+		Denylist:  []string{},
+		Protocols: []string{"smtp", "imap", "api"},
+		Action:    "deny",
+	}
+}
+
+func handleGetCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, ipAccessPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultIPAccessPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy ipAccessPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy ipAccessPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, ipAccessPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainIPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, ipAccessPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultIPAccessPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy ipAccessPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainIPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy ipAccessPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, ipAccessPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 }
 
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {

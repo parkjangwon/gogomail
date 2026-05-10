@@ -70,6 +70,7 @@
     "domain_config": "Domain Config",
     "user_config": "User Config",
     "mfa_management": "2FA Management",
+    "ip_access": "IP Access Control",
     "section_resources": "Resources",
     "section_operations": "Operations",
     "section_access_control": "Access Control",
@@ -468,6 +469,24 @@
       "reports": "Reports",
       "status": "Status",
       "title": "Title"
+    },
+    "ip_access_page": {
+      "title": "IP Access Control",
+      "description": "Control access by IP address per protocol",
+      "enabled_label": "Enable IP Access Control",
+      "allowlist_header": "Allow List",
+      "allowlist_desc": "Only these IPs/CIDRs can connect. Empty = allow all.",
+      "denylist_header": "Block List",
+      "denylist_desc": "These IPs/CIDRs are always blocked.",
+      "add_ip": "Add IP / CIDR",
+      "ip_placeholder": "e.g. 192.168.1.0/24",
+      "protocols_label": "Apply to protocols",
+      "action_label": "Action when not in allowlist",
+      "action_deny": "Deny connection",
+      "action_log": "Allow but log",
+      "save": "Save Policy",
+      "scope_company": "Company-wide policy",
+      "scope_domain": "Domain override"
     },
     "config_company": {
       "description": "Description",
