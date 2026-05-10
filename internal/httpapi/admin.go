@@ -4001,6 +4001,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleListAlertEvents(w, r, service)
 	}))
+
+	mux.HandleFunc("POST /admin/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		handleAdminLogin(w, r, service)
+	})
+
+	mux.HandleFunc("POST /admin/v1/auth/setup", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleAdminSetup(w, r, service)
+	}))
 }
 
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
@@ -4902,4 +4910,69 @@ func adminTokenFromRequest(w http.ResponseWriter, r *http.Request) (string, bool
 		return strings.TrimSpace(auth[len("bearer "):]), true
 	}
 	return "", true
+}
+
+func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "email and password required")
+		return
+	}
+
+	// For now, allow login with "admin@system" and default password
+	if req.Email == "admin@system" && req.Password == "admin1234" {
+		token := "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
+		writeJSON(w, http.StatusOK, map[string]any{
+			"access_token":           token,
+			"refresh_token":          "refresh-" + token,
+			"requires_initial_setup": true,
+		})
+		return
+	}
+
+	writeError(w, http.StatusUnauthorized, "invalid credentials")
+}
+
+func handleAdminSetup(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if req.Username == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "username and password required")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "ok",
+	})
 }
