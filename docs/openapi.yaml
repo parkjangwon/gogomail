@@ -5296,6 +5296,173 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/api-settings:
+    get:
+      operationId: getAdminDomainAPISettings
+      summary: Admin get domain API settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/APISettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateAdminDomainAPISettings
+      summary: Admin update domain API settings
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        $ref: "#/components/requestBodies/APISettingsUpdate"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/api-keys:
+    get:
+      operationId: listAdminDomainAPIKeys
+      summary: Admin list domain API keys
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: API keys list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/APIKey"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminDomainAPIKey
+      summary: Admin create domain API key
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, created_by]
+              properties:
+                name:
+                  type: string
+                created_by:
+                  type: string
+      responses:
+        "200":
+          description: API key created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  secret:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/api-keys/{keyid}:
+    delete:
+      operationId: deleteAdminDomainAPIKey
+      summary: Admin delete domain API key
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: keyid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: API key deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/api-keys/{keyid}/rotate:
+    post:
+      operationId: rotateAdminDomainAPIKey
+      summary: Admin rotate domain API key
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: keyid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: API key rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  secret:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/config:
     get:
       operationId: listAdminDomainConfig
@@ -6417,6 +6584,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/DomainSettingsEnvelope"
+    APISettings:
+      description: Domain API settings envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APISettingsEnvelope"
     UserList:
       description: User list envelope
       content:
@@ -6822,6 +6995,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QuotaAlertThresholdUpdateRequest"
+    APISettingsUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
     HealthResponse:
       type: object
@@ -11422,6 +11601,82 @@ components:
         password_expiry_days:
           type: integer
           minimum: 0
+    APISettingsEnvelope:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          $ref: "#/components/schemas/APISettings"
+    APISettings:
+      type: object
+      required: [domain_id, rate_limit_rps, rate_limit_bps, cidr_allowlist_enabled, require_api_key, updated_at, updated_by]
+      properties:
+        domain_id:
+          type: string
+        rate_limit_rps:
+          type: integer
+          minimum: 1
+        rate_limit_bps:
+          type: integer
+          minimum: 0
+        cidr_allowlist_enabled:
+          type: boolean
+        cidr_allowlist:
+          type: array
+          items:
+            type: string
+        require_api_key:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+    APISettingsUpdateRequest:
+      type: object
+      required: [domain_id, rate_limit_rps, rate_limit_bps, cidr_allowlist_enabled, require_api_key]
+      properties:
+        domain_id:
+          type: string
+        rate_limit_rps:
+          type: integer
+          minimum: 1
+        rate_limit_bps:
+          type: integer
+          minimum: 0
+        cidr_allowlist_enabled:
+          type: boolean
+        cidr_allowlist:
+          type: array
+          items:
+            type: string
+        require_api_key:
+          type: boolean
+    APIKey:
+      type: object
+      required: [id, domain_id, name, created_by, created_at, is_active]
+      properties:
+        id:
+          type: string
+        domain_id:
+          type: string
+        name:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
     User:
       type: object
       required: [id, domain_id, username, display_name, role, status, password_configured, quota_used, quota_remaining, quota_source, created_at]
