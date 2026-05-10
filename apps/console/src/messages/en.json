@@ -72,6 +72,7 @@
     "mfa_management": "2FA Management",
     "ip_access": "IP Access Control",
     "auth_policy": "Auth Policy",
+    "retention_policy": "Data Retention",
     "section_resources": "Resources",
     "section_operations": "Operations",
     "section_access_control": "Access Control",
@@ -488,6 +489,19 @@
       "session_timeout": "Session Timeout (minutes)",
       "max_concurrent": "Max Concurrent Sessions (0 = unlimited)",
       "save": "Save Policy"
+    },
+    "retention_page": {
+      "title": "Data Retention Policy",
+      "description": "Configure how long data is retained before automatic deletion",
+      "mail_retention": "Mail Retention (days, 0 = forever)",
+      "deleted_retention": "Deleted Items Retention (days)",
+      "audit_retention": "Audit Log Retention (days)",
+      "attachment_retention": "Attachment Retention (days, 0 = forever)",
+      "auto_purge": "Enable Auto-Purge",
+      "auto_purge_desc": "Automatically delete data older than the configured retention period",
+      "warning": "Warning: Enabling auto-purge will permanently delete data beyond the retention period. This action cannot be undone.",
+      "save": "Save Policy",
+      "scope_note": "Company-level policy applies to all domains unless overridden."
     },
     "ip_access_page": {
       "title": "IP Access Control",
