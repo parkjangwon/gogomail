@@ -9,31 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-076
-- **제목**: API Metering
-- **배경**: Phase 8-E. Implement API usage tracking and rate limiting.
-  - Track API calls per user/domain
-  - Rate limiting enforcement
-  - Usage quota management
-  - Billing integration support
-  - Real-time usage reporting
+- **ID**: TASK-077
+- **제목**: Audit Policy Config UI
+- **배경**: Phase 8-E. Implement audit policy configuration interface.
+  - Audit level selection (Level 1/2/3)
+  - Policy scope configuration
+  - Retention policy management
+  - Exception handling
+  - Policy enforcement engine
 
 - **구현 대상**:
-  1. `internal/admin/metering_service.go` — API metering service
-  2. `internal/admin/metering_service_test.go` — Unit tests
-  3. Usage tracking and aggregation
-  4. Rate limit enforcement
-  5. Quota management
+  1. `internal/admin/audit_policy_service.go` — Audit policy service
+  2. `internal/admin/audit_policy_service_test.go` — Unit tests
+  3. Policy configuration management
+  4. Level-specific enforcement
+  5. Exception handling
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] MeteringService with usage tracking
-  - [ ] Rate limiting middleware
-  - [ ] Quota enforcement
-  - [ ] Usage reporting
+  - [ ] AuditPolicyService with policy management
+  - [ ] Level 1/2/3 enforcement
+  - [ ] Retention policy management
+  - [ ] Exception handling
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-075 ✅ (Statistics & Dashboard Cache) — COMPLETE
+- **이전 태스크**: TASK-076 ✅ (API Metering) — COMPLETE
 
 ---
 
