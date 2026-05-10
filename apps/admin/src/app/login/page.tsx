@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (!email.trim()) {
       setEmailError('Email address is required.');
       valid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
       setEmailError('Enter a valid email address.');
       valid = false;
     } else {
