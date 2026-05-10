@@ -17,9 +17,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const passwordRef = useRef<InputProps.Ref>(null);
 
+  const validate = () => {
+    let valid = true;
+    if (!email.trim()) {
+      setEmailError('Email address is required.');
+      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Enter a valid email address.');
+      valid = false;
+    } else {
+      setEmailError('');
+    }
+    if (!password) {
+      setPasswordError('Password is required.');
+      valid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters.');
+      valid = false;
+    } else {
+      setPasswordError('');
+    }
+    return valid;
+  };
+
   const handleSubmit = async () => {
+    if (!validate()) return;
     setError('');
     setLoading(true);
 
@@ -82,26 +108,28 @@ export default function LoginPage() {
           )}
 
           <div className="aws-login-form">
-            <FormField label="Email Address">
+            <FormField label="Email Address" errorText={emailError}>
               <Input
                 value={email}
-                onChange={(e) => setEmail(e.detail.value)}
+                onChange={(e) => { setEmail(e.detail.value); setEmailError(''); }}
                 onKeyDown={(e) => { if (e.detail.key === 'Enter') passwordRef.current?.focus(); }}
                 placeholder="admin@system"
                 type="email"
                 disabled={loading}
+                invalid={!!emailError}
                 autoFocus
               />
             </FormField>
 
-            <FormField label="Password">
+            <FormField label="Password" errorText={passwordError}>
               <Input
                 ref={passwordRef}
                 value={password}
-                onChange={(e) => setPassword(e.detail.value)}
+                onChange={(e) => { setPassword(e.detail.value); setPasswordError(''); }}
                 onKeyDown={(e) => { if (e.detail.key === 'Enter') handleSubmit(); }}
                 type="password"
                 disabled={loading}
+                invalid={!!passwordError}
               />
             </FormField>
 
