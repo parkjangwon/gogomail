@@ -8,25 +8,29 @@ import {
   Box,
   Spinner,
   SpaceBetween,
-  ProgressBar,
+  Badge,
+  Table,
+  StatusIndicator,
 } from '@cloudscape-design/components';
 import { useI18n } from '@/app/i18n-provider';
 import { useState, useEffect } from 'react';
 
-interface QueueStats {
-  total_messages: number;
-  pending: number;
-  processing: number;
-  failed: number;
-  processing_rate: number;
-  average_wait_time: number;
-  last_updated: string;
+interface QueueStat {
+  topic: string;
+  status: string;
+  count: number;
+  ready_count: number;
+  delayed_count: number;
+  stale_processing_count: number;
+  oldest_ready_at?: string;
+  next_available_at?: string;
 }
 
 export default function QueueStatsPage() {
   const { t } = useI18n();
-  const [stats, setStats] = useState<QueueStats | null>(null);
+  const [queues, setQueues] = useState<QueueStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchQueueStats();
@@ -36,12 +40,11 @@ export default function QueueStatsPage() {
 
   const fetchQueueStats = async () => {
     try {
-      const res = await fetch('/api/admin/queue', {
-        credentials: 'include'
-      });
+      const res = await fetch('/api/admin/queue', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setStats(data);
+        setQueues(data.queues || []);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch queue stats:', error);
@@ -50,12 +53,22 @@ export default function QueueStatsPage() {
     }
   };
 
+  const totalCount = queues.reduce((sum, q) => sum + (q.count || 0), 0);
+  const totalReady = queues.reduce((sum, q) => sum + (q.ready_count || 0), 0);
+  const totalDelayed = queues.reduce((sum, q) => sum + (q.delayed_count || 0), 0);
+  const totalStale = queues.reduce((sum, q) => sum + (q.stale_processing_count || 0), 0);
+
+  const getStatusIndicator = (q: QueueStat) => {
+    if (q.stale_processing_count > 0) return <StatusIndicator type="error">Stale</StatusIndicator>;
+    if (q.count === 0) return <StatusIndicator type="success">Idle</StatusIndicator>;
+    if (q.ready_count > 0) return <StatusIndicator type="in-progress">Processing</StatusIndicator>;
+    return <StatusIndicator type="pending">Queued</StatusIndicator>;
+  };
+
   if (loading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.queue_stats.title')}</Header>}>
-        <Box textAlign="center" padding="xl">
-          <Spinner />
-        </Box>
+        <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
   }
@@ -66,57 +79,94 @@ export default function QueueStatsPage() {
         <Header
           variant="h1"
           description={t('pages.queue_stats.description')}
+          info={lastUpdated ? <Box color="text-body-secondary" fontSize="body-s">Updated {lastUpdated.toLocaleTimeString()}</Box> : undefined}
         >
           {t('pages.queue_stats.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        {stats && (
-          <>
-            <ColumnLayout columns={4}>
-              <Container header={<Header variant="h3">{t('pages.queue_stats.total_messages')}</Header>}>
-                <Box fontSize="display-l" fontWeight="bold">
-                  {stats.total_messages.toLocaleString()}
-                </Box>
-              </Container>
-              <Container header={<Header variant="h3">{t('pages.queue_stats.pending')}</Header>}>
-                <Box fontSize="display-l" fontWeight="bold" color="text-status-warning">
-                  {stats.pending.toLocaleString()}
-                </Box>
-              </Container>
-              <Container header={<Header variant="h3">{t('pages.queue_stats.processing')}</Header>}>
-                <Box fontSize="display-l" fontWeight="bold" color="text-status-info">
-                  {stats.processing.toLocaleString()}
-                </Box>
-              </Container>
-              <Container header={<Header variant="h3">{t('pages.queue_stats.failed')}</Header>}>
-                <Box fontSize="display-l" fontWeight="bold" color="text-status-error">
-                  {stats.failed.toLocaleString()}
-                </Box>
-              </Container>
-            </ColumnLayout>
+        <ColumnLayout columns={4}>
+          <Container header={<Header variant="h3">{t('pages.queue_stats.total_messages')}</Header>}>
+            <Box fontSize="display-l" fontWeight="bold">{totalCount.toLocaleString()}</Box>
+          </Container>
+          <Container header={<Header variant="h3">{t('pages.queue_stats.pending')}</Header>}>
+            <Box fontSize="display-l" fontWeight="bold" color={totalReady > 0 ? 'text-status-warning' : 'text-body-secondary'}>
+              {totalReady.toLocaleString()}
+            </Box>
+          </Container>
+          <Container header={<Header variant="h3">{t('pages.queue_stats.processing')}</Header>}>
+            <Box fontSize="display-l" fontWeight="bold" color="text-status-info">
+              {totalDelayed.toLocaleString()}
+            </Box>
+          </Container>
+          <Container header={<Header variant="h3">{t('pages.queue_stats.failed')}</Header>}>
+            <Box fontSize="display-l" fontWeight="bold" color={totalStale > 0 ? 'text-status-error' : 'text-body-secondary'}>
+              {totalStale.toLocaleString()}
+            </Box>
+          </Container>
+        </ColumnLayout>
 
-            <Container header={<Header variant="h3">{t('pages.queue_stats.queue_status')}</Header>}>
-              <SpaceBetween size="m">
-                <Box>
-                  <Box>{t('pages.queue_stats.processing_rate')}: {stats.processing_rate} {t('pages.queue_stats.msg_per_sec')}</Box>
-                  <ProgressBar value={stats.processing_rate} label={t('pages.queue_stats.current_rate')} />
-                </Box>
-                <Box>
-                  <Box>{t('pages.queue_stats.average_wait_time')}: {stats.average_wait_time} {t('pages.queue_stats.seconds')}</Box>
-                  <ProgressBar value={Math.min(stats.average_wait_time, 100)} label={t('pages.queue_stats.wait_time')} />
-                </Box>
-              </SpaceBetween>
-            </Container>
-
-            <Container header={<Header variant="h3">{t('pages.queue_stats.last_updated')}</Header>}>
-              <Box color="text-body-secondary">
-                {new Date(stats.last_updated).toLocaleString()}
-              </Box>
-            </Container>
-          </>
-        )}
+        <Table
+          columnDefinitions={[
+            {
+              header: 'Topic',
+              cell: (q: QueueStat) => <Box fontWeight="bold">{q.topic}</Box>,
+              width: '25%',
+            },
+            {
+              header: 'Status',
+              cell: (q: QueueStat) => getStatusIndicator(q),
+              width: '15%',
+            },
+            {
+              header: 'Total',
+              cell: (q: QueueStat) => (q.count ?? 0).toLocaleString(),
+              width: '12%',
+            },
+            {
+              header: 'Ready',
+              cell: (q: QueueStat) => (
+                <Badge color={(q.ready_count ?? 0) > 0 ? 'severity-high' : 'grey'}>
+                  {(q.ready_count ?? 0).toLocaleString()}
+                </Badge>
+              ),
+              width: '12%',
+            },
+            {
+              header: 'Delayed',
+              cell: (q: QueueStat) => (q.delayed_count ?? 0).toLocaleString(),
+              width: '12%',
+            },
+            {
+              header: 'Stale',
+              cell: (q: QueueStat) => (
+                <Badge color={(q.stale_processing_count ?? 0) > 0 ? 'red' : 'grey'}>
+                  {(q.stale_processing_count ?? 0).toLocaleString()}
+                </Badge>
+              ),
+              width: '12%',
+            },
+            {
+              header: 'Oldest Ready',
+              cell: (q: QueueStat) => q.oldest_ready_at
+                ? new Date(q.oldest_ready_at).toLocaleString()
+                : '—',
+              width: '12%',
+            },
+          ]}
+          items={queues}
+          header={
+            <Header variant="h2" counter={`(${queues.length})`}>
+              {t('pages.queue_stats.queue_status')}
+            </Header>
+          }
+          empty={
+            <Box textAlign="center" padding="xl">
+              <StatusIndicator type="success">All queues idle</StatusIndicator>
+            </Box>
+          }
+        />
       </SpaceBetween>
     </ContentLayout>
   );

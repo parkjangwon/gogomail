@@ -31,6 +31,7 @@ export default function DomainSettingsPage() {
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newSetting, setNewSetting] = useState({ domain: '', key: '', value: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchDomainSettings();
@@ -50,6 +51,32 @@ export default function DomainSettingsPage() {
       console.error('Failed to fetch domain settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateSetting = async () => {
+    if (!newSetting.domain.trim() || !newSetting.key.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/domain-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain_name: newSetting.domain,
+          setting_key: newSetting.key,
+          setting_value: newSetting.value,
+        }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setNewSetting({ domain: '', key: '', value: '' });
+        fetchDomainSettings();
+      }
+    } catch (error) {
+      console.error('Failed to create domain setting:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -126,7 +153,7 @@ export default function DomainSettingsPage() {
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button variant="primary">Add Setting</Button>
+              <Button variant="primary" onClick={handleCreateSetting} loading={saving}>Add Setting</Button>
             </SpaceBetween>
           </Box>
         }

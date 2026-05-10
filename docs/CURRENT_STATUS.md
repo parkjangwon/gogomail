@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (TASK-088 Admin Console Complete - Authentication & User Management)
+Last updated: 2026-05-10 (Admin Console UX Overhaul - Multi-tenant company/domain management)
+
+## Recent changes (2026-05-10)
+- Fixed queue stats page runtime error (API response is `{queues:[]}` array, not single object)
+- Fixed domain-settings Add Setting button missing onClick handler
+- Added `company_name` to DomainView via JOIN (backend: maildb/admin.go)
+- Companies page: View button enabled with detail modal + post-create "Add Domain" CTA
+- Domains page: company relationship visible in table, filter-by-company, domain creation requires parent company selection
+- Company creation feature: full backend endpoint POST /admin/v1/companies implemented
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
