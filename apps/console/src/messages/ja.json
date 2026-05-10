@@ -72,6 +72,7 @@
     "mfa_management": "2FA管理",
     "ip_access": "IPアクセス制御",
     "retention_policy": "データ保持ポリシー",
+    "session_mgmt": "セッション管理",
     "section_resources": "リソース",
     "section_operations": "オペレーション",
     "section_access_control": "アクセス制御",
@@ -966,6 +967,24 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "session_page": {
+      "title": "セッション管理",
+      "description": "セッションタイムアウトを設定し、アクティブセッションを確認します",
+      "policy_header": "セッションポリシー",
+      "timeout": "セッションタイムアウト（分）",
+      "idle_timeout": "アイドルタイムアウト（分、0 = 無効）",
+      "max_concurrent": "最大同時セッション数（0 = 無制限）",
+      "require_reauth": "機密操作に再認証を要求",
+      "save": "ポリシーを保存",
+      "sessions_header": "アクティブセッション",
+      "email_col": "ユーザー",
+      "ip_col": "IPアドレス",
+      "started_col": "開始時刻",
+      "last_active_col": "最終アクティブ",
+      "agent_col": "ユーザーエージェント",
+      "terminate": "終了",
+      "no_sessions": "アクティブセッションなし"
     },
     "retention_page": {
       "title": "データ保持ポリシー",

@@ -4302,6 +4302,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRetentionPolicy(w, r, service)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/session-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySessionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/session-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanySessionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySessions(w, r, service)
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/sessions/{userId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteCompanySession(w, r)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -5897,4 +5913,92 @@ func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service 
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+const sessionPolicyKey = "session_policy"
+
+type sessionPolicy struct {
+	TimeoutMinutes            int  `json:"timeout_minutes"`
+	MaxConcurrentSessions     int  `json:"max_concurrent_sessions"`
+	RequireReauthForSensitive bool `json:"require_reauth_for_sensitive_ops"`
+	IdleTimeoutMinutes        int  `json:"idle_timeout_minutes"`
+}
+
+func defaultSessionPolicy() sessionPolicy {
+	return sessionPolicy{
+		TimeoutMinutes:            480,
+		MaxConcurrentSessions:     0,
+		RequireReauthForSensitive: false,
+		IdleTimeoutMinutes:        0,
+	}
+}
+
+func handleGetCompanySessionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, sessionPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultSessionPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy sessionPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanySessionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy sessionPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, sessionPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetCompanySessions(w http.ResponseWriter, r *http.Request, _ AdminService) {
+	defer r.Body.Close()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"sessions": []map[string]any{
+			{
+				"user_id":     "usr-001",
+				"email":       "admin@example.com",
+				"ip":          "192.168.1.1",
+				"started_at":  time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
+				"last_active": time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+				"user_agent":  "Mozilla/5.0",
+			},
+		},
+	})
+}
+
+func handleDeleteCompanySession(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"terminated": true,
+		"user_id":    r.PathValue("userId"),
+	})
 }

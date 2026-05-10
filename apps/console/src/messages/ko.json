@@ -72,6 +72,7 @@
     "mfa_management": "2FA 관리",
     "ip_access": "IP 접근 제어",
     "retention_policy": "데이터 보존 정책",
+    "session_mgmt": "세션 관리",
     "section_resources": "리소스",
     "section_operations": "운영",
     "section_access_control": "접근 제어",
@@ -478,6 +479,24 @@
       "save_btn": "저장",
       "type": "유형",
       "update_btn": "업데이트"
+    },
+    "session_page": {
+      "title": "세션 관리",
+      "description": "세션 타임아웃을 구성하고 활성 세션을 확인합니다",
+      "policy_header": "세션 정책",
+      "timeout": "세션 타임아웃 (분)",
+      "idle_timeout": "유휴 타임아웃 (분, 0 = 비활성화)",
+      "max_concurrent": "최대 동시 세션 수 (0 = 무제한)",
+      "require_reauth": "민감한 작업에 재인증 요구",
+      "save": "정책 저장",
+      "sessions_header": "활성 세션",
+      "email_col": "사용자",
+      "ip_col": "IP 주소",
+      "started_col": "시작 시간",
+      "last_active_col": "마지막 활동",
+      "agent_col": "사용자 에이전트",
+      "terminate": "종료",
+      "no_sessions": "활성 세션 없음"
     },
     "retention_page": {
       "title": "데이터 보존 정책",
