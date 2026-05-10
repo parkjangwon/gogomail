@@ -9,31 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-075
-- **제목**: Statistics & Dashboard Cache
-- **배경**: Phase 8-D. Implement admin dashboard statistics and caching.
-  - Real-time user/domain/mailbox statistics
-  - Cache computed metrics for performance
-  - Time-series data collection
-  - Dashboard data aggregation
-  - Cache invalidation strategy
+- **ID**: TASK-076
+- **제목**: API Metering
+- **배경**: Phase 8-E. Implement API usage tracking and rate limiting.
+  - Track API calls per user/domain
+  - Rate limiting enforcement
+  - Usage quota management
+  - Billing integration support
+  - Real-time usage reporting
 
 - **구현 대상**:
-  1. `internal/admin/statistics_service.go` — Statistics service
-  2. `internal/admin/statistics_service_test.go` — Unit tests
-  3. Metric computation
-  4. Cache management
-  5. Time-series storage
+  1. `internal/admin/metering_service.go` — API metering service
+  2. `internal/admin/metering_service_test.go` — Unit tests
+  3. Usage tracking and aggregation
+  4. Rate limit enforcement
+  5. Quota management
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] StatisticsService with metric collection
-  - [ ] Caching layer implementation
-  - [ ] Dashboard data aggregation
-  - [ ] Cache invalidation
+  - [ ] MeteringService with usage tracking
+  - [ ] Rate limiting middleware
+  - [ ] Quota enforcement
+  - [ ] Usage reporting
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-074 ✅ (Mail Log Queries & UI) — COMPLETE
+- **이전 태스크**: TASK-075 ✅ (Statistics & Dashboard Cache) — COMPLETE
 
 ---
 
