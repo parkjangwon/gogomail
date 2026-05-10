@@ -71,6 +71,7 @@
     "user_config": "User Config",
     "mfa_management": "2FA Management",
     "ip_access": "IP Access Control",
+    "auth_policy": "Auth Policy",
     "section_resources": "Resources",
     "section_operations": "Operations",
     "section_access_control": "Access Control",
@@ -469,6 +470,24 @@
       "reports": "Reports",
       "status": "Status",
       "title": "Title"
+    },
+    "auth_policy_page": {
+      "title": "Password & Auth Policy",
+      "description": "Configure password rules, MFA requirements, and session settings",
+      "password_section": "Password Policy",
+      "min_length": "Minimum Length",
+      "require_uppercase": "Require Uppercase",
+      "require_numbers": "Require Numbers",
+      "require_symbols": "Require Symbols",
+      "max_age_days": "Password Expiry (days, 0 = never)",
+      "history_count": "Password History (blocked reuse count)",
+      "mfa_section": "Multi-Factor Authentication",
+      "mfa_required": "Require MFA for all users",
+      "mfa_methods": "Allowed MFA Methods",
+      "session_section": "Session Settings",
+      "session_timeout": "Session Timeout (minutes)",
+      "max_concurrent": "Max Concurrent Sessions (0 = unlimited)",
+      "save": "Save Policy"
     },
     "ip_access_page": {
       "title": "IP Access Control",

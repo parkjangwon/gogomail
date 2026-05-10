@@ -4278,6 +4278,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainIPPolicy(w, r, service)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/auth-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyAuthPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/auth-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyAuthPolicy(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -5685,4 +5693,80 @@ func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "user deleted",
 	})
+}
+
+const authPolicyKey = "auth_policy"
+
+type authPolicy struct {
+	MinLength             int      `json:"min_length"`
+	RequireUppercase      bool     `json:"require_uppercase"`
+	RequireNumbers        bool     `json:"require_numbers"`
+	RequireSymbols        bool     `json:"require_symbols"`
+	MaxAgeDays            int      `json:"max_age_days"`
+	HistoryCount          int      `json:"history_count"`
+	MFARequired           bool     `json:"mfa_required"`
+	MFAMethods            []string `json:"mfa_methods"`
+	SessionTimeoutMinutes int      `json:"session_timeout_minutes"`
+	MaxConcurrentSessions int      `json:"max_concurrent_sessions"`
+}
+
+func defaultAuthPolicy() authPolicy {
+	return authPolicy{
+		MinLength:             8,
+		RequireUppercase:      false,
+		RequireNumbers:        false,
+		RequireSymbols:        false,
+		MaxAgeDays:            0,
+		HistoryCount:          0,
+		MFARequired:           false,
+		MFAMethods:            []string{"totp"},
+		SessionTimeoutMinutes: 480,
+		MaxConcurrentSessions: 0,
+	}
+}
+
+func handleGetCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, authPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultAuthPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy authPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanyAuthPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy authPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, authPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 }
