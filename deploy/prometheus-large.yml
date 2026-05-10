@@ -1,0 +1,114 @@
+# Prometheus configuration for large deployment with comprehensive monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'large'
+    environment: 'large-deployment'
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 10s
+
+  # Backend instances (distributed across nodes)
+  - job_name: 'gogomail-backend'
+    static_configs:
+      - targets:
+          - 'backend-1:8080'
+          - 'backend-2:8080'
+          - 'backend-3:8080'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL cluster (3-node cluster)
+  - job_name: 'postgres-cluster'
+    static_configs:
+      - targets:
+          - 'postgres-node-1:5432'
+          - 'postgres-node-2:5432'
+          - 'postgres-node-3:5432'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: postgres_node
+
+  # Redis cluster (3-node cluster)
+  - job_name: 'redis-cluster'
+    static_configs:
+      - targets:
+          - 'redis-node-1:6379'
+          - 'redis-node-2:6379'
+          - 'redis-node-3:6379'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: redis_node
+
+  # MinIO distributed (6-node cluster)
+  - job_name: 'minio-distributed'
+    bearer_token: ''
+    metrics_path: '/minio/v2/metrics/cluster'
+    static_configs:
+      - targets:
+          - 'minio-1:9000'
+          - 'minio-2:9000'
+          - 'minio-3:9000'
+          - 'minio-4:9000'
+          - 'minio-5:9000'
+          - 'minio-6:9000'
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: minio_node
+
+  # etcd cluster
+  - job_name: 'etcd'
+    static_configs:
+      - targets:
+          - 'etcd-1:2379'
+          - 'etcd-2:2379'
+          - 'etcd-3:2379'
+    scrape_interval: 30s
+
+  # Elasticsearch
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    scrape_interval: 30s
+
+  # HAProxy
+  - job_name: 'haproxy'
+    static_configs:
+      - targets: ['haproxy:8404']
+    scrape_interval: 30s
+    metrics_path: '/stats;csv'
+
+  # Node exporters (if deployed)
+  - job_name: 'node'
+    static_configs:
+      - targets:
+          - 'node-1:9100'
+          - 'node-2:9100'
+          - 'node-3:9100'
+    scrape_interval: 30s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: alertmanager
+
+rule_files:
+  # Alert rules for large deployments
+  - "alert-rules-large.yml"
+  # Recording rules for efficiency
+  - "record-rules-large.yml"

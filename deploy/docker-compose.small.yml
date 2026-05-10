@@ -1,0 +1,172 @@
+version: '3.9'
+
+# 소규모 배포 (1-5대 서버, 단일 데이터센터)
+# 특징: 단일 인스턴스, 기본 HA 없음, 최소 리소스
+
+services:
+  # PostgreSQL - Single Instance
+  postgres:
+    image: postgres:16-alpine
+    container_name: gogomail-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=100"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gogomail} -d ${POSTGRES_DB:-gogomail}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis - Single Instance
+  redis:
+    image: redis:7-alpine
+    container_name: gogomail-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # MinIO - Single Node
+  minio:
+    image: minio/minio:latest
+    container_name: gogomail-minio
+    restart: always
+    command: "server /data --console-address :9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # MinIO Init
+  minio-init:
+    image: minio/mc:latest
+    container_name: gogomail-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-gogomail} ${MINIO_ROOT_PASSWORD:-changepassword123};
+      mc mb --ignore-existing local/gogomail;
+      mc anonymous set none local/gogomail;
+      exit 0;
+      "
+    restart: "no"
+    networks:
+      - gogomail
+
+  # GoGoMail Backend
+  backend:
+    image: ${BACKEND_IMAGE:-gogomail:latest}
+    container_name: gogomail-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gogomail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-gogomail}
+
+      # Redis
+      REDIS_ADDR: redis:6379
+      REDIS_DB: 0
+
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-gogomail}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-changepassword123}
+      MINIO_USE_SSL: "false"
+
+      # App
+      APP_MODE: all-in-one
+      APP_LOG_LEVEL: info
+      APP_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - gogomail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  minio-data:
+    driver: local
+
+networks:
+  gogomail:
+    driver: bridge

@@ -1,0 +1,38 @@
+# Elasticsearch configuration for large deployment
+
+cluster.name: gogomail-es-cluster
+node.name: elasticsearch-node-1
+node.roles:
+  - master
+  - data
+  - ingest
+
+# Discovery
+discovery.type: single-node
+# For multi-node: discovery.seed_hosts: ["elasticsearch-node-2", "elasticsearch-node-3"]
+# cluster.initial_master_nodes: ["elasticsearch-node-1", "elasticsearch-node-2", "elasticsearch-node-3"]
+
+# Network
+network.host: 0.0.0.0
+http.port: 9200
+
+# Memory and JVM
+# Set via Docker environment variables or jvm.options
+
+# Logging
+logger.level: info
+logger.org.elasticsearch: WARN
+logger.org.elasticsearch.discovery: DEBUG
+
+# Indices
+action.auto_create_index: "+.watches,-*"
+
+# Security (if X-Pack is enabled)
+# xpack.security.enabled: true
+# xpack.security.enrollment.enabled: true
+
+# Monitoring
+xpack.monitoring.collection.enabled: true
+
+# Machine Learning (optional)
+# xpack.ml.enabled: true
