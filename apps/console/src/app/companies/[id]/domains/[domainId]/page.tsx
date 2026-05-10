@@ -226,12 +226,12 @@ export default function DomainDetailPage() {
           <Header
             variant="h1"
             description={
-              <SpaceBetween direction="horizontal" size="xs">
+              <>
                 <span>{t('pages.domain_detail.company')}: </span>
                 <Button variant="inline-link" onClick={() => router.push(`/companies/${companyId}`)}>
                   {domain.company_name || domain.company_id}
                 </Button>
-              </SpaceBetween>
+              </>
             }
             actions={
               <SpaceBetween direction="horizontal" size="xs">
