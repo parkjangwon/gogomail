@@ -44,8 +44,8 @@ api_metering_consumer_count: 100
 api_metering_consumer_block: 1s
 search_index_backend: disabled
 search_index_max_body_bytes: 1048576
-database_url: postgres://gogomail:gogomail@localhost:15432/gogomail?sslmode=disable
-redis_addr: localhost:16379
+database_url: postgres://gogomail:gogomail@postgres:5432/gogomail?sslmode=disable
+redis_addr: redis:6379
 storage_backend: local
 storage_backend_compat_labels: []
 storage_s3_endpoint: ""

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS alert_channels (
 
   -- Audit
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid REFERENCES admin_users(id) ON DELETE SET NULL,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
 
   CONSTRAINT valid_name CHECK (length(name) > 0)
 );
