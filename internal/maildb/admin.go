@@ -794,7 +794,7 @@ type DomainView struct {
 	NameACE              string     `json:"name_ace"`
 	Status               string     `json:"status"`
 	QuotaUsed            int64      `json:"quota_used"`
-	QuotaLimit           int64      `json:"quota_limit,omitempty"`
+	QuotaLimit           int64      `json:"quota_limit"`
 	QuotaRemaining       int64      `json:"quota_remaining"`
 	DefaultUserQuota     int64      `json:"default_user_quota,omitempty"`
 	AllocatedUserQuota   int64      `json:"allocated_user_quota"`

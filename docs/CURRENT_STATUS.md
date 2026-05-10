@@ -1,8 +1,9 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (Admin Console UX Overhaul - Multi-tenant company/domain management)
+Last updated: 2026-05-10 (Admin Console UX Overhaul - Domain detail page, real dashboard, NaN fix)
 
 ## Recent changes (2026-05-10)
+- Fixed DomainView.QuotaLimit omitempty causing NaN in frontend quota display (removed omitempty)
 - Fixed queue stats page runtime error (API response is `{queues:[]}` array, not single object)
 - Fixed domain-settings Add Setting button missing onClick handler
 - Added `company_name` to DomainView via JOIN (backend: maildb/admin.go)
