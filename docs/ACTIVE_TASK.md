@@ -5,85 +5,104 @@
 
 ---
 
-## ✅ TASK-087: Admin Console Frontend (Phase 3)
+## ⏳ TASK-088: Admin Console Complete (인증 & 사용자 관리)
 
-**STATUS: COMPLETE**
+**STATUS: IN_PROGRESS**
 
 ### 배경
 
-Admin Console 완성 단계:
+Admin Console Phase 3까지 완성:
 - TASK-085 (Dashboard, Audit, Org, Reports, Roles) ✅
 - TASK-086 (API Keys, Security, SSO, Domains, Compliance) ✅  
-- 마지막 Phase: 통합, 네비게이션, E2E 테스트
+- TASK-087 (Navigation, Layout, Auth endpoints) ✅
+- 마지막: 인증 완성, 사용자 관리, 모니터링
 
 ### 구현 대상
 
-#### 1. Navigation & Sidebar
-- 상황에 따른 메뉴 표시 (Company Admin/Super Admin)
-- 권한별 페이지 접근 제한
-- Active 페이지 하이라이트
-- 모바일 반응형 네비게이션
+#### 1. 인증 & 세션 완성
+- 로그인 페이지 완성 (UI/UX)
+- 로그아웃 기능
+- 세션 만료 처리
+- 토큰 갱신 (refresh token)
+- 비밀번호 재설정
 
-#### 2. 통합 & 레이아웃
-- 일관된 헤더 구성 (로고, 사용자 정보, 알림)
-- 공통 푸터 (버전, 문서 링크)
-- 권한 기반 페이지 표시
-- 로딩 및 에러 상태 처리
+#### 2. Admin 사용자 관리
+- Admin 사용자 CRUD API
+- 사용자 목록 페이지 (테이블)
+- 사용자 추가/편집 모달
+- 권한 할당 UI
+- 사용자 비활성화
 
-#### 3. 성능 최적화
-- Code splitting & lazy loading
-- 번들 크기 최적화
-- 이미지 최적화
-- 네트워크 요청 캐싱
+#### 3. 세션/프로필 관리
+- 현재 사용자 프로필 페이지
+- 비밀번호 변경
+- 로그인 이력
+- 활성 세션 관리
 
-#### 4. E2E 테스트 & 검증
-- 전체 워크플로우 E2E 테스트
-  * 로그인 → 대시보드 → 각 기능 페이지
-  * 데이터 생성/편집/삭제
-  * 권한 검증
-- 스크린샷 캡처
-- xlsx 결과 문서 작성 (한글)
+#### 4. 모니터링 & 알림
+- 시스템 상태 대시보드
+- Admin 활동 로그
+- 알림 설정 페이지
+- 실시간 알림 (WebSocket/SSE)
 
-#### 5. 접근성 & 성능
-- WCAG 2.1 AA 준수
-- 성능 지표 (LCP, FID, CLS)
-- SEO 기본 설정
+#### 5. 시스템 관리
+- 시스템 설정 페이지
+- 로그 뷰어
+- 성능 지표
+- 백업/복구 상태
 
 ### 완료 조건
 
-- [x] Sidebar 네비게이션 구현
-- [x] 권한 기반 메뉴 필터링
-- [x] 공통 헤더/푸터 구현
-- [x] 로딩 상태 처리
-- [x] 에러 처리 및 표시
-- [x] Code splitting 설정
-- [x] 성능 최적화
-- [x] WCAG 검사 통과
-- [x] E2E 테스트 실행
-- [x] 스크린샷 캡처
-- [x] xlsx 테스트 결과 문서
-- [x] docs/CURRENT_STATUS.md 최종 갱신
-- [x] git commit + push
+- [ ] 로그인 페이지 완성 (frontend 테스트)
+- [ ] 로그아웃 기능 구현
+- [ ] Admin 사용자 관리 CRUD API
+- [ ] Admin 사용자 관리 UI 페이지
+- [ ] 세션 관리 (만료, 갱신, 활성 세션)
+- [ ] 사용자 프로필 페이지
+- [ ] 시스템 모니터링 대시보드
+- [ ] Admin 활동 로그 기록 & UI
+- [ ] 알림 설정 & 실시간 알림
+- [ ] 로그 뷰어
+- [ ] go test ./... 통과
+- [ ] E2E 테스트 완성 (브라우저 기반, 스크린샷)
+- [ ] xlsx 결과 문서 갱신 (한글)
+- [ ] docs/CURRENT_STATUS.md 최종 갱신
+- [ ] git commit + push
 
 ### 다음 단계
 
-TASK-088: 웹페이지 실제 E2E 테스트 및 검증 (모든 기능)
+TASK-089: 웹메일 클라이언트 UI 개발 (또는 배포/프로덕션 준비)
 
 ### 루프 절차
 
 ```
 1. 이 파일 읽기
-2. Navigation & Sidebar 구현
-3. Layout 통합
-4. 성능 최적화
-5. 접근성 검사
-6. E2E 테스트 작성 및 실행
-7. 스크린샷 캡처
-8. xlsx 결과 문서 작성
-9. docs 최종 업데이트
-10. git commit + push
-11. 백엔드+프론트엔드 모두 띄워서 웹에서 직접 전체 기능 E2E 테스트 진행
+2. 로그인/로그아웃 완성
+3. Admin 사용자 관리 CRUD 구현
+4. 세션/프로필 관리 UI
+5. 모니터링 & 알림 시스템
+6. 시스템 관리 페이지들
+7. go test ./... 통과
+8. 브라우저 기반 E2E 테스트
+9. xlsx 결과 문서 작성
+10. docs 갱신
+11. git commit + push
+12. 다음 태스크로
 ```
 
-### 다음 태스크
-TASK-088: Full System E2E Testing (웹페이지 직접 테스트)
+### 우선순위 순서
+
+1. **높음 (필수)**
+   - 로그인/로그아웃 (사용자 접근 필수)
+   - Admin 사용자 관리 (운영 필수)
+   - 세션 관리 (보안)
+
+2. **중간 (중요)**
+   - 프로필/설정
+   - 활동 로그
+   - 시스템 모니터링
+
+3. **낮음 (부가)**
+   - 알림 시스템
+   - 로그 뷰어
+   - 백업/복구 상태

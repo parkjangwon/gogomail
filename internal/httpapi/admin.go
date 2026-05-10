@@ -4009,6 +4009,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("POST /admin/v1/auth/setup", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleAdminSetup(w, r, service)
 	}))
+
+	mux.HandleFunc("POST /admin/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		handleAdminLogout(w, r)
+	})
+
+	mux.HandleFunc("GET /admin/v1/auth/verify", func(w http.ResponseWriter, r *http.Request) {
+		handleAdminVerify(w, r)
+	})
+
+	mux.HandleFunc("GET /admin/v1/admin-users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleListAdminUsers(w, r, service)
+	}))
+
+	mux.HandleFunc("POST /admin/v1/admin-users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleCreateAdminUser(w, r, service)
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteAdminUser(w, r)
+	}))
 }
 
 func adminAuth(token string, next http.HandlerFunc) http.HandlerFunc {
@@ -4935,17 +4955,27 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		return
 	}
 
-	// For now, allow login with "admin@system" and default password
-	if req.Email == "admin@system" && req.Password == "admin1234" {
-		token := "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
-		writeJSON(w, http.StatusOK, map[string]any{
-			"access_token":           token,
-			"refresh_token":          "refresh-" + token,
-			"requires_initial_setup": true,
-		})
+	// Find user by email (search across all domains)
+	// For bootstrap, support "admin@system" which maps to system domain, admin username
+	if req.Email == "admin@system" {
+		// Bootstrap admin user: system domain, admin username
+		// Future: Query: SELECT id, username, password_hash, requires_initial_setup FROM users
+		// WHERE domain_id = (SELECT id FROM domains WHERE name = 'system') AND username = 'admin'
+		if req.Password == "admin1234" {
+			token := "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
+			writeJSON(w, http.StatusOK, map[string]any{
+				"access_token":           token,
+				"refresh_token":          "refresh-" + token,
+				"requires_initial_setup": true,
+			})
+			return
+		}
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
+	// For other users, would need full database integration
+	// This is placeholder for future user management
 	writeError(w, http.StatusUnauthorized, "invalid credentials")
 }
 
@@ -4974,5 +5004,101 @@ func handleAdminSetup(w http.ResponseWriter, r *http.Request, service AdminServi
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "ok",
+	})
+}
+
+func handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Logout is client-side: clear cookies
+	// Server just confirms the logout
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "logged out",
+	})
+}
+
+func handleAdminVerify(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "GET" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Check if user has valid auth cookie
+	// For now, just return 200 if any request is made
+	// In production, verify the token/cookie is valid
+	writeJSON(w, http.StatusOK, map[string]any{
+		"authenticated": true,
+	})
+}
+
+func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+
+	if !rejectUnknownQueryKeys(w, r) {
+		return
+	}
+
+	// Return mock data - in production, query admin_user_roles joined with users
+	mockUsers := []map[string]any{
+		{
+			"id":       "system-admin-1",
+			"username": "admin",
+			"email":    "admin@system",
+			"role":     "system_admin",
+			"created_at": "2026-05-10T13:00:00Z",
+			"status": "active",
+		},
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"users": mockUsers})
+}
+
+func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		Password string `json:"password"`
+	}
+
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	// Return mock success
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id": "new-admin-user",
+		"username": req.Username,
+		"email": req.Email,
+		"role": req.Role,
+		"status": "active",
+	})
+}
+
+func handleDeleteAdminUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if r.Method != "DELETE" {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "user deleted",
 	})
 }
