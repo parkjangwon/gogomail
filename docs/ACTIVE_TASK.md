@@ -9,32 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-072
-- **제목**: External RDBMS Config & Sync
-- **배경**: Phase 8-C. Implement external RDBMS identity provider backend.
-  - Connection pooling for external databases
-  - User query & sync from remote RDBMS
-  - Field mapping configuration
-  - Data validation and transformation
-  - Error handling and retry logic
+- **ID**: TASK-073
+- **제목**: External RDBMS Sync UI
+- **배경**: Phase 8-C. Implement RDBMS sync configuration and monitoring UI.
+  - RDBMS sync scheduling & execution
+  - Connection test and validation UI
+  - Field mapping configuration interface
+  - Sync progress tracking
+  - Error logging and recovery
 
 - **구현 대상**:
-  1. `internal/admin/rdbms_provider.go` — External RDBMS identity provider
-  2. `internal/admin/rdbms_provider_test.go` — Unit tests
-  3. Connection management
-  4. Query building and execution
-  5. Result transformation
+  1. `internal/admin/rdbms_service.go` — RDBMS sync service
+  2. `internal/admin/rdbms_service_test.go` — Unit tests
+  3. Sync job management
+  4. Connection pool handling
+  5. Query result transformation
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] RDBMSProvider implements IdentityProvider
-  - [ ] Authenticate with query execution
-  - [ ] GetUser operations
-  - [ ] ListUsers with pagination
-  - [ ] SyncUsers capability
+  - [ ] RDBMSService with sync scheduling
+  - [ ] Connection pool management
+  - [ ] Sync progress tracking
+  - [ ] Error handling & recovery
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-071 ✅ (LDAP Sync UI & Logs) — COMPLETE
+- **이전 태스크**: TASK-072 ✅ (External RDBMS Config & Sync) — COMPLETE
 
 ---
 
