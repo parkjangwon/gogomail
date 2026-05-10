@@ -71,6 +71,7 @@
     "user_config": "사용자 설정",
     "mfa_management": "2FA 관리",
     "ip_access": "IP 접근 제어",
+    "retention_policy": "데이터 보존 정책",
     "section_resources": "리소스",
     "section_operations": "운영",
     "section_access_control": "접근 제어",
@@ -477,6 +478,19 @@
       "save_btn": "저장",
       "type": "유형",
       "update_btn": "업데이트"
+    },
+    "retention_page": {
+      "title": "데이터 보존 정책",
+      "description": "자동 삭제 전 데이터 보존 기간을 설정합니다",
+      "mail_retention": "메일 보존 기간 (일, 0 = 영구 보존)",
+      "deleted_retention": "삭제된 항목 보존 기간 (일)",
+      "audit_retention": "감사 로그 보존 기간 (일)",
+      "attachment_retention": "첨부파일 보존 기간 (일, 0 = 영구 보존)",
+      "auto_purge": "자동 삭제 활성화",
+      "auto_purge_desc": "설정된 보존 기간보다 오래된 데이터를 자동으로 삭제합니다",
+      "warning": "경고: 자동 삭제를 활성화하면 보존 기간을 초과한 데이터가 영구적으로 삭제됩니다. 이 작업은 취소할 수 없습니다.",
+      "save": "정책 저장",
+      "scope_note": "회사 수준 정책은 재정의되지 않는 한 모든 도메인에 적용됩니다."
     },
     "ip_access_page": {
       "title": "IP 접근 제어",

@@ -4286,6 +4286,22 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/auth-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyAuthPolicy(w, r, service)
 	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyRetentionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyRetentionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainRetentionPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainRetentionPolicy(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -4571,6 +4587,118 @@ func handlePutCompanyIPPolicy(w http.ResponseWriter, r *http.Request, service Ad
 		return
 	}
 	if _, err := service.SetCompanyConfig(r.Context(), id, ipAccessPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+const retentionPolicyKey = "retention_policy"
+
+type retentionPolicy struct {
+	MailRetentionDays         int  `json:"mail_retention_days"`
+	DeletedItemsRetentionDays int  `json:"deleted_items_retention_days"`
+	AuditLogRetentionDays     int  `json:"audit_log_retention_days"`
+	AttachmentRetentionDays   int  `json:"attachment_retention_days"`
+	AutoPurgeEnabled          bool `json:"auto_purge_enabled"`
+}
+
+func defaultRetentionPolicy() retentionPolicy {
+	return retentionPolicy{
+		MailRetentionDays:         0,
+		DeletedItemsRetentionDays: 30,
+		AuditLogRetentionDays:     365,
+		AttachmentRetentionDays:   0,
+		AutoPurgeEnabled:          false,
+	}
+}
+
+func handleGetCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, retentionPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRetentionPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy retentionPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanyRetentionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy retentionPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, retentionPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, retentionPolicyKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"policy": defaultRetentionPolicy()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var policy retentionPolicy
+	if err := json.Unmarshal(entry.Value, &policy); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainRetentionPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy retentionPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, retentionPolicyKey, json.RawMessage(b), false, 0); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

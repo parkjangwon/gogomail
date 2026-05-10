@@ -6893,6 +6893,128 @@ paths:
                     $ref: "#/components/schemas/AuthPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/retention-policy:
+    get:
+      operationId: adminGetCompanyRetentionPolicy
+      summary: Get company data retention policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanyRetentionPolicy
+      summary: Set company data retention policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetentionPolicy"
+      responses:
+        "200":
+          description: Saved retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/security/retention-policy:
+    get:
+      operationId: adminGetDomainRetentionPolicy
+      summary: Get domain data retention policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutDomainRetentionPolicy
+      summary: Set domain data retention policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetentionPolicy"
+      responses:
+        "200":
+          description: Saved retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/RetentionPolicy"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -8109,6 +8231,19 @@ components:
           type: integer
         max_concurrent_sessions:
           type: integer
+    RetentionPolicy:
+      type: object
+      properties:
+        mail_retention_days:
+          type: integer
+        deleted_items_retention_days:
+          type: integer
+        audit_log_retention_days:
+          type: integer
+        attachment_retention_days:
+          type: integer
+        auto_purge_enabled:
+          type: boolean
     HealthResponse:
       type: object
       required: [status]

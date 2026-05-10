@@ -71,6 +71,7 @@
     "user_config": "用户配置",
     "mfa_management": "2FA管理",
     "ip_access": "IP访问控制",
+    "retention_policy": "数据保留策略",
     "section_resources": "资源",
     "section_operations": "运营",
     "section_access_control": "访问控制",
@@ -965,6 +966,19 @@
       "reason_desc": "Reason Desc",
       "reason_label": "Reason",
       "title": "Title"
+    },
+    "retention_page": {
+      "title": "数据保留策略",
+      "description": "配置数据在自动删除前的保留时长",
+      "mail_retention": "邮件保留时长（天，0 = 永久）",
+      "deleted_retention": "已删除项目保留时长（天）",
+      "audit_retention": "审计日志保留时长（天）",
+      "attachment_retention": "附件保留时长（天，0 = 永久）",
+      "auto_purge": "启用自动清除",
+      "auto_purge_desc": "自动删除超过配置保留期限的数据",
+      "warning": "警告：启用自动清除将永久删除超出保留期限的数据。此操作无法撤销。",
+      "save": "保存策略",
+      "scope_note": "公司级策略适用于所有域，除非被覆盖。"
     },
     "ip_access_page": {
       "title": "IP访问控制",
