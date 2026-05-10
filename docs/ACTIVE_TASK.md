@@ -9,6 +9,11 @@
 
 **STATUS: IN PROGRESS**
 
+### 핫픽스 적용 (2026-05-11)
+- `internal/maildb/admin.go`: `NULLIF($N, 0)` → `NULLIF($N::bigint, 0)` — pgx int4 타입 추론 오버플로우 수정 (도메인/사용자/회사 quota 5곳)
+- `apps/console` 도메인 모달 React key prop 경고 수정
+- 웹메일 next-intl 인프라 추가 (ko/en/ja/zh-CN)
+
 ### 배경
 
 Admin Console (TASK-088)이 완성되었고, 이제 최종 사용자가 사용할 메인 웹메일 클라이언트를 개발한다.

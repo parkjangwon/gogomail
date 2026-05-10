@@ -305,6 +305,7 @@ export default function DomainsPage() {
         >
           <SpaceBetween size="m">
             <FormField
+              key="company"
               label={t('pages.tenancy_domains.company')}
               description={t('pages.tenancy_domains.filter_by_company')}
             >
@@ -320,14 +321,14 @@ export default function DomainsPage() {
                 empty={t('pages.tenancy_domains.no_companies')}
               />
             </FormField>
-            <FormField label={t('pages.domains.domain_name')}>
+            <FormField key="name" label={t('pages.domains.domain_name')}>
               <Input
                 value={newDomain.name}
                 onChange={(e) => setNewDomain({ ...newDomain, name: e.detail.value })}
                 placeholder="example.com"
               />
             </FormField>
-            <FormField label={t('pages.tenancy_domains.storage_quota_gb')}>
+            <FormField key="quota" label={t('pages.tenancy_domains.storage_quota_gb')}>
               <Input
                 type="number"
                 value={newDomain.quota_gb}
@@ -335,7 +336,7 @@ export default function DomainsPage() {
               />
             </FormField>
             {createError && (
-              <Alert type="error" onDismiss={() => setCreateError('')}>
+              <Alert key="error" type="error" onDismiss={() => setCreateError('')}>
                 {createError}
               </Alert>
             )}
