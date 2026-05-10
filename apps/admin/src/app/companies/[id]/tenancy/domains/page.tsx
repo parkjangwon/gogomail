@@ -13,16 +13,12 @@ import {
   FormField,
   Input,
   TextFilter,
-  Tabs,
-  Container,
-  KeyValuePairs,
   Select,
   StatusIndicator,
-  ColumnLayout,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 interface Domain {
   id: string;
@@ -48,6 +44,7 @@ interface Company {
 export default function DomainsPage() {
   const { t } = useI18n();
   const params = useParams();
+  const router = useRouter();
   const companyId = params?.id as string;
 
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -56,8 +53,6 @@ export default function DomainsPage() {
   const [filter, setFilter] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [newDomain, setNewDomain] = useState({ name: '', company_id: companyId === 'default' ? '' : companyId, quota_gb: '100' });
   const [creating, setCreating] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
@@ -186,7 +181,7 @@ export default function DomainsPage() {
             {
               header: 'Domain',
               cell: (d: Domain) => (
-                <Button variant="inline-link" onClick={() => { setSelectedDomain(d); setShowDetailsModal(true); }}>
+                <Button variant="inline-link" onClick={() => router.push(`/companies/${d.company_id}/domains/${d.id}`)}>
                   {d.name}
                 </Button>
               ),
@@ -217,11 +212,19 @@ export default function DomainsPage() {
             {
               header: 'Quota Used',
               cell: (d: Domain) => {
-                const pct = d.quota_limit > 0 ? Math.round((d.quota_used / d.quota_limit) * 100) : 0;
+                const limit = d.quota_limit ?? 0;
+                const used = d.quota_used ?? 0;
+                const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
                 return (
                   <Box>
-                    <Box>{`${(d.quota_used / 1073741824).toFixed(1)} / ${(d.quota_limit / 1073741824).toFixed(1)} GB`}</Box>
-                    <Box color={pct > 80 ? 'text-status-error' : 'text-body-secondary'} fontSize="body-s">{pct}%</Box>
+                    <Box>
+                      {limit > 0
+                        ? `${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`
+                        : `${(used / 1073741824).toFixed(1)} GB (unlimited)`}
+                    </Box>
+                    {limit > 0 && (
+                      <Box color={pct > 80 ? 'text-status-error' : 'text-body-secondary'} fontSize="body-s">{pct}%</Box>
+                    )}
                   </Box>
                 );
               },
@@ -327,74 +330,6 @@ export default function DomainsPage() {
           </SpaceBetween>
         </Modal>
 
-        {/* Domain Details Modal */}
-        {selectedDomain && (
-          <Modal
-            onDismiss={() => setShowDetailsModal(false)}
-            visible={showDetailsModal}
-            size="large"
-            header={
-              <SpaceBetween direction="horizontal" size="xs">
-                <Box fontWeight="bold">{selectedDomain.name}</Box>
-                <Badge color={selectedDomain.status === 'active' ? 'green' : 'grey'}>{selectedDomain.status}</Badge>
-              </SpaceBetween>
-            }
-          >
-            <Tabs
-              tabs={[
-                {
-                  label: 'Overview',
-                  id: 'overview',
-                  content: (
-                    <SpaceBetween size="m">
-                      <Container header={<Header variant="h3">Domain Information</Header>}>
-                        <ColumnLayout columns={2}>
-                          <KeyValuePairs
-                            items={[
-                              { label: 'Domain', value: selectedDomain.name },
-                              { label: 'Company', value: selectedDomain.company_name || selectedDomain.company_id },
-                              { label: 'Status', value: <Badge color={selectedDomain.status === 'active' ? 'green' : 'grey'}>{selectedDomain.status}</Badge> },
-                              { label: 'Created', value: new Date(selectedDomain.created_at).toLocaleString() },
-                            ]}
-                          />
-                          <KeyValuePairs
-                            items={[
-                              { label: 'Storage Used', value: `${(selectedDomain.quota_used / 1073741824).toFixed(2)} GB` },
-                              { label: 'Storage Limit', value: selectedDomain.quota_limit > 0 ? `${(selectedDomain.quota_limit / 1073741824).toFixed(2)} GB` : 'Unlimited' },
-                              { label: 'User Quota Allocated', value: `${(selectedDomain.allocated_user_quota / 1073741824).toFixed(2)} GB` },
-                            ]}
-                          />
-                        </ColumnLayout>
-                      </Container>
-                    </SpaceBetween>
-                  ),
-                },
-                {
-                  label: 'DNS Status',
-                  id: 'dns',
-                  content: (
-                    <Container header={<Header variant="h3">DNS Health</Header>}>
-                      <SpaceBetween size="m">
-                        <KeyValuePairs
-                          items={[
-                            { label: 'Overall DNS Status', value: getDNSBadge(selectedDomain.last_dns_check_status) },
-                          ]}
-                        />
-                        <Button
-                          variant="primary"
-                          onClick={() => handleVerifyDNS(selectedDomain.id)}
-                          loading={verifying === selectedDomain.id}
-                        >
-                          Run DNS Verification
-                        </Button>
-                      </SpaceBetween>
-                    </Container>
-                  ),
-                },
-              ]}
-            />
-          </Modal>
-        )}
       </SpaceBetween>
     </ContentLayout>
   );
