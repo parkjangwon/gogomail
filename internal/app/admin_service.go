@@ -1559,3 +1559,15 @@ func (s adminService) LogAlertEvent(ctx context.Context, event *admin.AlertEvent
 	}
 	return s.adminSvc.LogAlertEvent(ctx, event)
 }
+
+func (s adminService) GetUserMFAStatus(ctx context.Context, userID string) (maildb.UserMFAStatus, error) {
+	return s.Repository.GetUserMFAStatus(ctx, userID)
+}
+
+func (s adminService) ResetUserMFA(ctx context.Context, userID string) error {
+	return s.Repository.ResetUserMFA(ctx, userID)
+}
+
+func (s adminService) GetMFAStats(ctx context.Context, companyID string) (maildb.MFAStats, error) {
+	return s.Repository.GetMFAStats(ctx, companyID)
+}

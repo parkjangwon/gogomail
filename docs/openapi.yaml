@@ -6054,6 +6054,46 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /users/{id}/mfa:
+    get:
+      operationId: getAdminUserMFAStatus
+      summary: Admin get user MFA status
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: User MFA status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mfa_status:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: resetAdminUserMFA
+      summary: Admin reset user MFA
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /config/stream:
     get:
       operationId: streamAdminConfig
@@ -6071,6 +6111,30 @@ paths:
             text/event-stream:
               schema:
                 type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/mfa/stats:
+    get:
+      operationId: getAdminMFAStats
+      summary: Admin get company MFA adoption stats
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: MFA adoption statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mfa_stats:
+                    type: object
         default:
           $ref: "#/components/responses/Error"
   /companies/{id}/alert-rules:
