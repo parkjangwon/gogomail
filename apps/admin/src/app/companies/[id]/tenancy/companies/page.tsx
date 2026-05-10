@@ -25,6 +25,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
 interface Company {
   id: string;
@@ -50,20 +51,20 @@ interface DomainSummary {
 export default function CompaniesPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const params = useParams();
+  const cid = params?.id as string;
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: '', quota_gb: '' });
   const [creating, setCreating] = useState(false);
   const [createdCompany, setCreatedCompany] = useState<Company | null>(null);
   const [showPostCreateGuide, setShowPostCreateGuide] = useState(false);
 
-  // Detail modal
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [companyDomains, setCompanyDomains] = useState<DomainSummary[]>([]);
@@ -81,8 +82,6 @@ export default function CompaniesPage() {
         const data = await res.json();
         setCompanies(data.companies || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch companies:', error);
     } finally {
       setLoading(false);
     }
@@ -96,8 +95,6 @@ export default function CompaniesPage() {
         const data = await res.json();
         setCompanyDomains(data.domains || []);
       }
-    } catch (error) {
-      console.error('Failed to fetch domains:', error);
     } finally {
       setLoadingDomains(false);
     }
@@ -130,8 +127,6 @@ export default function CompaniesPage() {
         setShowPostCreateGuide(true);
         fetchCompanies();
       }
-    } catch (error) {
-      console.error('Failed to create company:', error);
     } finally {
       setCreating(false);
     }
@@ -166,7 +161,7 @@ export default function CompaniesPage() {
           counter={`(${companies.length})`}
           actions={
             <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              + Create Company
+              {t('pages.companies.create_company')}
             </Button>
           }
         >
@@ -180,29 +175,29 @@ export default function CompaniesPage() {
             type="success"
             dismissible
             onDismiss={() => setShowPostCreateGuide(false)}
-            header={`"${createdCompany.name}" was created successfully`}
+            header={`"${createdCompany.name}"`}
             action={
               <Button
                 variant="primary"
                 onClick={() => {
                   setShowPostCreateGuide(false);
-                  router.push(`/companies/default/tenancy/domains`);
+                  router.push(`/companies/${cid}/tenancy/domains`);
                 }}
               >
-                Add Domain Now
+                {t('pages.companies.add_domain_now')}
               </Button>
             }
           >
-            Next step: add a domain so users can send and receive mail under this company.
+            {t('pages.companies.created_next_step')}
           </Alert>
         )}
 
         <Table
           columnDefinitions={[
             {
-              header: 'Company Name',
+              header: t('pages.companies.company_name'),
               cell: (c: Company) => (
-                <Button variant="inline-link" onClick={() => handleViewCompany(c)}>
+                <Button variant="inline-link" onClick={() => router.push(`/companies/${c.id}`)}>
                   {c.name}
                 </Button>
               ),
@@ -218,21 +213,21 @@ export default function CompaniesPage() {
               width: '10%',
             },
             {
-              header: 'Storage Quota',
+              header: t('pages.companies.storage_quota'),
               cell: (c: Company) => {
-                const pct = getQuotaPercent(c.quota_used, c.quota_limit);
-                return c.quota_limit > 0 ? (
-                  <Box>
-                    <ProgressBar
-                      value={pct}
-                      status={c.over_allocated ? 'error' : pct > 80 ? 'in-progress' : 'success'}
-                      resultText={`${pct}%`}
-                      additionalInfo={`${(c.quota_used / 1073741824).toFixed(1)} / ${(c.quota_limit / 1073741824).toFixed(1)} GB`}
-                    />
-                  </Box>
-                ) : <Box color="text-body-secondary">Unlimited</Box>;
+                const limit = c.quota_limit ?? 0;
+                const used = c.quota_used ?? 0;
+                const pct = getQuotaPercent(used, limit);
+                return limit > 0 ? (
+                  <ProgressBar
+                    value={pct}
+                    status={c.over_allocated ? 'error' : pct > 80 ? 'in-progress' : 'success'}
+                    resultText={`${pct}%`}
+                    additionalInfo={`${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`}
+                  />
+                ) : <Box color="text-body-secondary">{t('pages.companies.unlimited')}</Box>;
               },
-              width: '28%',
+              width: '30%',
             },
             {
               header: t('pages.companies.created'),
@@ -240,27 +235,33 @@ export default function CompaniesPage() {
               width: '15%',
             },
             {
-              header: 'Actions',
+              header: t('pages.companies.actions'),
               cell: (c: Company) => (
                 <SpaceBetween direction="horizontal" size="xs">
-                  <Button variant="inline-link" onClick={() => handleViewCompany(c)}>View</Button>
+                  <Button variant="inline-link" onClick={() => handleViewCompany(c)}>
+                    {t('pages.companies.view')}
+                  </Button>
                   <Button
                     variant="inline-link"
-                    onClick={() => router.push(`/companies/default/tenancy/domains`)}
+                    onClick={() => router.push(`/companies/${c.id}/tenancy/domains`)}
                   >
-                    Add Domain
+                    {t('pages.companies.add_domain')}
                   </Button>
                 </SpaceBetween>
               ),
-              width: '22%',
+              width: '20%',
             },
           ]}
           items={paginatedCompanies}
-          header={<Header variant="h2" counter={`(${filteredCompanies.length})`}>Company List</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredCompanies.length})`}>
+              {t('pages.companies.company_list')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}
-              filteringPlaceholder="Search by company name"
+              filteringPlaceholder={t('pages.companies.search_placeholder')}
               onChange={(e) => { setFilter(e.detail.filteringText); setCurrentPage(1); }}
             />
           }
@@ -274,8 +275,10 @@ export default function CompaniesPage() {
           empty={
             <Box textAlign="center" padding="l">
               <SpaceBetween size="m" alignItems="center">
-                <StatusIndicator type="info">No companies yet</StatusIndicator>
-                <Button variant="primary" onClick={() => setShowCreateModal(true)}>Create your first company</Button>
+                <StatusIndicator type="info">{t('pages.companies.no_companies')}</StatusIndicator>
+                <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                  {t('pages.companies.create_first')}
+                </Button>
               </SpaceBetween>
             </Box>
           }
@@ -289,38 +292,41 @@ export default function CompaniesPage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowCreateModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
               <Button
                 variant="primary"
                 onClick={handleCreateCompany}
                 loading={creating}
                 disabled={!newCompany.name.trim()}
               >
-                Create Company
+                {t('pages.companies.create_company_btn')}
               </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Create New Company"
+        header={t('pages.companies.create_modal_title')}
       >
         <SpaceBetween size="m">
-          <FormField label="Company Name" constraintText="Must be unique">
+          <FormField
+            label={t('pages.companies.company_name')}
+            constraintText={t('pages.companies.name_constraint')}
+          >
             <Input
               value={newCompany.name}
               onChange={(e) => setNewCompany({ ...newCompany, name: e.detail.value })}
-              placeholder="e.g., ACME Corp"
+              placeholder={t('pages.companies.name_placeholder')}
               autoFocus
             />
           </FormField>
           <FormField
-            label="Storage Quota (GB)"
-            description="Leave empty for unlimited"
+            label={t('pages.companies.quota_label')}
+            description={t('pages.companies.quota_desc')}
           >
             <Input
               type="number"
               value={newCompany.quota_gb}
               onChange={(e) => setNewCompany({ ...newCompany, quota_gb: e.detail.value })}
-              placeholder="e.g., 500"
+              placeholder={t('pages.companies.quota_placeholder')}
             />
           </FormField>
         </SpaceBetween>
@@ -344,12 +350,14 @@ export default function CompaniesPage() {
                 <Button
                   onClick={() => {
                     setShowDetailModal(false);
-                    router.push(`/companies/default/tenancy/domains`);
+                    router.push(`/companies/${selectedCompany.id}/tenancy/domains`);
                   }}
                 >
-                  Add Domain
+                  {t('pages.companies.add_domain')}
                 </Button>
-                <Button variant="primary" onClick={() => setShowDetailModal(false)}>Close</Button>
+                <Button variant="primary" onClick={() => setShowDetailModal(false)}>
+                  {t('pages.companies.close')}
+                </Button>
               </SpaceBetween>
             </Box>
           }
@@ -357,31 +365,31 @@ export default function CompaniesPage() {
           <Tabs
             tabs={[
               {
-                label: 'Overview',
+                label: t('pages.companies.overview_tab'),
                 id: 'overview',
                 content: (
                   <SpaceBetween size="m">
                     <ColumnLayout columns={2}>
-                      <Container header={<Header variant="h3">Company Info</Header>}>
+                      <Container header={<Header variant="h3">{t('pages.companies.company_info')}</Header>}>
                         <KeyValuePairs
                           items={[
-                            { label: 'Company ID', value: <Box fontSize="body-s" color="text-body-secondary">{selectedCompany.id}</Box> },
-                            { label: 'Status', value: <Badge color={selectedCompany.status === 'active' ? 'green' : 'grey'}>{selectedCompany.status}</Badge> },
-                            { label: 'Created', value: new Date(selectedCompany.created_at).toLocaleString() },
+                            { label: t('pages.companies.company_id_label'), value: <Box fontSize="body-s" color="text-body-secondary">{selectedCompany.id}</Box> },
+                            { label: t('pages.companies.status'), value: <Badge color={selectedCompany.status === 'active' ? 'green' : 'grey'}>{selectedCompany.status}</Badge> },
+                            { label: t('pages.companies.created'), value: new Date(selectedCompany.created_at).toLocaleString() },
                           ]}
                         />
                       </Container>
-                      <Container header={<Header variant="h3">Storage</Header>}>
+                      <Container header={<Header variant="h3">{t('pages.companies.storage')}</Header>}>
                         <KeyValuePairs
                           items={[
-                            { label: 'Used', value: `${(selectedCompany.quota_used / 1073741824).toFixed(2)} GB` },
-                            { label: 'Limit', value: selectedCompany.quota_limit > 0 ? `${(selectedCompany.quota_limit / 1073741824).toFixed(2)} GB` : 'Unlimited' },
-                            { label: 'Remaining', value: selectedCompany.quota_limit > 0 ? `${(selectedCompany.quota_remaining / 1073741824).toFixed(2)} GB` : '—' },
+                            { label: t('pages.companies.used'), value: `${((selectedCompany.quota_used ?? 0) / 1073741824).toFixed(2)} GB` },
+                            { label: t('pages.companies.limit'), value: (selectedCompany.quota_limit ?? 0) > 0 ? `${(selectedCompany.quota_limit / 1073741824).toFixed(2)} GB` : t('pages.companies.unlimited') },
+                            { label: t('pages.companies.remaining'), value: (selectedCompany.quota_limit ?? 0) > 0 ? `${((selectedCompany.quota_remaining ?? 0) / 1073741824).toFixed(2)} GB` : '—' },
                             {
-                              label: 'Utilization',
-                              value: selectedCompany.quota_limit > 0
+                              label: t('pages.companies.utilization'),
+                              value: (selectedCompany.quota_limit ?? 0) > 0
                                 ? <ProgressBar value={getQuotaPercent(selectedCompany.quota_used, selectedCompany.quota_limit)} resultText={`${getQuotaPercent(selectedCompany.quota_used, selectedCompany.quota_limit)}%`} />
-                                : '—'
+                                : '—',
                             },
                           ]}
                         />
@@ -391,63 +399,66 @@ export default function CompaniesPage() {
                 ),
               },
               {
-                label: `Domains (${companyDomains.length})`,
+                label: `${t('pages.companies.domains_tab')} (${companyDomains.length})`,
                 id: 'domains',
                 content: loadingDomains ? (
                   <Box textAlign="center" padding="l"><Spinner /></Box>
+                ) : companyDomains.length === 0 ? (
+                  <Box textAlign="center" padding="l">
+                    <SpaceBetween size="m" alignItems="center">
+                      <StatusIndicator type="warning">{t('pages.companies.no_domains')}</StatusIndicator>
+                      <Box color="text-body-secondary">{t('pages.companies.no_domains_desc')}</Box>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          router.push(`/companies/${selectedCompany.id}/tenancy/domains`);
+                        }}
+                      >
+                        {t('pages.companies.add_domain')}
+                      </Button>
+                    </SpaceBetween>
+                  </Box>
                 ) : (
-                  <SpaceBetween size="m">
-                    {companyDomains.length === 0 ? (
-                      <Box textAlign="center" padding="l">
-                        <SpaceBetween size="m" alignItems="center">
-                          <StatusIndicator type="warning">No domains configured</StatusIndicator>
-                          <Box color="text-body-secondary">Add a domain to enable mail services for this company.</Box>
-                          <Button
-                            variant="primary"
-                            onClick={() => {
-                              setShowDetailModal(false);
-                              router.push(`/companies/default/tenancy/domains`);
-                            }}
-                          >
-                            + Add Domain
+                  <Table
+                    columnDefinitions={[
+                      {
+                        header: t('pages.companies.domain'),
+                        cell: (d: DomainSummary) => (
+                          <Button variant="inline-link" onClick={() => {
+                            setShowDetailModal(false);
+                            router.push(`/companies/${selectedCompany.id}/domains/${d.id}`);
+                          }}>
+                            {d.name}
                           </Button>
-                        </SpaceBetween>
-                      </Box>
-                    ) : (
-                      <Table
-                        columnDefinitions={[
-                          {
-                            header: 'Domain',
-                            cell: (d: DomainSummary) => d.name,
-                            width: '40%',
-                          },
-                          {
-                            header: 'Status',
-                            cell: (d: DomainSummary) => (
-                              <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
-                            ),
-                            width: '20%',
-                          },
-                          {
-                            header: 'DNS',
-                            cell: (d: DomainSummary) => (
-                              <Badge color={d.last_dns_check_status === 'pass' ? 'green' : d.last_dns_check_status === 'fail' ? 'red' : 'grey'}>
-                                {d.last_dns_check_status || 'Unchecked'}
-                              </Badge>
-                            ),
-                            width: '20%',
-                          },
-                          {
-                            header: 'Added',
-                            cell: (d: DomainSummary) => new Date(d.created_at).toLocaleDateString(),
-                            width: '20%',
-                          },
-                        ]}
-                        items={companyDomains}
-                        header={<Header variant="h3">Domains under {selectedCompany.name}</Header>}
-                      />
-                    )}
-                  </SpaceBetween>
+                        ),
+                        width: '40%',
+                      },
+                      {
+                        header: t('pages.companies.status'),
+                        cell: (d: DomainSummary) => (
+                          <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
+                        ),
+                        width: '20%',
+                      },
+                      {
+                        header: t('pages.companies.dns'),
+                        cell: (d: DomainSummary) => (
+                          <Badge color={d.last_dns_check_status === 'pass' ? 'green' : d.last_dns_check_status === 'fail' ? 'red' : 'grey'}>
+                            {d.last_dns_check_status || 'Unchecked'}
+                          </Badge>
+                        ),
+                        width: '20%',
+                      },
+                      {
+                        header: t('pages.companies.added'),
+                        cell: (d: DomainSummary) => new Date(d.created_at).toLocaleDateString(),
+                        width: '20%',
+                      },
+                    ]}
+                    items={companyDomains}
+                    header={<Header variant="h3">{selectedCompany.name}</Header>}
+                  />
                 ),
               },
             ]}
