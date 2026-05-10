@@ -7,7 +7,7 @@ import enMessages from '@/messages/en.json';
 import jaMessages from '@/messages/ja.json';
 import zhMessages from '@/messages/zh-CN.json';
 
-type Messages = typeof koMessages;
+type Messages = Record<string, any>;
 
 interface I18nContextType {
   locale: Locale;

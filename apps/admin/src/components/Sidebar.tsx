@@ -2,12 +2,14 @@
 
 import { SideNavigation, SideNavigationProps } from '@cloudscape-design/components';
 import { useRouter, usePathname, useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const companyId = params?.id as string;
+  const { t } = useI18n();
 
   if (!companyId) return null;
 
@@ -15,28 +17,28 @@ export function Sidebar() {
     // MAIN
     {
       type: 'link',
-      text: 'Dashboard',
+      text: t('nav.dashboard'),
       href: `/companies/${companyId}/dashboard`,
     },
 
     // SYSTEM
     {
       type: 'section',
-      text: 'System',
+      text: t('nav.system'),
       items: [
         {
           type: 'link',
-          text: 'Queue Stats',
+          text: t('nav.queue_stats'),
           href: `/companies/${companyId}/system/queue`,
         },
         {
           type: 'link',
-          text: 'Backpressure',
+          text: t('nav.backpressure'),
           href: `/companies/${companyId}/system/backpressure`,
         },
         {
           type: 'link',
-          text: 'API Health',
+          text: t('nav.api_health'),
           href: `/companies/${companyId}/system/health`,
         },
       ],
@@ -45,21 +47,21 @@ export function Sidebar() {
     // TENANCY
     {
       type: 'section',
-      text: 'Tenancy',
+      text: t('nav.tenancy'),
       items: [
         {
           type: 'link',
-          text: 'Companies',
+          text: t('nav.companies'),
           href: `/companies/${companyId}/tenancy/companies`,
         },
         {
           type: 'link',
-          text: 'Domains',
+          text: t('nav.domains'),
           href: `/companies/${companyId}/tenancy/domains`,
         },
         {
           type: 'link',
-          text: 'Domain Settings',
+          text: t('nav.domain_settings'),
           href: `/companies/${companyId}/tenancy/domain-settings`,
         },
       ],
@@ -68,36 +70,36 @@ export function Sidebar() {
     // USERS & ACCESS
     {
       type: 'section',
-      text: 'Users & Access',
+      text: t('nav.users_access'),
       items: [
         {
           type: 'link',
-          text: 'Users',
+          text: t('nav.users'),
           href: `/companies/${companyId}/users`,
         },
         {
           type: 'link',
-          text: 'Admin Users',
+          text: t('nav.admin_users'),
           href: `/companies/${companyId}/admin-users`,
         },
         {
           type: 'link',
-          text: 'Directory',
+          text: t('nav.directory'),
           href: `/companies/${companyId}/access/directory`,
         },
         {
           type: 'link',
-          text: 'Aliases',
+          text: t('nav.aliases'),
           href: `/companies/${companyId}/access/aliases`,
         },
         {
           type: 'link',
-          text: 'Delegations',
+          text: t('nav.delegations'),
           href: `/companies/${companyId}/access/delegations`,
         },
         {
           type: 'link',
-          text: 'Group Memberships',
+          text: t('nav.group_memberships'),
           href: `/companies/${companyId}/access/groups`,
         },
       ],
@@ -106,31 +108,31 @@ export function Sidebar() {
     // DELIVERY & MAIL
     {
       type: 'section',
-      text: 'Delivery & Mail',
+      text: t('nav.delivery_mail'),
       items: [
         {
           type: 'link',
-          text: 'Delivery Routes',
+          text: t('nav.delivery_routes'),
           href: `/companies/${companyId}/delivery/routes`,
         },
         {
           type: 'link',
-          text: 'Trusted Relays',
+          text: t('nav.trusted_relays'),
           href: `/companies/${companyId}/delivery/relays`,
         },
         {
           type: 'link',
-          text: 'Mail Flow Logs',
+          text: t('nav.mail_flow_logs'),
           href: `/companies/${companyId}/mail/flow-logs`,
         },
         {
           type: 'link',
-          text: 'Outbox Events',
+          text: t('nav.outbox_events'),
           href: `/companies/${companyId}/mail/outbox`,
         },
         {
           type: 'link',
-          text: 'Delivery Attempts',
+          text: t('nav.delivery_attempts'),
           href: `/companies/${companyId}/mail/delivery-attempts`,
         },
       ],
@@ -139,31 +141,31 @@ export function Sidebar() {
     // SECURITY
     {
       type: 'section',
-      text: 'Security',
+      text: t('nav.security'),
       items: [
         {
           type: 'link',
-          text: 'API Keys',
+          text: t('nav.api_keys'),
           href: `/companies/${companyId}/security/api-keys`,
         },
         {
           type: 'link',
-          text: 'DKIM Keys',
+          text: t('nav.dkim_keys'),
           href: `/companies/${companyId}/security/dkim-keys`,
         },
         {
           type: 'link',
-          text: 'Audit Logs',
+          text: t('nav.audit_logs'),
           href: `/companies/${companyId}/audit-logs`,
         },
         {
           type: 'link',
-          text: 'Suppression List',
+          text: t('nav.suppression_list'),
           href: `/companies/${companyId}/security/suppression`,
         },
         {
           type: 'link',
-          text: 'Alert Rules',
+          text: t('nav.alert_rules'),
           href: `/companies/${companyId}/security/alerts`,
         },
       ],
@@ -172,31 +174,31 @@ export function Sidebar() {
     // STORAGE & QUOTAS
     {
       type: 'section',
-      text: 'Storage & Quotas',
+      text: t('nav.storage_quotas'),
       items: [
         {
           type: 'link',
-          text: 'Quota Usage',
+          text: t('nav.quota_usage'),
           href: `/companies/${companyId}/storage/quota-usage`,
         },
         {
           type: 'link',
-          text: 'Quota Alerts',
+          text: t('nav.quota_alerts'),
           href: `/companies/${companyId}/storage/quota-alerts`,
         },
         {
           type: 'link',
-          text: 'Attachments',
+          text: t('nav.attachments'),
           href: `/companies/${companyId}/storage/attachments`,
         },
         {
           type: 'link',
-          text: 'Drive',
+          text: t('nav.drive'),
           href: `/companies/${companyId}/storage/drive`,
         },
         {
           type: 'link',
-          text: 'Quota Reconciliation',
+          text: t('nav.quota_reconciliation'),
           href: `/companies/${companyId}/storage/reconciliation`,
         },
       ],
@@ -205,21 +207,21 @@ export function Sidebar() {
     // ANALYTICS
     {
       type: 'section',
-      text: 'Analytics',
+      text: t('nav.analytics'),
       items: [
         {
           type: 'link',
-          text: 'API Usage',
+          text: t('nav.api_usage'),
           href: `/companies/${companyId}/analytics/api-usage`,
         },
         {
           type: 'link',
-          text: 'Push Notifications',
+          text: t('nav.push_notifications'),
           href: `/companies/${companyId}/analytics/push`,
         },
         {
           type: 'link',
-          text: 'Reports',
+          text: t('nav.reports'),
           href: `/companies/${companyId}/reports`,
         },
       ],
@@ -228,44 +230,44 @@ export function Sidebar() {
     // CONFIG
     {
       type: 'section',
-      text: 'Configuration',
+      text: t('nav.configuration'),
       items: [
         {
           type: 'link',
-          text: 'Company Config',
+          text: t('nav.company_config'),
           href: `/companies/${companyId}/config/company`,
         },
         {
           type: 'link',
-          text: 'Domain Config',
+          text: t('nav.domain_config'),
           href: `/companies/${companyId}/config/domain`,
         },
         {
           type: 'link',
-          text: 'User Config',
+          text: t('nav.user_config'),
           href: `/companies/${companyId}/config/user`,
         },
       ],
     },
 
-    // ORGANIZATION (legacy, keep for now)
+    // ORGANIZATION
     {
       type: 'section',
-      text: 'Organization',
+      text: t('nav.organization'),
       items: [
         {
           type: 'link',
-          text: 'Settings',
+          text: t('nav.settings'),
           href: `/companies/${companyId}/organization`,
         },
         {
           type: 'link',
-          text: 'Roles',
+          text: t('nav.roles'),
           href: `/companies/${companyId}/roles`,
         },
         {
           type: 'link',
-          text: 'Compliance',
+          text: t('nav.compliance'),
           href: `/companies/${companyId}/compliance`,
         },
       ],

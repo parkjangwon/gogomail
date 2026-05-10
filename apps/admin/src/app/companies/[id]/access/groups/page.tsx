@@ -12,6 +12,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface GroupMembership {
   id: string;
@@ -22,6 +23,7 @@ interface GroupMembership {
 }
 
 export default function GroupMembershipsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

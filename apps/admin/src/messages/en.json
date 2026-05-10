@@ -14,33 +14,61 @@
     "next": "Next",
     "previous": "Previous",
     "export": "Export",
-    "import": "Import"
+    "import": "Import",
+    "create": "Create",
+    "actions": "Actions",
+    "username": "Username",
+    "password": "Password"
   },
   "nav": {
     "dashboard": "Dashboard",
     "users": "Users",
-    "admin_users": "Admins",
+    "users_access": "Users & Access",
+    "admin_users": "Admin Users",
+    "directory": "Directory",
+    "aliases": "Aliases",
+    "delegations": "Delegations",
+    "group_memberships": "Group Memberships",
     "audit_logs": "Audit Logs",
     "mail_logs": "Mail Logs",
     "domains": "Domains",
+    "domain_settings": "Domain Settings",
+    "companies": "Companies",
     "monitoring": "Monitoring",
     "settings": "Settings",
     "organization": "Organization",
     "roles": "Roles",
     "compliance": "Compliance",
-    "delivery": "Delivery",
+    "delivery_mail": "Delivery & Mail",
+    "delivery_routes": "Delivery Routes",
+    "trusted_relays": "Trusted Relays",
+    "mail_flow_logs": "Mail Flow Logs",
+    "outbox_events": "Outbox Events",
+    "delivery_attempts": "Delivery Attempts",
     "analytics": "Analytics",
+    "api_usage": "API Usage",
+    "push_notifications": "Push Notifications",
+    "reports": "Reports",
     "tenancy": "Tenancy",
     "system": "System",
+    "queue_stats": "Queue Stats",
+    "api_health": "API Health",
+    "backpressure": "Backpressure",
     "security": "Security",
-    "relays": "Relays",
-    "routes": "Routes",
-    "push": "Push",
-    "api_usage": "API Usage",
-    "domain_settings": "Domain Settings",
-    "api_settings": "API Settings",
-    "alerts": "Alerts",
-    "backpressure": "Backpressure"
+    "api_keys": "API Keys",
+    "dkim_keys": "DKIM Keys",
+    "suppression_list": "Suppression List",
+    "alert_rules": "Alert Rules",
+    "storage_quotas": "Storage & Quotas",
+    "quota_usage": "Quota Usage",
+    "quota_alerts": "Quota Alerts",
+    "attachments": "Attachments",
+    "drive": "Drive",
+    "quota_reconciliation": "Quota Reconciliation",
+    "configuration": "Configuration",
+    "company_config": "Company Config",
+    "domain_config": "Domain Config",
+    "user_config": "User Config"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -79,7 +107,7 @@
     "created_at": "Created"
   },
   "admin_users": {
-    "title": "Admins",
+    "title": "Admin Users",
     "description": "Manage admin users",
     "list": "Admin List"
   },
@@ -127,22 +155,506 @@
     "notifications": "Notifications",
     "theme": "Theme"
   },
+  "security": {
+    "api_keys": "API Keys"
+  },
   "forms": {
     "submit": "Submit",
     "required": "Required",
-    "invalid": "Invalid",
+    "invalid": "Invalid format",
     "placeholder_email": "Enter email",
-    "placeholder_search": "Search..."
+    "placeholder_search": "Search...",
+    "username": "Username",
+    "password": "Password",
+    "confirm_password": "Confirm password",
+    "email": "Email",
+    "domain_name": "Domain name",
+    "description": "Description",
+    "role": "Role"
   },
   "messages": {
     "confirm_delete": "Are you sure you want to delete?",
     "delete_success": "Deleted successfully",
     "save_success": "Saved successfully",
     "load_error": "Failed to load",
-    "network_error": "Network error"
+    "network_error": "Network error",
+    "no_data": "No data available",
+    "loading": "Loading...",
+    "error_occurred": "An error occurred"
   },
   "pagination": {
     "showing": "Showing {start}-{end} of {total}",
-    "per_page": "Items per page"
+    "per_page": "Items per page",
+    "no_items": "No items"
+  },
+  "pages": {
+    "users": {
+      "title": "Users",
+      "description": "Manage users",
+      "list_header": "User List",
+      "create_button": "+ Create User",
+      "create_user": "Create New User",
+      "username": "Username",
+      "email": "Email",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions",
+      "edit": "Edit",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "admin_users": {
+      "title": "Admin Users",
+      "description": "Manage admin accounts",
+      "list_header": "Admin List",
+      "create_button": "+ Add Admin",
+      "create_admin": "Create New Admin",
+      "username": "Username",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions",
+      "system_admin": "System Admin",
+      "admin": "Admin",
+      "readonly": "Read-Only"
+    },
+    "domains": {
+      "title": "Domains",
+      "description": "Manage domains",
+      "list_header": "Domain List",
+      "create_button": "+ Add Domain",
+      "domain_name": "Domain Name",
+      "status": "Status",
+      "created": "Created",
+      "dns_check": "DNS Check",
+      "verified": "Verified",
+      "pending": "Pending",
+      "create_domain": "Add Domain"
+    },
+    "audit_logs": {
+      "title": "Audit Logs",
+      "description": "View audit logs",
+      "action": "Action",
+      "actor": "User",
+      "resource": "Resource",
+      "timestamp": "Time",
+      "result": "Result",
+      "filter": "Filter",
+      "date_range": "Date Range",
+      "export_csv": "Export as CSV",
+      "export_json": "Export as JSON",
+      "activity_log": "Activity Log",
+      "ip_address": "IP Address"
+    },
+    "mail_logs": {
+      "title": "Mail Logs",
+      "description": "Mail flow logs",
+      "sender": "Sender",
+      "recipient": "Recipient",
+      "subject": "Subject",
+      "sent": "Sent",
+      "received": "Received",
+      "status": "Status",
+      "size": "Size",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "pending": "Pending"
+    },
+    "queue_stats": {
+      "title": "Queue Stats",
+      "description": "Mail queue monitoring",
+      "total_messages": "Total Messages",
+      "pending": "Pending",
+      "processing": "Processing",
+      "failed": "Failed",
+      "processing_rate": "Processing Rate",
+      "average_wait_time": "Average Wait Time",
+      "last_updated": "Last Updated",
+      "queue_status": "Queue Status",
+      "current_rate": "Current Rate",
+      "wait_time": "Wait Time",
+      "msg_per_sec": "msg/sec",
+      "seconds": "seconds"
+    },
+    "backpressure": {
+      "title": "Backpressure",
+      "description": "System load monitoring",
+      "cpu_usage": "CPU Usage",
+      "memory_usage": "Memory Usage",
+      "disk_usage": "Disk Usage",
+      "queue_depth": "Queue Depth",
+      "critical": "Critical",
+      "warning": "Warning",
+      "normal": "Normal"
+    },
+    "api_health": {
+      "title": "API Health",
+      "description": "API server status monitoring",
+      "status": "Status",
+      "response_time": "Response Time",
+      "error_rate": "Error Rate",
+      "requests_per_second": "Requests per Second",
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "down": "Down"
+    },
+    "companies": {
+      "title": "Companies",
+      "description": "Manage tenant companies",
+      "company_name": "Company Name",
+      "status": "Status",
+      "created": "Created",
+      "users_count": "Users Count",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "api_keys": {
+      "title": "API Keys",
+      "description": "Manage API keys",
+      "key": "Key",
+      "secret": "Secret",
+      "created": "Created",
+      "last_used": "Last Used",
+      "generate_key": "Generate New Key",
+      "revoke": "Revoke",
+      "copy": "Copy",
+      "create_key": "Create Key"
+    },
+    "dkim_keys": {
+      "title": "DKIM Keys",
+      "description": "Manage DKIM keys",
+      "domain": "Domain",
+      "public_key": "Public Key",
+      "private_key": "Private Key",
+      "status": "Status",
+      "verified": "Verified",
+      "generate": "Generate",
+      "rotate": "Rotate"
+    },
+    "roles": {
+      "title": "Roles",
+      "description": "Role-based access control",
+      "role_name": "Role Name",
+      "description_header": "Description",
+      "permissions": "Permissions",
+      "users": "Users",
+      "create_role": "Create New Role",
+      "edit_permissions": "Edit Permissions",
+      "pages.roles.title": "Roles",
+      "pages.roles.description": "Manage user roles and permissions",
+      "pages.roles.create_role": "Create Role",
+      "pages.roles.role_name": "Name",
+      "pages.roles.description_header": "Description",
+      "pages.roles.permissions": "Permissions",
+      "pages.roles.users": "Assigned Users",
+      "pages.roles.created": "Created"
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "Usage statistics and analytics",
+      "api_usage": "API Usage",
+      "push_notifications": "Push Notifications",
+      "total_requests": "Total Requests",
+      "daily_average": "Daily Average",
+      "peak_usage": "Peak Usage",
+      "month_to_date": "Month to Date"
+    },
+    "system_queue": {
+      "title": "System Queue",
+      "description": "System message queue",
+      "queue_name": "Queue Name",
+      "messages": "Messages",
+      "throughput": "Throughput",
+      "lag": "Lag"
+    },
+    "configuration": {
+      "title": "Configuration",
+      "description": "System configuration",
+      "company_settings": "Company Settings",
+      "domain_settings": "Domain Settings",
+      "user_settings": "User Settings",
+      "general": "General",
+      "advanced": "Advanced"
+    },
+    "directory": {
+      "title": "Directory",
+      "description": "Manage directory principals and contacts",
+      "add_principal": "+ Add Principal",
+      "email": "Email",
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "created": "Created",
+      "principals": "Principals",
+      "principals_count": "Principals"
+    },
+    "aliases": {
+      "title": "Aliases",
+      "description": "Manage email aliases",
+      "create_alias": "+ Create Alias",
+      "alias_email": "Alias Email",
+      "target_email": "Target Email",
+      "status": "Status",
+      "created": "Created",
+      "aliases_label": "Aliases"
+    },
+    "delegations": {
+      "title": "Delegations",
+      "description": "Manage user permission delegations",
+      "delegator": "Delegator",
+      "delegatee": "Delegatee",
+      "status": "Status",
+      "created": "Created",
+      "create_delegation": "Create Delegation"
+    },
+    "groups": {
+      "title": "Groups",
+      "description": "Manage user groups",
+      "group_name": "Group Name",
+      "member_email": "Member Email",
+      "status": "Status",
+      "created": "Created",
+      "create_group": "Create Group",
+      "member_count": "Member Count",
+      "members": "Members"
+    },
+    "compliance": {
+      "title": "Compliance",
+      "description": "Monitor compliance status and audit reports",
+      "frameworks": "Compliance Frameworks",
+      "track": "Track compliance status for industry standards and regulations",
+      "framework": "Framework",
+      "status": "Status",
+      "findings": "Findings",
+      "last_audit": "Last Audit",
+      "reports": "Reports",
+      "compliant": "Compliant",
+      "non_compliant": "Non-Compliant",
+      "pending": "Pending",
+      "partial": "Partial"
+    },
+    "organization": {
+      "title": "Organization",
+      "description": "Manage organization structure",
+      "departments": "Departments",
+      "teams": "Teams",
+      "members": "Members",
+      "created": "Created"
+    },
+    "monitoring": {
+      "title": "Monitoring",
+      "description": "System monitoring",
+      "queue_stats": "Queue Stats",
+      "backpressure": "Backpressure",
+      "system_health": "System Health",
+      "api_health": "API Health"
+    },
+    "reports": {
+      "title": "Reports",
+      "description": "Generate and view system reports",
+      "create_report": "Create Report",
+      "report_name": "Report Name",
+      "type": "Type",
+      "created": "Created",
+      "status": "Status",
+      "download": "Download"
+    },
+    "suppression": {
+      "title": "Suppression List",
+      "description": "Manage suppressed email addresses",
+      "email": "Email",
+      "reason": "Reason",
+      "added": "Added",
+      "remove": "Remove"
+    },
+    "alerts": {
+      "title": "Alert Rules",
+      "description": "Manage system alert rules",
+      "create_alert": "Create Rule",
+      "rule_name": "Rule Name",
+      "condition": "Condition",
+      "enabled": "Enabled",
+      "created": "Created"
+    },
+    "api_usage": {
+      "title": "API Usage",
+      "description": "API usage statistics",
+      "total_requests": "Total Requests",
+      "daily_average": "Daily Average",
+      "peak_usage": "Peak Usage",
+      "month_to_date": "Month to Date"
+    },
+    "push": {
+      "title": "Push Notifications",
+      "description": "Push notification statistics",
+      "total_sent": "Total Sent",
+      "success_rate": "Success Rate",
+      "failed": "Failed"
+    },
+    "config_user": {
+      "title": "User Configuration",
+      "description": "User-related settings",
+      "password_policy": "Password Policy",
+      "session_timeout": "Session Timeout",
+      "mfa_required": "MFA Required"
+    },
+    "config_domain": {
+      "title": "Domain Configuration",
+      "description": "Domain-related settings",
+      "dns_settings": "DNS Settings",
+      "spf": "SPF",
+      "dkim": "DKIM",
+      "dmarc": "DMARC"
+    },
+    "config_company": {
+      "title": "Company Configuration",
+      "description": "Company-related settings",
+      "company_name": "Company Name",
+      "timezone": "Timezone",
+      "logo": "Logo",
+      "support_email": "Support Email"
+    },
+    "flow_logs": {
+      "title": "Mail Flow Logs",
+      "description": "View mail flow logs",
+      "sender": "Sender",
+      "recipient": "Recipient",
+      "subject": "Subject",
+      "status": "Status",
+      "timestamp": "Timestamp"
+    },
+    "outbox": {
+      "title": "Outbox Events",
+      "description": "Monitor outbox events",
+      "message_id": "Message ID",
+      "event_type": "Event Type",
+      "timestamp": "Timestamp"
+    },
+    "delivery_attempts": {
+      "title": "Delivery Attempts",
+      "description": "View mail delivery attempt logs",
+      "recipient": "Recipient",
+      "status": "Status",
+      "attempt_time": "Attempt Time",
+      "next_retry": "Next Retry"
+    },
+    "quota_usage": {
+      "title": "Quota Usage",
+      "description": "View quota usage",
+      "used": "Used",
+      "limit": "Limit",
+      "percentage": "Percentage"
+    },
+    "quota_alerts": {
+      "title": "Quota Alerts",
+      "description": "Quota exceeded alerts",
+      "user": "User",
+      "status": "Status",
+      "alert_date": "Alert Date"
+    },
+    "attachments": {
+      "title": "Attachments",
+      "description": "Manage attachments",
+      "filename": "Filename",
+      "size": "Size",
+      "uploaded": "Uploaded"
+    },
+    "drive": {
+      "title": "Drive",
+      "description": "Manage drive",
+      "file_name": "File Name",
+      "size": "Size",
+      "owner": "Owner",
+      "modified": "Modified"
+    },
+    "reconciliation": {
+      "title": "Quota Reconciliation",
+      "description": "Manage quota reconciliation",
+      "user": "User",
+      "old_value": "Old Value",
+      "new_value": "New Value",
+      "adjusted": "Adjusted"
+    },
+    "routes": {
+      "title": "Delivery Routes",
+      "description": "Manage mail delivery routes",
+      "create_route": "Create Route",
+      "source": "Source",
+      "destination": "Destination",
+      "priority": "Priority",
+      "created": "Created"
+    },
+    "relays": {
+      "title": "Trusted Relays",
+      "description": "Manage trusted mail relays",
+      "create_relay": "Add Relay",
+      "ip_address": "IP Address",
+      "hostname": "Hostname",
+      "created": "Created"
+    },
+    "domain_settings": {
+      "title": "Domain Settings",
+      "description": "Manage domain settings",
+      "spf_record": "SPF Record",
+      "dkim_record": "DKIM Record",
+      "dmarc_record": "DMARC Record"
+    },
+    "system_health": {
+      "title": "System Health",
+      "description": "Monitor system health status",
+      "overall_health": "Overall Health",
+      "api_server": "API Server",
+      "database": "Database",
+      "mail_queue": "Mail Queue",
+      "cache": "Cache",
+      "uptime": "Uptime",
+      "response_time": "Response Time"
+    },
+    "system_backpressure": {
+      "title": "Backpressure",
+      "description": "Monitor system load",
+      "cpu_usage": "CPU Usage",
+      "memory_usage": "Memory Usage",
+      "disk_usage": "Disk Usage",
+      "queue_depth": "Queue Depth",
+      "critical": "Critical",
+      "warning": "Warning",
+      "normal": "Normal"
+    }
+  },
+  "buttons": {
+    "create": "Create",
+    "create_user": "Create User",
+    "create_domain": "Create Domain",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "apply": "Apply",
+    "submit": "Submit",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh",
+    "search": "Search",
+    "filter": "Filter",
+    "reset": "Reset",
+    "copy": "Copy",
+    "revoke": "Revoke",
+    "verify": "Verify",
+    "rotate": "Rotate"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "success": "Success",
+    "failed": "Failed",
+    "healthy": "Healthy",
+    "warning": "Warning",
+    "error": "Error",
+    "verified": "Verified",
+    "unverified": "Unverified"
   }
 }

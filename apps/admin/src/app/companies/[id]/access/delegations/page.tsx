@@ -12,6 +12,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Delegation {
   id: string;
@@ -23,6 +24,7 @@ interface Delegation {
 }
 
 export default function DelegationsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [delegations, setDelegations] = useState<Delegation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

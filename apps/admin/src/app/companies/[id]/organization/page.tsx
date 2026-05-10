@@ -13,6 +13,7 @@ import {
   KeyValuePairs,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface OrgSettings {
   name: string;
@@ -23,6 +24,7 @@ interface OrgSettings {
 }
 
 export default function OrganizationSettingsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);

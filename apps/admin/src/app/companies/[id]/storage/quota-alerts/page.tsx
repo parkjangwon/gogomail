@@ -11,6 +11,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface QuotaAlert {
   id: string;
@@ -22,6 +23,7 @@ interface QuotaAlert {
 }
 
 export default function QuotaAlertsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [alerts, setAlerts] = useState<QuotaAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

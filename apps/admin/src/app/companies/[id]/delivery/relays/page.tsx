@@ -12,6 +12,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface TrustedRelay {
   id: string;
@@ -24,6 +25,7 @@ interface TrustedRelay {
 }
 
 export default function TrustedRelaysPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [relays, setRelays] = useState<TrustedRelay[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

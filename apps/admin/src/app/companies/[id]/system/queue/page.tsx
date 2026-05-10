@@ -10,6 +10,7 @@ import {
   SpaceBetween,
   ProgressBar,
 } from '@cloudscape-design/components';
+import { useI18n } from '@/app/i18n-provider';
 import { useState, useEffect } from 'react';
 
 interface QueueStats {
@@ -23,6 +24,7 @@ interface QueueStats {
 }
 
 export default function QueueStatsPage() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<QueueStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,7 @@ export default function QueueStatsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Queue Stats</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.queue_stats.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -63,9 +65,9 @@ export default function QueueStatsPage() {
       header={
         <Header
           variant="h1"
-          description="Real-time mail processing queue monitoring"
+          description={t('pages.queue_stats.description')}
         >
-          Queue Stats
+          {t('pages.queue_stats.title')}
         </Header>
       }
     >
@@ -73,42 +75,42 @@ export default function QueueStatsPage() {
         {stats && (
           <>
             <ColumnLayout columns={4}>
-              <Container header={<Header variant="h3">Total Messages</Header>}>
+              <Container header={<Header variant="h3">{t('pages.queue_stats.total_messages')}</Header>}>
                 <Box fontSize="display-l" fontWeight="bold">
                   {stats.total_messages.toLocaleString()}
                 </Box>
               </Container>
-              <Container header={<Header variant="h3">Pending</Header>}>
+              <Container header={<Header variant="h3">{t('pages.queue_stats.pending')}</Header>}>
                 <Box fontSize="display-l" fontWeight="bold" color="text-status-warning">
                   {stats.pending.toLocaleString()}
                 </Box>
               </Container>
-              <Container header={<Header variant="h3">Processing</Header>}>
+              <Container header={<Header variant="h3">{t('pages.queue_stats.processing')}</Header>}>
                 <Box fontSize="display-l" fontWeight="bold" color="text-status-info">
                   {stats.processing.toLocaleString()}
                 </Box>
               </Container>
-              <Container header={<Header variant="h3">Failed</Header>}>
+              <Container header={<Header variant="h3">{t('pages.queue_stats.failed')}</Header>}>
                 <Box fontSize="display-l" fontWeight="bold" color="text-status-error">
                   {stats.failed.toLocaleString()}
                 </Box>
               </Container>
             </ColumnLayout>
 
-            <Container header={<Header variant="h3">Queue Status</Header>}>
+            <Container header={<Header variant="h3">{t('pages.queue_stats.queue_status')}</Header>}>
               <SpaceBetween size="m">
                 <Box>
-                  <Box>Processing Rate: {stats.processing_rate} msg/sec</Box>
-                  <ProgressBar value={stats.processing_rate} label="Current Rate" />
+                  <Box>{t('pages.queue_stats.processing_rate')}: {stats.processing_rate} {t('pages.queue_stats.msg_per_sec')}</Box>
+                  <ProgressBar value={stats.processing_rate} label={t('pages.queue_stats.current_rate')} />
                 </Box>
                 <Box>
-                  <Box>Avg Wait Time: {stats.average_wait_time}s</Box>
-                  <ProgressBar value={Math.min(stats.average_wait_time, 100)} label="Wait Time" />
+                  <Box>{t('pages.queue_stats.average_wait_time')}: {stats.average_wait_time} {t('pages.queue_stats.seconds')}</Box>
+                  <ProgressBar value={Math.min(stats.average_wait_time, 100)} label={t('pages.queue_stats.wait_time')} />
                 </Box>
               </SpaceBetween>
             </Container>
 
-            <Container header={<Header variant="h3">Last Updated</Header>}>
+            <Container header={<Header variant="h3">{t('pages.queue_stats.last_updated')}</Header>}>
               <Box color="text-body-secondary">
                 {new Date(stats.last_updated).toLocaleString()}
               </Box>

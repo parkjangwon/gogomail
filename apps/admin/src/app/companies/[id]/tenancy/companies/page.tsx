@@ -12,6 +12,7 @@ import {
   Pagination,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Company {
   id: string;
@@ -24,6 +25,7 @@ interface Company {
 }
 
 export default function CompaniesPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

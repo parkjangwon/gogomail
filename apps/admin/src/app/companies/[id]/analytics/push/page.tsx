@@ -11,6 +11,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface PushMetric {
   id: string;
@@ -22,6 +23,7 @@ interface PushMetric {
 }
 
 export default function PushNotificationsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [metrics, setMetrics] = useState<PushMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

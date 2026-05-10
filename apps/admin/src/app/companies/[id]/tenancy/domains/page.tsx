@@ -18,6 +18,7 @@ import {
   KeyValuePairs,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Domain {
   id: string;
@@ -33,6 +34,7 @@ interface Domain {
 }
 
 export default function DomainsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

@@ -13,6 +13,7 @@ import {
   Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface QueueStats {
   total: number;
@@ -22,6 +23,7 @@ interface QueueStats {
 }
 
 export default function MonitoringPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [stats, setStats] = useState<QueueStats>({ total: 0, pending: 0, processing: 0, failed: 0 });
 
   useEffect(() => {

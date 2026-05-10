@@ -11,6 +11,7 @@ import {
   Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface ReconciliationJob {
   id: string;
@@ -22,6 +23,7 @@ interface ReconciliationJob {
 }
 
 export default function ReconciliationPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [jobs, setJobs] = useState<ReconciliationJob[]>([]);
   const [loading, setLoading] = useState(true);
 

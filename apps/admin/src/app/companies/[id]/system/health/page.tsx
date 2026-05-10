@@ -10,6 +10,7 @@ import {
   Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface HealthCheck {
   service: string;
@@ -19,6 +20,7 @@ interface HealthCheck {
 }
 
 export default function APIHealthPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [checks, setChecks] = useState<HealthCheck[]>([]);
   const [loading, setLoading] = useState(true);
 

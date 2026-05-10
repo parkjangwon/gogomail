@@ -11,6 +11,7 @@ import {
   ProgressBar,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface QuotaUsage {
   id: string;
@@ -22,6 +23,7 @@ interface QuotaUsage {
 }
 
 export default function QuotaUsagePage() {
+  const { t: _unused } = useI18n(); _unused;
   const [quotas, setQuotas] = useState<QuotaUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

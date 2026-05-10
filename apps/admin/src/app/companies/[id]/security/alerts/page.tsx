@@ -12,6 +12,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface AlertRule {
   id: string;
@@ -23,6 +24,7 @@ interface AlertRule {
 }
 
 export default function AlertRulesPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

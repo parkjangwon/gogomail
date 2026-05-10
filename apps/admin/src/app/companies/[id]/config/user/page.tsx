@@ -11,6 +11,7 @@ import {
   TextFilter,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface UserConfig {
   id: string;
@@ -21,6 +22,7 @@ interface UserConfig {
 }
 
 export default function UserConfigPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [configs, setConfigs] = useState<UserConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

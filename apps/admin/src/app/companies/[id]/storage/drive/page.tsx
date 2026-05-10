@@ -10,6 +10,7 @@ import {
   TextFilter,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface DriveNode {
   id: string;
@@ -21,6 +22,7 @@ interface DriveNode {
 }
 
 export default function DrivePage() {
+  const { t: _unused } = useI18n(); _unused;
   const [nodes, setNodes] = useState<DriveNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

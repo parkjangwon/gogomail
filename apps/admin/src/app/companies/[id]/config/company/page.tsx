@@ -14,6 +14,7 @@ import {
   Input,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface ConfigEntry {
   id: string;
@@ -23,6 +24,7 @@ interface ConfigEntry {
 }
 
 export default function CompanyConfigPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [configs, setConfigs] = useState<ConfigEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

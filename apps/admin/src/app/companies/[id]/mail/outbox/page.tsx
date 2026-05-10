@@ -12,6 +12,7 @@ import {
   Button,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface OutboxEvent {
   id: string;
@@ -23,6 +24,7 @@ interface OutboxEvent {
 }
 
 export default function OutboxEventsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [events, setEvents] = useState<OutboxEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

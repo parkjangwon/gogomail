@@ -11,6 +11,7 @@ import {
   TextFilter,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Attachment {
   id: string;
@@ -21,6 +22,7 @@ interface Attachment {
 }
 
 export default function AttachmentsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

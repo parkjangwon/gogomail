@@ -11,6 +11,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface DeliveryAttempt {
   id: string;
@@ -23,6 +24,7 @@ interface DeliveryAttempt {
 }
 
 export default function DeliveryAttemptsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

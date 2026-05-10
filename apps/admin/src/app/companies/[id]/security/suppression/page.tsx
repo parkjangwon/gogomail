@@ -15,6 +15,7 @@ import {
   Input,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface SuppressionEntry {
   id: string;
@@ -24,6 +25,7 @@ interface SuppressionEntry {
 }
 
 export default function SuppressionListPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [entries, setEntries] = useState<SuppressionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

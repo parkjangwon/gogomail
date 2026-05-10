@@ -11,6 +11,7 @@ import {
   Container,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Report {
   id: string;
@@ -21,6 +22,7 @@ interface Report {
 }
 
 export default function ReportsPage() {
+  const { t: _unused } = useI18n(); _unused;
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 

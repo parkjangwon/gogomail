@@ -11,6 +11,7 @@ import {
   Container,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface APIUsageRecord {
   id: string;
@@ -22,6 +23,7 @@ interface APIUsageRecord {
 }
 
 export default function APIUsagePage() {
+  const { t: _unused } = useI18n(); _unused;
   const [records, setRecords] = useState<APIUsageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

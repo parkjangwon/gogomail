@@ -15,6 +15,7 @@ import {
   KeyValuePairs,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface BackpressureState {
   enabled: boolean;
@@ -25,6 +26,7 @@ interface BackpressureState {
 }
 
 export default function BackpressurePage() {
+  const { t: _unused } = useI18n(); _unused;
   const [state, setState] = useState<BackpressureState | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
