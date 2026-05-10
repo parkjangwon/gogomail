@@ -9,31 +9,31 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-074
-- **제목**: Mail Log Queries & UI
-- **배경**: Phase 8-D. Implement mail operation audit logging and query interface.
-  - Log all mail operations (send, receive, delete, move)
-  - Query mail logs by date/user/action
-  - Performance optimization with indexes
-  - Retention policy enforcement
-  - Audit trail compliance
+- **ID**: TASK-075
+- **제목**: Statistics & Dashboard Cache
+- **배경**: Phase 8-D. Implement admin dashboard statistics and caching.
+  - Real-time user/domain/mailbox statistics
+  - Cache computed metrics for performance
+  - Time-series data collection
+  - Dashboard data aggregation
+  - Cache invalidation strategy
 
 - **구현 대상**:
-  1. `internal/admin/mail_log_service.go` — Mail log service
-  2. `internal/admin/mail_log_service_test.go` — Unit tests
-  3. Mail operation logging
-  4. Log query and filtering
-  5. Retention policy management
+  1. `internal/admin/statistics_service.go` — Statistics service
+  2. `internal/admin/statistics_service_test.go` — Unit tests
+  3. Metric computation
+  4. Cache management
+  5. Time-series storage
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] MailLogService with log recording
-  - [ ] Query by user/date/action
-  - [ ] Pagination support
-  - [ ] Retention policy execution
+  - [ ] StatisticsService with metric collection
+  - [ ] Caching layer implementation
+  - [ ] Dashboard data aggregation
+  - [ ] Cache invalidation
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-073 ✅ (External RDBMS Sync UI) — COMPLETE
+- **이전 태스크**: TASK-074 ✅ (Mail Log Queries & UI) — COMPLETE
 
 ---
 
