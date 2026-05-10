@@ -30,7 +30,7 @@ CREATE TABLE mail_flow_logs (
   processed_at timestamptz,
 
   in_reply_to text NOT NULL DEFAULT '',
-  references text NOT NULL DEFAULT '',
+  "references" text NOT NULL DEFAULT '',
   thread_id uuid,
 
   ip_address inet,
