@@ -6832,6 +6832,67 @@ paths:
                     $ref: "#/components/schemas/IPAccessPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/auth-policy:
+    get:
+      operationId: adminGetCompanyAuthPolicy
+      summary: Get company password and auth policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Auth policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuthPolicy"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminPutCompanyAuthPolicy
+      summary: Set company password and auth policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthPolicy"
+      responses:
+        "200":
+          description: Saved auth policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/AuthPolicy"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
@@ -8023,6 +8084,31 @@ components:
         action:
           type: string
           enum: [deny, log]
+    AuthPolicy:
+      type: object
+      properties:
+        min_length:
+          type: integer
+        require_uppercase:
+          type: boolean
+        require_numbers:
+          type: boolean
+        require_symbols:
+          type: boolean
+        max_age_days:
+          type: integer
+        history_count:
+          type: integer
+        mfa_required:
+          type: boolean
+        mfa_methods:
+          type: array
+          items:
+            type: string
+        session_timeout_minutes:
+          type: integer
+        max_concurrent_sessions:
+          type: integer
     HealthResponse:
       type: object
       required: [status]
