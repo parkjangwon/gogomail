@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // RepositoryInterface defines admin RBAC data access operations.
@@ -42,6 +44,46 @@ type RepositoryInterface interface {
 	// Login audit operations
 	LogLoginAttempt(ctx context.Context, log *LoginAuditLog) error
 	ListLoginAudits(ctx context.Context, filter LoginAuditFilter) ([]LoginAuditLog, error)
+
+	// Domain settings operations
+	GetDomainSettings(ctx context.Context, domainID string) (*DomainSettings, error)
+	UpdateDomainSettings(ctx context.Context, settings *DomainSettings) error
+
+	// API settings operations
+	GetAPISettings(ctx context.Context, domainID string) (*APISettings, error)
+	UpdateAPISettings(ctx context.Context, settings *APISettings) error
+
+	// API key operations
+	CreateAPIKey(ctx context.Context, key *APIKey) error
+	GetAPIKey(ctx context.Context, keyID string) (*APIKey, error)
+	ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error)
+	DeleteAPIKey(ctx context.Context, keyID string) error
+	UpdateAPIKeyLastUsed(ctx context.Context, keyID string) error
+	RotateAPIKeySecret(ctx context.Context, keyID, newSecretHash string) error
+
+	// Alert rule operations
+	CreateAlertRule(ctx context.Context, rule *AlertRule) error
+	GetAlertRule(ctx context.Context, ruleID string) (*AlertRule, error)
+	ListAlertRules(ctx context.Context, companyID string) ([]AlertRule, error)
+	UpdateAlertRule(ctx context.Context, rule *AlertRule) error
+	DeleteAlertRule(ctx context.Context, ruleID string) error
+
+	// Alert channel operations
+	CreateAlertChannel(ctx context.Context, channel *AlertChannel) error
+	GetAlertChannel(ctx context.Context, channelID string) (*AlertChannel, error)
+	ListAlertChannels(ctx context.Context, companyID string) ([]AlertChannel, error)
+	UpdateAlertChannel(ctx context.Context, channel *AlertChannel) error
+	DeleteAlertChannel(ctx context.Context, channelID string) error
+
+	// Alert rule channel mapping operations
+	CreateAlertRuleChannel(ctx context.Context, mapping *AlertRuleChannel) error
+	ListAlertRuleChannels(ctx context.Context, ruleID string) ([]AlertChannel, error)
+	DeleteAlertRuleChannel(ctx context.Context, ruleID, channelID string) error
+
+	// Alert event operations
+	LogAlertEvent(ctx context.Context, event *AlertEvent) error
+	ListAlertEvents(ctx context.Context, filter AlertEventFilter) ([]AlertEvent, error)
+	ResolveAlertEvent(ctx context.Context, eventID string) error
 }
 
 // Repository implements RepositoryInterface.
@@ -490,4 +532,148 @@ func (r *Repository) ListLoginAudits(ctx context.Context, filter LoginAuditFilte
 		logs = append(logs, log)
 	}
 	return logs, rows.Err()
+}
+
+// GetDomainSettings retrieves domain-level configuration.
+func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*DomainSettings, error) {
+	settings := &DomainSettings{}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist,
+		        require_2fa, session_timeout_minutes, password_min_length,
+		        password_require_uppercase, password_require_numbers, password_require_special_chars,
+		        password_expiry_days, updated_at, updated_by
+		 FROM domain_settings WHERE domain_id = $1`,
+		domainID,
+	).Scan(&settings.DomainID, &settings.TLSPolicy, &settings.QuotaPerUser, &settings.IPWhitelistEnabled,
+		pq.Array(&settings.IPWhitelist), &settings.Require2FA, &settings.SessionTimeoutMinutes,
+		&settings.PasswordMinLength, &settings.PasswordRequireUppercase, &settings.PasswordRequireNumbers,
+		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UpdatedAt, &settings.UpdatedBy)
+	if err != nil {
+		return nil, err
+	}
+	return settings, nil
+}
+
+// UpdateDomainSettings updates domain-level configuration.
+func (r *Repository) UpdateDomainSettings(ctx context.Context, settings *DomainSettings) error {
+	settings.UpdatedAt = time.Now()
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE domain_settings
+		 SET tls_policy = $1, quota_per_user = $2, ip_whitelist_enabled = $3, ip_whitelist = $4,
+		     require_2fa = $5, session_timeout_minutes = $6, password_min_length = $7,
+		     password_require_uppercase = $8, password_require_numbers = $9,
+		     password_require_special_chars = $10, password_expiry_days = $11,
+		     updated_at = $12, updated_by = $13
+		 WHERE domain_id = $14`,
+		settings.TLSPolicy, settings.QuotaPerUser, settings.IPWhitelistEnabled, pq.Array(settings.IPWhitelist),
+		settings.Require2FA, settings.SessionTimeoutMinutes, settings.PasswordMinLength,
+		settings.PasswordRequireUppercase, settings.PasswordRequireNumbers,
+		settings.PasswordRequireSpecialChars, settings.PasswordExpiryDays,
+		settings.UpdatedAt, settings.UpdatedBy,
+		settings.DomainID,
+	)
+	return err
+}
+
+// GetAPISettings retrieves API settings for a domain.
+func (r *Repository) GetAPISettings(ctx context.Context, domainID string) (*APISettings, error) {
+	var settings APISettings
+	var cidrList pq.StringArray
+	err := r.db.QueryRowContext(ctx,
+		`SELECT domain_id, rate_limit_rps, rate_limit_bps, cidr_allowlist_enabled, cidr_allowlist,
+		        require_api_key, updated_at, updated_by
+		 FROM api_settings WHERE domain_id = $1`,
+		domainID,
+	).Scan(&settings.DomainID, &settings.RateLimitRPS, &settings.RateLimitBPS,
+		&settings.CIDRAllowlistEnabled, &cidrList, &settings.RequireAPIKey,
+		&settings.UpdatedAt, &settings.UpdatedBy)
+	if err != nil {
+		return nil, err
+	}
+	settings.CIDRAllowlist = cidrList
+	return &settings, nil
+}
+
+// UpdateAPISettings updates API settings for a domain.
+func (r *Repository) UpdateAPISettings(ctx context.Context, settings *APISettings) error {
+	settings.UpdatedAt = time.Now()
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE api_settings
+		 SET rate_limit_rps = $1, rate_limit_bps = $2, cidr_allowlist_enabled = $3,
+		     cidr_allowlist = $4, require_api_key = $5, updated_at = $6, updated_by = $7
+		 WHERE domain_id = $8`,
+		settings.RateLimitRPS, settings.RateLimitBPS, settings.CIDRAllowlistEnabled,
+		pq.Array(settings.CIDRAllowlist), settings.RequireAPIKey,
+		settings.UpdatedAt, settings.UpdatedBy, settings.DomainID,
+	)
+	return err
+}
+
+// CreateAPIKey creates a new API key.
+func (r *Repository) CreateAPIKey(ctx context.Context, key *APIKey) error {
+	return r.db.QueryRowContext(ctx,
+		`INSERT INTO api_keys (domain_id, name, secret_hash, created_by, created_at, expires_at, is_active)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		key.DomainID, key.Name, key.SecretHash, key.CreatedBy, key.CreatedAt, key.ExpiresAt, key.IsActive,
+	).Scan(&key.ID)
+}
+
+// GetAPIKey retrieves an API key by ID.
+func (r *Repository) GetAPIKey(ctx context.Context, keyID string) (*APIKey, error) {
+	var key APIKey
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, domain_id, name, secret_hash, created_by, created_at, last_used_at, expires_at, is_active
+		 FROM api_keys WHERE id = $1`,
+		keyID,
+	).Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, &key.CreatedBy,
+		&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt, &key.IsActive)
+	return &key, err
+}
+
+// ListAPIKeys lists all API keys for a domain.
+func (r *Repository) ListAPIKeys(ctx context.Context, domainID string) ([]APIKey, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, domain_id, name, secret_hash, created_by, created_at, last_used_at, expires_at, is_active
+		 FROM api_keys WHERE domain_id = $1 ORDER BY created_at DESC`,
+		domainID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []APIKey
+	for rows.Next() {
+		var key APIKey
+		if err := rows.Scan(&key.ID, &key.DomainID, &key.Name, &key.SecretHash, &key.CreatedBy,
+			&key.CreatedAt, &key.LastUsedAt, &key.ExpiresAt, &key.IsActive); err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+
+// DeleteAPIKey deletes an API key.
+func (r *Repository) DeleteAPIKey(ctx context.Context, keyID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = $1`, keyID)
+	return err
+}
+
+// UpdateAPIKeyLastUsed updates the last_used_at timestamp for an API key.
+func (r *Repository) UpdateAPIKeyLastUsed(ctx context.Context, keyID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE api_keys SET last_used_at = NOW() WHERE id = $1`,
+		keyID,
+	)
+	return err
+}
+
+// RotateAPIKeySecret updates the secret hash for an API key.
+func (r *Repository) RotateAPIKeySecret(ctx context.Context, keyID, newSecretHash string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE api_keys SET secret_hash = $1, last_used_at = NULL WHERE id = $2`,
+		newSecretHash, keyID,
+	)
+	return err
 }
