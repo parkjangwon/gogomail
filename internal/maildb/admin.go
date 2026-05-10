@@ -721,6 +721,11 @@ type CompanyListRequest struct {
 	Status string
 }
 
+type CreateCompanyRequest struct {
+	Name       string `json:"name"`
+	QuotaLimit int64  `json:"quota_limit"`
+}
+
 type TrustedRelayView struct {
 	ID          string    `json:"id"`
 	CIDR        string    `json:"cidr"`
@@ -1787,6 +1792,40 @@ WHERE id = $1`, id).Scan(
 			return CompanyView{}, fmt.Errorf("company %q not found", id)
 		}
 		return CompanyView{}, fmt.Errorf("get company: %w", err)
+	}
+	company.QuotaRemaining = quotaRemaining(company.QuotaUsed, company.QuotaLimit)
+	company.AllocatableDomainQuota = quotaRemaining(company.AllocatedDomainQuota, company.QuotaLimit)
+	company.OverAllocated = company.QuotaLimit > 0 && company.AllocatedDomainQuota > company.QuotaLimit
+	return company, nil
+}
+
+func (r *Repository) CreateCompany(ctx context.Context, req CreateCompanyRequest) (CompanyView, error) {
+	if r.db == nil {
+		return CompanyView{}, fmt.Errorf("database handle is required")
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		return CompanyView{}, fmt.Errorf("company name is required")
+	}
+	if req.QuotaLimit < 0 {
+		return CompanyView{}, fmt.Errorf("quota limit must be non-negative")
+	}
+
+	var company CompanyView
+	if err := r.db.QueryRowContext(ctx, `
+INSERT INTO companies (name, status, quota_limit, created_at)
+VALUES ($1, 'active', $2, NOW())
+RETURNING id::text, name, status, quota_used, COALESCE(quota_limit, 0), 0, created_at
+	`, req.Name, req.QuotaLimit).Scan(
+		&company.ID,
+		&company.Name,
+		&company.Status,
+		&company.QuotaUsed,
+		&company.QuotaLimit,
+		&company.AllocatedDomainQuota,
+		&company.CreatedAt,
+	); err != nil {
+		return CompanyView{}, fmt.Errorf("create company: %w", err)
 	}
 	company.QuotaRemaining = quotaRemaining(company.QuotaUsed, company.QuotaLimit)
 	company.AllocatableDomainQuota = quotaRemaining(company.AllocatedDomainQuota, company.QuotaLimit)

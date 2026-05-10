@@ -5096,6 +5096,35 @@ paths:
           $ref: "#/components/responses/CompanyList"
         default:
           $ref: "#/components/responses/Error"
+    post:
+      operationId: createAdminCompany
+      summary: Admin create company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, quota_limit]
+              properties:
+                name:
+                  type: string
+                  description: Company name
+                quota_limit:
+                  type: integer
+                  format: int64
+                  description: Quota limit in bytes
+      responses:
+        "201":
+          $ref: "#/components/responses/Company"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}:
     get:
       operationId: getAdminCompany

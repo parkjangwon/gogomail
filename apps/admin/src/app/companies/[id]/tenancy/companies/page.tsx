@@ -10,6 +10,9 @@ import {
   Spinner,
   TextFilter,
   Pagination,
+  Modal,
+  FormField,
+  Input,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -30,6 +33,9 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [newCompany, setNewCompany] = useState({ name: '', quota_gb: '' });
+  const [creating, setCreating] = useState(false);
   const itemsPerPage = 20;
 
   useEffect(() => {
@@ -50,6 +56,35 @@ export default function CompaniesPage() {
       console.error('Failed to fetch companies:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateCompany = async () => {
+    if (!newCompany.name.trim()) {
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCompany.name,
+          quota_limit: parseInt(newCompany.quota_gb) * 1024 * 1024 * 1024,
+        }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setNewCompany({ name: '', quota_gb: '' });
+        fetchCompanies();
+      } else {
+        console.error('Failed to create company');
+      }
+    } catch (error) {
+      console.error('Failed to create company:', error);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -79,7 +114,7 @@ export default function CompaniesPage() {
           variant="h1"
           description="Manage tenants and organizations"
           actions={
-            <Button variant="primary" disabled>
+            <Button variant="primary" onClick={() => setShowModal(true)}>
               + Create Company
             </Button>
           }
@@ -149,6 +184,40 @@ export default function CompaniesPage() {
           }
         />
       </SpaceBetween>
+
+      <Modal
+        onDismiss={() => setShowModal(false)}
+        visible={showModal}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleCreateCompany} loading={creating}>
+                Create Company
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+        header="Create New Company"
+      >
+        <SpaceBetween size="m">
+          <FormField label="Company Name">
+            <Input
+              value={newCompany.name}
+              onChange={(e) => setNewCompany({ ...newCompany, name: e.detail.value })}
+              placeholder="e.g., ACME Corp"
+            />
+          </FormField>
+          <FormField label="Quota (GB)">
+            <Input
+              type="number"
+              value={newCompany.quota_gb}
+              onChange={(e) => setNewCompany({ ...newCompany, quota_gb: e.detail.value })}
+              placeholder="e.g., 100"
+            />
+          </FormField>
+        </SpaceBetween>
+      </Modal>
     </ContentLayout>
   );
 }
