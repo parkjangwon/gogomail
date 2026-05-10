@@ -37,7 +37,7 @@
       ]
     },
     "allowJs": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "plugins": [
       {
         "name": "next"
