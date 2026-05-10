@@ -2573,6 +2573,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 		}
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, httpapi.MailRouteOptions{
 			SessionRevoker: repository,
+			Authenticator:  repository,
 		})
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(

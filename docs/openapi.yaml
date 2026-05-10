@@ -46,6 +46,45 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Info"
+  /auth/token:
+    post:
+      operationId: loginUser
+      summary: Authenticate a user and issue a JWT token
+      security: []
+      servers:
+        - url: /api/v1
+          description: Mail API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+                  must_change_password:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
   /auth/sessions/revoke-all:
     post:
       operationId: revokeAllSessions
