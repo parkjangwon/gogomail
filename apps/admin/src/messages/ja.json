@@ -432,7 +432,22 @@
       "target_email": "ターゲットメール",
       "status": "ステータス",
       "created": "作成日",
-      "aliases_label": "エイリアス"
+      "aliases_label": "エイリアス",
+      "add_alias": "エイリアスを追加",
+      "address": "アドレス",
+      "domain": "ドメイン",
+      "target_kind": "対象種別",
+      "target_id": "対象ID",
+      "no_aliases": "エイリアスがありません",
+      "create_modal_title": "エイリアスを追加",
+      "create_btn": "作成",
+      "domain_label": "ドメインID",
+      "address_label": "アドレス",
+      "target_kind_label": "対象種別",
+      "target_id_label": "対象ID",
+      "target_kind_user": "ユーザー",
+      "target_kind_group": "グループ",
+      "target_kind_external": "外部"
     },
     "delegations": {
       "title": "委任",
@@ -443,7 +458,25 @@
       "created": "作成日",
       "create_delegation": "委任を作成",
       "delegate": "受任者",
-      "permissions": "権限"
+      "permissions": "権限",
+      "owner_id": "オーナー",
+      "delegate_id": "受任者",
+      "scope": "スコープ",
+      "role": "役割",
+      "no_delegations": "委任がありません",
+      "create_modal_title": "委任を作成",
+      "create_btn": "作成",
+      "owner_kind_label": "オーナー種別",
+      "owner_id_label": "オーナーID",
+      "delegate_kind_label": "受任者種別",
+      "delegate_id_label": "受任者ID",
+      "scope_label": "スコープ",
+      "role_label": "役割",
+      "kind_user": "ユーザー",
+      "kind_group": "グループ",
+      "role_viewer": "閲覧者",
+      "role_editor": "編集者",
+      "role_admin": "管理者"
     },
     "groups": {
       "title": "グループメンバーシップ",
@@ -454,7 +487,22 @@
       "created": "作成日",
       "create_group": "グループを作成",
       "member_count": "メンバー数",
-      "members": "メンバー"
+      "members": "メンバー",
+      "add_member": "メンバーを追加",
+      "group_id": "グループID",
+      "member_id": "メンバー",
+      "no_members": "メンバーがいません",
+      "create_modal_title": "メンバーを追加",
+      "create_btn": "追加",
+      "group_id_label": "グループID",
+      "member_kind_label": "メンバー種別",
+      "member_id_label": "メンバーID",
+      "role_label": "役割",
+      "member_kind_user": "ユーザー",
+      "member_kind_group": "グループ",
+      "role_member": "メンバー",
+      "role_owner": "オーナー",
+      "role_admin": "管理者"
     },
     "dashboard_page": {
       "title": "ダッシュボード",
@@ -706,7 +754,10 @@
       "event_type": "イベントタイプ",
       "status": "ステータス",
       "timestamp": "タイムスタンプ",
-      "events": "イベント"
+      "events": "イベント",
+      "actions": "操作",
+      "retry": "再試行",
+      "no_events": "送信箱イベントがありません"
     },
     "delivery_attempts_page": {
       "description": "詳細な配信試行履歴を表示",
@@ -724,7 +775,26 @@
       "messages": "メッセージ",
       "created": "作成日",
       "routes": "経路",
-      "title": "配信ルート"
+      "title": "配信ルート",
+      "domain_pattern": "ドメインパターン",
+      "hosts": "ホスト",
+      "port": "ポート",
+      "tls_mode": "TLSモード",
+      "actions": "アクション",
+      "no_routes": "配信ルートが見つかりません",
+      "create_modal_title": "配信ルートを作成",
+      "create_btn": "ルートを作成",
+      "domain_pattern_label": "ドメインパターン",
+      "hosts_label": "ホスト",
+      "hosts_constraint": "カンマ区切りのホストリスト",
+      "port_label": "ポート",
+      "tls_mode_label": "TLSモード",
+      "description_label": "説明（任意）",
+      "description_placeholder": "例: example.comのプライマリリレー",
+      "deactivate": "無効化",
+      "activate": "有効化",
+      "delete_modal_title": "ルートを削除",
+      "delete_confirm": "このルートを削除してもよろしいですか"
     },
     "relays_page": {
       "description": "信頼された메일リレーを管理",
@@ -735,7 +805,18 @@
       "active_connections": "アクティブ接続数",
       "created": "作成日",
       "relays": "リレー",
-      "title": "信頼済みリレー"
+      "title": "信頼済みリレー",
+      "cidr": "CIDR",
+      "actions": "アクション",
+      "no_relays": "信頼できるリレーが見つかりません",
+      "create_modal_title": "信頼できるリレーを追加",
+      "create_btn": "リレーを追加",
+      "cidr_label": "CIDRブロック",
+      "cidr_constraint": "例: 192.168.1.0/24",
+      "description_label": "説明（任意）",
+      "description_placeholder": "例: オフィスネットワーク",
+      "delete_modal_title": "リレーを削除",
+      "delete_confirm": "このリレーを削除してもよろしいですか"
     },
     "queue_stats_page": {
       "topic": "トピック",
@@ -818,7 +899,8 @@
       "assigned_users": "割り当てられたユーザー",
       "created": "作成日",
       "roles": "役割",
-      "create_role": "+ ロール作成"
+      "create_role": "+ ロール作成",
+      "backend_warning": "ロール管理には追加のバックエンド設定が必要です。システム管理者に連絡してください。"
     },
     "alerts_page": {
       "description": "アラートルールと通知を設定",
@@ -830,7 +912,23 @@
       "disabled_label": "無効",
       "created": "作成日",
       "rules": "ルール",
-      "title": "アラートルール"
+      "title": "アラートルール",
+      "create_alert_btn": "アラートルールを作成",
+      "alert_type": "アラートタイプ",
+      "threshold": "しきい値",
+      "interval": "チェック間隔",
+      "actions": "操作",
+      "no_rules": "アラートルールがありません",
+      "create_modal_title": "アラートルールを作成",
+      "create_btn": "作成",
+      "name_label": "名前",
+      "name_placeholder": "例: 高バウンス率",
+      "alert_type_label": "アラートタイプ",
+      "description_label": "説明",
+      "description_placeholder": "任意の説明",
+      "threshold_label": "しきい値 (例: 0.05 は 5%)",
+      "interval_label": "チェック間隔 (分)",
+      "enabled_checkbox_label": "このルールを有効にする"
     },
     "suppression_page": {
       "description": "メール抑制リストを管理",
@@ -859,7 +957,18 @@
       "keys": "キー",
       "title": "DKIMキー",
       "verified": "検証済み",
-      "not_verified": "未検証"
+      "not_verified": "未検証",
+      "actions": "アクション",
+      "no_keys": "DKIMキーが見つかりません",
+      "create_modal_title": "DKIMキーを追加",
+      "create_btn": "キーを追加",
+      "domain_id_label": "ドメインID",
+      "selector_label": "セレクター",
+      "private_key_label": "秘密鍵（PEM）",
+      "public_key_label": "公開鍵（DNS TXT値）",
+      "deactivate": "無効化",
+      "deactivate_modal_title": "DKIMキーを無効化",
+      "deactivate_confirm": "このセレクターを無効化してもよろしいですか"
     },
     "api_keys_page": {
       "description": "API 認証キーを管理",
@@ -917,7 +1026,9 @@
       "size": "サイズ",
       "upload_date": "アップロード日",
       "last_accessed": "最終アクセス日",
-      "never": "なし"
+      "never": "なし",
+      "run_cleanup": "クリーンアップ実行",
+      "cleanup_success": "クリーンアップジョブが開始されました。"
     },
     "drive_page": {
       "type": "タイプ"
@@ -1003,7 +1114,10 @@
       "key": "キー",
       "value": "値",
       "last_updated": "最終更新日",
-      "add_config_btn": "+ 設定追加"
+      "add_config_btn": "+ 設定追加",
+      "title": "ドメイン設定",
+      "description": "ドメインごとの設定を構成",
+      "info_message": "ドメイン設定はドメインごとに管理されます。ドメイン → ドメインを選択 → 設定タブに移動してください。"
     },
     "config_user_page": {
       "description": "ユーザーごとの設定を構成",
@@ -1013,7 +1127,8 @@
       "value": "値",
       "last_updated": "最終更新日",
       "title": "ユーザー設定",
-      "add_config_btn": "+ 設定追加"
+      "add_config_btn": "+ 設定追加",
+      "info_message": "ユーザー設定はユーザーごとに管理されます。ユーザー → ユーザー編集に移動して個別の設定を行ってください。"
     },
     "monitoring_page": {
       "system_resources": "システムリソース",

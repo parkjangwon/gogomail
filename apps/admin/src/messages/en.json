@@ -432,7 +432,22 @@
       "target_email": "Target Email",
       "status": "Status",
       "created": "Created",
-      "aliases_label": "Aliases"
+      "aliases_label": "Aliases",
+      "add_alias": "Add Alias",
+      "address": "Address",
+      "domain": "Domain",
+      "target_kind": "Target Kind",
+      "target_id": "Target ID",
+      "no_aliases": "No aliases found",
+      "create_modal_title": "Add Alias",
+      "create_btn": "Create",
+      "domain_label": "Domain ID",
+      "address_label": "Address",
+      "target_kind_label": "Target Kind",
+      "target_id_label": "Target ID",
+      "target_kind_user": "User",
+      "target_kind_group": "Group",
+      "target_kind_external": "External"
     },
     "delegations": {
       "title": "Delegations",
@@ -443,7 +458,25 @@
       "created": "Created",
       "create_delegation": "Create Delegation",
       "delegate": "Delegate",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "owner_id": "Owner",
+      "delegate_id": "Delegate",
+      "scope": "Scope",
+      "role": "Role",
+      "no_delegations": "No delegations found",
+      "create_modal_title": "Create Delegation",
+      "create_btn": "Create",
+      "owner_kind_label": "Owner Kind",
+      "owner_id_label": "Owner ID",
+      "delegate_kind_label": "Delegate Kind",
+      "delegate_id_label": "Delegate ID",
+      "scope_label": "Scope",
+      "role_label": "Role",
+      "kind_user": "User",
+      "kind_group": "Group",
+      "role_viewer": "Viewer",
+      "role_editor": "Editor",
+      "role_admin": "Admin"
     },
     "groups": {
       "title": "Groups",
@@ -454,7 +487,22 @@
       "created": "Created",
       "create_group": "Create Group",
       "member_count": "Member Count",
-      "members": "Members"
+      "members": "Members",
+      "add_member": "Add Member",
+      "group_id": "Group ID",
+      "member_id": "Member",
+      "no_members": "No members found",
+      "create_modal_title": "Add Member",
+      "create_btn": "Add",
+      "group_id_label": "Group ID",
+      "member_kind_label": "Member Kind",
+      "member_id_label": "Member ID",
+      "role_label": "Role",
+      "member_kind_user": "User",
+      "member_kind_group": "Group",
+      "role_member": "Member",
+      "role_owner": "Owner",
+      "role_admin": "Admin"
     },
     "compliance": {
       "title": "Compliance",
@@ -911,7 +959,10 @@
       "event_type": "Event Type",
       "status": "Status",
       "timestamp": "Timestamp",
-      "events": "Events"
+      "events": "Events",
+      "actions": "Actions",
+      "retry": "Retry",
+      "no_events": "No outbox events found"
     },
     "delivery_attempts_page": {
       "description": "View detailed delivery attempt history",
@@ -929,7 +980,26 @@
       "messages": "Messages",
       "created": "Created",
       "routes": "Routes",
-      "title": "Delivery Routes"
+      "title": "Delivery Routes",
+      "domain_pattern": "Domain Pattern",
+      "hosts": "Hosts",
+      "port": "Port",
+      "tls_mode": "TLS Mode",
+      "actions": "Actions",
+      "no_routes": "No delivery routes found",
+      "create_modal_title": "Create Delivery Route",
+      "create_btn": "Create Route",
+      "domain_pattern_label": "Domain Pattern",
+      "hosts_label": "Hosts",
+      "hosts_constraint": "Comma-separated list of hosts",
+      "port_label": "Port",
+      "tls_mode_label": "TLS Mode",
+      "description_label": "Description (optional)",
+      "description_placeholder": "e.g., Primary relay for example.com",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "delete_modal_title": "Delete Route",
+      "delete_confirm": "Are you sure you want to delete route"
     },
     "relays_page": {
       "description": "Manage trusted mail relays",
@@ -940,7 +1010,18 @@
       "active_connections": "Active Connections",
       "created": "Created",
       "relays": "Relays",
-      "title": "Trusted Relays"
+      "title": "Trusted Relays",
+      "cidr": "CIDR",
+      "actions": "Actions",
+      "no_relays": "No trusted relays found",
+      "create_modal_title": "Add Trusted Relay",
+      "create_btn": "Add Relay",
+      "cidr_label": "CIDR Block",
+      "cidr_constraint": "e.g., 192.168.1.0/24",
+      "description_label": "Description (optional)",
+      "description_placeholder": "e.g., Office network",
+      "delete_modal_title": "Delete Relay",
+      "delete_confirm": "Are you sure you want to delete relay"
     },
     "queue_stats_page": {
       "topic": "Topic",
@@ -1023,7 +1104,8 @@
       "assigned_users": "Assigned Users",
       "created": "Created",
       "roles": "Roles",
-      "create_role": "+ Create Role"
+      "create_role": "+ Create Role",
+      "backend_warning": "Role management requires additional backend configuration. Contact your system administrator."
     },
     "alerts_page": {
       "description": "Configure alert rules and notifications",
@@ -1035,7 +1117,23 @@
       "disabled_label": "Disabled",
       "created": "Created",
       "rules": "Rules",
-      "title": "Alert Rules"
+      "title": "Alert Rules",
+      "create_alert_btn": "Create Alert Rule",
+      "alert_type": "Alert Type",
+      "threshold": "Threshold",
+      "interval": "Interval",
+      "actions": "Actions",
+      "no_rules": "No alert rules found",
+      "create_modal_title": "Create Alert Rule",
+      "create_btn": "Create",
+      "name_label": "Name",
+      "name_placeholder": "e.g., High Bounce Rate",
+      "alert_type_label": "Alert Type",
+      "description_label": "Description",
+      "description_placeholder": "Optional description",
+      "threshold_label": "Threshold (e.g., 0.05 for 5%)",
+      "interval_label": "Check Interval (minutes)",
+      "enabled_checkbox_label": "Enable this rule"
     },
     "suppression_page": {
       "description": "Manage email suppression list",
@@ -1064,7 +1162,18 @@
       "keys": "Keys",
       "title": "DKIM Keys",
       "verified": "Verified",
-      "not_verified": "Not Verified"
+      "not_verified": "Not Verified",
+      "actions": "Actions",
+      "no_keys": "No DKIM keys found",
+      "create_modal_title": "Add DKIM Key",
+      "create_btn": "Add Key",
+      "domain_id_label": "Domain ID",
+      "selector_label": "Selector",
+      "private_key_label": "Private Key (PEM)",
+      "public_key_label": "Public Key (DNS TXT value)",
+      "deactivate": "Deactivate",
+      "deactivate_modal_title": "Deactivate DKIM Key",
+      "deactivate_confirm": "Are you sure you want to deactivate selector"
     },
     "api_keys_page": {
       "description": "Manage API authentication keys",
@@ -1122,7 +1231,9 @@
       "size": "Size",
       "upload_date": "Upload Date",
       "last_accessed": "Last Accessed",
-      "never": "Never"
+      "never": "Never",
+      "run_cleanup": "Run Cleanup",
+      "cleanup_success": "Cleanup job started successfully."
     },
     "drive_page": {
       "type": "Type"
@@ -1208,7 +1319,10 @@
       "key": "Key",
       "value": "Value",
       "last_updated": "Last Updated",
-      "add_config_btn": "+ Add Config"
+      "add_config_btn": "+ Add Config",
+      "title": "Domain Configuration",
+      "description": "Configure per-domain settings",
+      "info_message": "Domain configuration is managed per-domain. Navigate to Domains → select a domain → Settings tab."
     },
     "config_user_page": {
       "description": "Configure per-user settings",
@@ -1218,7 +1332,8 @@
       "value": "Value",
       "last_updated": "Last Updated",
       "title": "User Config",
-      "add_config_btn": "+ Add Config"
+      "add_config_btn": "+ Add Config",
+      "info_message": "User configuration is managed per-user. Navigate to Users → Edit User to set individual settings."
     },
     "monitoring_page": {
       "system_resources": "System Resources",

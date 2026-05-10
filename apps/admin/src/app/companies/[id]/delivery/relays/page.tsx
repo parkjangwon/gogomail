@@ -9,18 +9,18 @@ import {
   Box,
   Spinner,
   TextFilter,
-  Badge,
+  Modal,
+  FormField,
+  Input,
+  StatusIndicator,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 
 interface TrustedRelay {
   id: string;
-  host: string;
-  port: number;
-  protocol: string;
-  status: string;
-  active_connections: number;
+  cidr: string;
+  description: string;
   created_at: string;
 }
 
@@ -30,6 +30,13 @@ export default function TrustedRelaysPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
 
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRelay, setNewRelay] = useState({ cidr: '', description: '' });
+  const [creating, setCreating] = useState(false);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<TrustedRelay | null>(null);
+
   useEffect(() => {
     fetchRelays();
   }, []);
@@ -38,7 +45,7 @@ export default function TrustedRelaysPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/trusted-relays?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -51,13 +58,55 @@ export default function TrustedRelaysPage() {
     }
   };
 
-  const filteredRelays = relays.filter(r =>
-    r.host.toLowerCase().includes(filter.toLowerCase())
+  const handleCreate = async () => {
+    if (!newRelay.cidr.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/trusted-relays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cidr: newRelay.cidr.trim(),
+          description: newRelay.description.trim() || undefined,
+        }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setShowCreateModal(false);
+        setNewRelay({ cidr: '', description: '' });
+        fetchRelays();
+      }
+    } catch (error) {
+      console.error('Failed to create trusted relay:', error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (relay: TrustedRelay) => {
+    setDeletingId(relay.id);
+    try {
+      await fetch(`/api/admin/trusted-relays/${relay.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      fetchRelays();
+    } catch (error) {
+      console.error('Failed to delete trusted relay:', error);
+    } finally {
+      setDeletingId(null);
+      setConfirmDelete(null);
+    }
+  };
+
+  const filteredRelays = relays.filter((r) =>
+    r.cidr.toLowerCase().includes(filter.toLowerCase()) ||
+    (r.description || '').toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">{t('pages.relays.title')}</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.relays_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -72,7 +121,7 @@ export default function TrustedRelaysPage() {
           variant="h1"
           description={t('pages.relays_page.description')}
           actions={
-            <Button variant="primary" disabled>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               {t('pages.relays.create_relay')}
             </Button>
           }
@@ -85,42 +134,45 @@ export default function TrustedRelaysPage() {
         <Table
           columnDefinitions={[
             {
-              header: t('pages.relays_page.host'),
-              cell: (item: TrustedRelay) => item.host,
+              header: t('pages.relays_page.cidr'),
+              cell: (item: TrustedRelay) => (
+                <Box fontWeight="bold">{item.cidr}</Box>
+              ),
               width: '30%',
             },
             {
-              header: t('pages.relays_page.port'),
-              cell: (item: TrustedRelay) => item.port,
-              width: '10%',
-            },
-            {
-              header: t('pages.relays_page.protocol'),
-              cell: (item: TrustedRelay) => item.protocol,
-              width: '12%',
-            },
-            {
-              header: t('pages.relays.status'),
+              header: t('pages.relays_page.description'),
               cell: (item: TrustedRelay) => (
-                <Badge color={item.status === 'active' ? 'green' : 'grey'}>
-                  {item.status}
-                </Badge>
+                <Box color="text-body-secondary">{item.description || '—'}</Box>
               ),
-              width: '12%',
-            },
-            {
-              header: t('pages.relays_page.active_connections'),
-              cell: (item: TrustedRelay) => item.active_connections,
-              width: '15%',
+              width: '35%',
             },
             {
               header: t('pages.relays_page.created'),
-              cell: (item: TrustedRelay) => new Date(item.created_at).toLocaleDateString(),
-              width: '21%',
+              cell: (item: TrustedRelay) =>
+                new Date(item.created_at).toLocaleDateString(),
+              width: '20%',
+            },
+            {
+              header: t('pages.relays_page.actions'),
+              cell: (item: TrustedRelay) => (
+                <Button
+                  variant="inline-link"
+                  onClick={() => setConfirmDelete(item)}
+                  loading={deletingId === item.id}
+                >
+                  {t('common.delete')}
+                </Button>
+              ),
+              width: '15%',
             },
           ]}
           items={filteredRelays}
-          header={<Header variant="h2" counter={`(${filteredRelays.length})`}>{t('pages.relays_page.relays')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredRelays.length})`}>
+              {t('pages.relays_page.relays')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}
@@ -128,8 +180,80 @@ export default function TrustedRelaysPage() {
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
+          empty={
+            <Box textAlign="center" padding="l">
+              <StatusIndicator type="info">{t('pages.relays_page.no_relays')}</StatusIndicator>
+            </Box>
+          }
         />
       </SpaceBetween>
+
+      {/* Create Modal */}
+      <Modal
+        onDismiss={() => setShowCreateModal(false)}
+        visible={showCreateModal}
+        size="medium"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={handleCreate}
+                loading={creating}
+                disabled={!newRelay.cidr.trim()}
+              >
+                {t('pages.relays_page.create_btn')}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+        header={t('pages.relays_page.create_modal_title')}
+      >
+        <SpaceBetween size="m">
+          <FormField
+            label={t('pages.relays_page.cidr_label')}
+            constraintText={t('pages.relays_page.cidr_constraint')}
+          >
+            <Input
+              value={newRelay.cidr}
+              onChange={(e) => setNewRelay({ ...newRelay, cidr: e.detail.value })}
+              placeholder="192.168.1.0/24"
+            />
+          </FormField>
+          <FormField label={t('pages.relays_page.description_label')}>
+            <Input
+              value={newRelay.description}
+              onChange={(e) => setNewRelay({ ...newRelay, description: e.detail.value })}
+              placeholder={t('pages.relays_page.description_placeholder')}
+            />
+          </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        onDismiss={() => setConfirmDelete(null)}
+        visible={!!confirmDelete}
+        size="small"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
+              <Button
+                variant="primary"
+                onClick={() => confirmDelete && handleDelete(confirmDelete)}
+                loading={deletingId === confirmDelete?.id}
+              >
+                {t('common.delete')}
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+        header={t('pages.relays_page.delete_modal_title')}
+      >
+        <Box>{t('pages.relays_page.delete_confirm')} <strong>{confirmDelete?.cidr}</strong>?</Box>
+      </Modal>
     </ContentLayout>
   );
 }

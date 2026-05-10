@@ -4,11 +4,11 @@ import {
   ContentLayout,
   Header,
   Table,
-  Button,
   SpaceBetween,
   Box,
   Spinner,
   TextFilter,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -35,7 +35,7 @@ export default function DomainConfigPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/config/domain?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -48,14 +48,15 @@ export default function DomainConfigPage() {
     }
   };
 
-  const filteredConfigs = configs.filter(c =>
-    c.domain.toLowerCase().includes(filter.toLowerCase()) ||
-    c.config_key.toLowerCase().includes(filter.toLowerCase())
+  const filteredConfigs = configs.filter(
+    (c) =>
+      c.domain.toLowerCase().includes(filter.toLowerCase()) ||
+      c.config_key.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">{t('pages.config_domain.title')}</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.config_domain_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -66,20 +67,14 @@ export default function DomainConfigPage() {
   return (
     <ContentLayout
       header={
-        <Header
-          variant="h1"
-          description={t('pages.config_domain.description')}
-          actions={
-            <Button variant="primary" disabled>
-              {t('pages.config_domain_page.add_config_btn')}
-            </Button>
-          }
-        >
-          {t('pages.config_domain.title')}
+        <Header variant="h1" description={t('pages.config_domain_page.description')}>
+          {t('pages.config_domain_page.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
+        <Alert type="info">{t('pages.config_domain_page.info_message')}</Alert>
+
         <Table
           columnDefinitions={[
             {
@@ -104,7 +99,11 @@ export default function DomainConfigPage() {
             },
           ]}
           items={filteredConfigs}
-          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>{t('pages.config_domain.title')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredConfigs.length})`}>
+              {t('pages.config_domain_page.title')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}

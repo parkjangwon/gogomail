@@ -34,7 +34,7 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/reports?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -45,6 +45,27 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExport = () => {
+    const header = ['id', 'name', 'type', 'generated_at', 'file_size'].join(',');
+    const rows = reports.map((r) =>
+      [
+        r.id,
+        `"${r.name.replace(/"/g, '""')}"`,
+        `"${r.type.replace(/"/g, '""')}"`,
+        r.generated_at,
+        r.file_size,
+      ].join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reports.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -64,7 +85,11 @@ export default function ReportsPage() {
           variant="h1"
           description={t('pages.reports_page.description')}
           actions={
-            <Button variant="primary" disabled>
+            <Button
+              variant="primary"
+              onClick={handleExport}
+              disabled={loading || reports.length === 0}
+            >
               {t('pages.reports_page.generate_report')}
             </Button>
           }
@@ -74,10 +99,10 @@ export default function ReportsPage() {
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h3">{t('pages.reports_page.available_reports')}</Header>}>
-          <Box color="text-body-secondary">
-            {t('pages.reports_page.reports_desc')}
-          </Box>
+        <Container
+          header={<Header variant="h3">{t('pages.reports_page.available_reports')}</Header>}
+        >
+          <Box color="text-body-secondary">{t('pages.reports_page.reports_desc')}</Box>
         </Container>
 
         <Table
@@ -104,7 +129,11 @@ export default function ReportsPage() {
             },
           ]}
           items={reports}
-          header={<Header variant="h2" counter={`(${reports.length})`}>{t('pages.reports.title')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${reports.length})`}>
+              {t('pages.reports.title')}
+            </Header>
+          }
         />
       </SpaceBetween>
     </ContentLayout>

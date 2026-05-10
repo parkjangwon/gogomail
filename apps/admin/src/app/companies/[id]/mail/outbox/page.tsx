@@ -28,6 +28,7 @@ export default function OutboxEventsPage() {
   const [events, setEvents] = useState<OutboxEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOutboxEvents();
@@ -37,7 +38,7 @@ export default function OutboxEventsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/outbox-events?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -50,12 +51,26 @@ export default function OutboxEventsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const handleRetry = async (item: OutboxEvent) => {
+    setRetryingId(item.id);
+    try {
+      await fetch(`/api/admin/outbox/${item.id}/retry`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      fetchOutboxEvents();
+    } catch (error) {
+      console.error('Failed to retry outbox event:', error);
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const getStatusColor = (status: string): 'green' | 'red' | 'blue' | 'grey' => {
     switch (status) {
       case 'success': return 'green';
       case 'failed': return 'red';
       case 'pending': return 'blue';
-      case 'retry': return 'severity-high';
       default: return 'grey';
     }
   };
@@ -81,11 +96,6 @@ export default function OutboxEventsPage() {
         <Header
           variant="h1"
           description={t('pages.outbox_page.description')}
-          actions={
-            <Button variant="primary" disabled>
-              {t('pages.outbox_page.retry_failed')}
-            </Button>
-          }
         >
           {t('pages.outbox.title')}
         </Header>
@@ -102,12 +112,12 @@ export default function OutboxEventsPage() {
             {
               header: t('pages.outbox_page.recipient'),
               cell: (item: OutboxEvent) => item.recipient,
-              width: '25%',
+              width: '22%',
             },
             {
               header: t('pages.outbox_page.event_type'),
               cell: (item: OutboxEvent) => item.event_type,
-              width: '20%',
+              width: '15%',
             },
             {
               header: t('pages.outbox_page.status'),
@@ -116,22 +126,45 @@ export default function OutboxEventsPage() {
                   {item.status}
                 </Badge>
               ),
-              width: '15%',
+              width: '12%',
             },
             {
               header: t('pages.outbox_page.timestamp'),
               cell: (item: OutboxEvent) => new Date(item.timestamp).toLocaleString(),
-              width: '20%',
+              width: '18%',
+            },
+            {
+              header: t('pages.outbox_page.actions'),
+              cell: (item: OutboxEvent) =>
+                (item.status === 'failed' || item.status === 'pending') ? (
+                  <Button
+                    variant="inline-link"
+                    onClick={() => handleRetry(item)}
+                    loading={retryingId === item.id}
+                  >
+                    {t('pages.outbox_page.retry')}
+                  </Button>
+                ) : null,
+              width: '13%',
             },
           ]}
           items={filteredEvents}
-          header={<Header variant="h2" counter={`(${filteredEvents.length})`}>{t('pages.outbox_page.events')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredEvents.length})`}>
+              {t('pages.outbox_page.events')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}
               filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
+          }
+          empty={
+            <Box textAlign="center" padding="l">
+              {t('pages.outbox_page.no_events')}
+            </Box>
           }
         />
       </SpaceBetween>

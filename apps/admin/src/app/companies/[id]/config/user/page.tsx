@@ -4,11 +4,11 @@ import {
   ContentLayout,
   Header,
   Table,
-  Button,
   SpaceBetween,
   Box,
   Spinner,
   TextFilter,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -35,7 +35,7 @@ export default function UserConfigPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/config/user?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -48,14 +48,15 @@ export default function UserConfigPage() {
     }
   };
 
-  const filteredConfigs = configs.filter(c =>
-    c.user_email.toLowerCase().includes(filter.toLowerCase()) ||
-    c.config_key.toLowerCase().includes(filter.toLowerCase())
+  const filteredConfigs = configs.filter(
+    (c) =>
+      c.user_email.toLowerCase().includes(filter.toLowerCase()) ||
+      c.config_key.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">{t('pages.config_user.title')}</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.config_user_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -66,20 +67,14 @@ export default function UserConfigPage() {
   return (
     <ContentLayout
       header={
-        <Header
-          variant="h1"
-          description={t('pages.config_user_page.description')}
-          actions={
-            <Button variant="primary" disabled>
-              {t('pages.config_user_page.add_config_btn')}
-            </Button>
-          }
-        >
+        <Header variant="h1" description={t('pages.config_user_page.description')}>
           {t('pages.config_user_page.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
+        <Alert type="info">{t('pages.config_user_page.info_message')}</Alert>
+
         <Table
           columnDefinitions={[
             {
@@ -104,7 +99,11 @@ export default function UserConfigPage() {
             },
           ]}
           items={filteredConfigs}
-          header={<Header variant="h2" counter={`(${filteredConfigs.length})`}>{t('pages.config_user.title')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredConfigs.length})`}>
+              {t('pages.config_user_page.title')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}

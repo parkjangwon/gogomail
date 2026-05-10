@@ -432,7 +432,22 @@
       "target_email": "目标邮箱",
       "status": "状态",
       "created": "创建时间",
-      "aliases_label": "别名"
+      "aliases_label": "别名",
+      "add_alias": "添加别名",
+      "address": "地址",
+      "domain": "域",
+      "target_kind": "目标类型",
+      "target_id": "目标ID",
+      "no_aliases": "没有别名",
+      "create_modal_title": "添加别名",
+      "create_btn": "创建",
+      "domain_label": "域ID",
+      "address_label": "地址",
+      "target_kind_label": "目标类型",
+      "target_id_label": "目标ID",
+      "target_kind_user": "用户",
+      "target_kind_group": "群组",
+      "target_kind_external": "外部"
     },
     "delegations": {
       "title": "委派",
@@ -443,7 +458,25 @@
       "created": "创建时间",
       "create_delegation": "创建委托",
       "delegate": "被委托人",
-      "permissions": "权限"
+      "permissions": "权限",
+      "owner_id": "所有者",
+      "delegate_id": "受委托人",
+      "scope": "范围",
+      "role": "角色",
+      "no_delegations": "没有委托",
+      "create_modal_title": "创建委托",
+      "create_btn": "创建",
+      "owner_kind_label": "所有者类型",
+      "owner_id_label": "所有者ID",
+      "delegate_kind_label": "受委托人类型",
+      "delegate_id_label": "受委托人ID",
+      "scope_label": "范围",
+      "role_label": "角色",
+      "kind_user": "用户",
+      "kind_group": "群组",
+      "role_viewer": "查看者",
+      "role_editor": "编辑者",
+      "role_admin": "管理员"
     },
     "groups": {
       "title": "组成员",
@@ -454,7 +487,22 @@
       "created": "创建时间",
       "create_group": "创建组",
       "member_count": "成员数",
-      "members": "成员"
+      "members": "成员",
+      "add_member": "添加成员",
+      "group_id": "群组ID",
+      "member_id": "成员",
+      "no_members": "没有成员",
+      "create_modal_title": "添加成员",
+      "create_btn": "添加",
+      "group_id_label": "群组ID",
+      "member_kind_label": "成员类型",
+      "member_id_label": "成员ID",
+      "role_label": "角色",
+      "member_kind_user": "用户",
+      "member_kind_group": "群组",
+      "role_member": "成员",
+      "role_owner": "所有者",
+      "role_admin": "管理员"
     },
     "dashboard_page": {
       "title": "仪表板",
@@ -706,7 +754,10 @@
       "event_type": "事件类型",
       "status": "状态",
       "timestamp": "时间戳",
-      "events": "事件"
+      "events": "事件",
+      "actions": "操作",
+      "retry": "重试",
+      "no_events": "暂无发件箱事件"
     },
     "delivery_attempts_page": {
       "description": "查看详细的投递尝试历史",
@@ -724,7 +775,26 @@
       "messages": "消息数",
       "created": "创建时间",
       "routes": "路由",
-      "title": "邮件路由"
+      "title": "邮件路由",
+      "domain_pattern": "域名模式",
+      "hosts": "主机",
+      "port": "端口",
+      "tls_mode": "TLS 模式",
+      "actions": "操作",
+      "no_routes": "未找到传递路由",
+      "create_modal_title": "创建传递路由",
+      "create_btn": "创建路由",
+      "domain_pattern_label": "域名模式",
+      "hosts_label": "主机",
+      "hosts_constraint": "以逗号分隔的主机列表",
+      "port_label": "端口",
+      "tls_mode_label": "TLS 模式",
+      "description_label": "描述（可选）",
+      "description_placeholder": "例如: example.com 的主要中继",
+      "deactivate": "停用",
+      "activate": "启用",
+      "delete_modal_title": "删除路由",
+      "delete_confirm": "确定要删除路由"
     },
     "relays_page": {
       "description": "管理受信任的邮件中继",
@@ -735,7 +805,18 @@
       "active_connections": "活跃连接数",
       "created": "创建时间",
       "relays": "中继",
-      "title": "受信任的中继"
+      "title": "受信任的中继",
+      "cidr": "CIDR",
+      "actions": "操作",
+      "no_relays": "未找到受信任的中继",
+      "create_modal_title": "添加受信任的中继",
+      "create_btn": "添加中继",
+      "cidr_label": "CIDR 块",
+      "cidr_constraint": "例如: 192.168.1.0/24",
+      "description_label": "描述（可选）",
+      "description_placeholder": "例如: 办公室网络",
+      "delete_modal_title": "删除中继",
+      "delete_confirm": "确定要删除中继"
     },
     "queue_stats_page": {
       "topic": "主题",
@@ -818,7 +899,8 @@
       "assigned_users": "已分配用户",
       "created": "创建时间",
       "roles": "角色",
-      "create_role": "+ 创建角色"
+      "create_role": "+ 创建角色",
+      "backend_warning": "角色管理需要额外的后端配置。请联系系统管理员。"
     },
     "alerts_page": {
       "description": "配置告警规则和通知",
@@ -830,7 +912,23 @@
       "disabled_label": "已禁用",
       "created": "创建时间",
       "rules": "规则",
-      "title": "告警规则"
+      "title": "告警规则",
+      "create_alert_btn": "创建告警规则",
+      "alert_type": "告警类型",
+      "threshold": "阈值",
+      "interval": "检查间隔",
+      "actions": "操作",
+      "no_rules": "暂无告警规则",
+      "create_modal_title": "创建告警规则",
+      "create_btn": "创建",
+      "name_label": "名称",
+      "name_placeholder": "例如：高退信率",
+      "alert_type_label": "告警类型",
+      "description_label": "描述",
+      "description_placeholder": "可选描述",
+      "threshold_label": "阈值 (例如 0.05 表示 5%)",
+      "interval_label": "检查间隔 (分钟)",
+      "enabled_checkbox_label": "启用此规则"
     },
     "suppression_page": {
       "description": "管理电子邮件抑制列表",
@@ -859,7 +957,18 @@
       "keys": "密钥",
       "title": "DKIM密钥",
       "verified": "已验证",
-      "not_verified": "未验证"
+      "not_verified": "未验证",
+      "actions": "操作",
+      "no_keys": "未找到 DKIM 密钥",
+      "create_modal_title": "添加 DKIM 密钥",
+      "create_btn": "添加密钥",
+      "domain_id_label": "域 ID",
+      "selector_label": "选择器",
+      "private_key_label": "私钥（PEM）",
+      "public_key_label": "公钥（DNS TXT 值）",
+      "deactivate": "停用",
+      "deactivate_modal_title": "停用 DKIM 密钥",
+      "deactivate_confirm": "确定要停用选择器"
     },
     "api_keys_page": {
       "description": "管理 API 认证密钥",
@@ -917,7 +1026,9 @@
       "size": "大小",
       "upload_date": "上传日期",
       "last_accessed": "最后访问时间",
-      "never": "从未"
+      "never": "从未",
+      "run_cleanup": "执行清理",
+      "cleanup_success": "清理任务已成功启动。"
     },
     "drive_page": {
       "type": "类型"
@@ -1003,7 +1114,10 @@
       "key": "键",
       "value": "值",
       "last_updated": "最后更新",
-      "add_config_btn": "+ 添加配置"
+      "add_config_btn": "+ 添加配置",
+      "title": "域名配置",
+      "description": "配置每个域名的设置",
+      "info_message": "域名配置按域名进行管理。请前往域名 → 选择域名 → 设置选项卡。"
     },
     "config_user_page": {
       "description": "配置每个用户的设置",
@@ -1013,7 +1127,8 @@
       "value": "值",
       "last_updated": "最后更新",
       "title": "用户配置",
-      "add_config_btn": "+ 添加配置"
+      "add_config_btn": "+ 添加配置",
+      "info_message": "用户配置按用户进行管理。请前往用户 → 编辑用户以设置个人配置。"
     },
     "monitoring_page": {
       "system_resources": "系统资源",

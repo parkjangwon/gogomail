@@ -9,6 +9,7 @@ import {
   Box,
   Spinner,
   TextFilter,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -26,6 +27,8 @@ export default function AttachmentsPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupSuccess, setCleanupSuccess] = useState(false);
 
   useEffect(() => {
     fetchAttachments();
@@ -35,7 +38,7 @@ export default function AttachmentsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/attachments?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -48,7 +51,25 @@ export default function AttachmentsPage() {
     }
   };
 
-  const filteredAttachments = attachments.filter(a =>
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    try {
+      await fetch('/api/admin/attachment-cleanup/runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include',
+      });
+      setCleanupSuccess(true);
+      setTimeout(() => setCleanupSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to run cleanup:', error);
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const filteredAttachments = attachments.filter((a) =>
     a.filename.toLowerCase().includes(filter.toLowerCase())
   );
 
@@ -69,8 +90,13 @@ export default function AttachmentsPage() {
           variant="h1"
           description={t('pages.attachments_page.description')}
           actions={
-            <Button variant="primary" disabled>
-              {t('pages.attachments_page.cleanup_stale')}
+            <Button
+              variant="primary"
+              onClick={handleCleanup}
+              loading={cleanupLoading}
+              disabled={cleanupLoading}
+            >
+              {t('pages.attachments_page.run_cleanup')}
             </Button>
           }
         >
@@ -79,6 +105,10 @@ export default function AttachmentsPage() {
       }
     >
       <SpaceBetween size="l">
+        {cleanupSuccess && (
+          <Alert type="success">{t('pages.attachments_page.cleanup_success')}</Alert>
+        )}
+
         <Table
           columnDefinitions={[
             {
@@ -88,7 +118,8 @@ export default function AttachmentsPage() {
             },
             {
               header: t('pages.attachments_page.size'),
-              cell: (item: Attachment) => `${(item.size_bytes / 1024 / 1024).toFixed(2)} MB`,
+              cell: (item: Attachment) =>
+                `${(item.size_bytes / 1024 / 1024).toFixed(2)} MB`,
               width: '15%',
             },
             {
@@ -98,12 +129,19 @@ export default function AttachmentsPage() {
             },
             {
               header: t('pages.attachments_page.last_accessed'),
-              cell: (item: Attachment) => item.last_accessed ? new Date(item.last_accessed).toLocaleString() : t('pages.attachments_page.never'),
+              cell: (item: Attachment) =>
+                item.last_accessed
+                  ? new Date(item.last_accessed).toLocaleString()
+                  : t('pages.attachments_page.never'),
               width: '30%',
             },
           ]}
           items={filteredAttachments}
-          header={<Header variant="h2" counter={`(${filteredAttachments.length})`}>{t('pages.attachments.title')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredAttachments.length})`}>
+              {t('pages.attachments.title')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}

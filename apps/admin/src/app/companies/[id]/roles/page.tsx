@@ -9,6 +9,7 @@ import {
   Box,
   Spinner,
   TextFilter,
+  Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -36,20 +37,20 @@ export default function RolesPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/roles?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
         setRoles(data.roles || []);
       }
     } catch (error) {
-      console.error('Failed to fetch roles:', error);
+      // Roles endpoint may not exist — silently use empty list
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredRoles = roles.filter(r =>
+  const filteredRoles = roles.filter((r) =>
     r.name.toLowerCase().includes(filter.toLowerCase())
   );
 
@@ -80,6 +81,8 @@ export default function RolesPage() {
       }
     >
       <SpaceBetween size="l">
+        <Alert type="warning">{t('pages.roles_page.backend_warning')}</Alert>
+
         <Table
           columnDefinitions={[
             {
@@ -109,7 +112,11 @@ export default function RolesPage() {
             },
           ]}
           items={filteredRoles}
-          header={<Header variant="h2" counter={`(${filteredRoles.length})`}>{t('pages.roles_page.roles')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredRoles.length})`}>
+              {t('pages.roles_page.roles')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}

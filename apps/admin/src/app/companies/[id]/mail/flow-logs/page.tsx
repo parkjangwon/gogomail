@@ -20,6 +20,7 @@ interface MailLog {
   to: string;
   subject: string;
   status: string;
+  created_at: string;
   timestamp: string;
   message_size: number;
 }
@@ -38,7 +39,7 @@ export default function MailFlowLogsPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/mail-flow-logs?limit=100', {
-        credentials: 'include'
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -51,7 +52,7 @@ export default function MailFlowLogsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'green' | 'red' | 'severity-high' | 'blue' | 'grey' => {
     switch (status) {
       case 'delivered': return 'green';
       case 'failed': return 'red';
@@ -61,11 +62,34 @@ export default function MailFlowLogsPage() {
     }
   };
 
-  const filteredLogs = logs.filter(l =>
-    l.from.toLowerCase().includes(filter.toLowerCase()) ||
-    l.to.toLowerCase().includes(filter.toLowerCase()) ||
-    l.subject.toLowerCase().includes(filter.toLowerCase())
+  const filteredLogs = logs.filter(
+    (l) =>
+      l.from.toLowerCase().includes(filter.toLowerCase()) ||
+      l.to.toLowerCase().includes(filter.toLowerCase()) ||
+      l.subject.toLowerCase().includes(filter.toLowerCase())
   );
+
+  const handleExport = () => {
+    const header = ['id', 'from', 'to', 'subject', 'status', 'created_at'].join(',');
+    const rows = filteredLogs.map((l) =>
+      [
+        l.id,
+        `"${l.from.replace(/"/g, '""')}"`,
+        `"${l.to.replace(/"/g, '""')}"`,
+        `"${l.subject.replace(/"/g, '""')}"`,
+        l.status,
+        l.created_at || l.timestamp || '',
+      ].join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mail-flow-logs.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -84,7 +108,11 @@ export default function MailFlowLogsPage() {
           variant="h1"
           description={t('pages.flow_logs_page.description')}
           actions={
-            <Button variant="primary" disabled>
+            <Button
+              variant="primary"
+              onClick={handleExport}
+              disabled={loading || filteredLogs.length === 0}
+            >
               {t('pages.flow_logs_page.export_logs')}
             </Button>
           }
@@ -114,9 +142,7 @@ export default function MailFlowLogsPage() {
             {
               header: t('pages.flow_logs.status'),
               cell: (item: MailLog) => (
-                <Badge color={getStatusColor(item.status)}>
-                  {item.status}
-                </Badge>
+                <Badge color={getStatusColor(item.status)}>{item.status}</Badge>
               ),
               width: '12%',
             },
@@ -127,12 +153,17 @@ export default function MailFlowLogsPage() {
             },
             {
               header: t('pages.flow_logs_page.timestamp'),
-              cell: (item: MailLog) => new Date(item.timestamp).toLocaleString(),
+              cell: (item: MailLog) =>
+                new Date(item.created_at || item.timestamp || '').toLocaleString(),
               width: '13%',
             },
           ]}
           items={filteredLogs}
-          header={<Header variant="h2" counter={`(${filteredLogs.length})`}>{t('pages.flow_logs_page.logs')}</Header>}
+          header={
+            <Header variant="h2" counter={`(${filteredLogs.length})`}>
+              {t('pages.flow_logs_page.logs')}
+            </Header>
+          }
           filter={
             <TextFilter
               filteringText={filter}

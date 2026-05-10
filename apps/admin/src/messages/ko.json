@@ -337,7 +337,22 @@
       "target_email": "대상 이메일",
       "status": "상태",
       "created": "만들어진 날",
-      "aliases_label": "별칭"
+      "aliases_label": "별칭",
+      "add_alias": "별칭 추가",
+      "address": "주소",
+      "domain": "도메인",
+      "target_kind": "대상 유형",
+      "target_id": "대상 ID",
+      "no_aliases": "별칭이 없습니다",
+      "create_modal_title": "별칭 추가",
+      "create_btn": "만들기",
+      "domain_label": "도메인 ID",
+      "address_label": "주소",
+      "target_kind_label": "대상 유형",
+      "target_id_label": "대상 ID",
+      "target_kind_user": "사용자",
+      "target_kind_group": "그룹",
+      "target_kind_external": "외부"
     },
     "delegations": {
       "title": "위임",
@@ -348,7 +363,25 @@
       "created": "생성 시간",
       "create_delegation": "새 위임 생성",
       "delegate": "수임자",
-      "permissions": "권한"
+      "permissions": "권한",
+      "owner_id": "소유자",
+      "delegate_id": "수임자",
+      "scope": "범위",
+      "role": "역할",
+      "no_delegations": "위임이 없습니다",
+      "create_modal_title": "위임 만들기",
+      "create_btn": "만들기",
+      "owner_kind_label": "소유자 유형",
+      "owner_id_label": "소유자 ID",
+      "delegate_kind_label": "수임자 유형",
+      "delegate_id_label": "수임자 ID",
+      "scope_label": "범위",
+      "role_label": "역할",
+      "kind_user": "사용자",
+      "kind_group": "그룹",
+      "role_viewer": "뷰어",
+      "role_editor": "편집자",
+      "role_admin": "관리자"
     },
     "groups": {
       "title": "그룹",
@@ -359,7 +392,22 @@
       "created": "생성 시간",
       "create_group": "새 그룹 생성",
       "member_count": "구성원 수",
-      "members": "구성원"
+      "members": "구성원",
+      "add_member": "멤버 추가",
+      "group_id": "그룹 ID",
+      "member_id": "멤버",
+      "no_members": "멤버가 없습니다",
+      "create_modal_title": "멤버 추가",
+      "create_btn": "추가",
+      "group_id_label": "그룹 ID",
+      "member_kind_label": "멤버 유형",
+      "member_id_label": "멤버 ID",
+      "role_label": "역할",
+      "member_kind_user": "사용자",
+      "member_kind_group": "그룹",
+      "role_member": "멤버",
+      "role_owner": "소유자",
+      "role_admin": "관리자"
     },
     "compliance": {
       "title": "규정 준수",
@@ -816,7 +864,10 @@
       "event_type": "이벤트 유형",
       "status": "상태",
       "timestamp": "타임스탬프",
-      "events": "이벤트"
+      "events": "이벤트",
+      "actions": "작업",
+      "retry": "재시도",
+      "no_events": "발신함 이벤트가 없습니다"
     },
     "delivery_attempts_page": {
       "description": "상세 배달 시도 내역 보기",
@@ -834,7 +885,26 @@
       "messages": "메시지",
       "created": "생성 시간",
       "routes": "경로",
-      "title": "배달 경로"
+      "title": "배달 경로",
+      "domain_pattern": "도메인 패턴",
+      "hosts": "호스트",
+      "port": "포트",
+      "tls_mode": "TLS 모드",
+      "actions": "작업",
+      "no_routes": "배달 경로가 없습니다",
+      "create_modal_title": "배달 경로 생성",
+      "create_btn": "경로 생성",
+      "domain_pattern_label": "도메인 패턴",
+      "hosts_label": "호스트",
+      "hosts_constraint": "쉼표로 구분된 호스트 목록",
+      "port_label": "포트",
+      "tls_mode_label": "TLS 모드",
+      "description_label": "설명 (선택)",
+      "description_placeholder": "예: example.com의 기본 릴레이",
+      "deactivate": "비활성화",
+      "activate": "활성화",
+      "delete_modal_title": "경로 삭제",
+      "delete_confirm": "다음 경로를 삭제하시겠습니까"
     },
     "relays_page": {
       "description": "허용 릴레이 서버 관리",
@@ -845,7 +915,18 @@
       "active_connections": "활성 연결",
       "created": "생성 시간",
       "relays": "릴레이",
-      "title": "허용 릴레이"
+      "title": "허용 릴레이",
+      "cidr": "CIDR",
+      "actions": "작업",
+      "no_relays": "허용 릴레이가 없습니다",
+      "create_modal_title": "허용 릴레이 추가",
+      "create_btn": "릴레이 추가",
+      "cidr_label": "CIDR 블록",
+      "cidr_constraint": "예: 192.168.1.0/24",
+      "description_label": "설명 (선택)",
+      "description_placeholder": "예: 사무실 네트워크",
+      "delete_modal_title": "릴레이 삭제",
+      "delete_confirm": "다음 릴레이를 삭제하시겠습니까"
     },
     "queue_stats_page": {
       "topic": "토픽",
@@ -928,7 +1009,8 @@
       "assigned_users": "할당된 사용자",
       "created": "생성 시간",
       "roles": "역할",
-      "create_role": "+ 역할 생성"
+      "create_role": "+ 역할 생성",
+      "backend_warning": "역할 관리를 위해 추가 백엔드 구성이 필요합니다. 시스템 관리자에게 문의하세요."
     },
     "alerts_page": {
       "description": "경고 규칙 및 알림 구성",
@@ -940,7 +1022,23 @@
       "disabled_label": "비활성화됨",
       "created": "생성 시간",
       "rules": "규칙",
-      "title": "알림 규칙"
+      "title": "알림 규칙",
+      "create_alert_btn": "알림 규칙 생성",
+      "alert_type": "알림 유형",
+      "threshold": "임계값",
+      "interval": "점검 간격",
+      "actions": "작업",
+      "no_rules": "알림 규칙이 없습니다",
+      "create_modal_title": "알림 규칙 생성",
+      "create_btn": "생성",
+      "name_label": "이름",
+      "name_placeholder": "예: 높은 반송률",
+      "alert_type_label": "알림 유형",
+      "description_label": "설명",
+      "description_placeholder": "선택적 설명",
+      "threshold_label": "임계값 (예: 0.05는 5%)",
+      "interval_label": "점검 간격 (분)",
+      "enabled_checkbox_label": "이 규칙 활성화"
     },
     "suppression_page": {
       "description": "차단된 이메일 주소 관리",
@@ -969,7 +1067,18 @@
       "keys": "키",
       "title": "DKIM 키",
       "verified": "검증됨",
-      "not_verified": "미검증"
+      "not_verified": "미검증",
+      "actions": "작업",
+      "no_keys": "DKIM 키가 없습니다",
+      "create_modal_title": "DKIM 키 추가",
+      "create_btn": "키 추가",
+      "domain_id_label": "도메인 ID",
+      "selector_label": "셀렉터",
+      "private_key_label": "개인 키 (PEM)",
+      "public_key_label": "공개 키 (DNS TXT 값)",
+      "deactivate": "비활성화",
+      "deactivate_modal_title": "DKIM 키 비활성화",
+      "deactivate_confirm": "다음 셀렉터를 비활성화하시겠습니까"
     },
     "api_keys_page": {
       "description": "API 인증 키 관리",
@@ -1027,7 +1136,9 @@
       "size": "크기",
       "upload_date": "업로드 날짜",
       "last_accessed": "마지막 액세스",
-      "never": "없음"
+      "never": "없음",
+      "run_cleanup": "정리 실행",
+      "cleanup_success": "정리 작업이 시작되었습니다."
     },
     "drive_page": {
       "type": "유형"
@@ -1113,7 +1224,10 @@
       "key": "키",
       "value": "값",
       "last_updated": "마지막 업데이트",
-      "add_config_btn": "+ 설정 추가"
+      "add_config_btn": "+ 설정 추가",
+      "title": "도메인 구성",
+      "description": "도메인별 설정 구성",
+      "info_message": "도메인 구성은 도메인별로 관리됩니다. 도메인 → 도메인 선택 → 설정 탭으로 이동하세요."
     },
     "config_user_page": {
       "description": "사용자별 설정 구성",
@@ -1123,7 +1237,8 @@
       "value": "값",
       "last_updated": "마지막 업데이트",
       "title": "사용자 설정",
-      "add_config_btn": "+ 설정 추가"
+      "add_config_btn": "+ 설정 추가",
+      "info_message": "사용자 구성은 사용자별로 관리됩니다. 사용자 → 사용자 편집으로 이동하여 개별 설정을 지정하세요."
     },
     "monitoring_page": {
       "system_resources": "시스템 리소스",
