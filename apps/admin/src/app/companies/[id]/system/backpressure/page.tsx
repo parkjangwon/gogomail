@@ -97,7 +97,7 @@ export default function BackpressurePage() {
           description={t('pages.backpressure.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              Update Threshold
+              {t('pages.backpressure_page.update_threshold')}
             </Button>
           }
         >
@@ -108,21 +108,21 @@ export default function BackpressurePage() {
       <SpaceBetween size="l">
         {state && (
           <>
-            <Container header={<Header variant="h3">Current Status</Header>}>
+            <Container header={<Header variant="h3">{t('pages.backpressure_page.current_status')}</Header>}>
               <KeyValuePairs
                 items={[
-                  { label: 'Status', value: <Badge color={getStatusColor(state.status)}>{state.status.toUpperCase()}</Badge> },
-                  { label: 'Enabled', value: <Badge color={state.enabled ? 'green' : 'grey'}>{state.enabled ? 'Enabled' : 'Disabled'}</Badge> },
+                  { label: t('pages.backpressure_page.status'), value: <Badge color={getStatusColor(state.status)}>{state.status.toUpperCase()}</Badge> },
+                  { label: t('pages.backpressure_page.enabled'), value: <Badge color={state.enabled ? 'green' : 'grey'}>{state.enabled ? t('pages.backpressure_page.enabled_label') : t('pages.backpressure.disabled')}</Badge> },
                 ]}
               />
             </Container>
 
-            <Container header={<Header variant="h3">Metrics</Header>}>
+            <Container header={<Header variant="h3">{t('pages.backpressure_page.metrics')}</Header>}>
               <KeyValuePairs
                 items={[
-                  { label: 'Current Level', value: `${state.current_level}%` },
-                  { label: 'Threshold', value: `${state.threshold}%` },
-                  { label: 'Last Updated', value: new Date(state.last_updated).toLocaleString() },
+                  { label: t('pages.backpressure_page.current_level'), value: `${state.current_level}%` },
+                  { label: t('pages.backpressure_page.threshold'), value: `${state.threshold}%` },
+                  { label: t('pages.backpressure_page.last_updated'), value: new Date(state.last_updated).toLocaleString() },
                 ]}
               />
             </Container>
@@ -136,16 +136,16 @@ export default function BackpressurePage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleUpdateThreshold}>
-                Update
+                {t('pages.backpressure_page.update')}
               </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Update Backpressure Threshold"
+        header={t('pages.backpressure_page.modal_header')}
       >
-        <FormField label="Threshold (%)" description="Value between 0 and 100">
+        <FormField label={t('pages.backpressure_page.threshold_label')} description={t('pages.backpressure_page.threshold_desc')}>
           <Input
             type="number"
             value={newThreshold}

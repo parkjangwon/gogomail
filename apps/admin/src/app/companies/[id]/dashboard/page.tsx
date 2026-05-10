@@ -12,13 +12,14 @@ import {
   KeyValuePairs,
   Button,
   StatusIndicator,
-  Badge,
 } from '@cloudscape-design/components';
 import { useParams, useRouter } from 'next/navigation';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useI18n } from '@/app/i18n-provider';
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const companyId = params.id as string;
@@ -27,7 +28,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <ContentLayout header={<Header variant="h1">Dashboard</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.dashboard_page.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -49,70 +50,71 @@ export default function DashboardPage() {
 
   const company = currentCompany;
 
+  const quickLinks = [
+    { labelKey: 'manage_users', path: '/users' },
+    { labelKey: 'manage_domains', path: '/tenancy/domains' },
+    { labelKey: 'audit_logs', path: '/audit-logs' },
+    { labelKey: 'dkim_keys', path: '/security/dkim-keys' },
+    { labelKey: 'quota_usage', path: '/storage/quota-usage' },
+    { labelKey: 'api_health', path: '/system/health' },
+  ];
+
   return (
     <ContentLayout
       header={
         <Header
           variant="h1"
-          description={company ? `${company.name} — ${company.status}` : 'System overview'}
+          description={company ? `${company.name} — ${company.status}` : t('pages.dashboard_page.system_overview')}
           actions={
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                Domains
+                {t('pages.dashboard_page.domains_btn')}
               </Button>
               <Button onClick={() => router.push(`/companies/${companyId}/users`)}>
-                Users
+                {t('pages.dashboard_page.users_btn')}
               </Button>
               <Button variant="primary" onClick={() => router.push(`/companies/${companyId}`)}>
-                Company Overview
+                {t('pages.dashboard_page.company_overview_btn')}
               </Button>
             </SpaceBetween>
           }
         >
-          Dashboard
+          {t('pages.dashboard_page.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
         {/* KPI row */}
-        <ColumnLayout columns={4} variant="text-grid">
+        <ColumnLayout columns={3} variant="text-grid" minColumnWidth={170}>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">{stats.total_users}</Box>
-              <Box color="text-body-secondary" fontSize="body-s">Total Users</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.total_users')}</Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">{stats.active_domains}</Box>
-              <Box color="text-body-secondary" fontSize="body-s">Active Domains</Box>
+              <Box color="text-body-secondary" fontSize="body-s">{t('pages.dashboard_page.active_domains')}</Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
               <Box fontSize="display-l" fontWeight="bold">
-                {storageLimitGb ? `${storageUsedGb} GB` : `${storageUsedGb} GB`}
+                {`${storageUsedGb} GB`}
               </Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {storageLimitGb ? `of ${storageLimitGb} GB used` : 'Storage Used (unlimited)'}
+                {storageLimitGb
+                  ? `${t('pages.dashboard_page.used_label')} / ${storageLimitGb} GB`
+                  : t('pages.dashboard_page.unlimited_storage')}
               </Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">
-                <Badge color={company?.status === 'active' ? 'green' : 'grey'}>
-                  {company?.status ?? '—'}
-                </Badge>
-              </Box>
-              <Box color="text-body-secondary" fontSize="body-s">Company Status</Box>
             </SpaceBetween>
           </Container>
         </ColumnLayout>
 
         <ColumnLayout columns={2}>
           {/* Storage */}
-          <Container header={<Header variant="h3">Storage Quota</Header>}>
+          <Container header={<Header variant="h3">{t('pages.dashboard_page.storage_quota')}</Header>}>
             <SpaceBetween size="m">
               {storageLimit > 0 ? (
                 <>
@@ -123,41 +125,34 @@ export default function DashboardPage() {
                     additionalInfo={`${storageUsedGb} / ${storageLimitGb} GB`}
                   />
                   {stats.over_allocated && (
-                    <StatusIndicator type="error">Over allocated — reduce usage or increase quota</StatusIndicator>
+                    <StatusIndicator type="error">{t('pages.dashboard_page.over_allocated')}</StatusIndicator>
                   )}
                 </>
               ) : (
                 <SpaceBetween size="s">
-                  <StatusIndicator type="success">Unlimited storage</StatusIndicator>
-                  <Box color="text-body-secondary" fontSize="body-s">{storageUsedGb} GB used</Box>
+                  <StatusIndicator type="success">{t('pages.dashboard_page.unlimited_storage')}</StatusIndicator>
+                  <Box color="text-body-secondary" fontSize="body-s">{storageUsedGb} GB {t('pages.dashboard_page.used_label')}</Box>
                 </SpaceBetween>
               )}
               <KeyValuePairs
                 items={[
-                  { label: 'Used', value: `${storageUsedGb} GB` },
-                  { label: 'Limit', value: storageLimitGb ? `${storageLimitGb} GB` : 'Unlimited' },
+                  { label: t('pages.dashboard_page.used_label'), value: `${storageUsedGb} GB` },
+                  { label: t('pages.dashboard_page.limit_label'), value: storageLimitGb ? `${storageLimitGb} GB` : t('pages.dashboard_page.unlimited_label') },
                 ]}
               />
             </SpaceBetween>
           </Container>
 
           {/* Quick Links */}
-          <Container header={<Header variant="h3">Quick Actions</Header>}>
+          <Container header={<Header variant="h3">{t('pages.dashboard_page.quick_actions')}</Header>}>
             <SpaceBetween size="s">
-              {[
-                { label: 'Manage Users', path: '/users' },
-                { label: 'Manage Domains', path: '/tenancy/domains' },
-                { label: 'Audit Logs', path: '/audit-logs' },
-                { label: 'DKIM Keys', path: '/security/dkim-keys' },
-                { label: 'Quota Usage', path: '/storage/quota-usage' },
-                { label: 'API Health', path: '/system/health' },
-              ].map(({ label, path }) => (
+              {quickLinks.map(({ labelKey, path }) => (
                 <Button
-                  key={label}
+                  key={labelKey}
                   variant="inline-link"
                   onClick={() => router.push(`/companies/${companyId}${path}`)}
                 >
-                  {label} →
+                  {t(`pages.dashboard_page.${labelKey}`)} →
                 </Button>
               ))}
             </SpaceBetween>

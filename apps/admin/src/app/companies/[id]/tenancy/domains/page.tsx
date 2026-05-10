@@ -135,7 +135,7 @@ export default function DomainsPage() {
       case 'pass': return <Badge color="green">Pass</Badge>;
       case 'fail': return <Badge color="red">Fail</Badge>;
       case 'partial': return <Badge color="severity-high">Partial</Badge>;
-      default: return <Badge color="grey">Unchecked</Badge>;
+      default: return <Badge color="grey">{t('pages.tenancy_domains.unchecked') || 'Unchecked'}</Badge>;
     }
   };
 
@@ -146,7 +146,7 @@ export default function DomainsPage() {
   });
 
   const companyOptions = [
-    { label: 'All Companies', value: '' },
+    { label: t('pages.tenancy_domains.all_companies'), value: '' },
     ...companies.map(c => ({ label: c.name, value: c.id })),
   ];
 
@@ -163,7 +163,7 @@ export default function DomainsPage() {
       header={
         <Header
           variant="h1"
-          description="Manage email domains across all companies"
+          description={t('pages.tenancy_domains.description')}
           counter={`(${domains.length})`}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
@@ -179,7 +179,7 @@ export default function DomainsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Domain',
+              header: t('pages.tenancy_domains.domain'),
               cell: (d: Domain) => (
                 <Button variant="inline-link" onClick={() => router.push(`/companies/${d.company_id}/domains/${d.id}`)}>
                   {d.name}
@@ -188,7 +188,7 @@ export default function DomainsPage() {
               width: '22%',
             },
             {
-              header: 'Company',
+              header: t('pages.tenancy_domains.company'),
               cell: (d: Domain) => (
                 <Box>
                   <Box fontWeight="bold" fontSize="body-s">{d.company_name || '—'}</Box>
@@ -205,12 +205,12 @@ export default function DomainsPage() {
               width: '10%',
             },
             {
-              header: 'DNS',
+              header: t('pages.tenancy_domains.dns'),
               cell: (d: Domain) => getDNSBadge(d.last_dns_check_status),
               width: '10%',
             },
             {
-              header: 'Quota Used',
+              header: t('pages.tenancy_domains.quota_used'),
               cell: (d: Domain) => {
                 const limit = d.quota_limit ?? 0;
                 const used = d.quota_used ?? 0;
@@ -220,7 +220,7 @@ export default function DomainsPage() {
                     <Box>
                       {limit > 0
                         ? `${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`
-                        : `${(used / 1073741824).toFixed(1)} GB (unlimited)`}
+                        : `${(used / 1073741824).toFixed(1)} GB (${t('pages.tenancy_domains.unlimited')})`}
                     </Box>
                     {limit > 0 && (
                       <Box color={pct > 80 ? 'text-status-error' : 'text-body-secondary'} fontSize="body-s">{pct}%</Box>
@@ -236,7 +236,7 @@ export default function DomainsPage() {
               width: '10%',
             },
             {
-              header: 'Actions',
+              header: t('pages.tenancy_domains.actions'),
               cell: (d: Domain) => (
                 <Button
                   variant="inline-link"
@@ -244,32 +244,32 @@ export default function DomainsPage() {
                   loading={verifying === d.id}
                   disabled={d.last_dns_check_status === 'pass'}
                 >
-                  Verify DNS
+                  {t('pages.tenancy_domains.verify_dns')}
                 </Button>
               ),
               width: '10%',
             },
           ]}
           items={filteredDomains}
-          header={<Header variant="h2" counter={`(${filteredDomains.length})`}>Domain List</Header>}
+          header={<Header variant="h2" counter={`(${filteredDomains.length})`}>{t('pages.tenancy_domains.domain_list')}</Header>}
           filter={
             <SpaceBetween direction="horizontal" size="xs">
               <TextFilter
                 filteringText={filter}
-                filteringPlaceholder="Search by domain name"
+                filteringPlaceholder={t('pages.tenancy_domains.search_by_domain')}
                 onChange={(e) => setFilter(e.detail.filteringText)}
               />
               <Select
                 selectedOption={companyOptions.find(o => o.value === filterCompany) ?? companyOptions[0]}
                 options={companyOptions}
                 onChange={(e) => setFilterCompany(e.detail.selectedOption.value ?? '')}
-                placeholder="Filter by company"
+                placeholder={t('pages.tenancy_domains.filter_by_company')}
               />
             </SpaceBetween>
           }
           empty={
             <Box textAlign="center" padding="l">
-              <StatusIndicator type="info">No domains found</StatusIndicator>
+              <StatusIndicator type="info">{t('pages.tenancy_domains.no_domains')}</StatusIndicator>
             </Box>
           }
         />
@@ -282,24 +282,24 @@ export default function DomainsPage() {
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
                 <Button
                   variant="primary"
                   onClick={handleCreateDomain}
                   loading={creating}
                   disabled={!newDomain.name.trim() || !newDomain.company_id}
                 >
-                  Add Domain
+                  {t('pages.tenancy_domains.add_domain_btn')}
                 </Button>
               </SpaceBetween>
             </Box>
           }
-          header="Add New Domain"
+          header={t('pages.tenancy_domains.add_new_domain')}
         >
           <SpaceBetween size="m">
             <FormField
-              label="Company"
-              description="Select which company this domain belongs to"
+              label={t('pages.tenancy_domains.company')}
+              description={t('pages.tenancy_domains.filter_by_company')}
             >
               <Select
                 selectedOption={
@@ -309,18 +309,18 @@ export default function DomainsPage() {
                 }
                 options={companies.map(c => ({ label: c.name, value: c.id }))}
                 onChange={(e) => setNewDomain({ ...newDomain, company_id: e.detail.selectedOption.value ?? '' })}
-                placeholder="Select company..."
-                empty="No companies found. Create a company first."
+                placeholder={t('pages.tenancy_domains.select_company')}
+                empty={t('pages.tenancy_domains.no_companies')}
               />
             </FormField>
-            <FormField label="Domain Name">
+            <FormField label={t('pages.domains.domain_name')}>
               <Input
                 value={newDomain.name}
                 onChange={(e) => setNewDomain({ ...newDomain, name: e.detail.value })}
                 placeholder="example.com"
               />
             </FormField>
-            <FormField label="Storage Quota (GB)">
+            <FormField label={t('pages.tenancy_domains.storage_quota_gb')}>
               <Input
                 type="number"
                 value={newDomain.quota_gb}

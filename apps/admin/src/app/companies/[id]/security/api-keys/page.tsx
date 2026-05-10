@@ -91,14 +91,14 @@ export default function APIKeysPage() {
       header={
         <Header
           variant="h1"
-          description="Manage API authentication keys"
+          description={t('pages.api_keys_page.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
               {t('pages.api_keys.create_key')}
             </Button>
           }
         >
-          API Keys
+          {t('pages.api_keys.title')}
         </Header>
       }
     >
@@ -106,17 +106,17 @@ export default function APIKeysPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.api_keys_page.name'),
               cell: (item: APIKey) => item.name,
               width: '25%',
             },
             {
-              header: 'Key Prefix',
+              header: t('pages.api_keys_page.key_prefix'),
               cell: (item: APIKey) => item.key_prefix,
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.api_keys_page.status'),
               cell: (item: APIKey) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}
@@ -136,10 +136,11 @@ export default function APIKeysPage() {
             },
           ]}
           items={filteredKeys}
-          header={<Header variant="h2" counter={`(${filteredKeys.length})`}>Keys</Header>}
+          header={<Header variant="h2" counter={`(${filteredKeys.length})`}>{t('pages.api_keys_page.keys')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
@@ -152,20 +153,20 @@ export default function APIKeysPage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleCreateKey}>
-                Create Key
+                {t('pages.api_keys_page.create_btn')}
               </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Create API Key"
+        header={t('pages.api_keys_page.modal_header')}
       >
-        <FormField label="Key Name" description="A descriptive name for this key">
+        <FormField label={t('pages.api_keys_page.key_name_label')} description={t('pages.api_keys_page.key_name_desc')}>
           <Input
             value={newKey.name}
             onChange={(e) => setNewKey({ name: e.detail.value })}
-            placeholder="e.g., Integration Service"
+            placeholder={t('pages.api_keys_page.key_placeholder')}
           />
         </FormField>
       </Modal>

@@ -62,43 +62,43 @@ export default function ReportsPage() {
       header={
         <Header
           variant="h1"
-          description="Generate and view system reports"
+          description={t('pages.reports_page.description')}
           actions={
             <Button variant="primary" disabled>
-              Generate Report
+              {t('pages.reports_page.generate_report')}
             </Button>
           }
         >
-          Reports
+          {t('pages.reports.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h3">Available Reports</Header>}>
+        <Container header={<Header variant="h3">{t('pages.reports_page.available_reports')}</Header>}>
           <Box color="text-body-secondary">
-            Generate custom reports for system analytics, usage statistics, and compliance
+            {t('pages.reports_page.reports_desc')}
           </Box>
         </Container>
 
         <Table
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.reports_page.name'),
               cell: (item: Report) => item.name,
               width: '30%',
             },
             {
-              header: 'Type',
+              header: t('pages.reports_page.type'),
               cell: (item: Report) => item.type,
               width: '25%',
             },
             {
-              header: 'Size',
+              header: t('pages.reports_page.size'),
               cell: (item: Report) => `${(item.file_size / 1024 / 1024).toFixed(2)} MB`,
               width: '15%',
             },
             {
-              header: 'Generated',
+              header: t('pages.reports_page.generated'),
               cell: (item: Report) => new Date(item.generated_at).toLocaleString(),
               width: '30%',
             },

@@ -70,14 +70,14 @@ export default function DKIMKeysPage() {
       header={
         <Header
           variant="h1"
-          description="Manage DKIM signing keys for domain authentication"
+          description={t('pages.dkim_page.description')}
           actions={
             <Button variant="primary" disabled>
-              + Generate Key
+              {t('pages.dkim_page.generate_key')}
             </Button>
           }
         >
-          DKIM Keys
+          {t('pages.dkim_page.title')}
         </Header>
       }
     >
@@ -90,7 +90,7 @@ export default function DKIMKeysPage() {
               width: '25%',
             },
             {
-              header: 'Selector',
+              header: t('pages.dkim_page.selector'),
               cell: (item: DKIMKey) => item.selector,
               width: '20%',
             },
@@ -104,25 +104,26 @@ export default function DKIMKeysPage() {
               width: '15%',
             },
             {
-              header: 'DNS Verified',
+              header: t('pages.dkim_page.dns_verified'),
               cell: (item: DKIMKey) => (
                 <Badge color={item.dns_verified ? 'green' : 'red'}>
-                  {item.dns_verified ? 'Verified' : 'Not Verified'}
+                  {item.dns_verified ? t('pages.dkim_page.verified') : t('pages.dkim_page.not_verified')}
                 </Badge>
               ),
               width: '20%',
             },
             {
-              header: 'Created',
+              header: t('pages.dkim_page.created'),
               cell: (item: DKIMKey) => new Date(item.created_at).toLocaleDateString(),
               width: '20%',
             },
           ]}
           items={filteredKeys}
-          header={<Header variant="h2" counter={`(${filteredKeys.length})`}>Keys</Header>}
+          header={<Header variant="h2" counter={`(${filteredKeys.length})`}>{t('pages.dkim_page.keys')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

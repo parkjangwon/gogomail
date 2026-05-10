@@ -71,7 +71,7 @@ export default function DomainConfigPage() {
           description={t('pages.config_domain.description')}
           actions={
             <Button variant="primary" disabled>
-              + Add Config
+              {t('pages.config_domain_page.add_config_btn')}
             </Button>
           }
         >
@@ -83,22 +83,22 @@ export default function DomainConfigPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Domain',
+              header: t('pages.config_domain_page.domain'),
               cell: (item: DomainConfig) => item.domain,
               width: '20%',
             },
             {
-              header: 'Key',
+              header: t('pages.config_domain_page.key'),
               cell: (item: DomainConfig) => item.config_key,
               width: '25%',
             },
             {
-              header: 'Value',
+              header: t('pages.config_domain_page.value'),
               cell: (item: DomainConfig) => item.config_value,
               width: '35%',
             },
             {
-              header: 'Last Updated',
+              header: t('pages.config_domain_page.last_updated'),
               cell: (item: DomainConfig) => new Date(item.last_updated).toLocaleString(),
               width: '20%',
             },
@@ -108,6 +108,7 @@ export default function DomainConfigPage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

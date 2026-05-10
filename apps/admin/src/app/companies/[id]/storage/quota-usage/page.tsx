@@ -68,9 +68,9 @@ export default function QuotaUsagePage() {
       header={
         <Header
           variant="h1"
-          description="Monitor storage quota usage across tenants"
+          description={t('pages.quota_usage_page.description')}
         >
-          Quota Usage
+          {t('pages.quota_usage_page.title')}
         </Header>
       }
     >
@@ -78,22 +78,22 @@ export default function QuotaUsagePage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Tenant',
+              header: t('pages.quota_usage_page.tenant'),
               cell: (item: QuotaUsage) => item.tenant,
               width: '25%',
             },
             {
-              header: 'Used',
+              header: t('pages.quota_usage_page.used'),
               cell: (item: QuotaUsage) => `${item.used_gb.toFixed(2)} GB`,
               width: '15%',
             },
             {
-              header: 'Quota',
+              header: t('pages.quota_usage_page.quota'),
               cell: (item: QuotaUsage) => `${item.quota_gb.toFixed(2)} GB`,
               width: '15%',
             },
             {
-              header: 'Usage',
+              header: t('pages.quota_usage_page.usage'),
               cell: (item: QuotaUsage) => (
                 <Box>
                   <ProgressBar value={item.percentage} />
@@ -105,16 +105,17 @@ export default function QuotaUsagePage() {
               width: '30%',
             },
             {
-              header: 'Last Updated',
+              header: t('pages.quota_usage_page.last_updated'),
               cell: (item: QuotaUsage) => new Date(item.last_updated).toLocaleString(),
               width: '15%',
             },
           ]}
           items={filteredQuotas}
-          header={<Header variant="h2" counter={`(${filteredQuotas.length})`}>Quotas</Header>}
+          header={<Header variant="h2" counter={`(${filteredQuotas.length})`}>{t('pages.quota_usage_page.quotas')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

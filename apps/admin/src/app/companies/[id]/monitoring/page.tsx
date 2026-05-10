@@ -61,11 +61,11 @@ export default function MonitoringPage() {
     >
       <SpaceBetween size="l">
         {/* System Resources */}
-        <Container header={<Header variant="h2">System Resources</Header>}>
+        <Container header={<Header variant="h2">{t('pages.monitoring_page.system_resources')}</Header>}>
           <ColumnLayout columns={3} variant="text-grid">
             <Box>
               <Box variant="h3" color="text-body-secondary">
-                <small>CPU Usage</small>
+                <small>{t('pages.monitoring_page.cpu_usage')}</small>
               </Box>
               <ProgressBar
                 value={cpuUsage}
@@ -75,7 +75,7 @@ export default function MonitoringPage() {
             </Box>
             <Box>
               <Box variant="h3" color="text-body-secondary">
-                <small>Memory Usage</small>
+                <small>{t('pages.monitoring_page.memory_usage')}</small>
               </Box>
               <ProgressBar
                 value={memoryUsage}
@@ -85,7 +85,7 @@ export default function MonitoringPage() {
             </Box>
             <Box>
               <Box variant="h3" color="text-body-secondary">
-                <small>Disk Usage</small>
+                <small>{t('pages.monitoring_page.disk_usage')}</small>
               </Box>
               <ProgressBar
                 value={diskUsage}
@@ -97,37 +97,37 @@ export default function MonitoringPage() {
         </Container>
 
         {/* Queue Status */}
-        <Container header={<Header variant="h2">Message Queue</Header>}>
+        <Container header={<Header variant="h2">{t('pages.monitoring_page.message_queue')}</Header>}>
           <KeyValuePairs
             items={[
-              { label: 'Total Messages', value: stats.total },
+              { label: t('pages.monitoring_page.total_messages'), value: stats.total },
               {
-                label: 'Status',
+                label: t('pages.monitoring_page.queue_status'),
                 value: stats.failed > 0 ? (
                   <StatusIndicator type="warning">
-                    {stats.failed} Failed
+                    {stats.failed} {t('pages.monitoring_page.failed_label')}
                   </StatusIndicator>
                 ) : (
-                  <StatusIndicator type="success">Healthy</StatusIndicator>
+                  <StatusIndicator type="success">{t('pages.monitoring_page.healthy')}</StatusIndicator>
                 ),
               },
-              { label: 'Processing', value: stats.processing },
-              { label: 'Pending', value: stats.pending },
+              { label: t('pages.monitoring_page.processing'), value: stats.processing },
+              { label: t('pages.monitoring_page.pending'), value: stats.pending },
             ]}
           />
         </Container>
 
         {/* Network Traffic */}
-        <Container header={<Header variant="h2">Network Traffic</Header>}>
+        <Container header={<Header variant="h2">{t('pages.monitoring_page.network_traffic')}</Header>}>
           <Table
             columnDefinitions={[
-              { header: 'Protocol', cell: (item: any) => item.protocol, width: '20%' },
-              { header: 'Inbound (Mbps)', cell: (item: any) => item.inbound, width: '25%' },
-              { header: 'Outbound (Mbps)', cell: (item: any) => item.outbound, width: '25%' },
-              { header: 'Connections', cell: (item: any) => item.connections, width: '15%' },
-              { header: 'Status', cell: (item: any) => (
+              { header: t('pages.monitoring_page.protocol'), cell: (item: any) => item.protocol, width: '20%' },
+              { header: t('pages.monitoring_page.inbound'), cell: (item: any) => item.inbound, width: '25%' },
+              { header: t('pages.monitoring_page.outbound'), cell: (item: any) => item.outbound, width: '25%' },
+              { header: t('pages.monitoring_page.connections'), cell: (item: any) => item.connections, width: '15%' },
+              { header: t('pages.monitoring_page.queue_status'), cell: (item: any) => (
                 <StatusIndicator type={item.connections > 0 ? 'success' : 'pending'}>
-                  {item.connections > 0 ? 'Active' : 'Idle'}
+                  {item.connections > 0 ? t('pages.monitoring_page.active') : t('pages.monitoring_page.idle')}
                 </StatusIndicator>
               ), width: '15%' },
             ]}
@@ -136,18 +136,18 @@ export default function MonitoringPage() {
               { protocol: 'IMAP', inbound: 230.8, outbound: 12.3, connections: 156 },
               { protocol: 'HTTP API', inbound: 89.4, outbound: 156.2, connections: 28 },
             ]}
-            header={<Header variant="h3">Active Connections</Header>}
+            header={<Header variant="h3">{t('pages.monitoring_page.active_connections')}</Header>}
           />
         </Container>
 
         {/* Database */}
-        <Container header={<Header variant="h2">Database</Header>}>
+        <Container header={<Header variant="h2">{t('pages.monitoring_page.database')}</Header>}>
           <KeyValuePairs
             items={[
-              { label: 'Status', value: <StatusIndicator type="success">Connected</StatusIndicator> },
-              { label: 'Response Time', value: '12ms' },
-              { label: 'Active Connections', value: '24 / 50' },
-              { label: 'Last Backup', value: new Date(Date.now() - 3600000).toLocaleString() },
+              { label: t('pages.monitoring_page.queue_status'), value: <StatusIndicator type="success">{t('pages.monitoring_page.connected')}</StatusIndicator> },
+              { label: t('pages.monitoring_page.response_time'), value: '12ms' },
+              { label: t('pages.monitoring_page.active_db_connections'), value: '24 / 50' },
+              { label: t('pages.monitoring_page.last_backup'), value: new Date(Date.now() - 3600000).toLocaleString() },
             ]}
           />
         </Container>

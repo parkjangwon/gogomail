@@ -67,14 +67,14 @@ export default function AttachmentsPage() {
       header={
         <Header
           variant="h1"
-          description="Manage and cleanup attachment storage"
+          description={t('pages.attachments_page.description')}
           actions={
             <Button variant="primary" disabled>
-              Cleanup Stale
+              {t('pages.attachments_page.cleanup_stale')}
             </Button>
           }
         >
-          Attachments
+          {t('pages.attachments.title')}
         </Header>
       }
     >
@@ -82,23 +82,23 @@ export default function AttachmentsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Filename',
+              header: t('pages.attachments_page.filename'),
               cell: (item: Attachment) => item.filename,
               width: '30%',
             },
             {
-              header: 'Size',
+              header: t('pages.attachments_page.size'),
               cell: (item: Attachment) => `${(item.size_bytes / 1024 / 1024).toFixed(2)} MB`,
               width: '15%',
             },
             {
-              header: 'Upload Date',
+              header: t('pages.attachments_page.upload_date'),
               cell: (item: Attachment) => new Date(item.upload_date).toLocaleString(),
               width: '25%',
             },
             {
-              header: 'Last Accessed',
-              cell: (item: Attachment) => item.last_accessed ? new Date(item.last_accessed).toLocaleString() : 'Never',
+              header: t('pages.attachments_page.last_accessed'),
+              cell: (item: Attachment) => item.last_accessed ? new Date(item.last_accessed).toLocaleString() : t('pages.attachments_page.never'),
               width: '30%',
             },
           ]}
@@ -107,6 +107,7 @@ export default function AttachmentsPage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

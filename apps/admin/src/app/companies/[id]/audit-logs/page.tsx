@@ -11,6 +11,7 @@ import {
   SpaceBetween,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface AuditLog {
   id: string;
@@ -22,6 +23,7 @@ interface AuditLog {
 }
 
 export default function AuditLogsPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterText, setFilterText] = useState('');
@@ -60,7 +62,7 @@ export default function AuditLogsPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Audit Logs</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.audit_logs_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -76,16 +78,16 @@ export default function AuditLogsPage() {
           actions={
             <ButtonDropdown
               items={[
-                { text: 'Export as CSV', id: 'csv' },
-                { text: 'Export as JSON', id: 'json' },
+                { text: t('pages.audit_logs_page.export_csv'), id: 'csv' },
+                { text: t('pages.audit_logs_page.export_json'), id: 'json' },
               ]}
               onItemClick={(e) => handleExport(e.detail.id as 'csv' | 'json')}
             >
-              Export
+              {t('pages.audit_logs_page.export')}
             </ButtonDropdown>
           }
         >
-          Audit Logs
+          {t('pages.audit_logs_page.title')}
         </Header>
       }
     >
@@ -93,36 +95,37 @@ export default function AuditLogsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Time',
+              header: t('pages.audit_logs_page.time'),
               cell: (log: AuditLog) => new Date(log.timestamp).toLocaleString(),
               width: '25%',
             },
             {
-              header: 'Action',
+              header: t('pages.audit_logs_page.action'),
               cell: (log: AuditLog) => log.action,
               width: '20%',
             },
             {
-              header: 'Resource',
+              header: t('pages.audit_logs_page.resource'),
               cell: (log: AuditLog) => log.resource_type,
               width: '20%',
             },
             {
-              header: 'Admin',
+              header: t('pages.audit_logs_page.admin'),
               cell: (log: AuditLog) => log.admin_user_id,
               width: '15%',
             },
             {
-              header: 'IP Address',
+              header: t('pages.audit_logs_page.ip_address'),
               cell: (log: AuditLog) => log.ip_address || '-',
               width: '20%',
             },
           ]}
           items={logs}
-          header={<Header variant="h2" counter={`(${logs.length})`}>Activity Log</Header>}
+          header={<Header variant="h2" counter={`(${logs.length})`}>{t('pages.audit_logs_page.activity_log')}</Header>}
           filter={
             <TextFilter
               filteringText={filterText}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilterText(e.detail.filteringText)}
             />
           }

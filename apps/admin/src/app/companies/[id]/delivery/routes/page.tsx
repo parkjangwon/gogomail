@@ -69,14 +69,14 @@ export default function DeliveryRoutesPage() {
       header={
         <Header
           variant="h1"
-          description="Configure mail delivery routes"
+          description={t('pages.routes_page.description')}
           actions={
             <Button variant="primary" disabled>
               {t('pages.routes.create_route')}
             </Button>
           }
         >
-          Delivery Routes
+          {t('pages.routes_page.title')}
         </Header>
       }
     >
@@ -84,17 +84,17 @@ export default function DeliveryRoutesPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Destination',
+              header: t('pages.routes_page.destination'),
               cell: (item: DeliveryRoute) => item.destination,
               width: '30%',
             },
             {
-              header: 'Priority',
+              header: t('pages.routes_page.priority'),
               cell: (item: DeliveryRoute) => item.priority,
               width: '15%',
             },
             {
-              header: 'Status',
+              header: t('pages.routes.status'),
               cell: (item: DeliveryRoute) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}
@@ -103,21 +103,22 @@ export default function DeliveryRoutesPage() {
               width: '15%',
             },
             {
-              header: 'Messages',
+              header: t('pages.routes_page.messages'),
               cell: (item: DeliveryRoute) => item.message_count.toLocaleString(),
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.routes_page.created'),
               cell: (item: DeliveryRoute) => new Date(item.created_at).toLocaleDateString(),
               width: '25%',
             },
           ]}
           items={filteredRoutes}
-          header={<Header variant="h2" counter={`(${filteredRoutes.length})`}>Routes</Header>}
+          header={<Header variant="h2" counter={`(${filteredRoutes.length})`}>{t('pages.routes_page.routes')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

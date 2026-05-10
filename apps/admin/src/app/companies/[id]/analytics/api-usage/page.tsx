@@ -69,50 +69,51 @@ export default function APIUsagePage() {
       header={
         <Header
           variant="h1"
-          description="Monitor API usage patterns and statistics"
+          description={t('pages.api_usage_analytics.description')}
         >
-          API Usage Analytics
+          {t('pages.api_usage_analytics.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h3">Daily API Usage</Header>}>
-          <Box>View API usage broken down by principal and endpoint</Box>
+        <Container header={<Header variant="h3">{t('pages.api_usage_analytics.daily_api_usage')}</Header>}>
+          <Box>{t('pages.api_usage_analytics.daily_desc')}</Box>
         </Container>
 
         <Table
           columnDefinitions={[
             {
-              header: 'Principal',
+              header: t('pages.api_usage_analytics.principal'),
               cell: (item: APIUsageRecord) => item.principal,
               width: '25%',
             },
             {
-              header: 'Endpoint',
+              header: t('pages.api_usage_analytics.endpoint'),
               cell: (item: APIUsageRecord) => item.endpoint,
               width: '30%',
             },
             {
-              header: 'Method',
+              header: t('pages.api_usage_analytics.method'),
               cell: (item: APIUsageRecord) => item.method,
               width: '10%',
             },
             {
-              header: 'Requests',
+              header: t('pages.api_usage_analytics.requests'),
               cell: (item: APIUsageRecord) => item.request_count.toLocaleString(),
               width: '15%',
             },
             {
-              header: 'Date',
+              header: t('pages.api_usage_analytics.date'),
               cell: (item: APIUsageRecord) => new Date(item.date).toLocaleDateString(),
               width: '20%',
             },
           ]}
           items={filteredRecords}
-          header={<Header variant="h2" counter={`(${filteredRecords.length})`}>Records</Header>}
+          header={<Header variant="h2" counter={`(${filteredRecords.length})`}>{t('pages.api_usage_analytics.records')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

@@ -78,9 +78,9 @@ export default function PushNotificationsPage() {
       header={
         <Header
           variant="h1"
-          description="Monitor push notification delivery and metrics"
+          description={t('pages.push_page.description')}
         >
-          Push Notifications
+          {t('pages.push_page.title')}
         </Header>
       }
     >
@@ -88,22 +88,22 @@ export default function PushNotificationsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'User Email',
+              header: t('pages.push_page.user_email'),
               cell: (item: PushMetric) => item.user_email,
               width: '25%',
             },
             {
-              header: 'Device ID',
+              header: t('pages.push_page.device_id'),
               cell: (item: PushMetric) => item.device_id,
               width: '25%',
             },
             {
-              header: 'Type',
+              header: t('pages.push_page.type'),
               cell: (item: PushMetric) => item.notification_type,
               width: '15%',
             },
             {
-              header: 'Status',
+              header: t('pages.push_page.status'),
               cell: (item: PushMetric) => (
                 <Badge color={getStatusColor(item.attempt_status)}>
                   {item.attempt_status}
@@ -112,16 +112,17 @@ export default function PushNotificationsPage() {
               width: '15%',
             },
             {
-              header: 'Timestamp',
+              header: t('pages.push_page.timestamp'),
               cell: (item: PushMetric) => new Date(item.timestamp).toLocaleString(),
               width: '20%',
             },
           ]}
           items={filteredMetrics}
-          header={<Header variant="h2" counter={`(${filteredMetrics.length})`}>Notifications</Header>}
+          header={<Header variant="h2" counter={`(${filteredMetrics.length})`}>{t('pages.push_page.notifications')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

@@ -100,14 +100,14 @@ export default function DomainSettingsPage() {
       header={
         <Header
           variant="h1"
-          description="Configure domain-level settings"
+          description={t('pages.domain_settings_page.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Add Setting
+              {t('pages.domain_settings_page.add_setting_btn')}
             </Button>
           }
         >
-          Domain Settings
+          {t('pages.domain_settings.title')}
         </Header>
       }
     >
@@ -115,31 +115,32 @@ export default function DomainSettingsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Domain',
+              header: t('pages.domain_settings_page.domain'),
               cell: (item: DomainSettings) => item.domain_name,
               width: '25%',
             },
             {
-              header: 'Setting Key',
+              header: t('pages.domain_settings_page.setting_key'),
               cell: (item: DomainSettings) => item.setting_key,
               width: '25%',
             },
             {
-              header: 'Value',
+              header: t('pages.domain_settings_page.value'),
               cell: (item: DomainSettings) => item.setting_value,
               width: '35%',
             },
             {
-              header: 'Last Updated',
+              header: t('pages.domain_settings_page.last_updated'),
               cell: (item: DomainSettings) => new Date(item.last_updated).toLocaleDateString(),
               width: '15%',
             },
           ]}
           items={filteredSettings}
-          header={<Header variant="h2" counter={`(${filteredSettings.length})`}>Settings List</Header>}
+          header={<Header variant="h2" counter={`(${filteredSettings.length})`}>{t('pages.domain_settings_page.settings_list')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
@@ -152,29 +153,31 @@ export default function DomainSettingsPage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleCreateSetting} loading={saving}>Add Setting</Button>
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
+              <Button variant="primary" onClick={handleCreateSetting} loading={saving}>
+                {t('pages.domain_settings_page.add_setting')}
+              </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Add Domain Setting"
+        header={t('pages.domain_settings_page.add_setting_modal')}
       >
         <SpaceBetween size="m">
-          <FormField label="Domain">
+          <FormField label={t('pages.domain_settings_page.domain_label')}>
             <Input
               value={newSetting.domain}
               onChange={(e) => setNewSetting({ ...newSetting, domain: e.detail.value })}
               placeholder="domain.com"
             />
           </FormField>
-          <FormField label="Setting Key">
+          <FormField label={t('pages.domain_settings_page.key_label')}>
             <Input
               value={newSetting.key}
               onChange={(e) => setNewSetting({ ...newSetting, key: e.detail.value })}
               placeholder="e.g., max_users"
             />
           </FormField>
-          <FormField label="Setting Value">
+          <FormField label={t('pages.domain_settings_page.value_label')}>
             <Input
               value={newSetting.value}
               onChange={(e) => setNewSetting({ ...newSetting, value: e.detail.value })}

@@ -82,14 +82,14 @@ export default function MailFlowLogsPage() {
       header={
         <Header
           variant="h1"
-          description="View mail delivery logs and troubleshoot delivery issues"
+          description={t('pages.flow_logs_page.description')}
           actions={
             <Button variant="primary" disabled>
-              Export Logs
+              {t('pages.flow_logs_page.export_logs')}
             </Button>
           }
         >
-          Mail Flow Logs
+          {t('pages.flow_logs.title')}
         </Header>
       }
     >
@@ -97,12 +97,12 @@ export default function MailFlowLogsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'From',
+              header: t('pages.flow_logs_page.from'),
               cell: (item: MailLog) => item.from,
               width: '20%',
             },
             {
-              header: 'To',
+              header: t('pages.flow_logs_page.to'),
               cell: (item: MailLog) => item.to,
               width: '20%',
             },
@@ -121,21 +121,22 @@ export default function MailFlowLogsPage() {
               width: '12%',
             },
             {
-              header: 'Size',
+              header: t('pages.flow_logs_page.size'),
               cell: (item: MailLog) => `${(item.message_size / 1024).toFixed(2)} KB`,
               width: '10%',
             },
             {
-              header: 'Timestamp',
+              header: t('pages.flow_logs_page.timestamp'),
               cell: (item: MailLog) => new Date(item.timestamp).toLocaleString(),
               width: '13%',
             },
           ]}
           items={filteredLogs}
-          header={<Header variant="h2" counter={`(${filteredLogs.length})`}>Logs</Header>}
+          header={<Header variant="h2" counter={`(${filteredLogs.length})`}>{t('pages.flow_logs_page.logs')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

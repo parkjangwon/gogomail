@@ -11,6 +11,7 @@ import {
   Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface ComplianceReport {
   id: string;
@@ -21,6 +22,7 @@ interface ComplianceReport {
 }
 
 export default function CompliancePage() {
+  const { t } = useI18n();
   const [reports, setReports] = useState<ComplianceReport[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +59,7 @@ export default function CompliancePage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Compliance</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.compliance_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -70,28 +72,28 @@ export default function CompliancePage() {
       header={
         <Header
           variant="h1"
-          description="Monitor compliance status and audit reports"
+          description={t('pages.compliance_page.description')}
         >
-          Compliance
+          {t('pages.compliance_page.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h3">Compliance Frameworks</Header>}>
+        <Container header={<Header variant="h3">{t('pages.compliance_page.frameworks_header')}</Header>}>
           <Box color="text-body-secondary">
-            Track compliance status for industry standards and regulations
+            {t('pages.compliance_page.frameworks_desc')}
           </Box>
         </Container>
 
         <Table
           columnDefinitions={[
             {
-              header: 'Framework',
+              header: t('pages.compliance_page.framework'),
               cell: (item: ComplianceReport) => item.framework,
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.compliance_page.status'),
               cell: (item: ComplianceReport) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}
@@ -100,18 +102,18 @@ export default function CompliancePage() {
               width: '20%',
             },
             {
-              header: 'Findings',
+              header: t('pages.compliance_page.findings'),
               cell: (item: ComplianceReport) => item.findings,
               width: '15%',
             },
             {
-              header: 'Last Audit',
+              header: t('pages.compliance_page.last_audit'),
               cell: (item: ComplianceReport) => new Date(item.last_audit).toLocaleString(),
               width: '40%',
             },
           ]}
           items={reports}
-          header={<Header variant="h2" counter={`(${reports.length})`}>Reports</Header>}
+          header={<Header variant="h2" counter={`(${reports.length})`}>{t('pages.compliance_page.reports')}</Header>}
         />
       </SpaceBetween>
     </ContentLayout>

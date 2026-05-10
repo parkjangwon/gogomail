@@ -11,6 +11,7 @@ import {
   TextFilter,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Role {
   id: string;
@@ -22,6 +23,7 @@ interface Role {
 }
 
 export default function RolesPage() {
+  const { t } = useI18n();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -53,7 +55,7 @@ export default function RolesPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Roles</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.roles_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -66,14 +68,14 @@ export default function RolesPage() {
       header={
         <Header
           variant="h1"
-          description="Manage user roles and permissions"
+          description={t('pages.roles_page.description')}
           actions={
             <Button variant="primary" disabled>
-              + Create Role
+              {t('pages.roles_page.create_role')}
             </Button>
           }
         >
-          Roles
+          {t('pages.roles_page.title')}
         </Header>
       }
     >
@@ -81,36 +83,37 @@ export default function RolesPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.roles_page.name'),
               cell: (item: Role) => item.name,
               width: '20%',
             },
             {
-              header: 'Description',
+              header: t('pages.roles_page.description_col'),
               cell: (item: Role) => item.description,
               width: '35%',
             },
             {
-              header: 'Permissions',
+              header: t('pages.roles_page.permissions'),
               cell: (item: Role) => item.permissions_count,
               width: '15%',
             },
             {
-              header: 'Assigned Users',
+              header: t('pages.roles_page.assigned_users'),
               cell: (item: Role) => item.assigned_users,
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.roles_page.created'),
               cell: (item: Role) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}
           items={filteredRoles}
-          header={<Header variant="h2" counter={`(${filteredRoles.length})`}>Roles</Header>}
+          header={<Header variant="h2" counter={`(${filteredRoles.length})`}>{t('pages.roles_page.roles')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

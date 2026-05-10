@@ -22,6 +22,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface DomainDetail {
   id: string;
@@ -59,6 +60,7 @@ interface DomainSetting {
 }
 
 export default function DomainDetailPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const companyId = params?.id as string;
@@ -125,7 +127,7 @@ export default function DomainDetailPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Domain</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.domain_detail.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner size="large" /></Box>
       </ContentLayout>
     );
@@ -133,8 +135,8 @@ export default function DomainDetailPage() {
 
   if (!domain) {
     return (
-      <ContentLayout header={<Header variant="h1">Domain Not Found</Header>}>
-        <Alert type="error">Domain {domainId} could not be loaded.</Alert>
+      <ContentLayout header={<Header variant="h1">{t('pages.domain_detail.not_found')}</Header>}>
+        <Alert type="error">{t('pages.domain_detail.title')} {domainId}</Alert>
       </ContentLayout>
     );
   }
@@ -149,7 +151,7 @@ export default function DomainDetailPage() {
           variant="h1"
           description={
             <SpaceBetween direction="horizontal" size="xs">
-              <span>Company: </span>
+              <span>{t('pages.domain_detail.company')}: </span>
               <Button
                 variant="inline-link"
                 onClick={() => router.push(`/companies/${companyId}`)}
@@ -165,10 +167,10 @@ export default function DomainDetailPage() {
                 loading={verifying}
                 disabled={domain.last_dns_check_status === 'pass'}
               >
-                Verify DNS
+                {t('pages.domain_detail.verify_dns')}
               </Button>
               <Button onClick={() => router.push(`/companies/${companyId}/users?domain=${domain.name}`)}>
-                + Add User
+                {t('pages.domain_detail.add_user')}
               </Button>
             </SpaceBetween>
           }
@@ -176,7 +178,7 @@ export default function DomainDetailPage() {
           <SpaceBetween direction="horizontal" size="xs">
             <span>{domain.name}</span>
             <Badge color={domain.status === 'active' ? 'green' : 'grey'}>{domain.status}</Badge>
-            <Badge color={dnsColor}>DNS: {domain.last_dns_check_status || 'Unchecked'}</Badge>
+            <Badge color={dnsColor}>{t('pages.domain_detail.dns')}: {domain.last_dns_check_status || t('pages.domain_detail.unchecked')}</Badge>
           </SpaceBetween>
         </Header>
       }
@@ -187,11 +189,11 @@ export default function DomainDetailPage() {
         tabs={[
           {
             id: 'overview',
-            label: 'Overview',
+            label: t('pages.domain_detail.overview_tab'),
             content: (
               <SpaceBetween size="l">
                 <ColumnLayout columns={3}>
-                  <Container header={<Header variant="h3">Storage</Header>}>
+                  <Container header={<Header variant="h3">{t('pages.domain_detail.storage')}</Header>}>
                     <SpaceBetween size="s">
                       <ProgressBar
                         value={quotaPct}
@@ -204,33 +206,33 @@ export default function DomainDetailPage() {
                         }
                       />
                       {domain.over_allocated && (
-                        <StatusIndicator type="error">Over allocated</StatusIndicator>
+                        <StatusIndicator type="error">{t('pages.domain_detail.over_allocated')}</StatusIndicator>
                       )}
                     </SpaceBetween>
                   </Container>
 
-                  <Container header={<Header variant="h3">Users</Header>}>
+                  <Container header={<Header variant="h3">{t('pages.domain_detail.users')}</Header>}>
                     <SpaceBetween size="s">
                       <Box fontSize="display-l" fontWeight="bold">{users.length}</Box>
                       <Box color="text-body-secondary" fontSize="body-s">
-                        {users.filter(u => u.status === 'active').length} active
+                        {users.filter(u => u.status === 'active').length} {t('pages.domain_detail.active')}
                       </Box>
                       <Button
                         variant="inline-link"
                         onClick={() => setActiveTab('users')}
                       >
-                        View all →
+                        {t('pages.domain_detail.view_all')} →
                       </Button>
                     </SpaceBetween>
                   </Container>
 
-                  <Container header={<Header variant="h3">Domain Info</Header>}>
+                  <Container header={<Header variant="h3">{t('pages.domain_detail.domain_info')}</Header>}>
                     <KeyValuePairs
                       items={[
-                        { label: 'Status', value: <Badge color={domain.status === 'active' ? 'green' : 'grey'}>{domain.status}</Badge> },
-                        { label: 'DNS', value: <Badge color={dnsColor}>{domain.last_dns_check_status || 'Unchecked'}</Badge> },
-                        { label: 'Created', value: new Date(domain.created_at).toLocaleDateString() },
-                        ...(domain.last_dns_checked_at ? [{ label: 'Last Checked', value: new Date(domain.last_dns_checked_at).toLocaleString() }] : []),
+                        { label: t('pages.domain_detail.status'), value: <Badge color={domain.status === 'active' ? 'green' : 'grey'}>{domain.status}</Badge> },
+                        { label: t('pages.domain_detail.dns'), value: <Badge color={dnsColor}>{domain.last_dns_check_status || t('pages.domain_detail.unchecked')}</Badge> },
+                        { label: t('pages.domain_detail.created'), value: new Date(domain.created_at).toLocaleDateString() },
+                        ...(domain.last_dns_checked_at ? [{ label: t('pages.domain_detail.last_checked'), value: new Date(domain.last_dns_checked_at).toLocaleString() }] : []),
                       ]}
                     />
                   </Container>
@@ -239,14 +241,14 @@ export default function DomainDetailPage() {
                 {domain.last_dns_check_status !== 'pass' && (
                   <Alert
                     type={domain.last_dns_check_status === 'fail' ? 'error' : 'warning'}
-                    header="DNS verification required"
+                    header={t('pages.domain_detail.dns_verification_required')}
                     action={
                       <Button onClick={handleVerifyDNS} loading={verifying}>
-                        Run Verification
+                        {t('pages.domain_detail.run_verification')}
                       </Button>
                     }
                   >
-                    This domain&apos;s DNS records have not been fully verified. Mail delivery may be affected until SPF, DKIM, and DMARC are correctly configured.
+                    {t('pages.domain_detail.dns_verification_desc')}
                   </Alert>
                 )}
               </SpaceBetween>
@@ -254,7 +256,7 @@ export default function DomainDetailPage() {
           },
           {
             id: 'dns',
-            label: 'DNS & Security',
+            label: t('pages.domain_detail.dns_security_tab'),
             content: (
               <SpaceBetween size="l">
                 <Container
@@ -267,35 +269,34 @@ export default function DomainDetailPage() {
                           onClick={handleVerifyDNS}
                           loading={verifying}
                         >
-                          Run Full Verification
+                          {t('pages.domain_detail.run_full_verification')}
                         </Button>
                       }
                     >
-                      DNS Health Check
+                      {t('pages.domain_detail.dns_health_check')}
                     </Header>
                   }
                 >
                   <SpaceBetween size="m">
                     <StatusIndicator type={domain.last_dns_check_status === 'pass' ? 'success' : domain.last_dns_check_status === 'fail' ? 'error' : 'pending'}>
-                      Overall: {domain.last_dns_check_status || 'Not checked yet'}
+                      {t('pages.domain_detail.overall')} {domain.last_dns_check_status || t('pages.domain_detail.not_checked')}
                     </StatusIndicator>
                     <Box color="text-body-secondary">
-                      To deliver mail reliably, configure SPF, DKIM, and DMARC records for <strong>{domain.name}</strong>.
-                      After updating DNS, click &quot;Run Full Verification&quot; to confirm.
+                      {t('pages.domain_detail.dns_setup_desc')} <strong>{domain.name}</strong>.
                     </Box>
                     {domain.last_dns_checked_at && (
                       <Box color="text-body-secondary" fontSize="body-s">
-                        Last checked: {new Date(domain.last_dns_checked_at).toLocaleString()}
+                        {t('pages.domain_detail.last_checked')}: {new Date(domain.last_dns_checked_at).toLocaleString()}
                       </Box>
                     )}
                   </SpaceBetween>
                 </Container>
 
-                <Container header={<Header variant="h3">DKIM Keys</Header>}>
+                <Container header={<Header variant="h3">{t('pages.domain_detail.dkim_keys')}</Header>}>
                   <SpaceBetween size="s">
-                    <Box color="text-body-secondary">Manage DKIM signing keys for this domain.</Box>
+                    <Box color="text-body-secondary">{t('pages.domain_detail.manage_dkim_desc')}</Box>
                     <Button onClick={() => router.push(`/companies/${companyId}/security/dkim-keys`)}>
-                      Manage DKIM Keys →
+                      {t('pages.domain_detail.manage_dkim_btn')} →
                     </Button>
                   </SpaceBetween>
                 </Container>
@@ -304,25 +305,25 @@ export default function DomainDetailPage() {
           },
           {
             id: 'users',
-            label: `Users (${users.length})`,
+            label: `${t('pages.domain_detail.users_tab')} (${users.length})`,
             content: (
               <Table
                 columnDefinitions={[
-                  { header: 'Username', cell: (u: User) => u.username, width: '30%' },
-                  { header: 'Display Name', cell: (u: User) => u.display_name, width: '25%' },
+                  { header: t('pages.domain_detail.username'), cell: (u: User) => u.username, width: '30%' },
+                  { header: t('pages.domain_detail.display_name'), cell: (u: User) => u.display_name, width: '25%' },
                   {
-                    header: 'Status',
+                    header: t('pages.domain_detail.status'),
                     cell: (u: User) => <Badge color={u.status === 'active' ? 'green' : 'grey'}>{u.status}</Badge>,
                     width: '15%',
                   },
                   {
-                    header: 'Storage',
+                    header: t('pages.domain_detail.storage_col'),
                     cell: (u: User) => u.quota_limit > 0
                       ? `${(u.quota_used / 1073741824).toFixed(1)} / ${(u.quota_limit / 1073741824).toFixed(1)} GB`
                       : `${(u.quota_used / 1073741824).toFixed(1)} GB`,
                     width: '20%',
                   },
-                  { header: 'Joined', cell: (u: User) => new Date(u.created_at).toLocaleDateString(), width: '10%' },
+                  { header: t('pages.domain_detail.joined'), cell: (u: User) => new Date(u.created_at).toLocaleDateString(), width: '10%' },
                 ]}
                 items={users}
                 header={
@@ -331,19 +332,19 @@ export default function DomainDetailPage() {
                     counter={`(${users.length})`}
                     actions={
                       <Button variant="primary" onClick={() => router.push(`/companies/${companyId}/users`)}>
-                        + Add User
+                        {t('pages.domain_detail.add_user')}
                       </Button>
                     }
                   >
-                    Users in {domain.name}
+                    {t('pages.domain_detail.users_in')} {domain.name}
                   </Header>
                 }
                 empty={
                   <Box textAlign="center" padding="l">
                     <SpaceBetween size="m" alignItems="center">
-                      <StatusIndicator type="info">No users in this domain</StatusIndicator>
+                      <StatusIndicator type="info">{t('pages.domain_detail.no_users')}</StatusIndicator>
                       <Button variant="primary" onClick={() => router.push(`/companies/${companyId}/users`)}>
-                        + Create First User
+                        {t('pages.domain_detail.create_first_user')}
                       </Button>
                     </SpaceBetween>
                   </Box>
@@ -353,14 +354,14 @@ export default function DomainDetailPage() {
           },
           {
             id: 'settings',
-            label: `Settings (${settings.length})`,
+            label: `${t('pages.domain_detail.settings_tab')} (${settings.length})`,
             content: (
               <SpaceBetween size="l">
                 <Table
                   columnDefinitions={[
-                    { header: 'Key', cell: (s: DomainSetting) => <Box fontWeight="bold">{s.setting_key}</Box>, width: '35%' },
-                    { header: 'Value', cell: (s: DomainSetting) => s.setting_value, width: '45%' },
-                    { header: 'Updated', cell: (s: DomainSetting) => new Date(s.last_updated).toLocaleDateString(), width: '20%' },
+                    { header: t('pages.domain_detail.setting_key'), cell: (s: DomainSetting) => <Box fontWeight="bold">{s.setting_key}</Box>, width: '35%' },
+                    { header: t('pages.domain_detail.setting_value'), cell: (s: DomainSetting) => s.setting_value, width: '45%' },
+                    { header: t('pages.domain_detail.updated'), cell: (s: DomainSetting) => new Date(s.last_updated).toLocaleDateString(), width: '20%' },
                   ]}
                   items={settings}
                   header={
@@ -369,16 +370,16 @@ export default function DomainDetailPage() {
                       counter={`(${settings.length})`}
                       actions={
                         <Button variant="primary" onClick={() => setShowAddSetting(true)}>
-                          + Add Setting
+                          {t('pages.domain_detail.add_setting_btn')}
                         </Button>
                       }
                     >
-                      Domain Settings
+                      {t('pages.domain_detail.domain_settings_title')}
                     </Header>
                   }
                   empty={
                     <Box textAlign="center" padding="l">
-                      <Box color="text-body-secondary">No custom settings configured for this domain.</Box>
+                      <Box color="text-body-secondary">{t('pages.domain_detail.no_custom_settings')}</Box>
                     </Box>
                   }
                 />
@@ -386,20 +387,20 @@ export default function DomainDetailPage() {
                 <Modal
                   visible={showAddSetting}
                   onDismiss={() => setShowAddSetting(false)}
-                  header={`Add Setting — ${domain.name}`}
+                  header={`${t('pages.domain_detail.add_setting_modal_header')} — ${domain.name}`}
                   footer={
                     <Box float="right">
                       <SpaceBetween direction="horizontal" size="xs">
-                        <Button onClick={() => setShowAddSetting(false)}>Cancel</Button>
+                        <Button onClick={() => setShowAddSetting(false)}>{t('common.cancel')}</Button>
                         <Button variant="primary" onClick={handleAddSetting} loading={savingSetting} disabled={!newSetting.key.trim()}>
-                          Save Setting
+                          {t('pages.domain_detail.save_setting')}
                         </Button>
                       </SpaceBetween>
                     </Box>
                   }
                 >
                   <SpaceBetween size="m">
-                    <FormField label="Key" constraintText="e.g., max_users, mail_retention_days">
+                    <FormField label={t('pages.domain_detail.key_label')} constraintText={t('pages.domain_detail.key_constraint')}>
                       <Input
                         value={newSetting.key}
                         onChange={(e) => setNewSetting({ ...newSetting, key: e.detail.value })}
@@ -407,7 +408,7 @@ export default function DomainDetailPage() {
                         autoFocus
                       />
                     </FormField>
-                    <FormField label="Value">
+                    <FormField label={t('pages.domain_detail.value_label')}>
                       <Input
                         value={newSetting.value}
                         onChange={(e) => setNewSetting({ ...newSetting, value: e.detail.value })}

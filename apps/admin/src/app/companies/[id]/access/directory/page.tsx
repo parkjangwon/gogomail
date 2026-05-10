@@ -12,6 +12,7 @@ import {
   Badge,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Principal {
   id: string;
@@ -23,6 +24,7 @@ interface Principal {
 }
 
 export default function DirectoryPage() {
+  const { t } = useI18n();
   const [principals, setPrincipals] = useState<Principal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -55,7 +57,7 @@ export default function DirectoryPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Directory</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.directory_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -68,14 +70,14 @@ export default function DirectoryPage() {
       header={
         <Header
           variant="h1"
-          description="Manage directory principals and contacts"
+          description={t('pages.directory_page.description')}
           actions={
             <Button variant="primary" disabled>
-              + Add Principal
+              {t('pages.directory_page.add_principal')}
             </Button>
           }
         >
-          Directory
+          {t('pages.directory_page.title')}
         </Header>
       }
     >
@@ -83,24 +85,24 @@ export default function DirectoryPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Email',
+              header: t('pages.directory_page.email'),
               cell: (item: Principal) => item.email,
               width: '30%',
             },
             {
-              header: 'Name',
+              header: t('pages.directory_page.name'),
               cell: (item: Principal) => item.name,
               width: '25%',
             },
             {
-              header: 'Type',
+              header: t('pages.directory_page.type'),
               cell: (item: Principal) => (
                 <Badge color="blue">{item.type}</Badge>
               ),
               width: '15%',
             },
             {
-              header: 'Status',
+              header: t('pages.directory_page.status'),
               cell: (item: Principal) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}
@@ -109,16 +111,17 @@ export default function DirectoryPage() {
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.directory_page.created'),
               cell: (item: Principal) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}
           items={filteredPrincipals}
-          header={<Header variant="h2" counter={`(${filteredPrincipals.length})`}>Principals</Header>}
+          header={<Header variant="h2" counter={`(${filteredPrincipals.length})`}>{t('pages.directory_page.principals')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

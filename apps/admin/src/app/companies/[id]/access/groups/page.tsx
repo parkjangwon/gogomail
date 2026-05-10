@@ -76,7 +76,7 @@ export default function GroupMembershipsPage() {
             </Button>
           }
         >
-          Group Memberships
+          {t('pages.groups.title')}
         </Header>
       }
     >
@@ -94,7 +94,7 @@ export default function GroupMembershipsPage() {
               width: '35%',
             },
             {
-              header: 'Role',
+              header: t('pages.groups_page.role'),
               cell: (item: GroupMembership) => (
                 <Badge color="blue">{item.role}</Badge>
               ),
@@ -107,10 +107,11 @@ export default function GroupMembershipsPage() {
             },
           ]}
           items={filteredMemberships}
-          header={<Header variant="h2" counter={`(${filteredMemberships.length})`}>Memberships</Header>}
+          header={<Header variant="h2" counter={`(${filteredMemberships.length})`}>{t('pages.groups_page.memberships')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

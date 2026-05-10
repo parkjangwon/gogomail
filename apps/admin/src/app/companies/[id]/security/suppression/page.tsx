@@ -89,14 +89,14 @@ export default function SuppressionListPage() {
       header={
         <Header
           variant="h1"
-          description="Manage email suppression list"
+          description={t('pages.suppression_page.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Add Email
+              {t('pages.suppression_page.add_email')}
             </Button>
           }
         >
-          Suppression List
+          {t('pages.suppression_page.title')}
         </Header>
       }
     >
@@ -116,16 +116,17 @@ export default function SuppressionListPage() {
               width: '35%',
             },
             {
-              header: 'Added',
+              header: t('pages.suppression_page.added'),
               cell: (item: SuppressionEntry) => new Date(item.added_at).toLocaleString(),
               width: '25%',
             },
           ]}
           items={filteredEntries}
-          header={<Header variant="h2" counter={`(${filteredEntries.length})`}>Entries</Header>}
+          header={<Header variant="h2" counter={`(${filteredEntries.length})`}>{t('pages.suppression_page.entries')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
@@ -138,28 +139,27 @@ export default function SuppressionListPage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleAddEntry}>
-                Add Email
+                {t('pages.suppression_page.add_btn')}
               </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Add to Suppression List"
+        header={t('pages.suppression_page.modal_header')}
       >
         <SpaceBetween size="m">
-          <FormField label="Email Address">
+          <FormField label={t('pages.suppression_page.email_label')}>
             <Input
               value={newEntry.email}
               onChange={(e) => setNewEntry({ ...newEntry, email: e.detail.value })}
-              placeholder="email@example.com"
+              placeholder={t('pages.suppression_page.email_placeholder')}
             />
           </FormField>
-          <FormField label="Reason" description="Why this email is suppressed">
+          <FormField label={t('pages.suppression_page.reason_label')} description={t('pages.suppression_page.reason_desc')}>
             <Input
               value={newEntry.reason}
               onChange={(e) => setNewEntry({ ...newEntry, reason: e.detail.value })}
-              placeholder="e.g., Hard bounce, Complaint"
             />
           </FormField>
         </SpaceBetween>

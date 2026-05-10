@@ -59,10 +59,10 @@ export default function QueueStatsPage() {
   const totalStale = queues.reduce((sum, q) => sum + (q.stale_processing_count || 0), 0);
 
   const getStatusIndicator = (q: QueueStat) => {
-    if (q.stale_processing_count > 0) return <StatusIndicator type="error">Stale</StatusIndicator>;
-    if (q.count === 0) return <StatusIndicator type="success">Idle</StatusIndicator>;
-    if (q.ready_count > 0) return <StatusIndicator type="in-progress">Processing</StatusIndicator>;
-    return <StatusIndicator type="pending">Queued</StatusIndicator>;
+    if (q.stale_processing_count > 0) return <StatusIndicator type="error">{t('pages.queue_stats_page.stale')}</StatusIndicator>;
+    if (q.count === 0) return <StatusIndicator type="success">{t('pages.queue_stats.pending')}</StatusIndicator>;
+    if (q.ready_count > 0) return <StatusIndicator type="in-progress">{t('pages.queue_stats.processing')}</StatusIndicator>;
+    return <StatusIndicator type="pending">{t('pages.queue_stats_page.status')}</StatusIndicator>;
   };
 
   if (loading) {
@@ -110,22 +110,22 @@ export default function QueueStatsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Topic',
+              header: t('pages.queue_stats_page.topic'),
               cell: (q: QueueStat) => <Box fontWeight="bold">{q.topic}</Box>,
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('pages.queue_stats_page.status'),
               cell: (q: QueueStat) => getStatusIndicator(q),
               width: '15%',
             },
             {
-              header: 'Total',
+              header: t('pages.queue_stats_page.total'),
               cell: (q: QueueStat) => (q.count ?? 0).toLocaleString(),
               width: '12%',
             },
             {
-              header: 'Ready',
+              header: t('pages.queue_stats_page.ready'),
               cell: (q: QueueStat) => (
                 <Badge color={(q.ready_count ?? 0) > 0 ? 'severity-high' : 'grey'}>
                   {(q.ready_count ?? 0).toLocaleString()}
@@ -134,12 +134,12 @@ export default function QueueStatsPage() {
               width: '12%',
             },
             {
-              header: 'Delayed',
+              header: t('pages.queue_stats_page.delayed'),
               cell: (q: QueueStat) => (q.delayed_count ?? 0).toLocaleString(),
               width: '12%',
             },
             {
-              header: 'Stale',
+              header: t('pages.queue_stats_page.stale'),
               cell: (q: QueueStat) => (
                 <Badge color={(q.stale_processing_count ?? 0) > 0 ? 'red' : 'grey'}>
                   {(q.stale_processing_count ?? 0).toLocaleString()}
@@ -148,7 +148,7 @@ export default function QueueStatsPage() {
               width: '12%',
             },
             {
-              header: 'Oldest Ready',
+              header: t('pages.queue_stats_page.oldest_ready'),
               cell: (q: QueueStat) => q.oldest_ready_at
                 ? new Date(q.oldest_ready_at).toLocaleString()
                 : '—',
@@ -163,7 +163,7 @@ export default function QueueStatsPage() {
           }
           empty={
             <Box textAlign="center" padding="xl">
-              <StatusIndicator type="success">All queues idle</StatusIndicator>
+              <StatusIndicator type="success">{t('pages.queue_stats_page.all_queues_idle')}</StatusIndicator>
             </Box>
           }
         />

@@ -11,6 +11,7 @@ import {
   TextFilter,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Alias {
   id: string;
@@ -21,6 +22,7 @@ interface Alias {
 }
 
 export default function AliasesPage() {
+  const { t } = useI18n();
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
@@ -53,7 +55,7 @@ export default function AliasesPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Aliases</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.aliases_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -66,14 +68,14 @@ export default function AliasesPage() {
       header={
         <Header
           variant="h1"
-          description="Manage email aliases"
+          description={t('pages.aliases_page.description')}
           actions={
             <Button variant="primary" disabled>
-              + Create Alias
+              {t('pages.aliases_page.create_alias')}
             </Button>
           }
         >
-          Aliases
+          {t('pages.aliases_page.title')}
         </Header>
       }
     >
@@ -81,31 +83,32 @@ export default function AliasesPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Alias Email',
+              header: t('pages.aliases_page.alias_email'),
               cell: (item: Alias) => item.alias_email,
               width: '35%',
             },
             {
-              header: 'Target Email',
+              header: t('pages.aliases_page.target_email'),
               cell: (item: Alias) => item.target_email,
               width: '35%',
             },
             {
-              header: 'Status',
+              header: t('pages.aliases_page.status'),
               cell: (item: Alias) => item.status,
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.aliases_page.created'),
               cell: (item: Alias) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}
           items={filteredAliases}
-          header={<Header variant="h2" counter={`(${filteredAliases.length})`}>Aliases</Header>}
+          header={<Header variant="h2" counter={`(${filteredAliases.length})`}>{t('pages.aliases_page.aliases')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

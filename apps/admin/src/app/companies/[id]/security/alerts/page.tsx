@@ -69,14 +69,14 @@ export default function AlertRulesPage() {
       header={
         <Header
           variant="h1"
-          description="Configure alert rules and notifications"
+          description={t('pages.alerts_page.description')}
           actions={
             <Button variant="primary" disabled>
               {t('pages.alerts.create_alert')}
             </Button>
           }
         >
-          Alert Rules
+          {t('pages.alerts_page.title')}
         </Header>
       }
     >
@@ -84,7 +84,7 @@ export default function AlertRulesPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Name',
+              header: t('pages.alerts_page.name'),
               cell: (item: AlertRule) => item.name,
               width: '25%',
             },
@@ -94,30 +94,31 @@ export default function AlertRulesPage() {
               width: '25%',
             },
             {
-              header: 'Action',
+              header: t('pages.alerts_page.action'),
               cell: (item: AlertRule) => item.action,
               width: '20%',
             },
             {
-              header: 'Enabled',
+              header: t('pages.alerts_page.enabled'),
               cell: (item: AlertRule) => (
                 <Badge color={item.enabled ? 'green' : 'grey'}>
-                  {item.enabled ? 'Enabled' : 'Disabled'}
+                  {item.enabled ? t('pages.alerts_page.enabled_label') : t('pages.alerts_page.disabled_label')}
                 </Badge>
               ),
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.alerts_page.created'),
               cell: (item: AlertRule) => new Date(item.created_at).toLocaleDateString(),
               width: '15%',
             },
           ]}
           items={filteredRules}
-          header={<Header variant="h2" counter={`(${filteredRules.length})`}>Rules</Header>}
+          header={<Header variant="h2" counter={`(${filteredRules.length})`}>{t('pages.alerts_page.rules')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

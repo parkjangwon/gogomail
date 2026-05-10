@@ -83,7 +83,7 @@ export default function DrivePage() {
               width: '25%',
             },
             {
-              header: 'Type',
+              header: t('pages.drive_page.type'),
               cell: (item: DriveNode) => item.type,
               width: '15%',
             },
@@ -108,6 +108,7 @@ export default function DrivePage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

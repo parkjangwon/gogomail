@@ -86,14 +86,14 @@ export default function ReconciliationPage() {
       header={
         <Header
           variant="h1"
-          description="Run quota reconciliation and fix discrepancies"
+          description={t('pages.reconciliation_page.description')}
           actions={
             <Button variant="primary" onClick={handleRunReconciliation}>
-              Run Reconciliation
+              {t('pages.reconciliation_page.run_btn')}
             </Button>
           }
         >
-          Quota Reconciliation
+          {t('pages.reconciliation_page.title')}
         </Header>
       }
     >
@@ -101,7 +101,7 @@ export default function ReconciliationPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Status',
+              header: t('pages.reconciliation_page.status'),
               cell: (item: ReconciliationJob) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}
@@ -110,28 +110,28 @@ export default function ReconciliationPage() {
               width: '15%',
             },
             {
-              header: 'Started',
+              header: t('pages.reconciliation_page.started'),
               cell: (item: ReconciliationJob) => new Date(item.started_at).toLocaleString(),
               width: '25%',
             },
             {
-              header: 'Completed',
+              header: t('pages.reconciliation_page.completed'),
               cell: (item: ReconciliationJob) => item.completed_at ? new Date(item.completed_at).toLocaleString() : '-',
               width: '25%',
             },
             {
-              header: 'Discrepancies Found',
+              header: t('pages.reconciliation_page.discrepancies'),
               cell: (item: ReconciliationJob) => item.discrepancies_found,
               width: '15%',
             },
             {
-              header: 'Corrections Applied',
+              header: t('pages.reconciliation_page.corrections'),
               cell: (item: ReconciliationJob) => item.corrections_applied,
               width: '20%',
             },
           ]}
           items={jobs}
-          header={<Header variant="h2" counter={`(${jobs.length})`}>Jobs</Header>}
+          header={<Header variant="h2" counter={`(${jobs.length})`}>{t('pages.reconciliation_page.jobs')}</Header>}
         />
       </SpaceBetween>
     </ContentLayout>

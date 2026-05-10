@@ -68,11 +68,11 @@ export default function OrganizationSettingsPage() {
           description={t('pages.organization.description')}
           actions={
             <Button variant="primary" onClick={() => setEditing(!editing)}>
-              {editing ? 'Cancel' : 'Edit Settings'}
+              {editing ? t('pages.organization_page.cancel') : t('pages.organization_page.edit_settings')}
             </Button>
           }
         >
-          Organization Settings
+          {t('pages.organization.title')}
         </Header>
       }
     >
@@ -80,30 +80,30 @@ export default function OrganizationSettingsPage() {
         {settings && (
           <>
             {!editing ? (
-              <Container header={<Header variant="h3">Current Settings</Header>}>
+              <Container header={<Header variant="h3">{t('pages.organization_page.current_settings')}</Header>}>
                 <KeyValuePairs
                   items={[
-                    { label: 'Organization Name', value: settings.name },
-                    { label: 'Description', value: settings.description },
-                    { label: 'Max Users', value: settings.max_users },
-                    { label: 'Max Domains', value: settings.max_domains },
-                    { label: 'Created', value: new Date(settings.created_at).toLocaleString() },
+                    { label: t('pages.organization_page.org_name'), value: settings.name },
+                    { label: t('pages.organization_page.description_label'), value: settings.description },
+                    { label: t('pages.organization_page.max_users'), value: settings.max_users },
+                    { label: t('pages.organization_page.max_domains'), value: settings.max_domains },
+                    { label: t('pages.organization_page.created'), value: new Date(settings.created_at).toLocaleString() },
                   ]}
                 />
               </Container>
             ) : (
-              <Container header={<Header variant="h3">Edit Settings</Header>}>
+              <Container header={<Header variant="h3">{t('pages.organization_page.edit_settings_header')}</Header>}>
                 <SpaceBetween size="m">
-                  <FormField label="Organization Name">
-                    <Input value={settings.name} placeholder="Organization name" />
+                  <FormField label={t('pages.organization_page.org_name')}>
+                    <Input value={settings.name} placeholder={t('pages.organization_page.org_name_placeholder')} />
                   </FormField>
-                  <FormField label="Description">
-                    <Input value={settings.description} placeholder="Description" />
+                  <FormField label={t('pages.organization_page.description_label')}>
+                    <Input value={settings.description} placeholder={t('pages.organization_page.desc_placeholder')} />
                   </FormField>
-                  <FormField label="Max Users">
+                  <FormField label={t('pages.organization_page.max_users')}>
                     <Input type="number" value={settings.max_users.toString()} />
                   </FormField>
-                  <FormField label="Max Domains">
+                  <FormField label={t('pages.organization_page.max_domains')}>
                     <Input type="number" value={settings.max_domains.toString()} />
                   </FormField>
                 </SpaceBetween>

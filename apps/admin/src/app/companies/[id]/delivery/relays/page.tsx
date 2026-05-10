@@ -70,14 +70,14 @@ export default function TrustedRelaysPage() {
       header={
         <Header
           variant="h1"
-          description="Manage trusted mail relays"
+          description={t('pages.relays_page.description')}
           actions={
             <Button variant="primary" disabled>
               {t('pages.relays.create_relay')}
             </Button>
           }
         >
-          Trusted Relays
+          {t('pages.relays_page.title')}
         </Header>
       }
     >
@@ -85,22 +85,22 @@ export default function TrustedRelaysPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Host',
+              header: t('pages.relays_page.host'),
               cell: (item: TrustedRelay) => item.host,
               width: '30%',
             },
             {
-              header: 'Port',
+              header: t('pages.relays_page.port'),
               cell: (item: TrustedRelay) => item.port,
               width: '10%',
             },
             {
-              header: 'Protocol',
+              header: t('pages.relays_page.protocol'),
               cell: (item: TrustedRelay) => item.protocol,
               width: '12%',
             },
             {
-              header: 'Status',
+              header: t('pages.relays.status'),
               cell: (item: TrustedRelay) => (
                 <Badge color={item.status === 'active' ? 'green' : 'grey'}>
                   {item.status}
@@ -109,21 +109,22 @@ export default function TrustedRelaysPage() {
               width: '12%',
             },
             {
-              header: 'Active Connections',
+              header: t('pages.relays_page.active_connections'),
               cell: (item: TrustedRelay) => item.active_connections,
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.relays_page.created'),
               cell: (item: TrustedRelay) => new Date(item.created_at).toLocaleDateString(),
               width: '21%',
             },
           ]}
           items={filteredRelays}
-          header={<Header variant="h2" counter={`(${filteredRelays.length})`}>Relays</Header>}
+          header={<Header variant="h2" counter={`(${filteredRelays.length})`}>{t('pages.relays_page.relays')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

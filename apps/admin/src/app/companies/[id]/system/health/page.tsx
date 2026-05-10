@@ -80,7 +80,7 @@ export default function APIHealthPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Service',
+              header: t('pages.health_page.service'),
               cell: (item: HealthCheck) => item.service,
               width: '25%',
             },
@@ -94,12 +94,12 @@ export default function APIHealthPage() {
               width: '20%',
             },
             {
-              header: 'Response Time (ms)',
+              header: t('pages.health_page.response_time_ms'),
               cell: (item: HealthCheck) => item.response_time_ms,
               width: '20%',
             },
             {
-              header: 'Last Check',
+              header: t('pages.health_page.last_check'),
               cell: (item: HealthCheck) => new Date(item.last_check).toLocaleString(),
               width: '35%',
             },

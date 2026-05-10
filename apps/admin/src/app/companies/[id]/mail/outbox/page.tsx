@@ -80,14 +80,14 @@ export default function OutboxEventsPage() {
       header={
         <Header
           variant="h1"
-          description="Monitor and manage outbox delivery events"
+          description={t('pages.outbox_page.description')}
           actions={
             <Button variant="primary" disabled>
-              Retry Failed
+              {t('pages.outbox_page.retry_failed')}
             </Button>
           }
         >
-          Outbox Events
+          {t('pages.outbox.title')}
         </Header>
       }
     >
@@ -95,22 +95,22 @@ export default function OutboxEventsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Message ID',
+              header: t('pages.outbox_page.message_id'),
               cell: (item: OutboxEvent) => item.message_id,
               width: '20%',
             },
             {
-              header: 'Recipient',
+              header: t('pages.outbox_page.recipient'),
               cell: (item: OutboxEvent) => item.recipient,
               width: '25%',
             },
             {
-              header: 'Event Type',
+              header: t('pages.outbox_page.event_type'),
               cell: (item: OutboxEvent) => item.event_type,
               width: '20%',
             },
             {
-              header: 'Status',
+              header: t('pages.outbox_page.status'),
               cell: (item: OutboxEvent) => (
                 <Badge color={getStatusColor(item.status)}>
                   {item.status}
@@ -119,16 +119,17 @@ export default function OutboxEventsPage() {
               width: '15%',
             },
             {
-              header: 'Timestamp',
+              header: t('pages.outbox_page.timestamp'),
               cell: (item: OutboxEvent) => new Date(item.timestamp).toLocaleString(),
               width: '20%',
             },
           ]}
           items={filteredEvents}
-          header={<Header variant="h2" counter={`(${filteredEvents.length})`}>Events</Header>}
+          header={<Header variant="h2" counter={`(${filteredEvents.length})`}>{t('pages.outbox_page.events')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

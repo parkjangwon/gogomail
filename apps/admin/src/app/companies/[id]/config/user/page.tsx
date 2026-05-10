@@ -68,14 +68,14 @@ export default function UserConfigPage() {
       header={
         <Header
           variant="h1"
-          description="Configure per-user settings"
+          description={t('pages.config_user_page.description')}
           actions={
             <Button variant="primary" disabled>
-              + Add Config
+              {t('pages.config_user_page.add_config_btn')}
             </Button>
           }
         >
-          User Config
+          {t('pages.config_user_page.title')}
         </Header>
       }
     >
@@ -83,22 +83,22 @@ export default function UserConfigPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'User Email',
+              header: t('pages.config_user_page.user_email'),
               cell: (item: UserConfig) => item.user_email,
               width: '30%',
             },
             {
-              header: 'Key',
+              header: t('pages.config_user_page.key'),
               cell: (item: UserConfig) => item.config_key,
               width: '25%',
             },
             {
-              header: 'Value',
+              header: t('pages.config_user_page.value'),
               cell: (item: UserConfig) => item.config_value,
               width: '25%',
             },
             {
-              header: 'Last Updated',
+              header: t('pages.config_user_page.last_updated'),
               cell: (item: UserConfig) => new Date(item.last_updated).toLocaleString(),
               width: '20%',
             },
@@ -108,6 +108,7 @@ export default function UserConfigPage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

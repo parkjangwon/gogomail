@@ -90,7 +90,7 @@ export default function CompanyConfigPage() {
           description={t('pages.config_company.description')}
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              {t('pages.config_company.title')}
+              {t('pages.config_company_page.add_config_btn')}
             </Button>
           }
         >
@@ -102,17 +102,17 @@ export default function CompanyConfigPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Key',
+              header: t('pages.config_company_page.key'),
               cell: (item: ConfigEntry) => item.key,
               width: '30%',
             },
             {
-              header: 'Value',
+              header: t('pages.config_company_page.value'),
               cell: (item: ConfigEntry) => item.value,
               width: '50%',
             },
             {
-              header: 'Last Updated',
+              header: t('pages.config_company_page.last_updated'),
               cell: (item: ConfigEntry) => new Date(item.last_updated).toLocaleString(),
               width: '20%',
             },
@@ -122,6 +122,7 @@ export default function CompanyConfigPage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
@@ -134,28 +135,28 @@ export default function CompanyConfigPage() {
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
               <Button variant="primary" onClick={handleCreateConfig}>
-                Add Config
+                {t('pages.config_company_page.add_btn')}
               </Button>
             </SpaceBetween>
           </Box>
         }
-        header="Add Configuration"
+        header={t('pages.config_company_page.modal_header')}
       >
         <SpaceBetween size="m">
-          <FormField label="Key">
+          <FormField label={t('pages.config_company_page.key_label')}>
             <Input
               value={newConfig.key}
               onChange={(e) => setNewConfig({ ...newConfig, key: e.detail.value })}
-              placeholder="e.g., max_users"
+              placeholder={t('pages.config_company_page.key_placeholder')}
             />
           </FormField>
-          <FormField label="Value">
+          <FormField label={t('pages.config_company_page.value_label')}>
             <Input
               value={newConfig.value}
               onChange={(e) => setNewConfig({ ...newConfig, value: e.detail.value })}
-              placeholder="Configuration value"
+              placeholder={t('pages.config_company_page.value_placeholder')}
             />
           </FormField>
         </SpaceBetween>

@@ -70,14 +70,14 @@ export default function DelegationsPage() {
       header={
         <Header
           variant="h1"
-          description="Manage user delegations and permissions"
+          description={t('pages.delegations_page.description')}
           actions={
             <Button variant="primary" disabled>
               {t('pages.delegations.create_delegation')}
             </Button>
           }
         >
-          Delegations
+          {t('pages.delegations.title')}
         </Header>
       }
     >
@@ -95,7 +95,7 @@ export default function DelegationsPage() {
               width: '25%',
             },
             {
-              header: 'Permissions',
+              header: t('pages.delegations_page.permissions'),
               cell: (item: Delegation) => item.permissions.join(', '),
               width: '35%',
             },
@@ -114,6 +114,7 @@ export default function DelegationsPage() {
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

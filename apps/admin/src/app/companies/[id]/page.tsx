@@ -19,6 +19,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useI18n } from '@/app/i18n-provider';
 
 interface Domain {
   id: string;
@@ -31,6 +32,7 @@ interface Domain {
 }
 
 export default function CompanyOverviewPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const companyId = params?.id as string;
@@ -55,7 +57,7 @@ export default function CompanyOverviewPage() {
 
   if (!company) {
     return (
-      <ContentLayout header={<Header variant="h1">Company Overview</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.company_overview.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -76,13 +78,13 @@ export default function CompanyOverviewPage() {
           actions={
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                Manage Domains
+                {t('pages.company_overview.manage_domains')}
               </Button>
               <Button onClick={() => router.push(`/companies/${companyId}/users`)}>
-                Manage Users
+                {t('pages.company_overview.manage_users')}
               </Button>
               <Button variant="primary" onClick={() => router.push(`/companies/${companyId}/dashboard`)}>
-                Dashboard →
+                {t('pages.company_overview.dashboard_btn')} →
               </Button>
             </SpaceBetween>
           }
@@ -98,10 +100,10 @@ export default function CompanyOverviewPage() {
         {dnsIssues.length > 0 && (
           <Alert
             type="warning"
-            header={`${dnsIssues.length} domain(s) have DNS issues`}
+            header={`${dnsIssues.length} ${t('pages.company_overview.dns_issues_header')}`}
             action={
               <Button onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                Review Domains
+                {t('pages.company_overview.review_domains')}
               </Button>
             }
           >
@@ -110,7 +112,7 @@ export default function CompanyOverviewPage() {
         )}
 
         <ColumnLayout columns={3}>
-          <Container header={<Header variant="h3">Storage</Header>}>
+          <Container header={<Header variant="h3">{t('pages.company_overview.storage')}</Header>}>
             <SpaceBetween size="s">
               <ProgressBar
                 value={quotaPct}
@@ -123,29 +125,29 @@ export default function CompanyOverviewPage() {
                 }
               />
               {company.over_allocated && (
-                <StatusIndicator type="error">Over allocated</StatusIndicator>
+                <StatusIndicator type="error">{t('pages.company_overview.over_allocated')}</StatusIndicator>
               )}
             </SpaceBetween>
           </Container>
 
-          <Container header={<Header variant="h3">Domains</Header>}>
+          <Container header={<Header variant="h3">{t('pages.company_overview.domains')}</Header>}>
             <SpaceBetween size="s">
               <Box fontSize="display-l" fontWeight="bold">{domains.length}</Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {activeDomains.length} active
-                {dnsIssues.length > 0 && ` · ${dnsIssues.length} DNS issues`}
+                {activeDomains.length} {t('pages.company_overview.active')}
+                {dnsIssues.length > 0 && ` · ${dnsIssues.length} ${t('pages.company_overview.dns_issues')}`}
               </Box>
               <Button variant="inline-link" onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                View all →
+                {t('pages.company_overview.view_all')} →
               </Button>
             </SpaceBetween>
           </Container>
 
-          <Container header={<Header variant="h3">Info</Header>}>
+          <Container header={<Header variant="h3">{t('pages.company_overview.info')}</Header>}>
             <KeyValuePairs
               items={[
-                { label: 'Status', value: <Badge color={company.status === 'active' ? 'green' : 'grey'}>{company.status}</Badge> },
-                { label: 'Created', value: new Date(company.created_at).toLocaleDateString() },
+                { label: t('pages.company_overview.status'), value: <Badge color={company.status === 'active' ? 'green' : 'grey'}>{company.status}</Badge> },
+                { label: t('pages.company_overview.created'), value: new Date(company.created_at).toLocaleDateString() },
               ]}
             />
           </Container>
@@ -153,10 +155,10 @@ export default function CompanyOverviewPage() {
 
         <Table
           loading={loadingDomains}
-          loadingText="Loading domains..."
+          loadingText={t('pages.company_overview.loading_domains')}
           columnDefinitions={[
             {
-              header: 'Domain',
+              header: t('pages.company_overview.domain'),
               cell: (d: Domain) => (
                 <Button
                   variant="inline-link"
@@ -168,22 +170,22 @@ export default function CompanyOverviewPage() {
               width: '30%',
             },
             {
-              header: 'Status',
+              header: t('pages.company_overview.status'),
               cell: (d: Domain) => (
                 <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
               ),
               width: '15%',
             },
             {
-              header: 'DNS',
+              header: t('pages.company_overview.dns'),
               cell: (d: Domain) => {
                 const s = d.last_dns_check_status;
-                return <Badge color={s === 'pass' ? 'green' : s === 'fail' ? 'red' : 'grey'}>{s || 'Unchecked'}</Badge>;
+                return <Badge color={s === 'pass' ? 'green' : s === 'fail' ? 'red' : 'grey'}>{s || t('pages.company_overview.unchecked')}</Badge>;
               },
               width: '15%',
             },
             {
-              header: 'Storage',
+              header: t('pages.company_overview.storage_col'),
               cell: (d: Domain) => {
                 const limit = d.quota_limit ?? 0;
                 const used = d.quota_used ?? 0;
@@ -194,7 +196,7 @@ export default function CompanyOverviewPage() {
               width: '25%',
             },
             {
-              header: 'Added',
+              header: t('pages.company_overview.added'),
               cell: (d: Domain) => new Date(d.created_at).toLocaleDateString(),
               width: '15%',
             },
@@ -206,20 +208,20 @@ export default function CompanyOverviewPage() {
               counter={`(${domains.length})`}
               actions={
                 <Button onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                  + Add Domain
+                  {t('pages.company_overview.add_domain_btn')}
                 </Button>
               }
             >
-              Domains under {company.name}
+              {t('pages.company_overview.domains_under')} {company.name}
             </Header>
           }
           empty={
             <Box textAlign="center" padding="l">
               <SpaceBetween size="m" alignItems="center">
-                <StatusIndicator type="warning">No domains configured</StatusIndicator>
-                <Box color="text-body-secondary">Add a domain to enable mail for this company.</Box>
+                <StatusIndicator type="warning">{t('pages.company_overview.no_domains')}</StatusIndicator>
+                <Box color="text-body-secondary">{t('pages.company_overview.no_domains_desc')}</Box>
                 <Button variant="primary" onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
-                  + Add First Domain
+                  {t('pages.company_overview.add_first_domain')}
                 </Button>
               </SpaceBetween>
             </Box>

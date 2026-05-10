@@ -13,6 +13,7 @@ import {
   Input,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface User {
   id: string;
@@ -23,6 +24,7 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -67,7 +69,7 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Users</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.users_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -82,11 +84,11 @@ export default function UsersPage() {
           variant="h1"
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Create User
+              {t('pages.users_page.create_user_btn')}
             </Button>
           }
         >
-          Users
+          {t('pages.users_page.title')}
         </Header>
       }
     >
@@ -94,17 +96,17 @@ export default function UsersPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Username',
+              header: t('pages.users_page.username'),
               cell: (user: User) => user.username,
               width: '20%',
             },
             {
-              header: 'Email',
+              header: t('pages.users_page.email'),
               cell: (user: User) => user.email,
               width: '30%',
             },
             {
-              header: 'Status',
+              header: t('pages.users_page.status'),
               cell: (user: User) => (
                 <Badge color={user.status === 'active' ? 'green' : 'grey'}>
                   {user.status}
@@ -113,20 +115,20 @@ export default function UsersPage() {
               width: '15%',
             },
             {
-              header: 'Created',
+              header: t('pages.users_page.created'),
               cell: (user: User) => new Date(user.created_at).toLocaleDateString(),
               width: '20%',
             },
             {
-              header: 'Actions',
+              header: t('pages.users_page.actions'),
               cell: () => (
-                <Button variant="inline-link">Edit</Button>
+                <Button variant="inline-link">{t('pages.users_page.edit')}</Button>
               ),
               width: '15%',
             },
           ]}
           items={users}
-          header={<Header variant="h2" counter={`(${users.length})`}>User List</Header>}
+          header={<Header variant="h2" counter={`(${users.length})`}>{t('pages.users_page.user_list')}</Header>}
         />
 
         <Modal
@@ -135,30 +137,30 @@ export default function UsersPage() {
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
                 <Button variant="primary" onClick={handleCreateUser}>
-                  Create
+                  {t('pages.users_page.create_btn')}
                 </Button>
               </SpaceBetween>
             </Box>
           }
-          header="Create New User"
+          header={t('pages.users_page.create_modal_title')}
         >
           <SpaceBetween size="m">
-            <FormField label="Username">
+            <FormField label={t('pages.users_page.username_label')}>
               <Input
                 value={newUser.username}
                 onChange={(e) => setNewUser({ ...newUser, username: e.detail.value })}
               />
             </FormField>
-            <FormField label="Email">
+            <FormField label={t('pages.users_page.email_label')}>
               <Input
                 type="email"
                 value={newUser.email}
                 onChange={(e) => setNewUser({ ...newUser, email: e.detail.value })}
               />
             </FormField>
-            <FormField label="Password">
+            <FormField label={t('pages.users_page.password_label')}>
               <Input
                 type="password"
                 value={newUser.password}

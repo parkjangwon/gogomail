@@ -80,9 +80,9 @@ export default function DeliveryAttemptsPage() {
       header={
         <Header
           variant="h1"
-          description="View detailed delivery attempt history"
+          description={t('pages.delivery_attempts_page.description')}
         >
-          Delivery Attempts
+          {t('pages.delivery_attempts.title')}
         </Header>
       }
     >
@@ -90,7 +90,7 @@ export default function DeliveryAttemptsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Message ID',
+              header: t('pages.delivery_attempts_page.message_id'),
               cell: (item: DeliveryAttempt) => item.message_id,
               width: '20%',
             },
@@ -100,7 +100,7 @@ export default function DeliveryAttemptsPage() {
               width: '25%',
             },
             {
-              header: 'Attempt',
+              header: t('pages.delivery_attempts_page.attempt'),
               cell: (item: DeliveryAttempt) => `#${item.attempt_number}`,
               width: '10%',
             },
@@ -114,21 +114,22 @@ export default function DeliveryAttemptsPage() {
               width: '20%',
             },
             {
-              header: 'Error',
+              header: t('pages.delivery_attempts_page.error'),
               cell: (item: DeliveryAttempt) => item.error_message || '-',
               width: '15%',
             },
             {
-              header: 'Timestamp',
+              header: t('pages.delivery_attempts_page.timestamp'),
               cell: (item: DeliveryAttempt) => new Date(item.timestamp).toLocaleString(),
               width: '10%',
             },
           ]}
           items={filteredAttempts}
-          header={<Header variant="h2" counter={`(${filteredAttempts.length})`}>Attempts</Header>}
+          header={<Header variant="h2" counter={`(${filteredAttempts.length})`}>{t('pages.delivery_attempts_page.attempts')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }

@@ -15,6 +15,7 @@ import {
   Select,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/app/i18n-provider';
 
 interface AdminUser {
   id: string;
@@ -26,6 +27,7 @@ interface AdminUser {
 }
 
 export default function AdminUsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -82,7 +84,7 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Admin Users</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('pages.admin_users_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
           <Spinner />
         </Box>
@@ -97,21 +99,21 @@ export default function AdminUsersPage() {
           variant="h1"
           actions={
             <Button variant="primary" onClick={() => setShowModal(true)}>
-              + Add Admin
+              {t('pages.admin_users_page.add_admin_btn')}
             </Button>
           }
         >
-          Admin Users
+          {t('pages.admin_users_page.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
         <Table
           columnDefinitions={[
-            { header: 'Username', cell: (u: AdminUser) => u.username, width: '20%' },
-            { header: 'Email', cell: (u: AdminUser) => u.email, width: '30%' },
+            { header: t('pages.admin_users_page.username'), cell: (u: AdminUser) => u.username, width: '20%' },
+            { header: t('pages.admin_users_page.email'), cell: (u: AdminUser) => u.email, width: '30%' },
             {
-              header: 'Role',
+              header: t('pages.admin_users_page.role'),
               cell: (u: AdminUser) => (
                 <Badge color={u.role === 'system_admin' ? 'blue' : 'grey'}>
                   {u.role}
@@ -120,7 +122,7 @@ export default function AdminUsersPage() {
               width: '15%',
             },
             {
-              header: 'Status',
+              header: t('pages.admin_users_page.status'),
               cell: (u: AdminUser) => (
                 <Badge color={u.status === 'active' ? 'green' : 'red'}>
                   {u.status}
@@ -128,19 +130,19 @@ export default function AdminUsersPage() {
               ),
               width: '15%',
             },
-            { header: 'Created', cell: (u: AdminUser) => new Date(u.created_at).toLocaleDateString(), width: '15%' },
+            { header: t('pages.admin_users_page.created'), cell: (u: AdminUser) => new Date(u.created_at).toLocaleDateString(), width: '15%' },
             {
-              header: 'Actions',
+              header: t('pages.admin_users_page.actions'),
               cell: (u: AdminUser) => (
                 <Button variant="inline-link" onClick={() => handleDeleteAdmin(u.id)}>
-                  Remove
+                  {t('pages.admin_users_page.remove')}
                 </Button>
               ),
               width: '10%',
             },
           ]}
           items={users}
-          header={<Header variant="h2">Administrator Accounts</Header>}
+          header={<Header variant="h2">{t('pages.admin_users_page.admin_accounts')}</Header>}
         />
 
         <Modal
@@ -149,43 +151,43 @@ export default function AdminUsersPage() {
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowModal(false)}>Cancel</Button>
+                <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
                 <Button variant="primary" onClick={handleCreateAdmin}>
-                  Create
+                  {t('pages.admin_users_page.create_btn')}
                 </Button>
               </SpaceBetween>
             </Box>
           }
-          header="Add Administrator"
+          header={t('pages.admin_users_page.add_admin_modal')}
         >
           <SpaceBetween size="m">
-            <FormField label="Username">
+            <FormField label={t('pages.admin_users_page.username_label')}>
               <Input
                 value={newAdmin.username}
                 onChange={(e) => setNewAdmin({ ...newAdmin, username: e.detail.value })}
               />
             </FormField>
-            <FormField label="Email">
+            <FormField label={t('pages.admin_users_page.email_label')}>
               <Input
                 type="email"
                 value={newAdmin.email}
                 onChange={(e) => setNewAdmin({ ...newAdmin, email: e.detail.value })}
               />
             </FormField>
-            <FormField label="Password">
+            <FormField label={t('pages.admin_users_page.password_label')}>
               <Input
                 type="password"
                 value={newAdmin.password}
                 onChange={(e) => setNewAdmin({ ...newAdmin, password: e.detail.value })}
               />
             </FormField>
-            <FormField label="Role">
+            <FormField label={t('pages.admin_users_page.role_label')}>
               <Select
                 selectedOption={{ label: newAdmin.role, value: newAdmin.role }}
                 options={[
-                  { label: 'System Admin', value: 'system_admin' },
-                  { label: 'Admin', value: 'admin' },
-                  { label: 'Read-Only', value: 'readonly' },
+                  { label: t('pages.admin_users_page.system_admin'), value: 'system_admin' },
+                  { label: t('pages.admin_users_page.admin'), value: 'admin' },
+                  { label: t('pages.admin_users_page.read_only'), value: 'readonly' },
                 ]}
                 onChange={(e) => setNewAdmin({ ...newAdmin, role: e.detail.selectedOption?.value || 'admin' })}
               />

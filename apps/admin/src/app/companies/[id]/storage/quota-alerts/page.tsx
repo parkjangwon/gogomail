@@ -77,9 +77,9 @@ export default function QuotaAlertsPage() {
       header={
         <Header
           variant="h1"
-          description="Configure and monitor quota alert thresholds"
+          description={t('pages.quota_alerts_page.description')}
         >
-          Quota Alerts
+          {t('pages.quota_alerts_page.title')}
         </Header>
       }
     >
@@ -87,22 +87,22 @@ export default function QuotaAlertsPage() {
         <Table
           columnDefinitions={[
             {
-              header: 'Tenant',
+              header: t('pages.quota_alerts_page.tenant'),
               cell: (item: QuotaAlert) => item.tenant,
               width: '25%',
             },
             {
-              header: 'Threshold',
+              header: t('pages.quota_alerts_page.threshold'),
               cell: (item: QuotaAlert) => `${item.threshold_percent}%`,
               width: '15%',
             },
             {
-              header: 'Current Usage',
+              header: t('pages.quota_alerts_page.current_usage'),
               cell: (item: QuotaAlert) => `${item.current_percent.toFixed(1)}%`,
               width: '15%',
             },
             {
-              header: 'Status',
+              header: t('pages.quota_alerts_page.status'),
               cell: (item: QuotaAlert) => (
                 <Badge color={getAlertColor(item.alert_status)}>
                   {item.alert_status}
@@ -111,16 +111,17 @@ export default function QuotaAlertsPage() {
               width: '20%',
             },
             {
-              header: 'Created',
+              header: t('pages.quota_alerts_page.created'),
               cell: (item: QuotaAlert) => new Date(item.created_at).toLocaleString(),
               width: '25%',
             },
           ]}
           items={filteredAlerts}
-          header={<Header variant="h2" counter={`(${filteredAlerts.length})`}>Alerts</Header>}
+          header={<Header variant="h2" counter={`(${filteredAlerts.length})`}>{t('pages.quota_alerts_page.alerts')}</Header>}
           filter={
             <TextFilter
               filteringText={filter}
+              filteringPlaceholder={t('common.search')}
               onChange={(e) => setFilter(e.detail.filteringText)}
             />
           }
