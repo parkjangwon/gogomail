@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "저장",
+    "cancel": "취소",
+    "delete": "삭제",
+    "edit": "편집",
+    "add": "추가",
+    "search": "검색",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "success": "성공",
+    "close": "닫기",
+    "back": "뒤로",
+    "next": "다음",
+    "previous": "이전",
+    "export": "내보내기",
+    "import": "가져오기"
+  },
+  "nav": {
+    "dashboard": "대시보드",
+    "users": "사용자",
+    "admin_users": "관리자",
+    "audit_logs": "감사 로그",
+    "mail_logs": "메일 로그",
+    "domains": "도메인",
+    "monitoring": "모니터링",
+    "settings": "설정",
+    "organization": "조직",
+    "roles": "역할",
+    "compliance": "규정 준수",
+    "delivery": "배달",
+    "analytics": "분석",
+    "tenancy": "테넌시",
+    "system": "시스템",
+    "security": "보안",
+    "relays": "릴레이",
+    "routes": "라우트",
+    "push": "푸시",
+    "api_usage": "API 사용",
+    "domain_settings": "도메인 설정",
+    "api_settings": "API 설정",
+    "alerts": "알림",
+    "backpressure": "백프레셔"
+  },
+  "dashboard": {
+    "title": "대시보드",
+    "description": "시스템 개요 및 주요 지표",
+    "system_metrics": "시스템 지표",
+    "total_users": "총 사용자",
+    "active_domains": "활성 도메인",
+    "api_requests": "API 요청",
+    "error_rate": "오류율",
+    "system_health": "시스템 상태",
+    "overall_health": "전체 상태",
+    "api_server": "API 서버",
+    "database": "데이터베이스",
+    "mail_queue": "메일 큐",
+    "cache": "캐시",
+    "uptime": "가동 시간",
+    "response_time": "응답 시간",
+    "healthy": "정상",
+    "storage_usage": "저장소 사용",
+    "available": "사용 가능",
+    "status": "상태",
+    "quick_actions": "빠른 작업"
+  },
+  "users": {
+    "title": "사용자",
+    "description": "사용자 관리",
+    "list": "사용자 목록",
+    "create": "새 사용자",
+    "name": "이름",
+    "email": "이메일",
+    "role": "역할",
+    "status": "상태",
+    "active": "활성",
+    "inactive": "비활성",
+    "last_login": "마지막 로그인",
+    "created_at": "생성일"
+  },
+  "admin_users": {
+    "title": "관리자",
+    "description": "관리자 사용자 관리",
+    "list": "관리자 목록"
+  },
+  "audit_logs": {
+    "title": "감사 로그",
+    "description": "감사 로그 보기",
+    "action": "작업",
+    "actor": "행위자",
+    "resource": "리소스",
+    "timestamp": "시간",
+    "result": "결과"
+  },
+  "mail_logs": {
+    "title": "메일 로그",
+    "description": "메일 흐름 로그",
+    "sender": "발신자",
+    "recipient": "수신자",
+    "subject": "제목",
+    "sent": "발송됨",
+    "received": "수신됨",
+    "status": "상태",
+    "size": "크기"
+  },
+  "domains": {
+    "title": "도메인",
+    "description": "도메인 관리",
+    "list": "도메인 목록",
+    "create": "새 도메인",
+    "name": "도메인 이름",
+    "status": "상태",
+    "created": "생성됨",
+    "dns_records": "DNS 레코드"
+  },
+  "monitoring": {
+    "title": "모니터링",
+    "description": "시스템 모니터링",
+    "queue_stats": "큐 통계",
+    "backpressure": "백프레셔"
+  },
+  "settings": {
+    "title": "설정",
+    "description": "시스템 설정",
+    "general": "일반",
+    "security": "보안",
+    "notifications": "알림",
+    "theme": "테마"
+  },
+  "forms": {
+    "submit": "제출",
+    "required": "필수 항목",
+    "invalid": "유효하지 않음",
+    "placeholder_email": "이메일을 입력하세요",
+    "placeholder_search": "검색..."
+  },
+  "messages": {
+    "confirm_delete": "정말 삭제하시겠습니까?",
+    "delete_success": "삭제되었습니다",
+    "save_success": "저장되었습니다",
+    "load_error": "로드 실패",
+    "network_error": "네트워크 오류"
+  },
+  "pagination": {
+    "showing": "{start}-{end} of {total}",
+    "per_page": "페이지당 항목"
+  }
+}

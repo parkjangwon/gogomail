@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "add": "追加",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "error": "エラーが発生しました",
+    "success": "成功",
+    "close": "閉じる",
+    "back": "戻る",
+    "next": "次へ",
+    "previous": "前へ",
+    "export": "エクスポート",
+    "import": "インポート"
+  },
+  "nav": {
+    "dashboard": "ダッシュボード",
+    "users": "ユーザー",
+    "admin_users": "管理者",
+    "audit_logs": "監査ログ",
+    "mail_logs": "メールログ",
+    "domains": "ドメイン",
+    "monitoring": "監視",
+    "settings": "設定",
+    "organization": "組織",
+    "roles": "ロール",
+    "compliance": "コンプライアンス",
+    "delivery": "配信",
+    "analytics": "分析",
+    "tenancy": "テナント",
+    "system": "システム",
+    "security": "セキュリティ",
+    "relays": "リレー",
+    "routes": "ルート",
+    "push": "プッシュ",
+    "api_usage": "API使用",
+    "domain_settings": "ドメイン設定",
+    "api_settings": "API設定",
+    "alerts": "アラート",
+    "backpressure": "バックプレッシャー"
+  },
+  "dashboard": {
+    "title": "ダッシュボード",
+    "description": "システムの概要と主要メトリクス",
+    "system_metrics": "システムメトリクス",
+    "total_users": "総ユーザー数",
+    "active_domains": "アクティブドメイン",
+    "api_requests": "APIリクエスト",
+    "error_rate": "エラー率",
+    "system_health": "システムヘルス",
+    "overall_health": "総合ヘルス",
+    "api_server": "APIサーバー",
+    "database": "データベース",
+    "mail_queue": "メールキュー",
+    "cache": "キャッシュ",
+    "uptime": "稼働時間",
+    "response_time": "応答時間",
+    "healthy": "正常",
+    "storage_usage": "ストレージ使用量",
+    "available": "利用可能",
+    "status": "ステータス",
+    "quick_actions": "クイックアクション"
+  },
+  "users": {
+    "title": "ユーザー",
+    "description": "ユーザー管理",
+    "list": "ユーザーリスト",
+    "create": "新規ユーザー",
+    "name": "名前",
+    "email": "メール",
+    "role": "ロール",
+    "status": "ステータス",
+    "active": "アクティブ",
+    "inactive": "非アクティブ",
+    "last_login": "最後のログイン",
+    "created_at": "作成日"
+  },
+  "admin_users": {
+    "title": "管理者",
+    "description": "管理者ユーザー管理",
+    "list": "管理者リスト"
+  },
+  "audit_logs": {
+    "title": "監査ログ",
+    "description": "監査ログを表示",
+    "action": "アクション",
+    "actor": "実行者",
+    "resource": "リソース",
+    "timestamp": "タイムスタンプ",
+    "result": "結果"
+  },
+  "mail_logs": {
+    "title": "メールログ",
+    "description": "メールフローログ",
+    "sender": "送信者",
+    "recipient": "受信者",
+    "subject": "件名",
+    "sent": "送信済み",
+    "received": "受信済み",
+    "status": "ステータス",
+    "size": "サイズ"
+  },
+  "domains": {
+    "title": "ドメイン",
+    "description": "ドメイン管理",
+    "list": "ドメインリスト",
+    "create": "新規ドメイン",
+    "name": "ドメイン名",
+    "status": "ステータス",
+    "created": "作成",
+    "dns_records": "DNSレコード"
+  },
+  "monitoring": {
+    "title": "監視",
+    "description": "システム監視",
+    "queue_stats": "キュー統計",
+    "backpressure": "バックプレッシャー"
+  },
+  "settings": {
+    "title": "設定",
+    "description": "システム設定",
+    "general": "一般",
+    "security": "セキュリティ",
+    "notifications": "通知",
+    "theme": "テーマ"
+  },
+  "forms": {
+    "submit": "送信",
+    "required": "必須",
+    "invalid": "無効",
+    "placeholder_email": "メールを入力",
+    "placeholder_search": "検索..."
+  },
+  "messages": {
+    "confirm_delete": "本当に削除してもよろしいですか？",
+    "delete_success": "削除しました",
+    "save_success": "保存しました",
+    "load_error": "読み込み失敗",
+    "network_error": "ネットワークエラー"
+  },
+  "pagination": {
+    "showing": "{start}-{end} / {total}を表示",
+    "per_page": "ページあたりの項目"
+  }
+}

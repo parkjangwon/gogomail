@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "add": "添加",
+    "search": "搜索",
+    "loading": "加载中...",
+    "error": "发生错误",
+    "success": "成功",
+    "close": "关闭",
+    "back": "返回",
+    "next": "下一个",
+    "previous": "上一个",
+    "export": "导出",
+    "import": "导入"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "users": "用户",
+    "admin_users": "管理员",
+    "audit_logs": "审计日志",
+    "mail_logs": "邮件日志",
+    "domains": "域名",
+    "monitoring": "监控",
+    "settings": "设置",
+    "organization": "组织",
+    "roles": "角色",
+    "compliance": "合规性",
+    "delivery": "交付",
+    "analytics": "分析",
+    "tenancy": "租户",
+    "system": "系统",
+    "security": "安全",
+    "relays": "中继",
+    "routes": "路由",
+    "push": "推送",
+    "api_usage": "API使用",
+    "domain_settings": "域名设置",
+    "api_settings": "API设置",
+    "alerts": "警报",
+    "backpressure": "背压"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "description": "系统概览和关键指标",
+    "system_metrics": "系统指标",
+    "total_users": "总用户数",
+    "active_domains": "活跃域名",
+    "api_requests": "API请求",
+    "error_rate": "错误率",
+    "system_health": "系统健康",
+    "overall_health": "总体健康",
+    "api_server": "API服务器",
+    "database": "数据库",
+    "mail_queue": "邮件队列",
+    "cache": "缓存",
+    "uptime": "正常运行时间",
+    "response_time": "响应时间",
+    "healthy": "正常",
+    "storage_usage": "存储使用量",
+    "available": "可用",
+    "status": "状态",
+    "quick_actions": "快速操作"
+  },
+  "users": {
+    "title": "用户",
+    "description": "管理用户",
+    "list": "用户列表",
+    "create": "新建用户",
+    "name": "名称",
+    "email": "邮箱",
+    "role": "角色",
+    "status": "状态",
+    "active": "活跃",
+    "inactive": "非活跃",
+    "last_login": "最后登录",
+    "created_at": "创建于"
+  },
+  "admin_users": {
+    "title": "管理员",
+    "description": "管理管理员用户",
+    "list": "管理员列表"
+  },
+  "audit_logs": {
+    "title": "审计日志",
+    "description": "查看审计日志",
+    "action": "操作",
+    "actor": "执行者",
+    "resource": "资源",
+    "timestamp": "时间戳",
+    "result": "结果"
+  },
+  "mail_logs": {
+    "title": "邮件日志",
+    "description": "邮件流日志",
+    "sender": "发件人",
+    "recipient": "收件人",
+    "subject": "主题",
+    "sent": "已发送",
+    "received": "已接收",
+    "status": "状态",
+    "size": "大小"
+  },
+  "domains": {
+    "title": "域名",
+    "description": "管理域名",
+    "list": "域名列表",
+    "create": "新建域名",
+    "name": "域名",
+    "status": "状态",
+    "created": "创建",
+    "dns_records": "DNS记录"
+  },
+  "monitoring": {
+    "title": "监控",
+    "description": "系统监控",
+    "queue_stats": "队列统计",
+    "backpressure": "背压"
+  },
+  "settings": {
+    "title": "设置",
+    "description": "系统设置",
+    "general": "常规",
+    "security": "安全",
+    "notifications": "通知",
+    "theme": "主题"
+  },
+  "forms": {
+    "submit": "提交",
+    "required": "必需",
+    "invalid": "无效",
+    "placeholder_email": "输入邮箱",
+    "placeholder_search": "搜索..."
+  },
+  "messages": {
+    "confirm_delete": "您确定要删除吗？",
+    "delete_success": "删除成功",
+    "save_success": "保存成功",
+    "load_error": "加载失败",
+    "network_error": "网络错误"
+  },
+  "pagination": {
+    "showing": "显示 {start}-{end} / 共 {total} 项",
+    "per_page": "每页显示项数"
+  }
+}

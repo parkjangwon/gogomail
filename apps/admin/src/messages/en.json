@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "export": "Export",
+    "import": "Import"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "admin_users": "Admins",
+    "audit_logs": "Audit Logs",
+    "mail_logs": "Mail Logs",
+    "domains": "Domains",
+    "monitoring": "Monitoring",
+    "settings": "Settings",
+    "organization": "Organization",
+    "roles": "Roles",
+    "compliance": "Compliance",
+    "delivery": "Delivery",
+    "analytics": "Analytics",
+    "tenancy": "Tenancy",
+    "system": "System",
+    "security": "Security",
+    "relays": "Relays",
+    "routes": "Routes",
+    "push": "Push",
+    "api_usage": "API Usage",
+    "domain_settings": "Domain Settings",
+    "api_settings": "API Settings",
+    "alerts": "Alerts",
+    "backpressure": "Backpressure"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "System overview and key metrics",
+    "system_metrics": "System Metrics",
+    "total_users": "Total Users",
+    "active_domains": "Active Domains",
+    "api_requests": "API Requests",
+    "error_rate": "Error Rate",
+    "system_health": "System Health",
+    "overall_health": "Overall Health",
+    "api_server": "API Server",
+    "database": "Database",
+    "mail_queue": "Mail Queue",
+    "cache": "Cache",
+    "uptime": "Uptime",
+    "response_time": "Response Time",
+    "healthy": "Healthy",
+    "storage_usage": "Storage Usage",
+    "available": "Available",
+    "status": "Status",
+    "quick_actions": "Quick Actions"
+  },
+  "users": {
+    "title": "Users",
+    "description": "Manage users",
+    "list": "User List",
+    "create": "New User",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "last_login": "Last Login",
+    "created_at": "Created"
+  },
+  "admin_users": {
+    "title": "Admins",
+    "description": "Manage admin users",
+    "list": "Admin List"
+  },
+  "audit_logs": {
+    "title": "Audit Logs",
+    "description": "View audit logs",
+    "action": "Action",
+    "actor": "Actor",
+    "resource": "Resource",
+    "timestamp": "Timestamp",
+    "result": "Result"
+  },
+  "mail_logs": {
+    "title": "Mail Logs",
+    "description": "Mail flow logs",
+    "sender": "Sender",
+    "recipient": "Recipient",
+    "subject": "Subject",
+    "sent": "Sent",
+    "received": "Received",
+    "status": "Status",
+    "size": "Size"
+  },
+  "domains": {
+    "title": "Domains",
+    "description": "Manage domains",
+    "list": "Domain List",
+    "create": "New Domain",
+    "name": "Domain Name",
+    "status": "Status",
+    "created": "Created",
+    "dns_records": "DNS Records"
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "description": "System monitoring",
+    "queue_stats": "Queue Stats",
+    "backpressure": "Backpressure"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "System settings",
+    "general": "General",
+    "security": "Security",
+    "notifications": "Notifications",
+    "theme": "Theme"
+  },
+  "forms": {
+    "submit": "Submit",
+    "required": "Required",
+    "invalid": "Invalid",
+    "placeholder_email": "Enter email",
+    "placeholder_search": "Search..."
+  },
+  "messages": {
+    "confirm_delete": "Are you sure you want to delete?",
+    "delete_success": "Deleted successfully",
+    "save_success": "Saved successfully",
+    "load_error": "Failed to load",
+    "network_error": "Network error"
+  },
+  "pagination": {
+    "showing": "Showing {start}-{end} of {total}",
+    "per_page": "Items per page"
+  }
+}
