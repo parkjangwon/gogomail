@@ -9,31 +9,40 @@
 
 **STATUS: IN_PROGRESS** 🔄
 
-- **ID**: TASK-077
-- **제목**: Audit Policy Config UI
-- **배경**: Phase 8-E. Implement audit policy configuration interface.
-  - Audit level selection (Level 1/2/3)
-  - Policy scope configuration
-  - Retention policy management
-  - Exception handling
-  - Policy enforcement engine
+- **ID**: TASK-078
+- **제목**: Export/Reports (CSV, PDF)
+- **배경**: Phase 8-E. Implement audit report export functionality.
+  - CSV export for audit logs
+  - PDF report generation
+  - Filtered export (date range, user, action)
+  - Report formatting and styling
+  - Scheduled report generation
 
 - **구현 대상**:
-  1. `internal/admin/audit_policy_service.go` — Audit policy service
-  2. `internal/admin/audit_policy_service_test.go` — Unit tests
-  3. Policy configuration management
-  4. Level-specific enforcement
-  5. Exception handling
+  1. `internal/admin/report_service.go` — Report generation service
+  2. `internal/admin/report_service_test.go` — Unit tests
+  3. CSV/PDF export functionality
+  4. Report filtering and formatting
+  5. Scheduled report execution
 
 - **완료 조건**:
   - [ ] `go test ./...` 통과 (새 테스트 포함)
-  - [ ] AuditPolicyService with policy management
-  - [ ] Level 1/2/3 enforcement
-  - [ ] Retention policy management
-  - [ ] Exception handling
+  - [ ] ReportService with export methods
+  - [ ] CSV export implementation
+  - [ ] PDF report generation
+  - [ ] Filtering support
   - [ ] git status: clean
 
-- **이전 태스크**: TASK-076 ✅ (API Metering) — COMPLETE
+- **이전 태스크**: TASK-077 ✅ (Audit Policy Config UI) — COMPLETE
+
+---
+
+## 다음 단계
+
+**Phase 8 완료 후**: Frontend 작업 시작 (TASK-079+)
+- Admin Console UI (Notion Mail-inspired design)
+- Dashboard, User Management, Organization, Audit Logs
+- Next.js 15 + Tailwind v4 + shadcn/ui
 
 ---
 
