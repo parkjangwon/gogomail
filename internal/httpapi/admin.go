@@ -101,6 +101,7 @@ func rejectUnknownAPIUsageExportBatchListQuery(w http.ResponseWriter, r *http.Re
 
 type AdminService interface {
 	ListCompanies(ctx context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error)
+	CreateCompany(ctx context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error)
 	GetCompany(ctx context.Context, id string) (maildb.CompanyView, error)
 	UpdateCompanyQuota(ctx context.Context, req maildb.UpdateCompanyQuotaRequest) error
 	ListDomains(ctx context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error)
@@ -537,6 +538,25 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"companies": companies})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req maildb.CreateCompanyRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		company, err := service.CreateCompany(r.Context(), req)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"company": company})
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

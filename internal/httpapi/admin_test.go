@@ -8502,6 +8502,10 @@ func (f *fakeAdminService) GetCompany(_ context.Context, id string) (maildb.Comp
 	return maildb.CompanyView{}, nil
 }
 
+func (f *fakeAdminService) CreateCompany(_ context.Context, req maildb.CreateCompanyRequest) (maildb.CompanyView, error) {
+	return maildb.CompanyView{ID: "company-new", Name: req.Name, Status: "active", QuotaLimit: req.QuotaLimit}, nil
+}
+
 func (f *fakeAdminService) UpdateCompanyQuota(_ context.Context, req maildb.UpdateCompanyQuotaRequest) error {
 	f.lastCompanyQuota = req
 	return nil
