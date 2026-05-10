@@ -5,109 +5,142 @@
 
 ---
 
-## ✅ PHASE 8 COMPLETE - Backend Foundation
+## 🔄 TASK-082: Domain Settings UI
 
-**STATUS: COMPLETED** ✅
+**STATUS: IN_PROGRESS**
 
-Backend Admin Console Phase 8 완료:
-- TASK-063 ✅: Admin Console Schema + RBAC + Service Layer
-- TASK-064 ✅: Admin Auth & Session (JWT)
-- TASK-065 ✅: User Management CRUD
-- TASK-066 ✅: Organization Management
-- TASK-067 ✅: Audit Logs Level 1+2
-- TASK-068 ✅: Identity Provider Abstraction
-- TASK-069 ✅: Database Identity Mode
-- TASK-070 ✅: LDAP Identity Config & Sync
-- TASK-071 ✅: LDAP Sync UI & Logs
-- TASK-072 ✅: External RDBMS Config & Sync
-- TASK-073 ✅: External RDBMS Sync UI
-- TASK-074 ✅: Mail Log Queries & UI
-- TASK-075 ✅: Statistics & Dashboard Cache
-- TASK-076 ✅: API Metering
-- TASK-077 ✅: Audit Policy Config UI
-- TASK-078 ✅: Export/Reports (CSV, PDF)
+### 제목
+Domain Settings UI — Admin Console 도메인 설정 페이지 구현
 
-**240 unit tests passing** ✅
+### 배경
+Phase 8-D (UI/UX & Settings)에서 정의한 Domain Settings 기능:
+- TLS 정책 (Opportunistic, Require, Disable)
+- 사용자당 스토리지 Quota
+- IP 화이트리스트
+- 2FA 요구 여부
+- 세션 타임아웃
+- 비밀번호 정책
 
----
+Admin Console Frontend (TASK-079)는 기본 페이지들(Users, Domains, Audit Logs 등)을 구현했으나,
+도메인 단위 상세 설정(domain settings, api settings, alerts) 페이지는 scope 밖.
 
-## ✅ PHASE 9 COMPLETE - Frontend (Admin Console UI)
+### 구현 대상
 
-**STATUS: COMPLETED** ✅
+#### 1. 백엔드 API (`internal/httpapi/admin.go`)
+- `GET /admin/v1/domains/{id}/settings` — 현재 도메인 설정 조회
+- `PUT /admin/v1/domains/{id}/settings` — 도메인 설정 업데이트 (DomainSettingsRequest)
+- `POST /admin/v1/domains/{id}/settings/validate` — 설정값 검증 (요청 없이 변경)
 
-**TASK-079 - Admin Console Frontend (Next.js 15 + Cloudscape Design System)** ✅
+#### 2. 서비스 계층 (`internal/admin/admin.go`)
+```go
+type DomainSettings struct {
+  DomainID              string    // e.g., "example.com"
+  TLSPolicy             string    // "opportunistic" | "require" | "disable"
+  QuotaPerUser          int64     // bytes per user (e.g., 10GB = 10737418240)
+  IPWhitelistEnabled    bool
+  IPWhitelist           []string  // CIDR 또는 단일 IP
+  Require2FA            bool
+  SessionTimeoutMinutes int       // 기본값 480 (8시간)
+  PasswordPolicy        struct {
+    MinLength           int       // 기본값 8
+    RequireUppercase    bool
+    RequireNumbers      bool
+    RequireSpecialChars bool
+    ExpiryDays          int       // 0 = 만료 없음
+  }
+  UpdatedAt             time.Time
+  UpdatedBy             string    // admin user ID
+}
 
-Frontend Admin Console Phase 9 완료 (P0 + P1 + P2 + P3):
-- P0: Project scaffolding, auth, BFF proxy, layouts
-- P1: Core pages (Users, Domains, Audit Logs, Organizations, Roles, Identity Providers, Mail Logs, Statistics, Audit Policy, Reports)
-- P2: Advanced features (Identity Provider Configuration, Audit Logs Filtering, Statistics Dashboard, CSV/PDF Reports)
-- P3: Polish & Production (Roles & Permissions CRUD, Form Validation, Error Handling, Unit Tests, E2E Tests)
-- **9 pages fully functional** ✅
-- **41 unit tests passing** ✅
-- **16 E2E test scenarios** ✅
-- **Stateless BFF pattern** with horizontal scaling support ✅
+// Service methods
+func (svc *AdminService) GetDomainSettings(ctx context.Context, domainID string) (*DomainSettings, error)
+func (svc *AdminService) UpdateDomainSettings(ctx context.Context, domainID string, settings *DomainSettings) error
+func (svc *AdminService) ValidateDomainSettings(ctx context.Context, settings *DomainSettings) error
+```
 
-### ✅ P0 COMPLETE: Project Scaffolding
+#### 3. 데이터베이스
+- 새 테이블: `domain_settings` (또는 `domain_config` 확장)
+  ```sql
+  CREATE TABLE domain_settings (
+    domain_id           TEXT PRIMARY KEY REFERENCES companies(domain) ON DELETE CASCADE,
+    tls_policy          TEXT NOT NULL DEFAULT 'opportunistic',
+    quota_per_user      BIGINT NOT NULL DEFAULT 10737418240,
+    ip_whitelist_enabled BOOLEAN NOT NULL DEFAULT false,
+    ip_whitelist        TEXT[] DEFAULT '{}', -- CIDR 배열
+    require_2fa         BOOLEAN NOT NULL DEFAULT false,
+    session_timeout_min INT NOT NULL DEFAULT 480,
+    password_min_length INT NOT NULL DEFAULT 8,
+    password_require_upper BOOLEAN NOT NULL DEFAULT true,
+    password_require_num BOOLEAN NOT NULL DEFAULT true,
+    password_require_special BOOLEAN NOT NULL DEFAULT false,
+    password_expiry_days INT NOT NULL DEFAULT 0,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by          TEXT NOT NULL REFERENCES admin_users(id),
+    CONSTRAINT valid_tls_policy CHECK (tls_policy IN ('opportunistic', 'require', 'disable')),
+    CONSTRAINT valid_session_timeout CHECK (session_timeout_min > 0)
+  );
+  ```
 
-- **기술 스택**: Next.js 15, Tailwind CSS v4, Cloudscape Design System
-- **아키텍처**: Stateless BFF + httpOnly JWT + React Query
-- **완료 항목**:
-  - ✅ Next.js 프로젝트 구조 (src/app, src/components, src/hooks, src/lib)
-  - ✅ BFF 인증 라우트 (/api/auth/login, logout, refresh)
-  - ✅ BFF 범용 프록시 (/api/admin/[...path] → /admin/v1/*)
-  - ✅ 미들웨어 (httpOnly 쿠키 인증 가드)
-  - ✅ Root Layout + Providers (QueryClientProvider)
-  - ✅ Console Layout (Cloudscape AppLayout + SideNav)
-  - ✅ 로그인 페이지
-  - ✅ 기본 대시보드 페이지
-  - ✅ React Query 훅 (useUsers, useDomains, useAuditLogs)
-  - ✅ API 클라이언트 유틸리티
-  - ✅ 타입 정의 (admin.ts)
-  - ✅ Tailwind CSS v4 + Cloudscape 스타일링
-  - ✅ 프로젝트 빌드 성공
+#### 4. 프론트엔드 (`apps/admin/src/`)
+- **Page**: `(console)/domains/[id]/settings/page.tsx`
+  - 도메인별 설정 폼 (Cloudscape Form 컴포넌트)
+  - 섹션별 정리: TLS, Quota, IP Whitelist, 2FA, Session, Password Policy
+  - 저장/취소 버튼
 
-### ✅ P1 COMPLETE: Core Pages + Navigation
+- **Hook**: `hooks/useDomainSettings.ts`
+  - `useQuery('domainSettings', ...)` — GET 설정
+  - `useMutation(updateDomainSettings)` — PUT 업데이트
 
-- ✅ Users CRUD 페이지 (DataTable with React Query)
-- ✅ Domains 관리 페이지 (Verified status badge)
-- ✅ Audit Logs 페이지 (Filterable, export-ready)
-- ✅ Organizations 페이지
-- ✅ Roles 페이지 (CRUD + Permission Management)
-- ✅ Identity Providers 페이지 (Database/LDAP/RDBMS tabs)
-- ✅ Mail Logs 페이지
-- ✅ Statistics 페이지 (Real-time metrics + Dashboard)
-- ✅ Audit Policy 페이지 (Level 1-3 configuration)
-- ✅ Reports 페이지 (CSV/PDF export)
-- ✅ Full navigation working (SideNav routes all functional)
-- ✅ Build passing with all pages
+- **타입**: `types/admin.ts`에 추가
+  ```ts
+  export interface DomainSettings {
+    domainId: string;
+    tlsPolicy: 'opportunistic' | 'require' | 'disable';
+    quotaPerUser: number;
+    // ... 나머지 필드
+  }
+  ```
 
-### ✅ P2 COMPLETE: Advanced Features
+- **컴포넌트**:
+  - `DomainSettingsForm` — 폼 렌더링
+  - `TLSPolicySection` — TLS 라디오 선택
+  - `QuotaSection` — 스토리지 입력 (GB 단위)
+  - `IPWhitelistSection` — 목록 추가/제거
+  - `2FASection` — 토글
+  - `SessionTimeoutSection` — 시간 입력
+  - `PasswordPolicySection` — 복합 정책 설정
 
-- ✅ Audit Policy Configuration (Level 1-3 radio, scope checkboxes, React Query)
-- ✅ Audit Logs + 필터링 (date range, action filter, admin filter, pagination)
-- ✅ Identity Provider 설정 (DB/LDAP/RDBMS tabs with config persistence)
-- ✅ 통계 & Dashboard (real-time metrics with auto-refresh 30/60/120 sec)
-- ✅ CSV/PDF 리포트 다운로드 (4 report types: audit logs, statistics, domains, comprehensive)
+- **권한**: Domain Admin 이상만 접근 가능 (middleware + 클라이언트 권한 확인)
 
-### ✅ P3 COMPLETE: Polish & Production
+### 완료 조건
 
-- ✅ 역할 및 권한 관리 (Roles & Permissions: CRUD + permission assignment)
-- ✅ 폼 검증 및 에러 처리 (Form validation, field-level errors, API error display)
-- ✅ 유닛 테스트 (Vitest: 41 tests passing, validators + error handlers)
-- ✅ E2E 테스트 (Playwright: 16 tests covering navigation, data ops, responsive)
+- [ ] `go test ./...` 통과
+- [ ] GET `/admin/v1/domains/{id}/settings` API 구현 및 테스트
+- [ ] PUT `/admin/v1/domains/{id}/settings` API 구현 및 테스트
+- [ ] 데이터베이스 마이그레이션 작성
+- [ ] DomainSettings 서비스 메서드 구현
+- [ ] 프론트엔드 page.tsx 구현 (폼 렌더링)
+- [ ] React Query 훅 구현
+- [ ] 폼 검증 (Quota > 0, SessionTimeout > 0 등)
+- [ ] 에러 처리 (ValidationError, PermissionError)
+- [ ] Vitest 단위 테스트 작성
+- [ ] Playwright E2E 테스트 작성 (로그인 → 설정 조회 → 수정 → 저장)
+- [ ] docs/CURRENT_STATUS.md 갱신
+- [ ] docs/backend-roadmap.md TASK-082 체크
 
----
+### 다음 태스크
+TASK-083: API Settings UI
 
-## 루프 절차 (매 태스크마다 반복)
+### 루프 절차
 
 ```
 1. 이 파일 읽기 ✓
-2. 실패하는 테스트 먼저 작성
-3. 테스트 통과하도록 구현
-4. go test ./... 실행
-5. docs 업데이트
-6. 위 체크리스트 전부 체크
-7. git add (코드 + 테스트 + docs 전부), git commit
-8. go test ./... 통과 확인 후 git push origin main
-9. 다음 태스크로 이 파일 교체
+2. 실패하는 테스트 먼저 작성 (GET, PUT 시나리오)
+3. 백엔드 API 구현 → DB 마이그레이션 → 서비스 로직
+4. 프론트엔드 페이지 + 훅 + 컴포넌트 구현
+5. go test ./... 실행
+6. pnpm test (admin) 실행
+7. docs 업데이트
+8. git add + commit + push
+9. 이 파일을 TASK-083으로 교체
 ```

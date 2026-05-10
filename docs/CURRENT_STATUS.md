@@ -1,9 +1,26 @@
 # gogomail current status
 
-Last updated: 2026-05-09 (TASK-015/030/031: concurrency fixes — fanout channel close race, background error handling, cursor mutex)
+Last updated: 2026-05-10 (TASK-082 in progress: Domain Settings UI foundation)
 
 ## Current phase
-gogomail is in the backend platform hardening phase.
+gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
+Now implementing Phase 8-D (Domain Settings UI) — TASK-082.
+
+**Deployment Infrastructure**: Complete
+- 4-tier Docker Compose configurations (dev, small, medium, large)
+- Production-ready load balancing (Nginx, HAProxy)
+- Monitoring stack (Prometheus, Grafana)
+- Logging infrastructure (ELK stack)
+- Supporting configs and init scripts
+
+**Admin Console Status**:
+- Phase 8 (Backend): COMPLETE — 240 unit tests
+- Phase 9 (Frontend): COMPLETE — 9 pages, 41 unit tests, 16 E2E tests
+- Phase 8-D (Domain Settings): IN_PROGRESS
+  - [ ] Database schema (domain_settings table)
+  - [ ] API routes (GET/PUT)
+  - [ ] Service layer
+  - [ ] Frontend UI pages
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
 RFC-sensitive core, but current work should balance:
