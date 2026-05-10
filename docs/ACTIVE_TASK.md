@@ -33,27 +33,41 @@ Backend Admin Console Phase 8 완료:
 
 ## 현재 단계
 
-**NEXT: Phase 9 - Frontend (Admin Console UI)**
+**Phase 9 - Frontend (Admin Console UI) - TASK-079**
 
-- **ID**: TASK-079+
-- **제목**: Admin Console Frontend - Notion Mail-inspired UI
-- **기술 스택**: Next.js 15, Tailwind CSS v4, shadcn/ui
-- **구현 대상**:
-  1. Dashboard (real-time stats, charts)
-  2. User Management (CRUD, batch operations)
-  3. Organization Management (units, hierarchy)
-  4. Audit Logs (filtering, export)
-  5. Identity Provider Configuration (DB, LDAP, RDBMS)
-  6. API Metering & Rate Limiting UI
-  7. Audit Policy Configuration
-  8. Report Generation & Download
+### ✅ P0 COMPLETE: Project Scaffolding
 
-**Frontend 준비**:
-- [ ] Backend API documentation
-- [ ] Frontend project setup (Next.js 15 + Tailwind v4)
-- [ ] UI component library (shadcn/ui)
-- [ ] Authentication integration (JWT)
-- [ ] API client generation
+- **기술 스택**: Next.js 15, Tailwind CSS v4, Cloudscape Design System
+- **아키텍처**: Stateless BFF + httpOnly JWT + React Query
+- **완료 항목**:
+  - ✅ Next.js 프로젝트 구조 (src/app, src/components, src/hooks, src/lib)
+  - ✅ BFF 인증 라우트 (/api/auth/login, logout, refresh)
+  - ✅ BFF 범용 프록시 (/api/admin/[...path] → /admin/v1/*)
+  - ✅ 미들웨어 (httpOnly 쿠키 인증 가드)
+  - ✅ Root Layout + Providers (QueryClientProvider)
+  - ✅ Console Layout (Cloudscape AppLayout + SideNav)
+  - ✅ 로그인 페이지
+  - ✅ 기본 대시보드 페이지
+  - ✅ React Query 훅 (useUsers, useDomains, useAuditLogs)
+  - ✅ API 클라이언트 유틸리티
+  - ✅ 타입 정의 (admin.ts)
+  - ✅ Tailwind CSS v4 + Cloudscape 스타일링
+  - ✅ 프로젝트 빌드 성공
+
+### 🔄 P1 TODO: Core Pages
+
+- [ ] Users CRUD 페이지 + DataTable
+- [ ] Domains 관리 페이지
+- [ ] Dashboard 통계 API 통합
+- [ ] 에러 핸들링 및 로딩 상태
+
+### P2-P3 TODO: Advanced Features
+
+- [ ] Audit Logs + 필터링
+- [ ] Identity Provider 설정 (DB/LDAP/RDBMS 탭)
+- [ ] 통계 & 차트
+- [ ] CSV/PDF 리포트 다운로드
+- [ ] 역할 및 권한 관리
 
 ---
 
