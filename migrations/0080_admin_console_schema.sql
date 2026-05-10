@@ -90,8 +90,8 @@ CREATE TABLE audit_policy_configs (
 CREATE INDEX idx_audit_policy_company ON audit_policy_configs(company_id);
 CREATE INDEX idx_audit_policy_domain ON audit_policy_configs(domain_id);
 
--- Audit logs (admin actions + security events)
-CREATE TABLE audit_logs (
+-- Admin audit logs (admin actions + security events)
+CREATE TABLE admin_audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL,
     admin_user_id UUID NOT NULL,
@@ -103,16 +103,16 @@ CREATE TABLE audit_logs (
     user_agent TEXT,
     timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT fk_audit_log_company FOREIGN KEY (company_id)
+    CONSTRAINT fk_admin_audit_log_company FOREIGN KEY (company_id)
         REFERENCES companies(id) ON DELETE CASCADE,
-    CONSTRAINT fk_audit_log_user FOREIGN KEY (admin_user_id)
+    CONSTRAINT fk_admin_audit_log_user FOREIGN KEY (admin_user_id)
         REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_audit_log_company_timestamp ON audit_logs(company_id, timestamp DESC);
-CREATE INDEX idx_audit_log_user_timestamp ON audit_logs(admin_user_id, timestamp DESC);
-CREATE INDEX idx_audit_log_action ON audit_logs(action);
-CREATE INDEX idx_audit_log_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX idx_admin_audit_log_company_timestamp ON admin_audit_logs(company_id, timestamp DESC);
+CREATE INDEX idx_admin_audit_log_user_timestamp ON admin_audit_logs(admin_user_id, timestamp DESC);
+CREATE INDEX idx_admin_audit_log_action ON admin_audit_logs(action);
+CREATE INDEX idx_admin_audit_log_resource ON admin_audit_logs(resource_type, resource_id);
 
 -- Login audit logs (user authentication tracking)
 CREATE TABLE login_audit_logs (
@@ -145,11 +145,11 @@ DROP INDEX IF EXISTS idx_login_audit_company_timestamp;
 DROP INDEX IF EXISTS idx_login_audit_user_timestamp;
 DROP TABLE IF EXISTS login_audit_logs;
 
-DROP INDEX IF EXISTS idx_audit_log_resource;
-DROP INDEX IF EXISTS idx_audit_log_action;
-DROP INDEX IF EXISTS idx_audit_log_user_timestamp;
-DROP INDEX IF EXISTS idx_audit_log_company_timestamp;
-DROP TABLE IF EXISTS audit_logs;
+DROP INDEX IF EXISTS idx_admin_audit_log_resource;
+DROP INDEX IF EXISTS idx_admin_audit_log_action;
+DROP INDEX IF EXISTS idx_admin_audit_log_user_timestamp;
+DROP INDEX IF EXISTS idx_admin_audit_log_company_timestamp;
+DROP TABLE IF EXISTS admin_audit_logs;
 
 DROP INDEX IF EXISTS idx_audit_policy_domain;
 DROP INDEX IF EXISTS idx_audit_policy_company;

@@ -31,12 +31,12 @@ CREATE TABLE quota_alerts (
 CREATE INDEX idx_quota_alerts_company_time ON quota_alerts(company_id, created_at DESC);
 CREATE INDEX idx_quota_alerts_domain_time ON quota_alerts(domain_id, created_at DESC);
 CREATE INDEX idx_quota_alerts_user_time ON quota_alerts(user_id, created_at DESC);
-CREATE INDEX idx_quota_alerts_scope ON quota_alerts(scope, scope_id, created_at DESC);
+CREATE INDEX idx_quota_alerts_scope_time ON quota_alerts(scope, created_at DESC);
 CREATE INDEX idx_quota_alerts_event_id ON quota_alerts(event_id);
 
 -- +goose Down
 DROP INDEX IF EXISTS idx_quota_alerts_event_id;
-DROP INDEX IF EXISTS idx_quota_alerts_scope;
+DROP INDEX IF EXISTS idx_quota_alerts_scope_time;
 DROP INDEX IF EXISTS idx_quota_alerts_user_time;
 DROP INDEX IF EXISTS idx_quota_alerts_domain_time;
 DROP INDEX IF EXISTS idx_quota_alerts_company_time;
