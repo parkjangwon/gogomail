@@ -29,7 +29,14 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      const data = await res.json();
+
+      // Check if user needs to set up initial account (username + password)
+      if (data.requires_initial_setup) {
+        router.push("/setup");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError("Network error. Please try again.");
     } finally {
