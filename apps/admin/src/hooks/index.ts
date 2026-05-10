@@ -6,3 +6,4 @@ export * from "./useIdentityProviders";
 export * from "./useStatistics";
 export * from "./useReports";
 export * from "./useRoles";
+export * from "./useAPISettings";
