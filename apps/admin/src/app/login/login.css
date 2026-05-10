@@ -1,12 +1,14 @@
-/* AWS-style clean login page */
+/* AWS-style login page - Light theme */
 
 .aws-login-container {
   width: 100%;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: #ffffff;
+  justify-content: flex-start;
+  padding-top: 60px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #ebebeb 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -15,281 +17,288 @@
 
 .aws-login-wrapper {
   width: 100%;
-  max-width: 500px;
-  padding: 40px 20px;
+  max-width: 420px;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* Header */
+/* Header with logo */
 .aws-login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 48px;
+  width: 100%;
 }
 
 .aws-login-header h1 {
-  font-size: 32px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
   color: #232f3e;
   letter-spacing: -0.5px;
 }
 
 .aws-login-header p {
-  font-size: 14px;
-  color: #666;
+  font-size: 12px;
+  color: #999;
   margin: 0;
   font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Card */
 .aws-login-card {
   width: 100%;
-  border: 1px solid #e1e8ed;
-  border-radius: 8px;
-  padding: 40px 30px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 32px;
   background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Alert */
 .aws-login-alert {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   border-radius: 4px;
+}
+
+.aws-login-alert [class*="alert"] {
+  padding: 12px 16px !important;
+  font-size: 13px !important;
 }
 
 /* Form */
 .aws-login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   margin-bottom: 24px;
 }
 
-/* Form field styling */
+/* Form fields */
 .aws-login-form [class*="formfield"] {
-  margin: 0;
+  margin: 0 !important;
 }
 
 .aws-login-form [class*="form-field"] label {
-  font-weight: 500;
+  font-weight: 700;
   color: #232f3e;
   font-size: 13px;
-  margin-bottom: 8px;
-  display: block;
+  margin-bottom: 6px;
+  display: block !important;
 }
 
+.aws-login-form [class*="form-field__description"] {
+  display: none !important;
+}
+
+/* Input fields */
 .aws-login-form input {
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #d5dcE3;
-  border-radius: 4px;
+  padding: 11px 12px;
+  border: 1px solid #bbb;
+  border-radius: 2px;
   font-size: 14px;
-  background: white;
+  background: #ffffff;
   color: #232f3e;
   font-family: inherit;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .aws-login-form input:focus {
   outline: none;
   border-color: #ff9900;
-  box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.08);
+  box-shadow: 0 0 0 2px rgba(255, 153, 0, 0.15);
 }
 
 .aws-login-form input::placeholder {
-  color: #999;
+  color: #ccc;
 }
 
 /* Button */
 .aws-login-form button {
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 4px;
+  padding: 10px 16px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  border-radius: 2px !important;
   background: #ff9900 !important;
-  border: none !important;
-  color: white !important;
+  border: 1px solid #ff9900 !important;
+  color: #ffffff !important;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   width: 100%;
-  margin-top: 4px;
+  margin-top: 6px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .aws-login-form button:hover:not(:disabled) {
   background: #ec7211 !important;
+  border-color: #ec7211 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .aws-login-form button:active:not(:disabled) {
   background: #d66800 !important;
+  border-color: #d66800 !important;
 }
 
 .aws-login-form button:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* Footer */
 .aws-login-footer {
-  border-top: 1px solid #e1e8ed;
-  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  padding-top: 18px;
   text-align: center;
 }
 
 .aws-login-divider {
   height: 1px;
-  background: #e1e8ed;
-  margin-bottom: 16px;
+  background: #ddd;
+  margin-bottom: 14px;
 }
 
 .aws-login-hint {
   font-size: 11px;
-  font-weight: 600;
-  color: #555;
-  margin: 0 0 12px 0;
+  font-weight: 700;
+  color: #666;
+  margin: 0 0 10px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .aws-login-credentials {
-  font-size: 13px;
+  font-size: 12px;
   color: #232f3e;
   margin: 0;
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   background: #f5f5f5;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 6px 8px;
+  border-radius: 2px;
   display: inline-block;
+  border: 1px solid #e1e1e1;
 }
 
 /* Copyright */
 .aws-login-copyright {
   text-align: center;
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: #aaa;
   margin-top: 32px;
   padding-top: 20px;
-  border-top: 1px solid #e1e8ed;
+  border-top: 1px solid #ddd;
   width: 100%;
 }
 
 /* Responsive */
 @media (max-width: 640px) {
+  .aws-login-container {
+    padding-top: 40px;
+  }
+
   .aws-login-wrapper {
-    padding: 20px 16px;
+    padding: 0 12px;
   }
 
   .aws-login-card {
     padding: 24px 20px;
   }
 
+  .aws-login-header {
+    margin-bottom: 32px;
+  }
+
   .aws-login-header h1 {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .aws-login-form {
-    gap: 16px;
+    gap: 14px;
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .aws-login-container {
-    background: #1a1a1a;
-  }
-
-  .aws-login-card {
-    background: #2d2d2d;
-    border-color: #444;
-  }
-
-  .aws-login-header h1,
-  .aws-login-header p {
-    color: #e0e0e0;
-  }
-
-  .aws-login-header p {
-    color: #999;
-  }
-
-  .aws-login-form input {
-    background: #333;
-    border-color: #444;
-    color: #e0e0e0;
-  }
-
-  .aws-login-form input:focus {
-    border-color: #ff9900;
-    box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.12);
-  }
-
-  .aws-login-form input::placeholder {
-    color: #666;
-  }
-
-  .aws-login-credentials {
-    background: #333;
-    color: #e0e0e0;
-  }
-
-  .aws-login-divider,
-  .aws-login-copyright {
-    border-color: #444;
-  }
-
-  .aws-login-hint,
-  .aws-login-footer {
-    color: #aaa;
-  }
-
-  .aws-login-copyright {
-    color: #666;
-  }
-}
-
-/* Cloudscape overrides for clean look */
-:where(.aws-login-form) [class*="form-field"] label {
-  font-weight: 500 !important;
+/* Cloudscape input styling overrides */
+:where(.aws-login-form) input[type="text"],
+:where(.aws-login-form) input[type="email"],
+:where(.aws-login-form) input[type="password"] {
+  padding: 11px 12px !important;
+  border: 1px solid #bbb !important;
+  border-radius: 2px !important;
+  font-size: 14px !important;
+  background: #ffffff !important;
   color: #232f3e !important;
-  font-size: 13px !important;
+  transition: all 0.2s ease !important;
 }
 
-:where(.aws-login-form) [class*="form-field__description"] {
-  display: none !important;
-}
-
-/* Remove default button styles and apply AWS orange */
-:where(.aws-login-form) button[type="button"] {
-  background: #ff9900 !important;
-  color: white !important;
-  border: none !important;
-  padding: 12px 20px !important;
-  font-weight: 600 !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  transition: background-color 0.2s ease !important;
-}
-
-:where(.aws-login-form) button[type="button"]:hover {
-  background: #ec7211 !important;
-}
-
-:where(.aws-login-form) button[type="button"]:active {
-  background: #d66800 !important;
-}
-
-:where(.aws-login-form) button[type="button"]:disabled {
-  opacity: 0.7 !important;
+:where(.aws-login-form) input[type="text"]:focus,
+:where(.aws-login-form) input[type="email"]:focus,
+:where(.aws-login-form) input[type="password"]:focus {
+  outline: none !important;
+  border-color: #ff9900 !important;
+  box-shadow: 0 0 0 2px rgba(255, 153, 0, 0.15) !important;
 }
 
 /* Accessibility */
 .aws-login-form input:focus-visible {
-  outline: 2px solid #ff9900;
-  outline-offset: 2px;
+  outline: 2px solid #ff9900 !important;
+  outline-offset: 0 !important;
 }
 
 .aws-login-form button:focus-visible {
-  outline: 2px solid #ff9900;
-  outline-offset: 2px;
+  outline: 2px solid #232f3e !important;
+  outline-offset: 2px !important;
+}
+
+/* Remove dark mode styling - always light */
+@media (prefers-color-scheme: dark) {
+  .aws-login-container {
+    background: linear-gradient(135deg, #f5f5f5 0%, #ebebeb 100%);
+  }
+
+  .aws-login-card {
+    background: #ffffff;
+    border-color: #ccc;
+  }
+
+  .aws-login-header h1,
+  .aws-login-header p {
+    color: #232f3e;
+  }
+
+  .aws-login-form input {
+    background: #ffffff;
+    border-color: #bbb;
+    color: #232f3e;
+  }
+
+  .aws-login-form input:focus {
+    border-color: #ff9900;
+    box-shadow: 0 0 0 2px rgba(255, 153, 0, 0.15);
+  }
+
+  .aws-login-credentials {
+    background: #f5f5f5;
+    border-color: #e1e1e1;
+    color: #232f3e;
+  }
+
+  .aws-login-divider,
+  .aws-login-copyright {
+    border-color: #ddd;
+  }
+
+  .aws-login-hint,
+  .aws-login-footer {
+    color: #666;
+  }
+
+  .aws-login-copyright {
+    color: #aaa;
+  }
 }
