@@ -1,10 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (TASK-084 Alerts & Notifications complete with E2E tests)
+Last updated: 2026-05-10 (TASK-087 Admin Console Frontend Phase 3 complete)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
-Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-084 in progress.
+Phase 8-D (Settings UI) — TASK-082 through TASK-087 COMPLETE. Ready for system-wide E2E testing.
 
 **Deployment Infrastructure**: Complete
 - 4-tier Docker Compose configurations (dev, small, medium, large)
@@ -40,6 +40,23 @@ Now implementing Phase 8-D (Settings UI) — TASK-082, TASK-083 complete, TASK-0
   - [x] Frontend admin page with tabs (rules, channels, events)
   - [x] Modal forms for create operations
   - [x] E2E tests with results document (38 test cases, 100% pass rate)
+- Phase 8-D (Admin Console Frontend Phase 1): COMPLETE (TASK-085)
+  - [x] Dashboard & Analytics (stats, activity metrics, API usage, security events)
+  - [x] Advanced Audit Logs (filtering, pagination, export to CSV/JSON)
+  - [x] Organization Structure (hierarchy tree view, all nodes table)
+  - [x] Export & Reports (schedule management, template selection)
+  - [x] Role Management (permission matrix, custom roles)
+- Phase 8-D (Admin Console Frontend Phase 2): COMPLETE (TASK-086)
+  - [x] API Key Management (create, rotate, delete, CIDR allowlist)
+  - [x] MFA & Security Policy (mode, grace period, session, password, lockout)
+  - [x] SSO & Identity Provider (LDAP, OIDC, SAML support)
+  - [x] Domain & Tenant Management (add, delete, DNS status)
+  - [x] Policy & Compliance (regulatory frameworks: GDPR, HIPAA, PCI DSS, SOX, CCPA)
+- Phase 8-D (Admin Console Frontend Phase 3): COMPLETE (TASK-087)
+  - [x] Sidebar Navigation (dynamic menu, active page highlighting)
+  - [x] AdminLayout wrapper (unified AppLayout, notifications)
+  - [x] Page integration and consistency
+  - [x] Ready for system-wide E2E testing
 
 The project has moved beyond SMTP-only development. SMTP remains a critical
 RFC-sensitive core, but current work should balance:
