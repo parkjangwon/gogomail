@@ -4335,6 +4335,14 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handlePutDomainRateLimitPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainDmarcSpfPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainDmarcSpfPolicy(w, r, service)
+	}))
+
 	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -6161,4 +6169,116 @@ func handlePutDomainRateLimitPolicy(w http.ResponseWriter, r *http.Request, serv
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+const dmarcSpfPolicyKey = "dmarc_spf_policy"
+
+type dmarcSpfPolicy struct {
+	DMARCPolicy     string   `json:"dmarc_policy"`
+	DMARCPct        int      `json:"dmarc_pct"`
+	DMARCRua        string   `json:"dmarc_rua"`
+	DMARCRuf        string   `json:"dmarc_ruf"`
+	DMARCSubdomains string   `json:"dmarc_subdomains"`
+	DMARCAlignMode  string   `json:"dmarc_align_mode"`
+	SPFIncludes     []string `json:"spf_includes"`
+	SPFAllMechanism string   `json:"spf_all_mechanism"`
+	SPFIP4List      []string `json:"spf_ip4_list"`
+}
+
+func defaultDmarcSpfPolicy() dmarcSpfPolicy {
+	return dmarcSpfPolicy{
+		DMARCPolicy:     "none",
+		DMARCPct:        100,
+		DMARCSubdomains: "none",
+		DMARCAlignMode:  "r",
+		SPFIncludes:     []string{},
+		SPFAllMechanism: "~all",
+		SPFIP4List:      []string{},
+	}
+}
+
+func buildDmarcRecord(p dmarcSpfPolicy) string {
+	record := fmt.Sprintf("v=DMARC1; p=%s; pct=%d; adkim=%s; aspf=%s", p.DMARCPolicy, p.DMARCPct, p.DMARCAlignMode, p.DMARCAlignMode)
+	if p.DMARCRua != "" {
+		record += "; rua=mailto:" + p.DMARCRua
+	}
+	if p.DMARCRuf != "" {
+		record += "; ruf=mailto:" + p.DMARCRuf
+	}
+	if p.DMARCSubdomains != "none" && p.DMARCSubdomains != "" {
+		record += "; sp=" + p.DMARCSubdomains
+	}
+	return record
+}
+
+func buildSpfRecord(p dmarcSpfPolicy) string {
+	parts := []string{"v=spf1"}
+	for _, inc := range p.SPFIncludes {
+		parts = append(parts, "include:"+inc)
+	}
+	for _, ip := range p.SPFIP4List {
+		parts = append(parts, "ip4:"+ip)
+	}
+	parts = append(parts, p.SPFAllMechanism)
+	return strings.Join(parts, " ")
+}
+
+func handleGetDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, dmarcSpfPolicyKey)
+	policy := defaultDmarcSpfPolicy()
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &policy)
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"policy": policy,
+		"generated_records": map[string]any{
+			"dmarc":      buildDmarcRecord(policy),
+			"spf":        buildSpfRecord(policy),
+			"dmarc_host": "_dmarc.<domain>",
+			"spf_host":   "<domain>",
+		},
+	})
+}
+
+func handlePutDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy dmarcSpfPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if policy.DMARCPct < 0 || policy.DMARCPct > 100 {
+		writeError(w, http.StatusBadRequest, "dmarc_pct must be 0-100")
+		return
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, dmarcSpfPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"policy": policy,
+		"generated_records": map[string]any{
+			"dmarc":      buildDmarcRecord(policy),
+			"spf":        buildSpfRecord(policy),
+			"dmarc_host": "_dmarc.<domain>",
+			"spf_host":   "<domain>",
+		},
+	})
 }

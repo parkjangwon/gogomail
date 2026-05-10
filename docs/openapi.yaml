@@ -7285,6 +7285,58 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /domains/{id}/security/dmarc-spf:
+    get:
+      operationId: adminGetDomainDmarcSpfPolicy
+      summary: Get domain DMARC/SPF policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: DMARC/SPF policy and generated records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    type: object
+                  generated_records:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminUpdateDomainDmarcSpfPolicy
+      summary: Update domain DMARC/SPF policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Updated DMARC/SPF policy
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
