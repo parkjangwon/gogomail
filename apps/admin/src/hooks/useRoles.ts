@@ -1,106 +1,105 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
 
 export interface Permission {
-  id: string;
   resource: string;
   action: string;
   scope: string;
+  conditions?: Record<string, any>;
 }
 
 export interface Role {
   id: string;
   company_id: string;
   name: string;
+  description: string;
+  is_builtin: boolean;
   permissions: Permission[];
   created_at: string;
-  updated_at: string;
 }
 
-export interface CreateRoleRequest {
-  company_id: string;
-  name: string;
-  permission_ids: string[];
-}
-
-export interface UpdateRoleRequest {
-  name: string;
-  permission_ids: string[];
-}
-
-const AVAILABLE_PERMISSIONS: Permission[] = [
-  { id: "user.read", resource: "user", action: "read", scope: "all" },
-  { id: "user.create", resource: "user", action: "create", scope: "all" },
-  { id: "user.update", resource: "user", action: "update", scope: "all" },
-  { id: "user.delete", resource: "user", action: "delete", scope: "all" },
-  { id: "domain.read", resource: "domain", action: "read", scope: "all" },
-  { id: "domain.create", resource: "domain", action: "create", scope: "all" },
-  { id: "domain.update", resource: "domain", action: "update", scope: "all" },
-  { id: "domain.delete", resource: "domain", action: "delete", scope: "all" },
-  { id: "audit.read", resource: "audit", action: "read", scope: "all" },
-  { id: "policy.read", resource: "policy", action: "read", scope: "all" },
-  { id: "policy.update", resource: "policy", action: "update", scope: "all" },
-];
-
-export function useRoles(companyId: string) {
+export function useRoles(companyId: string | undefined) {
   return useQuery({
-    queryKey: ["roles", companyId],
-    queryFn: () => api.get<Role[]>(`/roles/${companyId}`),
+    queryKey: ['roles', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const res = await api.get(`/companies/${companyId}/roles`) as any;
+      return (res.data?.roles || []) as Role[];
+    },
     enabled: !!companyId,
-    staleTime: 30000,
   });
 }
 
-export function useRole(roleId: string) {
+export function useGetRole(companyId: string | undefined, roleId: string | undefined) {
   return useQuery({
-    queryKey: ["roles", roleId],
-    queryFn: () => api.get<Role>(`/roles/${roleId}`),
-    enabled: !!roleId,
+    queryKey: ['role', companyId, roleId],
+    queryFn: async () => {
+      if (!companyId || !roleId) return null;
+      const res = await api.get(`/companies/${companyId}/roles/${roleId}`) as any;
+      return res.data as Role;
+    },
+    enabled: !!companyId && !!roleId,
   });
 }
 
 export function useCreateRole() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (data: CreateRoleRequest) =>
-      api.post<Role>("/roles", data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["roles", variables.company_id],
-      });
+    mutationFn: async ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: Omit<Role, 'id' | 'created_at'>;
+    }) => {
+      const res = await api.post(`/companies/${companyId}/roles`, data) as any;
+      return res.data as Role;
+    },
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['roles', companyId] });
     },
   });
 }
 
-export function useUpdateRole(roleId: string) {
+export function useUpdateRole() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (data: UpdateRoleRequest) =>
-      api.put<Role>(`/roles/${roleId}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["roles", roleId],
-      });
+    mutationFn: async ({
+      companyId,
+      roleId,
+      data,
+    }: {
+      companyId: string;
+      roleId: string;
+      data: Partial<Role>;
+    }) => {
+      const res = await api.put(`/companies/${companyId}/roles/${roleId}`, data) as any;
+      return res.data as Role;
+    },
+    onSuccess: (_, { companyId, roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ['roles', companyId] });
+      queryClient.invalidateQueries({ queryKey: ['role', companyId, roleId] });
     },
   });
 }
 
 export function useDeleteRole() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (roleId: string) =>
-      api.delete(`/roles/${roleId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["roles"],
-      });
+    mutationFn: async ({
+      companyId,
+      roleId,
+    }: {
+      companyId: string;
+      roleId: string;
+    }) => {
+      const res = await api.delete(`/companies/${companyId}/roles/${roleId}`) as any;
+      return res.data;
+    },
+    onSuccess: (_, { companyId }) => {
+      queryClient.invalidateQueries({ queryKey: ['roles', companyId] });
     },
   });
-}
-
-export function useAvailablePermissions() {
-  return AVAILABLE_PERMISSIONS;
 }
