@@ -4334,6 +4334,32 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRateLimitPolicy(w, r, service)
 	}))
+
+	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		name := strings.TrimSpace(req.Name)
+		if name == "" {
+			writeJSON(w, http.StatusOK, map[string]any{"valid": false, "message": "domain name is required"})
+			return
+		}
+		// Simple format check: must contain a dot, no spaces, reasonable length.
+		if len(name) > 253 || strings.Contains(name, " ") || !strings.Contains(name, ".") {
+			writeJSON(w, http.StatusOK, map[string]any{"valid": false, "message": "invalid domain format"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"valid": true, "message": "domain format is valid"})
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {

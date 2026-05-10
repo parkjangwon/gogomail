@@ -44,6 +44,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.domains'), href: p('/tenancy/domains') },
         { type: 'link', text: t('nav.users'), href: p('/users') },
         { type: 'link', text: t('nav.admin_users'), href: p('/admin-users') },
+        { type: 'link', text: t('nav.onboarding'), href: p('/tenancy/onboarding') },
       ],
     },
     {

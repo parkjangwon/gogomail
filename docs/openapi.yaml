@@ -7250,6 +7250,41 @@ paths:
                     $ref: "#/components/schemas/RateLimitPolicy"
         default:
           $ref: "#/components/responses/Error"
+  /onboarding/validate-domain:
+    post:
+      operationId: validateOnboardingDomain
+      summary: Validate domain name format for onboarding
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: Domain name to validate
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  message:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
