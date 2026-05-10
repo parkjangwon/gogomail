@@ -4860,6 +4860,79 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /auth/login:
+    post:
+      operationId: loginAdminUser
+      summary: Admin user login
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  description: Admin email
+                password:
+                  type: string
+                  description: Admin password
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  requires_initial_setup:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
+  /auth/setup:
+    post:
+      operationId: setupAdminUser
+      summary: Initial setup for admin user
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Admin username
+                password:
+                  type: string
+                  description: Admin password
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /companies:
     get:
       operationId: listAdminCompanies
