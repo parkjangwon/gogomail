@@ -1,6 +1,6 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (TASK-082 in progress: Domain Settings UI foundation)
+Last updated: 2026-05-10 (Migration fixes + Docker Compose setup, TASK-082 in progress)
 
 ## Current phase
 gogomail has completed Phases 8-9 (Admin Console Backend + Frontend).
