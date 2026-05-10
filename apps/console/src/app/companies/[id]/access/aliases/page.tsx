@@ -19,12 +19,12 @@ import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
 
 interface Alias {
-  id: string;
-  address: string;
-  target_kind: string;
-  target_id: string;
-  domain_id: string;
-  created_at: string;
+  ID: string;
+  Address: string;
+  TargetKind: string;
+  TargetID: string;
+  DomainID: string;
+  Status: string;
 }
 
 type NewAlias = {
@@ -60,12 +60,12 @@ export default function AliasesPage() {
   const fetchAliases = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/directory/aliases?limit=100', {
+      const res = await fetch(`/api/admin/directory/aliases?company_id=${companyId}&limit=100`, {
         credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
-        setAliases(data.aliases || []);
+        setAliases(data.directory_aliases || []);
       }
     } catch (error) {
       console.error('Failed to fetch aliases:', error);
@@ -107,7 +107,7 @@ export default function AliasesPage() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/admin/directory/aliases/${id}`, {
+      const res = await fetch(`/api/admin/directory/aliases/${id}`, {  // id is Alias.ID
         method: 'DELETE',
         credentials: 'include',
       });
@@ -131,8 +131,8 @@ export default function AliasesPage() {
 
   const filteredAliases = aliases.filter(
     (a) =>
-      a.address.toLowerCase().includes(filter.toLowerCase()) ||
-      a.target_id.toLowerCase().includes(filter.toLowerCase())
+      a.Address.toLowerCase().includes(filter.toLowerCase()) ||
+      a.TargetID.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
@@ -166,27 +166,27 @@ export default function AliasesPage() {
           columnDefinitions={[
             {
               header: t('pages.aliases.address'),
-              cell: (item: Alias) => item.address,
+              cell: (item: Alias) => item.Address,
               width: '30%',
             },
             {
               header: t('pages.aliases.domain'),
-              cell: (item: Alias) => item.domain_id || '—',
+              cell: (item: Alias) => item.DomainID || '—',
               width: '20%',
             },
             {
               header: t('pages.aliases.target_kind'),
-              cell: (item: Alias) => item.target_kind,
+              cell: (item: Alias) => item.TargetKind,
               width: '15%',
             },
             {
               header: t('pages.aliases.target_id'),
-              cell: (item: Alias) => item.target_id,
+              cell: (item: Alias) => item.TargetID,
               width: '20%',
             },
             {
-              header: t('pages.aliases_page.created'),
-              cell: (item: Alias) => new Date(item.created_at).toLocaleDateString(),
+              header: t('pages.aliases_page.status'),
+              cell: (item: Alias) => item.Status || '—',
               width: '10%',
             },
             {
@@ -194,8 +194,8 @@ export default function AliasesPage() {
               cell: (item: Alias) => (
                 <Button
                   variant="inline-link"
-                  onClick={() => handleDelete(item.id)}
-                  loading={deletingId === item.id}
+                  onClick={() => handleDelete(item.ID)}
+                  loading={deletingId === item.ID}
                 >
                   {t('common.delete')}
                 </Button>

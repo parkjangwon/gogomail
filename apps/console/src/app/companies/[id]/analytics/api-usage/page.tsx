@@ -35,12 +35,12 @@ export default function APIUsagePage() {
   const fetchAPIUsage = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/api-usage?limit=100', {
+      const res = await fetch('/api/admin/api-usage/daily?limit=100', {
         credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
-        setRecords(data.records || []);
+        setRecords(data.api_usage_daily || []);
       }
     } catch (error) {
       console.error('Failed to fetch API usage:', error);

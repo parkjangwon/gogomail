@@ -8,33 +8,75 @@ import {
   Box,
   Spinner,
   TextFilter,
+  Select,
+  FormField,
   Alert,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
-interface UserConfig {
+interface User {
   id: string;
-  user_email: string;
-  config_key: string;
-  config_value: string;
-  last_updated: string;
+  username: string;
+  display_name: string;
+  domain_id: string;
+}
+
+interface ConfigEntry {
+  ID: string;
+  Key: string;
+  Value: unknown;
+  Locked: boolean;
+  UpdatedAt: string;
 }
 
 export default function UserConfigPage() {
   const { t } = useI18n();
-  const [configs, setConfigs] = useState<UserConfig[]>([]);
-  const [loading, setLoading] = useState(true);
+  const params = useParams();
+  const companyId = params?.id as string;
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+
+  const [configs, setConfigs] = useState<ConfigEntry[]>([]);
+  const [configLoading, setConfigLoading] = useState(false);
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    fetchUserConfig();
-  }, []);
+    fetchUsers();
+  }, [companyId]);
 
-  const fetchUserConfig = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUserConfig(selectedUserId);
+    } else {
+      setConfigs([]);
+    }
+  }, [selectedUserId]);
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
     try {
-      const res = await fetch('/api/admin/config/user?limit=100', {
+      const res = await fetch(`/api/admin/users?limit=200`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const fetchUserConfig = async (userId: string) => {
+    setConfigLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/config`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -44,17 +86,21 @@ export default function UserConfigPage() {
     } catch (error) {
       console.error('Failed to fetch user config:', error);
     } finally {
-      setLoading(false);
+      setConfigLoading(false);
     }
   };
 
-  const filteredConfigs = configs.filter(
-    (c) =>
-      c.user_email.toLowerCase().includes(filter.toLowerCase()) ||
-      c.config_key.toLowerCase().includes(filter.toLowerCase())
+  const userOptions = users.map((u) => ({
+    label: u.display_name ? `${u.display_name} (${u.username})` : u.username,
+    value: u.id,
+  }));
+  const selectedOption = userOptions.find((o) => o.value === selectedUserId) ?? null;
+
+  const filteredConfigs = configs.filter((c) =>
+    c.Key.toLowerCase().includes(filter.toLowerCase())
   );
 
-  if (loading) {
+  if (usersLoading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.config_user_page.title')}</Header>}>
         <Box textAlign="center" padding="xl">
@@ -73,45 +119,76 @@ export default function UserConfigPage() {
       }
     >
       <SpaceBetween size="l">
-        <Alert type="info">{t('pages.config_user_page.info_message')}</Alert>
+        {users.length === 0 && (
+          <Alert type="info">{t('pages.config_user_page.no_users')}</Alert>
+        )}
 
-        <Table
-          columnDefinitions={[
-            {
-              header: t('pages.config_user_page.user_email'),
-              cell: (item: UserConfig) => item.user_email,
-              width: '30%',
-            },
-            {
-              header: t('pages.config_user_page.key'),
-              cell: (item: UserConfig) => item.config_key,
-              width: '25%',
-            },
-            {
-              header: t('pages.config_user_page.value'),
-              cell: (item: UserConfig) => item.config_value,
-              width: '25%',
-            },
-            {
-              header: t('pages.config_user_page.last_updated'),
-              cell: (item: UserConfig) => new Date(item.last_updated).toLocaleString(),
-              width: '20%',
-            },
-          ]}
-          items={filteredConfigs}
-          header={
-            <Header variant="h2" counter={`(${filteredConfigs.length})`}>
-              {t('pages.config_user_page.title')}
-            </Header>
-          }
-          filter={
-            <TextFilter
-              filteringText={filter}
-              filteringPlaceholder={t('common.search')}
-              onChange={(e) => setFilter(e.detail.filteringText)}
+        {users.length > 0 && (
+          <FormField label={t('pages.config_user_page.select_user')}>
+            <Select
+              selectedOption={selectedOption}
+              options={userOptions}
+              onChange={(e) => setSelectedUserId(e.detail.selectedOption.value ?? '')}
+              placeholder={t('pages.config_user_page.select_user_placeholder')}
+              filteringType="auto"
+              expandToViewport
             />
-          }
-        />
+          </FormField>
+        )}
+
+        {selectedUserId && configLoading && (
+          <Box textAlign="center" padding="l">
+            <Spinner />
+          </Box>
+        )}
+
+        {selectedUserId && !configLoading && (
+          <Table
+            columnDefinitions={[
+              {
+                header: t('pages.config_user_page.key'),
+                cell: (item: ConfigEntry) => item.Key,
+                width: '30%',
+              },
+              {
+                header: t('pages.config_user_page.value'),
+                cell: (item: ConfigEntry) =>
+                  typeof item.Value === 'object'
+                    ? JSON.stringify(item.Value)
+                    : String(item.Value ?? ''),
+                width: '50%',
+              },
+              {
+                header: t('pages.config_user_page.last_updated'),
+                cell: (item: ConfigEntry) =>
+                  item.UpdatedAt ? new Date(item.UpdatedAt).toLocaleString() : '—',
+                width: '20%',
+              },
+            ]}
+            items={filteredConfigs}
+            header={
+              <Header variant="h2" counter={`(${filteredConfigs.length})`}>
+                {t('pages.config_user_page.title')}
+              </Header>
+            }
+            filter={
+              <TextFilter
+                filteringText={filter}
+                filteringPlaceholder={t('common.search')}
+                onChange={(e) => setFilter(e.detail.filteringText)}
+              />
+            }
+            empty={
+              <Box textAlign="center" padding="l">
+                {t('pages.config_user_page.no_config')}
+              </Box>
+            }
+          />
+        )}
+
+        {!selectedUserId && users.length > 0 && (
+          <Alert type="info">{t('pages.config_user_page.info_message')}</Alert>
+        )}
       </SpaceBetween>
     </ContentLayout>
   );

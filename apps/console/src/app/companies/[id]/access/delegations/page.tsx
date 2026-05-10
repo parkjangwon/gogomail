@@ -20,14 +20,15 @@ import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
 
 interface Delegation {
-  id: string;
-  owner_kind: string;
-  owner_id: string;
-  delegate_kind: string;
-  delegate_id: string;
-  scope: string;
-  role: string;
-  created_at: string;
+  ID: string;
+  CompanyID: string;
+  OwnerKind: string;
+  OwnerID: string;
+  DelegateKind: string;
+  DelegateID: string;
+  Scope: string;
+  Role: string;
+  Status: string;
 }
 
 type NewDelegation = {
@@ -67,12 +68,12 @@ export default function DelegationsPage() {
   const fetchDelegations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/directory/delegations?limit=100', {
+      const res = await fetch(`/api/admin/directory/delegations?company_id=${companyId}&limit=100`, {
         credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
-        setDelegations(data.delegations || []);
+        setDelegations(data.directory_delegations || []);
       }
     } catch (error) {
       console.error('Failed to fetch delegations:', error);
@@ -152,8 +153,8 @@ export default function DelegationsPage() {
 
   const filteredDelegations = delegations.filter(
     (d) =>
-      d.owner_id.toLowerCase().includes(filter.toLowerCase()) ||
-      d.delegate_id.toLowerCase().includes(filter.toLowerCase())
+      d.OwnerID.toLowerCase().includes(filter.toLowerCase()) ||
+      d.DelegateID.toLowerCase().includes(filter.toLowerCase())
   );
 
   if (loading) {
@@ -189,8 +190,8 @@ export default function DelegationsPage() {
               header: t('pages.delegations.owner_id'),
               cell: (item: Delegation) => (
                 <SpaceBetween size="xxxs">
-                  <Box fontWeight="bold">{item.owner_id}</Box>
-                  <Box color="text-body-secondary" fontSize="body-s">{item.owner_kind}</Box>
+                  <Box fontWeight="bold">{item.OwnerID}</Box>
+                  <Box color="text-body-secondary" fontSize="body-s">{item.OwnerKind}</Box>
                 </SpaceBetween>
               ),
               width: '22%',
@@ -199,22 +200,22 @@ export default function DelegationsPage() {
               header: t('pages.delegations.delegate_id'),
               cell: (item: Delegation) => (
                 <SpaceBetween size="xxxs">
-                  <Box fontWeight="bold">{item.delegate_id}</Box>
-                  <Box color="text-body-secondary" fontSize="body-s">{item.delegate_kind}</Box>
+                  <Box fontWeight="bold">{item.DelegateID}</Box>
+                  <Box color="text-body-secondary" fontSize="body-s">{item.DelegateKind}</Box>
                 </SpaceBetween>
               ),
               width: '22%',
             },
             {
               header: t('pages.delegations.scope'),
-              cell: (item: Delegation) => item.scope || '—',
+              cell: (item: Delegation) => item.Scope || '—',
               width: '25%',
             },
             {
               header: t('pages.delegations.role'),
               cell: (item: Delegation) => (
-                <Badge color={item.role === 'admin' ? 'red' : item.role === 'editor' ? 'blue' : 'grey'}>
-                  {item.role}
+                <Badge color={item.Role === 'admin' ? 'red' : item.Role === 'editor' ? 'blue' : 'grey'}>
+                  {item.Role}
                 </Badge>
               ),
               width: '15%',
@@ -224,8 +225,8 @@ export default function DelegationsPage() {
               cell: (item: Delegation) => (
                 <Button
                   variant="inline-link"
-                  onClick={() => handleDelete(item.id)}
-                  loading={deletingId === item.id}
+                  onClick={() => handleDelete(item.ID)}
+                  loading={deletingId === item.ID}
                 >
                   {t('common.delete')}
                 </Button>
