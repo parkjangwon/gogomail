@@ -364,7 +364,7 @@ Do not mix icon sets.
 - **Monorepo layout**:
   ```
   apps/webmail/          ← main webmail app
-  apps/admin/            ← admin console
+  apps/console/            ← admin console
   packages/ui/           ← shared design system components
   packages/api-client/   ← typed API client from openapi.yaml
   ```

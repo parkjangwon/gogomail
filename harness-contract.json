@@ -22,7 +22,7 @@
       {
         "trigger": "frontend-implementation",
         "action": "pause-and-notify-user",
-        "description": "Before creating apps/shell, apps/webmail, apps/admin, or shared UI packages"
+        "description": "Before creating apps/shell, apps/webmail, apps/console, or shared UI packages"
       }
     ]
   },
