@@ -616,10 +616,7 @@ export function ReadingPane({
     Promise.all(icsAtts.map(async (att) => {
       if (!message) return null;
       try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
-        const resp = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+        const resp = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`);
         if (!resp.ok) return null;
         const text = await resp.text();
         const get = (key: string) => { const m = text.match(new RegExp(`^${key}[;:][^:]*:?(.+)$`, 'mi')); return m ? m[1].trim() : undefined; };
@@ -693,15 +690,40 @@ export function ReadingPane({
     return () => window.removeEventListener('keydown', onKey);
   }, [lightbox]);
 
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+  const [pdfPreviewLoadingId, setPdfPreviewLoadingId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pdfPreview) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPdfPreview(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pdfPreview]);
+  useEffect(() => {
+    const url = pdfPreview?.url;
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [pdfPreview]);
+
+  const handlePdfPreview = useCallback(async (att: Attachment) => {
+    if (!message) return;
+    setPdfPreviewLoadingId(att.id);
+    try {
+      const res = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      setPdfPreview({ url: URL.createObjectURL(blob), filename: att.filename });
+    } catch { /* ignore */ }
+    finally { setPdfPreviewLoadingId(null); }
+  }, [message]);
+
+  const [emailDarkMode, setEmailDarkMode] = useState(false);
+
   useEffect(() => {
     const imageAtts = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
     if (!message || imageAtts.length === 0) return;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
     let cancelled = false;
     imageAtts.forEach((att) => {
       if (imagePreviewsRef.current[att.id]) return;
-      fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`, { headers })
+      fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`)
         .then((r) => r.ok ? r.blob() : null)
         .then((blob) => {
           if (cancelled || !blob) return;
@@ -1318,6 +1340,19 @@ export function ReadingPane({
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
                         <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
                       </button>
+                      {isPdf && (
+                        <button
+                          onClick={() => handlePdfPreview(att)}
+                          disabled={pdfPreviewLoadingId === att.id}
+                          title="PDF 미리보기"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '11px', cursor: pdfPreviewLoadingId === att.id ? 'wait' : 'pointer', width: '100%' }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                        >
+                          {pdfPreviewLoadingId === att.id ? <ArrowPathIcon style={{ width: '11px', height: '11px', animation: 'spin 1s linear infinite' }} /> : '👁'}
+                          {pdfPreviewLoadingId === att.id ? '로딩 중...' : 'PDF 미리보기'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleSaveToDrive(att)}
                         disabled={savingToDriveId === att.id}
@@ -1338,12 +1373,26 @@ export function ReadingPane({
         )}
 
         {/* Body */}
+        {message.html_body && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+            <button
+              onClick={() => setEmailDarkMode((v) => !v)}
+              title={emailDarkMode ? '라이트 모드로 보기' : '다크 모드로 보기'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: emailDarkMode ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-secondary)', fontSize: '11px', cursor: 'pointer' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = emailDarkMode ? 'var(--color-bg-tertiary)' : 'transparent'; }}
+            >
+              {emailDarkMode ? '☀ 라이트' : '🌙 다크'}
+            </button>
+          </div>
+        )}
         <div
           style={{
             maxWidth: '680px',
             fontSize: `${fontSize}px`,
             lineHeight: 1.6,
             color: 'var(--color-text-primary)',
+            ...(emailDarkMode ? { filter: 'invert(1) hue-rotate(180deg)', background: '#000', borderRadius: '8px', padding: '12px' } : {}),
           }}
         >
           {message.html_body ? (
@@ -1519,6 +1568,21 @@ export function ReadingPane({
         <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'var(--color-text-primary)', color: 'var(--color-bg-primary)', fontSize: '13px', padding: '8px 18px', borderRadius: '20px', zIndex: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
           {driveToast}
         </div>
+      )}
+
+      {/* PDF preview modal */}
+      {pdfPreview && (
+        <>
+          <div aria-hidden="true" onClick={() => setPdfPreview(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500, cursor: 'pointer' }} />
+          <div role="dialog" aria-label={pdfPreview.filename} aria-modal="true" style={{ position: 'fixed', inset: '32px', zIndex: 501, display: 'flex', flexDirection: 'column', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border-default)' }}>
+              <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pdfPreview.filename}</span>
+              <button onClick={() => { const a = attachments.find((x) => pdfPreview && x.filename === pdfPreview.filename); if (a) handleDownload(a); }} style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}>다운로드</button>
+              <button onClick={() => setPdfPreview(null)} aria-label="닫기" style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}>닫기</button>
+            </div>
+            <iframe src={pdfPreview.url} title={pdfPreview.filename} style={{ flex: 1, border: 'none', background: '#fff' }} />
+          </div>
+        </>
       )}
 
       {/* Image lightbox */}
