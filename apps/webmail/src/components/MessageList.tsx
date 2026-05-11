@@ -175,9 +175,38 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       )
     : baseFiltered;
 
-  const filteredMessages = sortAsc
+  const sortedBase = sortAsc
     ? [...afterQuickFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
     : afterQuickFilter;
+
+  const [conversationMode, setConversationMode] = useState(() => {
+    try { return localStorage.getItem('webmail_conv_mode') !== '0'; } catch { return true; }
+  });
+
+  function normalizeSubject(s: string): string {
+    return s.replace(/^(re|fwd?)\s*:\s*/gi, '').trim().toLowerCase();
+  }
+
+  const { filteredMessages, threadCounts } = (() => {
+    if (!conversationMode) return { filteredMessages: sortedBase, threadCounts: {} as Record<string, number> };
+    const seen = new Map<string, { msg: MessageSummary; count: number }>();
+    for (const msg of sortedBase) {
+      const key = normalizeSubject(msg.subject || '');
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, { msg, count: 1 });
+      } else {
+        const existingTime = new Date(existing.msg.received_at).getTime();
+        const msgTime = new Date(msg.received_at).getTime();
+        if (msgTime > existingTime) seen.set(key, { msg, count: existing.count + 1 });
+        else seen.set(key, { ...existing, count: existing.count + 1 });
+      }
+    }
+    const msgs = [...seen.values()].map((v) => v.msg);
+    const counts: Record<string, number> = {};
+    seen.forEach((v) => { counts[v.msg.id] = v.count; });
+    return { filteredMessages: msgs, threadCounts: counts };
+  })();
 
   const listWidth = (isMobile || fullWidth || bottomLayout)
     ? { width: '100%', minWidth: 0 }
@@ -391,6 +420,12 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           {quickFilter ? `🔍 ${messages.length - filteredMessages.length > 0 ? `${filteredMessages.length}/${messages.length}` : ''}` : '🔍'}
         </button>
         <button
+          aria-label={conversationMode ? '대화 보기 해제' : '대화 보기'}
+          title={conversationMode ? '대화 보기 해제' : '대화 보기'}
+          onClick={() => { const next = !conversationMode; setConversationMode(next); try { localStorage.setItem('webmail_conv_mode', next ? '1' : '0'); } catch { /* */ } }}
+          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: conversationMode ? 'var(--color-accent-subtle)' : 'transparent', color: conversationMode ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
+        >대화</button>
+        <button
           aria-label={compact ? '넓은 보기' : '촘촘한 보기'}
           title={compact ? '넓은 보기' : '촘촘한 보기'}
           onClick={() => { const next = !compact; setCompact(next); try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ } }}
@@ -572,6 +607,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               compact={compact}
               onDelete={isMobile ? onDeleteMessage : undefined}
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
+              threadCount={threadCounts[msg.id]}
             />
           ))}
         </div>
@@ -600,9 +636,10 @@ interface MessageRowProps {
   compact?: boolean;
   onDelete?: (id: string) => void;
   onHoverDelete?: (id: string) => void;
+  threadCount?: number;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete, threadCount }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -765,6 +802,9 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             <span style={{ fontWeight: isUnread ? 600 : 400 }}>
               {highlight(message.subject || '(제목 없음)', q)}
             </span>
+            {threadCount && threadCount > 1 && (
+              <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
+            )}
             {!compact && message.preview && (
               <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
                 {' · '}{highlight(message.preview, q)}
