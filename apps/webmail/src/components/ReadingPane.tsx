@@ -24,7 +24,7 @@ function linkify(text: string): ReactNode[] {
   return parts;
 }
 
-function SafeHTMLBody({ html }: { html: string }) {
+function SafeHTMLBody({ html, onMailto }: { html: string; onMailto?: (addr: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [showImages, setShowImages] = useState(false);
   const [showQuoted, setShowQuoted] = useState(false);
@@ -45,6 +45,13 @@ function SafeHTMLBody({ html }: { html: string }) {
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
       });
       ref.current.innerHTML = clean;
+      ref.current.querySelectorAll('a[href^="mailto:"]').forEach((a) => {
+        (a as HTMLAnchorElement).addEventListener('click', (e) => {
+          e.preventDefault();
+          const addr = (a as HTMLAnchorElement).href.replace(/^mailto:/i, '').split('?')[0];
+          onMailto?.(addr);
+        });
+      });
       // Collapse blockquotes when not showing quoted text
       if (hasQuoted && !showQuoted) {
         ref.current.querySelectorAll('blockquote').forEach((bq) => {
@@ -52,7 +59,7 @@ function SafeHTMLBody({ html }: { html: string }) {
         });
       }
     });
-  }, [html, showImages, showQuoted, hasQuoted]);
+  }, [html, showImages, showQuoted, hasQuoted, onMailto]);
 
   return (
     <>
@@ -751,7 +758,7 @@ export function ReadingPane({
           }}
         >
           {message.html_body ? (
-            <SafeHTMLBody html={message.html_body} />
+            <SafeHTMLBody html={message.html_body} onMailto={onComposeToAddress} />
           ) : (
             <pre
               style={{
