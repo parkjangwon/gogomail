@@ -56,6 +56,17 @@ export default function MailPage() {
   const [messageLabels, setMessageLabels] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_labels') ?? '{}'); } catch { return {}; }
   });
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]') as string[]); } catch { return new Set(); }
+  });
+  const handlePin = useCallback((id: string) => {
+    setPinnedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('webmail_pinned', JSON.stringify([...next])); } catch { /* */ }
+      return next;
+    });
+  }, []);
   const setLabel = useCallback((id: string, color: string | null) => {
     setMessageLabels((prev) => {
       const next = { ...prev };
@@ -735,6 +746,10 @@ export default function MailPage() {
           }
           break;
         }
+        case 'p': {
+          if (selectedMessageId && !composeContext) handlePin(selectedMessageId);
+          break;
+        }
         case '#':
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
@@ -782,7 +797,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove, handlePin]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -1229,6 +1244,8 @@ export default function MailPage() {
               onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
               onToggleReadMessage={handleToggleReadMessage}
               onSnoozeMessage={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
+              onPinMessage={handlePin}
+              pinnedIds={pinnedIds}
               onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
               onBulkLabel={handleBulkLabel}
               onBulkStar={handleBulkStar}
