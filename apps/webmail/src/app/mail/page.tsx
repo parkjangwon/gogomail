@@ -41,6 +41,8 @@ export default function MailPage() {
     try { return parseInt(localStorage.getItem('webmail_sidebar_width') ?? '220', 10) || 220; } catch { return 220; }
   });
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [swipeDeltaX, setSwipeDeltaX] = useState(0);
+  const swipeTouchStartRef = useRef<number | null>(null);
   const [messageLabels, setMessageLabels] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_labels') ?? '{}'); } catch { return {}; }
   });
@@ -979,14 +981,27 @@ export default function MailPage() {
             <div
               role="region"
               aria-label="메일 읽기"
+              onTouchStart={isMobile ? (e) => { swipeTouchStartRef.current = e.touches[0].clientX; } : undefined}
+              onTouchMove={isMobile ? (e) => {
+                if (swipeTouchStartRef.current === null) return;
+                const delta = e.touches[0].clientX - swipeTouchStartRef.current;
+                if (delta > 0) setSwipeDeltaX(delta);
+              } : undefined}
+              onTouchEnd={isMobile ? () => {
+                if (swipeDeltaX > 80) setSelectedMessageId(null);
+                setSwipeDeltaX(0);
+                swipeTouchStartRef.current = null;
+              } : undefined}
               style={{
                 position: 'fixed',
                 top: 0,
                 right: 0,
                 height: '100dvh',
                 width: isMobile ? '100%' : 'min(720px, 55vw)',
-                transform: panelOpen ? 'translateX(0)' : 'translateX(100%)',
-                transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
+                transform: panelOpen
+                  ? (isMobile && swipeDeltaX > 0 ? `translateX(${swipeDeltaX}px)` : 'translateX(0)')
+                  : 'translateX(100%)',
+                transition: swipeDeltaX > 0 ? 'none' : 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
                 zIndex: 50,
                 display: 'flex',
                 flexDirection: 'column',
