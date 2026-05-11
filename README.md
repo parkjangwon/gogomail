@@ -16,6 +16,8 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 
 ## What's implemented
 
+### Backend
+
 | Component | Standards | Status |
 |---|---|---|
 | SMTP receive (edge MTA) | RFC 5321, 5322, 2045–2049 | Production-ready |
@@ -33,6 +35,57 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 | Admin API | OpenAPI | Production-ready |
 | Drive / file storage | S3-compatible backend | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
+
+### Webmail (Next.js 15)
+
+A keyboard-first webmail client built with Next.js 15, Tailwind v4, and shadcn/ui. Inspired by Notion Mail / Superhuman UX principles.
+
+**Mail**
+- 3-pane layout — sidebar, message list, reading pane
+- Keyboard shortcuts: Gmail-style (`g i`, `g s`, `e`, `r`, `a`, `f`, `#`, …) + Korean IME support
+- Spotlight search (Cmd+K) with Gmail-style operators (`from:`, `to:`, `subject:`, `has:attachment`)
+- Inline reply editor (TipTap v2) with rich text, slash commands, inline images
+- Compose with TipTap — slash commands, inline image paste, attachment upload
+- Send delay (undo send countdown)
+- Snooze, pin, follow-up reminders for sent mail
+- Inbox category tabs + smart auto-classification chips
+- Compact view toggle
+- Inbox zero celebration state
+- Unsubscribe link auto-detection
+- ICS calendar invite detection with Add to Calendar
+
+**Filters & Automation**
+- Multi-condition filter rules with AND/OR logic
+- 9 condition fields: from, to, cc, subject, body, has attachment, is unread, size larger/smaller
+- 6 match types: contains, not contains, equals, starts with, ends with, regex
+- 9 actions: label color, move to folder, mark read/unread, star, mark important, skip inbox, delete, forward
+- Enabled toggle + stop processing flag per rule
+- Blocked senders, vacation responder
+
+**Virtual folders**
+- Unread, Snoozed, Pinned, Important, Tasks — all sidebar shortcuts
+
+**Calendar**
+- Month/week/day/agenda views
+- Multiple calendars with color-coding — add, edit, delete calendars
+- Recurring events (RFC 5545 RRULE: daily/weekly/monthly/yearly, interval, day selection, end by count or date)
+- ICS import via email
+
+**Contacts**
+- CardDAV-backed contact list with search
+- Contact hover card in message headers
+
+**Drive**
+- S3-backed file manager with folder tree, upload, download, share link, trash
+
+**Settings**
+- General, appearance, notifications, reading, compose, signature/auto-reply, filters, blocked senders, vacation responder, templates, privacy, accessibility, enterprise security, storage/backup, about
+- Per-folder mailbox stats (message count, unread, starred, estimated size)
+- Async EML / ZIP backup per folder (non-blocking, progress tracking)
+- Mailbox restore from EML/MBOX file
+- Settings import / export (JSON)
+- Focus mode, DND-aware browser notifications
+- High contrast, reduced motion, font family, screen reader mode
 
 ---
 
@@ -58,6 +111,8 @@ gogomail --mode=migration          # run database migrations
 ---
 
 ## Quick start
+
+### Backend
 
 **Requirements**: Go 1.25+, PostgreSQL 15+, Redis 7+
 
@@ -91,6 +146,17 @@ Key environment variables:
 
 Full configuration reference: `internal/config/`.
 
+### Webmail
+
+**Requirements**: Node.js 20+, pnpm 9+
+
+```bash
+cd apps/webmail
+pnpm install
+pnpm dev       # http://localhost:3000
+pnpm build     # production build
+```
+
 ---
 
 ## Development
@@ -104,6 +170,9 @@ go test ./internal/scheduling/...
 
 # Build check
 go build ./...
+
+# Webmail type check
+tsc --noEmit -p apps/webmail/tsconfig.json
 ```
 
 The pre-commit hook enforces two rules automatically:
@@ -117,17 +186,16 @@ Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, 
 
 ## Roadmap
 
-| Phase | Focus |
-|---|---|
-| 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC ✓ |
-| 2 | Runtime config store · company→domain→user settings hierarchy · 2FA/TOTP |
-| 3 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC |
-| 4 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening |
-| 5 | Mail security: milter adapter · DNSBL (RFC 5782) |
-| 6 | POP3 (RFC 1939) |
-| 7 | Push notifications: FCM / APNs / Web Push (RFC 8030) |
-
-Frontend (webmail + admin console) starts after Phase 2. Design language defined in `docs/DESIGN.md`.
+| Phase | Focus | Status |
+|---|---|---|
+| 0–1 | SMTP, IMAP, CalDAV, CardDAV, Mail/Admin API, delivery, DKIM/SPF/DMARC | ✓ Complete |
+| 2 | Webmail frontend — keyboard-first, settings, filters, calendar, contacts, drive | ✓ Complete |
+| 3 | Runtime config store · company→domain→user settings hierarchy · 2FA/TOTP | Planned |
+| 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | Planned |
+| 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | Planned |
+| 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
+| 7 | POP3 (RFC 1939) | Planned |
+| 8 | Push notifications: FCM / APNs / Web Push (RFC 8030) | Planned |
 
 Full roadmap: `docs/backend-roadmap.md`.
 
