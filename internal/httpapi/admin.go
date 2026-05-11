@@ -4538,6 +4538,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"valid": true, "message": "domain format is valid"})
 	}))
 
+	// ─── Tenant Health ────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyHealth(w, r, service)
+	}))
+
 	// ─── Webhooks ─────────────────────────────────────────────────────────────
 	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyWebhooks(w, r, service)
@@ -7290,4 +7295,74 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"template": input})
+}
+
+func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+
+	company, err := service.GetCompany(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "company not found")
+		return
+	}
+
+	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+
+	activeDomains := 0
+	totalQuotaBytes := int64(0)
+	usedQuotaBytes := int64(0)
+	overAllocated := false
+	for _, d := range domains {
+		if d.Status == "active" {
+			activeDomains++
+		}
+		totalQuotaBytes += d.QuotaLimit
+		usedQuotaBytes += d.QuotaUsed
+		if d.OverAllocated {
+			overAllocated = true
+		}
+	}
+
+	webhooksCfg, _ := getWebhooksConfig(ctx, service, id)
+	activeWebhooks := 0
+	for _, wh := range webhooksCfg.Webhooks {
+		if wh.Enabled {
+			activeWebhooks++
+		}
+	}
+
+	usagePct := 0.0
+	if totalQuotaBytes > 0 {
+		usagePct = float64(usedQuotaBytes) / float64(totalQuotaBytes) * 100
+	}
+
+	healthStatus := "healthy"
+	if overAllocated || usagePct > 90 {
+		healthStatus = "warning"
+	}
+	if activeDomains == 0 && len(domains) > 0 {
+		healthStatus = "degraded"
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"health": map[string]any{
+			"status":           healthStatus,
+			"company_id":       id,
+			"company_name":     company.Name,
+			"domain_count":     len(domains),
+			"active_domains":   activeDomains,
+			"active_webhooks":  activeWebhooks,
+			"over_allocated":   overAllocated,
+			"quota": map[string]any{
+				"total_bytes": totalQuotaBytes,
+				"used_bytes":  usedQuotaBytes,
+				"usage_pct":   usagePct,
+			},
+			"checked_at": time.Now().UTC().Format(time.RFC3339),
+		},
+	})
 }

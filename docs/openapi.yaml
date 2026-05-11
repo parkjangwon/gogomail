@@ -7411,6 +7411,57 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/health:
+    get:
+      operationId: adminGetCompanyHealth
+      summary: Get per-tenant health summary
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Tenant health summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  health:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [healthy, warning, degraded]
+                      company_id:
+                        type: string
+                      company_name:
+                        type: string
+                      domain_count:
+                        type: integer
+                      active_domains:
+                        type: integer
+                      active_webhooks:
+                        type: integer
+                      over_allocated:
+                        type: boolean
+                      quota:
+                        type: object
+                        properties:
+                          total_bytes:
+                            type: integer
+                          used_bytes:
+                            type: integer
+                          usage_pct:
+                            type: number
+                      checked_at:
+                        type: string
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/webhooks:
     get:
       operationId: adminListCompanyWebhooks
