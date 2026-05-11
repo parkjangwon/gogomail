@@ -19,6 +19,7 @@ import {
   Flashbar,
   FlashbarProps,
   ButtonDropdown,
+  Pagination,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -62,9 +63,11 @@ export default function DomainsPage() {
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
 
+  const PAGE_SIZE = 25;
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [selected, setSelected] = useState<Domain[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -109,6 +112,9 @@ export default function DomainsPage() {
     const q = filter.toLowerCase();
     return domains.filter(d => d.name.toLowerCase().includes(q) || d.company_name?.toLowerCase().includes(q));
   }, [domains, filter]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleCreate = async () => {
     if (!createForm.name.trim()) return;
@@ -245,7 +251,7 @@ export default function DomainsPage() {
           selectedItems={selected}
           onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
           trackBy="id"
-          items={filtered}
+          items={paged}
           loading={loading}
           columnDefinitions={[
             {
@@ -317,9 +323,18 @@ export default function DomainsPage() {
             <TextFilter
               filteringText={filter}
               filteringPlaceholder="Search domains…"
-              onChange={(e) => setFilter(e.detail.filteringText)}
+              onChange={(e) => { setFilter(e.detail.filteringText); setCurrentPage(1); }}
               countText={`${filtered.length} domains`}
             />
+          }
+          pagination={
+            pageCount > 1 ? (
+              <Pagination
+                currentPageIndex={currentPage}
+                pagesCount={pageCount}
+                onChange={(e) => setCurrentPage(e.detail.currentPageIndex)}
+              />
+            ) : undefined
           }
           empty={<Box textAlign="center" padding="l"><StatusIndicator type="info">No domains found</StatusIndicator></Box>}
         />
