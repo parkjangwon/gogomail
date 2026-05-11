@@ -86,10 +86,11 @@ interface MessageListProps {
   onBulkMove?: (ids: string[], folderId: string) => void;
   searchQuery?: string;
   onBulkRestore?: (ids: string[]) => void;
+  onBulkLabel?: (ids: string[], color: string | null) => void;
   messageLabels?: Record<string, string>;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, messageLabels = {} }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -317,6 +318,23 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
           복구
         </button>
+      )}
+      {onBulkLabel && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'].map((color) => (
+            <button
+              key={color}
+              title={`라벨 지정`}
+              onClick={() => { onBulkLabel([...bulkSelected], color); clearAll(); }}
+              style={{ width: '14px', height: '14px', borderRadius: '50%', background: color, border: 'none', cursor: 'pointer', flexShrink: 0 }}
+            />
+          ))}
+          <button
+            title="라벨 제거"
+            onClick={() => { onBulkLabel([...bulkSelected], null); clearAll(); }}
+            style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+          >✕</button>
+        </div>
       )}
       {onBulkDelete && (
         <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }}
