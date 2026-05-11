@@ -110,6 +110,7 @@ export function Sidebar() {
       text: t('nav.section_analytics_storage'),
       ...e('analytics'),
       items: [
+        { type: 'link', text: t('nav.quota_dashboard'), href: p('/storage/quota-dashboard') },
         { type: 'link', text: t('nav.quota_usage'), href: p('/storage/quota-usage') },
         { type: 'link', text: t('nav.quota_alerts'), href: p('/storage/quota-alerts') },
         { type: 'link', text: t('nav.attachments'), href: p('/storage/attachments') },
