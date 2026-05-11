@@ -14,6 +14,7 @@ interface ComposeModalProps {
   onClose: () => void;
   intent?: ComposeIntent;
   sourceMessage?: MessageDetail;
+  draftMessage?: MessageDetail;
 }
 
 function escapeHtml(text: string): string {
@@ -53,7 +54,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -66,16 +67,19 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
       : `Re: ${sourceMessage.subject}`
     : '';
 
-  const [to, setTo] = useState(replyTo);
-  const [cc, setCc] = useState(replyCc);
+  const draftTo = draftMessage ? (draftMessage.to_addrs ?? []).map((a) => a.address).join(', ') : '';
+  const draftCc = draftMessage ? (draftMessage.cc_addrs ?? []).map((a) => a.address).join(', ') : '';
+
+  const [to, setTo] = useState(draftMessage ? draftTo : replyTo);
+  const [cc, setCc] = useState(draftMessage ? draftCc : replyCc);
   const [bcc, setBcc] = useState('');
-  const [subject, setSubject] = useState(replySubject);
+  const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : replySubject);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
-  const draftIdRef = useRef<string>('');
+  const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
@@ -112,14 +116,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, []);
 
-  const toRef = useRef(replyTo);
-  const ccRef = useRef(replyCc);
+  const toRef = useRef(draftMessage ? draftTo : replyTo);
+  const ccRef = useRef(draftMessage ? draftCc : replyCc);
   const bccRef = useRef('');
-  const subjectRef = useRef(replySubject);
+  const subjectRef = useRef(draftMessage ? (draftMessage.subject ?? '') : replySubject);
 
-  const initialContent = sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
-    ? buildQuoteHTML(intent, sourceMessage)
-    : '';
+  const initialContent = draftMessage
+    ? (draftMessage.html_body ?? (draftMessage.text_body
+        ? draftMessage.text_body.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
+        : ''))
+    : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
+        ? buildQuoteHTML(intent, sourceMessage)
+        : '');
 
   const editor = useEditor({
     extensions: [
