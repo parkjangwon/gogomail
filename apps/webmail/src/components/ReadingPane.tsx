@@ -93,6 +93,8 @@ interface ReadingPaneProps {
   message: MessageDetail | null;
   folders?: Folder[];
   onArchive?: () => void;
+  onSpam?: () => void;
+  onNotSpam?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
   onReplyAll?: () => void;
@@ -180,6 +182,8 @@ export function ReadingPane({
   message,
   folders = [],
   onArchive,
+  onSpam,
+  onNotSpam,
   onDelete,
   onReply,
   onReplyAll,
@@ -542,6 +546,8 @@ export function ReadingPane({
           </div>
         )}
         {onArchive && <ActionButton label="아카이브" onClick={onArchive} />}
+        {onSpam && <ActionButton label="스팸 신고" onClick={onSpam} />}
+        {onNotSpam && <ActionButton label="스팸 아님" onClick={onNotSpam} />}
         {onRestore && <ActionButton label="복구" onClick={onRestore} />}
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>
