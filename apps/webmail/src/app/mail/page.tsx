@@ -42,6 +42,9 @@ export default function MailPage() {
     try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
   });
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const [readingPanePosition, setReadingPanePosition] = useState<'right' | 'bottom'>(() => {
+    try { return (localStorage.getItem('webmail_pane_position') ?? 'right') as 'right' | 'bottom'; } catch { return 'right'; }
+  });
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
@@ -247,10 +250,13 @@ export default function MailPage() {
     });
   }, [setMessages]);
 
-  // Persist list pane width
+  // Persist list pane width and pane layout
   useEffect(() => {
     localStorage.setItem('webmail_list_pane_width', String(listPaneWidth));
   }, [listPaneWidth]);
+  useEffect(() => {
+    localStorage.setItem('webmail_pane_position', readingPanePosition);
+  }, [readingPanePosition]);
 
   // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
   useEffect(() => {
@@ -454,6 +460,8 @@ export default function MailPage() {
         }}
       />
 
+      <div style={{ flex: 1, display: 'flex', flexDirection: (!isMobile && readingPanePosition === 'bottom') ? 'column' : 'row', overflow: 'hidden', minWidth: 0 }}>
+
       {(!isMobile || !selectedMessageId) && (
         <MessageList
           messages={searchResults ?? messages}
@@ -488,14 +496,16 @@ export default function MailPage() {
           onOpenSidebar={() => setMobileSidebarOpen(true)}
           onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
           onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
-          paneWidth={isMobile ? undefined : listPaneWidth}
+          paneWidth={(!isMobile && readingPanePosition === 'right') ? listPaneWidth : undefined}
+          fullWidth={!isMobile && readingPanePosition === 'bottom'}
+          bottomLayout={!isMobile && readingPanePosition === 'bottom'}
           searchQuery={searchResults !== null ? searchQuery : undefined}
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
         />
       )}
 
-      {!isMobile && (
+      {!isMobile && readingPanePosition === 'right' && (
         <div
           aria-hidden="true"
           onMouseDown={(e) => {
@@ -553,6 +563,8 @@ export default function MailPage() {
           } : undefined}
         />
       )}
+
+      </div>{/* end layout wrapper */}
 
       {composeContext && (
         <ComposeModal
@@ -658,6 +670,16 @@ export default function MailPage() {
           gap: '8px',
         }}
       >
+        {!isMobile && (
+          <button
+            aria-label={readingPanePosition === 'right' ? '읽기 창 아래로' : '읽기 창 오른쪽으로'}
+            title={readingPanePosition === 'right' ? '읽기 창 아래로' : '읽기 창 오른쪽으로'}
+            onClick={() => setReadingPanePosition((p) => p === 'right' ? 'bottom' : 'right')}
+            style={{ fontSize: '14px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >{readingPanePosition === 'right' ? '⬇' : '➡'}</button>
+        )}
         <LocaleSelector />
         <ThemeToggle inline />
       </div>
