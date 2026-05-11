@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions } from '@/lib/api';
 
 interface SettingsViewProps {
@@ -27,6 +27,26 @@ const ACCENT_COLORS = [
   { value: '#ea580c', label: '주황' },
   { value: '#d97706', label: '황금' },
 ];
+
+// ─── Filter rules ─────────────────────────────────────────────────────────────
+
+interface FilterRule {
+  id: string;
+  name: string;
+  field: 'from' | 'subject' | 'any';
+  value: string;
+  labelColor: string;
+}
+
+const FILTER_RULES_KEY = 'webmail_filter_rules';
+const LABEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
+
+function loadFilterRules(): FilterRule[] {
+  try { return JSON.parse(localStorage.getItem(FILTER_RULES_KEY) ?? '[]') as FilterRule[]; } catch { return []; }
+}
+function saveFilterRules(rules: FilterRule[]) {
+  try { localStorage.setItem(FILTER_RULES_KEY, JSON.stringify(rules)); } catch { /* ignore */ }
+}
 
 // ─── Settings storage helpers ──────────────────────────────────────────────────
 
@@ -137,13 +157,16 @@ function Kbd({ k }: { k: string }) {
 
 // ─── Nav items ─────────────────────────────────────────────────────────────────
 
-type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
+type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'filters' | 'blocked' | 'vacation' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'account', label: '계정', icon: <UserCircleIcon style={{ width: 16, height: 16 }} /> },
   { id: 'inbox', label: '받은편지함', icon: <InboxIcon style={{ width: 16, height: 16 }} /> },
   { id: 'reading', label: '읽기', icon: <BookOpenIcon style={{ width: 16, height: 16 }} /> },
   { id: 'compose', label: '작성', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'filters', label: '필터', icon: <FunnelIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'blocked', label: '차단 목록', icon: <NoSymbolIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'vacation', label: '자동 응답', icon: <CalendarDaysIcon style={{ width: 16, height: 16 }} /> },
   { id: 'appearance', label: '외관', icon: <SwatchIcon style={{ width: 16, height: 16 }} /> },
   { id: 'notifications', label: '알림', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
   { id: 'shortcuts', label: '단축키', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
@@ -197,6 +220,23 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [newTplBody, setNewTplBody] = useState('');
   const [showNewTpl, setShowNewTpl] = useState(false);
 
+  // Filters
+  const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+  const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
+  const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>({ name: '', field: 'from', value: '', labelColor: LABEL_COLORS[0] });
+
+  // Blocked senders
+  const [blockedSenders, setBlockedSenders] = useState<string[]>([]);
+  const [newBlockedInput, setNewBlockedInput] = useState('');
+
+  // Vacation responder
+  const [vacEnabled, setVacEnabled] = useState(false);
+  const [vacStartDate, setVacStartDate] = useState('');
+  const [vacEndDate, setVacEndDate] = useState('');
+  const [vacSubject, setVacSubject] = useState('부재중입니다');
+  const [vacBody, setVacBody] = useState('');
+  const [vacSaved, setVacSaved] = useState(false);
+
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
 
@@ -221,6 +261,14 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
       setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
       setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
       setTemplates(JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'));
+      setFilterRules(loadFilterRules());
+      setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
+      const vac = JSON.parse(localStorage.getItem('webmail_vacation') ?? '{}') as Record<string, unknown>;
+      setVacEnabled(vac.enabled === true);
+      setVacStartDate((vac.startDate as string) ?? '');
+      setVacEndDate((vac.endDate as string) ?? '');
+      setVacSubject((vac.subject as string) ?? '부재중입니다');
+      setVacBody((vac.body as string) ?? '');
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName]);
@@ -448,6 +496,233 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                   <button onClick={() => setShowNewTpl(true)} style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>+ 새 템플릿 추가</button>
                 </div>
               )}
+            </SectionCard>
+          </>
+        );
+      }
+
+      case 'filters': {
+        const fieldOptions: { value: FilterRule['field']; label: string }[] = [
+          { value: 'from', label: '보낸사람' },
+          { value: 'subject', label: '제목' },
+          { value: 'any', label: '전체 내용' },
+        ];
+        const inputSt: React.CSSProperties = {
+          border: '1px solid var(--color-border-default)', borderRadius: '6px',
+          padding: '6px 10px', fontSize: '13px', background: 'var(--color-bg-primary)',
+          color: 'var(--color-text-primary)', outline: 'none', width: '100%',
+        };
+        const selSt: React.CSSProperties = { ...inputSt, width: 'auto', cursor: 'pointer' };
+        const doSave = (rule: Omit<FilterRule, 'id'>, id?: string) => {
+          if (!rule.value.trim()) return;
+          const updated = id
+            ? filterRules.map((r) => r.id === id ? { ...rule, id } : r)
+            : [...filterRules, { ...rule, id: Math.random().toString(36).slice(2) }];
+          setFilterRules(updated);
+          saveFilterRules(updated);
+          setEditingRule(null);
+          setNewRule({ name: '', field: 'from', value: '', labelColor: LABEL_COLORS[0] });
+        };
+        const cur = editingRule ?? newRule;
+        const setPatch = (patch: Partial<Omit<FilterRule, 'id'>>) =>
+          editingRule
+            ? setEditingRule({ ...editingRule, ...patch })
+            : setNewRule((p) => ({ ...p, ...patch }));
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>메일 필터 규칙</SectionHeader>
+              <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                조건에 맞는 메일에 라벨 색상을 자동으로 적용합니다.
+              </div>
+              {filterRules.length === 0 && (
+                <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+                  필터 규칙이 없습니다. 아래에서 새 규칙을 추가하세요.
+                </div>
+              )}
+              {filterRules.map((rule, idx) => (
+                <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)' }}>
+                  <span style={{ width: '13px', height: '13px', borderRadius: '50%', background: rule.labelColor, flexShrink: 0, display: 'inline-block', boxShadow: '0 0 0 1.5px rgba(0,0,0,0.1)' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0, minWidth: '52px' }}>
+                    {fieldOptions.find((f) => f.value === rule.field)?.label}
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                    {rule.value}
+                  </span>
+                  {rule.name && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>{rule.name}</span>
+                  )}
+                  <button onClick={() => setEditingRule(rule)} style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', flexShrink: 0 }}>편집</button>
+                  <button onClick={() => { const next = filterRules.filter((r) => r.id !== rule.id); setFilterRules(next); saveFilterRules(next); }} style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}>삭제</button>
+                </div>
+              ))}
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>{editingRule ? '규칙 편집' : '새 규칙 추가'}</SectionHeader>
+              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select value={cur.field} onChange={(e) => setPatch({ field: e.target.value as FilterRule['field'] })} style={selSt}>
+                    {fieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                  <input placeholder="조건 값 (예: @naver.com)" value={cur.value} onChange={(e) => setPatch({ value: e.target.value })} style={{ ...inputSt, flex: 1 }} />
+                </div>
+                <input placeholder="규칙 이름 (선택)" value={cur.name} onChange={(e) => setPatch({ name: e.target.value })} style={inputSt} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>라벨 색상</span>
+                  {LABEL_COLORS.map((c) => (
+                    <button key={c} onClick={() => setPatch({ labelColor: c })} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: cur.labelColor === c ? '3px solid var(--color-text-primary)' : '2.5px solid transparent', cursor: 'pointer', padding: 0, transition: 'border 100ms ease', boxShadow: cur.labelColor === c ? `0 0 0 1px ${c}` : 'none' }} />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  {editingRule && (
+                    <button onClick={() => setEditingRule(null)} style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
+                  )}
+                  <button
+                    onClick={() => doSave(cur, editingRule?.id)}
+                    disabled={!cur.value.trim()}
+                    style={{ padding: '6px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: cur.value.trim() ? 'pointer' : 'default', opacity: cur.value.trim() ? 1 : 0.45 }}
+                  >{editingRule ? '저장' : '추가'}</button>
+                </div>
+              </div>
+            </SectionCard>
+          </>
+        );
+      }
+
+      case 'blocked': {
+        const blockInSt: React.CSSProperties = {
+          border: '1px solid var(--color-border-default)', borderRadius: '6px',
+          padding: '7px 10px', fontSize: '13px', background: 'var(--color-bg-primary)',
+          color: 'var(--color-text-primary)', outline: 'none', flex: 1,
+        };
+        function saveBlocked(next: string[]) {
+          try { localStorage.setItem('webmail_blocked_senders', JSON.stringify(next)); } catch { /* ignore */ }
+          setBlockedSenders(next);
+        }
+        function addBlocked() {
+          const val = newBlockedInput.trim().toLowerCase();
+          if (!val || blockedSenders.includes(val)) return;
+          saveBlocked([...blockedSenders, val]);
+          setNewBlockedInput('');
+        }
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>차단된 발신자</SectionHeader>
+              <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                차단된 이메일 주소 또는 도메인(@example.com)에서 받은 메일은 자동으로 스팸으로 분류됩니다.
+              </div>
+              {blockedSenders.length === 0 && (
+                <div style={{ padding: '8px 20px 16px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>차단된 발신자가 없습니다.</div>
+              )}
+              {blockedSenders.map((addr, idx) => (
+                <div key={addr} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 20px', borderTop: idx === 0 ? 'none' : '1px solid var(--color-border-subtle)' }}>
+                  <NoSymbolIcon style={{ width: 13, height: 13, color: 'var(--color-destructive)', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '13px', color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>{addr}</span>
+                  <button
+                    onClick={() => saveBlocked(blockedSenders.filter((a) => a !== addr))}
+                    style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '5px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer', flexShrink: 0 }}
+                  >차단 해제</button>
+                </div>
+              ))}
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>발신자 차단 추가</SectionHeader>
+              <div style={{ padding: '0 20px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  value={newBlockedInput}
+                  onChange={(e) => setNewBlockedInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addBlocked(); }}
+                  placeholder="이메일 주소 또는 도메인 (예: @spam.com)"
+                  style={blockInSt}
+                />
+                <button
+                  onClick={addBlocked}
+                  disabled={!newBlockedInput.trim()}
+                  style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: newBlockedInput.trim() ? 'pointer' : 'default', opacity: newBlockedInput.trim() ? 1 : 0.45, flexShrink: 0 }}
+                >차단</button>
+              </div>
+            </SectionCard>
+          </>
+        );
+      }
+
+      case 'vacation': {
+        const inSt: React.CSSProperties = {
+          border: '1px solid var(--color-border-default)', borderRadius: '6px',
+          padding: '7px 10px', fontSize: '13px', background: 'var(--color-bg-primary)',
+          color: 'var(--color-text-primary)', outline: 'none', width: '100%',
+        };
+        function saveVac() {
+          try {
+            localStorage.setItem('webmail_vacation', JSON.stringify({
+              enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate,
+              subject: vacSubject, body: vacBody,
+            }));
+          } catch { /* ignore */ }
+          setVacSaved(true);
+          setTimeout(() => setVacSaved(false), 2000);
+        }
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>자동 응답 (부재중)</SectionHeader>
+              <Row label="자동 응답 사용" description="이 기간 동안 받은 메일에 자동으로 응답 메일을 전송합니다">
+                <Toggle value={vacEnabled} onChange={setVacEnabled} />
+              </Row>
+              <Row label="시작일" last={false}>
+                <input type="date" value={vacStartDate} onChange={(e) => setVacStartDate(e.target.value)} style={{ ...inSt, width: '160px' }} disabled={!vacEnabled} />
+              </Row>
+              <Row label="종료일" last>
+                <input type="date" value={vacEndDate} onChange={(e) => setVacEndDate(e.target.value)} style={{ ...inSt, width: '160px' }} disabled={!vacEnabled} />
+              </Row>
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>응답 메시지</SectionHeader>
+              <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>제목</label>
+                  <input
+                    value={vacSubject}
+                    onChange={(e) => setVacSubject(e.target.value)}
+                    disabled={!vacEnabled}
+                    style={inSt}
+                    placeholder="부재중입니다"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>본문</label>
+                  <textarea
+                    value={vacBody}
+                    onChange={(e) => setVacBody(e.target.value)}
+                    disabled={!vacEnabled}
+                    rows={6}
+                    style={{ ...inSt, resize: 'vertical', lineHeight: 1.6, opacity: vacEnabled ? 1 : 0.5 }}
+                    placeholder={'안녕하세요,\n현재 부재중으로 메일 확인이 어렵습니다.\n돌아오는 즉시 답변 드리겠습니다.\n\n감사합니다.'}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {vacEnabled && vacStartDate && vacEndDate && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                      {vacStartDate} ~ {vacEndDate} 동안 자동 응답이 전송됩니다
+                    </span>
+                  )}
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {vacSaved && (
+                      <span style={{ fontSize: '12px', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckIcon style={{ width: 13, height: 13 }} /> 저장됨
+                      </span>
+                    )}
+                    <button
+                      onClick={saveVac}
+                      style={{ padding: '6px 18px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    >저장</button>
+                  </div>
+                </div>
+              </div>
             </SectionCard>
           </>
         );

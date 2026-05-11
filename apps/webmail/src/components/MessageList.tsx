@@ -19,8 +19,10 @@ import {
   ChevronRightIcon,
   BarsArrowDownIcon,
   BarsArrowUpIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { SnoozePopover } from './SnoozePopover';
 
 type FilterMode = 'all' | 'unread' | 'read' | 'starred' | 'unstarred' | 'attachment' | 'noattachment';
 
@@ -110,12 +112,13 @@ interface MessageListProps {
   onBulkStar?: (ids: string[], starred: boolean) => void;
   onArchiveMessage?: (id: string) => void;
   onToggleReadMessage?: (id: string, read: boolean) => void;
+  onSnoozeMessage?: (id: string, until: Date) => void;
   messageLabels?: Record<string, string>;
   userEmail?: string;
   showPreview?: boolean;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -771,6 +774,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
               onHoverArchive={!isMobile ? onArchiveMessage : undefined}
               onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
+              onHoverSnooze={!isMobile ? onSnoozeMessage : undefined}
               threadCount={msg.message_count ?? threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
               userEmail={userEmail}
@@ -806,18 +810,20 @@ interface MessageRowProps {
   onHoverDelete?: (id: string) => void;
   onHoverArchive?: (id: string) => void;
   onHoverToggleRead?: (id: string, read: boolean) => void;
+  onHoverSnooze?: (id: string, until: Date) => void;
   threadCount?: number;
   labelColor?: string;
   userEmail?: string;
   showPreview?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [showSnoozePopover, setShowSnoozePopover] = useState(false);
   const swipeEnabled = onDelete || onArchiveRow;
 
   return (
@@ -990,6 +996,28 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
                 <ArchiveBoxIcon style={{ width: '14px', height: '14px' }} />
                 <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>E</kbd>
               </button>
+            )}
+            {onHoverSnooze && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  aria-label="다시 알림"
+                  title="다시 알림 (Z)"
+                  onClick={(e) => { e.stopPropagation(); setShowSnoozePopover((v) => !v); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+                >
+                  <ClockIcon style={{ width: '14px', height: '14px' }} />
+                  <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>Z</kbd>
+                </button>
+                {showSnoozePopover && (
+                  <SnoozePopover
+                    onSnooze={(until) => onHoverSnooze(message.id, until)}
+                    onClose={() => setShowSnoozePopover(false)}
+                    align="right"
+                  />
+                )}
+              </div>
             )}
             {onHoverDelete && (
               <button
