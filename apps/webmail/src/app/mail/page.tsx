@@ -480,6 +480,7 @@ export default function MailPage() {
           onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
           onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
           paneWidth={isMobile ? undefined : listPaneWidth}
+          searchQuery={searchResults !== null ? searchQuery : undefined}
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
         />

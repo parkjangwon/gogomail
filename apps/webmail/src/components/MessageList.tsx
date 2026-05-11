@@ -5,6 +5,18 @@ import { MessageSummary, Folder } from '@/lib/api';
 
 type FilterMode = 'all' | 'unread' | 'starred';
 
+function highlight(text: string, query: string): React.ReactNode {
+  if (!query.trim() || !text) return text;
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const pattern = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  const parts = text.split(pattern);
+  return parts.map((part, i) =>
+    pattern.test(part)
+      ? <mark key={i} style={{ background: '#fef08a', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>{part}</mark>
+      : part
+  );
+}
+
 function formatDate(receivedAt: string): string {
   const date = new Date(receivedAt);
   const now = new Date();
@@ -62,9 +74,10 @@ interface MessageListProps {
   onEmptyFolder?: () => void;
   folders?: Folder[];
   onBulkMove?: (ids: string[], folderId: string) => void;
+  searchQuery?: string;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, searchQuery }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -428,6 +441,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onStar={onStar}
               onToggleBulk={toggleBulk}
               onContextMenu={onContextMenuMessage}
+              searchQuery={searchQuery}
             />
           ))}
         </div>
@@ -452,9 +466,11 @@ interface MessageRowProps {
   onStar?: (id: string, starred: boolean) => void;
   onToggleBulk: (id: string) => void;
   onContextMenu?: (id: string, x: number, y: number) => void;
+  searchQuery?: string;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery }: MessageRowProps) {
+  const q = searchQuery ?? '';
   const isUnread = !message.read;
 
   return (
@@ -532,7 +548,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
               minWidth: 0,
             }}
           >
-            {message.from_name || message.from_addr}
+            {highlight(message.from_name || message.from_addr, q)}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
             {message.has_attachment && (
@@ -557,11 +573,11 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             }}
           >
             <span style={{ fontWeight: isUnread ? 600 : 400 }}>
-              {message.subject || '(제목 없음)'}
+              {highlight(message.subject || '(제목 없음)', q)}
             </span>
             {message.preview && (
               <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
-                {' · '}{message.preview}
+                {' · '}{highlight(message.preview, q)}
               </span>
             )}
           </div>
