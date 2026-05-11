@@ -68,6 +68,8 @@ interface MessageListProps {
   isMobile?: boolean;
   onOpenSidebar?: () => void;
   paneWidth?: number;
+  fullWidth?: boolean;
+  bottomLayout?: boolean;
   onContextMenuMessage?: (id: string, x: number, y: number) => void;
   onMarkAllRead?: () => void;
   emptyFolderLabel?: string;
@@ -77,7 +79,7 @@ interface MessageListProps {
   searchQuery?: string;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, searchQuery }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -137,11 +139,15 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? [...baseFiltered].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
     : baseFiltered;
 
-  const listWidth = isMobile
+  const listWidth = (isMobile || fullWidth || bottomLayout)
     ? { width: '100%', minWidth: 0 }
     : paneWidth
       ? { width: `${paneWidth}px`, minWidth: `${paneWidth}px` }
       : { width: '380px', minWidth: '380px' };
+  const containerHeight = bottomLayout ? '35vh' : '100%';
+  const containerBorder: React.CSSProperties = bottomLayout
+    ? { borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }
+    : { borderRight: '1px solid var(--color-border-subtle)' };
 
   if (loading) {
     return (
@@ -149,8 +155,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         data-print="hide"
         style={{
           ...listWidth,
-          height: '100%',
-          borderRight: '1px solid var(--color-border-subtle)',
+          height: containerHeight,
+          ...containerBorder,
           overflowY: 'auto',
           padding: '12px 0',
         }}
@@ -379,7 +385,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   if (filteredMessages.length === 0) {
     return (
-      <div data-print="hide" style={{ ...listWidth, height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
+      <div data-print="hide" style={{ ...listWidth, height: containerHeight, ...containerBorder, display: 'flex', flexDirection: 'column' }}>
         {filterTabs}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
           {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
@@ -419,8 +425,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       data-print="hide"
       style={{
         ...listWidth,
-        height: '100%',
-        borderRight: '1px solid var(--color-border-subtle)',
+        height: containerHeight,
+        ...containerBorder,
         display: 'flex',
         flexDirection: 'column',
       }}
