@@ -5,6 +5,13 @@ import { MessageSummary, Folder } from '@/lib/api';
 
 type FilterMode = 'all' | 'unread' | 'starred';
 
+const AVATAR_COLORS = ['#2F6EE0', '#0D9488', '#7C3AED', '#EA580C', '#DB2777', '#059669', '#D97706', '#DC2626'];
+function avatarColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffff;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
 function highlight(text: string, query: string): React.ReactNode {
   if (!query.trim() || !text) return text;
   const words = query.trim().split(/\s+/).filter(Boolean);
@@ -642,6 +649,18 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           />
         )}
       </div>
+
+      {/* Sender avatar */}
+      {!compact && (
+        <div aria-hidden="true" style={{
+          width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+          background: avatarColor(message.from_name || message.from_addr),
+          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '13px', fontWeight: 600, userSelect: 'none',
+        }}>
+          {(message.from_name || message.from_addr).charAt(0).toUpperCase()}
+        </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
