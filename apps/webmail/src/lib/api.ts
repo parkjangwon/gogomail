@@ -505,6 +505,55 @@ export async function listCalendarObjects(calendarId: string): Promise<CalendarO
   } catch { return []; }
 }
 
+export interface CreateCalendarEventRequest {
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+}
+
+function pad2(n: number): string { return String(n).padStart(2, '0'); }
+function toICSDate(d: Date): string {
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`;
+}
+function toICSAllDay(d: Date): string {
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+}
+function icsEscape(s: string): string { return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+
+export async function createCalendarEvent(calendarId: string, req: CreateCalendarEventRequest): Promise<void> {
+  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@gogomail`;
+  const objectName = `${uid}.ics`;
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//GoGoMail//GoGoMail//EN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `SUMMARY:${icsEscape(req.title)}`,
+  ];
+  if (req.allDay) {
+    lines.push(`DTSTART;VALUE=DATE:${toICSAllDay(req.start)}`);
+    const endDate = new Date(req.end);
+    endDate.setDate(endDate.getDate() + 1);
+    lines.push(`DTEND;VALUE=DATE:${toICSAllDay(endDate)}`);
+  } else {
+    lines.push(`DTSTART:${toICSDate(req.start)}`);
+    lines.push(`DTEND:${toICSDate(req.end)}`);
+  }
+  if (req.location) lines.push(`LOCATION:${icsEscape(req.location)}`);
+  if (req.description) lines.push(`DESCRIPTION:${icsEscape(req.description)}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  const ics = lines.join('\r\n');
+  await request<unknown>(`calendars/${encodeURIComponent(calendarId)}/objects/${encodeURIComponent(objectName)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/calendar' },
+    body: ics,
+  });
+}
+
 export interface DirectoryUser {
   id: string;
   display_name: string;
