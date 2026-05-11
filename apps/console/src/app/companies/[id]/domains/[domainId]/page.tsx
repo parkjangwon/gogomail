@@ -60,6 +60,14 @@ interface DomainSetting {
   UpdatedAt: string;
 }
 
+interface DailyCount {
+  date: string;
+  label: string;
+  total: number;
+  success: number;
+  failed: number;
+}
+
 const STATUS_OPTIONS = [
   { label: 'active', value: 'active' },
   { label: 'suspended', value: 'suspended' },
@@ -94,6 +102,11 @@ export default function DomainDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // Mail stats
+  const [mailStats, setMailStats] = useState<DailyCount[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsFetched, setStatsFetched] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -200,6 +213,53 @@ export default function DomainDetailPage() {
     }
   };
 
+  const fetchMailStats = async (domainName: string) => {
+    if (statsFetched) return;
+    setStatsLoading(true);
+    try {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const res = await fetch(
+        `/api/admin/mail-flow-logs?company_id=${companyId}&limit=500&since=${since}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const logs: Array<{ created_at: string; status: string; sender_domain?: string; from_address?: string }> =
+        data.mail_flow_logs ?? [];
+
+      const filtered = logs.filter(l => {
+        const from = l.from_address ?? l.sender_domain ?? '';
+        return from.endsWith(`@${domainName}`) || from === domainName;
+      });
+
+      const countMap = new Map<string, { total: number; success: number; failed: number }>();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const key = d.toISOString().slice(0, 10);
+        countMap.set(key, { total: 0, success: 0, failed: 0 });
+      }
+      for (const log of filtered) {
+        const key = log.created_at?.slice(0, 10);
+        if (key && countMap.has(key)) {
+          const entry = countMap.get(key)!;
+          entry.total++;
+          if (log.status === 'delivered' || log.status === 'sent') entry.success++;
+          else entry.failed++;
+        }
+      }
+
+      const days: DailyCount[] = Array.from(countMap.entries()).map(([date, counts]) => ({
+        date,
+        label: new Date(date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        ...counts,
+      }));
+      setMailStats(days);
+      setStatsFetched(true);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <ContentLayout header={<Header variant="h1">{t('pages.domain_detail.title')}</Header>}>
@@ -260,8 +320,61 @@ export default function DomainDetailPage() {
       >
         <Tabs
           activeTabId={activeTab}
-          onChange={(e) => setActiveTab(e.detail.activeTabId)}
+          onChange={(e) => {
+            setActiveTab(e.detail.activeTabId);
+            if (e.detail.activeTabId === 'mail-stats' && domain) fetchMailStats(domain.name);
+          }}
           tabs={[
+            {
+              id: 'mail-stats',
+              label: 'Mail Stats',
+              content: (
+                <Container header={<Header variant="h2" description="Messages sent from this domain — last 7 days">Daily Message Volume</Header>}>
+                  {statsLoading ? (
+                    <Box textAlign="center" padding="xl"><Spinner /></Box>
+                  ) : (
+                    <SpaceBetween size="l">
+                      {mailStats.length === 0 ? (
+                        <Box color="text-body-secondary" textAlign="center" padding="l">No mail data in the last 7 days.</Box>
+                      ) : (() => {
+                        const maxCount = Math.max(...mailStats.map(d => d.total), 1);
+                        return (
+                          <SpaceBetween size="m">
+                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '140px', padding: '0 8px' }}>
+                              {mailStats.map(day => (
+                                <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' }}>
+                                  {day.total > 0 && (
+                                    <Box fontSize="body-s" color="text-body-secondary">{day.total}</Box>
+                                  )}
+                                  <div style={{ width: '100%', height: `${(day.total / maxCount) * 110}px`, minHeight: day.total > 0 ? '4px' : '0', display: 'flex', flexDirection: 'column', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div style={{ flex: day.success, backgroundColor: '#1d8348' }} />
+                                    <div style={{ flex: day.failed, backgroundColor: '#e74c3c' }} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', padding: '0 8px' }}>
+                              {mailStats.map(day => (
+                                <div key={day.date} style={{ flex: 1, textAlign: 'center' }}>
+                                  <Box fontSize="body-s" color="text-body-secondary">{day.label}</Box>
+                                </div>
+                              ))}
+                            </div>
+                            <SpaceBetween direction="horizontal" size="l">
+                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#1d8348', borderRadius: 2, marginRight: 6 }} />Delivered</Box>
+                              <Box fontSize="body-s"><span style={{ display: 'inline-block', width: 12, height: 12, backgroundColor: '#e74c3c', borderRadius: 2, marginRight: 6 }} />Failed</Box>
+                              <Box fontSize="body-s" color="text-body-secondary">
+                                Total last 7d: {mailStats.reduce((s, d) => s + d.total, 0)} messages
+                              </Box>
+                            </SpaceBetween>
+                          </SpaceBetween>
+                        );
+                      })()}
+                    </SpaceBetween>
+                  )}
+                </Container>
+              ),
+            },
             {
               id: 'overview',
               label: t('pages.domain_detail.overview_tab'),
