@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -1259,6 +1259,7 @@ export default function MailPage() {
               messageLabels={messageLabels}
               userEmail={userEmail || undefined}
               showPreview={wmSettings.showPreview}
+              showCategoryTabs={activeFolderSystemType === 'inbox' || activeFolderId === VIRTUAL_ALL}
             />
 
           </div>{/* end mail layout wrapper */}
