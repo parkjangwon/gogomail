@@ -41,9 +41,11 @@ export default function MailPage() {
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
 
-  const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
+  const pendingDeletesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const addToast = useCallback((message: string, type: ToastItem['type'] = 'success', options?: { duration?: number; action?: ToastItem['action'] }) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, ...options }]);
   }, []);
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -168,17 +170,34 @@ export default function MailPage() {
     setSelectedMessageId(id);
   }, []);
 
-  const handleDelete = useCallback(async () => {
+  const handleDeleteById = useCallback((id: string) => {
+    const msgToDelete = messages.find((m) => m.id === id);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMessageId === id) setSelectedMessageId(null);
+
+    const timer = setTimeout(() => {
+      pendingDeletesRef.current.delete(id);
+      deleteMessage(id).catch(() => {});
+    }, 5000);
+    pendingDeletesRef.current.set(id, timer);
+
+    addToast('메일을 삭제했습니다', 'info', {
+      duration: 5000,
+      action: {
+        label: '실행 취소',
+        onClick: () => {
+          const t = pendingDeletesRef.current.get(id);
+          if (t) { clearTimeout(t); pendingDeletesRef.current.delete(id); }
+          if (msgToDelete) setMessages((prev) => [msgToDelete, ...prev]);
+        },
+      },
+    });
+  }, [messages, selectedMessageId, setMessages, addToast]);
+
+  const handleDelete = useCallback(() => {
     if (!selectedMessageId) return;
-    try {
-      await deleteMessage(selectedMessageId);
-      setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
-      setSelectedMessageId(null);
-      addToast('메일을 삭제했습니다');
-    } catch {
-      addToast('삭제에 실패했습니다', 'error');
-    }
-  }, [selectedMessageId, setMessages, addToast]);
+    handleDeleteById(selectedMessageId);
+  }, [selectedMessageId, handleDeleteById]);
 
   const handleBulkDelete = useCallback(async (ids: string[]) => {
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
@@ -552,16 +571,7 @@ export default function MailPage() {
               {
                 label: '삭제',
                 danger: true,
-                onClick: async () => {
-                  try {
-                    await deleteMessage(contextMenu.id);
-                    setMessages((prev) => prev.filter((m) => m.id !== contextMenu.id));
-                    if (selectedMessageId === contextMenu.id) setSelectedMessageId(null);
-                    addToast('메일을 삭제했습니다');
-                  } catch {
-                    addToast('삭제에 실패했습니다', 'error');
-                  }
-                },
+                onClick: () => handleDeleteById(contextMenu.id),
               },
             ]}
           />
