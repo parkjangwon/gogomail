@@ -955,42 +955,54 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             {onStar && (
               <button
                 aria-label={message.starred ? '별표 해제' : '별표 추가'}
-                title={message.starred ? '별표 해제' : '별표 추가'}
+                title={message.starred ? '별표 해제 (S)' : '별표 추가 (S)'}
                 onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >{message.starred ? <StarIconSolid style={{ width: '14px', height: '14px' }} /> : <StarIcon style={{ width: '14px', height: '14px' }} />}</button>
+              >
+                {message.starred ? <StarIconSolid style={{ width: '14px', height: '14px' }} /> : <StarIcon style={{ width: '14px', height: '14px' }} />}
+                <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>S</kbd>
+              </button>
             )}
             {onHoverToggleRead && (
               <button
                 aria-label={message.read ? '읽지 않음으로' : '읽음으로'}
-                title={message.read ? '읽지 않음으로' : '읽음으로'}
+                title={message.read ? '읽지 않음으로 (M)' : '읽음으로 (M)'}
                 onClick={(e) => { e.stopPropagation(); onHoverToggleRead(message.id, !message.read); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >{message.read ? <EnvelopeOpenIcon style={{ width: '14px', height: '14px' }} /> : <EnvelopeIcon style={{ width: '14px', height: '14px' }} />}</button>
+              >
+                {message.read ? <EnvelopeOpenIcon style={{ width: '14px', height: '14px' }} /> : <EnvelopeIcon style={{ width: '14px', height: '14px' }} />}
+                <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>M</kbd>
+              </button>
             )}
             {onHoverArchive && (
               <button
                 aria-label="아카이브"
-                title="아카이브"
+                title="아카이브 (E)"
                 onClick={(e) => { e.stopPropagation(); onHoverArchive(message.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              ><ArchiveBoxIcon style={{ width: '14px', height: '14px' }} /></button>
+              >
+                <ArchiveBoxIcon style={{ width: '14px', height: '14px' }} />
+                <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>E</kbd>
+              </button>
             )}
             {onHoverDelete && (
               <button
                 aria-label="삭제"
-                title="삭제"
+                title="삭제 (#)"
                 onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              ><TrashIcon style={{ width: '14px', height: '14px' }} /></button>
+              >
+                <TrashIcon style={{ width: '14px', height: '14px' }} />
+                <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>#</kbd>
+              </button>
             )}
           </>
         ) : (
