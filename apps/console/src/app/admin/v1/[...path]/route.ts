@@ -1,0 +1,76 @@
+import { cookies } from 'next/headers';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
+
+type Methods = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+type BodyInit = Exclude<RequestInit['body'], null>;
+
+async function handler(
+  req: Request,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  const pathStr = path.join('/');
+  const reqUrl = new URL(req.url);
+  const search = reqUrl.search;
+  const url = `${BACKEND_URL}/admin/v1/${pathStr}${search}`;
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get('admin_access_token')?.value;
+
+  const headers = new Headers(req.headers);
+  headers.delete('host');
+  headers.delete('connection');
+  headers.delete('content-length');
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let body: BodyInit | undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    body = await req.arrayBuffer();
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: req.method as Methods,
+      headers,
+      body,
+    });
+
+    const contentType = response.headers.get('content-type') ?? '';
+
+    if (contentType.includes('text/csv') || contentType.includes('application/octet-stream')) {
+      const blob = await response.arrayBuffer();
+      return new Response(blob, {
+        status: response.status,
+        headers: {
+          'content-type': contentType,
+          'content-disposition': response.headers.get('content-disposition') ?? '',
+        },
+      });
+    }
+
+    const responseBody = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
+
+    return Response.json(responseBody, {
+      status: response.status,
+      headers: { 'content-type': contentType || 'application/json' },
+    });
+  } catch (error) {
+    console.error('Admin v1 proxy error:', error);
+    return Response.json(
+      { error: 'Failed to proxy request to backend' },
+      { status: 500 }
+    );
+  }
+}
+
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
