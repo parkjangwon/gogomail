@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { LocaleSelector } from '@/components/common/LocaleSelector';
 import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
+import { ContextMenu } from '@/components/ContextMenu';
 
 export default function MailPage() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function MailPage() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
@@ -418,6 +420,7 @@ export default function MailPage() {
           refreshing={refreshing}
           isMobile={isMobile}
           onOpenSidebar={() => setMobileSidebarOpen(true)}
+          onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
         />
       )}
 
@@ -475,6 +478,65 @@ export default function MailPage() {
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent)'; }}
         >✏</button>
       )}
+
+      {contextMenu && (() => {
+        const ctxMsg = messages.find((m) => m.id === contextMenu.id);
+        return (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            items={[
+              {
+                label: '답장',
+                onClick: () => {
+                  handleSelectMessage(contextMenu.id);
+                  if (selectedMessage?.id === contextMenu.id) {
+                    setComposeContext({ intent: 'reply', source: selectedMessage });
+                  }
+                },
+              },
+              {
+                label: '전달',
+                onClick: () => {
+                  handleSelectMessage(contextMenu.id);
+                  if (selectedMessage?.id === contextMenu.id) {
+                    setComposeContext({ intent: 'forward', source: selectedMessage });
+                  }
+                },
+              },
+              {
+                label: ctxMsg?.starred ? '별표 해제' : '별표 추가',
+                onClick: () => ctxMsg && handleStar(contextMenu.id, !ctxMsg.starred),
+              },
+              {
+                label: '읽지 않음으로',
+                onClick: () => {
+                  setMessages((prev) =>
+                    prev.map((m) => (m.id === contextMenu.id ? { ...m, read: false } : m))
+                  );
+                  adjustUnread(activeFolderId, 1);
+                  markRead(contextMenu.id, false).catch(() => {});
+                },
+              },
+              {
+                label: '삭제',
+                danger: true,
+                onClick: async () => {
+                  try {
+                    await deleteMessage(contextMenu.id);
+                    setMessages((prev) => prev.filter((m) => m.id !== contextMenu.id));
+                    if (selectedMessageId === contextMenu.id) setSelectedMessageId(null);
+                    addToast('메일을 삭제했습니다');
+                  } catch {
+                    addToast('삭제에 실패했습니다', 'error');
+                  }
+                },
+              },
+            ]}
+          />
+        );
+      })()}
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
