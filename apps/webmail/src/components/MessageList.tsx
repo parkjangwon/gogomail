@@ -64,6 +64,7 @@ interface MessageListProps {
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [sortAsc, setSortAsc] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -95,11 +96,15 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
   const clearAll = () => setBulkSelected(new Set());
 
-  const filteredMessages = filterMode === 'unread'
+  const baseFiltered = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
     : filterMode === 'starred'
     ? messages.filter((m) => m.starred)
     : messages;
+
+  const filteredMessages = sortAsc
+    ? [...baseFiltered].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+    : baseFiltered;
 
   const listWidth = isMobile ? { width: '100%', minWidth: 0 } : { width: '380px', minWidth: '380px' };
 
@@ -228,6 +233,22 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </button>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <button
+          aria-label={sortAsc ? '오래된순 정렬 중' : '최신순 정렬 중'}
+          title={sortAsc ? '오래된순 — 클릭하면 최신순' : '최신순 — 클릭하면 오래된순'}
+          onClick={() => setSortAsc((v) => !v)}
+          style={{
+            padding: '3px 8px',
+            borderRadius: '4px',
+            border: '1px solid var(--color-border-default)',
+            background: sortAsc ? 'var(--color-accent-subtle)' : 'transparent',
+            color: sortAsc ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          {sortAsc ? '↑ 오래된순' : '↓ 최신순'}
+        </button>
         {onMarkAllRead && messages.some((m) => !m.read) && (
           <button
             aria-label="모두 읽음으로 표시"
@@ -293,7 +314,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     groupMap.get(group)!.push(msg);
   }
 
-  for (const label of groupOrder) {
+  const groupOrderDisplay = sortAsc ? [...groupOrder].reverse() : groupOrder;
+
+  for (const label of groupOrderDisplay) {
     if (groupMap.has(label)) {
       groups.push({ label, messages: groupMap.get(label)! });
     }
@@ -301,7 +324,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   // Any remaining groups not in order
   for (const [label, msgs] of groupMap) {
-    if (!groupOrder.includes(label)) {
+    if (!groupOrderDisplay.includes(label)) {
       groups.push({ label, messages: msgs });
     }
   }
