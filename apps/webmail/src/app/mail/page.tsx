@@ -582,7 +582,7 @@ export default function MailPage() {
           searchQuery={searchResults !== null ? searchQuery : undefined}
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
-          onDeleteMessage={isMobile ? handleDeleteById : undefined}
+          onDeleteMessage={handleDeleteById}
         />
       )}
 
