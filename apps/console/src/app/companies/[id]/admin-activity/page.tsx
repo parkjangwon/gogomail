@@ -58,6 +58,7 @@ export default function AdminActivityPage() {
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState('');
   const [category, setCategory] = useState<SelectProps.Option>(CATEGORY_OPTIONS[0]);
   const [result, setResult] = useState<SelectProps.Option>(RESULT_OPTIONS[0]);
@@ -66,6 +67,7 @@ export default function AdminActivityPage() {
 
   const fetchLogs = async () => {
     setLoading(true);
+    setFetchError(false);
     try {
       const qs = new URLSearchParams({ limit: '200' });
       if (companyId) qs.set('company_id', companyId);
@@ -75,7 +77,11 @@ export default function AdminActivityPage() {
       if (res.ok) {
         const data = await res.json();
         setLogs(data.audit_logs || []);
+      } else {
+        setFetchError(true);
       }
+    } catch {
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -106,6 +112,19 @@ export default function AdminActivityPage() {
     return (
       <ContentLayout header={<Header variant="h1">Admin Activity Log</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
+      </ContentLayout>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <ContentLayout header={<Header variant="h1">Admin Activity Log</Header>}>
+        <Box textAlign="center" padding="xl">
+          <SpaceBetween size="m" alignItems="center">
+            <Box color="text-status-error">Failed to load audit logs. Check your connection or permissions.</Box>
+            <Button iconName="refresh" onClick={fetchLogs}>Retry</Button>
+          </SpaceBetween>
+        </Box>
       </ContentLayout>
     );
   }
