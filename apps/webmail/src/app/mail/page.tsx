@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { AdvancedFilters } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -490,6 +490,16 @@ export default function MailPage() {
           onBack={isMobile ? () => setSelectedMessageId(null) : undefined}
           isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
           onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
+          onQuickReply={selectedMessage ? async (body) => {
+            await sendMessage({
+              to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
+              subject: `Re: ${selectedMessage.subject || ''}`,
+              text_body: body,
+              intent: 'reply',
+              source_message_id: selectedMessage.id,
+            });
+            addToast('답장을 전송했습니다');
+          } : undefined}
         />
       )}
 
