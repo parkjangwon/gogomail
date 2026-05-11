@@ -19,6 +19,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface LogEntry {
   id: string;
@@ -32,21 +33,6 @@ interface LogEntry {
   created_at: string;
 }
 
-const STATUS_OPTIONS: SelectProps.Option[] = [
-  { label: 'All', value: '' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Queued', value: 'queued' },
-  { label: 'Bounced', value: 'bounced' },
-  { label: 'Rejected', value: 'rejected' },
-  { label: 'Spam', value: 'spam' },
-];
-
-const DIR_OPTIONS: SelectProps.Option[] = [
-  { label: 'All directions', value: '' },
-  { label: 'Inbound', value: 'inbound' },
-  { label: 'Outbound', value: 'outbound' },
-];
-
 const statusColor = (s: string) => {
   switch (s) {
     case 'delivered': return 'green';
@@ -59,8 +45,24 @@ const statusColor = (s: string) => {
 };
 
 export default function MessageTracePage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
+
+  const STATUS_OPTIONS: SelectProps.Option[] = [
+    { label: t('common.all'), value: '' },
+    { label: t('common.status_delivered'), value: 'delivered' },
+    { label: t('common.status_queued'), value: 'queued' },
+    { label: t('common.status_bounced'), value: 'bounced' },
+    { label: t('common.status_rejected'), value: 'rejected' },
+    { label: t('common.status_spam'), value: 'spam' },
+  ];
+
+  const DIR_OPTIONS: SelectProps.Option[] = [
+    { label: t('pages.flow_logs.direction'), value: '' },
+    { label: t('pages.flow_logs.direction_inbound'), value: 'inbound' },
+    { label: t('pages.flow_logs.direction_outbound'), value: 'outbound' },
+  ];
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,60 +133,71 @@ export default function MessageTracePage() {
     }
   };
 
+  const handleClear = () => {
+    setFromAddr('');
+    setToAddr('');
+    setSubject('');
+    setRfcMsgId('');
+    setSince('');
+    setUntil('');
+    setStatus(STATUS_OPTIONS[0]);
+    setDirection(DIR_OPTIONS[0]);
+  };
+
   return (
     <ContentLayout
       header={
-        <Header variant="h1" description="Search and trace individual email messages across the system.">
-          Message Trace
+        <Header variant="h1" description={t('pages.message_trace.description')}>
+          {t('pages.message_trace.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        <Container header={<Header variant="h2">Search Filters</Header>}>
+        <Container header={<Header variant="h2">{t('pages.message_trace.search_filters')}</Header>}>
           <Form
             actions={
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => { setFromAddr(''); setToAddr(''); setSubject(''); setRfcMsgId(''); setSince(''); setUntil(''); setStatus(STATUS_OPTIONS[0]); setDirection(DIR_OPTIONS[0]); }}>
-                  Clear
+                <Button onClick={handleClear}>
+                  {t('pages.message_trace.clear')}
                 </Button>
                 <Button variant="primary" onClick={handleSearch} loading={loading}>
-                  Search
+                  {t('pages.message_trace.search')}
                 </Button>
               </SpaceBetween>
             }
           >
             <SpaceBetween size="m">
               <ColumnLayout columns={2}>
-                <FormField label="From">
-                  <Input value={fromAddr} onChange={e => setFromAddr(e.detail.value)} placeholder="sender@example.com" />
+                <FormField label={t('pages.message_trace.from')}>
+                  <Input value={fromAddr} onChange={e => setFromAddr(e.detail.value)} placeholder={t('pages.message_trace.from_placeholder')} />
                 </FormField>
-                <FormField label="To">
-                  <Input value={toAddr} onChange={e => setToAddr(e.detail.value)} placeholder="recipient@example.com" />
+                <FormField label={t('pages.message_trace.to')}>
+                  <Input value={toAddr} onChange={e => setToAddr(e.detail.value)} placeholder={t('pages.message_trace.to_placeholder')} />
                 </FormField>
-                <FormField label="Subject">
-                  <Input value={subject} onChange={e => setSubject(e.detail.value)} placeholder="Partial subject match" />
+                <FormField label={t('pages.message_trace.subject')}>
+                  <Input value={subject} onChange={e => setSubject(e.detail.value)} placeholder={t('pages.message_trace.subject_placeholder')} />
                 </FormField>
-                <FormField label="Message ID">
+                <FormField label={t('pages.message_trace.message_id')}>
                   <Input value={rfcMsgId} onChange={e => setRfcMsgId(e.detail.value)} placeholder="<msg-id@domain>" />
                 </FormField>
-                <FormField label="Status">
+                <FormField label={t('pages.message_trace.status')}>
                   <Select
                     selectedOption={status}
                     options={STATUS_OPTIONS}
                     onChange={e => setStatus(e.detail.selectedOption)}
                   />
                 </FormField>
-                <FormField label="Direction">
+                <FormField label={t('pages.message_trace.direction')}>
                   <Select
                     selectedOption={direction}
                     options={DIR_OPTIONS}
                     onChange={e => setDirection(e.detail.selectedOption)}
                   />
                 </FormField>
-                <FormField label="Since (ISO 8601)">
+                <FormField label={t('pages.message_trace.since')}>
                   <Input value={since} onChange={e => setSince(e.detail.value)} placeholder="2024-01-01T00:00:00Z" />
                 </FormField>
-                <FormField label="Until (ISO 8601)">
+                <FormField label={t('pages.message_trace.until')}>
                   <Input value={until} onChange={e => setUntil(e.detail.value)} placeholder="2024-12-31T23:59:59Z" />
                 </FormField>
               </ColumnLayout>
@@ -196,7 +209,7 @@ export default function MessageTracePage() {
           <Table
             columnDefinitions={[
               {
-                header: 'From / To',
+                header: t('pages.message_trace.from_to'),
                 cell: (item: LogEntry) => (
                   <SpaceBetween size="xxxs">
                     <Box fontWeight="bold" fontSize="body-s">{item.from_addr}</Box>
@@ -206,30 +219,30 @@ export default function MessageTracePage() {
                 width: '25%',
               },
               {
-                header: 'Subject',
+                header: t('pages.message_trace.subject'),
                 cell: (item: LogEntry) => (
                   <Box fontSize="body-s" color={item.subject ? undefined : 'text-body-secondary'}>
-                    {item.subject || '(no subject)'}
+                    {item.subject || t('pages.message_trace.no_subject')}
                   </Box>
                 ),
                 width: '25%',
               },
               {
-                header: 'Status',
+                header: t('pages.message_trace.status'),
                 cell: (item: LogEntry) => (
                   <Badge color={statusColor(item.flow_status)}>{item.flow_status}</Badge>
                 ),
                 width: '12%',
               },
               {
-                header: 'Direction',
+                header: t('pages.message_trace.direction'),
                 cell: (item: LogEntry) => (
                   <Badge color={item.direction === 'inbound' ? 'blue' : 'grey'}>{item.direction}</Badge>
                 ),
                 width: '12%',
               },
               {
-                header: 'Time',
+                header: t('pages.message_trace.time'),
                 cell: (item: LogEntry) => (
                   <Box fontSize="body-s" color="text-body-secondary">
                     {item.created_at ? new Date(item.created_at).toLocaleString() : '—'}
@@ -238,7 +251,7 @@ export default function MessageTracePage() {
                 width: '16%',
               },
               {
-                header: 'Message ID',
+                header: t('pages.message_trace.message_id'),
                 cell: (item: LogEntry) => (
                   <Box fontSize="body-s" color="text-body-secondary">
                     {item.rfc_message_id || item.message_id || '—'}
@@ -249,7 +262,7 @@ export default function MessageTracePage() {
             ]}
             items={loading ? [] : logs}
             loading={loading}
-            loadingText="Searching..."
+            loadingText={t('pages.message_trace.searching')}
             selectionType="single"
             selectedItems={selected}
             onSelectionChange={e => setSelected(e.detail.selectedItems)}
@@ -260,25 +273,25 @@ export default function MessageTracePage() {
                 actions={
                   logs.length > 0 ? (
                     <Button iconName="download" onClick={handleExportCSV}>
-                      Export CSV
+                      {t('pages.message_trace.export_csv')}
                     </Button>
                   ) : undefined
                 }
               >
-                Results
+                {t('pages.message_trace.results')}
               </Header>
             }
             empty={
               searchError ? (
                 <Box textAlign="center" padding="l">
                   <SpaceBetween size="s" alignItems="center">
-                    <Box color="text-status-error">Search failed. Check filters or try again.</Box>
-                    <Button iconName="refresh" onClick={handleSearch} loading={loading}>Retry</Button>
+                    <Box color="text-status-error">{t('pages.message_trace.search_failed')}</Box>
+                    <Button iconName="refresh" onClick={handleSearch} loading={loading}>{t('pages.message_trace.retry')}</Button>
                   </SpaceBetween>
                 </Box>
               ) : (
                 <Box textAlign="center" padding="l" color="text-body-secondary">
-                  {searched ? 'No messages found for these filters.' : 'Enter filters and click Search.'}
+                  {searched ? t('pages.message_trace.no_messages') : t('pages.message_trace.enter_filters')}
                 </Box>
               )
             }
@@ -286,17 +299,17 @@ export default function MessageTracePage() {
         )}
 
         {selected.length > 0 && (
-          <ExpandableSection headerText={`Detail: ${selected[0].rfc_message_id || selected[0].id}`} defaultExpanded>
+          <ExpandableSection headerText={`${t('pages.message_trace.detail')}: ${selected[0].rfc_message_id || selected[0].id}`} defaultExpanded>
             <SpaceBetween size="s">
               {([
-                ['Internal ID', selected[0].id],
-                ['RFC Message ID', selected[0].rfc_message_id],
-                ['From', selected[0].from_addr],
-                ['To', selected[0].to_addr],
-                ['Subject', selected[0].subject],
-                ['Status', selected[0].flow_status],
-                ['Direction', selected[0].direction],
-                ['Received', selected[0].created_at ? new Date(selected[0].created_at).toISOString() : '—'],
+                [t('pages.message_trace.internal_id'), selected[0].id],
+                [t('pages.message_trace.rfc_message_id'), selected[0].rfc_message_id],
+                [t('pages.message_trace.from'), selected[0].from_addr],
+                [t('pages.message_trace.to'), selected[0].to_addr],
+                [t('pages.message_trace.subject'), selected[0].subject],
+                [t('pages.message_trace.status'), selected[0].flow_status],
+                [t('pages.message_trace.direction'), selected[0].direction],
+                [t('pages.message_trace.received'), selected[0].created_at ? new Date(selected[0].created_at).toISOString() : '—'],
               ] as [string, string][]).map(([label, value]) => (
                 <ColumnLayout key={label} columns={2} variant="text-grid">
                   <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{label}</Box>
@@ -310,4 +323,3 @@ export default function MessageTracePage() {
     </ContentLayout>
   );
 }
-
