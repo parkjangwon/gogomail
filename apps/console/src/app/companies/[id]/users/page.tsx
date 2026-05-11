@@ -19,9 +19,11 @@ import {
   StatusIndicator,
   Alert,
   CopyToClipboard,
+  Flashbar,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useParams } from 'next/navigation';
 
 interface User {
   id: string;
@@ -51,11 +53,21 @@ const STATUS_COLORS: Record<string, 'green' | 'red' | 'grey' | 'blue'> = {
 
 export default function UsersPage() {
   const { t } = useI18n();
+  const params = useParams();
+  const companyId = params?.id as string;
+
   const [users, setUsers] = useState<User[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Bulk import/export state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ total: number; success: number; failed: number; failures: Array<{ email: string; error: string }> } | null>(null);
+  const [flashItems, setFlashItems] = useState<Array<{ type: 'success' | 'error' | 'info'; content: string; id: string; dismissible: boolean; onDismiss: () => void }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
@@ -240,6 +252,69 @@ export default function UsersPage() {
     });
   };
 
+  const addFlash = (type: 'success' | 'error' | 'info', content: string) => {
+    const id = Date.now().toString();
+    setFlashItems(prev => [...prev, { type, content, id, dismissible: true, onDismiss: () => setFlashItems(f => f.filter(i => i.id !== id)) }]);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const res = await fetch(`/api/admin/companies/${companyId}/users/bulk-export`, { credentials: 'include' });
+      if (!res.ok) {
+        addFlash('error', 'Export failed');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users-export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      addFlash('error', 'Export failed');
+    }
+  };
+
+  const handleImportCSV = async (file: File) => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const text = await file.text();
+      const lines = text.trim().split('\n').filter(Boolean);
+      const usersToImport = lines.map(line => {
+        const cols = line.split(',');
+        return {
+          email: (cols[0] ?? '').trim(),
+          display_name: (cols[1] ?? '').trim(),
+          domain_id: (cols[2] ?? '').trim(),
+          password: (cols[3] ?? '').trim(),
+        };
+      }).filter(u => u.email);
+
+      const res = await fetch(`/api/admin/companies/${companyId}/users/bulk-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: usersToImport }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setImportResult(data);
+        if (data.success > 0) {
+          fetchUsers();
+        }
+      } else {
+        addFlash('error', 'Import failed');
+      }
+    } catch {
+      addFlash('error', 'Import failed');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const statusOptions = [
     { label: t('pages.users_page.all_statuses'), value: '' },
     { label: t('pages.users_page.active'), value: 'active' },
@@ -289,13 +364,21 @@ export default function UsersPage() {
           variant="h1"
           counter={`(${totalUsers})`}
           actions={
-            <Button variant="primary" onClick={() => {
-              setShowCreateModal(true);
-              setCreateError('');
-              setInviteLink('');
-            }}>
-              {t('pages.users_page.create_user_btn')}
-            </Button>
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={handleExportCSV}>
+                {t('pages.users_page.users_bulk.export_btn')}
+              </Button>
+              <Button onClick={() => { setShowImportModal(true); setImportResult(null); }}>
+                {t('pages.users_page.users_bulk.import_btn')}
+              </Button>
+              <Button variant="primary" onClick={() => {
+                setShowCreateModal(true);
+                setCreateError('');
+                setInviteLink('');
+              }}>
+                {t('pages.users_page.create_user_btn')}
+              </Button>
+            </SpaceBetween>
           }
         >
           {t('pages.users_page.title')}
@@ -303,6 +386,8 @@ export default function UsersPage() {
       }
     >
       <SpaceBetween size="l">
+        {flashItems.length > 0 && <Flashbar items={flashItems} />}
+
         {/* KPI Summary */}
         <ColumnLayout columns={3} variant="text-grid" minColumnWidth={140}>
           <Container>
@@ -591,6 +676,63 @@ export default function UsersPage() {
               onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
             />
           </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* Import CSV Modal */}
+      <Modal
+        onDismiss={() => { setShowImportModal(false); setImportResult(null); }}
+        visible={showImportModal}
+        size="medium"
+        header={t('pages.users_page.users_bulk.import_modal')}
+        footer={
+          <Box float="right">
+            <Button onClick={() => { setShowImportModal(false); setImportResult(null); }}>
+              {t('pages.users_page.users_bulk.close')}
+            </Button>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <Alert type="info">
+            {t('pages.users_page.users_bulk.format_hint')}
+          </Alert>
+
+          {!importResult && (
+            <FormField label={t('pages.users_page.users_bulk.drop_or_click')}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                style={{ display: 'block' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImportCSV(file);
+                }}
+              />
+              {importing && <Box padding={{ top: 's' }}><Spinner /> {t('pages.users_page.users_bulk.importing')}</Box>}
+            </FormField>
+          )}
+
+          {importResult && (
+            <SpaceBetween size="s">
+              <Alert type={importResult.failed === 0 ? 'success' : 'warning'}>
+                {t('pages.users_page.users_bulk.success_count').replace('{n}', String(importResult.success))}
+                {importResult.failed > 0 && (
+                  <> &mdash; {t('pages.users_page.users_bulk.failed_count').replace('{n}', String(importResult.failed))}</>
+                )}
+              </Alert>
+              {importResult.failures && importResult.failures.length > 0 && (
+                <Alert type="error" header={t('pages.users_page.users_bulk.import_result')}>
+                  <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+                    {importResult.failures.map((f, i) => (
+                      <li key={i}><strong>{f.email}</strong>: {f.error}</li>
+                    ))}
+                  </ul>
+                </Alert>
+              )}
+            </SpaceBetween>
+          )}
         </SpaceBetween>
       </Modal>
     </ContentLayout>

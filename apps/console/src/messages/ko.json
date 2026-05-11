@@ -1968,7 +1968,19 @@
       "select_domain": "도메인 선택",
       "tab_active": "활성",
       "tab_all": "전체",
-      "tab_suspended": "정지"
+      "tab_suspended": "정지",
+      "users_bulk": {
+        "import_btn": "CSV 가져오기",
+        "export_btn": "CSV 내보내기",
+        "import_modal": "CSV로 사용자 가져오기",
+        "format_hint": "CSV 형식: email,display_name,domain_id,password (헤더 없이 한 줄씩)",
+        "drop_or_click": "CSV 파일을 드래그하거나 클릭하여 업로드",
+        "import_result": "가져오기 결과",
+        "success_count": "{n}명의 사용자가 성공적으로 생성되었습니다",
+        "failed_count": "{n}명 실패",
+        "importing": "가져오는 중...",
+        "close": "닫기"
+      }
     },
     "security": {
       "mfa": "2단계 인증 (MFA)"

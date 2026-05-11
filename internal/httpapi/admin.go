@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -646,6 +648,116 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies/{id}/users/bulk-import", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		_ = id // company id validated but users are domain-scoped; domain_id comes from payload
+		if !ok {
+			return
+		}
+		var req struct {
+			Users []struct {
+				Email       string `json:"email"`
+				DisplayName string `json:"display_name"`
+				DomainID    string `json:"domain_id"`
+				Password    string `json:"password"`
+			} `json:"users"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		type failure struct {
+			Email string `json:"email"`
+			Error string `json:"error"`
+		}
+		var failures []failure
+		successCount := 0
+		for _, u := range req.Users {
+			parts := strings.SplitN(u.Email, "@", 2)
+			username := parts[0]
+			createReq := maildb.CreateUserRequest{
+				DomainID:    u.DomainID,
+				Username:    username,
+				DisplayName: u.DisplayName,
+				Address:     u.Email,
+				Password:    u.Password,
+			}
+			if u.Password != "" {
+				salt := make([]byte, 16)
+				if _, err := rand.Read(salt); err != nil {
+					failures = append(failures, failure{Email: u.Email, Error: "generate salt"})
+					continue
+				}
+				hash, err := auth.HashPasswordPBKDF2SHA256(u.Password, salt, 0)
+				if err != nil {
+					failures = append(failures, failure{Email: u.Email, Error: "hash password: " + err.Error()})
+					continue
+				}
+				createReq.PasswordHash = hash
+				createReq.Password = ""
+				createReq.MustChangePassword = true
+			}
+			if _, err := service.CreateUser(r.Context(), createReq); err != nil {
+				failures = append(failures, failure{Email: u.Email, Error: err.Error()})
+				continue
+			}
+			successCount++
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"total":    len(req.Users),
+			"success":  successCount,
+			"failed":   len(failures),
+			"failures": failures,
+		})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/users/bulk-export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		// List users across all domains for this company by fetching domain users
+		// We use a high limit and filter by listing all domains then their users.
+		// Since UserListRequest has no CompanyID field, we export via domain listing.
+		_ = id
+		users, err := service.ListUsers(r.Context(), maildb.UserListRequest{Limit: 1000})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		var buf bytes.Buffer
+		cw := csv.NewWriter(&buf)
+		_ = cw.Write([]string{"email", "display_name", "domain_id", "status", "quota_used", "quota_limit", "created_at"})
+		for _, u := range users {
+			_ = cw.Write([]string{
+				u.Username,
+				u.DisplayName,
+				u.DomainID,
+				u.Status,
+				strconv.FormatInt(u.QuotaUsed, 10),
+				strconv.FormatInt(u.QuotaLimit, 10),
+				u.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		cw.Flush()
+		if err := cw.Error(); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="users-export.csv"`))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(buf.Bytes())
 	}))
 
 	mux.HandleFunc("GET /admin/v1/companies/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {

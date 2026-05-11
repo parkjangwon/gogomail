@@ -1110,7 +1110,19 @@
       "total_label": "总计",
       "user_list": "用户列表",
       "username": "用户名",
-      "username_label": "用户名"
+      "username_label": "用户名",
+      "users_bulk": {
+        "import_btn": "导入CSV",
+        "export_btn": "导出CSV",
+        "import_modal": "从CSV导入用户",
+        "format_hint": "CSV格式: email,display_name,domain_id,password（无标题行，每行一条）",
+        "drop_or_click": "拖放CSV文件或点击上传",
+        "import_result": "导入结果",
+        "success_count": "成功创建{n}个用户",
+        "failed_count": "{n}个失败",
+        "importing": "导入中...",
+        "close": "关闭"
+      }
     }
   },
   "buttons": {

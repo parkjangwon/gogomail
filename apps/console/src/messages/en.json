@@ -1128,7 +1128,19 @@
       "total_label": "Total",
       "user_list": "User List",
       "username": "Username",
-      "username_label": "Username"
+      "username_label": "Username",
+      "users_bulk": {
+        "import_btn": "Import CSV",
+        "export_btn": "Export CSV",
+        "import_modal": "Import Users from CSV",
+        "format_hint": "CSV format: email,display_name,domain_id,password (one per row, no header)",
+        "drop_or_click": "Drop CSV file or click to upload",
+        "import_result": "Import Result",
+        "success_count": "{n} users created successfully",
+        "failed_count": "{n} users failed",
+        "importing": "Importing...",
+        "close": "Close"
+      }
     }
   },
   "buttons": {
