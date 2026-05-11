@@ -74,7 +74,16 @@ function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
       });
       ref.current.innerHTML = clean;
-      // Remove tracking pixels: 1×1 images or known tracker domains
+      // Rewrite external img src through image proxy (hides user IP/Referer from sender)
+      if (showImages) {
+        ref.current.querySelectorAll('img[src]').forEach((img) => {
+          const src = img.getAttribute('src') ?? '';
+          if (src.startsWith('http://') || src.startsWith('https://')) {
+            img.setAttribute('src', `/api/image-proxy?url=${encodeURIComponent(src)}`);
+          }
+        });
+      }
+      // Remove tracking pixels after proxy rewrite (check original-like patterns in proxied url)
       if (blockTrackingPixels && showImages) {
         ref.current.querySelectorAll('img').forEach((img) => {
           const w = img.getAttribute('width'); const h = img.getAttribute('height');
@@ -84,12 +93,20 @@ function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string
           if (isPixel || isTracker) img.remove();
         });
       }
-      ref.current.querySelectorAll('a[href^="mailto:"]').forEach((a) => {
-        (a as HTMLAnchorElement).addEventListener('click', (e) => {
-          e.preventDefault();
-          const addr = (a as HTMLAnchorElement).href.replace(/^mailto:/i, '').split('?')[0];
-          onMailto?.(addr);
-        });
+      // Ensure all external links have rel="noopener noreferrer" and open in new tab
+      ref.current.querySelectorAll('a[href]').forEach((el) => {
+        const a = el as HTMLAnchorElement;
+        const href = a.getAttribute('href') ?? '';
+        if (href.startsWith('mailto:')) {
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
+            const addr = href.replace(/^mailto:/i, '').split('?')[0];
+            onMailto?.(addr);
+          });
+        } else if (href.startsWith('http://') || href.startsWith('https://')) {
+          a.setAttribute('rel', 'noopener noreferrer');
+          a.setAttribute('target', '_blank');
+        }
       });
       // Collapse blockquotes when not showing quoted text
       if (hasQuoted && !showQuoted) {
