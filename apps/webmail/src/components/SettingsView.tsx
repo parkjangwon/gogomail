@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { revokeAllSessions } from '@/lib/api';
 
 interface SettingsViewProps {
   userEmail?: string;
@@ -62,8 +64,10 @@ const ACCENT_COLORS = [
 ];
 
 export function SettingsView({ userEmail, userName }: SettingsViewProps) {
+  const router = useRouter();
   const [signature, setSignature] = useState('');
   const [sigSaved, setSigSaved] = useState(false);
+  const [revokingAll, setRevokingAll] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [accent, setAccent] = useState('#2563eb');
   const [compact, setCompact] = useState(false);
@@ -121,6 +125,19 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   function applyConvMode(v: boolean) {
     setConvMode(v);
     try { localStorage.setItem('webmail_conv_mode', v ? '1' : '0'); } catch { /* ignore */ }
+  }
+
+  async function handleRevokeAll() {
+    if (!window.confirm('모든 기기에서 로그아웃하시겠습니까? 현재 세션도 종료됩니다.')) return;
+    setRevokingAll(true);
+    const ok = await revokeAllSessions();
+    if (ok) {
+      try { localStorage.removeItem('webmail_token'); localStorage.removeItem('webmail_email'); } catch { /* ignore */ }
+      router.push('/login');
+    } else {
+      setRevokingAll(false);
+      window.alert('세션 취소에 실패했습니다. 다시 시도해 주세요.');
+    }
   }
 
   async function requestNotif() {
@@ -267,6 +284,24 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 허용하기
               </button>
             )}
+          </SettingRow>
+        </section>
+
+        {/* Security */}
+        <section style={{ marginBottom: '32px' }}>
+          <SectionTitle>보안</SectionTitle>
+          <SettingRow
+            label="모든 기기에서 로그아웃"
+            description="현재 기기를 포함한 모든 활성 세션을 종료합니다"
+          >
+            <button
+              onClick={handleRevokeAll}
+              disabled={revokingAll}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.4)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: revokingAll ? 'wait' : 'pointer', fontWeight: 500 }}
+            >
+              <ExclamationTriangleIcon style={{ width: '14px', height: '14px' }} />
+              {revokingAll ? '처리 중...' : '전체 로그아웃'}
+            </button>
           </SettingRow>
         </section>
 

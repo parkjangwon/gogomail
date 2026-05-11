@@ -147,6 +147,16 @@ export async function loginUser(
   return res.json() as Promise<AuthTokenResponse>;
 }
 
+export async function revokeAllSessions(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/mail/auth/sessions/revoke-all', {
+      method: 'POST',
+      headers: driveHeaders(),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
   const search = params ? '?' + new URLSearchParams(params).toString() : '';
   return request<T>(`${path}${search}`, { method: 'GET' });
