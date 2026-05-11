@@ -133,6 +133,8 @@ interface ReadingPaneProps {
   onRestore?: () => void;
   onSnooze?: (messageId: string, until: Date) => void;
   onOpenInWindow?: () => void;
+  onToggleRead?: () => void;
+  isRead?: boolean;
   threadMessages?: MessageSummary[];
   onSelectThread?: (id: string) => void;
   userEmail?: string;
@@ -191,6 +193,8 @@ export function ReadingPane({
   onRestore,
   onSnooze,
   onOpenInWindow,
+  onToggleRead,
+  isRead,
   threadMessages,
   onSelectThread,
   userEmail,
@@ -558,6 +562,14 @@ export function ReadingPane({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >인쇄</button>
+              )}
+              {/* Toggle read */}
+              {onToggleRead && (
+                <button onClick={() => { onToggleRead(); setShowMoreMenu(false); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >{isRead ? '안읽음으로 표시' : '읽음으로 표시'}</button>
               )}
               {/* Spam / Not Spam / Restore */}
               {(onSpam || onNotSpam || onRestore) && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />}

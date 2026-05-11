@@ -1215,6 +1215,8 @@ export default function MailPage() {
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
                 onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
+                onToggleRead={selectedMessageId ? () => { const m = messages.find((x) => x.id === selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
+                isRead={messages.find((m) => m.id === selectedMessageId)?.read}
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
                 userEmail={userEmail || undefined}
