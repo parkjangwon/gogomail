@@ -94,6 +94,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   if (loading) {
     return (
       <div
+        data-print="hide"
         style={{
           ...listWidth,
           height: '100%',
@@ -222,7 +223,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   if (filteredMessages.length === 0) {
     return (
-      <div style={{ ...listWidth, height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
+      <div data-print="hide" style={{ ...listWidth, height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
         {filterTabs}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
           {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
@@ -257,6 +258,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   return (
     <div
+      data-print="hide"
       style={{
         ...listWidth,
         height: '100%',

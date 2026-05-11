@@ -209,6 +209,9 @@ export default function MailPage() {
         case 'c':
           if (!composeContext) { e.preventDefault(); setComposeContext({ intent: 'new' }); }
           break;
+        case 'u':
+          if (selectedMessageId && !composeContext) handleMarkUnread();
+          break;
         case 'r':
           if (selectedMessage && !composeContext) {
             e.preventDefault();

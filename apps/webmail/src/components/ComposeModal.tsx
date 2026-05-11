@@ -236,7 +236,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <form
+          onSubmit={handleSend}
+          onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSend(e); } }}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
+        >
 
           {/* To */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>

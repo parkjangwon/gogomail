@@ -109,3 +109,37 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+@media print {
+  /* Hide navigation and list, show only message content */
+  aside[aria-label="메일 탐색"],
+  [data-print="hide"],
+  [role="dialog"],
+  [role="status"] {
+    display: none !important;
+  }
+
+  body,
+  main[aria-label="메일 읽기"] {
+    background: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main[aria-label="메일 읽기"] {
+    flex: 1;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Hide reading pane toolbar, show only content */
+  main[aria-label="메일 읽기"] > div:first-child {
+    display: none !important;
+  }
+
+  a {
+    text-decoration: underline;
+    color: inherit;
+  }
+}
