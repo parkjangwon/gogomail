@@ -18,7 +18,7 @@ import { ContextMenu } from '@/components/ContextMenu';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { SearchBar } from '@/components/SearchBar';
 import { AppIconBar, AppId } from '@/components/AppIconBar';
-import { CalendarPlaceholder } from '@/components/CalendarPlaceholder';
+import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
 import { OrgChartPlaceholder } from '@/components/OrgChartPlaceholder';
 
@@ -1007,7 +1007,7 @@ export default function MailPage() {
           </div>{/* end mail layout wrapper */}
         </>
       ) : activeApp === 'calendar' ? (
-        <CalendarPlaceholder />
+        <CalendarView />
       ) : activeApp === 'contacts' ? (
         <ContactsView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
       ) : (
