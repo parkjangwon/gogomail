@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_ALL, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED, VIRTUAL_IMPORTANT, VIRTUAL_TASKS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -173,6 +173,20 @@ export default function MailPage() {
           const pinned: string[] = JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]');
           const pinnedSet = new Set(pinned);
           msgs = msgs.filter((m) => pinnedSet.has(m.id));
+        } catch { /* ignore */ }
+      }
+      if (activeFolderId === VIRTUAL_IMPORTANT) {
+        try {
+          const important: string[] = JSON.parse(localStorage.getItem('webmail_important') ?? '[]');
+          const importantSet = new Set(important);
+          msgs = msgs.filter((m) => importantSet.has(m.id));
+        } catch { /* ignore */ }
+      }
+      if (activeFolderId === VIRTUAL_TASKS) {
+        try {
+          const tasks: { messageId: string }[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
+          const taskIds = new Set(tasks.map((t) => t.messageId));
+          msgs = msgs.filter((m) => taskIds.has(m.id));
         } catch { /* ignore */ }
       }
       setMessages(msgs);
