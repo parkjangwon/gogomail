@@ -89,6 +89,7 @@ export function SpotlightSearch({
 }: SpotlightSearchProps) {
   const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<'all' | 'mail' | 'contacts' | 'folders' | 'commands'>('all');
   const [items, setItems] = useState<SpotlightItem[]>([]);
   const [selIdx, setSelIdx] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -179,6 +180,9 @@ export function SpotlightSearch({
     try { return JSON.parse(localStorage.getItem(recentSearchKey) ?? '[]').slice(0, 4) as string[]; } catch { return []; }
   })();
 
+  // Reset scope when query changes
+  useEffect(() => { setScope('all'); }, [query]);
+
   // Update items based on query
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -247,18 +251,29 @@ export function SpotlightSearch({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query, buildQuickActions, buildContactItems, buildTemplateItems, onSelectMessage, onSearch, onClose, isMoveMode]);
 
+  // Apply scope filter to items
+  const scopeTypeMap: Record<typeof scope, SpotlightItem['type'][] | null> = {
+    all: null,
+    mail: ['mail'],
+    contacts: ['contact'],
+    folders: ['folder'],
+    commands: ['action', 'template'],
+  };
+  const allowedTypes = scopeTypeMap[scope];
+  const visibleItems = allowedTypes ? items.filter((i) => allowedTypes.includes(i.type)) : items;
+
   // Keyboard navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSelIdx((i) => Math.min(i + 1, items.length - 1)); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelIdx((i) => Math.min(i + 1, visibleItems.length - 1)); }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelIdx((i) => Math.max(i - 1, 0)); }
-      if (e.key === 'Enter') { e.preventDefault(); items[selIdx]?.onSelect(); }
+      if (e.key === 'Enter') { e.preventDefault(); visibleItems[selIdx]?.onSelect(); }
       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-      if (e.key === 'Tab') { e.preventDefault(); setSelIdx((i) => (e.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, items.length - 1))); }
+      if (e.key === 'Tab') { e.preventDefault(); setSelIdx((i) => (e.shiftKey ? Math.max(i - 1, 0) : Math.min(i + 1, visibleItems.length - 1))); }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [items, selIdx, onClose]);
+  }, [visibleItems, selIdx, onClose]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -273,7 +288,7 @@ export function SpotlightSearch({
   const grouped: { label: string; items: (SpotlightItem & { idx: number })[] }[] = [];
   let globalIdx = 0;
   const seen = new Set<string>();
-  for (const item of items) {
+  for (const item of visibleItems) {
     if (!seen.has(item.type)) {
       seen.add(item.type);
       grouped.push({ label: sectionLabel(item.type), items: [] });
@@ -343,6 +358,24 @@ export function SpotlightSearch({
           <kbd style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border-default)', flexShrink: 0 }}>Esc</kbd>
         </div>
 
+        {/* Scope filter chips */}
+        {!isMoveMode && (
+          <div style={{ display: 'flex', gap: '6px', padding: '6px 16px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+            {(['all', 'mail', 'contacts', 'folders', 'commands'] as const).map((s) => {
+              const labels: Record<typeof s, string> = { all: '전체', mail: '메일', contacts: '연락처', folders: '편지함', commands: '명령' };
+              return (
+                <button key={s} type="button" onClick={() => setScope(s)}
+                  style={{ padding: '3px 10px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
+                    background: scope === s ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                    color: scope === s ? '#fff' : 'var(--color-text-secondary)',
+                  }}>
+                  {labels[s]}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Active operator chips */}
         {activeOperators.length > 0 && !isMoveMode && (
           <div style={{ display: 'flex', gap: '6px', padding: '4px 18px', flexWrap: 'wrap' }}>
@@ -375,7 +408,7 @@ export function SpotlightSearch({
 
         {/* Results */}
         <div ref={listRef} style={{ maxHeight: '420px', overflowY: 'auto', padding: '8px 12px 12px' }}>
-          {items.length === 0 && query && !searching && (
+          {visibleItems.length === 0 && query && !searching && (
             <div style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--color-text-tertiary)' }}>
               결과가 없습니다
             </div>

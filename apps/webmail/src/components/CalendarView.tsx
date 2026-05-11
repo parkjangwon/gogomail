@@ -914,7 +914,7 @@ export function CalendarView() {
               fontWeight: 500,
             }}
           >
-            + 이벤트
+            + 새 일정
           </button>
 
           {/* View toggle */}
@@ -989,7 +989,7 @@ export function CalendarView() {
           onClick={() => !createSaving && setShowCreateModal(false)}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px 28px', width: '440px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>새 이벤트</div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>새 일정</div>
 
             {/* Title */}
             <input autoFocus type="text" placeholder="제목 (필수)" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)}

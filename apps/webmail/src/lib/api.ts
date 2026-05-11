@@ -438,6 +438,26 @@ export async function listAddressBooks(): Promise<AddressBook[]> {
   } catch { return []; }
 }
 
+export async function createAddressBook(name: string, description = ''): Promise<AddressBook> {
+  const data = await request<{ address_book: AddressBook }>('addressbooks', {
+    method: 'POST',
+    body: JSON.stringify({ name, description }),
+  });
+  return data.address_book;
+}
+
+export async function renameAddressBook(id: string, name: string): Promise<AddressBook> {
+  const data = await request<{ address_book: AddressBook }>(`addressbooks/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+  return data.address_book;
+}
+
+export async function deleteAddressBook(id: string): Promise<void> {
+  await request<void>(`addressbooks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export async function listContacts(addressBookId: string): Promise<ContactObject[]> {
   try {
     const data = await request<{ contacts?: ContactObject[] }>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts`);
