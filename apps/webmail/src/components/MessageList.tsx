@@ -84,6 +84,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [compact, setCompact] = useState(() => {
+    try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
+  });
   const lastBulkIndexRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -292,7 +295,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         );
       })}
       <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
-        {filteredMessages.length}개
+        {filterMode !== 'all' ? `${filteredMessages.length} / ${messages.length}개` : `${filteredMessages.length}개`}
       </span>
       {filteredMessages.some((m) => !m.read) && (
         <button
@@ -324,6 +327,14 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </button>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <button
+          aria-label={compact ? '넓은 보기' : '촘촘한 보기'}
+          title={compact ? '넓은 보기' : '촘촘한 보기'}
+          onClick={() => { const next = !compact; setCompact(next); try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ } }}
+          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: compact ? 'var(--color-accent-subtle)' : 'transparent', color: compact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
+        >
+          {compact ? '≡' : '☰'}
+        </button>
         <button
           aria-label={sortAsc ? '오래된순 정렬 중' : '최신순 정렬 중'}
           title={sortAsc ? '오래된순 — 클릭하면 최신순' : '최신순 — 클릭하면 오래된순'}
@@ -467,6 +478,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onToggleBulk={toggleBulk}
               onContextMenu={onContextMenuMessage}
               searchQuery={searchQuery}
+              compact={compact}
             />
           ))}
         </div>
@@ -492,9 +504,10 @@ interface MessageRowProps {
   onToggleBulk: (id: string, shiftKey?: boolean) => void;
   onContextMenu?: (id: string, x: number, y: number) => void;
   searchQuery?: string;
+  compact?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
 
@@ -518,7 +531,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
         display: 'flex',
         alignItems: 'flex-start',
         gap: '8px',
-        padding: '12px 16px',
+        padding: compact ? '5px 16px' : '12px 16px',
         borderBottom: '1px solid var(--color-border-subtle)',
         background: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
         cursor: 'pointer',
@@ -602,7 +615,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             <span style={{ fontWeight: isUnread ? 600 : 400 }}>
               {highlight(message.subject || '(제목 없음)', q)}
             </span>
-            {message.preview && (
+            {!compact && message.preview && (
               <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
                 {' · '}{highlight(message.preview, q)}
               </span>
