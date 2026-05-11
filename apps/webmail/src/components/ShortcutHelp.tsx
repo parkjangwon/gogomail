@@ -13,6 +13,7 @@ const SHORTCUTS = [
   { key: 'g i', desc: '받은 편지함으로' },
   { key: 'g s', desc: '보낸 편지함으로' },
   { key: 'g d', desc: '임시 보관함으로' },
+  { key: 'g a', desc: '아카이브 폴더로' },
   { key: 'g u', desc: '첫 번째 읽지 않은 메일로 이동' },
   { key: '/', desc: '검색창 포커스' },
   { key: '[', desc: '사이드바 접기 / 펼치기' },
