@@ -64,6 +64,7 @@ export default function MessageTracePage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   const [fromAddr, setFromAddr] = useState('');
   const [toAddr, setToAddr] = useState('');
@@ -103,6 +104,7 @@ export default function MessageTracePage() {
   const handleSearch = async () => {
     setLoading(true);
     setSearched(true);
+    setSearchError(false);
     try {
       const qs = new URLSearchParams({ company_id: companyId, limit: '100' });
       if (fromAddr) qs.set('from_addr', fromAddr);
@@ -118,9 +120,11 @@ export default function MessageTracePage() {
       if (res.ok) {
         const data = await res.json();
         setLogs(data.mail_flow_logs || []);
+      } else {
+        setSearchError(true);
       }
-    } catch (e) {
-      console.error('Message trace failed:', e);
+    } catch {
+      setSearchError(true);
     } finally {
       setLoading(false);
     }
@@ -264,9 +268,18 @@ export default function MessageTracePage() {
               </Header>
             }
             empty={
-              <Box textAlign="center" padding="l" color="text-body-secondary">
-                {searched ? 'No messages found for these filters.' : 'Enter filters and click Search.'}
-              </Box>
+              searchError ? (
+                <Box textAlign="center" padding="l">
+                  <SpaceBetween size="s" alignItems="center">
+                    <Box color="text-status-error">Search failed. Check filters or try again.</Box>
+                    <Button iconName="refresh" onClick={handleSearch} loading={loading}>Retry</Button>
+                  </SpaceBetween>
+                </Box>
+              ) : (
+                <Box textAlign="center" padding="l" color="text-body-secondary">
+                  {searched ? 'No messages found for these filters.' : 'Enter filters and click Search.'}
+                </Box>
+              )
             }
           />
         )}
