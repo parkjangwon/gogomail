@@ -1,6 +1,20 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail: login IP display, profile picture, enterprise settings expansion)
+Last updated: 2026-05-12 (Webmail Phase 3: star/read toggles, Drive attach, emoji picker, ICS calendar, unread badge, undo toasts, print)
+
+## Webmail Phase 3 power features (2026-05-12)
+- ReadingPane: star toggle button in toolbar (`onStar` / `isStarred` props wired from page.tsx via `messages.find`)
+- ReadingPane: read/unread toggle in more menu (`onToggleRead` / `isRead` props)
+- ReadingPane: "연락처에 추가" button in sender row (localStorage `webmail_contacts` cache, hidden after save)
+- ReadingPane: ICS attachment detection → parsed SUMMARY/DTSTART/DTEND/LOCATION → "캘린더에 추가" card UI with CalDAV integration
+- AppIconBar: red unread badge on mail icon (>99 → "99+"), wired to `folders.reduce` sum in page.tsx
+- ComposeModal: Drive file picker (cloud button → folder browser with breadcrumbs, `attachDriveFileToEmail`)
+- ComposeModal: emoji picker popup (6 categories × 20 = 120 emojis, inserts at cursor)
+- ComposeModal: clipboard paste → image attachment (onPaste handler → handleFileSelect)
+- SearchBar: 받는사람(to:) filter field enabled + `to:` operator in `parseSearchOperators`
+- Archive/spam: optimistic remove + undo toast (server call async, restores on undo)
+- Print: new popup window with formatted email HTML, calls `w.print()` on load
+- Fixed: `DriveNode.node_type === 'folder'` (was `is_dir`); `isContactSaved` memo dep includes `savedContact`; ICS fetch headers type; `createCalendarEvent` field names (`title/start/end/allDay`)
 
 ## webmail login IP + profile picture + enterprise settings (2026-05-12)
 - httpapi/mail.go: add missing "net" import for net.SplitHostPort (client_ip in login response)

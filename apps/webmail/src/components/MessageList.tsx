@@ -17,6 +17,8 @@ import {
   EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  BarsArrowDownIcon,
+  BarsArrowUpIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -118,7 +120,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
-  const [sortAsc] = useState(false);
+  const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [compact] = useState(() => {
     try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
@@ -595,6 +597,16 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}>
+        <button
+          aria-label={sortAsc ? '최신순으로 정렬' : '오래된순으로 정렬'}
+          title={sortAsc ? '오래된순 (클릭: 최신순)' : '최신순 (클릭: 오래된순)'}
+          onClick={() => setSortAsc((v) => !v)}
+          style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >
+          {sortAsc ? <BarsArrowUpIcon style={{ width: '15px', height: '15px' }} /> : <BarsArrowDownIcon style={{ width: '15px', height: '15px' }} />}
+        </button>
         {filteredMessages.length > 0 && (
           <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
             {`${pageStart + 1}–${Math.min(pageEnd, filteredMessages.length)}`}{hasMore ? '+' : ` / ${filteredMessages.length}`}

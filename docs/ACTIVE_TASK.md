@@ -5,9 +5,42 @@
 
 ---
 
-## 🔄 TASK-089: 웹메일 클라이언트 UI 기초 (Webmail Client Frontend — Phase 0)
+## 🔄 TASK-089: 웹메일 클라이언트 UI (Webmail Client Frontend — Phase 3: Power Features)
 
 **STATUS: IN PROGRESS**
+
+### 구현 완료 (2026-05-12) — Phase 3 진행 중
+
+**Phase 0–2 완료 항목:**
+- 3-pane 레이아웃, 디자인 토큰, 다크/라이트 모드, i18n (ko/en/ja/zh-CN)
+- API 통합 (TASK-090): 실제 메일 로드, HTML 렌더링, DOMPurify 새니타이징
+- 회신/전달 (TASK-091): 제목/수신자 프리필, 인라인 회신 UI
+- 검색 (TASK-092): 키워드 검색, 상세 검색 (from/to/subject/date/attachment)
+- 사이드바: 폴더 목록, 읽지 않음 뱃지, 사용자 메뉴, 프로필 사진
+- 설정 모달: 서명 편집기, 테마, 알림, 보안(세션 취소), 단축키, 고급
+- Drive 뷰: 파일 브라우저, 업로드/삭제/공유, 이메일 첨부 연동
+- 조직도 뷰: People Directory, 검색, 상세 패널
+- 캘린더 뷰: 월/주/일, ICS 파서, CalDAV 이벤트 생성
+
+**Phase 3 완료 항목 (2026-05-12):**
+- ✅ ReadingPane: 별표 토글 버튼 (toolbar)
+- ✅ ReadingPane: 읽음/안읽음 토글 (more menu)
+- ✅ ReadingPane: 연락처에 추가 버튼 (sender row)
+- ✅ ReadingPane: ICS 캘린더 초대 감지 → "캘린더에 추가" 카드 UI
+- ✅ AppIconBar: 메일 읽지않음 뱃지 (99+ 처리)
+- ✅ ComposeModal: Drive 첨부 파일 피커 (폴더 탐색, 브레드크럼)
+- ✅ ComposeModal: 이모지 피커 (6카테고리, 120개)
+- ✅ ComposeModal: 클립보드 이미지 붙여넣기 → 첨부파일 변환
+- ✅ SearchBar: 받는사람(to:) 연산자 + 고급 필터 입력 활성화
+- ✅ 아카이브/스팸: 낙관적 UI + 실행취소 토스트
+- ✅ 이메일 인쇄: 새 창 팝업, 서식 있는 HTML 출력
+
+**다음 구현 대상 (Phase 3 잔여):**
+1. 별표받은/안읽음 필터 탭 (Sidebar 빠른 필터)
+2. 임시저장 자동저장 (ComposeModal — debounce + localStorage)
+3. 폴더 이동 (Move to Folder — more menu 또는 드래그)
+4. 메시지 선택 + 일괄 작업 (체크박스, 읽음/삭제/이동 bulk)
+5. 반응형 레이아웃 (768px 이하 모바일 슬라이드 패널)
 
 ### 진행 로그 (2026-05-12)
 
