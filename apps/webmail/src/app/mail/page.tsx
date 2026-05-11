@@ -156,11 +156,15 @@ export default function MailPage() {
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [sessionWarning, setSessionWarning] = useState<string | null>(null);
 
+  const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
+
   // Check auth on mount, load email
   useEffect(() => {
     const token = localStorage.getItem('webmail_token');
     if (!token) { router.push('/login'); return; }
-    setUserEmail(localStorage.getItem('webmail_email') ?? '');
+    let email = localStorage.getItem('webmail_email') ?? '';
+    if (!email && token === '__dev__' && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
+    setUserEmail(email);
     if (localStorage.getItem('webmail_must_change_password') === '1') {
       setMustChangePassword(true);
     }
