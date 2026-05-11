@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { AdvancedFilters } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -28,6 +29,7 @@ export default function MailPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({});
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -92,12 +94,21 @@ export default function MailPage() {
     });
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
-  const handleSearch = useCallback(async (q: string) => {
-    setSearchQuery(q);
-    if (!q.trim()) { setSearchResults(null); return; }
+  const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
+    if (!q.trim() && !filters.from && !filters.since && !filters.until && !filters.has_attachment) {
+      setSearchResults(null);
+      return;
+    }
     setSearchLoading(true);
     try {
-      const res = await searchMessages({ q: q.trim(), limit: 50 });
+      const res = await searchMessages({
+        q: q.trim() || undefined,
+        from: filters.from || undefined,
+        since: filters.since || undefined,
+        until: filters.until || undefined,
+        has_attachment: filters.has_attachment || undefined,
+        limit: 50,
+      });
       setSearchResults(res.messages ?? []);
     } catch {
       setSearchResults([]);
@@ -106,11 +117,22 @@ export default function MailPage() {
     }
   }, []);
 
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
+    runSearch(q, advancedFilters);
+  }, [advancedFilters, runSearch]);
+
+  const handleFilterChange = useCallback((filters: AdvancedFilters) => {
+    setAdvancedFilters(filters);
+    runSearch(searchQuery, filters);
+  }, [searchQuery, runSearch]);
+
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
     setSelectedMessageId(null);
     setSearchResults(null);
     setSearchQuery('');
+    setAdvancedFilters({});
   }, []);
 
   const handleSelectMessage = useCallback((id: string) => {
@@ -265,6 +287,8 @@ export default function MailPage() {
         onCompose={() => { setComposeContext({ intent: 'new' }); setMobileSidebarOpen(false); }}
         onSearch={handleSearch}
         searchQuery={searchQuery}
+        advancedFilters={advancedFilters}
+        onAdvancedFilterChange={handleFilterChange}
         userName={userEmail || '사용자'}
         onLogout={handleLogout}
         isMobile={isMobile}
@@ -278,7 +302,7 @@ export default function MailPage() {
           selectedId={selectedMessageId}
           onSelect={handleSelectMessage}
           loading={searchResults !== null ? searchLoading : messagesLoading}
-          emptyLabel={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : undefined}
+          emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : undefined}
           hasMore={searchResults === null ? hasMore : false}
           loadingMore={loadingMore}
           onLoadMore={loadMore}
