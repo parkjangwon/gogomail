@@ -7,10 +7,12 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { sendMessage } from '@/lib/api';
+import { sendMessage, ComposeIntent, MessageDetail } from '@/lib/api';
 
 interface ComposeModalProps {
   onClose: () => void;
+  intent?: ComposeIntent;
+  sourceMessage?: MessageDetail;
 }
 
 const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
@@ -29,9 +31,18 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose }: ComposeModalProps) {
-  const [to, setTo] = useState('');
-  const [subject, setSubject] = useState('');
+export function ComposeModal({ onClose, intent = 'new', sourceMessage }: ComposeModalProps) {
+  const replyTo = intent === 'reply' || intent === 'reply_all'
+    ? sourceMessage?.from_addr ?? ''
+    : '';
+  const replySubject = sourceMessage
+    ? intent === 'forward'
+      ? `Fwd: ${sourceMessage.subject}`
+      : `Re: ${sourceMessage.subject}`
+    : '';
+
+  const [to, setTo] = useState(replyTo);
+  const [subject, setSubject] = useState(replySubject);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -81,6 +92,10 @@ export function ComposeModal({ onClose }: ComposeModalProps) {
         to: [{ address: to.trim() }],
         subject: subject.trim(),
         text_body: bodyText,
+        ...(intent !== 'new' && sourceMessage && {
+          intent,
+          source_message_id: sourceMessage.id,
+        }),
       });
       setSent(true);
       setTimeout(() => onClose(), 1500);
@@ -150,7 +165,9 @@ export function ComposeModal({ onClose }: ComposeModalProps) {
           background: 'var(--color-bg-secondary)',
           borderRadius: '8px 8px 0 0',
         }}>
-          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>새 메시지</span>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            {intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지'}
+          </span>
           <button
             onClick={onClose}
             aria-label="창 닫기"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage } from '@/lib/api';
+import { deleteMessage, ComposeIntent, MessageDetail } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -17,7 +17,10 @@ export default function MailPage() {
 
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [showCompose, setShowCompose] = useState(false);
+  const [composeContext, setComposeContext] = useState<{
+    intent: ComposeIntent;
+    source?: MessageDetail;
+  } | null>(null);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading } =
     useMailList(activeFolderId);
@@ -41,7 +44,7 @@ export default function MailPage() {
   useEffect(() => {
     if (!selectedMessageId) return;
     setMessages((prev) =>
-      prev.map((m) => (m.id === selectedMessageId ? { ...m, is_read: true } : m))
+      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
     );
   }, [selectedMessageId, setMessages]);
 
@@ -112,7 +115,7 @@ export default function MailPage() {
         folders={folders}
         activeFolderId={activeFolderId}
         onSelectFolder={handleSelectFolder}
-        onCompose={() => setShowCompose(true)}
+        onCompose={() => setComposeContext({ intent: 'new' })}
       />
 
       <MessageList
@@ -125,10 +128,18 @@ export default function MailPage() {
       <ReadingPane
         message={selectedMessage}
         onDelete={handleDelete}
+        onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
+        onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
         loading={messageLoading}
       />
 
-      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} />}
+      {composeContext && (
+        <ComposeModal
+          intent={composeContext.intent}
+          sourceMessage={composeContext.source}
+          onClose={() => setComposeContext(null)}
+        />
+      )}
 
       {/* Controls: locale + theme, top-right */}
       <div
