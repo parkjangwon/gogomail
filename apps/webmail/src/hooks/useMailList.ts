@@ -85,6 +85,19 @@ export function useMailList(folderId: string) {
                 : f
             )
           );
+          // Browser notification for first unread new message
+          const firstUnread = incoming.find((m) => !m.read);
+          if (firstUnread && typeof Notification !== 'undefined') {
+            const notify = () => {
+              const title = `새 메일: ${firstUnread.from_name || firstUnread.from_addr}`;
+              const body = firstUnread.subject || '(제목 없음)';
+              new Notification(title, { body, icon: '/favicon.ico' });
+            };
+            if (Notification.permission === 'granted') notify();
+            else if (Notification.permission === 'default') {
+              Notification.requestPermission().then((p) => { if (p === 'granted') notify(); });
+            }
+          }
           return [...incoming, ...prev];
         });
       } catch {
