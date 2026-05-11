@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent } from '@/lib/api';
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar } from '@/lib/api';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -597,6 +597,23 @@ export function CalendarView() {
   const [createCalId, setCreateCalId] = useState('');
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState('');
+  // Recurrence
+  const [createRrule, setCreateRrule] = useState<'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'>('NONE');
+  const [createRruleInterval, setCreateRruleInterval] = useState(1);
+  const [createRruleEnd, setCreateRruleEnd] = useState<'never' | 'count' | 'until'>('never');
+  const [createRruleCount, setCreateRruleCount] = useState(10);
+  const [createRruleUntil, setCreateRruleUntil] = useState('');
+  const [createRruleDays, setCreateRruleDays] = useState<number[]>([]);
+
+  // Calendar management modal
+  const [showCalModal, setShowCalModal] = useState(false);
+  const [editingCal, setEditingCal] = useState<Calendar | null>(null);
+  const [calName, setCalName] = useState('');
+  const [calColor, setCalColor] = useState('#2F6EE0');
+  const [calDesc, setCalDesc] = useState('');
+  const [calSaving, setCalSaving] = useState(false);
+  const [calError, setCalError] = useState('');
+  const [calHoverId, setCalHoverId] = useState<string | null>(null);
 
   // Load calendars on mount
   useEffect(() => {
@@ -649,8 +666,8 @@ export function CalendarView() {
       const tag = (e.target as HTMLElement).tagName;
       const editable = (e.target as HTMLElement).isContentEditable;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
-      if (popover || showCreateModal) {
-        if (e.key === 'Escape') { setPopover(null); setShowCreateModal(false); }
+      if (popover || showCreateModal || showCalModal) {
+        if (e.key === 'Escape') { setPopover(null); setShowCreateModal(false); setShowCalModal(false); }
         return;
       }
       switch (e.key) {
@@ -678,6 +695,71 @@ export function CalendarView() {
   const toLocalDate = (d: Date) =>
     `${d.getFullYear()}-${pad2Local(d.getMonth() + 1)}-${pad2Local(d.getDate())}`;
 
+  const CAL_COLORS = ['#2F6EE0', '#ef4444', '#f97316', '#eab308', '#22c55e', '#8b5cf6', '#ec4899', '#14b8a6', '#6b7280'];
+
+  const openCalModal = (cal: Calendar | null) => {
+    setEditingCal(cal);
+    setCalName(cal?.Name ?? '');
+    setCalColor(cal?.Color ?? CAL_COLORS[0]);
+    setCalDesc(cal?.Description ?? '');
+    setCalError('');
+    setShowCalModal(true);
+  };
+
+  const handleCalSave = async () => {
+    if (!calName.trim()) { setCalError('캘린더 이름을 입력하세요'); return; }
+    setCalSaving(true); setCalError('');
+    try {
+      if (editingCal) {
+        await updateCalendar(editingCal.ID, { name: calName.trim(), color: calColor, description: calDesc.trim() });
+        setCalendars((prev) => prev.map((c) => c.ID === editingCal.ID ? { ...c, Name: calName.trim(), Color: calColor, Description: calDesc.trim() } : c));
+      } else {
+        const newCal = await createCalendar(calName.trim(), calColor, calDesc.trim());
+        setCalendars((prev) => [...prev, newCal]);
+        setSelectedCalIds((prev) => new Set([...prev, newCal.ID]));
+      }
+      setShowCalModal(false);
+    } catch (e) {
+      setCalError(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setCalSaving(false);
+    }
+  };
+
+  const handleCalDelete = async () => {
+    if (!editingCal) return;
+    if (!window.confirm(`"${editingCal.Name}" 캘린더를 삭제하면 포함된 모든 일정도 삭제됩니다. 계속하시겠습니까?`)) return;
+    setCalSaving(true);
+    try {
+      await deleteCalendar(editingCal.ID);
+      setCalendars((prev) => prev.filter((c) => c.ID !== editingCal.ID));
+      setObjects((prev) => prev.filter((o) => o.CalendarID !== editingCal.ID));
+      setSelectedCalIds((prev) => { const next = new Set(prev); next.delete(editingCal.ID); return next; });
+      setShowCalModal(false);
+    } catch (e) {
+      setCalError(e instanceof Error ? e.message : '삭제 실패');
+    } finally {
+      setCalSaving(false);
+    }
+  };
+
+  const buildRrule = (): string | undefined => {
+    if (createRrule === 'NONE') return undefined;
+    const parts: string[] = [`FREQ=${createRrule}`];
+    if (createRruleInterval > 1) parts.push(`INTERVAL=${createRruleInterval}`);
+    if (createRrule === 'WEEKLY' && createRruleDays.length > 0) {
+      const names = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+      parts.push(`BYDAY=${createRruleDays.map((d) => names[d]).join(',')}`);
+    }
+    if (createRruleEnd === 'count') parts.push(`COUNT=${createRruleCount}`);
+    else if (createRruleEnd === 'until' && createRruleUntil) {
+      const u = new Date(createRruleUntil + 'T23:59:59Z');
+      const p = (n: number) => String(n).padStart(2, '0');
+      parts.push(`UNTIL=${u.getUTCFullYear()}${p(u.getUTCMonth()+1)}${p(u.getUTCDate())}T235959Z`);
+    }
+    return parts.join(';');
+  };
+
   const openCreateModal = (baseDate?: Date) => {
     const base = baseDate ?? currentDate;
     const start = new Date(base); start.setHours(9, 0, 0, 0);
@@ -687,6 +769,9 @@ export function CalendarView() {
     setCreateStart(toLocalDT(start));
     setCreateEnd(toLocalDT(end));
     setCreateCalId(calendars[0]?.ID ?? '');
+    setCreateRrule('NONE'); setCreateRruleInterval(1);
+    setCreateRruleEnd('never'); setCreateRruleCount(10);
+    setCreateRruleUntil(''); setCreateRruleDays([]);
     setShowCreateModal(true);
   };
 
@@ -704,6 +789,7 @@ export function CalendarView() {
         start: startDate, end: endDate, allDay: createAllDay,
         location: createLocation.trim() || undefined,
         description: createDesc.trim() || undefined,
+        rrule: buildRrule(),
       });
       setShowCreateModal(false);
       // Reload calendar objects
@@ -754,21 +840,8 @@ export function CalendarView() {
         }}
       >
         <button
-          onClick={() => openCreateModal(currentDate)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '7px 10px',
-            borderRadius: '6px',
-            border: '1px dashed var(--color-border-default)',
-            background: 'none',
-            color: 'var(--color-text-secondary)',
-            fontSize: '12px',
-            cursor: 'pointer',
-            marginBottom: '8px',
-            width: '100%',
-          }}
+          onClick={() => openCalModal(null)}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', border: '1px dashed var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', marginBottom: '8px', width: '100%' }}
         >
           <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 새 캘린더
         </button>
@@ -780,52 +853,35 @@ export function CalendarView() {
         {loading && calendars.length === 0 && (
           <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>로딩 중...</div>
         )}
-
         {calendars.length === 0 && !loading && (
           <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>캘린더 없음</div>
         )}
 
         {calendars.map((cal) => {
           const checked = selectedCalIds.has(cal.ID);
+          const hovered = calHoverId === cal.ID;
           return (
-            <label
+            <div
               key={cal.ID}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '5px 6px',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                color: 'var(--color-text-primary)',
-              }}
+              onMouseEnter={() => setCalHoverId(cal.ID)}
+              onMouseLeave={() => setCalHoverId(null)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', background: hovered ? 'var(--color-bg-tertiary)' : 'transparent' }}
             >
               <span
                 onClick={() => toggleCalendar(cal.ID)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '14px',
-                  height: '14px',
-                  borderRadius: '3px',
-                  border: `2px solid ${cal.Color || 'var(--color-accent)'}`,
-                  background: checked ? (cal.Color || 'var(--color-accent)') : 'transparent',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${cal.Color || 'var(--color-accent)'}`, background: checked ? (cal.Color || 'var(--color-accent)') : 'transparent', cursor: 'pointer', flexShrink: 0 }}
               >
                 {checked && <span style={{ color: '#fff', fontSize: '9px', lineHeight: 1, fontWeight: 700 }}>✓</span>}
               </span>
-              <span
-                onClick={() => toggleCalendar(cal.ID)}
-                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
-                title={cal.Name}
-              >
+              <span onClick={() => toggleCalendar(cal.ID)} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '13px', color: 'var(--color-text-primary)' }} title={cal.Name}>
                 {cal.Name}
               </span>
-            </label>
+              {hovered && (
+                <button onClick={(e) => { e.stopPropagation(); openCalModal(cal); }} style={{ padding: '2px 4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px', lineHeight: 1, borderRadius: '3px', flexShrink: 0 }} title="편집">
+                  ···
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
@@ -982,6 +1038,39 @@ export function CalendarView() {
         />
       )}
 
+      {/* Calendar management modal */}
+      {showCalModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => !calSaving && setShowCalModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px 28px', width: '360px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{editingCal ? '캘린더 편집' : '새 캘린더'}</div>
+            <input autoFocus placeholder="캘린더 이름 (필수)" value={calName} onChange={(e) => setCalName(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', fontSize: '14px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+            <input placeholder="설명 (선택)" value={calDesc} onChange={(e) => setCalDesc(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+            <div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>캘린더 색상</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {CAL_COLORS.map((c) => (
+                  <button key={c} type="button" onClick={() => setCalColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, border: calColor === c ? '3px solid var(--color-text-primary)' : '2.5px solid transparent', cursor: 'pointer', padding: 0, boxShadow: calColor === c ? `0 0 0 1.5px ${c}` : 'none', transition: 'border 100ms' }} />
+                ))}
+                <input type="color" value={calColor} onChange={(e) => setCalColor(e.target.value)} title="직접 선택" style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--color-border-default)', cursor: 'pointer', padding: 0, background: 'none' }} />
+              </div>
+            </div>
+            {calError && <div style={{ fontSize: '12px', color: '#e53e3e' }}>{calError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              {editingCal
+                ? <button onClick={handleCalDelete} disabled={calSaving} style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}>삭제</button>
+                : <span />}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowCalModal(false)} disabled={calSaving} style={{ padding: '7px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
+                <button onClick={handleCalSave} disabled={calSaving} style={{ padding: '7px 20px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: calSaving ? 'wait' : 'pointer', opacity: calSaving ? 0.7 : 1 }}>{calSaving ? '저장 중...' : '저장'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Event creation modal */}
       {showCreateModal && (
         <div
@@ -1041,6 +1130,52 @@ export function CalendarView() {
             {/* Description */}
             <textarea placeholder="메모 (선택)" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2}
               style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+
+            {/* Recurrence */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
+                <select value={createRrule} onChange={(e) => { setCreateRrule(e.target.value as typeof createRrule); setCreateRruleDays([]); }} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                  <option value="NONE">없음</option>
+                  <option value="DAILY">매일</option>
+                  <option value="WEEKLY">매주</option>
+                  <option value="MONTHLY">매월</option>
+                  <option value="YEARLY">매년</option>
+                </select>
+                {createRrule !== 'NONE' && (
+                  <>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
+                    <input type="number" min={1} max={99} value={createRruleInterval} onChange={(e) => setCreateRruleInterval(Math.max(1, Number(e.target.value)))} style={{ width: '44px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[createRrule]}</span>
+                  </>
+                )}
+              </div>
+              {createRrule === 'WEEKLY' && (
+                <div style={{ display: 'flex', gap: '4px', paddingLeft: '44px' }}>
+                  {['일','월','화','수','목','금','토'].map((d, i) => (
+                    <button key={i} type="button" onClick={() => setCreateRruleDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i])}
+                      style={{ width: '26px', height: '26px', borderRadius: '50%', border: '1px solid var(--color-border-default)', background: createRruleDays.includes(i) ? 'var(--color-accent)' : 'transparent', color: createRruleDays.includes(i) ? '#fff' : 'var(--color-text-secondary)', fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 500 }}
+                    >{d}</button>
+                  ))}
+                </div>
+              )}
+              {createRrule !== 'NONE' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
+                  <select value={createRruleEnd} onChange={(e) => setCreateRruleEnd(e.target.value as typeof createRruleEnd)} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                    <option value="never">계속 반복</option>
+                    <option value="count">횟수 지정</option>
+                    <option value="until">날짜 지정</option>
+                  </select>
+                  {createRruleEnd === 'count' && (
+                    <><input type="number" min={1} max={999} value={createRruleCount} onChange={(e) => setCreateRruleCount(Math.max(1, Number(e.target.value)))} style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} /><span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span></>
+                  )}
+                  {createRruleEnd === 'until' && (
+                    <input type="date" value={createRruleUntil} onChange={(e) => setCreateRruleUntil(e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }} />
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Error */}
             {createError && <div style={{ fontSize: '12px', color: '#e53e3e' }}>{createError}</div>}
