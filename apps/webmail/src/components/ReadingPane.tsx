@@ -41,6 +41,7 @@ function linkify(text: string): ReactNode[] {
 }
 
 function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string; onMailto?: (addr: string) => void; externalImages?: string }) {
+  const blockTrackingPixels = (() => { try { return JSON.parse(localStorage.getItem('webmail_settings') ?? '{}').blockTrackingPixels !== false; } catch { return true; } })();
   const ref = useRef<HTMLDivElement>(null);
   const [showImages, setShowImages] = useState(externalImages === 'always');
   const [showQuoted, setShowQuoted] = useState(false);
@@ -61,6 +62,16 @@ function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
       });
       ref.current.innerHTML = clean;
+      // Remove tracking pixels: 1×1 images or known tracker domains
+      if (blockTrackingPixels && showImages) {
+        ref.current.querySelectorAll('img').forEach((img) => {
+          const w = img.getAttribute('width'); const h = img.getAttribute('height');
+          const isPixel = (w === '1' || w === '0') && (h === '1' || h === '0');
+          const src = img.getAttribute('src') ?? '';
+          const isTracker = /track|pixel|beacon|open\.|email\.([a-z]+\.)+[a-z]+\/|\?t=|\.gif\?/i.test(src);
+          if (isPixel || isTracker) img.remove();
+        });
+      }
       ref.current.querySelectorAll('a[href^="mailto:"]').forEach((a) => {
         (a as HTMLAnchorElement).addEventListener('click', (e) => {
           e.preventDefault();
