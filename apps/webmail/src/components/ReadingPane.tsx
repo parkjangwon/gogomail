@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent } from '@/lib/api';
 import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
@@ -288,6 +288,53 @@ export function ReadingPane({
       .catch(() => setAttachments([]))
       .finally(() => setAttachmentsLoading(false));
   }, [message?.id, message?.has_attachment]);
+
+  interface ICSEvent { summary: string; dtstart: string; dtend?: string; location?: string; description?: string; }
+  const [icsEvents, setIcsEvents] = useState<ICSEvent[]>([]);
+  const [addingCalendarId, setAddingCalendarId] = useState<string | null>(null);
+  const [calendarAdded, setCalendarAdded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (attachments.length === 0) { setIcsEvents([]); return; }
+    const icsAtts = attachments.filter((a) => a.filename.toLowerCase().endsWith('.ics') || a.mime_type === 'text/calendar');
+    if (icsAtts.length === 0) { setIcsEvents([]); return; }
+    Promise.all(icsAtts.map(async (att) => {
+      if (!message) return null;
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
+        const resp = await fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!resp.ok) return null;
+        const text = await resp.text();
+        const get = (key: string) => { const m = text.match(new RegExp(`^${key}[;:][^:]*:?(.+)$`, 'mi')); return m ? m[1].trim() : undefined; };
+        const summary = get('SUMMARY');
+        const dtstart = get('DTSTART');
+        if (!summary || !dtstart) return null;
+        return { summary, dtstart, dtend: get('DTEND'), location: get('LOCATION'), description: get('DESCRIPTION') } as ICSEvent;
+      } catch { return null; }
+    })).then((results) => setIcsEvents(results.filter(Boolean) as ICSEvent[]));
+  }, [attachments, message]);
+
+  async function handleAddToCalendar(ev: ICSEvent) {
+    setAddingCalendarId(ev.dtstart);
+    try {
+      const cals = await listCalendars();
+      const cal = cals[0];
+      if (!cal) return;
+      const parseDate = (s: string) => {
+        const clean = s.replace(/[TZ]/g, (c) => c === 'T' ? 'T' : '');
+        if (s.length === 8) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00`);
+        return new Date(`${clean.slice(0,4)}-${clean.slice(4,6)}-${clean.slice(6,8)}T${clean.slice(9,11)}:${clean.slice(11,13)}:${clean.slice(13,15)}`);
+      };
+      const start = parseDate(ev.dtstart);
+      const end = ev.dtend ? parseDate(ev.dtend) : new Date(start.getTime() + 3600000);
+      await createCalendarEvent(cal.ID, { title: ev.summary, start, end, allDay: ev.dtstart.length === 8, location: ev.location, description: ev.description });
+      setCalendarAdded(ev.dtstart);
+      setTimeout(() => setCalendarAdded(null), 3000);
+    } catch { /* ignore */ }
+    finally { setAddingCalendarId(null); }
+  }
 
   const isSent = userEmail && message?.from_addr
     ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
@@ -793,6 +840,40 @@ export function ReadingPane({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Calendar invite cards */}
+        {icsEvents.length > 0 && (
+          <div style={{ marginBottom: '16px', maxWidth: '680px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {icsEvents.map((ev) => {
+              const fmtDt = (s: string) => {
+                try {
+                  const clean = s.replace('Z','');
+                  const d = s.length === 8
+                    ? new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`)
+                    : new Date(`${clean.slice(0,4)}-${clean.slice(4,6)}-${clean.slice(6,8)}T${clean.slice(9,11)}:${clean.slice(11,13)}:${clean.slice(13,15)}`);
+                  return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: s.length === 8 ? undefined : 'short', hour12: false }).format(d);
+                } catch { return s; }
+              };
+              const added = calendarAdded === ev.dtstart;
+              const adding = addingCalendarId === ev.dtstart;
+              return (
+                <div key={ev.dtstart} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)' }}>
+                  <div style={{ flexShrink: 0, width: '40px', height: '40px', borderRadius: '8px', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📅</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--color-text-primary)', marginBottom: '3px' }}>{ev.summary}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{fmtDt(ev.dtstart)}{ev.dtend ? ` ~ ${fmtDt(ev.dtend)}` : ''}</div>
+                    {ev.location && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>📍 {ev.location}</div>}
+                  </div>
+                  <button
+                    onClick={() => handleAddToCalendar(ev)}
+                    disabled={adding || added}
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: added ? 'var(--color-accent-subtle)' : 'transparent', color: added ? 'var(--color-accent)' : 'var(--color-text-primary)', fontSize: '12px', cursor: adding || added ? 'default' : 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+                  >{adding ? '추가 중...' : added ? '✓ 추가됨' : '캘린더에 추가'}</button>
+                </div>
+              );
+            })}
           </div>
         )}
 
