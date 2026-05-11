@@ -6,6 +6,8 @@ export interface ToastItem {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info';
+  duration?: number;
+  action?: { label: string; onClick: () => void };
 }
 
 interface ToastProps {
@@ -39,9 +41,9 @@ export function ToastContainer({ toasts, onDismiss }: ToastProps) {
 
 function ToastMessage({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: string) => void }) {
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), 3000);
+    const timer = setTimeout(() => onDismiss(toast.id), toast.duration ?? 3000);
     return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
+  }, [toast.id, onDismiss, toast.duration]);
 
   const bg =
     toast.type === 'success' ? 'var(--color-success, #16a34a)'
@@ -54,6 +56,9 @@ function ToastMessage({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: 
     <div
       role="status"
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
         padding: '9px 16px',
         borderRadius: '6px',
         background: bg,
@@ -67,7 +72,25 @@ function ToastMessage({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: 
       }}
     >
       <style>{`@keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
-      {toast.message}
+      <span>{toast.message}</span>
+      {toast.action && (
+        <button
+          onClick={() => { toast.action!.onClick(); onDismiss(toast.id); }}
+          style={{
+            background: 'none',
+            border: `1px solid ${toast.type === 'info' ? 'var(--color-border-default)' : 'rgba(255,255,255,0.6)'}`,
+            borderRadius: '4px',
+            color,
+            fontSize: '12px',
+            fontWeight: 600,
+            padding: '2px 8px',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   );
 }
