@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -4536,6 +4537,32 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"valid": true, "message": "domain format is valid"})
 	}))
+
+	// ─── Webhooks ─────────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyWebhooks(w, r, service)
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePostCompanyWebhook(w, r, service)
+	}))
+
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/webhooks/{webhookId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteCompanyWebhook(w, r, service)
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks/{webhookId}/test", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleTestCompanyWebhook(w, r, service)
+	}))
+
+	// ─── Notification Templates ───────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/notification-templates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetNotifTemplates(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutNotifTemplate(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -6963,4 +6990,304 @@ func handlePutDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, servi
 			"spf_host":   "<domain>",
 		},
 	})
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+
+const webhooksConfigKey = "webhooks_config"
+
+type webhook struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	URL             string   `json:"url"`
+	Secret          string   `json:"secret"`
+	Events          []string `json:"events"`
+	Enabled         bool     `json:"enabled"`
+	CreatedAt       string   `json:"created_at"`
+	LastTriggeredAt string   `json:"last_triggered_at,omitempty"`
+}
+
+type webhooksConfig struct {
+	Webhooks []webhook `json:"webhooks"`
+}
+
+func randomHex(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func getWebhooksConfig(ctx context.Context, service AdminService, companyID string) (webhooksConfig, error) {
+	entry, err := service.GetCompanyConfig(ctx, companyID, webhooksConfigKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			return webhooksConfig{Webhooks: []webhook{}}, nil
+		}
+		return webhooksConfig{}, err
+	}
+	var cfg webhooksConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		return webhooksConfig{Webhooks: []webhook{}}, nil
+	}
+	if cfg.Webhooks == nil {
+		cfg.Webhooks = []webhook{}
+	}
+	return cfg, nil
+}
+
+func saveWebhooksConfig(ctx context.Context, service AdminService, companyID string, cfg webhooksConfig) error {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	_, err = service.SetCompanyConfig(ctx, companyID, webhooksConfigKey, json.RawMessage(b), false, 0)
+	return err
+}
+
+func handleGetCompanyWebhooks(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	cfg, err := getWebhooksConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"webhooks": cfg.Webhooks})
+}
+
+func handlePostCompanyWebhook(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var input struct {
+		Name    string   `json:"name"`
+		URL     string   `json:"url"`
+		Events  []string `json:"events"`
+		Enabled bool     `json:"enabled"`
+	}
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if input.Name == "" || input.URL == "" {
+		writeError(w, http.StatusBadRequest, "name and url are required")
+		return
+	}
+	cfg, err := getWebhooksConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	wh := webhook{
+		ID:        fmt.Sprintf("wh-%d", time.Now().UnixNano()),
+		Name:      input.Name,
+		URL:       input.URL,
+		Secret:    randomHex(16),
+		Events:    input.Events,
+		Enabled:   input.Enabled,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	if wh.Events == nil {
+		wh.Events = []string{}
+	}
+	cfg.Webhooks = append(cfg.Webhooks, wh)
+	if err := saveWebhooksConfig(r.Context(), service, id, cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"webhook": wh})
+}
+
+func handleDeleteCompanyWebhook(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	webhookID := r.PathValue("webhookId")
+	if webhookID == "" {
+		writeError(w, http.StatusBadRequest, "webhookId is required")
+		return
+	}
+	cfg, err := getWebhooksConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	found := false
+	filtered := cfg.Webhooks[:0]
+	for _, wh := range cfg.Webhooks {
+		if wh.ID == webhookID {
+			found = true
+			continue
+		}
+		filtered = append(filtered, wh)
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "webhook not found")
+		return
+	}
+	cfg.Webhooks = filtered
+	if err := saveWebhooksConfig(r.Context(), service, id, cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	webhookID := r.PathValue("webhookId")
+	if webhookID == "" {
+		writeError(w, http.StatusBadRequest, "webhookId is required")
+		return
+	}
+	cfg, err := getWebhooksConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var target *webhook
+	for i := range cfg.Webhooks {
+		if cfg.Webhooks[i].ID == webhookID {
+			target = &cfg.Webhooks[i]
+			break
+		}
+	}
+	if target == nil {
+		writeError(w, http.StatusNotFound, "webhook not found")
+		return
+	}
+	payload := fmt.Sprintf(`{"event":"test","timestamp":"%s","data":{"message":"Test webhook from gogomail"}}`,
+		time.Now().UTC().Format(time.RFC3339))
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, target.URL, strings.NewReader(payload))
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("failed to build request: %v", err)})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Gogomail-Event", "test")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("request failed: %v", err)})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
+	} else {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
+	}
+}
+
+// ─── Notification Templates ───────────────────────────────────────────────────
+
+const notifTemplatesKey = "notification_templates"
+
+type notifTemplate struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+	Enabled bool   `json:"enabled"`
+}
+
+type notifTemplatesConfig struct {
+	Templates []notifTemplate `json:"templates"`
+}
+
+func defaultNotifTemplates() []notifTemplate {
+	return []notifTemplate{
+		{ID: "password_reset", Name: "Password Reset", Subject: "Reset your {{.CompanyName}} password", Body: "<p>Click the link below to reset your password:</p><p><a href='{{.ResetURL}}'>Reset Password</a></p>", Enabled: true},
+		{ID: "welcome", Name: "Welcome Email", Subject: "Welcome to {{.CompanyName}}", Body: "<p>Welcome, {{.UserName}}! Your account has been created.</p>", Enabled: true},
+		{ID: "quota_warning", Name: "Quota Warning", Subject: "Storage quota warning — {{.UsagePercent}}% used", Body: "<p>Your mailbox is {{.UsagePercent}}% full. Please free up space or contact your admin.</p>", Enabled: true},
+		{ID: "account_locked", Name: "Account Locked", Subject: "Your account has been locked", Body: "<p>Your account has been locked due to too many failed login attempts. Contact your administrator.</p>", Enabled: true},
+	}
+}
+
+func getNotifTemplatesConfig(ctx context.Context, service AdminService, companyID string) (notifTemplatesConfig, error) {
+	entry, err := service.GetCompanyConfig(ctx, companyID, notifTemplatesKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			return notifTemplatesConfig{Templates: defaultNotifTemplates()}, nil
+		}
+		return notifTemplatesConfig{}, err
+	}
+	var cfg notifTemplatesConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		return notifTemplatesConfig{Templates: defaultNotifTemplates()}, nil
+	}
+	if cfg.Templates == nil {
+		cfg.Templates = defaultNotifTemplates()
+	}
+	return cfg, nil
+}
+
+func handleGetNotifTemplates(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	cfg, err := getNotifTemplatesConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"templates": cfg.Templates})
+}
+
+func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	templateID := r.PathValue("templateId")
+	if templateID == "" {
+		writeError(w, http.StatusBadRequest, "templateId is required")
+		return
+	}
+	var input notifTemplate
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	cfg, err := getNotifTemplatesConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	found := false
+	for i := range cfg.Templates {
+		if cfg.Templates[i].ID == templateID {
+			input.ID = templateID
+			cfg.Templates[i] = input
+			found = true
+			break
+		}
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "template not found")
+		return
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal templates")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, notifTemplatesKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"template": input})
 }

@@ -86,6 +86,8 @@
     "section_analytics_storage": "分析 & ストレージ",
     "onboarding": "テナント設定ウィザード",
     "sso_config": "SSO / SAML",
+    "webhooks": "Webhook",
+    "notif_templates": "通知テンプレート",
     "smtp_policy": "送信SMTP"
   },
   "dashboard": {

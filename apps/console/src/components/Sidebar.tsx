@@ -55,6 +55,8 @@ export function Sidebar() {
         { type: 'link', text: t('nav.company_config'), href: p('/config/company') },
         { type: 'link', text: t('nav.domain_settings'), href: p('/tenancy/domain-settings') },
         { type: 'link', text: t('nav.sso_config'), href: p('/organization/sso') },
+        { type: 'link', text: t('nav.webhooks'), href: p('/organization/webhooks') },
+        { type: 'link', text: t('nav.notif_templates'), href: p('/organization/notification-templates') },
         { type: 'link', text: t('nav.user_config'), href: p('/config/user') },
       ],
     },
