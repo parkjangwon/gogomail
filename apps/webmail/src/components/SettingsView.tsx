@@ -193,16 +193,28 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [compact, setCompact] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState<30 | 60 | 300>(30);
+  const [importanceMarkers, setImportanceMarkers] = useState(true);
+  const [groupByDate, setGroupByDate] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const [swipeLeft, setSwipeLeft] = useState<'archive' | 'delete' | 'snooze' | 'star'>('archive');
+  const [swipeRight, setSwipeRight] = useState<'archive' | 'delete' | 'snooze' | 'star'>('star');
 
   // Reading
   const [readMark, setReadMark] = useState<ReadMark>('instant');
   const [externalImages, setExternalImages] = useState<ExternalImages>('ask');
   const [inlineImagePreview, setInlineImagePreview] = useState(true);
+  const [smartReplySuggestions, setSmartReplySuggestions] = useState(true);
+  const [showReadingTime, setShowReadingTime] = useState(true);
+  const [readingPanePosition, setReadingPanePosition] = useState<'right' | 'bottom' | 'hidden'>('right');
 
   // Compose
   const [sendDelay, setSendDelay] = useState<SendDelay>(0);
   const [quoteOnReply, setQuoteOnReply] = useState(true);
   const [fontSize, setFontSize] = useState<FontSize>('medium');
+  const [ccSelf, setCcSelf] = useState(false);
+  const [defaultBcc, setDefaultBcc] = useState('');
+  const [confirmBeforeSend, setConfirmBeforeSend] = useState(false);
+  const [spellCheck, setSpellCheck] = useState(true);
 
   // Appearance
   const [theme, setTheme] = useState<Theme>('light');
@@ -213,6 +225,9 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [notifSound, setNotifSound] = useState(false);
   const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
+  const [dndEnabled, setDndEnabled] = useState(false);
+  const [dndStart, setDndStart] = useState('22:00');
+  const [dndEnd, setDndEnd] = useState('08:00');
 
   // Templates
   const [templates, setTemplates] = useState<{ name: string; subject: string; body: string }[]>([]);
@@ -407,11 +422,34 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
             <Row label="미리보기 텍스트" description="메일 목록에서 본문 첫 줄을 미리 표시합니다">
               <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
             </Row>
-            <Row label="자동 새로고침" description="받은편지함을 주기적으로 자동 업데이트합니다" last>
+            <Row label="자동 새로고침" description="받은편지함을 주기적으로 자동 업데이트합니다">
               <Segment
                 options={[{ value: 30 as 30, label: '30초' }, { value: 60 as 60, label: '1분' }, { value: 300 as 300, label: '5분' }]}
                 value={refreshInterval}
                 onChange={(v) => { setRefreshInterval(v); try { localStorage.setItem('webmail_refresh_interval', String(v)); } catch { /* */ } }}
+              />
+            </Row>
+            <Row label="날짜별 그룹" description="메일 목록을 오늘·어제·지난 7일 등으로 묶어 표시합니다">
+              <Toggle value={groupByDate} onChange={(v) => { setGroupByDate(v); try { localStorage.setItem('webmail_group_by_date', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="중요도 마커" description="자동 분류된 메일에 카테고리 칩(알림·뉴스레터 등)을 표시합니다">
+              <Toggle value={importanceMarkers} onChange={(v) => { setImportanceMarkers(v); try { localStorage.setItem('webmail_importance_markers', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="집중 모드" description="별표·핀·안읽음 메일만 표시하여 중요한 메일에 집중합니다">
+              <Toggle value={focusMode} onChange={(v) => { setFocusMode(v); try { localStorage.setItem('webmail_focus_mode', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="모바일 왼쪽 스와이프" description="메일 목록에서 왼쪽으로 스와이프할 때 동작">
+              <Segment
+                options={[{ value: 'archive' as const, label: '보관' }, { value: 'delete' as const, label: '삭제' }, { value: 'snooze' as const, label: '스누즈' }, { value: 'star' as const, label: '별표' }]}
+                value={swipeLeft}
+                onChange={(v) => { setSwipeLeft(v); try { localStorage.setItem('webmail_swipe_left', v); } catch { /* */ } }}
+              />
+            </Row>
+            <Row label="모바일 오른쪽 스와이프" description="메일 목록에서 오른쪽으로 스와이프할 때 동작" last>
+              <Segment
+                options={[{ value: 'archive' as const, label: '보관' }, { value: 'delete' as const, label: '삭제' }, { value: 'snooze' as const, label: '스누즈' }, { value: 'star' as const, label: '별표' }]}
+                value={swipeRight}
+                onChange={(v) => { setSwipeRight(v); try { localStorage.setItem('webmail_swipe_right', v); } catch { /* */ } }}
               />
             </Row>
           </SectionCard>
@@ -435,8 +473,21 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 onChange={(v) => { setExternalImages(v); saveWmSetting('externalImages', v); }}
               />
             </Row>
-            <Row label="인라인 이미지 미리보기" description="첨부 이미지를 메일 본문 하단에 미리 표시합니다" last>
+            <Row label="인라인 이미지 미리보기" description="첨부 이미지를 메일 본문 하단에 미리 표시합니다">
               <Toggle value={inlineImagePreview} onChange={(v) => { setInlineImagePreview(v); saveWmSetting('inlineImagePreview', v); }} />
+            </Row>
+            <Row label="스마트 답장 제안" description="메일 내용을 분석해 자주 쓰는 답장 문구를 자동 제안합니다">
+              <Toggle value={smartReplySuggestions} onChange={(v) => { setSmartReplySuggestions(v); try { localStorage.setItem('webmail_smart_reply', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="읽기 소요 시간 표시" description="메일 목록에서 예상 읽기 시간을 표시합니다">
+              <Toggle value={showReadingTime} onChange={(v) => { setShowReadingTime(v); try { localStorage.setItem('webmail_reading_time', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="읽기 창 위치" description="메일 읽기 창을 오른쪽 또는 아래쪽에 배치합니다" last>
+              <Segment
+                options={[{ value: 'right' as const, label: '오른쪽' }, { value: 'bottom' as const, label: '아래쪽' }, { value: 'hidden' as const, label: '숨김' }]}
+                value={readingPanePosition}
+                onChange={(v) => { setReadingPanePosition(v); try { localStorage.setItem('webmail_reading_pane', v); } catch { /* */ } }}
+              />
             </Row>
           </SectionCard>
         );
@@ -468,11 +519,29 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
               <Row label="답장 시 원문 인용" description="회신/전달 시 원본 메일 내용을 포함합니다">
                 <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
               </Row>
-              <Row label="본문 기본 글꼴 크기" description="새 메일 작성 시 기본 글꼴 크기" last>
+              <Row label="본문 기본 글꼴 크기" description="새 메일 작성 시 기본 글꼴 크기">
                 <Segment
                   options={[{ value: 'small' as FontSize, label: '소' }, { value: 'medium' as FontSize, label: '중' }, { value: 'large' as FontSize, label: '대' }]}
                   value={fontSize}
                   onChange={(v) => applyFontSize(v)}
+                />
+              </Row>
+              <Row label="발송 전 확인" description="전송 버튼 클릭 시 수신자·제목·첨부파일을 확인하는 다이얼로그를 표시합니다">
+                <Toggle value={confirmBeforeSend} onChange={(v) => { setConfirmBeforeSend(v); try { localStorage.setItem('webmail_confirm_before_send', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+              <Row label="나에게 참조 (CC)" description="보내는 모든 메일에 자신을 참조로 자동 추가합니다">
+                <Toggle value={ccSelf} onChange={(v) => { setCcSelf(v); try { localStorage.setItem('webmail_cc_self', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+              <Row label="맞춤법 검사" description="작성 중 맞춤법 오류를 브라우저 맞춤법 검사기로 표시합니다">
+                <Toggle value={spellCheck} onChange={(v) => { setSpellCheck(v); try { localStorage.setItem('webmail_spell_check', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+              <Row label="기본 BCC 주소" description="모든 발송 메일에 자동으로 숨은 참조 추가 (비워두면 비활성)" last>
+                <input
+                  type="email"
+                  value={defaultBcc}
+                  onChange={(e) => { setDefaultBcc(e.target.value); try { localStorage.setItem('webmail_default_bcc', e.target.value); } catch { /* */ } }}
+                  placeholder="bcc@example.com"
+                  style={{ width: '200px', padding: '5px 10px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
                 />
               </Row>
             </SectionCard>
@@ -855,13 +924,28 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
             <Row label="알림 소리" description="새 메일 도착 시 알림음을 재생합니다">
               <Toggle value={notifSound} onChange={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }} />
             </Row>
-            <Row label="알림 표시 수준" description="알림 팝업에 표시할 정보 수준을 선택합니다" last>
+            <Row label="알림 표시 수준" description="알림 팝업에 표시할 정보 수준을 선택합니다">
               <Segment
                 options={[{ value: 'sender' as const, label: '발신자' }, { value: 'subject' as const, label: '제목' }, { value: 'preview' as const, label: '미리보기' }]}
                 value={notifDetail}
                 onChange={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
               />
             </Row>
+            <Row label="방해 금지 모드" description="지정한 시간대에 알림을 무음으로 처리합니다">
+              <Toggle value={dndEnabled} onChange={(v) => { setDndEnabled(v); try { localStorage.setItem('webmail_dnd', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            {dndEnabled && (
+              <Row label="방해 금지 시간대" description="알림을 억제할 시작·종료 시간" last>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="time" value={dndStart} onChange={(e) => { setDndStart(e.target.value); try { localStorage.setItem('webmail_dnd_start', e.target.value); } catch { /* */ } }}
+                    style={{ padding: '4px 8px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>~</span>
+                  <input type="time" value={dndEnd} onChange={(e) => { setDndEnd(e.target.value); try { localStorage.setItem('webmail_dnd_end', e.target.value); } catch { /* */ } }}
+                    style={{ padding: '4px 8px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px' }} />
+                </div>
+              </Row>
+            )}
+            {!dndEnabled && <div style={{ height: '1px' }} />}
           </SectionCard>
         );
 
