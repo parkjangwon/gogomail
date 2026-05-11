@@ -99,6 +99,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string }>>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
@@ -274,6 +276,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         role="dialog"
         aria-label="새 메시지 작성"
         aria-modal="true"
+        onDragEnter={(e) => { e.preventDefault(); dragCounterRef.current++; setDragOver(true); }}
+        onDragLeave={() => { dragCounterRef.current--; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setDragOver(false); } }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); dragCounterRef.current = 0; setDragOver(false); if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files); }}
         style={{
           position: 'fixed',
           ...(fullscreen
@@ -281,9 +287,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             : { bottom: '24px', insetInlineEnd: '24px', width: '560px', maxWidth: 'calc(100vw - 48px)' }
           ),
           background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border-default)',
+          border: `1px solid ${dragOver ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
           borderRadius: '8px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+          boxShadow: dragOver ? '0 0 0 2px var(--color-accent-subtle)' : '0 8px 32px rgba(0,0,0,0.16)',
           zIndex: 100,
           display: 'flex',
           flexDirection: 'column',
@@ -291,9 +297,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           maxHeight: minimized ? '44px' : fullscreen ? 'none' : '80vh',
           height: fullscreen && !minimized ? 'auto' : undefined,
           overflow: 'hidden',
-          transition: 'max-height 180ms ease',
+          transition: 'max-height 180ms ease, border-color 100ms ease, box-shadow 100ms ease',
         }}
       >
+        {dragOver && !minimized && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: '8px' }}>
+            <div style={{ textAlign: 'center', color: 'var(--color-accent)', fontSize: '15px', fontWeight: 500 }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📎</div>
+              파일을 여기에 놓으세요
+            </div>
+          </div>
+        )}
         <style>{`
           @keyframes composeIn {
             from { opacity: 0; transform: scale(0.97) translateY(8px); }
