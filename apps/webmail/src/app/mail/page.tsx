@@ -67,6 +67,7 @@ export default function MailPage() {
 
   const [activeApp, setActiveApp] = useState<AppId>('mail');
   const [showSpotlight, setShowSpotlight] = useState(false);
+  const [spotlightMoveId, setSpotlightMoveId] = useState<string | null>(null);
 
   const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
     try {
@@ -733,8 +734,30 @@ export default function MailPage() {
           break;
         case '/': {
           e.preventDefault();
-          const searchInput = document.querySelector<HTMLInputElement>('[aria-label="메일 검색"]');
-          searchInput?.focus();
+          setShowSpotlight(true);
+          break;
+        }
+        case 'Enter':
+        case 'o': {
+          if (selectedMessageId && !composeContext) {
+            // 'Enter' in the list opens the message — already selected, just a no-op (reading pane shows)
+            // If nothing is selected, open first message
+            if (!selectedMessageId) {
+              const first = list[0];
+              if (first) setSelectedMessageId(first.id);
+            }
+          } else if (!selectedMessageId && !composeContext) {
+            const first = list[0];
+            if (first) setSelectedMessageId(first.id);
+          }
+          break;
+        }
+        case 'v': {
+          if (selectedMessageId && !composeContext) {
+            e.preventDefault();
+            setShowSpotlight(true);
+            setSpotlightMoveId(selectedMessageId);
+          }
           break;
         }
         case '?':
@@ -752,7 +775,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp, showSpotlight, handleMove]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -1451,13 +1474,19 @@ export default function MailPage() {
 
       {showSpotlight && (
         <SpotlightSearch
-          onClose={() => setShowSpotlight(false)}
+          onClose={() => { setShowSpotlight(false); setSpotlightMoveId(null); }}
           folders={folders}
-          onSelectFolder={(id) => { handleSelectFolder(id); setShowSpotlight(false); }}
+          onSelectFolder={(id) => { handleSelectFolder(id); setShowSpotlight(false); setSpotlightMoveId(null); }}
           onCompose={() => { openCompose({ intent: 'new' }); setShowSpotlight(false); }}
           onSelectMessage={(id) => { handleSelectMessage(id); setShowSpotlight(false); }}
           onOpenSettings={() => { setActiveApp('settings'); setShowSpotlight(false); }}
           onSearch={(q) => { handleSearch(q); setActiveApp('mail'); setShowSpotlight(false); }}
+          movingMessageId={spotlightMoveId ?? undefined}
+          onMoveMessage={(folderId: string) => {
+            handleMove(folderId);
+            setShowSpotlight(false);
+            setSpotlightMoveId(null);
+          }}
         />
       )}
 

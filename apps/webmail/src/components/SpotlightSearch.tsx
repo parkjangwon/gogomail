@@ -38,6 +38,8 @@ interface SpotlightSearchProps {
   onSelectMessage: (id: string, folderId?: string) => void;
   onOpenSettings: () => void;
   onSearch: (q: string) => void;
+  movingMessageId?: string;
+  onMoveMessage?: (folderId: string) => void;
 }
 
 const SYSTEM_ICONS: Record<string, ReactNode> = {
@@ -78,7 +80,10 @@ export function SpotlightSearch({
   onSelectMessage,
   onOpenSettings,
   onSearch,
+  movingMessageId,
+  onMoveMessage,
 }: SpotlightSearchProps) {
+  const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<SpotlightItem[]>([]);
   const [selIdx, setSelIdx] = useState(0);
@@ -91,10 +96,15 @@ export function SpotlightSearch({
   const buildQuickActions = useCallback((): SpotlightItem[] => {
     const systemFolderItems: SpotlightItem[] = [];
     for (const f of folders) {
+      if (f.system_type === 'drafts' || f.system_type === 'spam') continue; // skip for move
       const icon = f.system_type ? (SYSTEM_ICONS[f.system_type] ?? <FolderIcon style={{ width: 16, height: 16 }} />) : <FolderIcon style={{ width: 16, height: 16 }} />;
       const label = f.system_type === 'inbox' ? '받은 편지함' : f.system_type === 'sent' ? '보낸 편지함' : f.system_type === 'drafts' ? '임시 보관함' : f.system_type === 'trash' ? '휴지통' : f.system_type === 'spam' ? '스팸 편지함' : f.name;
-      systemFolderItems.push({ type: 'folder', id: f.id, title: label, subtitle: f.unread ? `읽지 않음 ${f.unread}` : undefined, icon, onSelect: () => { onSelectFolder(f.id); onClose(); } });
+      const onSelect = isMoveMode && onMoveMessage
+        ? () => { onMoveMessage(f.id); onClose(); }
+        : () => { onSelectFolder(f.id); onClose(); };
+      systemFolderItems.push({ type: 'folder', id: f.id, title: label, subtitle: f.unread ? `읽지 않음 ${f.unread}` : undefined, icon, onSelect });
     }
+    if (isMoveMode) return systemFolderItems;
     return [
       { type: 'action', id: 'compose', title: '새 메일 작성', subtitle: 'C', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onCompose(); onClose(); } },
       { type: 'action', id: 'starred', title: '별표 메일', icon: <StarIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__starred__'); onClose(); } },
@@ -103,7 +113,7 @@ export function SpotlightSearch({
       { type: 'action', id: 'settings', title: '설정 열기', subtitle: ',', icon: <Cog6ToothIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onOpenSettings(); onClose(); } },
       ...systemFolderItems,
     ];
-  }, [folders, onSelectFolder, onCompose, onOpenSettings, onClose]);
+  }, [folders, onSelectFolder, onCompose, onOpenSettings, onClose, isMoveMode, onMoveMessage]);
 
   // Build contact items from localStorage
   const buildContactItems = useCallback((q: string): SpotlightItem[] => {
@@ -135,7 +145,7 @@ export function SpotlightSearch({
 
     if (!q) {
       const quickActions = buildQuickActions();
-      const contacts = buildContactItems('').slice(0, 3);
+      const contacts = isMoveMode ? [] : buildContactItems('').slice(0, 3);
       setItems([...quickActions, ...contacts]);
       setSelIdx(0);
       return;
@@ -146,9 +156,11 @@ export function SpotlightSearch({
     const actions = buildQuickActions().filter((a) =>
       a.title.toLowerCase().includes(ql) || (a.subtitle ?? '').toLowerCase().includes(ql)
     );
-    const contacts = buildContactItems(ql);
+    const contacts = isMoveMode ? [] : buildContactItems(ql);
     setItems([...actions, ...contacts]);
     setSelIdx(0);
+
+    if (isMoveMode) return;
 
     // Debounced: search mail
     setSearching(true);
@@ -179,7 +191,7 @@ export function SpotlightSearch({
     }, 200);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, buildQuickActions, buildContactItems, onSelectMessage, onSearch, onClose]);
+  }, [query, buildQuickActions, buildContactItems, onSelectMessage, onSearch, onClose, isMoveMode]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -244,8 +256,16 @@ export function SpotlightSearch({
           animation: 'spotlightIn 120ms cubic-bezier(0.16,1,0.3,1)',
         }}
       >
+        {/* Move mode badge */}
+        {isMoveMode && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 18px 0', borderBottom: 'none' }}>
+            <ArrowRightIcon style={{ width: 13, height: 13, color: 'var(--color-accent)' }} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-accent)' }}>폴더로 이동</span>
+          </div>
+        )}
+
         {/* Search input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: isMoveMode ? '8px 18px 14px' : '14px 18px', borderBottom: '1px solid var(--color-border-subtle)' }}>
           {searching
             ? <ArrowRightIcon style={{ width: 20, height: 20, color: 'var(--color-text-tertiary)', flexShrink: 0, animation: 'spin 600ms linear infinite' }} />
             : <MagnifyingGlassIcon style={{ width: 20, height: 20, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
@@ -254,8 +274,8 @@ export function SpotlightSearch({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="메일, 연락처, 폴더, 명령 검색..."
-            aria-label="통합 검색 입력"
+            placeholder={isMoveMode ? '폴더 이름으로 이동...' : '메일, 연락처, 폴더, 명령 검색...'}
+            aria-label={isMoveMode ? '폴더로 이동' : '통합 검색 입력'}
             style={{
               flex: 1,
               border: 'none',
@@ -269,8 +289,8 @@ export function SpotlightSearch({
           <kbd style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border-default)', flexShrink: 0 }}>Esc</kbd>
         </div>
 
-        {/* Recent searches (shown only when empty + no query) */}
-        {!query && recentSearches.length > 0 && (
+        {/* Recent searches (shown only when empty + no query, not in move mode) */}
+        {!query && recentSearches.length > 0 && !isMoveMode && (
           <div style={{ padding: '8px 12px 0' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>최근 검색</div>
             {recentSearches.map((q) => (

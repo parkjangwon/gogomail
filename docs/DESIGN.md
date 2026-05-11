@@ -3,10 +3,10 @@
 This document defines the visual and interaction design direction for the gogomail webmail frontend.
 All frontend agents and developers must read this file before writing any UI code.
 
-**Design direction**: Clean, minimal, content-first productivity mail client.
-Inspired by the best modern webmail UX (including Notion Mail, Linear, Superhuman) but
-implemented as an original design system. Do not copy assets, CSS, or specific color values
-from any commercial product.
+**Design direction**: Notion Mail + Gmail 의 장점을 결합한 오픈소스 메일 클라이언트.
+Notion Mail의 깔끔한 미니멀 UI · AI 트리아지 방향성, Gmail의 검증된 키보드 UX · 폴더 체계를 합친다.
+Linear · Superhuman의 스팟라이트 검색 · 커맨드 팔레트 패턴을 원본 구현으로 탑재.
+어떤 상업 제품의 에셋, CSS, 색상값도 복제하지 않는다.
 
 ---
 
@@ -23,21 +23,24 @@ from any commercial product.
 
 ## Layout
 
-### Shell Layout (3-pane)
+### Shell Layout (2-pane + slide-in overlay)
 
 ```
-┌─────────────┬──────────────────────────┬───────────────────────────────┐
-│  Sidebar    │      Message List        │        Reading Pane           │
-│  ~220px     │      ~380px              │        flex-1                 │
-│  fixed      │      scrollable          │        toggleable             │
-└─────────────┴──────────────────────────┴───────────────────────────────┘
+┌─────────────┬──────────────────────────────────────────────────────────┐
+│  Sidebar    │      Message List (full remaining width)                 │
+│  ~220px     │      scrollable, always visible                          │
+│  fixed      │                                                          │
+└─────────────┴──────────────────────────────────────────────────────────┘
+                                         ↑ Reading pane slides in from right
+                                           as fixed overlay when msg selected
 ```
 
-- **Sidebar**: Fixed width, never scrolls horizontally. Vertical scroll for long nav.
-- **Message list**: Fixed width, independent scroll.
-- **Reading pane**: Fills remaining space. Can be toggled off (2-pane mode).
-- **Responsive**: Below 900px, collapse to list-only. Reading pane becomes full-screen overlay on mobile.
-- **Compose**: Floating panel that overlays content (does not push layout).
+- **Sidebar**: Fixed width (~220px), collapsible with `[` key. Vertical scroll for long nav.
+- **Message list**: Fills remaining space. Always visible — never replaced by reading pane.
+- **Reading pane**: Fixed-position slide-in overlay from the right. Appears on message selection, closes on `Escape` or back button. Does NOT split the layout.
+- **Responsive**: Below 768px, reading pane is full-screen. Message list remains accessible via back navigation.
+- **Compose**: Floating modal, overlays content. Does not push any layout element.
+- **DO NOT** implement a persistent 3-pane split layout. The slide-in overlay reading pane is the canonical behavior.
 
 ### Sidebar Structure
 
