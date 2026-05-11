@@ -51,6 +51,7 @@ export default function MailPage() {
       return next;
     });
   }, []);
+
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
   const [listPaneWidth, setListPaneWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
@@ -72,6 +73,16 @@ export default function MailPage() {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const handleBulkLabel = useCallback((ids: string[], color: string | null) => {
+    setMessageLabels((prev) => {
+      const next = { ...prev };
+      for (const id of ids) { if (color) next[id] = color; else delete next[id]; }
+      try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+    addToast(color ? `${ids.length}개에 라벨을 지정했습니다` : `${ids.length}개의 라벨을 제거했습니다`, 'info');
+  }, [addToast]);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId);
@@ -834,6 +845,7 @@ export default function MailPage() {
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
           onDeleteMessage={handleDeleteById}
           onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
+          onBulkLabel={handleBulkLabel}
           messageLabels={messageLabels}
         />
       )}
