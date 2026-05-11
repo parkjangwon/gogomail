@@ -215,6 +215,7 @@ export default function MailPage() {
           break;
         }
         case 'c':
+        case 'n':
           if (!composeContext) { e.preventDefault(); setComposeContext({ intent: 'new' }); }
           break;
         case 'u':

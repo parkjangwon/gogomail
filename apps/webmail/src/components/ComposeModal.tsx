@@ -277,13 +277,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
         >
 
           {/* To */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
-            <label htmlFor="compose-to" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>받는 사람</label>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px' }}>
+            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>받는 사람</label>
             <input
               id="compose-to"
               type="email"
               value={to}
-              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; triggerAutoSave(e.target.value, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; if (error) setError(''); triggerAutoSave(e.target.value, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
