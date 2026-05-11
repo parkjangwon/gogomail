@@ -40,6 +40,9 @@ export default function MailPage() {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_sidebar_width') ?? '220', 10) || 220; } catch { return 220; }
   });
+  const [readingPaneWidth, setReadingPaneWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem('webmail_reading_pane_width') ?? '0', 10) || 0; } catch { return 0; }
+  });
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [swipeDeltaX, setSwipeDeltaX] = useState(0);
   const swipeTouchStartRef = useRef<number | null>(null);
@@ -997,7 +1000,7 @@ export default function MailPage() {
                 top: 0,
                 right: 0,
                 height: '100dvh',
-                width: isMobile ? '100%' : 'min(720px, 55vw)',
+                width: isMobile ? '100%' : readingPaneWidth > 0 ? `${readingPaneWidth}px` : 'min(720px, 55vw)',
                 transform: panelOpen
                   ? (isMobile && swipeDeltaX > 0 ? `translateX(${swipeDeltaX}px)` : 'translateX(0)')
                   : 'translateX(100%)',
@@ -1010,6 +1013,32 @@ export default function MailPage() {
                 boxShadow: panelOpen ? '-8px 0 32px rgba(0,0,0,0.12)' : 'none',
               }}
             >
+              {/* Resize handle — left edge */}
+              {!isMobile && panelOpen && (
+                <div
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '5px', cursor: 'col-resize', zIndex: 10, transition: 'background 150ms ease' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const startX = e.clientX;
+                    const startW = readingPaneWidth > 0 ? readingPaneWidth : Math.min(720, window.innerWidth * 0.55);
+                    let lastW = startW;
+                    const onMove = (ev: MouseEvent) => {
+                      lastW = Math.min(window.innerWidth - 300, Math.max(380, startW - (ev.clientX - startX)));
+                      setReadingPaneWidth(lastW);
+                    };
+                    const onUp = () => {
+                      document.removeEventListener('mousemove', onMove);
+                      document.removeEventListener('mouseup', onUp);
+                      try { localStorage.setItem('webmail_reading_pane_width', String(lastW)); } catch { /* */ }
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                  }}
+                />
+              )}
               <ReadingPane
                 message={selectedMessage}
                 folders={folders}
