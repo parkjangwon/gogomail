@@ -550,9 +550,9 @@ export function ReadingPane({
         {/* Icon-only primary actions */}
         {(
           [
-            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />, label: '답장', action: onReply },
-            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />, label: '전체 답장', action: onReplyAll },
-            { icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />, label: '전달', action: onForward },
+            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />, label: '답장 (R)', action: onReply },
+            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />, label: '전체 답장 (A)', action: onReplyAll },
+            { icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />, label: '전달 (F)', action: onForward },
           ] as Array<{ icon: ReactNode; label: string; action: (() => void) | undefined }>
         ).map(({ icon, label, action }) => action ? (
           <button key={label} aria-label={label} title={label} onClick={action}
@@ -566,7 +566,7 @@ export function ReadingPane({
 
         {/* Star */}
         {onStar && (
-          <button aria-label={isStarred ? '별표 해제' : '별표'} title={isStarred ? '별표 해제' : '별표'} onClick={onStar}
+          <button aria-label={isStarred ? '별표 해제' : '별표'} title={isStarred ? '별표 해제 (S)' : '별표 (S)'} onClick={onStar}
             style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -575,7 +575,7 @@ export function ReadingPane({
 
         {/* Archive */}
         {onArchive && (
-          <button aria-label="아카이브" title="아카이브" onClick={onArchive}
+          <button aria-label="아카이브" title="아카이브 (E)" onClick={onArchive}
             style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
