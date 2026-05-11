@@ -65,6 +65,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.mail_flow_logs'), href: p('/mail/flow-logs') },
         { type: 'link', text: t('nav.outbox_events'), href: p('/mail/outbox') },
         { type: 'link', text: t('nav.delivery_attempts'), href: p('/mail/delivery-attempts') },
+        { type: 'link', text: t('nav.routing_rules'), href: p('/mail/routing-rules') },
         { type: 'link', text: t('nav.delivery_routes'), href: p('/delivery/routes') },
         { type: 'link', text: t('nav.trusted_relays'), href: p('/delivery/relays') },
         { type: 'link', text: t('nav.queue_stats'), href: p('/system/queue') },
