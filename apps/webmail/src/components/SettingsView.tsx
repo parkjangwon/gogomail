@@ -1039,7 +1039,7 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
               <Row label="설정 내보내기" description="현재 모든 설정을 JSON 파일로 저장합니다">
                 <button
                   onClick={() => {
-                    const keys = ['webmail_settings', 'webmail_filter_rules', 'webmail_blocked_senders', 'webmail_vacation', 'webmail_templates', 'webmail_theme', 'webmail_accent', 'webmail_compact', 'webmail_conv_mode', 'webmail_display_name', 'webmail_signature', 'webmail_notif_sound', 'webmail_notif_detail'];
+                    const keys = ['webmail_settings', 'webmail_filter_rules', 'webmail_blocked_senders', 'webmail_vacation', 'webmail_templates', 'webmail_theme', 'webmail_accent', 'webmail_compact', 'webmail_conv_mode', 'webmail_display_name', 'webmail_signature', 'webmail_notif_sound', 'webmail_notif_detail', 'webmail_notif_detail', 'webmail_dnd', 'webmail_dnd_start', 'webmail_dnd_end', 'webmail_focus_mode', 'webmail_importance_markers', 'webmail_swipe_left', 'webmail_swipe_right', 'webmail_cc_self', 'webmail_default_bcc', 'webmail_confirm_before_send', 'webmail_spell_check', 'webmail_smart_reply', 'webmail_reading_time', 'webmail_reading_pane', 'webmail_pinned', 'webmail_important', 'webmail_snoozed', 'webmail_labels', 'webmail_tasks', 'webmail_notes', 'webmail_recent_recipients'];
                     const data: Record<string, unknown> = { _version: 1, _exportedAt: new Date().toISOString() };
                     keys.forEach((k) => { try { const v = localStorage.getItem(k); if (v !== null) data[k] = JSON.parse(v); } catch { /* ignore */ } });
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
