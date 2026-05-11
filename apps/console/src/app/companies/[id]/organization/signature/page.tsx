@@ -15,6 +15,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface SignatureConfig {
   html: string;
@@ -23,6 +24,7 @@ interface SignatureConfig {
 }
 
 export default function GlobalSignaturePage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
 
@@ -85,7 +87,7 @@ export default function GlobalSignaturePage() {
       header={
         <Header
           variant="h1"
-          description="Append a company-wide signature to all outbound emails."
+          description={t('pages.signature_page.page_description')}
           actions={
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={fetchSignature}>Discard</Button>

@@ -16,6 +16,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface LegalHold {
   id: string;
@@ -27,6 +28,7 @@ interface LegalHold {
 }
 
 export default function LegalHoldsPage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
 
@@ -113,7 +115,7 @@ export default function LegalHoldsPage() {
       header={
         <Header
           variant="h1"
-          description="Preserve user mailboxes from deletion for compliance or litigation purposes."
+          description={t('pages.legal_holds_page.description')}
           actions={
             <Button variant="primary" onClick={() => setCreateVisible(true)}>
               Create Hold
@@ -199,14 +201,14 @@ export default function LegalHoldsPage() {
       >
         <Form errorText={saveError}>
           <SpaceBetween size="m">
-            <FormField label="User Email" description="The user whose mailbox will be preserved.">
+            <FormField label={t('pages.legal_holds_page.user_email')} description={t('pages.legal_holds_page.user_email_desc')}>
               <Input
                 value={userEmail}
                 onChange={e => setUserEmail(e.detail.value)}
                 placeholder="user@company.com"
               />
             </FormField>
-            <FormField label="Reason" description="Legal or compliance justification for the hold.">
+            <FormField label={t('pages.legal_holds_page.reason')} description={t('pages.legal_holds_page.reason_desc')}>
               <Input
                 value={reason}
                 onChange={e => setReason(e.detail.value)}

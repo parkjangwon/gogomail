@@ -13,6 +13,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface PostureData {
   score: number;
@@ -24,6 +25,7 @@ interface PostureData {
 }
 
 export default function SecurityPosturePage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
   const [data, setData] = useState<PostureData | null>(null);
@@ -80,7 +82,7 @@ export default function SecurityPosturePage() {
               <SpaceBetween size="s">
                 <ProgressBar
                   value={data.score}
-                  label="Overall Score"
+                  label={t('pages.posture_page.overall_score')}
                   status={data.score >= 80 ? 'success' : data.score >= 50 ? 'in-progress' : 'error'}
                 />
               </SpaceBetween>
