@@ -915,36 +915,90 @@ export default function MailPage() {
   // Reset seen IDs when folder changes (avoid false notifications on folder switch)
   useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
 
-  // Apply client-side filter rules: auto-label messages matching stored rules
+  // Apply client-side filter rules to newly loaded messages
   useEffect(() => {
     if (messages.length === 0) return;
-    const rules = loadFilterRules();
+    const rules = loadFilterRules().filter((r) => r.enabled);
     if (rules.length === 0) return;
-    setMessageLabels((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const msg of messages) {
-        if (next[msg.id]) continue; // don't overwrite manual labels
-        for (const rule of rules) {
-          const hay = rule.field === 'from'
-            ? (msg.from_addr + ' ' + (msg.from_name ?? '')).toLowerCase()
-            : rule.field === 'subject'
-            ? (msg.subject ?? '').toLowerCase()
-            : (msg.from_addr + ' ' + (msg.from_name ?? '') + ' ' + (msg.subject ?? '') + ' ' + (msg.preview ?? '')).toLowerCase();
-          if (hay.includes(rule.value.toLowerCase())) {
-            next[msg.id] = rule.labelColor;
-            changed = true;
-            break;
+
+    const labelUpdates: Record<string, string> = {};
+    const markReadIds: string[] = [];
+    const markUnreadIds: string[] = [];
+    const markStarredIds: string[] = [];
+    const trashIds: string[] = [];
+
+    for (const msg of messages) {
+      for (const rule of rules) {
+        const condResults = rule.conditions.map((cond) => {
+          if (cond.field === 'has_attachment') return !!(msg as MessageSummary & { has_attachment?: boolean }).has_attachment;
+          if (cond.field === 'is_unread') return !msg.read;
+          if (cond.field === 'size_larger') return ((msg as MessageSummary & { size?: number }).size ?? 0) > Number(cond.value);
+          if (cond.field === 'size_smaller') return ((msg as MessageSummary & { size?: number }).size ?? Infinity) < Number(cond.value);
+          const haystack = ((): string => {
+            switch (cond.field) {
+              case 'from': return (msg.from_addr + ' ' + (msg.from_name ?? '')).toLowerCase();
+              case 'to': return ((msg as MessageSummary & { to?: string }).to ?? '').toLowerCase();
+              case 'cc': return ((msg as MessageSummary & { cc?: string }).cc ?? '').toLowerCase();
+              case 'subject': return (msg.subject ?? '').toLowerCase();
+              case 'body': return (msg.preview ?? '').toLowerCase();
+              default: return '';
+            }
+          })();
+          const needle = cond.value.toLowerCase();
+          switch (cond.matchType) {
+            case 'contains': return haystack.includes(needle);
+            case 'not_contains': return !haystack.includes(needle);
+            case 'equals': return haystack.trim() === needle;
+            case 'starts_with': return haystack.startsWith(needle);
+            case 'ends_with': return haystack.endsWith(needle);
+            case 'regex': try { return new RegExp(cond.value, 'i').test(haystack); } catch { return false; }
+            default: return false;
           }
+        });
+        const matches = rule.logic === 'and' ? condResults.every(Boolean) : condResults.some(Boolean);
+        if (!matches) continue;
+
+        const a = rule.action;
+        if (a.labelColor && !labelUpdates[msg.id]) labelUpdates[msg.id] = a.labelColor;
+        if (a.markRead && !msg.read) markReadIds.push(msg.id);
+        if (a.markUnread && msg.read) markUnreadIds.push(msg.id);
+        if (a.markStarred && !msg.starred) markStarredIds.push(msg.id);
+        if (a.deleteMsg) trashIds.push(msg.id);
+        if (rule.stopProcessing) break;
+      }
+    }
+
+    if (Object.keys(labelUpdates).length > 0) {
+      setMessageLabels((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [id, color] of Object.entries(labelUpdates)) {
+          if (!next[id]) { next[id] = color; changed = true; }
         }
+        if (changed) { try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ } return next; }
+        return prev;
+      });
+    }
+    if (markReadIds.length > 0) {
+      setMessages((prev) => prev.map((m) => markReadIds.includes(m.id) ? { ...m, read: true } : m));
+      markReadIds.forEach((id) => markRead(id, true).catch(() => {}));
+    }
+    if (markUnreadIds.length > 0) {
+      setMessages((prev) => prev.map((m) => markUnreadIds.includes(m.id) ? { ...m, read: false } : m));
+      markUnreadIds.forEach((id) => markRead(id, false).catch(() => {}));
+    }
+    if (markStarredIds.length > 0) {
+      setMessages((prev) => prev.map((m) => markStarredIds.includes(m.id) ? { ...m, starred: true } : m));
+      markStarredIds.forEach((id) => starMessage(id, true).catch(() => {}));
+    }
+    if (trashIds.length > 0) {
+      const trashFolder = folders.find((f) => f.system_type === 'trash');
+      if (trashFolder) {
+        setMessages((prev) => prev.filter((m) => !trashIds.includes(m.id)));
+        trashIds.forEach((id) => moveMessage(id, trashFolder.id).catch(() => {}));
       }
-      if (changed) {
-        try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
-        return next;
-      }
-      return prev;
-    });
-  }, [messages]);
+    }
+  }, [messages, folders]);
 
   // Snooze: hide message until a future time, then resurface it
   const handleSnooze = useCallback((id: string, until: Date) => {
