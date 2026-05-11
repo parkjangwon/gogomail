@@ -7,7 +7,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { sendMessage, saveDraft, updateDraft, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, uploadAttachment, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 
 interface ComposeModalProps {
@@ -97,6 +97,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   });
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string }>>([]);
+
+  const handleFileSelect = useCallback(async (files: FileList) => {
+    const newFiles = Array.from(files);
+    for (const file of newFiles) {
+      const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
+      setUploadedAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true }]);
+      try {
+        const att = await uploadAttachment(file, draftIdRef.current || undefined);
+        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a));
+      } catch {
+        setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { ...a, uploading: false, error: '업로드 실패' } : a));
+      }
+    }
+  }, []);
 
   const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -228,6 +244,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return;
     }
     setError('');
+    const readyAttachmentIds = uploadedAttachments.filter((a) => !a.uploading && !a.error).map((a) => a.id);
     const msg: SendMessageRequest = {
       to: to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address),
       ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
@@ -236,6 +253,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       text_body: bodyText,
       ...(editor && { html_body: editor.getHTML() }),
       ...(intent !== 'new' && sourceMessage && { intent, source_message_id: sourceMessage.id }),
+      ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
     };
     pendingMsgRef.current = msg;
     setSendCountdown(5);
@@ -527,6 +545,27 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             </div>
           )}
 
+          {/* Attachment chips */}
+          {uploadedAttachments.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '6px 16px', borderTop: '1px solid var(--color-border-subtle)' }}>
+              {uploadedAttachments.map((att) => {
+                const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
+                return (
+                  <div key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '12px', border: `1px solid ${att.error ? 'rgba(217,79,61,0.4)' : 'var(--color-border-default)'}`, background: 'var(--color-bg-secondary)', fontSize: '12px', color: att.error ? 'var(--color-destructive)' : 'var(--color-text-primary)' }}>
+                    <span>{att.uploading ? '⏳' : att.error ? '⚠' : '📎'}</span>
+                    <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.filename}</span>
+                    {!att.uploading && <span style={{ color: 'var(--color-text-tertiary)' }}>{kb}</span>}
+                    <button
+                      type="button"
+                      onClick={() => setUploadedAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '0 2px' }}
+                    >×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Footer */}
           <div style={{
             display: 'flex',
@@ -535,39 +574,56 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             padding: '10px 16px',
             borderTop: '1px solid var(--color-border-subtle)',
           }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => { if (e.target.files?.length) { handleFileSelect(e.target.files); e.target.value = ''; } }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="파일 첨부"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-tertiary)', padding: '2px 4px', borderRadius: '4px', lineHeight: 1 }}
+                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+              >📎</button>
               {error && <span role="alert" style={{ fontSize: '13px', color: 'var(--color-destructive)' }}>{error}</span>}
               {sent && <span style={{ fontSize: '13px', color: 'var(--color-success)' }}>전송 완료 ✓</span>}
               {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
               {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>임시저장됨 {savedAt}</span>}
             </div>
-            <button
-              type="button"
-              onClick={() => setShowSigEditor((v) => !v)}
-              title="서명 관리"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px' }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >서명</button>
-            <button
-              type="submit"
-              disabled={sending || sent}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '6px',
-                border: 'none',
-                background: sending || sent ? 'var(--color-border-default)' : 'var(--color-accent)',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: sending || sent ? 'not-allowed' : 'pointer',
-                transition: 'background 100ms ease',
-              }}
-              onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
-              onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
-            >
-              {sending ? '전송 중...' : sent ? '전송됨' : '보내기'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setShowSigEditor((v) => !v)}
+                title="서명 관리"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+              >서명</button>
+              <button
+                type="submit"
+                disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
+                  transition: 'background 100ms ease',
+                }}
+                onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
+                onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
+              >
+                {sending ? '전송 중...' : sent ? '전송됨' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : '보내기'}
+              </button>
+            </div>
           </div>
         </form>
         {sendCountdown !== null && sendCountdown > 0 && (

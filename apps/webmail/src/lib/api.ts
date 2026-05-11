@@ -62,6 +62,7 @@ export interface SendMessageRequest {
   from?: string;
   intent?: ComposeIntent;
   source_message_id?: string;
+  attachment_ids?: string[];
 }
 
 function getToken(): string | null {
@@ -262,6 +263,26 @@ export function deleteMessage(id: string): Promise<void> {
 
 export function sendMessage(data: SendMessageRequest): Promise<void> {
   return apiPost<void>('messages/send', data);
+}
+
+export async function uploadAttachment(file: File, draftId?: string): Promise<Attachment> {
+  const token = getToken();
+  const form = new FormData();
+  form.append('file', file);
+  if (draftId) form.append('draft_id', draftId);
+  const res = await fetch('/api/mail/attachments/upload', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (res.status === 401) { clearTokenAndRedirect(); throw new Error('Unauthorized'); }
+  if (!res.ok) {
+    let msg = `Upload failed: ${res.status}`;
+    try { const b = (await res.json()) as { error?: string }; msg = b.error ?? msg; } catch { /* */ }
+    throw new Error(msg);
+  }
+  const body = (await res.json()) as { attachment: Attachment };
+  return body.attachment;
 }
 
 export function listAttachments(messageId: string): Promise<Attachment[]> {
