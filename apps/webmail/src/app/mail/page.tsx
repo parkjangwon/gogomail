@@ -1190,10 +1190,38 @@ export default function MailPage() {
                       markRead(contextMenu.id, true).catch(() => {});
                     },
                   },
-              ...(['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'] as const).map((color) => ({
-                label: `${messageLabels[contextMenu.id] === color ? '✓ ' : ''}라벨 ${color === '#ef4444' ? '🔴' : color === '#f97316' ? '🟠' : color === '#eab308' ? '🟡' : color === '#22c55e' ? '🟢' : color === '#3b82f6' ? '🔵' : '🟣'}`,
-                onClick: () => setLabel(contextMenu.id, messageLabels[contextMenu.id] === color ? null : color),
-              })),
+              {
+                label: '라벨',
+                children: ([
+                  { color: '#ef4444', name: '빨강' },
+                  { color: '#f97316', name: '주황' },
+                  { color: '#eab308', name: '노랑' },
+                  { color: '#22c55e', name: '초록' },
+                  { color: '#3b82f6', name: '파랑' },
+                  { color: '#a855f7', name: '보라' },
+                ] as const).map(({ color, name }) => ({
+                  label: `${messageLabels[contextMenu.id] === color ? '✓ ' : '   '}${name}`,
+                  onClick: () => setLabel(contextMenu.id, messageLabels[contextMenu.id] === color ? null : color),
+                })),
+              },
+              {
+                label: '폴더로 이동',
+                children: folders
+                  .filter((f) => f.id !== activeFolderId && f.system_type !== 'drafts')
+                  .map((f) => ({
+                    label: f.name,
+                    onClick: () => {
+                      const msg = messages.find((m) => m.id === contextMenu.id);
+                      if (msg && !msg.read) adjustUnread(activeFolderId, -1);
+                      setMessages((prev) => prev.filter((m) => m.id !== contextMenu.id));
+                      if (selectedMessageId === contextMenu.id) setSelectedMessageId(null);
+                      moveMessage(contextMenu.id, f.id)
+                        .then(() => addToast(`"${f.name}"(으)로 이동했습니다`))
+                        .catch(() => addToast('이동에 실패했습니다', 'error'));
+                    },
+                  })),
+              },
+              { separator: true } as { separator: true; label: string; onClick: () => void },
               {
                 label: '삭제',
                 danger: true,
