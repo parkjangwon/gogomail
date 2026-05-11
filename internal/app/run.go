@@ -2635,7 +2635,7 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			attachmentCleanup:           mailservice.New(repository, store),
 			mailFlowStats:              mailFlowStatsProvider,
 			configStore:                configStore,
-		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore))
+		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore), httpapi.WithTokenManager(tokenManager))
 		logger.Info("admin api routes registered")
 		if cfg.SCIMToken != "" {
 			httpapi.RegisterSCIMRoutes(mux, &maildbSCIMUserService{

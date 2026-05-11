@@ -33,6 +33,7 @@ type Claims struct {
 	Subject        string    `json:"sub"`
 	UserID         string    `json:"user_id"`
 	DomainID       string    `json:"domain_id"`
+	CompanyID      string    `json:"company_id,omitempty"`
 	Role           string    `json:"role"`
 	SessionVersion int64     `json:"session_ver,omitempty"`
 	MFAVerified    bool      `json:"mfa_verified,omitempty"`

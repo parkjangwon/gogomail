@@ -78,7 +78,7 @@ export default function UsersPage() {
   const [inviteLink, setInviteLink] = useState('');
 
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ display_name: '', quota_gb: '0' });
+  const [editForm, setEditForm] = useState({ display_name: '', quota_gb: '0', role: 'user' });
   const [saving, setSaving] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -212,11 +212,16 @@ export default function UsersPage() {
       await fetch(`/api/admin/users/${editUser.id}/quota`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quota_limit: parseInt(editForm.quota_gb) * 1073741824,
-        }),
+        body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * 1073741824 }),
         credentials: 'include',
       });
+      if (editForm.role !== editUser.role) {
+        await fetch(`/admin/v1/users/${editUser.id}/role`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: editForm.role }),
+        });
+      }
       setEditUser(null);
       fetchUsers();
     } catch (e) {
@@ -249,8 +254,15 @@ export default function UsersPage() {
     setEditForm({
       display_name: user.display_name,
       quota_gb: user.quota_limit > 0 ? String(Math.round(user.quota_limit / 1073741824)) : '0',
+      role: user.role || 'user',
     });
   };
+
+  const ROLE_OPTIONS = [
+    { label: 'User (email only)', value: 'user' },
+    { label: 'Company Admin (console access)', value: 'company_admin' },
+    { label: 'System Admin (all companies)', value: 'system_admin' },
+  ];
 
   const addFlash = (type: 'success' | 'error' | 'info', content: string) => {
     const id = Date.now().toString();
@@ -439,10 +451,11 @@ export default function UsersPage() {
             },
             {
               header: t('pages.users_page.role'),
-              cell: (u: User) => u.role ? (
-                <Badge color="blue">{u.role}</Badge>
-              ) : <Box color="text-body-secondary">—</Box>,
-              width: '10%',
+              cell: (u: User) => {
+                const roleColor = u.role === 'system_admin' ? 'red' : u.role === 'company_admin' ? 'green' : 'grey';
+                return u.role ? <Badge color={roleColor}>{u.role}</Badge> : <Box color="text-body-secondary">—</Box>;
+              },
+              width: '12%',
             },
             {
               header: t('pages.users_page.status'),
@@ -674,6 +687,16 @@ export default function UsersPage() {
               type="number"
               value={editForm.quota_gb}
               onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
+            />
+          </FormField>
+          <FormField
+            label="Role"
+            description="Company Admin and above can log into the admin console."
+          >
+            <Select
+              selectedOption={ROLE_OPTIONS.find(o => o.value === editForm.role) ?? ROLE_OPTIONS[0]}
+              options={ROLE_OPTIONS}
+              onChange={(e) => setEditForm({ ...editForm, role: e.detail.selectedOption.value ?? 'user' })}
             />
           </FormField>
         </SpaceBetween>

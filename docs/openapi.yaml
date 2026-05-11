@@ -6041,6 +6041,34 @@ paths:
           $ref: "#/components/responses/IDStatus"
         default:
           $ref: "#/components/responses/Error"
+  /users/{id}/role:
+    patch:
+      operationId: updateAdminUserRole
+      summary: Update a user's admin role
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [user, company_admin, system_admin]
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
   /users/{id}/invite:
     post:
       operationId: createUserInviteToken
