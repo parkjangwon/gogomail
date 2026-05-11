@@ -61,6 +61,7 @@ interface ReadingPaneProps {
   onMove?: (folderId: string) => void;
   onPrint?: () => void;
   loading?: boolean;
+  onBack?: () => void;
 }
 
 function formatFullDate(receivedAt: string): string {
@@ -130,6 +131,7 @@ export function ReadingPane({
   onMove,
   onPrint,
   loading,
+  onBack,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   if (loading) {
@@ -228,6 +230,13 @@ export function ReadingPane({
           flexShrink: 0,
         }}
       >
+        {onBack && (
+          <button
+            aria-label="뒤로"
+            onClick={onBack}
+            style={{ ...iconStyle, marginRight: 'auto', color: 'var(--color-text-secondary)' }}
+          >← 뒤로</button>
+        )}
         <ActionButton label="답장" onClick={onReply} />
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
