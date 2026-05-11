@@ -9,20 +9,24 @@ import {
   Box,
   Spinner,
   TextFilter,
-  Badge,
   Modal,
   FormField,
   Input,
   Select,
   Alert,
+  Flashbar,
+  CopyToClipboard,
+  StatusIndicator,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
 import { useParams } from 'next/navigation';
 
 interface Domain {
-  ID: string;
-  Name: string;
+  id: string;
+  name: string;
+  ID?: string;
+  Name?: string;
 }
 
 interface APIKey {
@@ -34,6 +38,14 @@ interface APIKey {
   expires_at: string | null;
   is_active: boolean;
 }
+
+type FlashItem = {
+  type: 'success' | 'error' | 'info' | 'warning';
+  content: string;
+  id: string;
+  dismissible: boolean;
+  onDismiss: () => void;
+};
 
 export default function APIKeysPage() {
   const { t } = useI18n();
@@ -50,7 +62,15 @@ export default function APIKeysPage() {
   const [showModal, setShowModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [createdSecret, setCreatedSecret] = useState<{ id: string; secret: string } | null>(null);
+
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
+  const [rotatedSecret, setRotatedSecret] = useState<{ keyId: string; secret: string } | null>(null);
+  const [showRotateModal, setShowRotateModal] = useState(false);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [flashItems, setFlashItems] = useState<FlashItem[]>([]);
 
   useEffect(() => {
     fetchDomains();
@@ -64,6 +84,14 @@ export default function APIKeysPage() {
     }
   }, [selectedDomainId]);
 
+  const addFlash = (type: FlashItem['type'], content: string) => {
+    const id = Date.now().toString();
+    setFlashItems(prev => [...prev, {
+      type, content, id, dismissible: true,
+      onDismiss: () => setFlashItems(f => f.filter(i => i.id !== id)),
+    }]);
+  };
+
   const fetchDomains = async () => {
     setDomainsLoading(true);
     try {
@@ -72,7 +100,12 @@ export default function APIKeysPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setDomains(data.domains || []);
+        // Normalize domain shape (backend may return ID/Name or id/name)
+        const raw: Array<{ id?: string; name?: string; ID?: string; Name?: string }> = data.domains || [];
+        setDomains(raw.map(d => ({
+          id: d.id ?? d.ID ?? '',
+          name: d.name ?? d.Name ?? '',
+        })));
       }
     } catch (error) {
       console.error('Failed to fetch domains:', error);
@@ -110,12 +143,17 @@ export default function APIKeysPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCreatedSecret(data.secret || null);
+        setCreatedSecret({ id: data.id, secret: data.secret });
         fetchAPIKeys(selectedDomainId);
         setNewKeyName('');
+        addFlash('success', t('pages.api_keys_page.key_created_success'));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        addFlash('error', err.error || t('pages.api_keys_page.create_failed'));
       }
     } catch (error) {
       console.error('Failed to create API key:', error);
+      addFlash('error', t('pages.api_keys_page.create_failed'));
     } finally {
       setCreating(false);
     }
@@ -123,18 +161,52 @@ export default function APIKeysPage() {
 
   const handleDeleteKey = async (keyId: string) => {
     if (!selectedDomainId) return;
+    setDeletingId(keyId);
     try {
-      await fetch(`/api/admin/domains/${selectedDomainId}/api-keys/${keyId}`, {
+      const res = await fetch(`/api/admin/domains/${selectedDomainId}/api-keys/${keyId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      fetchAPIKeys(selectedDomainId);
+      if (res.ok) {
+        fetchAPIKeys(selectedDomainId);
+        addFlash('success', t('pages.api_keys_page.key_deleted'));
+      } else {
+        addFlash('error', t('pages.api_keys_page.delete_failed'));
+      }
     } catch (error) {
       console.error('Failed to delete API key:', error);
+      addFlash('error', t('pages.api_keys_page.delete_failed'));
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const domainOptions = domains.map((d) => ({ label: d.Name || d.ID, value: d.ID }));
+  const handleRotateKey = async (keyId: string) => {
+    if (!selectedDomainId) return;
+    setRotatingId(keyId);
+    try {
+      const res = await fetch(`/api/admin/domains/${selectedDomainId}/api-keys/${keyId}/rotate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRotatedSecret({ keyId, secret: data.secret });
+        setShowRotateModal(true);
+        fetchAPIKeys(selectedDomainId);
+        addFlash('success', t('pages.api_keys_page.key_rotated'));
+      } else {
+        addFlash('error', t('pages.api_keys_page.rotate_failed'));
+      }
+    } catch (error) {
+      console.error('Failed to rotate API key:', error);
+      addFlash('error', t('pages.api_keys_page.rotate_failed'));
+    } finally {
+      setRotatingId(null);
+    }
+  };
+
+  const domainOptions = domains.map((d) => ({ label: d.name || d.id, value: d.id }));
   const selectedOption = domainOptions.find((o) => o.value === selectedDomainId) ?? null;
 
   const filteredKeys = keys.filter((k) =>
@@ -160,6 +232,8 @@ export default function APIKeysPage() {
       }
     >
       <SpaceBetween size="l">
+        {flashItems.length > 0 && <Flashbar items={flashItems} />}
+
         {domains.length === 0 && (
           <Alert type="info">{t('pages.api_keys_page.no_domains')}</Alert>
         )}
@@ -187,22 +261,29 @@ export default function APIKeysPage() {
             columnDefinitions={[
               {
                 header: t('pages.api_keys_page.name'),
-                cell: (item: APIKey) => item.name,
-                width: '25%',
+                cell: (item: APIKey) => (
+                  <SpaceBetween size="xxxs">
+                    <Box fontWeight="bold">{item.name}</Box>
+                    <Box color="text-body-secondary" fontSize="body-s">{item.id}</Box>
+                  </SpaceBetween>
+                ),
+                width: '30%',
               },
               {
                 header: t('pages.api_keys_page.status'),
                 cell: (item: APIKey) => (
-                  <Badge color={item.is_active ? 'green' : 'grey'}>
-                    {item.is_active ? 'active' : 'inactive'}
-                  </Badge>
+                  <StatusIndicator type={item.is_active ? 'success' : 'stopped'}>
+                    {item.is_active ? 'Active' : 'Inactive'}
+                  </StatusIndicator>
                 ),
                 width: '15%',
               },
               {
                 header: t('pages.api_keys.last_used'),
                 cell: (item: APIKey) =>
-                  item.last_used_at ? new Date(item.last_used_at).toLocaleString() : '—',
+                  item.last_used_at
+                    ? new Date(item.last_used_at).toLocaleString()
+                    : <Box color="text-body-secondary">—</Box>,
                 width: '20%',
               },
               {
@@ -213,14 +294,24 @@ export default function APIKeysPage() {
               {
                 header: t('common.actions'),
                 cell: (item: APIKey) => (
-                  <Button
-                    variant="inline-link"
-                    onClick={() => handleDeleteKey(item.id)}
-                  >
-                    {t('common.delete')}
-                  </Button>
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Button
+                      variant="inline-link"
+                      onClick={() => handleRotateKey(item.id)}
+                      loading={rotatingId === item.id}
+                    >
+                      {t('buttons.rotate')}
+                    </Button>
+                    <Button
+                      variant="inline-link"
+                      onClick={() => handleDeleteKey(item.id)}
+                      loading={deletingId === item.id}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </SpaceBetween>
                 ),
-                width: '15%',
+                width: '20%',
               },
             ]}
             items={filteredKeys}
@@ -246,7 +337,12 @@ export default function APIKeysPage() {
             }
             empty={
               <Box textAlign="center" padding="l">
-                {t('pages.api_keys_page.no_keys')}
+                <SpaceBetween size="m" alignItems="center">
+                  <StatusIndicator type="info">{t('pages.api_keys_page.no_keys')}</StatusIndicator>
+                  <Button variant="primary" onClick={() => { setCreatedSecret(null); setShowModal(true); }}>
+                    {t('pages.api_keys.create_key')}
+                  </Button>
+                </SpaceBetween>
               </Box>
             }
           />
@@ -257,6 +353,7 @@ export default function APIKeysPage() {
         )}
       </SpaceBetween>
 
+      {/* Create Key Modal */}
       <Modal
         onDismiss={() => { setShowModal(false); setCreatedSecret(null); }}
         visible={showModal}
@@ -288,8 +385,19 @@ export default function APIKeysPage() {
         {createdSecret ? (
           <SpaceBetween size="m">
             <Alert type="success">{t('pages.api_keys_page.key_created_success')}</Alert>
-            <FormField label={t('pages.api_keys_page.secret_label')} description={t('pages.api_keys_page.secret_desc')}>
-              <Input value={createdSecret} readOnly onChange={() => {}} />
+            <FormField
+              label={t('pages.api_keys_page.secret_label')}
+              description={t('pages.api_keys_page.secret_desc')}
+            >
+              <CopyToClipboard
+                copyButtonText={t('buttons.copy')}
+                copySuccessText={t('common.success')}
+                copyErrorText={t('common.error')}
+                textToCopy={createdSecret.secret}
+              />
+              <Box color="text-body-secondary" fontSize="body-s" padding={{ top: 'xs' }}>
+                {createdSecret.secret}
+              </Box>
             </FormField>
           </SpaceBetween>
         ) : (
@@ -304,6 +412,40 @@ export default function APIKeysPage() {
             />
           </FormField>
         )}
+      </Modal>
+
+      {/* Rotate Secret Modal */}
+      <Modal
+        onDismiss={() => { setShowRotateModal(false); setRotatedSecret(null); }}
+        visible={showRotateModal}
+        footer={
+          <Box float="right">
+            <Button onClick={() => { setShowRotateModal(false); setRotatedSecret(null); }}>
+              {t('common.close')}
+            </Button>
+          </Box>
+        }
+        header={t('pages.api_keys_page.rotate_modal_header')}
+      >
+        <SpaceBetween size="m">
+          <Alert type="warning">{t('pages.api_keys_page.rotate_warning')}</Alert>
+          {rotatedSecret && (
+            <FormField
+              label={t('pages.api_keys_page.new_secret_label')}
+              description={t('pages.api_keys_page.secret_desc')}
+            >
+              <CopyToClipboard
+                copyButtonText={t('buttons.copy')}
+                copySuccessText={t('common.success')}
+                copyErrorText={t('common.error')}
+                textToCopy={rotatedSecret.secret}
+              />
+              <Box color="text-body-secondary" fontSize="body-s" padding={{ top: 'xs' }}>
+                {rotatedSecret.secret}
+              </Box>
+            </FormField>
+          )}
+        </SpaceBetween>
       </Modal>
     </ContentLayout>
   );
