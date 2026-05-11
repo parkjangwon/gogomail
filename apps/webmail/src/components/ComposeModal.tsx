@@ -104,6 +104,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string }>>([]);
   const [dragOver, setDragOver] = useState(false);
   const dragCounterRef = useRef(0);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<Array<{ name: string; subject: string; body: string }>>(() => {
+    try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
+  });
 
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
@@ -258,6 +262,34 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSaveStatus('saved');
     } catch { setSaveStatus('idle'); }
   }, [to, cc, bcc, subject, editor, intent, sourceMessage]);
+
+  const saveTemplate = useCallback(() => {
+    const bodyText = editor?.getText() ?? '';
+    if (!subject.trim() && !bodyText.trim()) return;
+    const name = window.prompt('템플릿 이름을 입력하세요:');
+    if (!name?.trim()) return;
+    const entry = { name: name.trim(), subject, body: editor?.getHTML() ?? bodyText };
+    setTemplates((prev) => {
+      const next = [...prev.filter((t) => t.name !== entry.name), entry];
+      try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  }, [subject, editor]);
+
+  const loadTemplate = useCallback((t: { name: string; subject: string; body: string }) => {
+    setSubject(t.subject);
+    subjectRef.current = t.subject;
+    editor?.commands.setContent(t.body);
+    setShowTemplates(false);
+  }, [editor]);
+
+  const deleteTemplate = useCallback((name: string) => {
+    setTemplates((prev) => {
+      const next = prev.filter((t) => t.name !== name);
+      try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  }, []);
 
   function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
@@ -659,6 +691,49 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
               >서명</button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTemplates((v) => !v)}
+                  title="템플릿"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: showTemplates ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px', fontWeight: showTemplates ? 600 : undefined }}
+                  onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                >템플릿</button>
+                {showTemplates && (
+                  <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
+                    {templates.length === 0 && (
+                      <div style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿 없음</div>
+                    )}
+                    {templates.map((t) => (
+                      <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => loadTemplate(t)}
+                          style={{ flex: 1, textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                        >{t.name}</button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTemplate(t.name)}
+                          title="삭제"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '14px', padding: '4px 6px', lineHeight: 1, flexShrink: 0 }}
+                        >×</button>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={saveTemplate}
+                        style={{ width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
+                        onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                      >+ 현재 내용 저장</button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }}
