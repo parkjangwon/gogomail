@@ -134,6 +134,7 @@ interface MessageListProps {
   onSnoozeMessage?: (id: string, until: Date) => void;
   onPinMessage?: (id: string) => void;
   pinnedIds?: Set<string>;
+  importantIds?: Set<string>;
   messageLabels?: Record<string, string>;
   userEmail?: string;
   showPreview?: boolean;
@@ -149,7 +150,7 @@ const CATEGORY_TABS: { id: CategoryTab; label: string }[] = [
   { id: '청구서', label: '청구서' },
 ];
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), importantIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -891,6 +892,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               userEmail={userEmail}
               showPreview={showPreview}
               hasNote={noteIds.has(msg.id)}
+              isImportant={importantIds.has(msg.id)}
             />
           ))}
         </div>
@@ -930,9 +932,10 @@ interface MessageRowProps {
   userEmail?: string;
   showPreview?: boolean;
   hasNote?: boolean;
+  isImportant?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true, hasNote = false }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true, hasNote = false, isImportant = false }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -1055,6 +1058,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
       {/* Subject + preview */}
       <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', alignSelf: 'center' }}>
         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+          {isImportant && <span title="중요 메일 (I)" aria-label="중요" style={{ color: '#eab308', marginRight: '4px', fontSize: '10px', verticalAlign: 'middle' }}>▶</span>}
           <span style={{ fontWeight: isUnread ? 600 : 400, color: 'var(--color-text-primary)' }}>
             {highlight(message.subject || '(제목 없음)', q)}
           </span>
