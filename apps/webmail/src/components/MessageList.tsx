@@ -85,9 +85,10 @@ interface MessageListProps {
   folders?: Folder[];
   onBulkMove?: (ids: string[], folderId: string) => void;
   searchQuery?: string;
+  onBulkRestore?: (ids: string[]) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -267,6 +268,12 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
             </div>
           )}
         </div>
+      )}
+      {onBulkRestore && (
+        <button onClick={() => { onBulkRestore([...bulkSelected]); clearAll(); }}
+          style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+          복구
+        </button>
       )}
       {onBulkDelete && (
         <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }}

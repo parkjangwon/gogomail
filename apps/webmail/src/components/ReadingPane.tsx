@@ -89,6 +89,7 @@ interface ReadingPaneProps {
   onPrev?: () => void;
   onNext?: () => void;
   onComposeToAddress?: (address: string) => void;
+  onRestore?: () => void;
 }
 
 function readingTime(text: string): string {
@@ -171,6 +172,7 @@ export function ReadingPane({
   onPrev,
   onNext,
   onComposeToAddress,
+  onRestore,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
@@ -452,6 +454,7 @@ export function ReadingPane({
             )}
           </div>
         )}
+        {onRestore && <ActionButton label="복구" onClick={onRestore} />}
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>
 
