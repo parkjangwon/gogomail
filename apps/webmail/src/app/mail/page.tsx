@@ -885,8 +885,30 @@ export default function MailPage() {
       } catch { /* ignore */ }
     };
     const id = setInterval(check, 60_000);
+    check();
     return () => clearInterval(id);
   }, [addToast, refresh]);
+
+  // Check for overdue follow-up reminders on load and every 5 minutes
+  useEffect(() => {
+    const checkFollowUps = () => {
+      try {
+        type FollowUp = { remindAt: string; subject: string; to: string; createdAt: string };
+        const followups: FollowUp[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
+        const now = Date.now();
+        const overdue = followups.filter((f) => new Date(f.remindAt).getTime() <= now);
+        if (overdue.length === 0) return;
+        const remaining = followups.filter((f) => new Date(f.remindAt).getTime() > now);
+        localStorage.setItem('webmail_followups', JSON.stringify(remaining));
+        overdue.forEach((f) => {
+          addToast(`팔로업 알림: "${f.subject || '(제목 없음)'}"에 대한 답장이 없습니다`, 'info', { duration: 8000 });
+        });
+      } catch { /* ignore */ }
+    };
+    checkFollowUps();
+    const id = setInterval(checkFollowUps, 5 * 60_000);
+    return () => clearInterval(id);
+  }, [addToast]);
 
   // Extract sender names from messages and store as contacts
   useEffect(() => {

@@ -331,6 +331,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
             const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
             localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
+            const followUpDays = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>).followUpDays ?? 0);
+            if (followUpDays > 0 && msg.to?.length) {
+              const remindAt = new Date(Date.now() + followUpDays * 86400000).toISOString();
+              const followups: Record<string, unknown>[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
+              followups.push({ remindAt, subject: msg.subject ?? '', to: msg.to[0].address, createdAt: new Date().toISOString() });
+              localStorage.setItem('webmail_followups', JSON.stringify(followups));
+            }
           } catch { /* */ }
           setSent(true);
           setTimeout(() => onClose(), 1500);
