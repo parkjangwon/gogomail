@@ -4677,6 +4677,68 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutNotifTemplate(w, r, service)
 	}))
+
+	// ─── Security Posture ──────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/posture", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		handleGetSecurityPosture(w, r, service, id)
+	}))
+
+	// ─── Global Signature ──────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSignature(w, r, service)
+	}))
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/signature", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handlePutSignature(w, r, service)
+	}))
+
+	// ─── Legal Holds ───────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetLegalHolds(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/legal-holds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		handleCreateLegalHold(w, r, service)
+	}))
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/legal-holds/{holdId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleDeleteLegalHold(w, r, service)
+	}))
+
+	// ─── SCIM Status ───────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/scim/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSCIMStatus(w, r, service)
+	}))
+
+	// ─── Seat Usage ────────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/seat-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		handleGetSeatUsage(w, r, service)
+	}))
 }
 
 func handleAdminHealth(w http.ResponseWriter, r *http.Request, service AdminService) {
@@ -7806,5 +7868,297 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 			},
 			"checked_at": time.Now().UTC().Format(time.RFC3339),
 		},
+	})
+}
+
+// ─── Security Posture ─────────────────────────────────────────────────────────
+
+func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service AdminService, companyID string) {
+	ctx := r.Context()
+
+	mfaStats, _ := service.GetMFAStats(ctx, companyID)
+	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
+
+	users, _ := service.ListUsers(ctx, maildb.UserListRequest{Limit: 500})
+	usersWithoutPassword := 0
+	for _, u := range users {
+		if !u.PasswordConfigured {
+			usersWithoutPassword++
+		}
+	}
+
+	ipPolicyCfg, ipErr := service.GetCompanyConfig(ctx, companyID, ipAccessPolicyKey)
+	ipPolicyConfigured := ipErr == nil && ipPolicyCfg.Value != nil
+
+	score := 100
+	if mfaStats.Total > 0 && mfaStats.Enabled == 0 {
+		score -= 30
+	}
+	if !ipPolicyConfigured {
+		score -= 10
+	}
+	if usersWithoutPassword > 0 {
+		score -= 20
+	}
+
+	mfaRate := 0.0
+	if mfaStats.Total > 0 {
+		mfaRate = float64(mfaStats.Enabled) / float64(mfaStats.Total) * 100
+	}
+
+	activeDomains := 0
+	for _, d := range domains {
+		if d.Status == "active" {
+			activeDomains++
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"score": score,
+		"mfa": map[string]any{
+			"total":   mfaStats.Total,
+			"enabled": mfaStats.Enabled,
+			"rate":    mfaRate,
+		},
+		"ip_policy_configured":    ipPolicyConfigured,
+		"users_without_password":  usersWithoutPassword,
+		"domain_count":            len(domains),
+		"active_domains":          activeDomains,
+	})
+}
+
+// ─── Global Signature ─────────────────────────────────────────────────────────
+
+const emailSignatureKey = "email_signature"
+
+type signatureConfig struct {
+	HTML    string `json:"html"`
+	Text    string `json:"text"`
+	Enabled bool   `json:"enabled"`
+}
+
+func handleGetSignature(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, emailSignatureKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"signature": signatureConfig{}})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var cfg signatureConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse signature config")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"signature": cfg})
+}
+
+func handlePutSignature(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var cfg signatureConfig
+	if err := decodeJSONBody(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal signature config")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, emailSignatureKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"signature": cfg})
+}
+
+// ─── Legal Holds ──────────────────────────────────────────────────────────────
+
+const legalHoldsKey = "legal_holds"
+
+type legalHold struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	UserEmail string    `json:"user_email"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy string    `json:"created_by"`
+}
+
+type legalHoldsConfig struct {
+	Holds []legalHold `json:"holds"`
+}
+
+func getLegalHoldsConfig(ctx context.Context, service AdminService, companyID string) (legalHoldsConfig, error) {
+	entry, err := service.GetCompanyConfig(ctx, companyID, legalHoldsKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			return legalHoldsConfig{Holds: []legalHold{}}, nil
+		}
+		return legalHoldsConfig{}, err
+	}
+	var cfg legalHoldsConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		return legalHoldsConfig{Holds: []legalHold{}}, nil
+	}
+	if cfg.Holds == nil {
+		cfg.Holds = []legalHold{}
+	}
+	return cfg, nil
+}
+
+func handleGetLegalHolds(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"holds": cfg.Holds})
+}
+
+func handleCreateLegalHold(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var input legalHold
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	input.ID = fmt.Sprintf("hold-%d", time.Now().UnixNano())
+	input.CreatedAt = time.Now().UTC()
+
+	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	cfg.Holds = append(cfg.Holds, input)
+
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal legal holds")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, legalHoldsKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"hold": input})
+}
+
+func handleDeleteLegalHold(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	holdID, ok := parseBoundedAdminPathValue(w, r, "holdId")
+	if !ok {
+		return
+	}
+
+	cfg, err := getLegalHoldsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	found := false
+	filtered := cfg.Holds[:0]
+	for _, h := range cfg.Holds {
+		if h.ID == holdID {
+			found = true
+		} else {
+			filtered = append(filtered, h)
+		}
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "legal hold not found")
+		return
+	}
+	cfg.Holds = filtered
+
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal legal holds")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, legalHoldsKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+// ─── SCIM Status ──────────────────────────────────────────────────────────────
+
+func handleGetSCIMStatus(w http.ResponseWriter, r *http.Request, service AdminService) {
+	ctx := r.Context()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 10})
+	domainID := ""
+	if len(domains) > 0 {
+		domainID = domains[0].ID
+	}
+	users, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domainID, Limit: 1000})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"endpoint":            "/scim/v2",
+		"supported_resources": []string{"Users"},
+		"domain_id":           domainID,
+		"user_count":          len(users),
+		"status":              "active",
+	})
+}
+
+// ─── Seat Usage ───────────────────────────────────────────────────────────────
+
+func handleGetSeatUsage(w http.ResponseWriter, r *http.Request, service AdminService) {
+	ctx := r.Context()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
+	totalUsers := 0
+	activeUsers := 0
+	suspendedUsers := 0
+	for _, d := range domains {
+		us, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: d.ID, Limit: 1000})
+		totalUsers += len(us)
+		for _, u := range us {
+			if u.Status == "active" {
+				activeUsers++
+			} else {
+				suspendedUsers++
+			}
+		}
+	}
+	company, _ := service.GetCompany(ctx, id)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total_users":     totalUsers,
+		"active_users":    activeUsers,
+		"suspended_users": suspendedUsers,
+		"domain_count":    len(domains),
+		"storage_used":    company.QuotaUsed,
+		"storage_limit":   company.AllocatedDomainQuota,
 	})
 }

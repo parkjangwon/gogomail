@@ -8294,6 +8294,252 @@ paths:
                 format: binary
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/security/posture:
+    get:
+      operationId: getSecurityPosture
+      summary: Get security posture score and breakdown
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Security posture data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  score:
+                    type: integer
+                  mfa:
+                    type: object
+                  ip_policy_configured:
+                    type: boolean
+                  users_without_password:
+                    type: integer
+                  domain_count:
+                    type: integer
+                  active_domains:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/signature:
+    get:
+      operationId: getGlobalSignature
+      summary: Get company global email signature
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Email signature config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signature:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: putGlobalSignature
+      summary: Set company global email signature
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                html:
+                  type: string
+                text:
+                  type: string
+                enabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated signature config
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/legal-holds:
+    get:
+      operationId: listLegalHolds
+      summary: List legal holds for a company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Legal holds list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  holds:
+                    type: array
+                    items:
+                      type: object
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createLegalHold
+      summary: Create a legal hold
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_email, reason]
+              properties:
+                user_email:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "201":
+          description: Legal hold created
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/legal-holds/{holdId}:
+    delete:
+      operationId: deleteLegalHold
+      summary: Release a legal hold
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: holdId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Legal hold released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/scim/status:
+    get:
+      operationId: getSCIMStatus
+      summary: Get SCIM provisioning status
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: SCIM status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endpoint:
+                    type: string
+                  supported_resources:
+                    type: array
+                    items:
+                      type: string
+                  domain_id:
+                    type: string
+                  user_count:
+                    type: integer
+                  status:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/seat-usage:
+    get:
+      operationId: getSeatUsage
+      summary: Get seat and license usage for a company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Seat usage data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_users:
+                    type: integer
+                  active_users:
+                    type: integer
+                  suspended_users:
+                    type: integer
+                  domain_count:
+                    type: integer
+                  storage_used:
+                    type: integer
+                  storage_limit:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:
