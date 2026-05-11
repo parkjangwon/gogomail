@@ -387,6 +387,29 @@ export default function MailPage() {
     localStorage.setItem('webmail_pane_position', readingPanePosition);
   }, [readingPanePosition]);
 
+  // Persist last-selected message per folder
+  useEffect(() => {
+    if (!selectedMessageId || !activeFolderId) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('webmail_last_selected') ?? '{}');
+      saved[activeFolderId] = selectedMessageId;
+      localStorage.setItem('webmail_last_selected', JSON.stringify(saved));
+    } catch { /* */ }
+  }, [selectedMessageId, activeFolderId]);
+
+  // Restore last-selected message when folder loads
+  useEffect(() => {
+    if (selectedMessageId || !activeFolderId || messages.length === 0) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('webmail_last_selected') ?? '{}');
+      const lastId = saved[activeFolderId] as string | undefined;
+      if (lastId && messages.some((m) => m.id === lastId)) {
+        setSelectedMessageId(lastId);
+      }
+    } catch { /* */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFolderId, messages.length]);
+
   // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
