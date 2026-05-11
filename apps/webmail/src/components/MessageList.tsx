@@ -548,7 +548,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           <EllipsisVerticalIcon style={{ width: '16px', height: '16px' }} />
         </button>
         {showMoreMenu && (
-          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
+          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
             {onMarkAllRead && messages.some((m) => !m.read) && (
               <button
                 onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }}
@@ -885,6 +885,13 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
         )}
       </div>
 
+      {/* Attachment slot — fixed width so subject aligns consistently */}
+      <div style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+        {message.has_attachment && (
+          <PaperClipIcon aria-label="첨부파일" style={{ width: '13px', height: '13px', color: 'var(--color-text-tertiary)' }} />
+        )}
+      </div>
+
       {/* Subject + preview */}
       <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', alignSelf: 'center' }}>
         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
@@ -898,9 +905,6 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
               {' · '}{highlight(message.preview, q)}
             </span>
-          )}
-          {message.has_attachment && (
-            <PaperClipIcon aria-label="첨부파일" style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px', flexShrink: 0 }} />
           )}
         </div>
       </div>
