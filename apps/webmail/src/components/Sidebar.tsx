@@ -20,6 +20,7 @@ import {
   CheckIcon,
   Cog6ToothIcon,
   EnvelopeIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -30,12 +31,14 @@ export const VIRTUAL_ALL = '__all__';
 export const VIRTUAL_STARRED = '__starred__';
 export const VIRTUAL_ATTACHMENTS = '__attachments__';
 export const VIRTUAL_UNREAD = '__unread__';
+export const VIRTUAL_SNOOZED = '__snoozed__';
 
 const VIRTUAL_NAV: { id: string; label: string; icon: ReactNode }[] = [
   { id: VIRTUAL_ALL, label: '모든 편지함', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_STARRED, label: '중요 편지함', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_UNREAD, label: '읽지 않은 메일', icon: <EnvelopeIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_SNOOZED, label: '다시 알림', icon: <ClockIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
 ];
 
 const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [

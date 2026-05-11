@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -138,6 +138,13 @@ export default function MailPage() {
       let msgs = res.messages ?? [];
       if (activeFolderId === VIRTUAL_STARRED) msgs = msgs.filter((m) => m.starred);
       if (activeFolderId === VIRTUAL_UNREAD) msgs = msgs.filter((m) => !m.read);
+      if (activeFolderId === VIRTUAL_SNOOZED) {
+        try {
+          const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
+          const now = Date.now();
+          msgs = msgs.filter((m) => snoozed[m.id] && new Date(snoozed[m.id]).getTime() > now);
+        } catch { /* ignore */ }
+      }
       setMessages(msgs);
     }).catch(() => {});
     return () => { cancelled = true; };
@@ -1149,12 +1156,17 @@ export default function MailPage() {
                 } else {
                   msgs = messages;
                 }
-                try {
-                  const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
-                  if (blocked.length > 0) {
-                    msgs = msgs.filter((m) => !blocked.some((b) => m.from_addr.toLowerCase().includes(b)));
-                  }
-                } catch { /* ignore */ }
+                if (activeFolderId !== VIRTUAL_SNOOZED) {
+                  try {
+                    const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
+                    if (blocked.length > 0) {
+                      msgs = msgs.filter((m) => !blocked.some((b) => m.from_addr.toLowerCase().includes(b)));
+                    }
+                    const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
+                    const now = Date.now();
+                    msgs = msgs.filter((m) => !snoozed[m.id] || new Date(snoozed[m.id]).getTime() <= now);
+                  } catch { /* ignore */ }
+                }
                 return msgs;
               })()}
               selectedId={selectedMessageId}
