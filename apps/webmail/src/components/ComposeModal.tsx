@@ -433,6 +433,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           .tiptap a { color: var(--color-accent); text-decoration: underline; }
           .tiptap p { margin: 0 0 4px; }
           .tiptap ul, .tiptap ol { padding-left: 20px; }
+.tiptap blockquote { border-left: 3px solid var(--color-border-default); margin: 4px 0; padding: 4px 12px; color: var(--color-text-secondary); }
         `}</style>
 
         {/* Header */}
@@ -635,6 +636,27 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
             >≡</button>
+
+            <button type="button" aria-label="번호 목록" title="번호 목록"
+              style={toolbarBtnStyle(editor?.isActive('orderedList'))}
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
+            >1.</button>
+
+            <button type="button" aria-label="취소선" title="취소선"
+              style={toolbarBtnStyle(editor?.isActive('strike'))}
+              onClick={() => editor?.chain().focus().toggleStrike().run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('strike') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
+            ><s>S</s></button>
+
+            <button type="button" aria-label="인용" title="인용구"
+              style={toolbarBtnStyle(editor?.isActive('blockquote'))}
+              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('blockquote') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
+            >"</button>
 
             <button type="button" aria-label="링크 삽입" title="링크 삽입"
               style={toolbarBtnStyle(editor?.isActive('link'))}
