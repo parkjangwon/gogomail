@@ -111,9 +111,7 @@ export default function MailPage() {
 
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
 
-  const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
-    try { return localStorage.getItem('webmail_thread_view') === '1'; } catch { return false; }
-  });
+  const threadViewEnabled = true; // thread view always on (toggle removed)
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
 
   const isMobile = useIsMobile();
@@ -820,11 +818,6 @@ export default function MailPage() {
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
           break;
-        case '/': {
-          e.preventDefault();
-          setShowSpotlight(true);
-          break;
-        }
         case 'Enter':
         case 'o': {
           if (selectedMessageId && !composeContext) {
@@ -1215,31 +1208,6 @@ export default function MailPage() {
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
-            {/* Thread view toggle */}
-            {!searchResults && !activeFolderId.startsWith('__') && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 12px 0', flexShrink: 0 }}>
-                <button
-                  onClick={() => {
-                    const next = !threadViewEnabled;
-                    setThreadViewEnabled(next);
-                    try { localStorage.setItem('webmail_thread_view', next ? '1' : '0'); } catch { /* */ }
-                    if (!next) setThreads([]);
-                  }}
-                  style={{
-                    fontSize: '11px',
-                    padding: '2px 10px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--color-border-default)',
-                    background: threadViewEnabled ? 'var(--color-accent-subtle)' : 'transparent',
-                    color: threadViewEnabled ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
-                >
-                  {threadViewEnabled ? '스레드 보기' : '개별 보기'}
-                </button>
-              </div>
-            )}
             <MessageList
               messages={(() => {
                 let msgs: MessageSummary[];
