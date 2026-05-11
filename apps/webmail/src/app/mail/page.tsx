@@ -66,6 +66,24 @@ export default function MailPage() {
 
   const [activeApp, setActiveApp] = useState<AppId>('mail');
 
+  const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>;
+      return { showPreview: s.showPreview !== false, externalImages: (s.externalImages as string) ?? 'ask' };
+    } catch { return { showPreview: true, externalImages: 'ask' }; }
+  });
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== 'webmail_settings') return;
+      try {
+        const s = JSON.parse(e.newValue ?? '{}') as Record<string, unknown>;
+        setWmSettings({ showPreview: s.showPreview !== false, externalImages: (s.externalImages as string) ?? 'ask' });
+      } catch { /* */ }
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
 
   const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
@@ -279,9 +297,13 @@ export default function MailPage() {
     setPendingCompose(null);
   }, [pendingCompose, selectedMessage]);
 
-  // Mark selected message as read locally + server after 1.5s (skip drafts)
+  // Mark selected message as read locally + server (delay controlled by readMark setting)
   useEffect(() => {
     if (!selectedMessageId || activeFolderSystemType === 'drafts') return;
+    let readMark: string;
+    try { readMark = (JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { readMark?: string }).readMark ?? 'instant'; } catch { readMark = 'instant'; }
+    if (readMark === 'manual') return;
+    const delay = readMark === '2s' ? 2000 : 0;
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
@@ -293,7 +315,7 @@ export default function MailPage() {
         }
         return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
       });
-    }, 1500);
+    }, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
 
@@ -1142,6 +1164,7 @@ export default function MailPage() {
               onBulkStar={handleBulkStar}
               messageLabels={messageLabels}
               userEmail={userEmail || undefined}
+              showPreview={wmSettings.showPreview}
             />
 
           </div>{/* end mail layout wrapper */}
@@ -1287,6 +1310,7 @@ export default function MailPage() {
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
                 userEmail={userEmail || undefined}
+                externalImages={wmSettings.externalImages}
               />
             </div>
           </>

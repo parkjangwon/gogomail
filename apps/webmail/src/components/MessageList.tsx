@@ -112,9 +112,10 @@ interface MessageListProps {
   onToggleReadMessage?: (id: string, read: boolean) => void;
   messageLabels?: Record<string, string>;
   userEmail?: string;
+  showPreview?: boolean;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {}, userEmail }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -773,6 +774,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               threadCount={msg.message_count ?? threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
               userEmail={userEmail}
+              showPreview={showPreview}
             />
           ))}
         </div>
@@ -807,9 +809,10 @@ interface MessageRowProps {
   threadCount?: number;
   labelColor?: string;
   userEmail?: string;
+  showPreview?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor, userEmail }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -937,7 +940,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           {threadCount && threadCount > 1 && (
             <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: (message.unread_count ?? 0) > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: (message.unread_count ?? 0) > 0 ? 'var(--color-accent-subtle)' : 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
           )}
-          {message.preview && (
+          {showPreview && message.preview && (
             <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
               {' · '}{highlight(message.preview, q)}
             </span>
