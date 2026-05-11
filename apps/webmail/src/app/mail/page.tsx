@@ -687,6 +687,8 @@ export default function MailPage() {
           if (firstUnread) setSelectedMessageId(firstUnread.id);
           return;
         }
+        const virtualFolderMap: Record<string, string> = { w: VIRTUAL_TASKS, x: VIRTUAL_IMPORTANT };
+        if (virtualFolderMap[e.key]) { e.preventDefault(); handleSelectFolder(virtualFolderMap[e.key]); return; }
         const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive', p: 'spam' };
         const target = systemTypeMap[e.key];
         if (target) {

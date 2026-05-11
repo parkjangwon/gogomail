@@ -62,6 +62,8 @@ const SECTIONS = [
       { key: 'g  t', desc: '휴지통' },
       { key: 'g  p', desc: '스팸 편지함' },
       { key: 'g  u', desc: '첫 읽지 않은 메일' },
+      { key: 'g  x', desc: '중요 메일함' },
+      { key: 'g  w', desc: '할 일 목록' },
     ],
   },
   {
