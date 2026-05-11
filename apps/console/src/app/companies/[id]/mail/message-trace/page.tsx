@@ -76,6 +76,30 @@ export default function MessageTracePage() {
 
   const [selected, setSelected] = useState<LogEntry[]>([]);
 
+  const handleExportCSV = () => {
+    if (logs.length === 0) return;
+    const headers = ['ID', 'RFC Message ID', 'From', 'To', 'Subject', 'Status', 'Direction', 'Time'];
+    const escape = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`;
+    const rows = logs.map(l => [
+      escape(l.id),
+      escape(l.rfc_message_id),
+      escape(l.from_addr),
+      escape(l.to_addr),
+      escape(l.subject),
+      escape(l.flow_status),
+      escape(l.direction),
+      escape(l.created_at ? new Date(l.created_at).toISOString() : ''),
+    ].join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `message-trace-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSearch = async () => {
     setLoading(true);
     setSearched(true);
@@ -225,7 +249,17 @@ export default function MessageTracePage() {
             selectedItems={selected}
             onSelectionChange={e => setSelected(e.detail.selectedItems)}
             header={
-              <Header variant="h2" counter={`(${logs.length})`}>
+              <Header
+                variant="h2"
+                counter={`(${logs.length})`}
+                actions={
+                  logs.length > 0 ? (
+                    <Button iconName="download" onClick={handleExportCSV}>
+                      Export CSV
+                    </Button>
+                  ) : undefined
+                }
+              >
                 Results
               </Header>
             }
