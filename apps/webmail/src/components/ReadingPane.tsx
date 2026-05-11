@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import LinkExt from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
 import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
@@ -17,6 +24,10 @@ import {
   ArrowPathIcon,
   StarIcon,
   NoSymbolIcon,
+  LinkIcon,
+  ListBulletIcon,
+  NumberedListIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -203,6 +214,256 @@ const iconStyle: React.CSSProperties = {
   cursor: 'pointer',
   transition: 'background 100ms ease, color 100ms ease',
 };
+
+// ── InlineCompose ─────────────────────────────────────────────────────────────
+
+function escapeHtmlInline(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildInlineQuoteHTML(intent: string, sourceText: string): string {
+  const header = intent === 'forward'
+    ? '<p><strong>---------- 전달된 메시지 ----------</strong></p>'
+    : '<p><strong>--- 원본 메시지 ---</strong></p>';
+  const bodyLines = (sourceText || '')
+    .split('\n')
+    .map((line) => `<p>${escapeHtmlInline(line) || '&nbsp;'}</p>`)
+    .join('');
+  return `<p></p>${header}<blockquote>${bodyLines}</blockquote>`;
+}
+
+const toolbarBtnStyleInline = (active?: boolean): React.CSSProperties => ({
+  width: '28px',
+  height: '28px',
+  borderRadius: '4px',
+  border: 'none',
+  background: active ? 'var(--color-bg-tertiary)' : 'transparent',
+  color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '13px',
+  fontWeight: 600,
+  transition: 'background 80ms ease',
+  flexShrink: 0,
+});
+
+interface InlineComposeProps {
+  intent: 'reply' | 'reply_all' | 'forward';
+  to: string;
+  subject: string;
+  messageId: string;
+  sourceText?: string;
+  onClose: () => void;
+  onOpenFullModal: () => void;
+  userEmail?: string;
+}
+
+function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, onOpenFullModal }: InlineComposeProps) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [cc, setCc] = useState('');
+  const [showCc, setShowCc] = useState(false);
+  const [attachments, setAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      LinkExt.configure({ openOnClick: false }),
+      Underline,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder: '답장 내용을 입력하세요...' }),
+      Image,
+    ],
+    content: sourceText ? buildInlineQuoteHTML(intent, sourceText) : '<p></p>',
+    autofocus: 'start',
+  });
+
+  function handleLinkInsert() {
+    const url = window.prompt('링크 URL을 입력하세요:');
+    if (url && editor) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  }
+
+  async function handleImageFile(file: File) {
+    if (!editor) return;
+    let src: string;
+    if (file.size < 500 * 1024) {
+      src = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    } else {
+      const objectUrl = URL.createObjectURL(file);
+      uploadAttachment(file).then((att) => {
+        setAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
+      }).catch(() => {});
+      src = objectUrl;
+    }
+    editor.chain().focus().setImage({ src, alt: file.name }).run();
+  }
+
+  async function handleFileAttach(files: FileList) {
+    for (const file of Array.from(files)) {
+      const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
+      setAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true }]);
+      try {
+        const att = await uploadAttachment(file);
+        setAttachments((prev) => prev.map((a) => a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a));
+      } catch {
+        setAttachments((prev) => prev.filter((a) => a.id !== tempId));
+      }
+    }
+  }
+
+  function doSend() {
+    if (sending || !editor) return;
+    const html = editor.getHTML();
+    const toAddrs = to ? to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) : [];
+    const ccAddrs = cc ? cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) : [];
+    setSending(true);
+    sendMessage({
+      to: toAddrs,
+      cc: ccAddrs.length ? ccAddrs : undefined,
+      subject,
+      text_body: '',
+      html_body: html,
+      source_message_id: messageId,
+      attachment_ids: attachments.filter((a) => !a.uploading).map((a) => a.id),
+    })
+      .then(() => {
+        setSent(true);
+        setTimeout(() => { onClose(); }, 1500);
+      })
+      .catch(() => {})
+      .finally(() => setSending(false));
+  }
+
+  const intentLabel = intent === 'reply' ? '답장' : intent === 'reply_all' ? '전체 답장' : '전달';
+
+  function fmtSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  }
+
+  return (
+    <div style={{ marginTop: '24px', maxWidth: '680px', borderRadius: '8px 8px 0 0', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>
+          {intentLabel}: {to}
+        </span>
+        <button
+          type="button"
+          aria-label="새창으로 열기"
+          title="새창으로 열기"
+          onClick={onOpenFullModal}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
+          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+        >
+          <ArrowTopRightOnSquareIcon style={{ width: '15px', height: '15px' }} />
+        </button>
+        <button
+          type="button"
+          aria-label="닫기"
+          onClick={onClose}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
+          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+        >
+          <XMarkIcon style={{ width: '15px', height: '15px' }} />
+        </button>
+      </div>
+
+      {/* CC row */}
+      <div style={{ padding: '0 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>참조:</span>
+          {showCc ? (
+            <input
+              type="text"
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              placeholder="참조 주소..."
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: '12px', background: 'transparent', color: 'var(--color-text-primary)' }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCc(true)}
+              style={{ fontSize: '12px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              참조 추가
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '4px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
+        <button type="button" aria-label="굵게" title="굵게" style={toolbarBtnStyleInline(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
+        <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyleInline(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
+        <button type="button" aria-label="밑줄" title="밑줄" style={toolbarBtnStyleInline(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
+        <button type="button" aria-label="글머리 목록" title="글머리 목록" style={toolbarBtnStyleInline(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" aria-label="번호 목록" title="번호 목록" style={toolbarBtnStyleInline(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyleInline(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" aria-label="이미지 삽입" title="이미지 삽입" style={toolbarBtnStyleInline()} onClick={() => imageInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
+        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+        <button type="button" aria-label="파일 첨부" title="파일 첨부" style={toolbarBtnStyleInline()} onClick={() => fileInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
+      </div>
+
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.length) { void handleFileAttach(e.target.files); e.target.value = ''; } }} />
+      <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.[0]) { void handleImageFile(e.target.files[0]); e.target.value = ''; } }} />
+
+      {/* Editor body */}
+      <div
+        style={{ minHeight: '120px', padding: '12px 14px', cursor: 'text' }}
+        onClick={() => editor?.commands.focus()}
+      >
+        <EditorContent
+          editor={editor}
+          style={{ outline: 'none', fontSize: '14px', lineHeight: 1.6, color: 'var(--color-text-primary)' }}
+        />
+      </div>
+
+      {/* Attachment chips */}
+      {attachments.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '0 14px 8px' }}>
+          {attachments.map((att) => (
+            <span key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '4px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+              <PaperClipIcon style={{ width: '12px', height: '12px' }} />
+              {att.filename} {att.uploading ? '(업로드 중...)' : `(${fmtSize(att.size)})`}
+              {!att.uploading && (
+                <button type="button" onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'var(--color-text-tertiary)' }}>×</button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer / send */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '8px 14px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
+        <button
+          type="button"
+          disabled={sending}
+          onClick={doSend}
+          style={{ padding: '6px 20px', borderRadius: '5px', border: 'none', background: sending ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: sending ? 'not-allowed' : 'pointer' }}
+        >
+          {sent ? '전송됨 ✓' : sending ? '전송 중...' : '전송'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function ReadingPane({
   message,
@@ -486,15 +747,9 @@ export function ReadingPane({
     to: string;
     subject: string;
   } | null>(null);
-  const [inlineBody, setInlineBody] = useState('');
-  const [inlineSending, setInlineSending] = useState(false);
-  const [inlineSent, setInlineSent] = useState(false);
-  const inlineTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setInlineCompose(null);
-    setInlineBody('');
-    setInlineSent(false);
   }, [message?.id]);
 
   const scrollContainerRef = useRef<HTMLElement>(null);
@@ -665,11 +920,8 @@ export function ReadingPane({
               ? (message.subject?.startsWith('Fwd:') ? message.subject : `Fwd: ${message.subject ?? ''}`)
               : (message.subject?.startsWith('Re:') ? message.subject : `Re: ${message.subject ?? ''}`);
             setInlineCompose({ intent, to, subject });
-            setInlineBody('');
-            setInlineSent(false);
             setTimeout(() => {
               scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'smooth' });
-              inlineTextareaRef.current?.focus();
             }, 50);
           }}
             style={{ ...iconStyle, padding: '5px 8px', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1272,116 +1524,22 @@ export function ReadingPane({
 
         {/* Inline compose editor */}
         {inlineCompose && (
-          <div style={{ marginTop: '24px', maxWidth: '680px', borderRadius: '8px 8px 0 0', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
-            {/* Header row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>
-                {inlineCompose.intent === 'reply' ? '답장' : inlineCompose.intent === 'reply_all' ? '전체 답장' : '전달'}
-              </span>
-              <button
-                aria-label="새창으로 열기"
-                title="새창으로 열기"
-                onClick={() => {
-                  setInlineCompose(null);
-                  if (inlineCompose.intent === 'reply') onReply?.();
-                  else if (inlineCompose.intent === 'reply_all') onReplyAll?.();
-                  else onForward?.();
-                }}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-              >
-                <ArrowTopRightOnSquareIcon style={{ width: '15px', height: '15px' }} />
-              </button>
-              <button
-                aria-label="닫기"
-                onClick={() => { setInlineCompose(null); setInlineBody(''); }}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px', fontSize: '16px', lineHeight: 1 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-              >×</button>
-            </div>
-            {/* To / Subject display */}
-            <div style={{ padding: '8px 14px 0', borderBottom: '1px solid var(--color-border-subtle)' }}>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', paddingBottom: '4px' }}>
-                <span style={{ color: 'var(--color-text-tertiary)', marginRight: '6px' }}>받는 사람:</span>
-                {inlineCompose.to || '(없음)'}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', paddingBottom: '6px' }}>
-                <span style={{ marginRight: '6px' }}>제목:</span>
-                {inlineCompose.subject}
-              </div>
-            </div>
-            {/* Textarea */}
-            <textarea
-              ref={inlineTextareaRef}
-              value={inlineBody}
-              onChange={(e) => {
-                setInlineBody(e.target.value);
-                // auto-grow
-                e.currentTarget.style.height = 'auto';
-                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
-              }}
-              placeholder="답장 내용을 입력하세요..."
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') { e.preventDefault(); setInlineCompose(null); setInlineBody(''); }
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  if (!inlineSending && inlineBody.trim()) {
-                    setInlineSending(true);
-                    const toAddrs = inlineCompose.to
-                      ? inlineCompose.to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address)
-                      : [];
-                    sendMessage({
-                      to: toAddrs,
-                      subject: inlineCompose.subject,
-                      text_body: inlineBody,
-                      source_message_id: message.id,
-                    })
-                      .then(() => {
-                        setInlineSent(true);
-                        setTimeout(() => { setInlineCompose(null); setInlineBody(''); setInlineSent(false); onReply?.(); }, 1500);
-                      })
-                      .catch(() => {})
-                      .finally(() => setInlineSending(false));
-                  }
-                }
-              }}
-              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', border: 'none', outline: 'none', resize: 'none', minHeight: '120px', fontSize: '14px', lineHeight: 1.6, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit' }}
-            />
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
-              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Ctrl+Enter로 전송 · Escape로 닫기</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{inlineBody.length}자</span>
-                <button
-                  disabled={inlineSending || !inlineBody.trim()}
-                  onClick={() => {
-                    if (inlineSending || !inlineBody.trim()) return;
-                    setInlineSending(true);
-                    const toAddrs = inlineCompose.to
-                      ? inlineCompose.to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address)
-                      : [];
-                    sendMessage({
-                      to: toAddrs,
-                      subject: inlineCompose.subject,
-                      text_body: inlineBody,
-                      source_message_id: message.id,
-                    })
-                      .then(() => {
-                        setInlineSent(true);
-                        setTimeout(() => { setInlineCompose(null); setInlineBody(''); setInlineSent(false); onReply?.(); }, 1500);
-                      })
-                      .catch(() => {})
-                      .finally(() => setInlineSending(false));
-                  }}
-                  style={{ padding: '5px 16px', borderRadius: '5px', border: 'none', background: inlineSending || !inlineBody.trim() ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: inlineSending || !inlineBody.trim() ? 'not-allowed' : 'pointer' }}
-                >
-                  {inlineSent ? '전송됨 ✓' : inlineSending ? '전송 중...' : '전송'}
-                </button>
-              </div>
-            </div>
-          </div>
+          <InlineCompose
+            intent={inlineCompose.intent}
+            to={inlineCompose.to}
+            subject={inlineCompose.subject}
+            messageId={message.id}
+            sourceText={message.text_body}
+            onClose={() => setInlineCompose(null)}
+            onOpenFullModal={() => {
+              const cb = inlineCompose.intent === 'reply' ? onReply
+                : inlineCompose.intent === 'reply_all' ? onReplyAll
+                : onForward;
+              setInlineCompose(null);
+              cb?.();
+            }}
+            userEmail={userEmail}
+          />
         )}
       </div>
 
