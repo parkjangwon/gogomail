@@ -18,7 +18,9 @@ import {
   ArrowTopRightOnSquareIcon,
   XMarkIcon,
   CheckIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
+import { SettingsModal } from '@/components/SettingsModal';
 
 
 export const VIRTUAL_ALL = '__all__';
@@ -124,6 +126,7 @@ export function Sidebar({
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -389,6 +392,23 @@ export function Sidebar({
                 {menuExtra}
               </div>
             )}
+            {/* Settings */}
+            <button
+              role="menuitem"
+              onClick={() => { setShowUserMenu(false); setShowSettings(true); }}
+              style={{
+                width: '100%', padding: '10px 14px', border: 'none',
+                background: 'transparent', color: 'var(--color-text-primary)',
+                fontSize: '13px', fontWeight: 500, cursor: 'pointer', textAlign: 'left',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                borderTop: '1px solid var(--color-border-subtle)',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >
+              <Cog6ToothIcon style={{ width: '15px', height: '15px', color: 'var(--color-text-secondary)' }} />
+              설정
+            </button>
             {/* Logout */}
             {onLogout && (
               <button
@@ -617,6 +637,9 @@ export function Sidebar({
       </>
       )}
     </aside>
+    {showSettings && (
+      <SettingsModal onClose={() => setShowSettings(false)} userEmail={userEmailAddress} />
+    )}
     </>
   );
 }
