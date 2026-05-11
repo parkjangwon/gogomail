@@ -86,7 +86,9 @@
     "section_analytics_storage": "Analytics & Storage",
     "onboarding": "New Tenant Wizard",
     "sso_config": "SSO / SAML",
-    "smtp_policy": "Outbound SMTP"
+    "smtp_policy": "Outbound SMTP",
+    "webhooks": "Webhooks",
+    "notif_templates": "Notification Templates"
   },
   "dashboard": {
     "title": "Dashboard",

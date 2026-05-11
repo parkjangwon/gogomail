@@ -7411,6 +7411,182 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/webhooks:
+    get:
+      operationId: adminListCompanyWebhooks
+      summary: List company webhook endpoints
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Webhook list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Webhook"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: adminCreateCompanyWebhook
+      summary: Create a company webhook endpoint
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookInput"
+      responses:
+        "201":
+          description: Created webhook
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: "#/components/schemas/Webhook"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/webhooks/{webhookId}:
+    delete:
+      operationId: adminDeleteCompanyWebhook
+      summary: Delete a company webhook endpoint
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/webhooks/{webhookId}/test:
+    post:
+      operationId: adminTestCompanyWebhook
+      summary: Send a test event to a webhook
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status_code:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/notification-templates:
+    get:
+      operationId: adminListCompanyNotifTemplates
+      summary: List company notification templates
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NotifTemplate"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/notification-templates/{templateId}:
+    put:
+      operationId: adminUpdateCompanyNotifTemplate
+      summary: Update a company notification template
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotifTemplate"
+      responses:
+        "200":
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: "#/components/schemas/NotifTemplate"
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/smtp-policy:
     get:
       operationId: adminGetDomainSMTPPolicy
@@ -8947,6 +9123,62 @@ components:
           schema:
             $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        secret:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+        last_triggered_at:
+          type: string
+    WebhookInput:
+      type: object
+      required: [name, url, events]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        secret:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+    NotifTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        subject:
+          type: string
+        body_html:
+          type: string
+        body_text:
+          type: string
+        locale:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
     IPAccessPolicy:
       type: object
       properties:
