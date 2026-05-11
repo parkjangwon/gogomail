@@ -337,7 +337,7 @@ export default function DomainDetailPage() {
                 <Container header={
                 <Header
                   variant="h2"
-                  description="Messages sent from this domain — last 7 days"
+                  description={t('pages.domain_detail.mail_stats_desc')}
                   actions={
                     <Button iconName="refresh" loading={statsLoading} onClick={() => fetchMailStats(domain?.name ?? '', true)}>
                       Refresh

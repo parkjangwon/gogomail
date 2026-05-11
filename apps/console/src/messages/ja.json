@@ -985,7 +985,8 @@
       "tab_users": "ユーザー",
       "value": "値",
       "value_placeholder": "値を入力...",
-      "verified": "確認済み"
+      "verified": "確認済み",
+      "mail_stats_desc": "このドメインから送信されたメッセージ — 過去7日間"
     },
     "domain_settings": {
       "title": "Title",
@@ -2160,7 +2161,8 @@
       "suspend_user": "ユーザー停止",
       "tab_active": "アクティブ",
       "tab_all": "すべて",
-      "tab_suspended": "停止"
+      "tab_suspended": "停止",
+      "admin_role_desc": "会社管理者以上がアドミンコンソールにログインできます。"
     },
     "auth_policy_page": {
       "title": "パスワード・認証ポリシー",
@@ -2273,7 +2275,9 @@
       "save_error": "ルーティングルールの保存に失敗しました",
       "save_rule": "ルールを保存",
       "save_success": "ルーティングルールが保存されました",
-      "title": "ルーティングルール"
+      "title": "ルーティングルール",
+      "block_placeholder": "外部転送をブロック",
+      "tag_placeholder": "緊急"
     },
     "smtp_policy_page": {
       "bounce_address_hint": "バウンスメッセージのエンベロープFromアドレス",
@@ -2436,6 +2440,67 @@
       "target_type": "対象タイプ",
       "target_id": "対象ID",
       "ip_address": "IPアドレス"
+    },
+    "signature_page": {
+      "page_description": "すべての送信メールに会社全体の署名を付加します。"
+    },
+    "legal_holds_page": {
+      "description": "コンプライアンスまたは訴訟目的でユーザーのメールボックスを削除から保護します。",
+      "user_email": "ユーザーメール",
+      "user_email_desc": "メールボックスを保存するユーザー",
+      "reason": "理由",
+      "reason_desc": "保留の法的またはコンプライアンス上の理由"
+    },
+    "admin_activity_page": {
+      "description": "組織全体のすべての管理者レベルのアクションの監査証跡"
+    },
+    "notification_templates_page": {
+      "subject": "件名",
+      "locale": "ロケール",
+      "html_body": "HTML本文",
+      "plain_body": "プレーンテキスト本文"
+    },
+    "webhooks_page": {
+      "field_name": "名前",
+      "field_name_hint": "このエンドポイントの説明的な名前",
+      "field_url": "エンドポイントURL",
+      "field_url_hint": "HTTPSである必要があります",
+      "field_secret": "シークレット",
+      "field_secret_hint": "ペイロードの署名に使用されます (X-GoGoMail-Signature)",
+      "field_events": "イベント",
+      "field_events_hint": "サブスクライブするイベントを選択",
+      "events_placeholder": "イベントを選択"
+    },
+    "delegations_page": {
+      "graph_view": "グラフビュー",
+      "list_view": "リストビュー",
+      "owner_type": "オーナータイプ",
+      "owner_id": "オーナーID",
+      "owner_id_hint": "メールまたはグループID",
+      "delegate_type": "デリゲートタイプ",
+      "delegate_id": "デリゲートID",
+      "delegate_id_hint": "権限を受け取る人",
+      "scope": "スコープ",
+      "scope_hint": "メールボックスパスまたはフォルダー — 空白の場合は全て",
+      "role": "ロール"
+    },
+    "posture_page": {
+      "overall_score": "総合スコア"
+    },
+    "domains_page": {
+      "activate_selected": "選択した項目を有効化",
+      "suspend_selected": "選択した項目を停止",
+      "delete_selected": "選択した項目を削除",
+      "domain_name": "ドメイン名",
+      "storage_quota": "ストレージクォータ (GB)",
+      "quota_hint": "0 = 無制限",
+      "domain_status": "ステータス"
+    },
+    "change_history_page": {
+      "comment": "コメント（任意）",
+      "entry_title": "タイトル",
+      "title_hint": "変更の簡単な説明",
+      "change_description": "説明"
     }
   },
   "buttons": {

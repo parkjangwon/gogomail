@@ -279,7 +279,7 @@ export default function RoutingRulesPage() {
             <Input
               value={editingRule.name}
               onChange={e => setEditingRule(r => ({ ...r, name: e.detail.value }))}
-              placeholder="Block external forwards"
+              placeholder={t('pages.routing_rules_page.block_placeholder')}
             />
           </FormField>
 
@@ -320,7 +320,7 @@ export default function RoutingRulesPage() {
             <Input
               value={editingRule.match_subject}
               onChange={e => setEditingRule(r => ({ ...r, match_subject: e.detail.value }))}
-              placeholder="URGENT"
+              placeholder={t('pages.routing_rules_page.tag_placeholder')}
             />
           </FormField>
 

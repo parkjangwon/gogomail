@@ -1069,7 +1069,8 @@
       "tab_users": "Users",
       "value": "Value",
       "value_placeholder": "Enter value...",
-      "verified": "Verified"
+      "verified": "Verified",
+      "mail_stats_desc": "Messages sent from this domain — last 7 days"
     },
     "domain_settings": {
       "title": "Title",
@@ -2178,7 +2179,8 @@
       "suspend_user": "Suspend User",
       "tab_active": "Active",
       "tab_all": "All",
-      "tab_suspended": "Suspended"
+      "tab_suspended": "Suspended",
+      "admin_role_desc": "Company Admin and above can log into the admin console."
     },
     "dmarc_page": {
       "align_mode": "Alignment Mode",
@@ -2273,7 +2275,9 @@
       "save_error": "Failed to save routing rules",
       "save_rule": "Save Rule",
       "save_success": "Routing rules saved successfully",
-      "title": "Routing Rules"
+      "title": "Routing Rules",
+      "block_placeholder": "Block external forwards",
+      "tag_placeholder": "URGENT"
     },
     "smtp_policy_page": {
       "bounce_address_hint": "Envelope-from address for bounce messages",
@@ -2436,6 +2440,67 @@
       "target_type": "Target Type",
       "target_id": "Target ID",
       "ip_address": "IP Address"
+    },
+    "signature_page": {
+      "page_description": "Append a company-wide signature to all outbound emails."
+    },
+    "legal_holds_page": {
+      "description": "Preserve user mailboxes from deletion for compliance or litigation purposes.",
+      "user_email": "User Email",
+      "user_email_desc": "The user whose mailbox will be preserved.",
+      "reason": "Reason",
+      "reason_desc": "Legal or compliance justification for the hold."
+    },
+    "admin_activity_page": {
+      "description": "Audit trail of all admin-level actions across the organization."
+    },
+    "notification_templates_page": {
+      "subject": "Subject",
+      "locale": "Locale",
+      "html_body": "HTML Body",
+      "plain_body": "Plain Text Body"
+    },
+    "webhooks_page": {
+      "field_name": "Name",
+      "field_name_hint": "A descriptive name for this endpoint",
+      "field_url": "Endpoint URL",
+      "field_url_hint": "Must be HTTPS",
+      "field_secret": "Secret",
+      "field_secret_hint": "Used to sign payloads (X-GoGoMail-Signature)",
+      "field_events": "Events",
+      "field_events_hint": "Select events to subscribe to",
+      "events_placeholder": "Select events"
+    },
+    "delegations_page": {
+      "graph_view": "Graph View",
+      "list_view": "List View",
+      "owner_type": "Owner Type",
+      "owner_id": "Owner ID",
+      "owner_id_hint": "Email or group ID",
+      "delegate_type": "Delegate Type",
+      "delegate_id": "Delegate ID",
+      "delegate_id_hint": "Who receives the permission",
+      "scope": "Scope",
+      "scope_hint": "Mailbox path or folder — leave blank for all",
+      "role": "Role"
+    },
+    "posture_page": {
+      "overall_score": "Overall Score"
+    },
+    "domains_page": {
+      "activate_selected": "Activate selected",
+      "suspend_selected": "Suspend selected",
+      "delete_selected": "Delete selected",
+      "domain_name": "Domain Name",
+      "storage_quota": "Storage Quota (GB)",
+      "quota_hint": "0 = unlimited",
+      "domain_status": "Status"
+    },
+    "change_history_page": {
+      "comment": "Comment (optional)",
+      "entry_title": "Title",
+      "title_hint": "Brief description of the change",
+      "change_description": "Description"
     }
   },
   "buttons": {

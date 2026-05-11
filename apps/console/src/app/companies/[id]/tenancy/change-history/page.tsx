@@ -268,7 +268,7 @@ export default function ChangeHistoryPage() {
           >
             <SpaceBetween size="m">
               <Box>{reviewModal.item.description}</Box>
-              <FormField label="Comment (optional)">
+              <FormField label={t('pages.change_history_page.comment')}>
                 <Textarea value={reviewComment} onChange={({ detail }) => setReviewComment(detail.value)} rows={3} />
               </FormField>
             </SpaceBetween>
@@ -289,10 +289,10 @@ export default function ChangeHistoryPage() {
           }
         >
           <SpaceBetween size="m">
-            <FormField label="Title" constraintText="Brief description of the change">
+            <FormField label={t('pages.change_history_page.entry_title')} constraintText={t('pages.change_history_page.title_hint')}>
               <Input value={createForm.title} onChange={({ detail }) => setCreateForm(f => ({ ...f, title: detail.value }))} />
             </FormField>
-            <FormField label="Description">
+            <FormField label={t('pages.change_history_page.change_description')}>
               <Textarea value={createForm.description} onChange={({ detail }) => setCreateForm(f => ({ ...f, description: detail.value }))} rows={4} />
             </FormField>
             <FormField label="Category">

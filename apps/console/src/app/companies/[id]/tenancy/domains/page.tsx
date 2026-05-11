@@ -304,9 +304,9 @@ export default function DomainsPage() {
                     <ButtonDropdown
                       loading={bulkLoading}
                       items={[
-                        { id: 'activate', text: 'Activate selected' },
-                        { id: 'suspend', text: 'Suspend selected' },
-                        { id: 'delete', text: 'Delete selected', disabled: false },
+                        { id: 'activate', text: t('pages.domains_page.activate_selected') },
+                        { id: 'suspend', text: t('pages.domains_page.suspend_selected') },
+                        { id: 'delete', text: t('pages.domains_page.delete_selected'), disabled: false },
                       ]}
                       onItemClick={({ detail }) => handleBulk(detail.id as 'activate' | 'suspend' | 'delete')}
                     >
@@ -353,10 +353,10 @@ export default function DomainsPage() {
           }
         >
           <SpaceBetween size="m">
-            <FormField label="Domain Name">
+            <FormField label={t('pages.domains_page.domain_name')}>
               <Input value={createForm.name} placeholder="example.com" onChange={(e) => setCreateForm(f => ({ ...f, name: e.detail.value }))} />
             </FormField>
-            <FormField label="Storage Quota (GB)" constraintText="0 = unlimited">
+            <FormField label={t('pages.domains_page.storage_quota')} constraintText={t('pages.domains_page.quota_hint')}>
               <Input type="number" value={createForm.quota_gb} onChange={(e) => setCreateForm(f => ({ ...f, quota_gb: e.detail.value }))} />
             </FormField>
           </SpaceBetween>
@@ -376,7 +376,7 @@ export default function DomainsPage() {
           }
         >
           <SpaceBetween size="m">
-            <FormField label="Status">
+            <FormField label={t('pages.domains_page.domain_status')}>
               <Select
                 selectedOption={STATUS_OPTIONS.find(o => o.value === editForm.status) ?? STATUS_OPTIONS[0]}
                 options={STATUS_OPTIONS}

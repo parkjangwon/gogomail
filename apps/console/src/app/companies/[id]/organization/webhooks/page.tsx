@@ -173,21 +173,21 @@ export default function WebhooksPage() {
           }
         >
           <SpaceBetween size="m">
-            <FormField label="Name" constraintText="A descriptive name for this endpoint">
+            <FormField label={t('pages.webhooks_page.field_name')} constraintText={t('pages.webhooks_page.field_name_hint')}>
               <Input value={form.name} onChange={({ detail }) => setForm(f => ({ ...f, name: detail.value }))} />
             </FormField>
-            <FormField label="Endpoint URL" constraintText="Must be HTTPS">
+            <FormField label={t('pages.webhooks_page.field_url')} constraintText={t('pages.webhooks_page.field_url_hint')}>
               <Input value={form.url} placeholder="https://example.com/webhook" onChange={({ detail }) => setForm(f => ({ ...f, url: detail.value }))} />
             </FormField>
-            <FormField label="Secret" constraintText="Used to sign payloads (X-GoGoMail-Signature)">
+            <FormField label={t('pages.webhooks_page.field_secret')} constraintText={t('pages.webhooks_page.field_secret_hint')}>
               <Input value={form.secret} type="password" onChange={({ detail }) => setForm(f => ({ ...f, secret: detail.value }))} />
             </FormField>
-            <FormField label="Events" constraintText="Select events to subscribe to">
+            <FormField label={t('pages.webhooks_page.field_events')} constraintText={t('pages.webhooks_page.field_events_hint')}>
               <Multiselect
                 selectedOptions={form.events.map(e => ({ label: e, value: e }))}
                 options={eventOptions}
                 onChange={({ detail }) => setForm(f => ({ ...f, events: detail.selectedOptions.map(o => o.value ?? '') }))}
-                placeholder="Select events"
+                placeholder={t('pages.webhooks_page.events_placeholder')}
               />
             </FormField>
             <Toggle checked={form.enabled} onChange={({ detail }) => setForm(f => ({ ...f, enabled: detail.checked }))}>

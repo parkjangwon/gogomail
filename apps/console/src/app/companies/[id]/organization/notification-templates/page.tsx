@@ -183,13 +183,13 @@ export default function NotifTemplatesPage() {
             <ColumnLayout columns={2} variant="default">
               {/* ── Left: Editor ── */}
               <SpaceBetween size="m">
-                <FormField label="Subject">
+                <FormField label={t('pages.notification_templates_page.subject')}>
                   <Input
                     value={editForm.subject ?? ''}
                     onChange={({ detail }) => setEditForm(f => ({ ...f, subject: detail.value }))}
                   />
                 </FormField>
-                <FormField label="Locale">
+                <FormField label={t('pages.notification_templates_page.locale')}>
                   <Select
                     selectedOption={LOCALE_OPTIONS.find(o => o.value === editForm.locale) ?? LOCALE_OPTIONS[0]}
                     options={LOCALE_OPTIONS}
@@ -219,7 +219,7 @@ export default function NotifTemplatesPage() {
                       label: 'HTML',
                       id: 'html',
                       content: (
-                        <FormField label="HTML Body">
+                        <FormField label={t('pages.notification_templates_page.html_body')}>
                           <Textarea
                             rows={14}
                             value={editForm.body_html ?? ''}
@@ -232,7 +232,7 @@ export default function NotifTemplatesPage() {
                       label: 'Plain Text',
                       id: 'text',
                       content: (
-                        <FormField label="Plain Text Body">
+                        <FormField label={t('pages.notification_templates_page.plain_body')}>
                           <Textarea
                             rows={14}
                             value={editForm.body_text ?? ''}
