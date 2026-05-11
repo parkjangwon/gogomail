@@ -228,16 +228,27 @@ export default function MailPage() {
   const handleBulkDelete = useCallback(async (ids: string[]) => {
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
-    await Promise.allSettled(ids.map((id) => deleteMessage(id)));
-    addToast(`${ids.length}개 삭제했습니다`);
+    const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      addToast(`${ids.length - failed}개 삭제, ${failed}개 실패`, 'error');
+    } else {
+      addToast(`${ids.length}개 삭제했습니다`);
+    }
   }, [selectedMessageId, setMessages, addToast]);
 
   const handleBulkMarkRead = useCallback(async (ids: string[]) => {
     const unreadCount = messages.filter((m) => ids.includes(m.id) && !m.read).length;
     setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, read: true } : m));
     if (unreadCount > 0) adjustUnread(activeFolderId, -unreadCount);
-    bulkMarkRead(ids, true).catch(() => {});
-    addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
+    try {
+      await bulkMarkRead(ids, true);
+      addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
+    } catch {
+      setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, read: false } : m));
+      if (unreadCount > 0) adjustUnread(activeFolderId, unreadCount);
+      addToast('읽음 표시에 실패했습니다', 'error');
+    }
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleMarkAllRead = useCallback(async () => {
@@ -245,8 +256,14 @@ export default function MailPage() {
     if (unreadIds.length === 0) return;
     setMessages((prev) => prev.map((m) => ({ ...m, read: true })));
     adjustUnread(activeFolderId, -unreadIds.length);
-    bulkMarkRead(unreadIds, true).catch(() => {});
-    addToast(`${unreadIds.length}개를 읽음으로 표시했습니다`, 'info');
+    try {
+      await bulkMarkRead(unreadIds, true);
+      addToast(`${unreadIds.length}개를 읽음으로 표시했습니다`, 'info');
+    } catch {
+      setMessages((prev) => prev.map((m) => unreadIds.includes(m.id) ? { ...m, read: false } : m));
+      adjustUnread(activeFolderId, unreadIds.length);
+      addToast('읽음 표시에 실패했습니다', 'error');
+    }
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleMove = useCallback(async (folderId: string) => {
