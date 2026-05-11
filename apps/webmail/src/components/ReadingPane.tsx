@@ -138,7 +138,13 @@ export function ReadingPane({
   onStar,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
+  const [fontSize, setFontSize] = useState(() => {
+    try { return parseInt(localStorage.getItem('webmail_font_size') ?? '14', 10) || 14; } catch { return 14; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('webmail_font_size', String(fontSize));
+  }, [fontSize]);
   const [copiedEmail, setCopiedEmail] = useState('');
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

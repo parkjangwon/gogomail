@@ -498,6 +498,7 @@ export default function MailPage() {
           intent={composeContext.intent}
           sourceMessage={composeContext.source}
           draftMessage={composeContext.draft}
+          userEmail={userEmail}
           onClose={() => setComposeContext(null)}
         />
       )}
