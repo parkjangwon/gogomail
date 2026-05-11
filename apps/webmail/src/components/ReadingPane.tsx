@@ -465,6 +465,26 @@ export function ReadingPane({
           }}
         />
 
+        {/* Attachment notice */}
+        {message.has_attachment && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            marginBottom: '12px',
+            maxWidth: '680px',
+            borderRadius: '6px',
+            border: '1px solid var(--color-border-default)',
+            background: 'var(--color-bg-secondary)',
+            fontSize: '13px',
+            color: 'var(--color-text-secondary)',
+          }}>
+            <span aria-hidden="true" style={{ fontSize: '16px' }}>📎</span>
+            <span>이 메시지에 첨부파일이 있습니다</span>
+          </div>
+        )}
+
         {/* Body */}
         <div
           style={{
