@@ -157,44 +157,12 @@ const iconStyle: React.CSSProperties = {
   transition: 'background 100ms ease, color 100ms ease',
 };
 
-function ActionButton({
-  label,
-  onClick,
-  danger,
-}: {
-  label: string;
-  onClick?: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      style={{
-        ...iconStyle,
-        color: danger ? 'var(--color-destructive)' : 'var(--color-text-secondary)',
-        borderColor: danger ? 'rgba(217,79,61,0.3)' : 'var(--color-border-default)',
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
 export function ReadingPane({
   message,
   folders = [],
   onArchive,
   onSpam,
   onNotSpam,
-  onDelete,
   onReply,
   onReplyAll,
   onForward,
@@ -217,8 +185,18 @@ export function ReadingPane({
   onSnooze,
   onOpenInWindow,
 }: ReadingPaneProps) {
-  const [showMoveMenu, setShowMoveMenu] = useState(false);
-  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
+  const [toolbarHovered, setToolbarHovered] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    function onDown(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showMoreMenu]);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
   const [quickReplyText, setQuickReplyText] = useState('');
   const [quickReplySending, setQuickReplySending] = useState(false);
@@ -409,6 +387,8 @@ export function ReadingPane({
     >
       {/* Toolbar */}
       <div
+        onMouseEnter={() => setToolbarHovered(true)}
+        onMouseLeave={() => setToolbarHovered(false)}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -446,140 +426,136 @@ export function ReadingPane({
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >↓</button>
         )}
-        <ActionButton label="답장" onClick={onReply} />
-        <ActionButton label="전체 답장" onClick={onReplyAll} />
-        <ActionButton label="전달" onClick={onForward} />
-        {isRead === false
-          ? <ActionButton label="읽음으로" onClick={onMarkRead} />
-          : <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
-        }
-        {onStar && (
-          <button
-            onClick={() => onStar(!isStarred)}
-            title={isStarred ? '별표 해제' : '별표'}
-            aria-label={isStarred ? '별표 해제' : '별표'}
-            style={{
-              ...iconStyle,
-              color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)',
-              borderColor: isStarred ? 'rgba(245,158,11,0.4)' : 'var(--color-border-default)',
-              fontSize: '15px',
-            }}
+        {/* Icon-only primary actions */}
+        {[
+          { icon: '↩', label: '답장', action: onReply },
+          { icon: '↩↩', label: '전체 답장', action: onReplyAll },
+          { icon: '↪', label: '전달', action: onForward },
+        ].map(({ icon, label, action }) => action ? (
+          <button key={label} aria-label={label} title={label} onClick={action}
+            style={{ ...iconStyle, fontSize: '14px', padding: '5px 8px', border: 'none' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >
-            {isStarred ? '★' : '☆'}
-          </button>
-        )}
-        {onOpenInWindow && (
+          >{icon}</button>
+        ) : null)}
+
+        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+
+        {/* Hover-only: Read/unread toggle + Star */}
+        {toolbarHovered && (onMarkRead || onMarkUnread) && (
           <button
-            aria-label="새 창으로 열기"
-            title="새 창으로 열기"
-            onClick={onOpenInWindow}
-            style={{ ...iconStyle }}
+            aria-label={isRead === false ? '읽음으로' : '읽지 않음으로'}
+            title={isRead === false ? '읽음으로' : '읽지 않음으로'}
+            onClick={isRead === false ? onMarkRead : onMarkUnread}
+            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >{isRead === false ? '◉' : '○'}</button>
+        )}
+        {toolbarHovered && onStar && (
+          <button onClick={() => onStar(!isStarred)} title={isStarred ? '별표 해제' : '별표'} aria-label={isStarred ? '별표 해제' : '별표'}
+            style={{ ...iconStyle, border: 'none', fontSize: '15px', padding: '5px 8px', color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >{isStarred ? '★' : '☆'}</button>
+        )}
+
+        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+
+        {/* Archive */}
+        {onArchive && (
+          <button aria-label="아카이브" title="아카이브" onClick={onArchive}
+            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >📁</button>
+        )}
+
+        {/* Open in window */}
+        {onOpenInWindow && (
+          <button aria-label="새 창으로 열기" title="새 창으로 열기" onClick={onOpenInWindow}
+            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >⧉</button>
         )}
-        <ActionButton label="인쇄" onClick={onPrint} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-          <button
-            aria-label="글자 크기 줄이기"
-            onClick={() => setFontSize((f) => Math.max(11, f - 1))}
-            style={{ ...iconStyle, fontSize: '11px', padding: '5px 7px' }}
+
+        {/* More menu */}
+        <div ref={moreMenuRef} style={{ position: 'relative' }}>
+          <button aria-label="더 보기" title="더 보기" onClick={() => setShowMoreMenu((v) => !v)}
+            style={{ ...iconStyle, border: 'none', fontSize: '16px', padding: '5px 8px', letterSpacing: '-1px' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >A-</button>
-          <button
-            aria-label="글자 크기 늘리기"
-            onClick={() => setFontSize((f) => Math.min(24, f + 1))}
-            style={{ ...iconStyle, fontSize: '13px', padding: '5px 7px' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >A+</button>
-        </div>
-        {unsubscribeUrl && (
-          <button
-            onClick={() => {
-              if (window.confirm('수신거부 링크를 열겠습니까?')) window.open(unsubscribeUrl, '_blank', 'noopener,noreferrer');
-            }}
-            title="수신거부"
-            aria-label="수신거부"
-            style={{ ...iconStyle, fontSize: '12px', color: 'var(--color-destructive)', borderColor: 'rgba(217,79,61,0.3)', padding: '5px 8px' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >수신거부</button>
-        )}
-        {onMove && folders.length > 0 && (
-          <div style={{ position: 'relative' }}>
-            <ActionButton label="이동" onClick={() => setShowMoveMenu((v) => !v)} />
-            {showMoveMenu && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '4px',
-                  background: 'var(--color-bg-primary)',
-                  border: '1px solid var(--color-border-default)',
-                  borderRadius: '6px',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                  zIndex: 200,
-                  minWidth: '160px',
-                  overflow: 'hidden',
-                }}
-              >
-                {folders.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => { onMove(f.id); setShowMoveMenu(false); }}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '8px 14px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--color-text-primary)',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-                  >
-                    {f.name}
-                  </button>
-                ))}
+          >···</button>
+          {showMoreMenu && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
+              {/* Move to folder */}
+              {onMove && folders.length > 0 && (
+                <>
+                  <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>이동</div>
+                  {folders.map((f) => (
+                    <button key={f.id} onClick={() => { onMove(f.id); setShowMoreMenu(false); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >{f.name}</button>
+                  ))}
+                  <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
+                </>
+              )}
+              {/* Snooze */}
+              {onSnooze && message && (
+                <>
+                  <div style={{ padding: '6px 14px 2px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>스누즈</div>
+                  {[
+                    { label: '1시간 후', ms: 60 * 60 * 1000 },
+                    { label: '4시간 후', ms: 4 * 60 * 60 * 1000 },
+                    { label: '오늘 저녁 (18:00)', ms: (() => { const d = new Date(); d.setHours(18,0,0,0); return d.getTime() > Date.now() ? d.getTime() - Date.now() : 24 * 3600000; })() },
+                    { label: '내일 오전 (09:00)', ms: (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9,0,0,0); return d.getTime() - Date.now(); })() },
+                  ].map((opt) => (
+                    <button key={opt.label} onClick={() => { onSnooze(message.id, new Date(Date.now() + opt.ms)); setShowMoreMenu(false); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >{opt.label}</button>
+                  ))}
+                  <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
+                </>
+              )}
+              {/* Font size */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>글자 크기</span>
+                <button onClick={() => setFontSize((f) => Math.max(11, f - 1))} style={{ fontSize: '12px', padding: '2px 7px', border: '1px solid var(--color-border-default)', borderRadius: '4px', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>A-</button>
+                <span style={{ fontSize: '12px', color: 'var(--color-text-primary)', minWidth: '20px', textAlign: 'center' }}>{fontSize}</span>
+                <button onClick={() => setFontSize((f) => Math.min(24, f + 1))} style={{ fontSize: '12px', padding: '2px 7px', border: '1px solid var(--color-border-default)', borderRadius: '4px', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>A+</button>
               </div>
-            )}
-          </div>
-        )}
-        {onSnooze && message && (
-          <div style={{ position: 'relative' }}>
-            <ActionButton label="스누즈" onClick={() => setShowSnoozeMenu((v) => !v)} />
-            {showSnoozeMenu && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden' }}>
-                {[
-                  { label: '1시간 후', ms: 60 * 60 * 1000 },
-                  { label: '4시간 후', ms: 4 * 60 * 60 * 1000 },
-                  { label: '오늘 저녁 (18:00)', ms: (() => { const d = new Date(); d.setHours(18,0,0,0); return d.getTime() > Date.now() ? d.getTime() - Date.now() : 24 * 3600000; })() },
-                  { label: '내일 오전 (09:00)', ms: (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9,0,0,0); return d.getTime() - Date.now(); })() },
-                  { label: '다음 주 월요일', ms: (() => { const d = new Date(); const daysUntilMon = (8 - d.getDay()) % 7 || 7; d.setDate(d.getDate() + daysUntilMon); d.setHours(9,0,0,0); return d.getTime() - Date.now(); })() },
-                ].map((opt) => (
-                  <button
-                    key={opt.label}
-                    onClick={() => { onSnooze(message.id, new Date(Date.now() + opt.ms)); setShowSnoozeMenu(false); }}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+              {/* Print */}
+              {onPrint && (
+                <button onClick={() => { onPrint(); setShowMoreMenu(false); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >인쇄</button>
+              )}
+              {/* Spam / Not Spam / Restore */}
+              {(onSpam || onNotSpam || onRestore) && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />}
+              {onSpam && <button onClick={() => { onSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>스팸 신고</button>}
+              {onNotSpam && <button onClick={() => { onNotSpam(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>스팸 아님</button>}
+              {onRestore && <button onClick={() => { onRestore(); setShowMoreMenu(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }} onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}>복구</button>}
+              {/* Unsubscribe */}
+              {unsubscribeUrl && (
+                <>
+                  <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '4px 0' }} />
+                  <button onClick={() => { if (window.confirm('수신거부 링크를 열겠습니까?')) window.open(unsubscribeUrl, '_blank', 'noopener,noreferrer'); setShowMoreMenu(false); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 14px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                  >{opt.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {onArchive && <ActionButton label="아카이브" onClick={onArchive} />}
-        {onSpam && <ActionButton label="스팸 신고" onClick={onSpam} />}
-        {onNotSpam && <ActionButton label="스팸 아님" onClick={onNotSpam} />}
-        {onRestore && <ActionButton label="복구" onClick={onRestore} />}
-        <ActionButton label="삭제" onClick={onDelete} danger />
+                  >수신거부</button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Message content */}
