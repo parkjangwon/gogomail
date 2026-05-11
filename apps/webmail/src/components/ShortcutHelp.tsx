@@ -7,7 +7,8 @@ const SECTIONS = [
     title: '전역',
     items: [
       { key: '?', desc: '단축키 도움말' },
-      { key: 'Ctrl+k', desc: '검색창 포커스' },
+      { key: 'Cmd+k / Ctrl+k', desc: '스팟라이트 통합 검색' },
+      { key: '/', desc: '스팟라이트 통합 검색' },
       { key: '[', desc: '사이드바 접기/펼치기' },
     ],
   },
@@ -27,10 +28,8 @@ const SECTIONS = [
     items: [
       { key: 'c', desc: '새 메일 작성' },
       { key: 'j / k', desc: '다음 / 이전 메일' },
-      { key: 'Enter', desc: '선택 메일 열기' },
-      { key: 'Esc', desc: '닫기 / 선택 해제' },
-      { key: '/', desc: '검색창 포커스' },
-      { key: 'x', desc: '체크박스 선택 토글' },
+      { key: 'Enter / o', desc: '선택 메일 열기' },
+      { key: 'Esc', desc: '읽기창 닫기 / 선택 해제' },
     ],
   },
   {
@@ -41,6 +40,7 @@ const SECTIONS = [
       { key: 'f', desc: '전달' },
       { key: 's', desc: '별표 토글' },
       { key: 'e', desc: '보관' },
+      { key: 'v', desc: '폴더로 이동 (스팟라이트)' },
       { key: '#  /  Del', desc: '삭제' },
       { key: '!', desc: '스팸으로 이동' },
       { key: 'm', desc: '읽음 표시' },
