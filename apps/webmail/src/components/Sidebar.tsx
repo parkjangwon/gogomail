@@ -1,6 +1,27 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { Folder } from '@/lib/api';
+
+const RECENT_SEARCHES_KEY = 'webmail_recent_searches';
+const MAX_RECENT = 5;
+
+function loadRecentSearches(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearch(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return loadRecentSearches();
+  const prev = loadRecentSearches().filter((q) => q !== trimmed);
+  const next = [trimmed, ...prev].slice(0, MAX_RECENT);
+  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  return next;
+}
 
 const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
   { systemType: 'inbox', label: '수신함' },
@@ -63,6 +84,13 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const showAdvanced = searchQuery.trim().length > 0;
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setRecentSearches(loadRecentSearches());
+  }, []);
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
@@ -164,13 +192,33 @@ export function Sidebar({
 
       {/* Search */}
       <div style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-        <div style={{ padding: '12px 16px 8px' }}>
+        <div style={{ padding: '12px 16px 8px', position: 'relative' }}>
           <input
             type="search"
             placeholder="검색..."
             aria-label="메일 검색"
             value={searchQuery}
-            onChange={(e) => onSearch?.(e.target.value)}
+            onChange={(e) => {
+              onSearch?.(e.target.value);
+              if (e.target.value.trim()) setShowSuggestions(false);
+              else setShowSuggestions(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                const next = saveRecentSearch(searchQuery);
+                setRecentSearches(next);
+                setShowSuggestions(false);
+              }
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--color-accent)';
+              if (hideTimeout.current) clearTimeout(hideTimeout.current);
+              if (!searchQuery.trim()) setShowSuggestions(true);
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--color-border-default)';
+              hideTimeout.current = setTimeout(() => setShowSuggestions(false), 150);
+            }}
             style={{
               width: '100%',
               padding: '7px 10px',
@@ -182,9 +230,61 @@ export function Sidebar({
               outline: 'none',
               boxSizing: 'border-box',
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--color-accent)'; }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--color-border-default)'; }}
           />
+          {showSuggestions && !searchQuery.trim() && recentSearches.length > 0 && (
+            <div
+              role="listbox"
+              aria-label="최근 검색"
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '16px',
+                right: '16px',
+                background: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border-default)',
+                borderRadius: '6px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                zIndex: 350,
+                overflow: 'hidden',
+                marginTop: '2px',
+              }}
+            >
+              <div style={{ padding: '6px 10px 4px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                최근 검색
+              </div>
+              {recentSearches.map((q) => (
+                <button
+                  key={q}
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={() => {
+                    onSearch?.(q);
+                    const next = saveRecentSearch(q);
+                    setRecentSearches(next);
+                    setShowSuggestions(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '7px 10px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>↺</span>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {showAdvanced && onAdvancedFilterChange && (
