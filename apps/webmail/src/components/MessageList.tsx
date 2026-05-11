@@ -55,9 +55,10 @@ interface MessageListProps {
   refreshing?: boolean;
   isMobile?: boolean;
   onOpenSidebar?: () => void;
+  onContextMenuMessage?: (id: string, x: number, y: number) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -304,6 +305,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onSelect={onSelect}
               onStar={onStar}
               onToggleBulk={toggleBulk}
+              onContextMenu={onContextMenuMessage}
             />
           ))}
         </div>
@@ -327,9 +329,10 @@ interface MessageRowProps {
   onSelect: (id: string) => void;
   onStar?: (id: string, starred: boolean) => void;
   onToggleBulk: (id: string) => void;
+  onContextMenu?: (id: string, x: number, y: number) => void;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu }: MessageRowProps) {
   const isUnread = !message.read;
 
   return (
@@ -337,6 +340,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
       role="listitem"
       data-message-id={message.id}
       onClick={() => onSelect(message.id)}
+      onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(message.id, e.clientX, e.clientY); } : undefined}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
