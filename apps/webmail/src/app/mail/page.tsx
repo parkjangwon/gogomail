@@ -11,6 +11,8 @@ import { ReadingPane } from '@/components/ReadingPane';
 import { ComposeModal } from '@/components/ComposeModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LocaleSelector } from '@/components/common/LocaleSelector';
+import { ToastContainer, ToastItem } from '@/components/Toast';
+import { ShortcutHelp } from '@/components/ShortcutHelp';
 
 export default function MailPage() {
   const router = useRouter();
@@ -24,6 +26,16 @@ export default function MailPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread } =
     useMailList(activeFolderId);
@@ -60,13 +72,14 @@ export default function MailPage() {
       prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
     );
     adjustUnread(activeFolderId, 1);
+    addToast('읽지 않음으로 표시했습니다', 'info');
     markRead(selectedMessageId, false).catch(() => {
       setMessages((prev) =>
         prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
       );
       adjustUnread(activeFolderId, -1);
     });
-  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId]);
+  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
@@ -99,20 +112,21 @@ export default function MailPage() {
       await deleteMessage(selectedMessageId);
       setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
       setSelectedMessageId(null);
+      addToast('메일을 삭제했습니다');
     } catch {
-      // ignore
+      addToast('삭제에 실패했습니다', 'error');
     }
-  }, [selectedMessageId, setMessages]);
+  }, [selectedMessageId, setMessages, addToast]);
 
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
     setMessages((prev) => prev.filter((m) => m.id !== id));
     setSelectedMessageId(null);
-    moveMessage(id, folderId).catch(() => {
-      // message already removed from list; reload will reconcile
-    });
-  }, [selectedMessageId, setMessages]);
+    moveMessage(id, folderId)
+      .then(() => addToast('메일을 이동했습니다'))
+      .catch(() => addToast('이동에 실패했습니다', 'error'));
+  }, [selectedMessageId, setMessages, addToast]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred } : m)));
@@ -158,15 +172,19 @@ export default function MailPage() {
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
           break;
+        case '?':
+          setShowShortcuts((v) => !v);
+          break;
         case 'Escape':
-          if (composeContext) setComposeContext(null);
+          if (showShortcuts) setShowShortcuts(false);
+          else if (composeContext) setComposeContext(null);
           else setSelectedMessageId(null);
           break;
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, handleDelete]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete]);
 
   if (foldersLoading) {
     return (
@@ -251,6 +269,9 @@ export default function MailPage() {
           onClose={() => setComposeContext(null)}
         />
       )}
+
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
 
       {/* Controls: locale + theme, top-right */}
       <div
