@@ -61,6 +61,14 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
+  useEffect(() => {
+    if (!selectedId || !scrollContainerRef.current) return;
+    const el = scrollContainerRef.current.querySelector<HTMLElement>(`[data-message-id="${selectedId}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || !onLoadMore) return;
@@ -269,6 +277,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     >
       {filterTabs}
       <div
+        ref={scrollContainerRef}
         role="list"
         aria-label="메일 목록"
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
@@ -326,6 +335,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
   return (
     <div
       role="listitem"
+      data-message-id={message.id}
       onClick={() => onSelect(message.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
