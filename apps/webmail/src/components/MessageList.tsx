@@ -82,6 +82,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const lastBulkIndexRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -102,16 +103,29 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return () => observer.disconnect();
   }, [hasMore, onLoadMore, messages.length]);
 
-  const toggleBulk = (id: string) => {
-    setBulkSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  const toggleBulk = (id: string, shiftKey?: boolean) => {
+    const idx = filteredMessages.findIndex((m) => m.id === id);
+    if (shiftKey && lastBulkIndexRef.current !== null && idx !== -1) {
+      const from = Math.min(lastBulkIndexRef.current, idx);
+      const to = Math.max(lastBulkIndexRef.current, idx);
+      const rangeIds = filteredMessages.slice(from, to + 1).map((m) => m.id);
+      setBulkSelected((prev) => {
+        const next = new Set(prev);
+        rangeIds.forEach((rid) => next.add(rid));
+        return next;
+      });
+    } else {
+      setBulkSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+      if (idx !== -1) lastBulkIndexRef.current = idx;
+    }
   };
 
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
-  const clearAll = () => setBulkSelected(new Set());
+  const clearAll = () => { setBulkSelected(new Set()); lastBulkIndexRef.current = null; };
 
   const baseFiltered = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
@@ -464,7 +478,7 @@ interface MessageRowProps {
   isBulkChecked: boolean;
   onSelect: (id: string) => void;
   onStar?: (id: string, starred: boolean) => void;
-  onToggleBulk: (id: string) => void;
+  onToggleBulk: (id: string, shiftKey?: boolean) => void;
   onContextMenu?: (id: string, x: number, y: number) => void;
   searchQuery?: string;
 }
@@ -507,7 +521,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
     >
       {/* Checkbox / unread dot — click to toggle bulk selection */}
       <div
-        onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id); }}
+        onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id, e.shiftKey); }}
         title={isBulkChecked ? '선택 해제' : '선택'}
         style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '3px', cursor: 'pointer' }}
       >
