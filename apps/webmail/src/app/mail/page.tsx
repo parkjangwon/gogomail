@@ -91,6 +91,24 @@ export default function MailPage() {
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
 
+  const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
+  useEffect(() => {
+    if (!selectedMessage?.subject) { setThreadMessages([]); return; }
+    const normalizedSubject = selectedMessage.subject.replace(/^(Re|Fwd?|Fw):\s*/gi, '').trim();
+    if (!normalizedSubject) { setThreadMessages([]); return; }
+    let cancelled = false;
+    searchMessages({ subject: normalizedSubject, limit: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        const sorted = [...(res.messages ?? [])].sort(
+          (a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
+        );
+        setThreadMessages(sorted);
+      })
+      .catch(() => { if (!cancelled) setThreadMessages([]); });
+    return () => { cancelled = true; };
+  }, [selectedMessage?.id, selectedMessage?.subject]);
+
   // Update document title + favicon badge with total unread count
   useEffect(() => {
     const totalUnread = folders.reduce((sum, f) => sum + (f.unread ?? 0), 0);
@@ -1009,6 +1027,8 @@ export default function MailPage() {
                 onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
                 onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
+                threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
+                onSelectThread={handleSelectMessage}
               />
             </div>
           </>
