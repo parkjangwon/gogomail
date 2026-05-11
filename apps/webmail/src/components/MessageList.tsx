@@ -531,6 +531,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               searchQuery={searchQuery}
               compact={compact}
               onDelete={isMobile ? onDeleteMessage : undefined}
+              onHoverDelete={!isMobile ? onDeleteMessage : undefined}
             />
           ))}
         </div>
@@ -558,13 +559,15 @@ interface MessageRowProps {
   searchQuery?: string;
   compact?: boolean;
   onDelete?: (id: string) => void;
+  onHoverDelete?: (id: string) => void;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <div
@@ -617,12 +620,29 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
         transform: `translateX(${swipeX}px)`,
       }}
       onMouseEnter={(e) => {
+        setHovered(true);
         if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
       }}
       onMouseLeave={(e) => {
+        setHovered(false);
         if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
       }}
     >
+      {/* Hover quick-delete overlay (desktop only) */}
+      {hovered && onHoverDelete && !compact && !isBulkChecked && (
+        <button
+          aria-label="삭제"
+          title="삭제"
+          onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
+          style={{
+            position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+            background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-default)',
+            borderRadius: '6px', padding: '3px 7px', cursor: 'pointer',
+            fontSize: '14px', color: 'var(--color-text-secondary)', zIndex: 2,
+            lineHeight: 1,
+          }}
+        >🗑</button>
+      )}
       {/* Checkbox / unread dot — click to toggle bulk selection */}
       <div
         onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id, e.shiftKey); }}
