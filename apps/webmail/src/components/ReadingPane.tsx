@@ -108,6 +108,7 @@ interface ReadingPaneProps {
   onNext?: () => void;
   onComposeToAddress?: (address: string) => void;
   onRestore?: () => void;
+  onSnooze?: (messageId: string, until: Date) => void;
 }
 
 function readingTime(text: string): string {
@@ -191,8 +192,10 @@ export function ReadingPane({
   onNext,
   onComposeToAddress,
   onRestore,
+  onSnooze,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
   const [quickReplyText, setQuickReplyText] = useState('');
   const [quickReplySending, setQuickReplySending] = useState(false);
@@ -498,6 +501,30 @@ export function ReadingPane({
                   >
                     {f.name}
                   </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {onSnooze && message && (
+          <div style={{ position: 'relative' }}>
+            <ActionButton label="스누즈" onClick={() => setShowSnoozeMenu((v) => !v)} />
+            {showSnoozeMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden' }}>
+                {[
+                  { label: '1시간 후', ms: 60 * 60 * 1000 },
+                  { label: '4시간 후', ms: 4 * 60 * 60 * 1000 },
+                  { label: '오늘 저녁 (18:00)', ms: (() => { const d = new Date(); d.setHours(18,0,0,0); return d.getTime() > Date.now() ? d.getTime() - Date.now() : 24 * 3600000; })() },
+                  { label: '내일 오전 (09:00)', ms: (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9,0,0,0); return d.getTime() - Date.now(); })() },
+                  { label: '다음 주 월요일', ms: (() => { const d = new Date(); const daysUntilMon = (8 - d.getDay()) % 7 || 7; d.setDate(d.getDate() + daysUntilMon); d.setHours(9,0,0,0); return d.getTime() - Date.now(); })() },
+                ].map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => { onSnooze(message.id, new Date(Date.now() + opt.ms)); setShowSnoozeMenu(false); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                  >{opt.label}</button>
                 ))}
               </div>
             )}

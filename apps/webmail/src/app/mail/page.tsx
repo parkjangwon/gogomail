@@ -504,6 +504,38 @@ export default function MailPage() {
   // Reset seen IDs when folder changes (avoid false notifications on folder switch)
   useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
 
+  // Snooze: hide message until a future time, then resurface it
+  const handleSnooze = useCallback((id: string, until: Date) => {
+    try {
+      const stored: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
+      stored[id] = until.toISOString();
+      localStorage.setItem('webmail_snoozed', JSON.stringify(stored));
+    } catch { /* ignore */ }
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMessageId === id) setSelectedMessageId(null);
+    addToast(`스누즈: ${until.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}에 다시 알립니다`, 'info', { duration: 4000 });
+  }, [selectedMessageId, setMessages, addToast]);
+
+  // Check every 60s if any snoozed message should reappear
+  useEffect(() => {
+    const check = () => {
+      try {
+        const stored: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
+        const now = Date.now();
+        const expired = Object.entries(stored).filter(([, ts]) => new Date(ts).getTime() <= now);
+        if (expired.length === 0) return;
+        const remaining = { ...stored };
+        expired.forEach(([id]) => delete remaining[id]);
+        localStorage.setItem('webmail_snoozed', JSON.stringify(remaining));
+        // Only show toast — message reappears on next folder refresh
+        addToast(`스누즈 알림: ${expired.length}개 메일이 돌아왔습니다`, 'info');
+        refresh();
+      } catch { /* ignore */ }
+    };
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, [addToast, refresh]);
+
   // Extract sender names from messages and store as contacts
   useEffect(() => {
     if (messages.length === 0) return;
@@ -799,6 +831,7 @@ export default function MailPage() {
           } : undefined}
           onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
           onComposeToAddress={(address) => setComposeContext({ intent: 'new', to: address })}
+          onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
         />
           );
         })()}
