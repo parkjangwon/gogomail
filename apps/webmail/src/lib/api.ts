@@ -232,6 +232,7 @@ export interface DraftData {
   source_message_id?: string;
   to: { address: string; name?: string }[];
   cc?: { address: string; name?: string }[];
+  bcc?: { address: string; name?: string }[];
   subject: string;
   text_body: string;
 }
