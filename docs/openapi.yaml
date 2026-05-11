@@ -7335,6 +7335,132 @@ paths:
                 type: object
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/sso/config:
+    get:
+      operationId: adminGetCompanySSOConfig
+      summary: Get company SSO/SAML configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: SSO configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminUpdateCompanySSOConfig
+      summary: Update company SSO/SAML configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Updated SSO configuration
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/sso/test:
+    post:
+      operationId: adminTestCompanySSOConfig
+      summary: Test company SSO configuration
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: SSO test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /domains/{id}/smtp-policy:
+    get:
+      operationId: adminGetDomainSMTPPolicy
+      summary: Get domain outbound SMTP policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: SMTP policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy:
+                    type: object
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: adminUpdateDomainSMTPPolicy
+      summary: Update domain outbound SMTP policy
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Updated SMTP policy
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: "#/components/responses/Error"
   /domains/{id}/security/spam-filter:
     get:
       operationId: adminGetDomainSpamFilterPolicy
