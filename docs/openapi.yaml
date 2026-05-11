@@ -7695,6 +7695,87 @@ paths:
                 type: object
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/users/bulk-import:
+    post:
+      operationId: bulkImportCompanyUsers
+      summary: Bulk import users for a company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [users]
+              properties:
+                users:
+                  type: array
+                  items:
+                    type: object
+                    required: [email, domain_id]
+                    properties:
+                      email:
+                        type: string
+                      display_name:
+                        type: string
+                      domain_id:
+                        type: string
+                      password:
+                        type: string
+      responses:
+        "200":
+          description: Bulk import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  success:
+                    type: integer
+                  failed:
+                    type: integer
+                  failures:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        error:
+                          type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/users/bulk-export:
+    get:
+      operationId: bulkExportCompanyUsers
+      summary: Export all users for a company as CSV
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      responses:
+        "200":
+          description: CSV file with user data
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
 components:
   securitySchemes:
     bearerAuth:

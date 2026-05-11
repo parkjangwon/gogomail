@@ -1110,7 +1110,19 @@
       "total_label": "合計",
       "user_list": "ユーザー一覧",
       "username": "ユーザー名",
-      "username_label": "ユーザー名"
+      "username_label": "ユーザー名",
+      "users_bulk": {
+        "import_btn": "CSVインポート",
+        "export_btn": "CSVエクスポート",
+        "import_modal": "CSVからユーザーをインポート",
+        "format_hint": "CSV形式: email,display_name,domain_id,password（ヘッダーなし、1行1件）",
+        "drop_or_click": "CSVファイルをドロップまたはクリックしてアップロード",
+        "import_result": "インポート結果",
+        "success_count": "{n}人のユーザーを作成しました",
+        "failed_count": "{n}件失敗",
+        "importing": "インポート中...",
+        "close": "閉じる"
+      }
     }
   },
   "buttons": {
