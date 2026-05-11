@@ -7411,6 +7411,188 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/change-history:
+    get:
+      operationId: adminGetCompanyChangeHistory
+      summary: Get per-tenant configuration change history
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: action_prefix
+          in: query
+          schema:
+            type: string
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Change history list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLogView"
+                  total:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/pending-approvals:
+    get:
+      operationId: adminListPendingApprovals
+      summary: List pending approval requests for a company
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+      responses:
+        "200":
+          description: Approval list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approvals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalItem"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: adminCreatePendingApproval
+      summary: Submit a change for approval
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalItem"
+      responses:
+        "201":
+          description: Created approval request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approval:
+                    $ref: "#/components/schemas/ApprovalItem"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/pending-approvals/{approvalId}/approve:
+    post:
+      operationId: adminApproveApproval
+      summary: Approve a pending change request
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewed_by:
+                  type: string
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approval:
+                    $ref: "#/components/schemas/ApprovalItem"
+        default:
+          $ref: "#/components/responses/Error"
+  /companies/{id}/pending-approvals/{approvalId}/reject:
+    post:
+      operationId: adminRejectApproval
+      summary: Reject a pending change request
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewed_by:
+                  type: string
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approval:
+                    $ref: "#/components/schemas/ApprovalItem"
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/health:
     get:
       operationId: adminGetCompanyHealth
@@ -9174,6 +9356,61 @@ components:
           schema:
             $ref: "#/components/schemas/APISettingsUpdateRequest"
   schemas:
+    AuditLogView:
+      type: object
+      properties:
+        id:
+          type: string
+        company_id:
+          type: string
+        domain_id:
+          type: string
+        user_id:
+          type: string
+        actor_id:
+          type: string
+        category:
+          type: string
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        ip_address:
+          type: string
+        result:
+          type: string
+        detail:
+          type: object
+        created_at:
+          type: string
+    ApprovalItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        payload:
+          type: object
+        requested_by:
+          type: string
+        requested_at:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        reviewed_by:
+          type: string
+        reviewed_at:
+          type: string
+        comment:
+          type: string
     Webhook:
       type: object
       properties:

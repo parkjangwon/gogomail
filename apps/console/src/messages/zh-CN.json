@@ -86,6 +86,7 @@
     "section_analytics_storage": "分析 & 存储",
     "onboarding": "租户入门向导",
     "tenant_health": "租户健康状态",
+    "change_history": "变更历史",
     "sso_config": "单点登录 / SAML",
     "webhooks": "Webhook",
     "notif_templates": "通知模板",
