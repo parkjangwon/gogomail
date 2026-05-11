@@ -81,6 +81,7 @@ export default function MailPage() {
   }, [folders]);
 
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [sessionWarning, setSessionWarning] = useState<string | null>(null);
 
   // Check auth on mount, load email
   useEffect(() => {
@@ -91,6 +92,22 @@ export default function MailPage() {
       setMustChangePassword(true);
     }
   }, [router]);
+
+  // Session expiry warning: check every 60s, warn when < 10 min left
+  useEffect(() => {
+    function check() {
+      const expiresAt = localStorage.getItem('webmail_token_expires_at');
+      if (!expiresAt) { setSessionWarning(null); return; }
+      const msLeft = new Date(expiresAt).getTime() - Date.now();
+      if (msLeft <= 0) { setSessionWarning('세션이 만료되었습니다. 다시 로그인해 주세요.'); return; }
+      const minsLeft = Math.floor(msLeft / 60000);
+      if (minsLeft < 10) setSessionWarning(`세션이 ${minsLeft}분 후 만료됩니다.`);
+      else setSessionWarning(null);
+    }
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('webmail_token');
@@ -492,6 +509,35 @@ export default function MailPage() {
           <button
             onClick={() => { localStorage.removeItem('webmail_must_change_password'); setMustChangePassword(false); }}
             style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
+          >닫기</button>
+        </div>
+      )}
+
+      {sessionWarning && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed',
+            top: mustChangePassword ? '33px' : 0,
+            left: 0,
+            right: 0,
+            zIndex: 499,
+            background: '#92400e',
+            color: '#fff',
+            textAlign: 'center',
+            fontSize: '13px',
+            padding: '6px 40px',
+            fontWeight: 500,
+          }}
+        >
+          {sessionWarning}
+          <button
+            onClick={handleLogout}
+            style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
+          >다시 로그인</button>
+          <button
+            onClick={() => setSessionWarning(null)}
+            style={{ marginLeft: '8px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
           >닫기</button>
         </div>
       )}

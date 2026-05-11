@@ -34,6 +34,7 @@ export default function LoginPage() {
       const result = await loginUser(email.trim(), password);
       localStorage.setItem('webmail_token', result.token);
       localStorage.setItem('webmail_email', email.trim());
+      if (result.expires_at) localStorage.setItem('webmail_token_expires_at', result.expires_at);
       if (result.must_change_password) {
         localStorage.setItem('webmail_must_change_password', '1');
       }
