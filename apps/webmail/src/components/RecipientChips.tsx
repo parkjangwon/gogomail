@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent, ClipboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { autocompleteContacts, ContactSuggestion } from '@/lib/api';
 
 interface RecipientChipsProps {
   value: string;
@@ -17,18 +18,57 @@ function parseEmails(raw: string): string[] {
   return raw.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
 }
 
+/** Format a ContactSuggestion as a chip string. */
+function formatSuggestion(s: ContactSuggestion): string {
+  return s.display_name ? `${s.display_name} <${s.email}>` : s.email;
+}
+
 export function RecipientChips({ value, onChange, placeholder, id, autoFocus, hasError, suggestions = [] }: RecipientChipsProps) {
   const [chips, setChips] = useState<string[]>(() => (value ? parseEmails(value) : []));
   const [input, setInput] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [apiResults, setApiResults] = useState<ContactSuggestion[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = input.trim().length > 0
+  // Debounced API autocomplete
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = input.trim();
+    if (!q) { setApiResults([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const results = await autocompleteContacts(q, 8);
+      setApiResults(results);
+    }, 200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [input]);
+
+  // Merge local suggestions and API results into a unified dropdown list.
+  // Local suggestions first (already formatted as strings), then API results
+  // not already covered by local suggestions.
+  const chipSet = new Set(chips.map((c) => c.toLowerCase()));
+  const localFiltered = input.trim().length > 0
     ? suggestions.filter(
-        (s) => s.toLowerCase().includes(input.toLowerCase()) && !chips.includes(s)
+        (s) => s.toLowerCase().includes(input.toLowerCase()) && !chipSet.has(s.toLowerCase())
       ).slice(0, 6)
     : [];
+
+  // Build merged list: { label: string (what to display), value: string (what to commit) }
+  interface DropdownItem { label: string; sublabel?: string; value: string; }
+  const localItems: DropdownItem[] = localFiltered.map((s) => ({ label: s, value: s }));
+  const apiEmails = new Set(localFiltered.map((s) => {
+    const m = s.match(/<([^>]+)>/);
+    return (m ? m[1] : s).toLowerCase();
+  }));
+  const apiItems: DropdownItem[] = apiResults
+    .filter((r) => r.email && !apiEmails.has(r.email.toLowerCase()) && !chipSet.has(r.email.toLowerCase()))
+    .map((r) => ({
+      label: r.display_name || r.email,
+      sublabel: r.display_name ? r.email : undefined,
+      value: formatSuggestion(r),
+    }));
+  const dropdownItems: DropdownItem[] = [...localItems, ...apiItems].slice(0, 8);
 
   function commit(raw: string) {
     const emails = parseEmails(raw);
@@ -38,6 +78,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
     setInput('');
     setDropdownOpen(false);
     setActiveIdx(-1);
+    setApiResults([]);
     onChange(next.join(', '));
   }
 
@@ -56,12 +97,12 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (dropdownOpen && filtered.length > 0) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, filtered.length - 1)); return; }
+    if (dropdownOpen && dropdownItems.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, dropdownItems.length - 1)); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, -1)); return; }
       if ((e.key === 'Enter' || e.key === 'Tab') && activeIdx >= 0) {
         e.preventDefault();
-        commit(filtered[activeIdx]);
+        commit(dropdownItems[activeIdx].value);
         return;
       }
       if (e.key === 'Escape') { setDropdownOpen(false); setActiveIdx(-1); return; }
@@ -125,7 +166,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
         autoComplete="off"
         style={{ flex: 1, minWidth: '120px', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', padding: '2px 0' }}
       />
-      {dropdownOpen && filtered.length > 0 && (
+      {dropdownOpen && dropdownItems.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -135,32 +176,35 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
             zIndex: 300,
             background: 'var(--color-bg-primary)',
             border: '1px solid var(--color-border-default)',
-            borderRadius: '6px',
+            borderRadius: '8px',
             boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
             overflow: 'hidden',
             marginTop: '2px',
           }}
         >
-          {filtered.map((s, i) => (
+          {dropdownItems.map((item, i) => (
             <button
-              key={s}
+              key={item.value + i}
               type="button"
-              onMouseDown={(e) => { e.preventDefault(); commit(s); }}
+              onMouseDown={(e) => { e.preventDefault(); commit(item.value); }}
               style={{
-                display: 'block',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
                 width: '100%',
                 textAlign: 'left',
                 padding: '7px 12px',
                 border: 'none',
-                background: i === activeIdx ? 'var(--color-accent-subtle)' : 'transparent',
-                color: 'var(--color-text-primary)',
-                fontSize: '13px',
+                background: i === activeIdx ? 'var(--color-bg-secondary)' : 'transparent',
                 cursor: 'pointer',
               }}
               onMouseEnter={() => setActiveIdx(i)}
               onMouseLeave={() => setActiveIdx(-1)}
             >
-              {s}
+              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{item.label}</span>
+              {item.sublabel && (
+                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{item.sublabel}</span>
+              )}
             </button>
           ))}
         </div>

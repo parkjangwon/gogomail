@@ -287,6 +287,25 @@ export function sendMessage(data: SendMessageRequest): Promise<void> {
   return apiPost<void>('messages/send', data);
 }
 
+export interface ContactSuggestion {
+  display_name: string;
+  email: string;
+}
+
+export async function autocompleteContacts(q: string, limit = 8): Promise<ContactSuggestion[]> {
+  if (!q.trim()) return [];
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  try {
+    const token = getToken();
+    const res = await fetch(`/api/mail/contacts/autocomplete?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { results?: ContactSuggestion[] };
+    return data.results ?? [];
+  } catch { return []; }
+}
+
 export async function uploadAttachment(file: File, draftId?: string): Promise<Attachment> {
   const token = getToken();
   const form = new FormData();
