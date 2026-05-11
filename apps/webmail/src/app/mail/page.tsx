@@ -357,6 +357,12 @@ export default function MailPage() {
     }
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const handleBulkStar = useCallback(async (ids: string[], starred: boolean) => {
+    setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, starred } : m));
+    await Promise.allSettled(ids.map((id) => starMessage(id, starred)));
+    addToast(starred ? `${ids.length}개에 별표를 추가했습니다` : `${ids.length}개의 별표를 제거했습니다`, 'info');
+  }, [setMessages, addToast]);
+
   const handleMarkAllRead = useCallback(async () => {
     const unreadIds = messages.filter((m) => !m.read).map((m) => m.id);
     if (unreadIds.length === 0) return;
@@ -852,6 +858,7 @@ export default function MailPage() {
           onDeleteMessage={handleDeleteById}
           onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
           onBulkLabel={handleBulkLabel}
+          onBulkStar={handleBulkStar}
           messageLabels={messageLabels}
         />
       )}

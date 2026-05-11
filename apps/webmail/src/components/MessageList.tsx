@@ -87,10 +87,11 @@ interface MessageListProps {
   searchQuery?: string;
   onBulkRestore?: (ids: string[]) => void;
   onBulkLabel?: (ids: string[], color: string | null) => void;
+  onBulkStar?: (ids: string[], starred: boolean) => void;
   messageLabels?: Record<string, string>;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, messageLabels = {} }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -288,6 +289,18 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
           읽음
         </button>
+      )}
+      {onBulkStar && (
+        <>
+          <button onClick={() => { onBulkStar([...bulkSelected], true); clearAll(); }}
+            title="별표 추가" style={{ fontSize: '14px', padding: '2px 6px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer' }}>
+            ★
+          </button>
+          <button onClick={() => { onBulkStar([...bulkSelected], false); clearAll(); }}
+            title="별표 제거" style={{ fontSize: '14px', padding: '2px 6px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
+            ☆
+          </button>
+        </>
       )}
       {onBulkMove && folders && folders.length > 0 && (
         <div style={{ position: 'relative' }}>
