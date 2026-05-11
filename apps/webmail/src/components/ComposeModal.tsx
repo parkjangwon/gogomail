@@ -18,6 +18,7 @@ interface ComposeModalProps {
   userEmail?: string;
   initialTo?: string;
   isMobile?: boolean;
+  windowOffset?: number;
 }
 
 function escapeHtml(text: string): string {
@@ -79,7 +80,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, isMobile }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, isMobile, windowOffset = 0 }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -394,7 +395,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             ? { inset: 0, borderRadius: 0, width: '100%', maxWidth: 'none', maxHeight: '100dvh', height: '100dvh' }
             : fullscreen
               ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
-              : { bottom: '24px', insetInlineEnd: '24px', width: '560px', maxWidth: 'calc(100vw - 48px)' }
+              : { bottom: '24px', insetInlineEnd: `${24 + windowOffset * 576}px`, width: '560px', maxWidth: 'calc(100vw - 48px)' }
           ),
           background: 'var(--color-bg-primary)',
           border: `1px solid ${dragOver ? 'var(--color-accent)' : isMobile ? 'transparent' : 'var(--color-border-default)'}`,
