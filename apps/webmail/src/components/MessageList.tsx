@@ -91,6 +91,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const lastBulkIndexRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pullRef = useRef<{ startY: number } | null>(null);
+  const [pullY, setPullY] = useState(0);
+  const PULL_THRESHOLD = 64;
 
   // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
   useEffect(() => {
@@ -456,11 +459,39 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       }}
     >
       {filterTabs}
+      {isMobile && pullY > 0 && (
+        <div aria-hidden="true" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: `${Math.min(pullY, PULL_THRESHOLD + 20)}px`,
+          fontSize: '18px',
+          color: pullY >= PULL_THRESHOLD ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+          transition: 'color 150ms ease',
+          flexShrink: 0,
+        }}>
+          {pullY >= PULL_THRESHOLD ? '↺' : '↓'}
+        </div>
+      )}
       <div
         ref={scrollContainerRef}
         role="list"
         aria-label="메일 목록"
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain' }}
+        onTouchStart={isMobile && onRefresh ? (e) => {
+          if (scrollContainerRef.current?.scrollTop === 0) {
+            pullRef.current = { startY: e.touches[0].clientY };
+          }
+        } : undefined}
+        onTouchMove={isMobile && onRefresh ? (e) => {
+          if (!pullRef.current) return;
+          const dy = e.touches[0].clientY - pullRef.current.startY;
+          if (dy > 0) setPullY(Math.min(PULL_THRESHOLD + 20, dy));
+          else { pullRef.current = null; setPullY(0); }
+        } : undefined}
+        onTouchEnd={isMobile && onRefresh ? () => {
+          if (pullY >= PULL_THRESHOLD && !refreshing) onRefresh!();
+          setPullY(0);
+          pullRef.current = null;
+        } : undefined}
       >
       {groups.map((group) => (
         <div key={group.label} role="group" aria-label={group.label}>
