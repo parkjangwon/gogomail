@@ -199,7 +199,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   // Slash command menu state
-  const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; left: number } | null>(null);
+  const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; cursorTop: number; left: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const slashStartPosRef = useRef<number | null>(null);
   const slashMenuRef = useRef<typeof slashMenu>(null);
@@ -422,7 +422,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         const query = slashMatch[1];
         const coords = e.view.coordsAtPos(from);
         slashStartPosRef.current = from - slashMatch[0].length;
-        setSlashMenu({ query, top: coords.bottom + 4, left: coords.left });
+        setSlashMenu({ query, top: coords.bottom + 4, cursorTop: coords.top, left: coords.left });
         setSlashIndex(0);
       } else {
         setSlashMenu(null);
@@ -1350,7 +1350,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         <div
           style={{
             position: 'fixed',
-            top: Math.min(slashMenu.top, window.innerHeight - 280),
+            ...(slashMenu.top + 320 > window.innerHeight
+              ? { bottom: window.innerHeight - slashMenu.cursorTop + 4 }
+              : { top: slashMenu.top }),
             left: Math.min(slashMenu.left, window.innerWidth - 240),
             zIndex: 600,
             width: '232px',
