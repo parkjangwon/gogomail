@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
-import { MessageDetail, Folder } from '@/lib/api';
+import { MessageDetail, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 function linkify(text: string): ReactNode[] {
@@ -189,6 +189,26 @@ export function ReadingPane({
     setQuickReplyText('');
     setQuickReplySent(false);
   }, [message?.id]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!message?.has_attachment || !message.id) { setAttachments([]); return; }
+    setAttachmentsLoading(true);
+    listAttachments(message.id)
+      .then(setAttachments)
+      .catch(() => setAttachments([]))
+      .finally(() => setAttachmentsLoading(false));
+  }, [message?.id, message?.has_attachment]);
+
+  const handleDownload = useCallback(async (att: Attachment) => {
+    if (!message) return;
+    setDownloadingId(att.id);
+    try { await downloadAttachment(message.id, att.id, att.filename); } catch { /* ignore */ }
+    finally { setDownloadingId(null); }
+  }, [message]);
+
   const [copiedEmail, setCopiedEmail] = useState('');
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -512,23 +532,57 @@ export function ReadingPane({
           }}
         />
 
-        {/* Attachment notice */}
+        {/* Attachments */}
         {message.has_attachment && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            marginBottom: '12px',
-            maxWidth: '680px',
-            borderRadius: '6px',
-            border: '1px solid var(--color-border-default)',
-            background: 'var(--color-bg-secondary)',
-            fontSize: '13px',
-            color: 'var(--color-text-secondary)',
-          }}>
-            <span aria-hidden="true" style={{ fontSize: '16px' }}>📎</span>
-            <span>이 메시지에 첨부파일이 있습니다</span>
+          <div style={{ marginBottom: '16px', maxWidth: '680px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '8px' }}>
+              첨부파일 {attachments.length > 0 ? `(${attachments.length})` : ''}
+            </div>
+            {attachmentsLoading ? (
+              <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)' }}>로딩 중...</div>
+            ) : attachments.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                <span aria-hidden="true">📎</span>
+                <span>첨부파일을 불러올 수 없습니다</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {attachments.map((att) => {
+                  const isImg = att.mime_type.startsWith('image/');
+                  const isPdf = att.mime_type === 'application/pdf';
+                  const icon = isImg ? '🖼️' : isPdf ? '📄' : '📎';
+                  const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
+                  return (
+                    <button
+                      key={att.id}
+                      onClick={() => handleDownload(att)}
+                      disabled={downloadingId === att.id}
+                      title={`${att.filename} (${kb}) 다운로드`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--color-border-default)',
+                        background: downloadingId === att.id ? 'var(--color-bg-tertiary)' : 'var(--color-bg-secondary)',
+                        color: 'var(--color-text-primary)',
+                        fontSize: '13px',
+                        cursor: downloadingId === att.id ? 'wait' : 'pointer',
+                        maxWidth: '260px',
+                        textAlign: 'left',
+                      }}
+                      onMouseEnter={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                      onMouseLeave={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                    >
+                      <span aria-hidden="true">{downloadingId === att.id ? '⏳' : icon}</span>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
