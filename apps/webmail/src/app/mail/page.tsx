@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, starMessage, markRead, moveMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -117,6 +117,21 @@ export default function MailPage() {
       addToast('삭제에 실패했습니다', 'error');
     }
   }, [selectedMessageId, setMessages, addToast]);
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
+    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+    if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+    await Promise.allSettled(ids.map((id) => deleteMessage(id)));
+    addToast(`${ids.length}개 삭제했습니다`);
+  }, [selectedMessageId, setMessages, addToast]);
+
+  const handleBulkMarkRead = useCallback(async (ids: string[]) => {
+    const unreadCount = messages.filter((m) => ids.includes(m.id) && !m.read).length;
+    setMessages((prev) => prev.map((m) => ids.includes(m.id) ? { ...m, read: true } : m));
+    if (unreadCount > 0) adjustUnread(activeFolderId, -unreadCount);
+    bulkMarkRead(ids, true).catch(() => {});
+    addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
+  }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
@@ -248,6 +263,8 @@ export default function MailPage() {
         loadingMore={loadingMore}
         onLoadMore={loadMore}
         onStar={handleStar}
+        onBulkDelete={handleBulkDelete}
+        onBulkMarkRead={handleBulkMarkRead}
       />
 
       <ReadingPane

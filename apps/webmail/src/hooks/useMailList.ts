@@ -67,5 +67,32 @@ export function useMailList(folderId: string) {
     );
   }, []);
 
+  // Poll for new messages every 30s
+  useEffect(() => {
+    if (!folderId) return;
+    const id = setInterval(async () => {
+      try {
+        const data = await getMessages(folderId);
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const incoming = (data.messages ?? []).filter((m) => !existingIds.has(m.id));
+          if (incoming.length === 0) return prev;
+          // Prepend new messages and update unread count
+          setFolders((fs) =>
+            fs.map((f) =>
+              f.id === folderId
+                ? { ...f, unread: f.unread + incoming.filter((m) => !m.read).length }
+                : f
+            )
+          );
+          return [...incoming, ...prev];
+        });
+      } catch {
+        // ignore poll errors silently
+      }
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [folderId]);
+
   return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread };
 }

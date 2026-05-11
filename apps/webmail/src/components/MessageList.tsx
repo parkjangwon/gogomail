@@ -49,10 +49,24 @@ interface MessageListProps {
   loadingMore?: boolean;
   onLoadMore?: () => void;
   onStar?: (id: string, starred: boolean) => void;
+  onBulkDelete?: (ids: string[]) => void;
+  onBulkMarkRead?: (ids: string[]) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+
+  const toggleBulk = (id: string) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
+  const clearAll = () => setBulkSelected(new Set());
 
   const filteredMessages = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
@@ -105,8 +119,36 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     );
   }
 
-  const filterTabs = (
+  const hasBulk = bulkSelected.size > 0;
+
+  const filterTabs = hasBulk ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, background: 'var(--color-accent-subtle)' }}>
+      <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{bulkSelected.size}개 선택됨</span>
+      {onBulkMarkRead && (
+        <button onClick={() => { onBulkMarkRead([...bulkSelected]); clearAll(); }}
+          style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+          읽음
+        </button>
+      )}
+      {onBulkDelete && (
+        <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }}
+          style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}>
+          삭제
+        </button>
+      )}
+      <button onClick={clearAll}
+        style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+        취소
+      </button>
+    </div>
+  ) : (
     <div style={{ display: 'flex', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+      <button
+        aria-label="전체 선택"
+        onClick={selectAll}
+        style={{ fontSize: '13px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', marginRight: '4px' }}
+        title="전체 선택"
+      >☐</button>
       {(['all', 'unread', 'starred'] as FilterMode[]).map((mode) => {
         const label = mode === 'all' ? '전체' : mode === 'unread' ? '안읽음' : '별표';
         const active = filterMode === mode;
@@ -203,8 +245,10 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               key={msg.id}
               message={msg}
               isSelected={selectedId === msg.id}
+              isBulkChecked={bulkSelected.has(msg.id)}
               onSelect={onSelect}
               onStar={onStar}
+              onToggleBulk={toggleBulk}
             />
           ))}
         </div>
@@ -240,11 +284,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 interface MessageRowProps {
   message: MessageSummary;
   isSelected: boolean;
+  isBulkChecked: boolean;
   onSelect: (id: string) => void;
   onStar?: (id: string, starred: boolean) => void;
+  onToggleBulk: (id: string) => void;
 }
 
-function MessageRow({ message, isSelected, onSelect, onStar }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk }: MessageRowProps) {
   const isUnread = !message.read;
 
   return (
@@ -277,18 +323,32 @@ function MessageRow({ message, isSelected, onSelect, onStar }: MessageRowProps) 
         if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
       }}
     >
-      {/* Unread dot */}
+      {/* Checkbox / unread dot — click to toggle bulk selection */}
       <div
-        aria-hidden="true"
-        style={{
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: isUnread ? 'var(--color-accent)' : 'transparent',
-          marginTop: '6px',
-          flexShrink: 0,
-        }}
-      />
+        onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id); }}
+        title={isBulkChecked ? '선택 해제' : '선택'}
+        style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '3px', cursor: 'pointer' }}
+      >
+        {isBulkChecked ? (
+          <input
+            type="checkbox"
+            checked
+            readOnly
+            aria-label="선택됨"
+            style={{ cursor: 'pointer', accentColor: 'var(--color-accent)', pointerEvents: 'none' }}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: isUnread ? 'var(--color-accent)' : 'transparent',
+            }}
+          />
+        )}
+      </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>

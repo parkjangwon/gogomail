@@ -221,6 +221,10 @@ export function moveMessage(id: string, folderId: string): Promise<{ status: str
   return apiPatch<{ status: string }>(`messages/${id}/folder`, { folder_id: folderId });
 }
 
+export function bulkMarkRead(ids: string[], value: boolean): Promise<{ updated: number }> {
+  return apiPatch<{ updated: number }>('messages/bulk/flags', { message_ids: ids, flag: 'read', value });
+}
+
 export interface DraftData {
   draft_id?: string;
   intent: ComposeIntent;
