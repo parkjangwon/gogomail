@@ -1143,6 +1143,24 @@
         "importing": "导入中...",
         "close": "关闭"
       }
+    },
+    "auth_policy_page": {
+      "title": "密码与身份验证策略",
+      "description": "配置密码规则、MFA 要求和会话设置",
+      "password_section": "密码策略",
+      "min_length": "最小长度",
+      "require_uppercase": "必须包含大写字母",
+      "require_numbers": "必须包含数字",
+      "require_symbols": "必须包含特殊符号",
+      "max_age_days": "密码过期天数（0 = 永不过期）",
+      "history_count": "密码历史记录（禁止重复使用次数）",
+      "mfa_section": "多因素认证（MFA）",
+      "mfa_required": "要求所有用户启用 MFA",
+      "mfa_methods": "允许的 MFA 方式",
+      "session_section": "会话设置",
+      "session_timeout": "会话超时时间（分钟）",
+      "max_concurrent": "最大并发会话数（0 = 无限制）",
+      "save": "保存策略"
     }
   },
   "buttons": {
