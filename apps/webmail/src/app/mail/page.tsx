@@ -212,6 +212,13 @@ export default function MailPage() {
         case 'u':
           if (selectedMessageId && !composeContext) handleMarkUnread();
           break;
+        case 's': {
+          if (selectedMessageId && !composeContext) {
+            const msg = messages.find((m) => m.id === selectedMessageId);
+            if (msg) handleStar(selectedMessageId, !msg.starred);
+          }
+          break;
+        }
         case 'r':
           if (selectedMessage && !composeContext) {
             e.preventDefault();
@@ -313,7 +320,15 @@ export default function MailPage() {
           selectedId={selectedMessageId}
           onSelect={handleSelectMessage}
           loading={searchResults !== null ? searchLoading : messagesLoading}
-          emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : undefined}
+          emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : (() => {
+            const f = folders.find((f) => f.id === activeFolderId);
+            const t = f?.system_type;
+            if (t === 'drafts') return '임시 보관된 메일이 없습니다';
+            if (t === 'sent') return '보낸 메일이 없습니다';
+            if (t === 'trash') return '휴지통이 비어있습니다';
+            if (t === 'inbox') return '받은 메일이 없습니다';
+            return undefined;
+          })()}
           hasMore={searchResults === null ? hasMore : false}
           loadingMore={loadingMore}
           onLoadMore={loadMore}
