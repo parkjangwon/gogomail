@@ -17,6 +17,7 @@ interface ComposeModalProps {
   draftMessage?: MessageDetail;
   userEmail?: string;
   initialTo?: string;
+  isMobile?: boolean;
 }
 
 function escapeHtml(text: string): string {
@@ -56,7 +57,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, isMobile }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -352,20 +353,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         onDrop={(e) => { e.preventDefault(); dragCounterRef.current = 0; setDragOver(false); if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files); }}
         style={{
           position: 'fixed',
-          ...(fullscreen
-            ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
-            : { bottom: '24px', insetInlineEnd: '24px', width: '560px', maxWidth: 'calc(100vw - 48px)' }
+          ...(isMobile
+            ? { inset: 0, borderRadius: 0, width: '100%', maxWidth: 'none', maxHeight: '100dvh', height: '100dvh' }
+            : fullscreen
+              ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
+              : { bottom: '24px', insetInlineEnd: '24px', width: '560px', maxWidth: 'calc(100vw - 48px)' }
           ),
           background: 'var(--color-bg-primary)',
-          border: `1px solid ${dragOver ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
-          borderRadius: '8px',
-          boxShadow: dragOver ? '0 0 0 2px var(--color-accent-subtle)' : '0 8px 32px rgba(0,0,0,0.16)',
+          border: `1px solid ${dragOver ? 'var(--color-accent)' : isMobile ? 'transparent' : 'var(--color-border-default)'}`,
+          borderRadius: isMobile ? 0 : '8px',
+          boxShadow: isMobile ? 'none' : dragOver ? '0 0 0 2px var(--color-accent-subtle)' : '0 8px 32px rgba(0,0,0,0.16)',
           zIndex: 100,
           display: 'flex',
           flexDirection: 'column',
           animation: 'composeIn 120ms ease-out',
-          maxHeight: minimized ? '44px' : fullscreen ? 'none' : '80vh',
-          height: fullscreen && !minimized ? 'auto' : undefined,
+          maxHeight: isMobile ? '100dvh' : minimized ? '44px' : fullscreen ? 'none' : '80vh',
+          height: isMobile || (fullscreen && !minimized) ? '100%' : undefined,
           overflow: 'hidden',
           transition: 'max-height 180ms ease, border-color 100ms ease, box-shadow 100ms ease',
         }}
@@ -414,6 +417,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지')}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
+            {!isMobile && <>
             <button
               onClick={(e) => { e.stopPropagation(); setFullscreen((v) => !v); if (minimized) setMinimized(false); }}
               aria-label={fullscreen ? '창 축소' : '전체화면'}
@@ -439,6 +443,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
             >{minimized ? '□' : '─'}</button>
+            </>}
             <button
               onClick={() => {
                 const hasContent = !sent && (to.trim() || subject.trim() || (editor && editor.getText().trim()));
@@ -448,12 +453,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               style={{
                 width: '24px', height: '24px', borderRadius: '4px', border: 'none',
                 background: 'transparent', color: 'var(--color-text-secondary)',
-                cursor: 'pointer', fontSize: '16px', lineHeight: 1,
+                cursor: 'pointer', fontSize: isMobile ? '20px' : '16px', lineHeight: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
               onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >×</button>
+            >{isMobile ? '←' : '×'}</button>
           </div>
         </div>
 
