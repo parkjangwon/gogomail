@@ -120,6 +120,7 @@ export function Sidebar({
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
 
   useEffect(() => {
     setRecentSearches(loadRecentSearches());
@@ -174,6 +175,8 @@ export function Sidebar({
     <aside
       aria-label="메일 탐색"
       style={asideStyle}
+      onMouseEnter={() => setSidebarHovered(true)}
+      onMouseLeave={() => setSidebarHovered(false)}
     >
       {collapsed && !isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', padding: '8px 0', gap: '2px' }}>
@@ -282,6 +285,28 @@ export function Sidebar({
         >
           {userName}
         </span>
+        {!isMobile && onToggleCollapse && (
+          <button
+            aria-label="사이드바 접기"
+            onClick={onToggleCollapse}
+            style={{
+              marginLeft: 'auto',
+              flexShrink: 0,
+              opacity: sidebarHovered ? 1 : 0,
+              pointerEvents: sidebarHovered ? 'auto' : 'none',
+              transition: 'opacity 150ms ease',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--color-text-tertiary)',
+              fontSize: '14px',
+              padding: '4px 6px',
+              borderRadius: '4px',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+          >«</button>
+        )}
       </div>
 
       {/* Search */}
@@ -667,16 +692,6 @@ export function Sidebar({
             >⧉</button>
           )}
         </div>
-        {!isMobile && onToggleCollapse && (
-          <button
-            aria-label="사이드바 접기"
-            onClick={onToggleCollapse}
-            title="사이드바 접기"
-            style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '12px', cursor: 'pointer' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >← 접기</button>
-        )}
       </div>
       </>
       )}
