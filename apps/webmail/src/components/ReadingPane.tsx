@@ -67,6 +67,12 @@ interface ReadingPaneProps {
   onQuickReply?: (body: string) => Promise<void>;
 }
 
+function readingTime(text: string): string {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const mins = Math.ceil(words / 200);
+  return mins <= 1 ? '약 1분' : `약 ${mins}분`;
+}
+
 function formatFullDate(receivedAt: string): string {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
@@ -445,15 +451,16 @@ export function ReadingPane({
               </div>
             )}
           </div>
-          <span
-            style={{
-              fontSize: '13px',
-              color: 'var(--color-text-secondary)',
-              flexShrink: 0,
-            }}
-          >
-            {formatFullDate(message.received_at)}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {formatFullDate(message.received_at)}
+            </span>
+            {(message.text_body || '').trim().length > 50 && (
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                읽기 {readingTime(message.text_body || '')}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Divider */}
