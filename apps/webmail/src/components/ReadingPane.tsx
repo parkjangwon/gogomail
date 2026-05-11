@@ -92,6 +92,7 @@ function SafeHTMLBody({ html }: { html: string }) {
 interface ReadingPaneProps {
   message: MessageDetail | null;
   folders?: Folder[];
+  onArchive?: () => void;
   onDelete?: () => void;
   onReply?: () => void;
   onReplyAll?: () => void;
@@ -176,6 +177,7 @@ function ActionButton({
 export function ReadingPane({
   message,
   folders = [],
+  onArchive,
   onDelete,
   onReply,
   onReplyAll,
@@ -530,6 +532,7 @@ export function ReadingPane({
             )}
           </div>
         )}
+        {onArchive && <ActionButton label="아카이브" onClick={onArchive} />}
         {onRestore && <ActionButton label="복구" onClick={onRestore} />}
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>

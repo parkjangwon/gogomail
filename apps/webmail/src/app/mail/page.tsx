@@ -378,6 +378,18 @@ export default function MailPage() {
     }
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const handleArchive = useCallback(() => {
+    if (!selectedMessageId) return;
+    const archiveFolder = folders.find((f) => f.system_type === 'archive');
+    if (!archiveFolder) return;
+    const id = selectedMessageId;
+    const nextId = getNextId(id);
+    void moveMessage(id, archiveFolder.id).then(() => {
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      setSelectedMessageId(nextId);
+    }).catch(() => {});
+  }, [selectedMessageId, folders, getNextId, setMessages]);
+
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
@@ -446,7 +458,7 @@ export default function MailPage() {
           if (firstUnread) setSelectedMessageId(firstUnread.id);
           return;
         }
-        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash' };
+        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive' };
         const target = systemTypeMap[e.key];
         if (target) {
           const folder = folders.find((f) => f.system_type === target);
@@ -502,16 +514,7 @@ export default function MailPage() {
           }
           break;
         case 'e': {
-          if (selectedMessageId && !composeContext) {
-            const archiveFolder = folders.find((f) => f.system_type === 'archive');
-            if (archiveFolder) {
-              const nextId = getNextId(selectedMessageId);
-              void moveMessage(selectedMessageId, archiveFolder.id).then(() => {
-                setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
-                setSelectedMessageId(nextId);
-              }).catch(() => {});
-            }
-          }
+          if (selectedMessageId && !composeContext) handleArchive();
           break;
         }
         case 'l': {
@@ -555,7 +558,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -903,6 +906,7 @@ export default function MailPage() {
         <ReadingPane
           message={selectedMessage}
           folders={folders}
+          onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchive : undefined}
           onDelete={handleDelete}
           onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
           onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
