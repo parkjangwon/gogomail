@@ -912,13 +912,15 @@ export default function MailPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Gmail-style top search bar */}
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={handleSearch}
-            advancedFilters={advancedFilters}
-            onAdvancedFilterChange={handleFilterChange}
-          />
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
+          <div style={{ width: '100%', maxWidth: '720px' }}>
+            <SearchBar
+              value={searchQuery}
+              onChange={handleSearch}
+              advancedFilters={advancedFilters}
+              onAdvancedFilterChange={handleFilterChange}
+            />
+          </div>
         </div>
 
       <MessageList

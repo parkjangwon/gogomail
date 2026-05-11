@@ -486,7 +486,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
           onMouseLeave={(e) => { if (!showFilterDropdown) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
         >
-          <ChevronDownIcon style={{ width: '11px', height: '11px' }} />
+          <ChevronDownIcon style={{ width: '14px', height: '14px' }} />
         </button>
         {/* Filter dropdown menu */}
         {showFilterDropdown && (
@@ -528,6 +528,46 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </div>
         )}
       </div>
+      {onRefresh && (
+        <button
+          aria-label="새로고침"
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="새로고침"
+          style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}
+        >
+          <ArrowPathIcon style={{ width: '16px', height: '16px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+        </button>
+      )}
+      <div ref={moreMenuRef} style={{ position: 'relative' }}>
+        <button
+          aria-label="더 보기"
+          onClick={() => setShowMoreMenu((v) => !v)}
+          style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: showMoreMenu ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+        >
+          <EllipsisVerticalIcon style={{ width: '16px', height: '16px' }} />
+        </button>
+        {showMoreMenu && (
+          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
+            {onMarkAllRead && messages.some((m) => !m.read) && (
+              <button
+                onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >모두 읽음으로 표시</button>
+            )}
+            {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
+              <button
+                onClick={() => { onEmptyFolder(); setShowMoreMenu(false); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >{emptyFolderLabel}</button>
+            )}
+          </div>
+        )}
+      </div>
       {filterMode !== 'all' && (
         <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {filterMode === 'unread' ? '읽지 않음' : filterMode === 'read' ? '읽음' : filterMode === 'starred' ? '별표' : filterMode === 'unstarred' ? '별표 없음' : filterMode === 'attachment' ? '첨부 있음' : '첨부 없음'}
@@ -554,46 +594,6 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}>
-        {onRefresh && (
-          <button
-            aria-label="새로고침"
-            onClick={onRefresh}
-            disabled={refreshing}
-            title="새로고침"
-            style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}
-          >
-            <ArrowPathIcon style={{ width: '16px', height: '16px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-          </button>
-        )}
-        <div ref={moreMenuRef} style={{ position: 'relative' }}>
-          <button
-            aria-label="더 보기"
-            onClick={() => setShowMoreMenu((v) => !v)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: showMoreMenu ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-          >
-            <EllipsisVerticalIcon style={{ width: '16px', height: '16px' }} />
-          </button>
-          {showMoreMenu && (
-            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
-              {onMarkAllRead && messages.some((m) => !m.read) && (
-                <button
-                  onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >모두 읽음으로 표시</button>
-              )}
-              {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
-                <button
-                  onClick={() => { onEmptyFolder(); setShowMoreMenu(false); }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >{emptyFolderLabel}</button>
-              )}
-            </div>
-          )}
-        </div>
         {filteredMessages.length > 0 && (
           <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
             {`${pageStart + 1}–${Math.min(pageEnd, filteredMessages.length)}`}{hasMore ? '+' : ` / ${filteredMessages.length}`}
