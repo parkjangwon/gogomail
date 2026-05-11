@@ -667,6 +667,29 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
             <div style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '4px 4px' }} />
 
+            <button type="button" aria-label="왼쪽 정렬" title="왼쪽 정렬"
+              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'left' }))}
+              onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >⇤</button>
+
+            <button type="button" aria-label="가운데 정렬" title="가운데 정렬"
+              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'center' }))}
+              onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >⟺</button>
+
+            <button type="button" aria-label="오른쪽 정렬" title="오른쪽 정렬"
+              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'right' }))}
+              onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >⇥</button>
+
+            <div style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '4px 4px' }} />
+
             <button type="button" aria-label="실행 취소" title="실행 취소 (Ctrl+Z)"
               style={toolbarBtnStyle()}
               onClick={() => editor?.chain().focus().undo().run()}
