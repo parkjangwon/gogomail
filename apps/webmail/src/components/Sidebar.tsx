@@ -281,32 +281,58 @@ export function Sidebar({
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            flex: 1,
           }}
         >
           {userName}
         </span>
-        {!isMobile && onToggleCollapse && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
           <button
-            aria-label="사이드바 접기"
-            onClick={onToggleCollapse}
+            aria-label="편지 쓰기"
+            onClick={onCompose}
+            title="편지 쓰기"
             style={{
-              marginLeft: 'auto',
-              flexShrink: 0,
-              opacity: sidebarHovered ? 1 : 0,
-              pointerEvents: sidebarHovered ? 'auto' : 'none',
-              transition: 'opacity 150ms ease',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--color-text-tertiary)',
-              fontSize: '14px',
-              padding: '4px 6px',
-              borderRadius: '4px',
+              width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--color-text-secondary)', fontSize: '15px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-          >«</button>
-        )}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
+          >✏</button>
+          {onComposeInNewWindow && (
+            <button
+              aria-label="새창으로 쓰기"
+              onClick={onComposeInNewWindow}
+              title="새창으로 쓰기"
+              style={{
+                width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                background: 'transparent', cursor: 'pointer',
+                color: 'var(--color-text-secondary)', fontSize: '13px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
+            >⧉</button>
+          )}
+          {!isMobile && onToggleCollapse && (
+            <button
+              aria-label="사이드바 접기"
+              onClick={onToggleCollapse}
+              style={{
+                width: '28px', height: '28px', borderRadius: '6px',
+                opacity: sidebarHovered ? 1 : 0,
+                pointerEvents: sidebarHovered ? 'auto' : 'none',
+                transition: 'opacity 150ms ease',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--color-text-tertiary)', fontSize: '14px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+            >«</button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
@@ -630,69 +656,31 @@ export function Sidebar({
         )}
       </nav>
 
-      {/* Compose button + logout */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {footerExtra}
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            style={{
-              width: '100%',
-              padding: '7px 16px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-default)',
-              background: 'transparent',
-              color: 'var(--color-text-secondary)',
-              fontSize: '13px',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >
-            로그아웃
-          </button>
-        )}
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            onClick={onCompose}
-            style={{
-              flex: 1,
-              padding: '9px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              background: 'var(--color-accent)',
-              color: '#fff',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background 100ms ease',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent-hover)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent)'; }}
-          >
-            편지 쓰기
-          </button>
-          {onComposeInNewWindow && (
+      {/* Footer */}
+      {(footerExtra || onLogout) && (
+        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {footerExtra}
+          {onLogout && (
             <button
-              aria-label="새창으로 쓰기"
-              title="새창으로 쓰기"
-              onClick={onComposeInNewWindow}
+              onClick={onLogout}
               style={{
-                padding: '9px 12px',
+                width: '100%',
+                padding: '6px 12px',
                 borderRadius: '6px',
                 border: '1px solid var(--color-border-default)',
                 background: 'transparent',
                 color: 'var(--color-text-secondary)',
-                fontSize: '14px',
+                fontSize: '13px',
                 cursor: 'pointer',
-                flexShrink: 0,
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-            >⧉</button>
+            >
+              로그아웃
+            </button>
           )}
         </div>
-      </div>
+      )}
       </>
       )}
     </aside>
