@@ -107,14 +107,22 @@ export default function MailPage() {
     setSelectedMessageId(null);
   }, [selectedMessage, activeFolderSystemType]);
 
-  // Mark selected message as read locally + update sidebar badge (skip drafts)
+  // Mark selected message as read locally + server after 1.5s (skip drafts)
   useEffect(() => {
     if (!selectedMessageId || activeFolderSystemType === 'drafts') return;
-    setMessages((prev) => {
-      const msg = prev.find((m) => m.id === selectedMessageId);
-      if (msg && !msg.read) adjustUnread(activeFolderId, -1);
-      return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
-    });
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      setMessages((prev) => {
+        const msg = prev.find((m) => m.id === selectedMessageId);
+        if (msg && !msg.read) {
+          adjustUnread(activeFolderId, -1);
+          markRead(selectedMessageId, true).catch(() => {});
+        }
+        return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
+      });
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
 
   const handleMarkUnread = useCallback(async () => {
