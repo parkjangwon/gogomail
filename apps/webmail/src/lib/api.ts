@@ -63,6 +63,7 @@ export interface SendMessageRequest {
   intent?: ComposeIntent;
   source_message_id?: string;
   attachment_ids?: string[];
+  scheduled_at?: string;
 }
 
 function getToken(): string | null {

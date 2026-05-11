@@ -84,6 +84,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [sent, setSent] = useState(false);
   const [sendCountdown, setSendCountdown] = useState<number | null>(null);
   const pendingMsgRef = useRef<SendMessageRequest | null>(null);
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [showSchedule, setShowSchedule] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
   const [minimized, setMinimized] = useState(false);
@@ -279,9 +281,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ...(editor && { html_body: editor.getHTML() }),
       ...(intent !== 'new' && sourceMessage && { intent, source_message_id: sourceMessage.id }),
       ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
+      ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
     };
     pendingMsgRef.current = msg;
-    setSendCountdown(5);
+    if (scheduledAt) {
+      // Scheduled sends bypass the undo countdown and go immediately
+      setSending(true);
+      sendMessage(msg)
+        .then(() => { setSent(true); setTimeout(() => onClose(), 1500); })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
+          setError(message);
+        })
+        .finally(() => setSending(false));
+    } else {
+      setSendCountdown(5);
+    }
   }
 
   function handleLinkInsert() {
@@ -645,6 +660,23 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
               >서명</button>
               <button
+                type="button"
+                onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }}
+                title="나중에 보내기"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: showSchedule ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px', fontWeight: showSchedule ? 600 : undefined }}
+                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+              >🕐</button>
+              {showSchedule && (
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }}
+                />
+              )}
+              <button
                 type="submit"
                 disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
                 style={{
@@ -661,7 +693,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
                 onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
               >
-                {sending ? '전송 중...' : sent ? '전송됨' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : '보내기'}
+                {sending ? '전송 중...' : sent ? '전송됨' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 보내기' : '보내기'}
               </button>
             </div>
           </div>
