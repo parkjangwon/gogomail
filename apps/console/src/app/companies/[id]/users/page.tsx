@@ -313,21 +313,23 @@ export default function UsersPage() {
     if (selectedUsers.length === 0) return;
     setBulkLoading(true);
     try {
-      const status = action === 'activate' ? 'active' : 'suspended';
-      const results = await Promise.allSettled(selectedUsers.map(u =>
-        fetch(`/api/admin/users/${u.id}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status }),
-          credentials: 'include',
-        }).then(r => { if (!r.ok) throw new Error(r.status.toString()); })
-      ));
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed === 0) {
-        addFlash('success', `${action}: ${succeeded} user(s) updated`);
+      const res = await fetch('/admin/v1/users/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedUsers.map(u => u.id), action }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const succeeded: number = data.succeeded?.length ?? 0;
+        const failed: number = data.failed?.length ?? 0;
+        if (failed === 0) {
+          addFlash('success', `${action}: ${succeeded} user(s) updated`);
+        } else {
+          addFlash('error', `${action}: ${succeeded} succeeded, ${failed} failed`);
+        }
       } else {
-        addFlash('error', `${action}: ${succeeded} succeeded, ${failed} failed`);
+        addFlash('error', `Bulk ${action} failed`);
       }
       setSelectedUsers([]);
       fetchUsers();

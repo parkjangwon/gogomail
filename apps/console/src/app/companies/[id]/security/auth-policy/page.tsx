@@ -89,6 +89,8 @@ export default function AuthPolicyPage() {
         credentials: 'include',
       });
       if (res.ok) {
+        const saved = await res.json().catch(() => null);
+        if (saved?.policy) setPolicy({ ...DEFAULT_POLICY, ...saved.policy });
         setFlash([{ type: 'success', content: 'Auth policy saved', dismissible: true, onDismiss: () => setFlash([]) }]);
       } else {
         setFlash([{ type: 'error', content: 'Failed to save auth policy', dismissible: true, onDismiss: () => setFlash([]) }]);

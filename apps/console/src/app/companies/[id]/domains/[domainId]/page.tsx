@@ -221,24 +221,21 @@ export default function DomainDetailPage() {
     }
   };
 
-  const fetchMailStats = async (domainName: string) => {
-    if (statsFetched) return;
+  const fetchMailStats = async (_domainName: string, force = false) => {
+    if (statsFetched && !force) return;
     setStatsLoading(true);
     try {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const res = await fetch(
-        `/api/admin/mail-flow-logs?company_id=${companyId}&limit=500&since=${since}`,
-        { credentials: 'include' }
-      );
+      const qs = new URLSearchParams({
+        company_id: companyId,
+        domain_id: domainId,
+        limit: '500',
+        since,
+      });
+      const res = await fetch(`/api/admin/mail-flow-logs?${qs}`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
-      const logs: Array<{ created_at: string; status: string; sender_domain?: string; from_address?: string }> =
-        data.mail_flow_logs ?? [];
-
-      const filtered = logs.filter(l => {
-        const from = l.from_address ?? l.sender_domain ?? '';
-        return from.endsWith(`@${domainName}`) || from === domainName;
-      });
+      const logs: Array<{ created_at: string; status: string }> = data.mail_flow_logs ?? [];
 
       const countMap = new Map<string, { total: number; success: number; failed: number }>();
       for (let i = 6; i >= 0; i--) {
@@ -246,7 +243,7 @@ export default function DomainDetailPage() {
         const key = d.toISOString().slice(0, 10);
         countMap.set(key, { total: 0, success: 0, failed: 0 });
       }
-      for (const log of filtered) {
+      for (const log of logs) {
         const key = log.created_at?.slice(0, 10);
         if (key && countMap.has(key)) {
           const entry = countMap.get(key)!;
@@ -337,7 +334,19 @@ export default function DomainDetailPage() {
               id: 'mail-stats',
               label: 'Mail Stats',
               content: (
-                <Container header={<Header variant="h2" description="Messages sent from this domain — last 7 days">Daily Message Volume</Header>}>
+                <Container header={
+                <Header
+                  variant="h2"
+                  description="Messages sent from this domain — last 7 days"
+                  actions={
+                    <Button iconName="refresh" loading={statsLoading} onClick={() => fetchMailStats(domain?.name ?? '', true)}>
+                      Refresh
+                    </Button>
+                  }
+                >
+                  Daily Message Volume
+                </Header>
+              }>
                   {statsLoading ? (
                     <Box textAlign="center" padding="xl"><Spinner /></Box>
                   ) : (

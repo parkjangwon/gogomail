@@ -1645,6 +1645,47 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
+	mux.HandleFunc("POST /admin/v1/users/bulk", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var input struct {
+			IDs    []string `json:"ids"`
+			Action string   `json:"action"` // "activate", "suspend"
+		}
+		if err := decodeJSONBody(r, &input); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if len(input.IDs) == 0 {
+			writeError(w, http.StatusBadRequest, "ids is required")
+			return
+		}
+		var targetStatus string
+		switch input.Action {
+		case "activate":
+			targetStatus = "active"
+		case "suspend":
+			targetStatus = "suspended"
+		default:
+			writeError(w, http.StatusBadRequest, "unsupported action: "+input.Action)
+			return
+		}
+		ctx := r.Context()
+		succeeded := []string{}
+		failed := []map[string]string{}
+		for _, id := range input.IDs {
+			err := service.UpdateUserStatus(ctx, maildb.UpdateUserStatusRequest{ID: id, Status: targetStatus})
+			if err != nil {
+				failed = append(failed, map[string]string{"id": id, "error": err.Error()})
+			} else {
+				succeeded = append(succeeded, id)
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"succeeded": succeeded,
+			"failed":    failed,
+		})
+	}))
+
 	mux.HandleFunc("PATCH /admin/v1/users/{id}/quota", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
