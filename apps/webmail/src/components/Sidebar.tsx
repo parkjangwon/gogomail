@@ -75,6 +75,7 @@ interface SidebarProps {
   onClose?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onDropMessage?: (messageId: string, folderId: string) => void;
 }
 
 export function Sidebar({
@@ -93,10 +94,12 @@ export function Sidebar({
   onClose,
   collapsed = false,
   onToggleCollapse,
+  onDropMessage,
 }: SidebarProps) {
   const showAdvanced = searchQuery.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -186,9 +189,12 @@ export function Sidebar({
                 onClick={() => onSelectFolder(folderId)}
                 title={sf.label}
                 aria-label={`${sf.label}${unread > 0 ? ` (읽지 않음 ${unread})` : ''}`}
-                style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '6px', border: dragOverFolderId === folderId ? '2px solid var(--color-accent)' : 'none', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border 80ms ease' }}
                 onMouseEnter={(e) => { if (!isActive) (e.currentTarget).style.background = 'var(--color-bg-overlay)'; }}
                 onMouseLeave={(e) => { if (!isActive) (e.currentTarget).style.background = 'transparent'; }}
+                onDragOver={(e) => { if (onDropMessage) { e.preventDefault(); setDragOverFolderId(folderId); } }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, folderId); }}
               >
                 {icon}
                 {unread > 0 && (
@@ -423,13 +429,13 @@ export function Sidebar({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '7px 16px',
-                border: 'none',
-                background: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+                border: dragOverFolderId === folderId ? '1px solid var(--color-accent)' : '1px solid transparent',
+                background: dragOverFolderId === folderId ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
                 color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 fontSize: '14px',
                 fontWeight: isActive ? 500 : 400,
                 cursor: 'pointer',
-                transition: 'background 100ms ease',
+                transition: 'background 100ms ease, border 80ms ease',
                 borderRadius: '4px',
                 marginInline: '4px',
               } as React.CSSProperties}
@@ -439,10 +445,13 @@ export function Sidebar({
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) {
+                if (!isActive && dragOverFolderId !== folderId) {
                   (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
                 }
               }}
+              onDragOver={(e) => { if (onDropMessage) { e.preventDefault(); setDragOverFolderId(folderId); } }}
+              onDragLeave={() => setDragOverFolderId(null)}
+              onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, folderId); }}
             >
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {sf.label}
@@ -485,15 +494,19 @@ export function Sidebar({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '7px 16px',
-                  border: 'none',
-                  background: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+                  border: dragOverFolderId === f.id ? '1px solid var(--color-accent)' : '1px solid transparent',
+                  background: dragOverFolderId === f.id ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
                   color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                   fontSize: '14px',
                   fontWeight: isActive ? 500 : 400,
                   cursor: 'pointer',
                   borderRadius: '4px',
                   marginInline: '4px',
+                  transition: 'background 80ms ease, border 80ms ease',
                 } as React.CSSProperties}
+                onDragOver={(e) => { if (onDropMessage) { e.preventDefault(); setDragOverFolderId(f.id); } }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, f.id); }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {f.name}

@@ -496,6 +496,8 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
     <div
       role="listitem"
       data-message-id={message.id}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', message.id); e.dataTransfer.effectAllowed = 'move'; }}
       onClick={() => onSelect(message.id)}
       onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(message.id, e.clientX, e.clientY); } : undefined}
       onKeyDown={(e) => {

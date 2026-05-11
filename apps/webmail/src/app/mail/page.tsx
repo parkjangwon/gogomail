@@ -443,6 +443,13 @@ export default function MailPage() {
         onClose={() => setMobileSidebarOpen(false)}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        onDropMessage={(messageId, folderId) => {
+          setMessages((prev) => prev.filter((m) => m.id !== messageId));
+          if (selectedMessageId === messageId) setSelectedMessageId(null);
+          moveMessage(messageId, folderId)
+            .then(() => addToast('메일을 이동했습니다'))
+            .catch(() => addToast('이동에 실패했습니다', 'error'));
+        }}
       />
 
       {(!isMobile || !selectedMessageId) && (
