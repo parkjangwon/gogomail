@@ -622,7 +622,7 @@ export function Sidebar({
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
               >
-                <span>+</span> 폴더 추가
+                <span>+</span> 메일함 추가
               </button>
             )}
           </div>

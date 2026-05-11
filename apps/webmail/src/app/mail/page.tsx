@@ -12,12 +12,9 @@ import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
 import { ReadingPane } from '@/components/ReadingPane';
 import { ComposeModal } from '@/components/ComposeModal';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { LocaleSelector } from '@/components/common/LocaleSelector';
 import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
-import { AccentPicker } from '@/components/AccentPicker';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { SearchBar } from '@/components/SearchBar';
 
@@ -874,20 +871,6 @@ export default function MailPage() {
           try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
           catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
         }}
-        footerExtra={isMobile ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', paddingBottom: '4px' }}>
-            <AccentPicker />
-            <LocaleSelector />
-            <ThemeToggle inline />
-          </div>
-        ) : undefined}
-        menuExtra={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AccentPicker />
-            <LocaleSelector />
-            <ThemeToggle inline />
-          </div>
-        }
       />
 
       {/* Sidebar drag-resize handle */}

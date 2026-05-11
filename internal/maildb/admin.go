@@ -1522,6 +1522,7 @@ func createSystemFolders(ctx context.Context, tx interface {
 		{"Inbox", "inbox"},
 		{"Drafts", "drafts"},
 		{"Sent", "sent"},
+		{"Spam", "spam"},
 		{"Trash", "trash"},
 	}
 	for i, folder := range folders {
@@ -1533,6 +1534,10 @@ ON CONFLICT (user_id, full_path) DO NOTHING`, userID, folder.name, "/"+folder.na
 		}
 	}
 	return nil
+}
+
+func (r *Repository) EnsureSystemFolders(ctx context.Context, userID string) error {
+	return createSystemFolders(ctx, r.db, userID)
 }
 
 func ValidateUpdateUserStatusRequest(req UpdateUserStatusRequest) error {
