@@ -86,9 +86,10 @@ interface MessageListProps {
   onBulkMove?: (ids: string[], folderId: string) => void;
   searchQuery?: string;
   onBulkRestore?: (ids: string[]) => void;
+  messageLabels?: Record<string, string>;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -608,6 +609,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onDelete={isMobile ? onDeleteMessage : undefined}
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
               threadCount={threadCounts[msg.id]}
+              labelColor={messageLabels[msg.id]}
             />
           ))}
         </div>
@@ -637,9 +639,10 @@ interface MessageRowProps {
   onDelete?: (id: string) => void;
   onHoverDelete?: (id: string) => void;
   threadCount?: number;
+  labelColor?: string;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete, threadCount }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete, threadCount, labelColor }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -650,7 +653,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
     <div
       role="listitem"
       data-message-id={message.id}
-      style={{ position: 'relative', overflow: 'hidden' }}
+      style={{ position: 'relative', overflow: 'hidden', borderLeft: labelColor ? `3px solid ${labelColor}` : '3px solid transparent' }}
     >
       {onDelete && swipeX < -20 && (
         <div aria-hidden="true" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(120, -swipeX), background: 'var(--color-destructive)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>

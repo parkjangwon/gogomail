@@ -40,6 +40,17 @@ export default function MailPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [messageLabels, setMessageLabels] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('webmail_labels') ?? '{}'); } catch { return {}; }
+  });
+  const setLabel = useCallback((id: string, color: string | null) => {
+    setMessageLabels((prev) => {
+      const next = { ...prev };
+      if (color) next[id] = color; else delete next[id];
+      try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  }, []);
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
   const [listPaneWidth, setListPaneWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
@@ -763,6 +774,7 @@ export default function MailPage() {
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
           onDeleteMessage={handleDeleteById}
           onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
+          messageLabels={messageLabels}
         />
       )}
 
@@ -926,6 +938,10 @@ export default function MailPage() {
                       markRead(contextMenu.id, true).catch(() => {});
                     },
                   },
+              ...(['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'] as const).map((color) => ({
+                label: `${messageLabels[contextMenu.id] === color ? '✓ ' : ''}라벨 ${color === '#ef4444' ? '🔴' : color === '#f97316' ? '🟠' : color === '#eab308' ? '🟡' : color === '#22c55e' ? '🟢' : color === '#3b82f6' ? '🔵' : '🟣'}`,
+                onClick: () => setLabel(contextMenu.id, messageLabels[contextMenu.id] === color ? null : color),
+              })),
               {
                 label: '삭제',
                 danger: true,
