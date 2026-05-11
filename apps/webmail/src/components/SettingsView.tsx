@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions } from '@/lib/api';
 
 interface SettingsViewProps {
@@ -10,50 +10,13 @@ interface SettingsViewProps {
   userName?: string;
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '12px' }}>
-      {children}
-    </div>
-  );
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', padding: '12px 0', borderBottom: '1px solid var(--color-border-subtle)' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '14px', color: 'var(--color-text-primary)', fontWeight: 500 }}>{label}</div>
-        {description && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{description}</div>}
-      </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
-    </div>
-  );
-}
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={value}
-      onClick={() => onChange(!value)}
-      style={{
-        width: '40px', height: '22px', borderRadius: '11px',
-        background: value ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
-        border: 'none', cursor: 'pointer', position: 'relative',
-        transition: 'background 150ms ease', flexShrink: 0,
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: '3px',
-        left: value ? '21px' : '3px',
-        width: '16px', height: '16px', borderRadius: '50%',
-        background: '#fff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transition: 'left 150ms ease',
-      }} />
-    </button>
-  );
-}
+type ReadMark = 'instant' | '2s' | 'manual';
+type ExternalImages = 'always' | 'ask' | 'never';
+type SendDelay = 0 | 5 | 10 | 30;
+type Theme = 'light' | 'dark' | 'system';
+type FontSize = 'small' | 'medium' | 'large';
 
 const ACCENT_COLORS = [
   { value: '#2563eb', label: '파랑' },
@@ -61,17 +24,14 @@ const ACCENT_COLORS = [
   { value: '#0d9488', label: '청록' },
   { value: '#16a34a', label: '초록' },
   { value: '#dc2626', label: '빨강' },
+  { value: '#ea580c', label: '주황' },
+  { value: '#d97706', label: '황금' },
 ];
 
-type ReadMark = 'instant' | '2s' | 'manual';
-type ExternalImages = 'always' | 'ask' | 'never';
-type SendDelay = 0 | 5 | 10 | 30;
+// ─── Settings storage helpers ──────────────────────────────────────────────────
 
-function loadWmSettings() {
-  try {
-    const raw = localStorage.getItem('webmail_settings');
-    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-  } catch { return {}; }
+function loadWmSettings(): Record<string, unknown> {
+  try { return JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>; } catch { return {}; }
 }
 function saveWmSetting(key: string, value: unknown) {
   try {
@@ -82,58 +42,192 @@ function saveWmSetting(key: string, value: unknown) {
   } catch { /* ignore */ }
 }
 
+// ─── Primitive controls ────────────────────────────────────────────────────────
+
+function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button role="switch" aria-checked={value} onClick={() => onChange(!value)} style={{ width: '36px', height: '20px', borderRadius: '10px', background: value ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, transition: 'background 150ms ease' }}>
+      <span style={{ position: 'absolute', top: '2px', left: value ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 150ms ease' }} />
+    </button>
+  );
+}
+
+function Segment<T extends string | number>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div style={{ display: 'inline-flex', borderRadius: '8px', border: '1px solid var(--color-border-default)', overflow: 'hidden', background: 'var(--color-bg-secondary)' }}>
+      {options.map((opt, i) => (
+        <button
+          key={String(opt.value)}
+          onClick={() => onChange(opt.value)}
+          style={{
+            padding: '5px 14px',
+            border: 'none',
+            borderLeft: i > 0 ? '1px solid var(--color-border-default)' : 'none',
+            background: value === opt.value ? 'var(--color-bg-primary)' : 'transparent',
+            color: value === opt.value ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+            fontSize: '12px',
+            fontWeight: value === opt.value ? 600 : 400,
+            cursor: 'pointer',
+            transition: 'background 100ms ease, color 100ms ease',
+            boxShadow: value === opt.value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Layout primitives ─────────────────────────────────────────────────────────
+
+function SectionCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ border: '1px solid var(--color-border-subtle)', borderRadius: '10px', overflow: 'hidden', marginBottom: '20px' }}>
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, description, children, last }: { label: string; description?: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', padding: '14px 20px', borderBottom: last ? 'none' : '1px solid var(--color-border-subtle)', background: 'var(--color-bg-primary)' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{label}</div>
+        {description && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px', lineHeight: 1.5 }}>{description}</div>}
+      </div>
+      <div style={{ flexShrink: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ padding: '10px 20px 6px', background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border-subtle)' }}>
+      <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>{children}</span>
+    </div>
+  );
+}
+
+// ─── Shortcut display ──────────────────────────────────────────────────────────
+
+const SHORTCUT_GROUPS = [
+  { title: '전역', items: [['?','단축키 도움말'],['Cmd+K / Ctrl+K','스팟라이트 검색'],['/',  '스팟라이트 열기'],['[','사이드바 접기/펼치기']] },
+  { title: '앱 전환', items: [['g  m','메일'],['g  c','캘린더'],['g  k','연락처'],['g  o','조직도'],['g  v','드라이브'],['g  ,','설정']] },
+  { title: '메일 탐색', items: [['j / k','다음/이전 메일'],['Enter / o','선택 메일 열기'],['x','체크박스 선택'],['Ctrl+A','전체 선택'],['Esc','닫기 / 해제']] },
+  { title: '메일 동작', items: [['r','회신'],['a','전체 회신'],['f','전달'],['e','보관'],['v','폴더로 이동'],['#','삭제'],['s','별표'],['m','읽음 표시'],['Shift+M','읽지 않음'],['z','1시간 스누즈'],['l','라벨 순환'],['!','스팸']] },
+  { title: '폴더 이동', items: [['g  i','받은 편지함'],['g  s','보낸 편지함'],['g  d','임시 보관함'],['g  t','휴지통'],['g  p','스팸 편지함']] },
+  { title: '작성', items: [['c','새 메일'],['Ctrl+Enter','전송'],['Ctrl+S','임시저장'],['Esc','닫기']] },
+];
+
+function Kbd({ k }: { k: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', flexWrap: 'wrap' }}>
+      {k.split('/').map((part, pi) => (
+        <span key={pi} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+          {pi > 0 && <span style={{ color: 'var(--color-text-tertiary)', fontSize: '10px', margin: '0 2px' }}>/</span>}
+          {part.trim().split('+').map((seg, si) => (
+            <kbd key={si} style={{ display: 'inline-block', padding: '1px 6px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-text-primary)', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-default)', borderRadius: '4px', whiteSpace: 'nowrap' }}>{seg.trim()}</kbd>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// ─── Nav items ─────────────────────────────────────────────────────────────────
+
+type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
+
+const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
+  { id: 'account', label: '계정', icon: <UserCircleIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'inbox', label: '받은편지함', icon: <InboxIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'reading', label: '읽기', icon: <BookOpenIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'compose', label: '작성', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'appearance', label: '외관', icon: <SwatchIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'notifications', label: '알림', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'shortcuts', label: '단축키', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'security', label: '보안', icon: <ShieldCheckIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'about', label: '정보', icon: <InformationCircleIcon style={{ width: 16, height: 16 }} /> },
+];
+
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const router = useRouter();
-  const [signature, setSignature] = useState('');
-  const [sigSaved, setSigSaved] = useState(false);
-  const [revokingAll, setRevokingAll] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [accent, setAccent] = useState('#2563eb');
-  const [compact, setCompact] = useState(false);
-  const [convMode, setConvMode] = useState(true);
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [activeSection, setActiveSection] = useState<SectionId>('account');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Account
   const [displayName, setDisplayName] = useState('');
   const [nameSaved, setNameSaved] = useState(false);
-  const [readMark, setReadMark] = useState<ReadMark>('instant');
+  const [signature, setSignature] = useState('');
+  const [sigSaved, setSigSaved] = useState(false);
+
+  // Inbox
+  const [convMode, setConvMode] = useState(true);
+  const [compact, setCompact] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState<30 | 60 | 300>(30);
+
+  // Reading
+  const [readMark, setReadMark] = useState<ReadMark>('instant');
   const [externalImages, setExternalImages] = useState<ExternalImages>('ask');
+  const [inlineImagePreview, setInlineImagePreview] = useState(true);
+
+  // Compose
   const [sendDelay, setSendDelay] = useState<SendDelay>(0);
   const [quoteOnReply, setQuoteOnReply] = useState(true);
+  const [fontSize, setFontSize] = useState<FontSize>('medium');
 
+  // Appearance
+  const [theme, setTheme] = useState<Theme>('light');
+  const [accent, setAccent] = useState('#2563eb');
+  const [customAccent, setCustomAccent] = useState('');
+
+  // Notifications
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [notifSound, setNotifSound] = useState(false);
+  const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
+
+  // Security
+  const [revokingAll, setRevokingAll] = useState(false);
+
+  // ── Load from storage ─────────────────────────────────────────────────────────
   useEffect(() => {
     try {
+      setDisplayName(localStorage.getItem('webmail_display_name') ?? userName ?? '');
       setSignature(localStorage.getItem('webmail_signature') ?? '');
-      setTheme((localStorage.getItem('webmail_theme') as 'light' | 'dark') ?? 'light');
+      setTheme((localStorage.getItem('webmail_theme') as Theme) ?? 'light');
       setAccent(localStorage.getItem('webmail_accent') ?? '#2563eb');
       setCompact(localStorage.getItem('webmail_compact') === '1');
       setConvMode(localStorage.getItem('webmail_conv_mode') !== '0');
-      setDisplayName(localStorage.getItem('webmail_display_name') ?? userName ?? '');
+      setRefreshInterval((Number(localStorage.getItem('webmail_refresh_interval') ?? 30)) as 30 | 60 | 300);
       const wm = loadWmSettings();
       setReadMark((wm.readMark as ReadMark) ?? 'instant');
       setShowPreview((wm.showPreview as boolean) !== false);
       setExternalImages((wm.externalImages as ExternalImages) ?? 'ask');
       setSendDelay((wm.sendDelay as SendDelay) ?? 0);
       setQuoteOnReply((wm.quoteOnReply as boolean) !== false);
+      setFontSize((wm.fontSize as FontSize) ?? 'medium');
+      setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
+      setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
+      setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName]);
 
-  function saveSignature() {
-    try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
-    setSigSaved(true);
-    setTimeout(() => setSigSaved(false), 2000);
-  }
+  // ── Handlers ──────────────────────────────────────────────────────────────────
 
-  function saveDisplayName() {
-    try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
-    setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 2000);
-  }
-
-  function applyTheme(t: 'light' | 'dark') {
+  function applyTheme(t: Theme) {
     setTheme(t);
     try { localStorage.setItem('webmail_theme', t); } catch { /* ignore */ }
-    document.documentElement.setAttribute('data-theme', t);
+    if (t === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', t);
+    }
   }
 
   function applyAccent(color: string) {
@@ -145,16 +239,26 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
     document.documentElement.style.setProperty('--color-accent-subtle', `rgba(${r},${g},${b},0.1)`);
+    document.documentElement.style.setProperty('--color-accent-hover', color);
   }
 
-  function applyCompact(v: boolean) {
-    setCompact(v);
-    try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* ignore */ }
+  function applyFontSize(fs: FontSize) {
+    setFontSize(fs);
+    saveWmSetting('fontSize', fs);
+    const map: Record<FontSize, string> = { small: '13px', medium: '14px', large: '15px' };
+    document.documentElement.style.setProperty('--font-size-base', map[fs]);
   }
 
-  function applyConvMode(v: boolean) {
-    setConvMode(v);
-    try { localStorage.setItem('webmail_conv_mode', v ? '1' : '0'); } catch { /* ignore */ }
+  function saveDisplayName() {
+    try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
+    setNameSaved(true);
+    setTimeout(() => setNameSaved(false), 2000);
+  }
+
+  function saveSignature() {
+    try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
+    setSigSaved(true);
+    setTimeout(() => setSigSaved(false), 2000);
   }
 
   async function handleRevokeAll() {
@@ -176,216 +280,302 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
     setNotifPerm(p);
   }
 
-  return (
-    <div style={{ flex: 1, minWidth: 0, height: '100%', overflowY: 'auto', background: 'var(--color-bg-primary)', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: '640px', padding: '32px 24px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '32px' }}>설정</h1>
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
-        {/* Account */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>계정</SectionTitle>
-          <div style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, flexShrink: 0 }}>
+  function renderContent() {
+    switch (activeSection) {
+
+      case 'account':
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '10px', marginBottom: '20px' }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, flexShrink: 0 }}>
                 {(displayName || userEmail || '?')[0].toUpperCase()}
               </div>
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || '(이름 없음)'}</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>{userEmail}</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{displayName || userName || '(이름 없음)'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '3px' }}>{userEmail}</div>
               </div>
             </div>
-          </div>
-          <SettingRow label="표시 이름" description="메일 발송 시 표시되는 이름">
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="이름 입력"
-                style={{ padding: '5px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '160px' }}
+            <SectionCard>
+              <SectionHeader>프로필</SectionHeader>
+              <Row label="표시 이름" description="메일 발송 시 발신자 이름으로 표시됩니다">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="이름 입력" style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '170px', outline: 'none' }} />
+                  <button onClick={saveDisplayName} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                    {nameSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '저장'}
+                  </button>
+                </div>
+              </Row>
+              <Row label="이메일 주소" description="변경하려면 관리자에게 문의하세요" last>
+                <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{userEmail}</span>
+              </Row>
+            </SectionCard>
+            <SectionCard>
+              <SectionHeader>서명</SectionHeader>
+              <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '10px' }}>메일 작성 시 자동으로 추가됩니다.</div>
+                <textarea value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="서명을 입력하세요" rows={5} style={{ width: '100%', padding: '10px 12px', borderRadius: '7px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', lineHeight: 1.65, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button onClick={saveSignature} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '서명 저장'}
+                  </button>
+                </div>
+              </div>
+            </SectionCard>
+          </>
+        );
+
+      case 'inbox':
+        return (
+          <SectionCard>
+            <SectionHeader>받은편지함 설정</SectionHeader>
+            <Row label="대화 모드" description="같은 제목의 메일을 하나의 대화로 묶어 표시합니다">
+              <Toggle value={convMode} onChange={(v) => { setConvMode(v); try { localStorage.setItem('webmail_conv_mode', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="컴팩트 보기" description="행 높이를 줄여 더 많은 메일을 한 화면에 표시합니다">
+              <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="미리보기 텍스트" description="메일 목록에서 본문 첫 줄을 미리 표시합니다">
+              <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
+            </Row>
+            <Row label="자동 새로고침" description="받은편지함을 주기적으로 자동 업데이트합니다" last>
+              <Segment
+                options={[{ value: 30 as 30, label: '30초' }, { value: 60 as 60, label: '1분' }, { value: 300 as 300, label: '5분' }]}
+                value={refreshInterval}
+                onChange={(v) => { setRefreshInterval(v); try { localStorage.setItem('webmail_refresh_interval', String(v)); } catch { /* */ } }}
               />
-              <button
-                onClick={saveDisplayName}
-                style={{ padding: '5px 12px', borderRadius: '5px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                {nameSaved ? <><CheckIcon style={{ width: '14px', height: '14px' }} /> 저장됨</> : '저장'}
-              </button>
-            </div>
-          </SettingRow>
-        </section>
+            </Row>
+          </SectionCard>
+        );
 
-        {/* Signature */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>서명</SectionTitle>
-          <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-            메일 작성 시 자동으로 추가되는 서명입니다.
-          </div>
-          <textarea
-            value={signature}
-            onChange={(e) => setSignature(e.target.value)}
-            placeholder="서명을 입력하세요 (예: 감사합니다. 홍길동 드림)"
-            rows={5}
-            style={{
-              width: '100%', padding: '10px 12px', borderRadius: '6px',
-              border: '1px solid var(--color-border-default)',
-              background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)',
-              fontSize: '13px', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box',
-              fontFamily: 'inherit',
-            }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button
-              onClick={saveSignature}
-              style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
-            >
-              {sigSaved ? <><CheckIcon style={{ width: '14px', height: '14px' }} /> 저장됨</> : '서명 저장'}
-            </button>
-          </div>
-        </section>
+      case 'reading':
+        return (
+          <SectionCard>
+            <SectionHeader>읽기 설정</SectionHeader>
+            <Row label="읽음 처리 시점" description="메일을 열었을 때 읽음으로 표시하는 시점">
+              <Segment
+                options={[{ value: 'instant' as ReadMark, label: '즉시' }, { value: '2s' as ReadMark, label: '2초 후' }, { value: 'manual' as ReadMark, label: '수동' }]}
+                value={readMark}
+                onChange={(v) => { setReadMark(v); saveWmSetting('readMark', v); }}
+              />
+            </Row>
+            <Row label="외부 이미지" description="외부 서버에서 불러오는 이미지의 표시 방식입니다. '차단'하면 발신자가 읽음 여부를 추적하지 못합니다">
+              <Segment
+                options={[{ value: 'always' as ExternalImages, label: '항상 표시' }, { value: 'ask' as ExternalImages, label: '매번 확인' }, { value: 'never' as ExternalImages, label: '차단' }]}
+                value={externalImages}
+                onChange={(v) => { setExternalImages(v); saveWmSetting('externalImages', v); }}
+              />
+            </Row>
+            <Row label="인라인 이미지 미리보기" description="첨부 이미지를 메일 본문 하단에 미리 표시합니다" last>
+              <Toggle value={inlineImagePreview} onChange={(v) => { setInlineImagePreview(v); saveWmSetting('inlineImagePreview', v); }} />
+            </Row>
+          </SectionCard>
+        );
 
-        {/* Appearance */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>외관</SectionTitle>
-          <SettingRow label="테마" description="다크/라이트 모드">
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {(['light', 'dark'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => applyTheme(t)}
-                  style={{
-                    padding: '5px 14px', borderRadius: '6px', border: `1.5px solid ${theme === t ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
-                    background: theme === t ? 'var(--color-accent-subtle)' : 'transparent',
-                    color: theme === t ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                    fontSize: '12px', fontWeight: theme === t ? 600 : 400, cursor: 'pointer',
-                  }}
-                >
-                  {t === 'light' ? '라이트' : '다크'}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
-          <SettingRow label="강조 색상" description="버튼, 링크, 선택 영역에 사용">
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {ACCENT_COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  title={c.label}
-                  onClick={() => applyAccent(c.value)}
-                  style={{
-                    width: '22px', height: '22px', borderRadius: '50%',
-                    background: c.value, border: `2px solid ${accent === c.value ? 'var(--color-text-primary)' : 'transparent'}`,
-                    cursor: 'pointer', padding: 0,
-                    boxShadow: accent === c.value ? `0 0 0 1px ${c.value}` : 'none',
-                    transition: 'border-color 100ms ease',
-                  }}
+      case 'compose':
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>작성 설정</SectionHeader>
+              <Row label="전송 지연" description="전송 버튼을 누른 후 실제 발송까지 대기합니다. 시간 내에 '실행 취소'가 가능합니다">
+                <Segment
+                  options={[{ value: 0 as SendDelay, label: '없음' }, { value: 5 as SendDelay, label: '5초' }, { value: 10 as SendDelay, label: '10초' }, { value: 30 as SendDelay, label: '30초' }]}
+                  value={sendDelay}
+                  onChange={(v) => { setSendDelay(v); saveWmSetting('sendDelay', v); }}
                 />
-              ))}
-            </div>
-          </SettingRow>
-          <SettingRow label="컴팩트 보기" description="메일 목록 행 높이를 줄여 더 많은 메일을 표시">
-            <Toggle value={compact} onChange={applyCompact} />
-          </SettingRow>
-          <SettingRow label="대화 모드" description="같은 제목의 메일을 묶어서 표시">
-            <Toggle value={convMode} onChange={applyConvMode} />
-          </SettingRow>
-        </section>
+              </Row>
+              <Row label="답장 시 원문 인용" description="회신/전달 시 원본 메일 내용을 포함합니다">
+                <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
+              </Row>
+              <Row label="본문 기본 글꼴 크기" description="새 메일 작성 시 기본 글꼴 크기" last>
+                <Segment
+                  options={[{ value: 'small' as FontSize, label: '소' }, { value: 'medium' as FontSize, label: '중' }, { value: 'large' as FontSize, label: '대' }]}
+                  value={fontSize}
+                  onChange={(v) => applyFontSize(v)}
+                />
+              </Row>
+            </SectionCard>
+          </>
+        );
 
-        {/* Reading behavior */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>읽기</SectionTitle>
-          <SettingRow label="읽음 처리" description="메일을 열었을 때 읽음으로 표시하는 시점">
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {([['instant', '즉시'], ['2s', '2초 후'], ['manual', '수동']] as [ReadMark, string][]).map(([val, label]) => (
-                <button key={val} onClick={() => { setReadMark(val); saveWmSetting('readMark', val); }}
-                  style={{ padding: '4px 12px', borderRadius: '6px', border: `1.5px solid ${readMark === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: readMark === val ? 'var(--color-accent-subtle)' : 'transparent', color: readMark === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: readMark === val ? 600 : 400, cursor: 'pointer' }}
-                >{label}</button>
-              ))}
-            </div>
-          </SettingRow>
-          <SettingRow label="미리보기 텍스트" description="메일 목록에서 본문 미리보기 표시">
-            <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
-          </SettingRow>
-          <SettingRow label="외부 이미지" description="외부 서버에서 불러오는 이미지 표시 방식">
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {([['always', '항상 표시'], ['ask', '매번 확인'], ['never', '차단']] as [ExternalImages, string][]).map(([val, label]) => (
-                <button key={val} onClick={() => { setExternalImages(val); saveWmSetting('externalImages', val); }}
-                  style={{ padding: '4px 10px', borderRadius: '6px', border: `1.5px solid ${externalImages === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: externalImages === val ? 'var(--color-accent-subtle)' : 'transparent', color: externalImages === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: externalImages === val ? 600 : 400, cursor: 'pointer' }}
-                >{label}</button>
-              ))}
-            </div>
-          </SettingRow>
-        </section>
+      case 'appearance':
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>테마</SectionHeader>
+              <Row label="테마 모드" description="라이트, 다크, 또는 시스템 설정에 따라 자동 전환" last>
+                <Segment
+                  options={[{ value: 'light' as Theme, label: '라이트' }, { value: 'dark' as Theme, label: '다크' }, { value: 'system' as Theme, label: '시스템' }]}
+                  value={theme}
+                  onChange={applyTheme}
+                />
+              </Row>
+            </SectionCard>
+            <SectionCard>
+              <SectionHeader>강조 색상</SectionHeader>
+              <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '14px' }}>버튼, 링크, 선택 영역에 사용되는 색상입니다.</div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {ACCENT_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      title={c.label}
+                      onClick={() => applyAccent(c.value)}
+                      style={{ width: '28px', height: '28px', borderRadius: '50%', background: c.value, border: `2.5px solid ${accent === c.value ? 'var(--color-text-primary)' : 'transparent'}`, cursor: 'pointer', padding: 0, boxShadow: accent === c.value ? `0 0 0 1.5px ${c.value}` : 'none', transition: 'border-color 120ms ease', flexShrink: 0 }}
+                    />
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>직접 입력</span>
+                    <input
+                      type="text"
+                      value={customAccent}
+                      onChange={(e) => setCustomAccent(e.target.value)}
+                      placeholder="#2563eb"
+                      style={{ width: '80px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '12px', fontFamily: 'monospace', outline: 'none' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const hex = customAccent.startsWith('#') ? customAccent : `#${customAccent}`;
+                          if (/^#[0-9a-f]{6}$/i.test(hex)) { applyAccent(hex); setAccent(hex); }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+            <SectionCard>
+              <SectionHeader>밀도 및 폰트</SectionHeader>
+              <Row label="컴팩트 보기" description="메일 목록 행 높이를 줄여 더 많은 메일을 표시합니다">
+                <Toggle value={compact} onChange={(v) => { setCompact(v); try { localStorage.setItem('webmail_compact', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+              <Row label="본문 글꼴 크기" description="메일 목록 및 UI 전반의 기본 글꼴 크기" last>
+                <Segment
+                  options={[{ value: 'small' as FontSize, label: '소 (13px)' }, { value: 'medium' as FontSize, label: '중 (14px)' }, { value: 'large' as FontSize, label: '대 (15px)' }]}
+                  value={fontSize}
+                  onChange={applyFontSize}
+                />
+              </Row>
+            </SectionCard>
+          </>
+        );
 
-        {/* Compose behavior */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>작성</SectionTitle>
-          <SettingRow label="전송 지연" description="전송 버튼 누른 후 실제 발송까지 대기 시간 (실행 취소 가능)">
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {([[0, '없음'], [5, '5초'], [10, '10초'], [30, '30초']] as [SendDelay, string][]).map(([val, label]) => (
-                <button key={val} onClick={() => { setSendDelay(val); saveWmSetting('sendDelay', val); }}
-                  style={{ padding: '4px 10px', borderRadius: '6px', border: `1.5px solid ${sendDelay === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: sendDelay === val ? 'var(--color-accent-subtle)' : 'transparent', color: sendDelay === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: sendDelay === val ? 600 : 400, cursor: 'pointer' }}
-                >{label}</button>
-              ))}
-            </div>
-          </SettingRow>
-          <SettingRow label="답장 시 원문 인용" description="회신/전달 시 원본 메일 내용 포함">
-            <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
-          </SettingRow>
-        </section>
+      case 'notifications':
+        return (
+          <SectionCard>
+            <SectionHeader>알림 설정</SectionHeader>
+            <Row label="브라우저 알림" description={notifPerm === 'granted' ? '새 메일 알림이 허용되어 있습니다' : notifPerm === 'denied' ? '알림이 차단됨 — 브라우저 설정에서 변경하세요' : '새 메일 도착 시 데스크탑 알림을 보냅니다'}>
+              {notifPerm === 'granted'
+                ? <span style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}><CheckIcon style={{ width: 14, height: 14 }} />허용됨</span>
+                : notifPerm === 'denied'
+                ? <span style={{ fontSize: '12px', color: 'var(--color-destructive)', fontWeight: 500 }}>차단됨</span>
+                : <button onClick={requestNotif} style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer' }}>허용하기</button>
+              }
+            </Row>
+            <Row label="알림 소리" description="새 메일 도착 시 알림음을 재생합니다">
+              <Toggle value={notifSound} onChange={(v) => { setNotifSound(v); try { localStorage.setItem('webmail_notif_sound', v ? '1' : '0'); } catch { /* */ } }} />
+            </Row>
+            <Row label="알림 표시 수준" description="알림 팝업에 표시할 정보 수준을 선택합니다" last>
+              <Segment
+                options={[{ value: 'sender' as const, label: '발신자' }, { value: 'subject' as const, label: '제목' }, { value: 'preview' as const, label: '미리보기' }]}
+                value={notifDetail}
+                onChange={(v) => { setNotifDetail(v); try { localStorage.setItem('webmail_notif_detail', v); } catch { /* */ } }}
+              />
+            </Row>
+          </SectionCard>
+        );
 
-        {/* Notifications */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>알림</SectionTitle>
-          <SettingRow
-            label="브라우저 알림"
-            description={
-              notifPerm === 'granted' ? '알림이 허용되어 있습니다'
-              : notifPerm === 'denied' ? '알림이 차단됨 — 브라우저 설정에서 변경하세요'
-              : '새 메일 도착 시 알림을 받습니다'
-            }
-          >
-            {notifPerm === 'granted' ? (
-              <span style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckIcon style={{ width: '14px', height: '14px' }} /> 허용됨
-              </span>
-            ) : notifPerm === 'denied' ? (
-              <span style={{ fontSize: '12px', color: 'var(--color-destructive)', fontWeight: 500 }}>차단됨</span>
-            ) : (
-              <button
-                onClick={requestNotif}
-                style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
-              >
-                허용하기
-              </button>
-            )}
-          </SettingRow>
-        </section>
-
-        {/* Security */}
-        <section style={{ marginBottom: '32px' }}>
-          <SectionTitle>보안</SectionTitle>
-          <SettingRow
-            label="모든 기기에서 로그아웃"
-            description="현재 기기를 포함한 모든 활성 세션을 종료합니다"
-          >
-            <button
-              onClick={handleRevokeAll}
-              disabled={revokingAll}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.4)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: revokingAll ? 'wait' : 'pointer', fontWeight: 500 }}
-            >
-              <ExclamationTriangleIcon style={{ width: '14px', height: '14px' }} />
-              {revokingAll ? '처리 중...' : '전체 로그아웃'}
-            </button>
-          </SettingRow>
-        </section>
-
-        {/* About */}
-        <section>
-          <SectionTitle>정보</SectionTitle>
-          <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1.7 }}>
-            <div>GoGoMail Webmail</div>
-            <div>Next.js 15 · TypeScript · Tailwind v4</div>
+      case 'shortcuts':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {SHORTCUT_GROUPS.map((group) => (
+              <SectionCard key={group.title}>
+                <SectionHeader>{group.title}</SectionHeader>
+                <div style={{ background: 'var(--color-bg-primary)' }}>
+                  {group.items.map(([key, desc], i) => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '9px 16px', borderBottom: i < group.items.length - 1 ? '1px solid var(--color-border-subtle)' : 'none' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1 }}>{desc}</span>
+                      <Kbd k={key} />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            ))}
           </div>
-        </section>
+        );
+
+      case 'security':
+        return (
+          <SectionCard>
+            <SectionHeader>세션 및 보안</SectionHeader>
+            <Row label="모든 기기에서 로그아웃" description="현재 기기를 포함한 모든 활성 세션을 즉시 종료합니다" last>
+              <button
+                onClick={handleRevokeAll}
+                disabled={revokingAll}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(220,38,38,0.35)', background: 'rgba(220,38,38,0.04)', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 600, cursor: revokingAll ? 'wait' : 'pointer' }}
+              >
+                <ExclamationTriangleIcon style={{ width: 13, height: 13 }} />
+                {revokingAll ? '처리 중...' : '전체 로그아웃'}
+              </button>
+            </Row>
+          </SectionCard>
+        );
+
+      case 'about':
+        return (
+          <SectionCard>
+            <SectionHeader>정보</SectionHeader>
+            <Row label="GoGoMail Webmail" description="오픈소스 엔터프라이즈 메일 클라이언트" last>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>Next.js 15 · TS · Tailwind v4</span>
+            </Row>
+          </SectionCard>
+        );
+
+      default:
+        return null;
+    }
+  }
+
+  const currentNav = NAV_ITEMS.find((n) => n.id === activeSection);
+
+  return (
+    <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
+      {/* Left sidebar nav */}
+      <div style={{ width: '200px', flexShrink: 0, height: '100%', overflowY: 'auto', borderRight: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', padding: '20px 0' }}>
+        <div style={{ padding: '0 12px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>설정</div>
+        {NAV_ITEMS.map((item) => {
+          const active = item.id === activeSection;
+          return (
+            <button
+              key={item.id}
+              onClick={() => { setActiveSection(item.id); contentRef.current?.scrollTo({ top: 0 }); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '9px',
+                width: '100%', padding: '8px 14px 8px 12px',
+                border: 'none', borderLeft: `2px solid ${active ? 'var(--color-accent)' : 'transparent'}`,
+                background: active ? 'var(--color-accent-subtle)' : 'transparent',
+                color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                fontSize: '13px', fontWeight: active ? 600 : 400,
+                cursor: 'pointer', textAlign: 'left',
+                transition: 'background 100ms ease, color 100ms ease',
+              }}
+              onMouseEnter={(e) => { if (!active) { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget).style.color = 'var(--color-text-primary)'; } }}
+              onMouseLeave={(e) => { if (!active) { (e.currentTarget).style.background = 'transparent'; (e.currentTarget).style.color = 'var(--color-text-secondary)'; } }}
+            >
+              <span style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content area */}
+      <div ref={contentRef} style={{ flex: 1, minWidth: 0, height: '100%', overflowY: 'auto', padding: '32px 40px' }}>
+        <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: 'var(--color-text-tertiary)', display: 'flex' }}>{currentNav?.icon}</span>
+          {currentNav?.label}
+        </h2>
+        {renderContent()}
       </div>
     </div>
   );
