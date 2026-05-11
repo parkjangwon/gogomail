@@ -60,6 +60,7 @@ function getInitials(name: string): string {
 
 export interface AdvancedFilters {
   from?: string;
+  to?: string;
   subject?: string;
   since?: string;
   until?: string;

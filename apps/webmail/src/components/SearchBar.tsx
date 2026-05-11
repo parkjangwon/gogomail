@@ -195,7 +195,12 @@ export function SearchBar({ value, onChange, advancedFilters = {}, onAdvancedFil
           </div>
           <div style={fieldRow}>
             <span style={fieldLabel}>받는사람</span>
-            <input type="text" disabled style={{ ...fieldInput, opacity: 0.35, cursor: 'not-allowed' }} />
+            <input
+              type="text"
+              value={draft.to ?? ''}
+              onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value || undefined }))}
+              style={fieldInput}
+            />
           </div>
           <div style={fieldRow}>
             <span style={fieldLabel}>제목</span>
