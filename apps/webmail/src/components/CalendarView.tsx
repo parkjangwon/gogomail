@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate } from '@/lib/api';
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent } from '@/lib/api';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -586,8 +586,17 @@ export function CalendarView() {
 
   const [popover, setPopover] = useState<{ event: ParsedEvent; rect: DOMRect } | null>(null);
 
-  // Mock event creation modal
-  const [showMockModal, setShowMockModal] = useState(false);
+  // Event creation form
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createStart, setCreateStart] = useState('');
+  const [createEnd, setCreateEnd] = useState('');
+  const [createAllDay, setCreateAllDay] = useState(false);
+  const [createLocation, setCreateLocation] = useState('');
+  const [createDesc, setCreateDesc] = useState('');
+  const [createCalId, setCreateCalId] = useState('');
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   // Load calendars on mount
   useEffect(() => {
@@ -640,8 +649,8 @@ export function CalendarView() {
       const tag = (e.target as HTMLElement).tagName;
       const editable = (e.target as HTMLElement).isContentEditable;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
-      if (popover || showMockModal) {
-        if (e.key === 'Escape') { setPopover(null); setShowMockModal(false); }
+      if (popover || showCreateModal) {
+        if (e.key === 'Escape') { setPopover(null); setShowCreateModal(false); }
         return;
       }
       switch (e.key) {
@@ -655,13 +664,61 @@ export function CalendarView() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, goToday, popover, showMockModal]);
+  }, [navigate, goToday, popover, showCreateModal]);
 
   // Title
   let title = '';
   if (view === 'month') title = formatMonthYear(currentDate);
   else if (view === 'week') title = formatWeekRange(currentDate);
   else title = formatDate(currentDate);
+
+  const pad2Local = (n: number) => String(n).padStart(2, '0');
+  const toLocalDT = (d: Date) =>
+    `${d.getFullYear()}-${pad2Local(d.getMonth() + 1)}-${pad2Local(d.getDate())}T${pad2Local(d.getHours())}:${pad2Local(d.getMinutes())}`;
+  const toLocalDate = (d: Date) =>
+    `${d.getFullYear()}-${pad2Local(d.getMonth() + 1)}-${pad2Local(d.getDate())}`;
+
+  const openCreateModal = (baseDate?: Date) => {
+    const base = baseDate ?? currentDate;
+    const start = new Date(base); start.setHours(9, 0, 0, 0);
+    const end = new Date(base); end.setHours(10, 0, 0, 0);
+    setCreateTitle(''); setCreateLocation(''); setCreateDesc(''); setCreateError('');
+    setCreateAllDay(false);
+    setCreateStart(toLocalDT(start));
+    setCreateEnd(toLocalDT(end));
+    setCreateCalId(calendars[0]?.ID ?? '');
+    setShowCreateModal(true);
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!createTitle.trim()) { setCreateError('제목을 입력하세요'); return; }
+    if (!createCalId) { setCreateError('캘린더를 선택하세요'); return; }
+    const startDate = new Date(createAllDay ? createStart + 'T00:00:00' : createStart);
+    const endDate = new Date(createAllDay ? createEnd + 'T00:00:00' : createEnd);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) { setCreateError('날짜를 확인하세요'); return; }
+    if (endDate <= startDate) { setCreateError('종료 시간이 시작 시간보다 늦어야 합니다'); return; }
+    setCreateSaving(true); setCreateError('');
+    try {
+      await createCalendarEvent(createCalId, {
+        title: createTitle.trim(),
+        start: startDate, end: endDate, allDay: createAllDay,
+        location: createLocation.trim() || undefined,
+        description: createDesc.trim() || undefined,
+      });
+      setShowCreateModal(false);
+      // Reload calendar objects
+      const allObjects: CalendarObject[] = [];
+      await Promise.all(calendars.map(async (cal) => {
+        const objs = await import('@/lib/api').then(m => m.listCalendarObjects(cal.ID ?? ''));
+        allObjects.push(...objs);
+      }));
+      setObjects(allObjects);
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setCreateSaving(false);
+    }
+  };
 
   const toggleCalendar = (id: string) => {
     setSelectedCalIds((prev) => {
@@ -697,7 +754,7 @@ export function CalendarView() {
         }}
       >
         <button
-          onClick={() => setShowMockModal(true)}
+          onClick={() => openCreateModal(currentDate)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -845,7 +902,7 @@ export function CalendarView() {
 
           {/* + new event */}
           <button
-            onClick={() => setShowMockModal(true)}
+            onClick={() => openCreateModal(currentDate)}
             style={{
               padding: '5px 12px',
               borderRadius: '5px',
@@ -925,54 +982,80 @@ export function CalendarView() {
         />
       )}
 
-      {/* Mock event creation modal */}
-      {showMockModal && (
+      {/* Event creation modal */}
+      {showCreateModal && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 400,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,0,0,0.35)',
-          }}
-          onClick={() => setShowMockModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => !createSaving && setShowCreateModal(false)}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--color-bg-primary)',
-              borderRadius: '10px',
-              padding: '28px 32px',
-              maxWidth: '360px',
-              width: '100%',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.24)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📅</div>
-            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '8px' }}>
-              이벤트 생성 기능은 준비 중입니다
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px 28px', width: '440px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>새 이벤트</div>
+
+            {/* Title */}
+            <input autoFocus type="text" placeholder="제목 (필수)" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubmit(); }}
+              style={{ width: '100%', padding: '8px 10px', fontSize: '14px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+
+            {/* Calendar */}
+            {calendars.length > 1 && (
+              <select value={createCalId} onChange={(e) => setCreateCalId(e.target.value)}
+                style={{ padding: '7px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
+              </select>
+            )}
+
+            {/* All day */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={createAllDay} onChange={(e) => {
+                const allDay = e.target.checked;
+                setCreateAllDay(allDay);
+                if (allDay) {
+                  setCreateStart(createStart.split('T')[0] || toLocalDate(new Date()));
+                  setCreateEnd(createEnd.split('T')[0] || toLocalDate(new Date()));
+                } else {
+                  setCreateStart((createStart.includes('T') ? createStart : createStart + 'T09:00'));
+                  setCreateEnd((createEnd.includes('T') ? createEnd : createEnd + 'T10:00'));
+                }
+              }} />
+              하루 종일
+            </label>
+
+            {/* Start / End */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>시작</div>
+                <input type={createAllDay ? 'date' : 'datetime-local'} value={createStart} onChange={(e) => setCreateStart(e.target.value)}
+                  style={{ width: '100%', padding: '7px 8px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>종료</div>
+                <input type={createAllDay ? 'date' : 'datetime-local'} value={createEnd} onChange={(e) => setCreateEnd(e.target.value)}
+                  style={{ width: '100%', padding: '7px 8px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }} />
+              </div>
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', marginBottom: '20px' }}>
-              곧 iCalendar 형식으로 이벤트를 만들 수 있습니다.
+
+            {/* Location */}
+            <input type="text" placeholder="장소 (선택)" value={createLocation} onChange={(e) => setCreateLocation(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+
+            {/* Description */}
+            <textarea placeholder="메모 (선택)" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2}
+              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+
+            {/* Error */}
+            {createError && <div style={{ fontSize: '12px', color: '#e53e3e' }}>{createError}</div>}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <button onClick={() => setShowCreateModal(false)} disabled={createSaving}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
+                취소
+              </button>
+              <button onClick={handleCreateSubmit} disabled={createSaving}
+                style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: createSaving ? 'wait' : 'pointer', opacity: createSaving ? 0.7 : 1 }}>
+                {createSaving ? '저장 중...' : '저장'}
+              </button>
             </div>
-            <button
-              onClick={() => setShowMockModal(false)}
-              style={{
-                padding: '8px 24px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'var(--color-accent)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              닫기
-            </button>
           </div>
         </div>
       )}
