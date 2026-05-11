@@ -16,6 +16,7 @@ import {
   DocumentIcon,
   ArrowPathIcon,
   StarIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -592,6 +593,27 @@ export function ReadingPane({
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           ><ArchiveBoxIcon style={{ width: '16px', height: '16px' }} /></button>
         )}
+
+        {/* Unsubscribe — detect link from html body */}
+        {(() => {
+          if (!message?.html_body) return null;
+          const match = message.html_body.match(/href=["']([^"']*(?:unsubscribe|opt.?out|수신거부|구독취소)[^"']*)["']/i);
+          if (!match) return null;
+          const url = match[1].replace(/&amp;/g, '&');
+          return (
+            <button
+              aria-label="구독 취소"
+              title="구독 취소"
+              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              style={{ ...iconStyle, border: '1px solid rgba(220,38,38,0.3)', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', borderRadius: '5px', background: 'rgba(220,38,38,0.04)', color: 'var(--color-destructive)', fontSize: '12px', fontWeight: 500 }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.1)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(220,38,38,0.04)'; }}
+            >
+              <NoSymbolIcon style={{ width: 13, height: 13 }} />
+              구독 취소
+            </button>
+          );
+        })()}
 
         {/* Open in window */}
         {onOpenInWindow && (
