@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, starMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -25,7 +25,7 @@ export default function MailPage() {
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const { folders, messages, setMessages, foldersLoading, messagesLoading } =
+  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore } =
     useMailList(activeFolderId);
 
   // Set default folder to inbox UUID once folders are loaded
@@ -34,6 +34,7 @@ export default function MailPage() {
     const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
     if (inbox) setActiveFolderId(inbox.id);
   }, [folders, activeFolderId]);
+
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
 
@@ -86,6 +87,60 @@ export default function MailPage() {
       // ignore
     }
   }, [selectedMessageId, setMessages]);
+
+  const handleStar = useCallback(async (id: string, starred: boolean) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred } : m)));
+    starMessage(id, starred).catch(() => {
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred: !starred } : m)));
+    });
+  }, [setMessages]);
+
+  // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      const editable = (e.target as HTMLElement).isContentEditable;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
+
+      const list = searchResults ?? messages;
+      const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
+
+      switch (e.key) {
+        case 'j': {
+          const next = list[currentIdx + 1];
+          if (next) setSelectedMessageId(next.id);
+          break;
+        }
+        case 'k': {
+          const prev = list[currentIdx - 1];
+          if (prev) setSelectedMessageId(prev.id);
+          break;
+        }
+        case 'r':
+          if (selectedMessage && !composeContext) {
+            e.preventDefault();
+            setComposeContext({ intent: 'reply', source: selectedMessage });
+          }
+          break;
+        case 'f':
+          if (selectedMessage && !composeContext) {
+            e.preventDefault();
+            setComposeContext({ intent: 'forward', source: selectedMessage });
+          }
+          break;
+        case '#':
+        case 'Delete':
+          if (selectedMessageId && !composeContext) handleDelete();
+          break;
+        case 'Escape':
+          if (composeContext) setComposeContext(null);
+          else setSelectedMessageId(null);
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, handleDelete]);
 
   if (foldersLoading) {
     return (
@@ -145,12 +200,17 @@ export default function MailPage() {
         onSelect={handleSelectMessage}
         loading={searchResults !== null ? searchLoading : messagesLoading}
         emptyLabel={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : undefined}
+        hasMore={searchResults === null ? hasMore : false}
+        loadingMore={loadingMore}
+        onLoadMore={loadMore}
+        onStar={handleStar}
       />
 
       <ReadingPane
         message={selectedMessage}
         onDelete={handleDelete}
         onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
+        onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
         onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
         loading={messageLoading}
       />
