@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions } from '@/lib/api';
 
 interface SettingsViewProps {
@@ -157,7 +157,7 @@ function Kbd({ k }: { k: string }) {
 
 // ─── Nav items ─────────────────────────────────────────────────────────────────
 
-type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'filters' | 'blocked' | 'vacation' | 'privacy' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
+type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'filters' | 'blocked' | 'vacation' | 'privacy' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'accessibility' | 'about';
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'account', label: '계정', icon: <UserCircleIcon style={{ width: 16, height: 16 }} /> },
@@ -172,6 +172,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'notifications', label: '알림', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
   { id: 'shortcuts', label: '단축키', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
   { id: 'security', label: '보안', icon: <ShieldCheckIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'accessibility', label: '접근성', icon: <EyeIcon style={{ width: 16, height: 16 }} /> },
   { id: 'about', label: '정보', icon: <InformationCircleIcon style={{ width: 16, height: 16 }} /> },
 ];
 
@@ -258,6 +259,13 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [vacSubject, setVacSubject] = useState('부재중입니다');
   const [vacBody, setVacBody] = useState('');
   const [vacSaved, setVacSaved] = useState(false);
+
+  // Accessibility
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  const [largerClickTargets, setLargerClickTargets] = useState(false);
+  const [screenReaderMode, setScreenReaderMode] = useState(false);
+  const [fontFamily, setFontFamily] = useState<'system' | 'serif' | 'mono'>('system');
 
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
@@ -1020,6 +1028,44 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
           </>
         );
       }
+
+      case 'accessibility':
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>시각 보조</SectionHeader>
+              <Row label="고대비 모드" description="텍스트와 배경 사이의 대비를 높여 가독성을 향상시킵니다">
+                <Toggle value={highContrast} onChange={(v) => { setHighContrast(v); try { localStorage.setItem('webmail_high_contrast', v ? '1' : '0'); if (v) document.documentElement.classList.add('high-contrast'); else document.documentElement.classList.remove('high-contrast'); } catch { /* */ } }} />
+              </Row>
+              <Row label="움직임 줄이기" description="전환 애니메이션과 모션 효과를 최소화합니다">
+                <Toggle value={reducedMotion} onChange={(v) => { setReducedMotion(v); try { localStorage.setItem('webmail_reduced_motion', v ? '1' : '0'); document.documentElement.style.setProperty('--motion-duration', v ? '0ms' : ''); } catch { /* */ } }} />
+              </Row>
+              <Row label="글꼴 종류" description="UI 전반에 사용할 글꼴 패밀리">
+                <Segment
+                  options={[{ value: 'system' as const, label: '시스템' }, { value: 'serif' as const, label: '명조' }, { value: 'mono' as const, label: '고정폭' }]}
+                  value={fontFamily}
+                  onChange={(v) => {
+                    setFontFamily(v);
+                    try {
+                      localStorage.setItem('webmail_font_family', v);
+                      const map = { system: 'system-ui, sans-serif', serif: 'Georgia, serif', mono: '"JetBrains Mono", "Fira Code", monospace' };
+                      document.documentElement.style.setProperty('font-family', map[v]);
+                    } catch { /* */ }
+                  }}
+                />
+              </Row>
+              <Row label="클릭 영역 확장" description="버튼과 링크의 클릭 영역을 넓혀 조작을 쉽게 합니다" last>
+                <Toggle value={largerClickTargets} onChange={(v) => { setLargerClickTargets(v); try { localStorage.setItem('webmail_larger_targets', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+            </SectionCard>
+            <SectionCard>
+              <SectionHeader>스크린 리더 지원</SectionHeader>
+              <Row label="스크린 리더 최적화 모드" description="ARIA 레이블과 라이브 영역을 강화해 보조 기술과의 호환성을 높입니다" last>
+                <Toggle value={screenReaderMode} onChange={(v) => { setScreenReaderMode(v); try { localStorage.setItem('webmail_screen_reader', v ? '1' : '0'); } catch { /* */ } }} />
+              </Row>
+            </SectionCard>
+          </>
+        );
 
       case 'about':
         return (
