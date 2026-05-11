@@ -7,7 +7,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { sendMessage, saveDraft, updateDraft, ComposeIntent, MessageDetail } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 
 interface ComposeModalProps {
@@ -81,6 +81,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+  const [sendCountdown, setSendCountdown] = useState<number | null>(null);
+  const pendingMsgRef = useRef<SendMessageRequest | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
   const [minimized, setMinimized] = useState(false);
@@ -185,7 +187,36 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
   }, [editor, initialContent]);
 
-  async function handleSend(e: { preventDefault(): void }) {
+  useEffect(() => {
+    if (sendCountdown === null) return;
+    if (sendCountdown === 0) {
+      const msg = pendingMsgRef.current;
+      if (!msg) return;
+      setSending(true);
+      sendMessage(msg)
+        .then(() => {
+          try {
+            const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
+              .map((a) => a.address).filter(Boolean);
+            const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
+            localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
+          } catch { /* */ }
+          setSent(true);
+          setTimeout(() => onClose(), 1500);
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
+          setError(message);
+          setSendCountdown(null);
+        })
+        .finally(() => setSending(false));
+      return;
+    }
+    const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [sendCountdown, onClose, recentRecipients]);
+
+  function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!to.trim()) {
       setError('받는 사람 주소를 입력하세요.');
@@ -197,35 +228,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return;
     }
     setError('');
-    setSending(true);
-    try {
-      await sendMessage({
-        to: to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address),
-        ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
-        ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
-        subject: subject.trim(),
-        text_body: bodyText,
-        ...(editor && { html_body: editor.getHTML() }),
-        ...(intent !== 'new' && sourceMessage && {
-          intent,
-          source_message_id: sourceMessage.id,
-        }),
-      });
-      // Persist recently used recipients
-      try {
-        const newAddrs = [...to.split(','), ...cc.split(','), ...bcc.split(',')]
-          .map((a) => a.trim()).filter(Boolean);
-        const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
-        localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
-      } catch { /* ignore */ }
-      setSent(true);
-      setTimeout(() => onClose(), 1500);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-      setError(message);
-    } finally {
-      setSending(false);
-    }
+    const msg: SendMessageRequest = {
+      to: to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address),
+      ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+      ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+      subject: subject.trim(),
+      text_body: bodyText,
+      ...(editor && { html_body: editor.getHTML() }),
+      ...(intent !== 'new' && sourceMessage && { intent, source_message_id: sourceMessage.id }),
+    };
+    pendingMsgRef.current = msg;
+    setSendCountdown(5);
   }
 
   function handleLinkInsert() {
@@ -557,6 +570,20 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             </button>
           </div>
         </form>
+        {sendCountdown !== null && sendCountdown > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', background: 'var(--color-accent-subtle)',
+            borderTop: '1px solid var(--color-border-default)',
+            fontSize: '13px', color: 'var(--color-text-primary)',
+          }}>
+            <span>{sendCountdown}초 후 전송됩니다...</span>
+            <button
+              onClick={() => { setSendCountdown(null); pendingMsgRef.current = null; }}
+              style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-primary)' }}
+            >취소</button>
+          </div>
+        )}
       </div>
     </>
   );
