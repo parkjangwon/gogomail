@@ -79,11 +79,32 @@ function saveSettings(s: WebmailSettings) {
   } catch { /* */ }
 }
 
-type Category = 'mailbox' | 'compose' | 'theme' | 'notifications' | 'account' | 'security' | 'shortcuts' | 'advanced';
+export interface FilterRule {
+  id: string;
+  name: string;
+  field: 'from' | 'subject' | 'any';
+  value: string;
+  labelColor: string;
+}
+
+const FILTER_RULES_KEY = 'webmail_filter_rules';
+
+export function loadFilterRules(): FilterRule[] {
+  try { return JSON.parse(localStorage.getItem(FILTER_RULES_KEY) ?? '[]') as FilterRule[]; } catch { return []; }
+}
+
+function saveFilterRules(rules: FilterRule[]) {
+  try { localStorage.setItem(FILTER_RULES_KEY, JSON.stringify(rules)); } catch { /* */ }
+}
+
+const LABEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
+
+type Category = 'mailbox' | 'compose' | 'theme' | 'notifications' | 'account' | 'security' | 'shortcuts' | 'advanced' | 'filters';
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'mailbox', label: '메일함' },
   { id: 'compose', label: '메일 쓰기' },
+  { id: 'filters', label: '필터' },
   { id: 'theme', label: '테마' },
   { id: 'notifications', label: '알림' },
   { id: 'account', label: '계정' },
@@ -102,9 +123,13 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
   const [settings, setSettings] = useState<WebmailSettings>(DEFAULT_SETTINGS);
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+  const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
+  const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>({ name: '', field: 'from', value: '', labelColor: LABEL_COLORS[0] });
 
   useEffect(() => {
     setSettings(loadSettings());
+    setFilterRules(loadFilterRules());
     try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
   }, []);
 
@@ -580,6 +605,103 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
             </div>
           </>
         );
+
+      case 'filters': {
+        const fieldOptions: { value: FilterRule['field']; label: string }[] = [
+          { value: 'from', label: '보낸사람' },
+          { value: 'subject', label: '제목' },
+          { value: 'any', label: '전체 내용' },
+        ];
+        const inputStyle: React.CSSProperties = {
+          border: '1px solid var(--color-border-default)', borderRadius: '6px',
+          padding: '6px 10px', fontSize: '13px', background: 'var(--color-bg-primary)',
+          color: 'var(--color-text-primary)', outline: 'none', width: '100%',
+        };
+        const selStyle: React.CSSProperties = { ...inputStyle, width: 'auto', cursor: 'pointer' };
+        const doSave = (rule: Omit<FilterRule, 'id'>, id?: string) => {
+          if (!rule.value.trim()) return;
+          const updated = id
+            ? filterRules.map((r) => r.id === id ? { ...rule, id } : r)
+            : [...filterRules, { ...rule, id: Math.random().toString(36).slice(2) }];
+          setFilterRules(updated);
+          saveFilterRules(updated);
+          setEditingRule(null);
+          setNewRule({ name: '', field: 'from', value: '', labelColor: LABEL_COLORS[0] });
+        };
+        return (
+          <>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>메일 필터 규칙</span>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '12px' }}>
+                조건에 맞는 메일에 라벨 색상을 자동으로 적용합니다.
+              </p>
+              {/* Existing rules */}
+              {filterRules.length === 0 && (
+                <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '12px 0' }}>필터 규칙이 없습니다.</div>
+              )}
+              {filterRules.map((rule) => (
+                <div key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', background: 'var(--color-bg-secondary)', marginBottom: '6px' }}>
+                  <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: rule.labelColor, flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>
+                    {fieldOptions.find((f) => f.value === rule.field)?.label}
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {rule.value}{rule.name ? ` — ${rule.name}` : ''}
+                  </span>
+                  <button
+                    onClick={() => setEditingRule(rule)}
+                    style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+                  >편집</button>
+                  <button
+                    onClick={() => { const next = filterRules.filter((r) => r.id !== rule.id); setFilterRules(next); saveFilterRules(next); }}
+                    style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
+                  >삭제</button>
+                </div>
+              ))}
+            </div>
+            {/* Add / Edit form */}
+            <div style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '10px' }}>
+                {editingRule ? '규칙 편집' : '새 규칙 추가'}
+              </div>
+              {(() => {
+                const cur = editingRule ?? newRule;
+                const set = (patch: Partial<Omit<FilterRule, 'id'>>) =>
+                  editingRule
+                    ? setEditingRule({ ...editingRule, ...patch })
+                    : setNewRule((p) => ({ ...p, ...patch }));
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <select value={cur.field} onChange={(e) => set({ field: e.target.value as FilterRule['field'] })} style={selStyle}>
+                        {fieldOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      <input placeholder="조건 값 (예: @naver.com)" value={cur.value} onChange={(e) => set({ value: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+                    </div>
+                    <input placeholder="규칙 이름 (선택)" value={cur.name} onChange={(e) => set({ name: e.target.value })} style={inputStyle} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>라벨 색상:</span>
+                      {LABEL_COLORS.map((c) => (
+                        <button key={c} onClick={() => set({ labelColor: c })} style={{ width: '20px', height: '20px', borderRadius: '50%', background: c, border: cur.labelColor === c ? '3px solid var(--color-text-primary)' : '2px solid transparent', cursor: 'pointer', padding: 0, transition: 'border 100ms ease' }} />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      {editingRule && (
+                        <button onClick={() => setEditingRule(null)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
+                      )}
+                      <button
+                        onClick={() => doSave(editingRule ?? newRule, editingRule?.id)}
+                        disabled={!(editingRule ?? newRule).value.trim()}
+                        style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: (editingRule ?? newRule).value.trim() ? 1 : 0.5 }}
+                      >{editingRule ? '저장' : '추가'}</button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </>
+        );
+      }
     }
   }
 
