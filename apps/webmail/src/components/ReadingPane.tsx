@@ -1,7 +1,28 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { MessageDetail, Folder } from '@/lib/api';
+
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+function linkify(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+  while ((match = URL_RE.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const url = match[0];
+    parts.push(
+      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer"
+        style={{ color: 'var(--color-accent)', wordBreak: 'break-all' }}>
+        {url}
+      </a>
+    );
+    last = match.index + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
 
 function SafeHTMLBody({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -512,7 +533,7 @@ export function ReadingPane({
                 margin: 0,
               }}
             >
-              {message.text_body || '(내용 없음)'}
+              {linkify(message.text_body || '(내용 없음)')}
             </pre>
           )}
         </div>
