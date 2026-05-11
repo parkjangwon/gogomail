@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions } from '@/lib/api';
 
 interface SettingsViewProps {
@@ -157,7 +157,7 @@ function Kbd({ k }: { k: string }) {
 
 // ─── Nav items ─────────────────────────────────────────────────────────────────
 
-type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'filters' | 'blocked' | 'vacation' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
+type SectionId = 'account' | 'inbox' | 'reading' | 'compose' | 'filters' | 'blocked' | 'vacation' | 'privacy' | 'appearance' | 'notifications' | 'shortcuts' | 'security' | 'about';
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'account', label: '계정', icon: <UserCircleIcon style={{ width: 16, height: 16 }} /> },
@@ -167,6 +167,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'filters', label: '필터', icon: <FunnelIcon style={{ width: 16, height: 16 }} /> },
   { id: 'blocked', label: '차단 목록', icon: <NoSymbolIcon style={{ width: 16, height: 16 }} /> },
   { id: 'vacation', label: '자동 응답', icon: <CalendarDaysIcon style={{ width: 16, height: 16 }} /> },
+  { id: 'privacy', label: '개인정보 보호', icon: <LockClosedIcon style={{ width: 16, height: 16 }} /> },
   { id: 'appearance', label: '외관', icon: <SwatchIcon style={{ width: 16, height: 16 }} /> },
   { id: 'notifications', label: '알림', icon: <BellIcon style={{ width: 16, height: 16 }} /> },
   { id: 'shortcuts', label: '단축키', icon: <KeyIcon style={{ width: 16, height: 16 }} /> },
@@ -225,6 +226,12 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [editingRule, setEditingRule] = useState<FilterRule | null>(null);
   const [newRule, setNewRule] = useState<Omit<FilterRule, 'id'>>({ name: '', field: 'from', value: '', labelColor: LABEL_COLORS[0] });
 
+  // Privacy
+  const [blockTrackingPixels, setBlockTrackingPixels] = useState(true);
+  const [requestReadReceipt, setRequestReadReceipt] = useState(false);
+  const [linkPreview, setLinkPreview] = useState(true);
+  const [followUpDays, setFollowUpDays] = useState<0 | 1 | 3 | 7>(0);
+
   // Blocked senders
   const [blockedSenders, setBlockedSenders] = useState<string[]>([]);
   const [newBlockedInput, setNewBlockedInput] = useState('');
@@ -263,6 +270,11 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
       setTemplates(JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'));
       setFilterRules(loadFilterRules());
       setBlockedSenders(JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]') as string[]);
+      const priv = loadWmSettings();
+      setBlockTrackingPixels((priv.blockTrackingPixels as boolean) !== false);
+      setRequestReadReceipt((priv.requestReadReceipt as boolean) === true);
+      setLinkPreview((priv.linkPreview as boolean) !== false);
+      setFollowUpDays(((priv.followUpDays as number) ?? 0) as 0 | 1 | 3 | 7);
       const vac = JSON.parse(localStorage.getItem('webmail_vacation') ?? '{}') as Record<string, unknown>;
       setVacEnabled(vac.enabled === true);
       setVacStartDate((vac.startDate as string) ?? '');
@@ -727,6 +739,45 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
           </>
         );
       }
+
+      case 'privacy':
+        return (
+          <>
+            <SectionCard>
+              <SectionHeader>추적 방지</SectionHeader>
+              <Row label="추적 픽셀 차단" description="메일에 삽입된 1×1 추적 이미지를 자동으로 차단합니다. 발신자가 읽음 여부를 알 수 없습니다.">
+                <Toggle value={blockTrackingPixels} onChange={(v) => { setBlockTrackingPixels(v); saveWmSetting('blockTrackingPixels', v); }} />
+              </Row>
+              <Row label="링크 미리보기" description="링크 위에 마우스를 올렸을 때 미리보기를 표시합니다." last>
+                <Toggle value={linkPreview} onChange={(v) => { setLinkPreview(v); saveWmSetting('linkPreview', v); }} />
+              </Row>
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>발신 메일 설정</SectionHeader>
+              <Row label="읽음 확인 요청" description="보내는 메일에 읽음 확인 요청을 자동으로 포함합니다.">
+                <Toggle value={requestReadReceipt} onChange={(v) => { setRequestReadReceipt(v); saveWmSetting('requestReadReceipt', v); }} />
+              </Row>
+              <Row label="답장 미수신 시 알림" description="보낸 메일에 답장이 없을 경우 지정한 기간 후 알림을 받습니다." last>
+                <Segment<0 | 1 | 3 | 7>
+                  options={[{ value: 0, label: '없음' }, { value: 1, label: '1일' }, { value: 3, label: '3일' }, { value: 7, label: '1주일' }]}
+                  value={followUpDays}
+                  onChange={(v) => { setFollowUpDays(v); saveWmSetting('followUpDays', v); }}
+                />
+              </Row>
+            </SectionCard>
+
+            <SectionCard>
+              <SectionHeader>데이터 및 개인정보</SectionHeader>
+              <Row label="GoGoMail 텔레메트리" description="GoGoMail은 사용자 데이터를 수집하거나 외부 서버로 전송하지 않습니다." last>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>
+                  <CheckIcon style={{ width: 14, height: 14 }} />
+                  완전 로컬 처리
+                </span>
+              </Row>
+            </SectionCard>
+          </>
+        );
 
       case 'appearance':
         return (
