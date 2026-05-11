@@ -69,6 +69,7 @@ export default function DmarcSpfPage() {
   const [notifications, setNotifications] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [newSpfInclude, setNewSpfInclude] = useState('');
   const [newIp4, setNewIp4] = useState('');
+  const [checkingDns, setCheckingDns] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/domains?limit=100&company_id=${cid}`, { credentials: 'include' })
@@ -101,6 +102,32 @@ export default function DmarcSpfPage() {
   useEffect(() => {
     if (selectedDomain?.value) fetchPolicy(selectedDomain.value);
   }, [selectedDomain, fetchPolicy]);
+
+  const handleDnsCheck = async () => {
+    if (!selectedDomain?.value) return;
+    setCheckingDns(true);
+    try {
+      const res = await fetch(`/api/admin/domains/${selectedDomain.value}/dns-check`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const check = data.dns_check;
+        const passed = check?.status === 'ok' || check?.overall_status === 'pass';
+        setNotifications([{
+          type: passed ? 'success' : 'warning',
+          content: passed
+            ? `DNS check passed for ${selectedDomain.label}.`
+            : `DNS issues detected for ${selectedDomain.label}. Check MX, SPF, and DKIM records.`,
+          dismissible: true,
+          onDismiss: () => setNotifications([]),
+          id: 'dns-check',
+        }]);
+      } else {
+        setNotifications([{ type: 'error', content: 'DNS check failed — domain may not be configured.', dismissible: true, onDismiss: () => setNotifications([]), id: 'dns-check-err' }]);
+      }
+    } finally {
+      setCheckingDns(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedDomain?.value) return;
@@ -310,9 +337,14 @@ export default function DmarcSpfPage() {
             )}
 
             <Box float="right">
-              <Button variant="primary" onClick={handleSave} loading={saving}>
-                {t('pages.dmarc_page.save')}
-              </Button>
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button onClick={handleDnsCheck} loading={checkingDns} iconName="check">
+                  Verify DNS
+                </Button>
+                <Button variant="primary" onClick={handleSave} loading={saving}>
+                  {t('pages.dmarc_page.save')}
+                </Button>
+              </SpaceBetween>
             </Box>
           </>
         )}

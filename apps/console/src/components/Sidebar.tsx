@@ -19,7 +19,7 @@ export function Sidebar() {
     if (!pathname) return 'none';
     if (pathname.includes('/mail/') || pathname.includes('/delivery/') || pathname.includes('/system/')) return 'ops';
     if (pathname.includes('/access/') || pathname.includes('/roles')) return 'access';
-    if (pathname.includes('/audit-logs') || pathname.includes('/security/') || pathname.includes('/compliance')) return 'gov';
+    if (pathname.includes('/audit-logs') || pathname.includes('/admin-activity') || pathname.includes('/security/') || pathname.includes('/compliance')) return 'gov';
     if (pathname.includes('/storage/') || pathname.includes('/analytics/') || pathname.includes('/reports')) return 'analytics';
     if (pathname.includes('/config/') || pathname.includes('/tenancy/domain-settings') || pathname.includes('/organization/')) return 'config';
     if (pathname.includes('/tenancy/') || pathname.includes('/users') || pathname.includes('/admin-users')) return 'resources';
@@ -99,6 +99,7 @@ export function Sidebar() {
       ...e('gov'),
       items: [
         { type: 'link', text: t('nav.audit_logs'), href: p('/audit-logs') },
+        { type: 'link', text: 'Admin Activity', href: p('/admin-activity') },
         { type: 'link', text: t('nav.alert_rules'), href: p('/security/alerts') },
         { type: 'link', text: t('nav.suppression_list'), href: p('/security/suppression') },
         { type: 'link', text: t('nav.dkim_keys'), href: p('/security/dkim-keys') },

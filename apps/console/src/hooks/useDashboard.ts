@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 export interface DashboardData {
   stats: {
     total_users: number;
+    active_users: number;
+    suspended_users: number;
     active_domains: number;
     domain_count: number;
     total_storage_used: number;
@@ -13,6 +15,10 @@ export interface DashboardData {
     over_allocated: boolean;
     active_webhooks: number;
     health_status: 'healthy' | 'warning' | 'degraded' | 'unknown';
+    security_score: number;
+    mfa_rate: number;
+    mfa_enabled: number;
+    mfa_total: number;
   };
   apiUsageMetrics: {
     requests_today: number;
@@ -27,9 +33,11 @@ export function useDashboard(companyId: string) {
     queryFn: async () => {
       const id = companyId === 'default' ? '' : companyId;
 
-      const [domainsRes, healthRes] = await Promise.all([
+      const [domainsRes, healthRes, postureRes, seatRes] = await Promise.all([
         fetch(`/admin/v1/domains?${id ? `company_id=${id}&` : ''}limit=200`),
         id ? fetch(`/admin/v1/companies/${id}/health`) : Promise.resolve(null),
+        id ? fetch(`/api/admin/companies/${id}/security/posture`) : Promise.resolve(null),
+        id ? fetch(`/api/admin/companies/${id}/seat-usage`) : Promise.resolve(null),
       ]);
 
       type DomainShape = { status: string; quota_used: number; quota_limit: number };
@@ -39,6 +47,14 @@ export function useDashboard(companyId: string) {
 
       const healthData = healthRes?.ok
         ? (await healthRes.json() as { health?: Record<string, unknown> })
+        : null;
+
+      const postureData = postureRes?.ok
+        ? (await postureRes.json() as { score?: number; mfa?: { total: number; enabled: number; rate: number } })
+        : null;
+
+      const seatData = seatRes?.ok
+        ? (await seatRes.json() as { total_users?: number; active_users?: number; suspended_users?: number })
         : null;
 
       const domains = domainsData.domains ?? [];
@@ -51,7 +67,9 @@ export function useDashboard(companyId: string) {
 
       return {
         stats: {
-          total_users: 0,
+          total_users: seatData?.total_users ?? 0,
+          active_users: seatData?.active_users ?? 0,
+          suspended_users: seatData?.suspended_users ?? 0,
           active_domains: activeDomains,
           domain_count: domains.length,
           total_storage_used: totalUsed,
@@ -60,6 +78,10 @@ export function useDashboard(companyId: string) {
           over_allocated: (health.over_allocated as boolean) ?? false,
           active_webhooks: (health.active_webhooks as number) ?? 0,
           health_status: healthStatus,
+          security_score: postureData?.score ?? 0,
+          mfa_rate: postureData?.mfa?.rate ?? 0,
+          mfa_enabled: postureData?.mfa?.enabled ?? 0,
+          mfa_total: postureData?.mfa?.total ?? 0,
         },
         apiUsageMetrics: {
           requests_today: 0,
