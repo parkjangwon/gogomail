@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
 import { MessageDetail, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -187,6 +187,25 @@ export function ReadingPane({
   useEffect(() => {
     localStorage.setItem('webmail_font_size', String(fontSize));
   }, [fontSize]);
+
+  const unsubscribeUrl = useMemo(() => {
+    if (!message) return null;
+    if (message.html_body) {
+      try {
+        const doc = new DOMParser().parseFromString(message.html_body, 'text/html');
+        const link = Array.from(doc.querySelectorAll('a')).find((a) =>
+          /unsubscribe|opt.?out|수신\s*거부/i.test(a.textContent ?? '') ||
+          /unsubscribe|optout/i.test(a.getAttribute('href') ?? '')
+        );
+        if (link?.href) return link.href;
+      } catch { /* ignore */ }
+    }
+    if (message.text_body) {
+      const m = message.text_body.match(/https?:\/\/[^\s<>"']*unsubscribe[^\s<>"']*/i);
+      if (m) return m[0];
+    }
+    return null;
+  }, [message?.id, message?.html_body, message?.text_body]);
 
   useEffect(() => {
     setQuickReplyOpen(false);
@@ -410,6 +429,18 @@ export function ReadingPane({
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >A+</button>
         </div>
+        {unsubscribeUrl && (
+          <button
+            onClick={() => {
+              if (window.confirm('수신거부 링크를 열겠습니까?')) window.open(unsubscribeUrl, '_blank', 'noopener,noreferrer');
+            }}
+            title="수신거부"
+            aria-label="수신거부"
+            style={{ ...iconStyle, fontSize: '12px', color: 'var(--color-destructive)', borderColor: 'rgba(217,79,61,0.3)', padding: '5px 8px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >수신거부</button>
+        )}
         {onMove && folders.length > 0 && (
           <div style={{ position: 'relative' }}>
             <ActionButton label="이동" onClick={() => setShowMoveMenu((v) => !v)} />
