@@ -434,6 +434,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           .tiptap p { margin: 0 0 4px; }
           .tiptap ul, .tiptap ol { padding-left: 20px; }
 .tiptap blockquote { border-left: 3px solid var(--color-border-default); margin: 4px 0; padding: 4px 12px; color: var(--color-text-secondary); }
+.tiptap code { background: var(--color-bg-secondary); border: 1px solid var(--color-border-subtle); border-radius: 3px; padding: 1px 4px; font-family: monospace; font-size: 12px; }
         `}</style>
 
         {/* Header */}
@@ -657,6 +658,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('blockquote') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
             >"</button>
+
+            <button type="button" aria-label="인라인 코드" title="인라인 코드"
+              style={toolbarBtnStyle(editor?.isActive('code'))}
+              onClick={() => editor?.chain().focus().toggleCode().run()}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('code') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
+            ><code style={{ fontSize: '11px' }}>`c`</code></button>
 
             <button type="button" aria-label="링크 삽입" title="링크 삽입"
               style={toolbarBtnStyle(editor?.isActive('link'))}
