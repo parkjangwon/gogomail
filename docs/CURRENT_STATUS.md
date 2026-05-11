@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-10 (Admin Console UX Overhaul - Domain detail page, real dashboard, NaN fix)
+Last updated: 2026-05-12 (Webmail: login IP display, profile picture, enterprise settings expansion)
+
+## webmail login IP + profile picture + enterprise settings (2026-05-12)
+- httpapi/mail.go: add missing "net" import for net.SplitHostPort (client_ip in login response)
+- AuthTokenResponse: add client_ip optional field; stored in localStorage on login
+- Sidebar: 최근 접속 IP row in user menu session info; profile picture from localStorage
+- SettingsModal: profile picture upload/remove in 계정 tab; 보안/단축키/고급 new categories
+- MessageList: show user's own profile picture in sender avatar when from_addr matches userEmail
 
 ## Recent changes (2026-05-10)
 - Fixed DomainView.QuotaLimit omitempty causing NaN in frontend quota display (removed omitempty)

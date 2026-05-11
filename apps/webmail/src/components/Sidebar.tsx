@@ -128,7 +128,19 @@ export function Sidebar({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
+    function onStorage(e: StorageEvent) {
+      if (e.key === 'webmail_avatar') {
+        setAvatarUrl(e.newValue ?? '');
+      }
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => {
     if (!showUserMenu) return;
@@ -276,11 +288,14 @@ export function Sidebar({
           >
             <div aria-hidden="true" style={{
               width: '28px', height: '28px', borderRadius: '6px',
-              background: 'var(--color-accent)', color: '#fff',
+              background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '12px', fontWeight: 700, flexShrink: 0,
+              fontSize: '12px', fontWeight: 700, flexShrink: 0, overflow: 'hidden',
             }}>
-              {getInitials(userName)}
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : getInitials(userName)
+              }
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -336,11 +351,14 @@ export function Sidebar({
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--color-border-subtle)' }}>
               <div style={{
                 width: '48px', height: '48px', borderRadius: '50%',
-                background: 'var(--color-accent)', color: '#fff',
+                background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '18px', fontWeight: 700,
+                fontSize: '18px', fontWeight: 700, overflow: 'hidden',
               }}>
-                {getInitials(userName)}
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : getInitials(userName)
+                }
               </div>
               <div style={{ textAlign: 'center', minWidth: 0, width: '100%' }}>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
@@ -357,12 +375,14 @@ export function Sidebar({
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
               {(() => {
                 let loginAtStr = '';
+                let loginIp = '';
                 let expiresStr = '';
                 try {
                   const lat = localStorage.getItem('webmail_login_at');
                   if (lat) {
                     loginAtStr = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(lat));
                   }
+                  loginIp = localStorage.getItem('webmail_login_ip') ?? '';
                   const exp = localStorage.getItem('webmail_token_expires_at');
                   if (exp) {
                     expiresStr = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(exp));
@@ -374,6 +394,12 @@ export function Sidebar({
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
                         <span style={{ color: 'var(--color-text-tertiary)' }}>최근 로그인</span>
                         <span>{loginAtStr}</span>
+                      </div>
+                    )}
+                    {loginIp && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--color-text-tertiary)' }}>최근 접속 IP</span>
+                        <span>{loginIp}</span>
                       </div>
                     )}
                     {expiresStr && (

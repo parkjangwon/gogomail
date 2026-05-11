@@ -39,6 +39,7 @@ export default function LoginPage() {
       localStorage.setItem('webmail_email', email.trim());
       localStorage.setItem('webmail_login_at', new Date().toISOString());
       if (result.expires_at) localStorage.setItem('webmail_token_expires_at', result.expires_at);
+      if (result.client_ip) localStorage.setItem('webmail_login_ip', result.client_ip);
       if (result.must_change_password) {
         localStorage.setItem('webmail_must_change_password', '1');
       }

@@ -38,6 +38,7 @@ export interface AuthTokenResponse {
   token: string;
   expires_at: string;
   must_change_password: boolean;
+  client_ip?: string;
 }
 
 export interface Attachment {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -418,10 +419,20 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			writeError(w, http.StatusInternalServerError, "failed to issue token")
 			return
 		}
+		clientIP := r.RemoteAddr
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			clientIP = host
+		}
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			if parts := strings.SplitN(fwd, ",", 2); len(parts) > 0 {
+				clientIP = strings.TrimSpace(parts[0])
+			}
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"token":                token,
 			"expires_at":           time.Now().UTC().Add(tokenTTL).Format(time.RFC3339),
 			"must_change_password": user.MustChangePassword,
+			"client_ip":            clientIP,
 		})
 	})
 
