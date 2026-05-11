@@ -889,7 +889,23 @@ export default function MailPage() {
     }
     const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id));
     messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
-    if (newUnread.length > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+    const dndActive = (() => {
+      try {
+        if (localStorage.getItem('webmail_dnd') !== '1') return false;
+        const start = localStorage.getItem('webmail_dnd_start') ?? '22:00';
+        const end = localStorage.getItem('webmail_dnd_end') ?? '08:00';
+        const now = new Date();
+        const [sh, sm] = start.split(':').map(Number);
+        const [eh, em] = end.split(':').map(Number);
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const startMins = sh * 60 + sm;
+        const endMins = eh * 60 + em;
+        return startMins > endMins
+          ? (nowMins >= startMins || nowMins < endMins)
+          : (nowMins >= startMins && nowMins < endMins);
+      } catch { return false; }
+    })();
+    if (!dndActive && newUnread.length > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
       const title = newUnread.length === 1
         ? `새 메일: ${newUnread[0].from_name || newUnread[0].from_addr}`
         : `새 메일 ${newUnread.length}개`;
@@ -1266,6 +1282,16 @@ export default function MailPage() {
                     const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
                     const now = Date.now();
                     msgs = msgs.filter((m) => !snoozed[m.id] || new Date(snoozed[m.id]).getTime() <= now);
+                  } catch { /* ignore */ }
+                }
+                // Focus mode: show only starred, pinned, or important in inbox
+                if (activeFolderSystemType === 'inbox') {
+                  try {
+                    if (localStorage.getItem('webmail_focus_mode') === '1') {
+                      const pinnedSet = new Set<string>(JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]'));
+                      const importantSet = new Set<string>(JSON.parse(localStorage.getItem('webmail_important') ?? '[]'));
+                      msgs = msgs.filter((m) => m.starred || pinnedSet.has(m.id) || importantSet.has(m.id));
+                    }
                   } catch { /* ignore */ }
                 }
                 return msgs;
