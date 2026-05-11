@@ -32,21 +32,6 @@ interface AuditLog {
   created_at: string;
 }
 
-const CATEGORY_OPTIONS: SelectProps.Option[] = [
-  { label: 'All Categories', value: '' },
-  { label: 'Config', value: 'config' },
-  { label: 'Security', value: 'security' },
-  { label: 'User', value: 'user' },
-  { label: 'Domain', value: 'domain' },
-  { label: 'Auth', value: 'auth' },
-];
-
-const LIMIT_OPTIONS: SelectProps.Option[] = [
-  { label: 'Last 50', value: '50' },
-  { label: 'Last 100', value: '100' },
-  { label: 'Last 500', value: '500' },
-];
-
 const resultType = (r: string): 'success' | 'error' | 'pending' =>
   r === 'success' ? 'success' : r === 'error' ? 'error' : 'pending';
 
@@ -54,6 +39,21 @@ export default function AuditLogsPage() {
   const { t } = useI18n();
   const { currentCompany } = useCompany();
   const cid = currentCompany?.id;
+
+  const CATEGORY_OPTIONS: SelectProps.Option[] = [
+    { label: t('pages.audit_logs_page.cat_all'), value: '' },
+    { label: t('pages.audit_logs_page.cat_config'), value: 'config' },
+    { label: t('pages.audit_logs_page.cat_security'), value: 'security' },
+    { label: t('pages.audit_logs_page.cat_user'), value: 'user' },
+    { label: t('pages.audit_logs_page.cat_domain'), value: 'domain' },
+    { label: t('pages.audit_logs_page.cat_auth'), value: 'auth' },
+  ];
+
+  const LIMIT_OPTIONS: SelectProps.Option[] = [
+    { label: t('pages.audit_logs_page.limit_50'), value: '50' },
+    { label: t('pages.audit_logs_page.limit_100'), value: '100' },
+    { label: t('pages.audit_logs_page.limit_500'), value: '500' },
+  ];
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,11 +73,11 @@ export default function AuditLogsPage() {
       const data = await res.json();
       setLogs(data.audit_logs ?? []);
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load audit logs', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('pages.audit_logs_page.load_error'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoading(false);
     }
-  }, [cid, categoryFilter, limit]);
+  }, [cid, categoryFilter, limit, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -118,7 +118,7 @@ export default function AuditLogsPage() {
         a.click();
         URL.revokeObjectURL(url);
       }
-      setFlash([{ type: 'success', content: `Exported as ${format.toUpperCase()}`, dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'success', content: t('pages.audit_logs_page.export'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } catch (e: unknown) {
       setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
@@ -137,14 +137,16 @@ export default function AuditLogsPage() {
               <ButtonDropdown
                 loading={exporting}
                 items={[
-                  { id: 'csv', text: 'Export as CSV' },
-                  { id: 'json', text: 'Export as JSON' },
+                  { id: 'csv', text: t('pages.audit_logs_page.export_csv') },
+                  { id: 'json', text: t('pages.audit_logs_page.export_json') },
                 ]}
                 onItemClick={({ detail }) => handleExport(detail.id as 'csv' | 'json')}
               >
-                Export
+                {t('pages.audit_logs_page.export')}
               </ButtonDropdown>
-              <Button iconName="refresh" onClick={load} loading={loading}>Refresh</Button>
+              <Button iconName="refresh" onClick={load} loading={loading}>
+                {t('pages.audit_logs_page.refresh')}
+              </Button>
             </SpaceBetween>
           }
         >
@@ -158,28 +160,28 @@ export default function AuditLogsPage() {
         <Table
           items={filtered}
           loading={loading}
-          loadingText="Loading audit logs…"
+          loadingText={t('pages.audit_logs_page.loading')}
           columnDefinitions={[
-            { id: 'time', header: 'Time', cell: (l) => new Date(l.created_at).toLocaleString(), width: 160 },
-            { id: 'actor', header: 'Actor', cell: (l) => l.actor_id || '—' },
-            { id: 'action', header: 'Action', cell: (l) => <Box variant="code">{l.action}</Box> },
-            { id: 'category', header: 'Category', cell: (l) => <Badge color="blue">{l.category}</Badge> },
-            { id: 'target', header: 'Target', cell: (l) => l.target_type ? `${l.target_type}:${l.target_id}` : '—' },
-            { id: 'result', header: 'Result', cell: (l) => <StatusIndicator type={resultType(l.result)}>{l.result}</StatusIndicator> },
-            { id: 'ip', header: 'IP', cell: (l) => l.ip_address || '—' },
+            { id: 'time', header: t('pages.audit_logs_page.col_time'), cell: (l) => new Date(l.created_at).toLocaleString(), width: 160 },
+            { id: 'actor', header: t('pages.audit_logs_page.col_actor'), cell: (l) => l.actor_id || '—' },
+            { id: 'action', header: t('pages.audit_logs_page.col_action'), cell: (l) => <Box variant="code">{l.action}</Box> },
+            { id: 'category', header: t('pages.audit_logs_page.col_category'), cell: (l) => <Badge color="blue">{l.category}</Badge> },
+            { id: 'target', header: t('pages.audit_logs_page.col_target'), cell: (l) => l.target_type ? `${l.target_type}:${l.target_id}` : '—' },
+            { id: 'result', header: t('pages.audit_logs_page.col_result'), cell: (l) => <StatusIndicator type={resultType(l.result)}>{l.result}</StatusIndicator> },
+            { id: 'ip', header: t('pages.audit_logs_page.col_ip'), cell: (l) => l.ip_address || '—' },
           ]}
           header={
             <Header variant="h2" counter={`(${filtered.length})`}>
-              Audit Trail
+              {t('pages.audit_logs_page.audit_trail')}
             </Header>
           }
           filter={
             <SpaceBetween size="xs" direction="horizontal">
               <TextFilter
                 filteringText={filter}
-                filteringPlaceholder="Search action, actor, target…"
+                filteringPlaceholder={t('pages.audit_logs_page.search_placeholder')}
                 onChange={(e) => setFilter(e.detail.filteringText)}
-                countText={`${filtered.length} entries`}
+                countText={`${filtered.length}`}
               />
               <Select
                 selectedOption={CATEGORY_OPTIONS.find(o => o.value === categoryFilter) ?? CATEGORY_OPTIONS[0]}
@@ -193,7 +195,7 @@ export default function AuditLogsPage() {
               />
             </SpaceBetween>
           }
-          empty={<Box textAlign="center" padding="l" color="inherit">No audit logs found</Box>}
+          empty={<Box textAlign="center" padding="l" color="inherit">{t('pages.audit_logs_page.no_logs')}</Box>}
         />
       </SpaceBetween>
     </ContentLayout>

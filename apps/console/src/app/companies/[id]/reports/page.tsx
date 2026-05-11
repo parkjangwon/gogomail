@@ -19,46 +19,22 @@ import { useCompany } from '@/contexts/CompanyContext';
 
 interface ReportDef {
   id: string;
-  name: string;
-  description: string;
-  category: string;
-  exportEndpoint?: string; // CSV backend endpoint (relative)
+  category_key: string;
+  exportEndpoint?: string;
 }
 
 const REPORT_DEFS: ReportDef[] = [
-  {
-    id: 'audit_logs',
-    name: 'Audit Log Report',
-    description: 'Full audit trail of admin actions for compliance review',
-    category: 'Compliance',
-    exportEndpoint: 'audit-logs/export',
-  },
-  {
-    id: 'users_export',
-    name: 'User Directory Export',
-    description: 'All users with status, quota, and domain assignments',
-    category: 'Users',
-    exportEndpoint: 'users/bulk-export',
-  },
-  {
-    id: 'domain_health',
-    name: 'Domain Health Summary',
-    description: 'Domain status, DNS check results, and quota usage per domain',
-    category: 'Domains',
-  },
-  {
-    id: 'quota_summary',
-    name: 'Storage Quota Summary',
-    description: 'Storage allocation and usage breakdown across domains',
-    category: 'Storage',
-  },
+  { id: 'audit_logs', category_key: 'compliance', exportEndpoint: 'audit-logs/export' },
+  { id: 'users_export', category_key: 'users', exportEndpoint: 'users/bulk-export' },
+  { id: 'domain_health', category_key: 'domains' },
+  { id: 'quota_summary', category_key: 'storage' },
 ];
 
 const CATEGORY_COLORS: Record<string, 'blue' | 'green' | 'red' | 'grey'> = {
-  Compliance: 'red',
-  Users: 'blue',
-  Domains: 'green',
-  Storage: 'grey',
+  compliance: 'red',
+  users: 'blue',
+  domains: 'green',
+  storage: 'grey',
 };
 
 export default function ReportsPage() {
@@ -71,9 +47,12 @@ export default function ReportsPage() {
   const err = (msg: string) => setFlash([{ type: 'error', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
   const ok = (msg: string) => setFlash([{ type: 'success', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
 
+  const getLabel = (id: string, field: 'name' | 'desc' | 'cat') =>
+    t(`pages.reports_page.${id}_${field}` as Parameters<typeof t>[0]);
+
   const handleCSVExport = async (report: ReportDef) => {
     if (!report.exportEndpoint || !cid) {
-      err('CSV export not available for this report');
+      err(t('pages.reports_page.export_unavailable'));
       return;
     }
     setExporting(report.id);
@@ -87,7 +66,7 @@ export default function ReportsPage() {
       a.download = `${report.id}-${cid}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      ok(`${report.name} exported`);
+      ok(getLabel(report.id, 'name'));
     } catch (e: unknown) {
       err(String(e));
     } finally {
@@ -95,18 +74,18 @@ export default function ReportsPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   return (
     <ContentLayout
       header={
         <Header
           variant="h1"
-          description="Generate and export compliance and operational reports"
+          description={t('pages.reports_page.page_description')}
           actions={
-            <Button iconName="file" onClick={handlePrint}>Print / Save as PDF</Button>
+            <Button iconName="file" onClick={handlePrint}>
+              {t('pages.reports_page.print_pdf')}
+            </Button>
           }
         >
           {t('nav.reports')}
@@ -127,46 +106,48 @@ export default function ReportsPage() {
                     <ButtonDropdown
                       loading={exporting === report.id}
                       items={[
-                        { id: 'csv', text: 'Export as CSV', disabled: !report.exportEndpoint },
-                        { id: 'print', text: 'Print / Save as PDF' },
+                        { id: 'csv', text: t('pages.reports_page.export_csv'), disabled: !report.exportEndpoint },
+                        { id: 'print', text: t('pages.reports_page.print_pdf') },
                       ]}
                       onItemClick={({ detail }) => {
                         if (detail.id === 'csv') handleCSVExport(report);
                         else handlePrint();
                       }}
                     >
-                      Export
+                      {t('pages.reports_page.export_btn')}
                     </ButtonDropdown>
                   }
                 >
                   <SpaceBetween size="xs" direction="horizontal">
-                    <Badge color={CATEGORY_COLORS[report.category] ?? 'grey'}>{report.category}</Badge>
-                    <span>{report.name}</span>
+                    <Badge color={CATEGORY_COLORS[report.category_key] ?? 'grey'}>
+                      {getLabel(report.id, 'cat')}
+                    </Badge>
+                    <span>{getLabel(report.id, 'name')}</span>
                   </SpaceBetween>
                 </Header>
               }
             >
-              <Box color="text-body-secondary">{report.description}</Box>
+              <Box color="text-body-secondary">{getLabel(report.id, 'desc')}</Box>
               {!report.exportEndpoint && (
                 <Box color="text-status-inactive" fontSize="body-s" padding={{ top: 'xs' }}>
-                  CSV export: available via API
+                  {t('pages.reports_page.csv_api')}
                 </Box>
               )}
             </Container>
           ))}
         </ColumnLayout>
 
-        <Container header={<Header variant="h3">Custom Export</Header>}>
+        <Container header={<Header variant="h3">{t('pages.reports_page.custom_export')}</Header>}>
           <SpaceBetween size="m">
             <Box color="text-body-secondary">
-              Use the Change History page for filtered audit exports, or the Tenant Health page for a real-time health snapshot.
+              {t('pages.reports_page.custom_desc')}
             </Box>
             <SpaceBetween size="xs" direction="horizontal">
               <Button variant="inline-link" href={`/companies/${cid}/tenancy/change-history`}>
-                Change History & Audit Export →
+                {t('pages.reports_page.change_history_link')}
               </Button>
               <Button variant="inline-link" href={`/companies/${cid}/tenancy/health`}>
-                Tenant Health Report →
+                {t('pages.reports_page.tenant_health_link')}
               </Button>
             </SpaceBetween>
           </SpaceBetween>
