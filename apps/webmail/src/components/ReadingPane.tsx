@@ -301,6 +301,11 @@ export function ReadingPane({
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     copyTimerRef.current = setTimeout(() => setCopiedEmail(''), 2000);
   }, []);
+
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 });
+  }, [message?.id]);
   if (loading) {
     return (
       <main
@@ -377,6 +382,7 @@ export function ReadingPane({
 
   return (
     <main
+      ref={scrollContainerRef}
       aria-label="메일 읽기"
       style={{
         flex: 1,
