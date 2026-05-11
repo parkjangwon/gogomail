@@ -16,10 +16,12 @@ import {
   BarsArrowUpIcon,
   ArrowPathIcon,
   XMarkIcon,
+  ChevronDownIcon,
+  CheckIcon as CheckIconOutline,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
-type FilterMode = 'all' | 'unread' | 'starred';
+type FilterMode = 'all' | 'unread' | 'read' | 'starred' | 'unstarred' | 'attachment' | 'noattachment';
 
 const AVATAR_COLORS = ['#2F6EE0', '#0D9488', '#7C3AED', '#EA580C', '#DB2777', '#059669', '#D97706', '#DC2626'];
 function avatarColor(name: string): string {
@@ -113,6 +115,8 @@ interface MessageListProps {
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
@@ -135,6 +139,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     const el = scrollContainerRef.current.querySelector<HTMLElement>(`[data-message-id="${selectedId}"]`);
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!showFilterDropdown) return;
+    function onDown(e: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showFilterDropdown]);
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || !onLoadMore) return;
@@ -214,10 +229,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const baseFiltered = filterMode === 'unread'
-    ? messages.filter((m) => !m.read)
-    : filterMode === 'starred'
-    ? messages.filter((m) => m.starred)
+  const baseFiltered =
+    filterMode === 'unread' ? messages.filter((m) => !m.read)
+    : filterMode === 'read' ? messages.filter((m) => m.read)
+    : filterMode === 'starred' ? messages.filter((m) => m.starred)
+    : filterMode === 'unstarred' ? messages.filter((m) => !m.starred)
+    : filterMode === 'attachment' ? messages.filter((m) => m.has_attachment)
+    : filterMode === 'noattachment' ? messages.filter((m) => !m.has_attachment)
     : messages;
 
   const afterLabelFilter = filterLabel
@@ -425,35 +443,89 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           style={{ padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', display: 'inline-flex', alignItems: 'center' }}
         ><Bars3Icon style={{ width: '18px', height: '18px' }} /></button>
       )}
-      <button
-        aria-label="전체 선택"
-        onClick={selectAll}
-        style={{ fontSize: '13px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', marginRight: '4px' }}
-        title="전체 선택 (Ctrl+A)"
-      >☐</button>
-      {(['all', 'unread', 'starred'] as FilterMode[]).map((mode) => {
-        const label = mode === 'all' ? '전체' : mode === 'unread' ? '안읽음' : '별표';
-        const active = filterMode === mode;
-        return (
-          <button
-            key={mode}
-            onClick={() => setFilterMode(mode)}
+      {/* Gmail-style checkbox + filter dropdown */}
+      <div ref={filterDropdownRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginRight: '4px', flexShrink: 0 }}>
+        {/* Checkbox area */}
+        <button
+          aria-label="전체 선택"
+          onClick={() => { bulkSelected.size === filteredMessages.length && filteredMessages.length > 0 ? clearAll() : selectAll(); }}
+          title="전체 선택/해제 (Ctrl+A)"
+          style={{ padding: '4px 5px', border: '1px solid var(--color-border-default)', borderRight: 'none', borderRadius: '4px 0 0 4px', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >
+          <div style={{
+            width: '14px', height: '14px', borderRadius: '2px',
+            border: `1.5px solid ${bulkSelected.size > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)'}`,
+            background: bulkSelected.size === filteredMessages.length && filteredMessages.length > 0 ? 'var(--color-accent)' : 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative',
+          }}>
+            {bulkSelected.size > 0 && bulkSelected.size < filteredMessages.length && (
+              <div style={{ width: '8px', height: '1.5px', background: 'var(--color-accent)', borderRadius: '1px' }} />
+            )}
+            {bulkSelected.size === filteredMessages.length && filteredMessages.length > 0 && (
+              <CheckIconOutline style={{ width: '10px', height: '10px', color: '#fff' }} />
+            )}
+          </div>
+        </button>
+        {/* Dropdown arrow */}
+        <button
+          aria-label="필터 선택"
+          onClick={() => setShowFilterDropdown((v) => !v)}
+          title="필터"
+          style={{ padding: '4px 4px', border: '1px solid var(--color-border-default)', borderRadius: '0 4px 4px 0', background: showFilterDropdown ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--color-text-tertiary)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+          onMouseLeave={(e) => { if (!showFilterDropdown) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >
+          <ChevronDownIcon style={{ width: '11px', height: '11px' }} />
+        </button>
+        {/* Filter dropdown menu */}
+        {showFilterDropdown && (
+          <div
             style={{
-              padding: '3px 10px',
-              borderRadius: '12px',
-              border: active ? 'none' : '1px solid var(--color-border-default)',
-              background: active ? 'var(--color-accent)' : 'transparent',
-              color: active ? '#fff' : 'var(--color-text-secondary)',
-              fontSize: '12px',
-              fontWeight: active ? 500 : 400,
-              cursor: 'pointer',
-              transition: 'all 100ms ease',
+              position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 200,
+              background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)',
+              borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: '160px', padding: '4px 0',
             }}
+            onMouseLeave={() => setShowFilterDropdown(false)}
           >
-            {label}
-          </button>
-        );
-      })}
+            {([
+              { mode: 'all' as FilterMode, label: '전체' },
+              { mode: 'unread' as FilterMode, label: '읽지 않음' },
+              { mode: 'read' as FilterMode, label: '읽음' },
+              { mode: 'starred' as FilterMode, label: '별표' },
+              { mode: 'unstarred' as FilterMode, label: '별표 없음' },
+              { mode: 'attachment' as FilterMode, label: '첨부 파일 있음' },
+              { mode: 'noattachment' as FilterMode, label: '첨부 파일 없음' },
+            ]).map(({ mode, label }) => (
+              <button
+                key={mode}
+                onClick={() => { setFilterMode(mode); setShowFilterDropdown(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  width: '100%', padding: '8px 14px', border: 'none',
+                  background: 'transparent', color: 'var(--color-text-primary)',
+                  fontSize: '13px', cursor: 'pointer', textAlign: 'left',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                <span style={{ width: '14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {filterMode === mode && <CheckIconOutline style={{ width: '13px', height: '13px', color: 'var(--color-accent)' }} />}
+                </span>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {filterMode !== 'all' && (
+        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: 'var(--color-accent-subtle)', color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {filterMode === 'unread' ? '읽지 않음' : filterMode === 'read' ? '읽음' : filterMode === 'starred' ? '별표' : filterMode === 'unstarred' ? '별표 없음' : filterMode === 'attachment' ? '첨부 있음' : '첨부 없음'}
+          <button onClick={() => setFilterMode('all')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--color-accent)' }}><XMarkIcon style={{ width: '11px', height: '11px' }} /></button>
+        </span>
+      )}
       {/* Label color filter dots */}
       {activeLabelColors.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '2px' }}>
@@ -476,16 +548,6 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
         {filterMode !== 'all' || filterLabel ? `${filteredMessages.length} / ${messages.length}개` : `${filteredMessages.length}개`}
       </span>
-      {filteredMessages.some((m) => !m.read) && (
-        <button
-          aria-label="읽지 않은 메일 선택"
-          onClick={() => setBulkSelected(new Set(filteredMessages.filter((m) => !m.read).map((m) => m.id)))}
-          title="안읽음 선택"
-          style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
-        >
-          안읽음 선택
-        </button>
-      )}
       {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
         <button
           aria-label={emptyFolderLabel}
