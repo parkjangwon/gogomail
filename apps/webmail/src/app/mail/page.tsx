@@ -435,6 +435,13 @@ export default function MailPage() {
           onStar={handleStar}
           onBulkDelete={handleBulkDelete}
           onBulkMarkRead={handleBulkMarkRead}
+          folders={folders}
+          onBulkMove={async (ids, folderId) => {
+            setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+            if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+            await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
+            addToast(`${ids.length}개를 이동했습니다`);
+          }}
           onRefresh={refresh}
           refreshing={refreshing}
           isMobile={isMobile}

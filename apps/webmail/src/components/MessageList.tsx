@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageSummary } from '@/lib/api';
+import { MessageSummary, Folder } from '@/lib/api';
 
 type FilterMode = 'all' | 'unread' | 'starred';
 
@@ -59,12 +59,15 @@ interface MessageListProps {
   onMarkAllRead?: () => void;
   emptyFolderLabel?: string;
   onEmptyFolder?: () => void;
+  folders?: Folder[];
+  onBulkMove?: (ids: string[], folderId: string) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +166,43 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
           읽음
         </button>
+      )}
+      {onBulkMove && folders && folders.length > 0 && (
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setBulkMoveOpen((v) => !v)}
+            style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+          >
+            이동
+          </button>
+          {bulkMoveOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              marginTop: '4px',
+              background: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-border-default)',
+              borderRadius: '6px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              zIndex: 200,
+              minWidth: '140px',
+              overflow: 'hidden',
+            }}>
+              {folders.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { onBulkMove([...bulkSelected], f.id); clearAll(); setBulkMoveOpen(false); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       {onBulkDelete && (
         <button onClick={() => { onBulkDelete([...bulkSelected]); clearAll(); }}
