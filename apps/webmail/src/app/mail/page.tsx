@@ -16,7 +16,6 @@ import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
-import { SearchBar } from '@/components/SearchBar';
 import { AppIconBar, AppId } from '@/components/AppIconBar';
 import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
@@ -461,11 +460,6 @@ export default function MailPage() {
     const merged = { ...advancedFilters, ...operators };
     searchDebounceRef.current = setTimeout(() => runSearch(plainQ, merged), 300);
   }, [advancedFilters, runSearch, parseSearchOperators]);
-
-  const handleFilterChange = useCallback((filters: AdvancedFilters) => {
-    setAdvancedFilters(filters);
-    runSearch(searchQuery, filters);
-  }, [searchQuery, runSearch]);
 
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
@@ -1220,18 +1214,6 @@ export default function MailPage() {
           )}
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-
-            {/* Gmail-style top search bar */}
-            <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
-              <div style={{ maxWidth: '720px', width: '100%' }}>
-                <SearchBar
-                  value={searchQuery}
-                  onChange={handleSearch}
-                  advancedFilters={advancedFilters}
-                  onAdvancedFilterChange={handleFilterChange}
-                />
-              </div>
-            </div>
 
             {/* Thread view toggle */}
             {!searchResults && !activeFolderId.startsWith('__') && (
