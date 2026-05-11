@@ -390,6 +390,32 @@ export default function MailPage() {
     }).catch(() => {});
   }, [selectedMessageId, folders, getNextId, setMessages]);
 
+  const handleSpam = useCallback(() => {
+    if (!selectedMessageId) return;
+    const spamFolder = folders.find((f) => f.system_type === 'spam' || f.system_type === 'junk');
+    if (!spamFolder) return;
+    const id = selectedMessageId;
+    const nextId = getNextId(id);
+    void moveMessage(id, spamFolder.id).then(() => {
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      setSelectedMessageId(nextId);
+      addToast('스팸으로 이동했습니다', 'info');
+    }).catch(() => addToast('이동에 실패했습니다', 'error'));
+  }, [selectedMessageId, folders, getNextId, setMessages, addToast]);
+
+  const handleNotSpam = useCallback(() => {
+    if (!selectedMessageId) return;
+    const inboxFolder = folders.find((f) => f.system_type === 'inbox');
+    if (!inboxFolder) return;
+    const id = selectedMessageId;
+    const nextId = getNextId(id);
+    void moveMessage(id, inboxFolder.id).then(() => {
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      setSelectedMessageId(nextId);
+      addToast('받은 편지함으로 이동했습니다', 'info');
+    }).catch(() => addToast('이동에 실패했습니다', 'error'));
+  }, [selectedMessageId, folders, getNextId, setMessages, addToast]);
+
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
@@ -458,7 +484,7 @@ export default function MailPage() {
           if (firstUnread) setSelectedMessageId(firstUnread.id);
           return;
         }
-        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive' };
+        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive', p: 'spam' };
         const target = systemTypeMap[e.key];
         if (target) {
           const folder = folders.find((f) => f.system_type === target);
@@ -906,7 +932,9 @@ export default function MailPage() {
         <ReadingPane
           message={selectedMessage}
           folders={folders}
-          onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchive : undefined}
+          onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' ? handleArchive : undefined}
+          onSpam={folders.some((f) => f.system_type === 'spam' || f.system_type === 'junk') && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' && activeFolderSystemType !== 'trash' ? handleSpam : undefined}
+          onNotSpam={activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk' ? handleNotSpam : undefined}
           onDelete={handleDelete}
           onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
           onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}

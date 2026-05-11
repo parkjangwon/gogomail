@@ -58,6 +58,9 @@ const SYSTEM_FOLDER_ICONS: Record<string, string> = {
   sent: '📤',
   drafts: '✏️',
   trash: '🗑️',
+  spam: '🚫',
+  junk: '🚫',
+  archive: '📦',
 };
 
 interface SidebarProps {
