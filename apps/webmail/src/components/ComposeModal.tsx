@@ -94,6 +94,21 @@ function buildQuoteHTML(intent: string, source: MessageDetail): string {
   return `<p></p>${header}<blockquote><p><strong>보낸 사람:</strong> ${from}</p><p><strong>날짜:</strong> ${escapeHtml(date)}</p><p><strong>제목:</strong> ${escapeHtml(source.subject || '(제목 없음)')}</p><p>&nbsp;</p>${bodyLines}</blockquote>`;
 }
 
+const SLASH_COMMANDS = [
+  { id: 'h1', label: '제목 1', desc: 'Heading 1', icon: 'H1' },
+  { id: 'h2', label: '제목 2', desc: 'Heading 2', icon: 'H2' },
+  { id: 'h3', label: '제목 3', desc: 'Heading 3', icon: 'H3' },
+  { id: 'bullet', label: '글머리 목록', desc: 'Bullet list', icon: '•' },
+  { id: 'numbered', label: '번호 목록', desc: 'Numbered list', icon: '1.' },
+  { id: 'quote', label: '인용문', desc: 'Blockquote / callout', icon: '"' },
+  { id: 'code', label: '코드 블록', desc: 'Code block', icon: '</>' },
+  { id: 'hr', label: '구분선', desc: 'Horizontal divider', icon: '—' },
+  { id: 'bold', label: '굵게', desc: 'Bold text', icon: 'B' },
+  { id: 'italic', label: '기울임', desc: 'Italic text', icon: 'I' },
+] as const;
+
+type SlashCommand = typeof SLASH_COMMANDS[number];
+
 const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   width: '28px',
   height: '28px',
@@ -183,6 +198,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [templateSaveName, setTemplateSaveName] = useState('');
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
+  // Slash command menu state
+  const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; left: number } | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const slashStartPosRef = useRef<number | null>(null);
+  const slashMenuRef = useRef<typeof slashMenu>(null);
+  const slashIndexRef = useRef(0);
+  const runSlashCommandRef = useRef<((cmd: SlashCommand) => void) | null>(null);
+  useEffect(() => { slashMenuRef.current = slashMenu; }, [slashMenu]);
+  useEffect(() => { slashIndexRef.current = slashIndex; }, [slashIndex]);
+
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
@@ -283,6 +308,20 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showTemplates]);
 
+  // Close slash menu on outside click
+  useEffect(() => {
+    if (!slashMenu) return;
+    function handleOutsideClick(e: MouseEvent) {
+      const target = e.target as Node;
+      // If the click is inside the editor, let the onUpdate handler decide
+      if (dialogRef.current?.contains(target)) return;
+      setSlashMenu(null);
+      slashStartPosRef.current = null;
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [slashMenu]);
+
   const toRef = useRef(draftMessage ? draftTo : replyTo);
   const ccRef = useRef(draftMessage ? draftCc : replyCc);
   const bccRef = useRef('');
@@ -334,9 +373,61 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         role: 'textbox',
         'aria-multiline': 'true',
       },
+      handleKeyDown: (_view, event) => {
+        const menu = slashMenuRef.current;
+        if (!menu) return false;
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          setSlashIndex((i) => {
+            const cmds = SLASH_COMMANDS.filter((c) =>
+              !menu.query || c.id.startsWith(menu.query.toLowerCase()) || c.label.includes(menu.query)
+            );
+            return Math.min(i + 1, cmds.length - 1);
+          });
+          return true;
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          setSlashIndex((i) => Math.max(i - 1, 0));
+          return true;
+        }
+        if (event.key === 'Enter') {
+          const cmds = SLASH_COMMANDS.filter((c) =>
+            !menu.query || c.id.startsWith(menu.query.toLowerCase()) || c.label.includes(menu.query)
+          );
+          const cmd = cmds[slashIndexRef.current];
+          if (cmd) {
+            // runSlashCommand will be called after editor is fully initialized
+            // Use a microtask to avoid calling a stale closure
+            setTimeout(() => runSlashCommandRef.current?.(cmd), 0);
+            return true;
+          }
+          return false;
+        }
+        if (event.key === 'Escape') {
+          setSlashMenu(null);
+          slashStartPosRef.current = null;
+          return true;
+        }
+        return false;
+      },
     },
     onUpdate: ({ editor: e }) => {
       triggerAutoSave(toRef.current, ccRef.current, bccRef.current, subjectRef.current, e.getText());
+      // Slash command detection
+      const { from } = e.state.selection;
+      const textBefore = e.state.doc.textBetween(Math.max(0, from - 50), from, '\n');
+      const slashMatch = textBefore.match(/\/(\w*)$/);
+      if (slashMatch) {
+        const query = slashMatch[1];
+        const coords = e.view.coordsAtPos(from);
+        slashStartPosRef.current = from - slashMatch[0].length;
+        setSlashMenu({ query, top: coords.bottom + 4, left: coords.left });
+        setSlashIndex(0);
+      } else {
+        setSlashMenu(null);
+        slashStartPosRef.current = null;
+      }
     },
     onSelectionUpdate: ({ editor: e }) => {
       if (e.isActive('image')) {
@@ -522,6 +613,38 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     editor.chain().focus().setImage({ src, alt: file.name }).run();
   }, [editor]);
+
+  const runSlashCommand = useCallback((cmd: SlashCommand) => {
+    if (!editor || slashStartPosRef.current === null) return;
+    const { from } = editor.state.selection;
+    editor.chain().focus()
+      .deleteRange({ from: slashStartPosRef.current, to: from })
+      .run();
+    switch (cmd.id) {
+      case 'h1': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
+      case 'h2': editor.chain().focus().toggleHeading({ level: 2 }).run(); break;
+      case 'h3': editor.chain().focus().toggleHeading({ level: 3 }).run(); break;
+      case 'bullet': editor.chain().focus().toggleBulletList().run(); break;
+      case 'numbered': editor.chain().focus().toggleOrderedList().run(); break;
+      case 'quote': editor.chain().focus().toggleBlockquote().run(); break;
+      case 'code': editor.chain().focus().toggleCodeBlock().run(); break;
+      case 'hr': editor.chain().focus().setHorizontalRule().run(); break;
+      case 'bold': editor.chain().focus().toggleBold().run(); break;
+      case 'italic': editor.chain().focus().toggleItalic().run(); break;
+    }
+    setSlashMenu(null);
+    slashStartPosRef.current = null;
+  }, [editor]);
+  // Keep ref in sync so the stale-closure-safe handleKeyDown can call the latest version
+  runSlashCommandRef.current = runSlashCommand;
+
+  const filteredCmds = slashMenu
+    ? SLASH_COMMANDS.filter((c) =>
+        !slashMenu.query ||
+        c.id.startsWith(slashMenu.query.toLowerCase()) ||
+        c.label.includes(slashMenu.query)
+      )
+    : [];
 
   function startDrag(e: React.MouseEvent<HTMLDivElement>) {
     if (fullscreen || minimized || isMobile) return;
@@ -1221,6 +1344,43 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           </div>
         )}
       </div>
+
+      {/* Slash command floating menu */}
+      {slashMenu && filteredCmds.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: Math.min(slashMenu.top, window.innerHeight - 280),
+            left: Math.min(slashMenu.left, window.innerWidth - 240),
+            zIndex: 600,
+            width: '232px',
+            background: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: '10px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ padding: '4px 10px 2px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>서식</div>
+          {filteredCmds.map((cmd, i) => (
+            <div
+              key={cmd.id}
+              onMouseDown={(e) => { e.preventDefault(); runSlashCommand(cmd); }}
+              onMouseEnter={() => setSlashIndex(i)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', cursor: 'pointer',
+                background: i === slashIndex ? 'var(--color-bg-secondary)' : 'transparent',
+              }}
+            >
+              <div style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace' }}>{cmd.icon}</div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{cmd.label}</div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{cmd.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Floating image resize toolbar */}
       {imageResizeToolbar && editor?.isActive('image') && (
