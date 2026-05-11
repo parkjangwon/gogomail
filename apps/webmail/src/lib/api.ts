@@ -150,6 +150,39 @@ function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' });
 }
 
+export interface SearchParams {
+  q?: string;
+  folder_id?: string;
+  from?: string;
+  to?: string;
+  subject?: string;
+  since?: string;
+  until?: string;
+  has_attachment?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
+export function searchMessages(
+  params: SearchParams
+): Promise<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }> {
+  const p: Record<string, string> = {};
+  if (params.q) p.q = params.q;
+  if (params.folder_id) p.folder_id = params.folder_id;
+  if (params.from) p.from = params.from;
+  if (params.to) p.to = params.to;
+  if (params.subject) p.subject = params.subject;
+  if (params.since) p.since = params.since;
+  if (params.until) p.until = params.until;
+  if (params.has_attachment !== undefined) p.has_attachment = String(params.has_attachment);
+  if (params.limit) p.limit = String(params.limit);
+  if (params.cursor) p.cursor = params.cursor;
+  return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>(
+    'search',
+    p
+  );
+}
+
 export function getFolders(): Promise<{ folders: Folder[] }> {
   return apiGet<{ folders: Folder[] }>('folders');
 }

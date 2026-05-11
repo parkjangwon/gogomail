@@ -29,6 +29,8 @@ interface SidebarProps {
   activeFolderId: string;
   onSelectFolder: (id: string) => void;
   onCompose: () => void;
+  onSearch?: (q: string) => void;
+  searchQuery?: string;
   userName?: string;
 }
 
@@ -37,6 +39,8 @@ export function Sidebar({
   activeFolderId,
   onSelectFolder,
   onCompose,
+  onSearch,
+  searchQuery = '',
   userName = '사용자',
 }: SidebarProps) {
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
@@ -105,6 +109,8 @@ export function Sidebar({
           type="search"
           placeholder="검색..."
           aria-label="메일 검색"
+          value={searchQuery}
+          onChange={(e) => onSearch?.(e.target.value)}
           style={{
             width: '100%',
             padding: '7px 10px',

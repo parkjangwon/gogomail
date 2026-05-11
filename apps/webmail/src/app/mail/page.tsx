@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, ComposeIntent, MessageDetail } from '@/lib/api';
+import { deleteMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -21,6 +21,9 @@ export default function MailPage() {
     intent: ComposeIntent;
     source?: MessageDetail;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading } =
     useMailList(activeFolderId);
@@ -48,9 +51,25 @@ export default function MailPage() {
     );
   }, [selectedMessageId, setMessages]);
 
+  const handleSearch = useCallback(async (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults(null); return; }
+    setSearchLoading(true);
+    try {
+      const res = await searchMessages({ q: q.trim(), limit: 50 });
+      setSearchResults(res.messages ?? []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
     setSelectedMessageId(null);
+    setSearchResults(null);
+    setSearchQuery('');
   }, []);
 
   const handleSelectMessage = useCallback((id: string) => {
@@ -116,13 +135,16 @@ export default function MailPage() {
         activeFolderId={activeFolderId}
         onSelectFolder={handleSelectFolder}
         onCompose={() => setComposeContext({ intent: 'new' })}
+        onSearch={handleSearch}
+        searchQuery={searchQuery}
       />
 
       <MessageList
-        messages={messages}
+        messages={searchResults ?? messages}
         selectedId={selectedMessageId}
         onSelect={handleSelectMessage}
-        loading={messagesLoading}
+        loading={searchResults !== null ? searchLoading : messagesLoading}
+        emptyLabel={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : undefined}
       />
 
       <ReadingPane
