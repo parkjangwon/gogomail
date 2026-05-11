@@ -9,6 +9,14 @@
 
 **STATUS: IN PROGRESS**
 
+### 진행 로그 (2026-05-12)
+
+- 조직도 뷰: `GET /api/v1/directory/users?q=&limit=` 엔드포인트 추가 (`internal/httpapi/carddav.go`)
+- 조직도 뷰: `OrgChartView.tsx` — People Directory (검색, 사용자 카드 그리드, 상세 패널, 메일 쓰기)
+- 캘린더 뷰: `CalendarView.tsx` — 월/주/일 뷰, 이벤트 표시, ICS 파서 (CalendarAgent 완성)
+- `api.ts`: `listDirectoryUsers()`, `Calendar/CalendarObject` 인터페이스, `listCalendars/listCalendarObjects()` 추가
+- `page.tsx`: OrgChartPlaceholder → OrgChartView, CalendarPlaceholder → CalendarView 교체
+
 ### 진행 로그 (2026-05-11)
 
 - TASK-090: API 통합 완료 — field name 불일치 전면 수정 (from_addr, read, received_at 등)

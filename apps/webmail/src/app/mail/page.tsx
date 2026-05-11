@@ -20,7 +20,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { AppIconBar, AppId } from '@/components/AppIconBar';
 import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
-import { OrgChartPlaceholder } from '@/components/OrgChartPlaceholder';
+import { OrgChartView } from '@/components/OrgChartView';
 
 export default function MailPage() {
   const router = useRouter();
@@ -1011,7 +1011,7 @@ export default function MailPage() {
       ) : activeApp === 'contacts' ? (
         <ContactsView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
       ) : (
-        <OrgChartPlaceholder />
+        <OrgChartView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
       )}
 
       {/* Slide-in reading pane overlay */}
