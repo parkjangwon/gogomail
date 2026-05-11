@@ -176,6 +176,25 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'x') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+      const id = selectedIdRef.current;
+      if (!id) return;
+      setBulkSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const baseFiltered = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
     : filterMode === 'starred'
