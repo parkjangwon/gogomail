@@ -33,6 +33,7 @@ interface ReadingPaneProps {
   onReply?: () => void;
   onReplyAll?: () => void;
   onForward?: () => void;
+  onMarkUnread?: () => void;
   loading?: boolean;
 }
 
@@ -98,6 +99,7 @@ export function ReadingPane({
   onReply,
   onReplyAll,
   onForward,
+  onMarkUnread,
   loading,
 }: ReadingPaneProps) {
   if (loading) {
@@ -199,6 +201,7 @@ export function ReadingPane({
         <ActionButton label="답장" onClick={onReply} />
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
+        <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>
 

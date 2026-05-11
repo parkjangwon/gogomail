@@ -61,5 +61,11 @@ export function useMailList(folderId: string) {
     }
   }, [folderId]);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore };
+  const adjustUnread = useCallback((folderId: string, delta: number) => {
+    setFolders((prev) =>
+      prev.map((f) => f.id === folderId ? { ...f, unread: Math.max(0, f.unread + delta) } : f)
+    );
+  }, []);
+
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread };
 }

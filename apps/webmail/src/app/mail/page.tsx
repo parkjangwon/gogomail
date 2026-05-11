@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, starMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, starMessage, markRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -25,7 +25,7 @@ export default function MailPage() {
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore } =
+  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread } =
     useMailList(activeFolderId);
 
   // Set default folder to inbox UUID once folders are loaded
@@ -44,13 +44,29 @@ export default function MailPage() {
     if (!token) router.push('/login');
   }, [router]);
 
-  // Mark selected message as read locally
+  // Mark selected message as read locally + update sidebar badge
   useEffect(() => {
     if (!selectedMessageId) return;
+    setMessages((prev) => {
+      const msg = prev.find((m) => m.id === selectedMessageId);
+      if (msg && !msg.read) adjustUnread(activeFolderId, -1);
+      return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
+    });
+  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId]);
+
+  const handleMarkUnread = useCallback(async () => {
+    if (!selectedMessageId) return;
     setMessages((prev) =>
-      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
+      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
     );
-  }, [selectedMessageId, setMessages]);
+    adjustUnread(activeFolderId, 1);
+    markRead(selectedMessageId, false).catch(() => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
+      );
+      adjustUnread(activeFolderId, -1);
+    });
+  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId]);
 
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
@@ -212,6 +228,7 @@ export default function MailPage() {
         onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
         onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
         onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
+        onMarkUnread={handleMarkUnread}
         loading={messageLoading}
       />
 
