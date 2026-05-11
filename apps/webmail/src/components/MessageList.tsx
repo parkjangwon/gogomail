@@ -11,6 +11,9 @@ import {
   PaperClipIcon,
   MagnifyingGlassIcon,
   Bars3Icon,
+  Bars4Icon,
+  BarsArrowDownIcon,
+  BarsArrowUpIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
@@ -533,9 +536,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           aria-label={compact ? '넓은 보기' : '촘촘한 보기'}
           title={compact ? '넓은 보기' : '촘촘한 보기'}
           onClick={() => { const next = !compact; setCompact(next); try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ } }}
-          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: compact ? 'var(--color-accent-subtle)' : 'transparent', color: compact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
+          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: compact ? 'var(--color-accent-subtle)' : 'transparent', color: compact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
         >
-          {compact ? '≡' : '☰'}
+          {compact ? <Bars4Icon style={{ width: '13px', height: '13px' }} /> : <Bars3Icon style={{ width: '13px', height: '13px' }} />}
         </button>
         <button
           aria-label={sortAsc ? '오래된순 정렬 중' : '최신순 정렬 중'}
@@ -548,10 +551,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
             background: sortAsc ? 'var(--color-accent-subtle)' : 'transparent',
             color: sortAsc ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
             cursor: 'pointer',
-            fontSize: '12px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px',
+            fontSize: '11px',
           }}
         >
-          {sortAsc ? '↑ 오래된순' : '↓ 최신순'}
+          {sortAsc ? <BarsArrowUpIcon style={{ width: '13px', height: '13px' }} /> : <BarsArrowDownIcon style={{ width: '13px', height: '13px' }} />}
         </button>
         {onMarkAllRead && messages.some((m) => !m.read) && (
           <button
