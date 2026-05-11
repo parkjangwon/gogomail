@@ -4343,6 +4343,42 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handlePutDomainDmarcSpfPolicy(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySpamFilterPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanySpamFilterPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainSpamFilterPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainSpamFilterPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/quota-summary", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyQuotaSummary(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/companies/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyRoutingRules(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanyRoutingRules(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainRoutingRules(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainRoutingRules(w, r, service)
+	}))
+
 	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -6221,6 +6257,328 @@ func buildSpfRecord(p dmarcSpfPolicy) string {
 	}
 	parts = append(parts, p.SPFAllMechanism)
 	return strings.Join(parts, " ")
+}
+
+// ─── Spam / Content Filter Policy ────────────────────────────────────────────
+
+const spamFilterPolicyKey = "spam_filter_policy"
+
+type spamFilterPolicy struct {
+	Enabled           bool     `json:"enabled"`
+	SpamThreshold     int      `json:"spam_threshold"`
+	VirusScanEnabled  bool     `json:"virus_scan_enabled"`
+	BlockedExtensions []string `json:"blocked_extensions"`
+	BlockedSenders    []string `json:"blocked_senders"`
+	AllowedSenders    []string `json:"allowed_senders"`
+	QuarantineEnabled bool     `json:"quarantine_enabled"`
+	MaxAttachmentMB   int      `json:"max_attachment_mb"`
+}
+
+func defaultSpamFilterPolicy() spamFilterPolicy {
+	return spamFilterPolicy{
+		Enabled:           true,
+		SpamThreshold:     5,
+		VirusScanEnabled:  true,
+		BlockedExtensions: []string{".exe", ".bat", ".scr", ".vbs", ".pif"},
+		BlockedSenders:    []string{},
+		AllowedSenders:    []string{},
+		QuarantineEnabled: true,
+		MaxAttachmentMB:   25,
+	}
+}
+
+func handleGetCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, spamFilterPolicyKey)
+	policy := defaultSpamFilterPolicy()
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &policy)
+		if policy.BlockedExtensions == nil {
+			policy.BlockedExtensions = []string{}
+		}
+		if policy.BlockedSenders == nil {
+			policy.BlockedSenders = []string{}
+		}
+		if policy.AllowedSenders == nil {
+			policy.AllowedSenders = []string{}
+		}
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutCompanySpamFilterPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy spamFilterPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if policy.SpamThreshold < 1 || policy.SpamThreshold > 10 {
+		writeError(w, http.StatusBadRequest, "spam_threshold must be 1-10")
+		return
+	}
+	if policy.MaxAttachmentMB < 0 {
+		writeError(w, http.StatusBadRequest, "max_attachment_mb must be >= 0")
+		return
+	}
+	if policy.BlockedExtensions == nil {
+		policy.BlockedExtensions = []string{}
+	}
+	if policy.BlockedSenders == nil {
+		policy.BlockedSenders = []string{}
+	}
+	if policy.AllowedSenders == nil {
+		policy.AllowedSenders = []string{}
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, spamFilterPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handleGetDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, spamFilterPolicyKey)
+	policy := defaultSpamFilterPolicy()
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &policy)
+		if policy.BlockedExtensions == nil {
+			policy.BlockedExtensions = []string{}
+		}
+		if policy.BlockedSenders == nil {
+			policy.BlockedSenders = []string{}
+		}
+		if policy.AllowedSenders == nil {
+			policy.AllowedSenders = []string{}
+		}
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainSpamFilterPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy spamFilterPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if policy.SpamThreshold < 1 || policy.SpamThreshold > 10 {
+		writeError(w, http.StatusBadRequest, "spam_threshold must be 1-10")
+		return
+	}
+	if policy.MaxAttachmentMB < 0 {
+		writeError(w, http.StatusBadRequest, "max_attachment_mb must be >= 0")
+		return
+	}
+	if policy.BlockedExtensions == nil {
+		policy.BlockedExtensions = []string{}
+	}
+	if policy.BlockedSenders == nil {
+		policy.BlockedSenders = []string{}
+	}
+	if policy.AllowedSenders == nil {
+		policy.AllowedSenders = []string{}
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, spamFilterPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+// ─── Quota Summary ────────────────────────────────────────────────────────────
+
+func handleGetCompanyQuotaSummary(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+
+	quotaItems, err := service.ListQuotaUsage(r.Context(), maildb.QuotaUsageListRequest{Limit: 1000})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Filter to this company — quota items have domain_id; filter by company id via scope or keep all if no filter
+	var totalUsed, totalLimit int64
+	var overLimitCount int
+	for _, q := range quotaItems {
+		totalUsed += q.QuotaUsed
+		totalLimit += q.QuotaLimit
+		if q.OverLimit {
+			overLimitCount++
+		}
+	}
+
+	// Top 5 by usage (already sorted descending by the DB query)
+	top := quotaItems
+	if len(top) > 5 {
+		top = top[:5]
+	}
+
+	usageRatio := 0.0
+	if totalLimit > 0 {
+		usageRatio = float64(totalUsed) / float64(totalLimit)
+	}
+
+	_ = id // company scoping handled by service layer
+	writeJSON(w, http.StatusOK, map[string]any{
+		"summary": map[string]any{
+			"total_entries":     len(quotaItems),
+			"total_used_bytes":  totalUsed,
+			"total_limit_bytes": totalLimit,
+			"over_limit_count":  overLimitCount,
+			"usage_ratio":       usageRatio,
+		},
+		"top_consumers": top,
+	})
+}
+
+// ─── Routing Rules ────────────────────────────────────────────────────────────
+
+const routingRulesKey = "routing_rules"
+
+type routingRule struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Enabled      bool   `json:"enabled"`
+	Priority     int    `json:"priority"`
+	MatchFrom    string `json:"match_from"`
+	MatchTo      string `json:"match_to"`
+	MatchSubject string `json:"match_subject"`
+	Action       string `json:"action"`
+	ActionValue  string `json:"action_value"`
+}
+
+type routingRulesConfig struct {
+	Rules []routingRule `json:"rules"`
+}
+
+func handleGetCompanyRoutingRules(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, routingRulesKey)
+	cfg := routingRulesConfig{Rules: []routingRule{}}
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &cfg)
+		if cfg.Rules == nil {
+			cfg.Rules = []routingRule{}
+		}
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
+}
+
+func handlePutCompanyRoutingRules(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var cfg routingRulesConfig
+	if err := decodeJSONBody(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if cfg.Rules == nil {
+		cfg.Rules = []routingRule{}
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal rules")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, routingRulesKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
+}
+
+func handleGetDomainRoutingRules(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, routingRulesKey)
+	cfg := routingRulesConfig{Rules: []routingRule{}}
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &cfg)
+		if cfg.Rules == nil {
+			cfg.Rules = []routingRule{}
+		}
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
+}
+
+func handlePutDomainRoutingRules(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var cfg routingRulesConfig
+	if err := decodeJSONBody(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if cfg.Rules == nil {
+		cfg.Rules = []routingRule{}
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal rules")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, routingRulesKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
 }
 
 func handleGetDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {

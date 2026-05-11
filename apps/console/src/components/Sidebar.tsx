@@ -101,6 +101,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.session_mgmt'), href: p('/security/sessions') },
         { type: 'link', text: t('nav.rate_limits'), href: p('/security/rate-limits') },
         { type: 'link', text: t('nav.dmarc_spf'), href: p('/security/dmarc') },
+        { type: 'link', text: t('nav.spam_filter'), href: p('/security/spam-filter') },
         { type: 'link', text: t('nav.compliance'), href: p('/compliance') },
       ],
     },
