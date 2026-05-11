@@ -46,6 +46,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
 
   const [to, setTo] = useState(replyTo);
   const [cc, setCc] = useState(replyCc);
+  const [bcc, setBcc] = useState('');
   const [subject, setSubject] = useState(replySubject);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +91,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
 
   const toRef = useRef(replyTo);
   const ccRef = useRef(replyCc);
+  const bccRef = useRef('');
   const subjectRef = useRef(replySubject);
 
   const editor = useEditor({
@@ -139,6 +141,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
       await sendMessage({
         to: [{ address: to.trim() }],
         ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+        ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
         subject: subject.trim(),
         text_body: bodyText,
         ...(intent !== 'new' && sourceMessage && {
@@ -256,6 +259,19 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               type="text"
               value={cc}
               onChange={(e) => { setCc(e.target.value); ccRef.current = e.target.value; triggerAutoSave(toRef.current, e.target.value, subjectRef.current, editor?.getText() ?? ''); }}
+              placeholder="example@domain.com, ..."
+              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
+            />
+          </div>
+
+          {/* BCC */}
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
+            <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>숨은 참조</label>
+            <input
+              id="compose-bcc"
+              type="text"
+              value={bcc}
+              onChange={(e) => { setBcc(e.target.value); bccRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
