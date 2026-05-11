@@ -670,37 +670,45 @@ export default function MailPage() {
 
   // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
   useEffect(() => {
+    // Korean QWERTY → Latin normalization (allows shortcuts to work in Korean IME mode)
+    const KO: Record<string, string> = {
+      'ㄷ':'e','ㄱ':'r','ㅅ':'t','ㅛ':'y','ㅕ':'u','ㅑ':'i','ㅐ':'o','ㅔ':'p',
+      'ㅁ':'a','ㄴ':'s','ㅇ':'d','ㄹ':'f','ㅎ':'g','ㅗ':'h','ㅓ':'j','ㅏ':'k','ㅣ':'l',
+      'ㅋ':'z','ㅌ':'x','ㅊ':'c','ㅍ':'v','ㅠ':'b','ㅜ':'n','ㅡ':'m',
+      'ㅂ':'q','ㅈ':'w',
+    };
     function onKeyDown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName;
       const editable = (e.target as HTMLElement).isContentEditable;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
 
+      const key = KO[e.key] ?? e.key;
       const list = searchResults ?? messages;
       const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
 
       // g+key two-key folder navigation
       if (gPrefixRef.current) {
         gPrefixRef.current = false;
-        if (e.key === 'u') {
+        if (key === 'u') {
           e.preventDefault();
           const firstUnread = list.find((m) => !m.read);
           if (firstUnread) setSelectedMessageId(firstUnread.id);
           return;
         }
         const virtualFolderMap: Record<string, string> = { w: VIRTUAL_TASKS, x: VIRTUAL_IMPORTANT };
-        if (virtualFolderMap[e.key]) { e.preventDefault(); handleSelectFolder(virtualFolderMap[e.key]); return; }
+        if (virtualFolderMap[key]) { e.preventDefault(); handleSelectFolder(virtualFolderMap[key]); return; }
         const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash', a: 'archive', p: 'spam' };
-        const target = systemTypeMap[e.key];
+        const target = systemTypeMap[key];
         if (target) {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
         const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', o: 'orgchart', v: 'drive', ',': 'settings' };
-        const appTarget = appSwitchMap[e.key];
+        const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
 
-      switch (e.key) {
+      switch (key) {
         case 'g':
           gPrefixRef.current = true;
           setTimeout(() => { gPrefixRef.current = false; }, 1000);
