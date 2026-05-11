@@ -9,7 +9,7 @@ import {
   Box,
 } from '@cloudscape-design/components';
 import { Sidebar } from './Sidebar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -36,12 +36,27 @@ function useIsMobile(breakpoint = 688) {
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [notifications] = useState<any[]>([]);
+  const [alertCount, setAlertCount] = useState(0);
   const { locale, setLocale } = useI18n();
   const { companies, currentCompany, switchCompany } = useCompany();
   const router = useRouter();
   const isMobile = useIsMobile();
 
   const cid = currentCompany?.id ?? 'default';
+
+  const alertTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    const fetchAlerts = () => {
+      fetch(`/api/admin/companies/${currentCompany.id}/alert-events`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setAlertCount((data.events ?? []).length); })
+        .catch(() => {});
+    };
+    fetchAlerts();
+    alertTimerRef.current = setInterval(fetchAlerts, 60_000);
+    return () => { if (alertTimerRef.current) clearInterval(alertTimerRef.current); };
+  }, [currentCompany?.id]);
 
   return (
     <>
@@ -52,6 +67,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             title: isMobile ? 'GGM' : 'GoGoMail Admin',
           }}
           utilities={[
+            {
+              type: 'button',
+              iconName: 'notification',
+              badge: alertCount > 0,
+              title: alertCount > 0 ? `${alertCount} active alert${alertCount > 1 ? 's' : ''}` : 'No active alerts',
+              onClick: () => router.push(`/companies/${cid}/security/alerts`),
+            },
             {
               type: 'menu-dropdown',
               text: isMobile
