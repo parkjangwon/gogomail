@@ -209,8 +209,19 @@ export default function MailPage() {
     });
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const parseSearchOperators = useCallback((raw: string): { q: string; operators: AdvancedFilters } => {
+    let q = raw;
+    const operators: AdvancedFilters = {};
+    q = q.replace(/\bfrom:(\S+)/gi, (_, val) => { operators.from = val; return ''; });
+    q = q.replace(/\bsubject:(?:"([^"]+)"|(\S+))/gi, (_, quoted, plain) => { operators.subject = quoted ?? plain; return ''; });
+    q = q.replace(/\bhas:attachment\b/gi, () => { operators.has_attachment = true; return ''; });
+    q = q.replace(/\bbefore:(\S+)/gi, (_, val) => { operators.until = val; return ''; });
+    q = q.replace(/\bafter:(\S+)/gi, (_, val) => { operators.since = val; return ''; });
+    return { q: q.replace(/\s+/g, ' ').trim(), operators };
+  }, []);
+
   const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
-    if (!q.trim() && !filters.from && !filters.since && !filters.until && !filters.has_attachment) {
+    if (!q.trim() && !filters.from && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
       setSearchResults(null);
       return;
     }
@@ -219,6 +230,7 @@ export default function MailPage() {
       const res = await searchMessages({
         q: q.trim() || undefined,
         from: filters.from || undefined,
+        subject: filters.subject || undefined,
         since: filters.since || undefined,
         until: filters.until || undefined,
         has_attachment: filters.has_attachment || undefined,
@@ -236,8 +248,10 @@ export default function MailPage() {
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => runSearch(q, advancedFilters), 300);
-  }, [advancedFilters, runSearch]);
+    const { q: plainQ, operators } = parseSearchOperators(q);
+    const merged = { ...advancedFilters, ...operators };
+    searchDebounceRef.current = setTimeout(() => runSearch(plainQ, merged), 300);
+  }, [advancedFilters, runSearch, parseSearchOperators]);
 
   const handleFilterChange = useCallback((filters: AdvancedFilters) => {
     setAdvancedFilters(filters);

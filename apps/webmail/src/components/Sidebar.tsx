@@ -47,6 +47,7 @@ function getInitials(name: string): string {
 
 export interface AdvancedFilters {
   from?: string;
+  subject?: string;
   since?: string;
   until?: string;
   has_attachment?: boolean;
@@ -275,7 +276,7 @@ export function Sidebar({
         <div style={{ padding: '12px 16px 8px', position: 'relative' }}>
           <input
             type="search"
-            placeholder="검색..."
+            placeholder="검색... (from: subject: has:attachment)"
             aria-label="메일 검색"
             value={searchQuery}
             onChange={(e) => {
