@@ -7,6 +7,7 @@ import { AdvancedFilters } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
 import { ReadingPane } from '@/components/ReadingPane';
@@ -34,6 +35,7 @@ export default function MailPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
+  const isOnline = useIsOnline();
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
     const id = Math.random().toString(36).slice(2);
@@ -55,6 +57,12 @@ export default function MailPage() {
 
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
+
+  // Update document title with total unread count
+  useEffect(() => {
+    const totalUnread = folders.reduce((sum, f) => sum + (f.unread ?? 0), 0);
+    document.title = totalUnread > 0 ? `GoGoMail (${totalUnread})` : 'GoGoMail';
+  }, [folders]);
 
   // Check auth on mount, load email
   useEffect(() => {
@@ -298,6 +306,28 @@ export default function MailPage() {
         background: 'var(--color-bg-primary)',
       }}
     >
+      {!isOnline && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 500,
+            background: '#b45309',
+            color: '#fff',
+            textAlign: 'center',
+            fontSize: '13px',
+            padding: '6px',
+            fontWeight: 500,
+          }}
+        >
+          오프라인 상태입니다. 네트워크 연결을 확인하세요.
+        </div>
+      )}
+
       <Sidebar
         folders={folders}
         activeFolderId={activeFolderId}
