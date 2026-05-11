@@ -151,7 +151,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const bulkSize = bulkSelected.size;
   const clearAllRef = useRef(clearAll);
-  useEffect(() => { clearAllRef.current = clearAll; });
+  const selectAllRef = useRef(selectAll);
+  useEffect(() => { clearAllRef.current = clearAll; selectAllRef.current = selectAll; });
   useEffect(() => {
     if (bulkSize === 0) return;
     const handler = (e: KeyboardEvent) => {
@@ -160,6 +161,18 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     window.addEventListener('keydown', handler, { capture: true });
     return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [bulkSize]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'a') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+      e.preventDefault();
+      selectAllRef.current();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const baseFiltered = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
@@ -360,7 +373,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         aria-label="전체 선택"
         onClick={selectAll}
         style={{ fontSize: '13px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', marginRight: '4px' }}
-        title="전체 선택"
+        title="전체 선택 (Ctrl+A)"
       >☐</button>
       {(['all', 'unread', 'starred'] as FilterMode[]).map((mode) => {
         const label = mode === 'all' ? '전체' : mode === 'unread' ? '안읽음' : '별표';
