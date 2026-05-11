@@ -63,6 +63,25 @@ const ACCENT_COLORS = [
   { value: '#dc2626', label: '빨강' },
 ];
 
+type ReadMark = 'instant' | '2s' | 'manual';
+type ExternalImages = 'always' | 'ask' | 'never';
+type SendDelay = 0 | 5 | 10 | 30;
+
+function loadWmSettings() {
+  try {
+    const raw = localStorage.getItem('webmail_settings');
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+  } catch { return {}; }
+}
+function saveWmSetting(key: string, value: unknown) {
+  try {
+    const s = loadWmSettings();
+    s[key] = value;
+    localStorage.setItem('webmail_settings', JSON.stringify(s));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'webmail_settings', newValue: JSON.stringify(s) }));
+  } catch { /* ignore */ }
+}
+
 export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const router = useRouter();
   const [signature, setSignature] = useState('');
@@ -75,6 +94,11 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
   const [displayName, setDisplayName] = useState('');
   const [nameSaved, setNameSaved] = useState(false);
+  const [readMark, setReadMark] = useState<ReadMark>('instant');
+  const [showPreview, setShowPreview] = useState(true);
+  const [externalImages, setExternalImages] = useState<ExternalImages>('ask');
+  const [sendDelay, setSendDelay] = useState<SendDelay>(0);
+  const [quoteOnReply, setQuoteOnReply] = useState(true);
 
   useEffect(() => {
     try {
@@ -84,6 +108,12 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
       setCompact(localStorage.getItem('webmail_compact') === '1');
       setConvMode(localStorage.getItem('webmail_conv_mode') !== '0');
       setDisplayName(localStorage.getItem('webmail_display_name') ?? userName ?? '');
+      const wm = loadWmSettings();
+      setReadMark((wm.readMark as ReadMark) ?? 'instant');
+      setShowPreview((wm.showPreview as boolean) !== false);
+      setExternalImages((wm.externalImages as ExternalImages) ?? 'ask');
+      setSendDelay((wm.sendDelay as SendDelay) ?? 0);
+      setQuoteOnReply((wm.quoteOnReply as boolean) !== false);
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName]);
@@ -256,6 +286,49 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
           </SettingRow>
           <SettingRow label="대화 모드" description="같은 제목의 메일을 묶어서 표시">
             <Toggle value={convMode} onChange={applyConvMode} />
+          </SettingRow>
+        </section>
+
+        {/* Reading behavior */}
+        <section style={{ marginBottom: '32px' }}>
+          <SectionTitle>읽기</SectionTitle>
+          <SettingRow label="읽음 처리" description="메일을 열었을 때 읽음으로 표시하는 시점">
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {([['instant', '즉시'], ['2s', '2초 후'], ['manual', '수동']] as [ReadMark, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => { setReadMark(val); saveWmSetting('readMark', val); }}
+                  style={{ padding: '4px 12px', borderRadius: '6px', border: `1.5px solid ${readMark === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: readMark === val ? 'var(--color-accent-subtle)' : 'transparent', color: readMark === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: readMark === val ? 600 : 400, cursor: 'pointer' }}
+                >{label}</button>
+              ))}
+            </div>
+          </SettingRow>
+          <SettingRow label="미리보기 텍스트" description="메일 목록에서 본문 미리보기 표시">
+            <Toggle value={showPreview} onChange={(v) => { setShowPreview(v); saveWmSetting('showPreview', v); }} />
+          </SettingRow>
+          <SettingRow label="외부 이미지" description="외부 서버에서 불러오는 이미지 표시 방식">
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {([['always', '항상 표시'], ['ask', '매번 확인'], ['never', '차단']] as [ExternalImages, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => { setExternalImages(val); saveWmSetting('externalImages', val); }}
+                  style={{ padding: '4px 10px', borderRadius: '6px', border: `1.5px solid ${externalImages === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: externalImages === val ? 'var(--color-accent-subtle)' : 'transparent', color: externalImages === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: externalImages === val ? 600 : 400, cursor: 'pointer' }}
+                >{label}</button>
+              ))}
+            </div>
+          </SettingRow>
+        </section>
+
+        {/* Compose behavior */}
+        <section style={{ marginBottom: '32px' }}>
+          <SectionTitle>작성</SectionTitle>
+          <SettingRow label="전송 지연" description="전송 버튼 누른 후 실제 발송까지 대기 시간 (실행 취소 가능)">
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {([[0, '없음'], [5, '5초'], [10, '10초'], [30, '30초']] as [SendDelay, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => { setSendDelay(val); saveWmSetting('sendDelay', val); }}
+                  style={{ padding: '4px 10px', borderRadius: '6px', border: `1.5px solid ${sendDelay === val ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: sendDelay === val ? 'var(--color-accent-subtle)' : 'transparent', color: sendDelay === val ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '12px', fontWeight: sendDelay === val ? 600 : 400, cursor: 'pointer' }}
+                >{label}</button>
+              ))}
+            </div>
+          </SettingRow>
+          <SettingRow label="답장 시 원문 인용" description="회신/전달 시 원본 메일 내용 포함">
+            <Toggle value={quoteOnReply} onChange={(v) => { setQuoteOnReply(v); saveWmSetting('quoteOnReply', v); }} />
           </SettingRow>
         </section>
 
