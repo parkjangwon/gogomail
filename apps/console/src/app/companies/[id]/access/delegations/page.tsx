@@ -169,8 +169,8 @@ export default function DelegationsPage() {
                 selectedId={viewMode}
                 onChange={({ detail }) => setViewMode(detail.selectedId as 'graph' | 'list')}
                 options={[
-                  { id: 'graph', text: 'Graph View' },
-                  { id: 'list', text: 'List View' },
+                  { id: 'graph', text: t('pages.delegations_page.graph_view') },
+                  { id: 'list', text: t('pages.delegations_page.list_view') },
                 ]}
               />
               <Button variant="primary" onClick={() => setShowModal(true)}>Grant Delegation</Button>
@@ -310,33 +310,33 @@ export default function DelegationsPage() {
         >
           <SpaceBetween size="m">
             <ColumnLayout columns={2}>
-              <FormField label="Owner Type">
+              <FormField label={t('pages.delegations_page.owner_type')}>
                 <Select
                   selectedOption={KIND_OPTIONS.find(o => o.value === form.owner_kind) ?? KIND_OPTIONS[0]}
                   options={KIND_OPTIONS}
                   onChange={({ detail }) => setForm(f => ({ ...f, owner_kind: detail.selectedOption.value ?? 'user' }))}
                 />
               </FormField>
-              <FormField label="Owner ID" constraintText="Email or group ID">
+              <FormField label={t('pages.delegations_page.owner_id')} constraintText={t('pages.delegations_page.owner_id_hint')}>
                 <Input value={form.owner_id} onChange={({ detail }) => setForm(f => ({ ...f, owner_id: detail.value }))} />
               </FormField>
             </ColumnLayout>
             <ColumnLayout columns={2}>
-              <FormField label="Delegate Type">
+              <FormField label={t('pages.delegations_page.delegate_type')}>
                 <Select
                   selectedOption={KIND_OPTIONS.find(o => o.value === form.delegate_kind) ?? KIND_OPTIONS[0]}
                   options={KIND_OPTIONS}
                   onChange={({ detail }) => setForm(f => ({ ...f, delegate_kind: detail.selectedOption.value ?? 'user' }))}
                 />
               </FormField>
-              <FormField label="Delegate ID" constraintText="Who receives the permission">
+              <FormField label={t('pages.delegations_page.delegate_id')} constraintText={t('pages.delegations_page.delegate_id_hint')}>
                 <Input value={form.delegate_id} onChange={({ detail }) => setForm(f => ({ ...f, delegate_id: detail.value }))} />
               </FormField>
             </ColumnLayout>
-            <FormField label="Scope" constraintText="Mailbox path or folder — leave blank for all">
+            <FormField label={t('pages.delegations_page.scope')} constraintText={t('pages.delegations_page.scope_hint')}>
               <Input value={form.scope} placeholder="e.g. INBOX or leave blank" onChange={({ detail }) => setForm(f => ({ ...f, scope: detail.value }))} />
             </FormField>
-            <FormField label="Role">
+            <FormField label={t('pages.delegations_page.role')}>
               <Select
                 selectedOption={ROLE_OPTIONS.find(o => o.value === form.role) ?? ROLE_OPTIONS[0]}
                 options={ROLE_OPTIONS}

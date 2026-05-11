@@ -798,7 +798,7 @@ export default function UsersPage() {
           </FormField>
           <FormField
             label="Role"
-            description="Company Admin and above can log into the admin console."
+            description={t('pages.users_page.admin_role_desc')}
           >
             <Select
               selectedOption={ROLE_OPTIONS.find(o => o.value === editForm.role) ?? ROLE_OPTIONS[0]}

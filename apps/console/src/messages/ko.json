@@ -956,7 +956,8 @@
       "tab_settings": "설정",
       "tab_users": "사용자",
       "value_placeholder": "값 입력...",
-      "back_to_list": "목록으로"
+      "back_to_list": "목록으로",
+      "mail_stats_desc": "이 도메인에서 발송된 메일 — 최근 7일"
     },
     "domain_settings": {
       "title": "도메인 설정",
@@ -2065,7 +2066,8 @@
         "failed_count": "{n}명 실패",
         "importing": "가져오는 중...",
         "close": "닫기"
-      }
+      },
+      "admin_role_desc": "회사 관리자 이상만 어드민 콘솔에 로그인할 수 있습니다"
     },
     "security": {
       "mfa": "2단계 인증 (MFA)"
@@ -2181,7 +2183,9 @@
       "save_error": "라우팅 규칙 저장에 실패했습니다",
       "save_rule": "규칙 저장",
       "save_success": "라우팅 규칙이 저장되었습니다",
-      "title": "라우팅 규칙"
+      "title": "라우팅 규칙",
+      "block_placeholder": "외부 전달 차단",
+      "tag_placeholder": "긴급"
     },
     "smtp_policy_page": {
       "bounce_address_hint": "반송 메시지용 봉투-발신자 주소",
@@ -2341,6 +2345,67 @@
       "target_type": "대상 유형",
       "target_id": "대상 ID",
       "ip_address": "IP 주소"
+    },
+    "signature_page": {
+      "page_description": "회사 전체 발신 메일에 서명을 자동으로 추가합니다"
+    },
+    "legal_holds_page": {
+      "description": "규정 준수 또는 소송을 위해 사용자 사서함을 삭제로부터 보호합니다",
+      "user_email": "사용자 이메일",
+      "user_email_desc": "보관할 사서함의 사용자",
+      "reason": "사유",
+      "reason_desc": "법적 또는 규정 준수 보관 사유"
+    },
+    "admin_activity_page": {
+      "description": "조직 전체 관리자 수준 작업의 감사 추적"
+    },
+    "notification_templates_page": {
+      "subject": "제목",
+      "locale": "언어",
+      "html_body": "HTML 본문",
+      "plain_body": "일반 텍스트 본문"
+    },
+    "webhooks_page": {
+      "field_name": "이름",
+      "field_name_hint": "엔드포인트를 설명하는 이름",
+      "field_url": "엔드포인트 URL",
+      "field_url_hint": "HTTPS여야 합니다",
+      "field_secret": "시크릿",
+      "field_secret_hint": "페이로드 서명에 사용됩니다 (X-GoGoMail-Signature)",
+      "field_events": "이벤트",
+      "field_events_hint": "구독할 이벤트를 선택하세요",
+      "events_placeholder": "이벤트 선택"
+    },
+    "delegations_page": {
+      "graph_view": "그래프 보기",
+      "list_view": "목록 보기",
+      "owner_type": "소유자 유형",
+      "owner_id": "소유자 ID",
+      "owner_id_hint": "이메일 또는 그룹 ID",
+      "delegate_type": "위임자 유형",
+      "delegate_id": "위임자 ID",
+      "delegate_id_hint": "권한을 받는 사람",
+      "scope": "범위",
+      "scope_hint": "사서함 경로 또는 폴더 — 비워두면 전체",
+      "role": "역할"
+    },
+    "posture_page": {
+      "overall_score": "종합 점수"
+    },
+    "domains_page": {
+      "activate_selected": "선택 항목 활성화",
+      "suspend_selected": "선택 항목 정지",
+      "delete_selected": "선택 항목 삭제",
+      "domain_name": "도메인 이름",
+      "storage_quota": "스토리지 한도 (GB)",
+      "quota_hint": "0 = 무제한",
+      "domain_status": "상태"
+    },
+    "change_history_page": {
+      "comment": "의견 (선택 사항)",
+      "entry_title": "제목",
+      "title_hint": "변경 사항의 간략한 설명",
+      "change_description": "설명"
     }
   },
   "buttons": {

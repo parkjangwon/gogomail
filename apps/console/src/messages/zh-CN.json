@@ -985,7 +985,8 @@
       "tab_users": "用户",
       "value": "值",
       "value_placeholder": "请输入值...",
-      "verified": "已验证"
+      "verified": "已验证",
+      "mail_stats_desc": "从此域名发送的邮件 — 最近7天"
     },
     "domain_settings": {
       "title": "Title",
@@ -2160,7 +2161,8 @@
       "suspend_user": "暂停用户",
       "tab_active": "活跃",
       "tab_all": "全部",
-      "tab_suspended": "已暂停"
+      "tab_suspended": "已暂停",
+      "admin_role_desc": "公司管理员及以上级别可以登录管理控制台。"
     },
     "auth_policy_page": {
       "title": "密码与身份验证策略",
@@ -2273,7 +2275,9 @@
       "save_error": "保存路由规则失败",
       "save_rule": "保存规则",
       "save_success": "路由规则已保存",
-      "title": "路由规则"
+      "title": "路由规则",
+      "block_placeholder": "阻止外部转发",
+      "tag_placeholder": "紧急"
     },
     "smtp_policy_page": {
       "bounce_address_hint": "退信消息的信封发件人地址",
@@ -2436,6 +2440,67 @@
       "target_type": "目标类型",
       "target_id": "目标ID",
       "ip_address": "IP地址"
+    },
+    "signature_page": {
+      "page_description": "为所有外发邮件附加公司签名。"
+    },
+    "legal_holds_page": {
+      "description": "为合规或诉讼目的保护用户邮箱免于删除。",
+      "user_email": "用户邮箱",
+      "user_email_desc": "要保留邮箱的用户",
+      "reason": "原因",
+      "reason_desc": "保留的法律或合规理由"
+    },
+    "admin_activity_page": {
+      "description": "组织中所有管理员级别操作的审计追踪"
+    },
+    "notification_templates_page": {
+      "subject": "主题",
+      "locale": "语言",
+      "html_body": "HTML正文",
+      "plain_body": "纯文本正文"
+    },
+    "webhooks_page": {
+      "field_name": "名称",
+      "field_name_hint": "此端点的描述性名称",
+      "field_url": "端点URL",
+      "field_url_hint": "必须使用HTTPS",
+      "field_secret": "密钥",
+      "field_secret_hint": "用于签署有效载荷 (X-GoGoMail-Signature)",
+      "field_events": "事件",
+      "field_events_hint": "选择要订阅的事件",
+      "events_placeholder": "选择事件"
+    },
+    "delegations_page": {
+      "graph_view": "图形视图",
+      "list_view": "列表视图",
+      "owner_type": "所有者类型",
+      "owner_id": "所有者ID",
+      "owner_id_hint": "邮箱或群组ID",
+      "delegate_type": "委派者类型",
+      "delegate_id": "委派者ID",
+      "delegate_id_hint": "接收权限的人",
+      "scope": "范围",
+      "scope_hint": "邮箱路径或文件夹 — 留空表示全部",
+      "role": "角色"
+    },
+    "posture_page": {
+      "overall_score": "总体评分"
+    },
+    "domains_page": {
+      "activate_selected": "激活所选",
+      "suspend_selected": "暂停所选",
+      "delete_selected": "删除所选",
+      "domain_name": "域名",
+      "storage_quota": "存储配额 (GB)",
+      "quota_hint": "0 = 无限制",
+      "domain_status": "状态"
+    },
+    "change_history_page": {
+      "comment": "备注（可选）",
+      "entry_title": "标题",
+      "title_hint": "变更的简要描述",
+      "change_description": "描述"
     }
   },
   "buttons": {
