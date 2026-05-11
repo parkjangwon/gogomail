@@ -524,6 +524,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         onDragLeave={() => { dragCounterRef.current--; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setDragOver(false); } }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); dragCounterRef.current = 0; setDragOver(false); if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files); }}
+        onPaste={(e) => {
+          const imageFiles = Array.from(e.clipboardData.items)
+            .filter((item) => item.type.startsWith('image/'))
+            .map((item) => item.getAsFile())
+            .filter(Boolean) as File[];
+          if (imageFiles.length > 0) {
+            const dt = new DataTransfer();
+            imageFiles.forEach((f) => dt.items.add(f));
+            handleFileSelect(dt.files);
+          }
+        }}
         style={{
           position: 'fixed',
           ...(isMobile
