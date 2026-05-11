@@ -18,6 +18,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface AuditLog {
   id: string;
@@ -53,6 +54,7 @@ const RESULT_OPTIONS: SelectProps.Option[] = [
 const PAGE_SIZE = 25;
 
 export default function AdminActivityPage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
 
@@ -134,7 +136,7 @@ export default function AdminActivityPage() {
       header={
         <Header
           variant="h1"
-          description="Audit trail of all admin-level actions across the organization."
+          description={t('pages.admin_activity_page.description')}
           actions={<Button iconName="refresh" onClick={fetchLogs}>Refresh</Button>}
         >
           Admin Activity Log
