@@ -256,12 +256,16 @@ export default function MailPage() {
     setSelectedMessageId(id);
   }, []);
 
+  const getNextId = useCallback((id: string): string | null => {
+    const idx = messages.findIndex((m) => m.id === id);
+    return (messages[idx + 1] ?? messages[idx - 1])?.id ?? null;
+  }, [messages]);
+
   const handleDeleteById = useCallback((id: string) => {
     const msgToDelete = messages.find((m) => m.id === id);
-    const currentIdx = messages.findIndex((m) => m.id === id);
-    const nextMsg = messages[currentIdx + 1] ?? messages[currentIdx - 1];
+    const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
-    if (selectedMessageId === id) setSelectedMessageId(nextMsg?.id ?? null);
+    if (selectedMessageId === id) setSelectedMessageId(nextId);
 
     const timer = setTimeout(() => {
       pendingDeletesRef.current.delete(id);
@@ -300,11 +304,12 @@ export default function MailPage() {
   }, [selectedMessageId, setMessages, addToast]);
 
   const handleRestore = useCallback(async (id: string) => {
+    const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
-    if (selectedMessageId === id) setSelectedMessageId(null);
+    if (selectedMessageId === id) setSelectedMessageId(nextId);
     try { await restoreMessage(id); addToast('메일을 복구했습니다'); }
     catch { addToast('복구에 실패했습니다', 'error'); }
-  }, [selectedMessageId, setMessages, addToast]);
+  }, [selectedMessageId, getNextId, setMessages, addToast]);
 
   const handleBulkRestore = useCallback(async (ids: string[]) => {
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
@@ -345,12 +350,13 @@ export default function MailPage() {
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
+    const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
-    setSelectedMessageId(null);
+    setSelectedMessageId(nextId);
     moveMessage(id, folderId)
       .then(() => addToast('메일을 이동했습니다'))
       .catch(() => addToast('이동에 실패했습니다', 'error'));
-  }, [selectedMessageId, setMessages, addToast]);
+  }, [selectedMessageId, getNextId, setMessages, addToast]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred } : m)));
@@ -439,9 +445,10 @@ export default function MailPage() {
           if (selectedMessageId && !composeContext) {
             const archiveFolder = folders.find((f) => f.system_type === 'archive');
             if (archiveFolder) {
+              const nextId = getNextId(selectedMessageId);
               void moveMessage(selectedMessageId, archiveFolder.id).then(() => {
                 setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
-                setSelectedMessageId(null);
+                setSelectedMessageId(nextId);
               }).catch(() => {});
             }
           }
@@ -488,7 +495,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
