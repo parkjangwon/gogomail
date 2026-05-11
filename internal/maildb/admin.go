@@ -910,6 +910,27 @@ type UpdateUserPasswordHashRequest struct {
 	PasswordHash string `json:"password_hash"`
 }
 
+type UpdateUserRoleRequest struct {
+	ID   string `json:"id"`
+	Role string `json:"role"`
+}
+
+var validUserRoles = map[string]bool{
+	"user":         true,
+	"company_admin": true,
+	"system_admin": true,
+}
+
+func ValidateUpdateUserRoleRequest(req UpdateUserRoleRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	if !validUserRoles[req.Role] {
+		return fmt.Errorf("invalid role %q: must be user, company_admin, or system_admin", req.Role)
+	}
+	return nil
+}
+
 type CreateTrustedRelayRequest struct {
 	CIDR        string `json:"cidr"`
 	Description string `json:"description,omitempty"`
@@ -2140,6 +2161,25 @@ RETURNING u.id::text, u.domain_id::text, d.company_id::text, u.username, COALESC
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit user password hash transaction: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateUserRole(ctx context.Context, req UpdateUserRoleRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateUserRoleRequest(req); err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE users SET role = $2, updated_at = now() WHERE id = $1::uuid`, strings.TrimSpace(req.ID), req.Role)
+	if err != nil {
+		return fmt.Errorf("update user role: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("user %q not found", req.ID)
 	}
 	return nil
 }

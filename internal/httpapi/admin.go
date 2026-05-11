@@ -34,6 +34,7 @@ type adminRouteConfig struct {
 	routeCounters       *delivery.RouteCounters
 	storageCapabilities *storage.BackendCapabilities
 	configNotifier      configstore.Notifier
+	tokenMgr            *auth.TokenManager
 }
 
 // AdminRouteOption configures optional capabilities for RegisterAdminRoutes.
@@ -52,6 +53,59 @@ func WithStorageCapabilities(capabilities storage.BackendCapabilities) AdminRout
 // endpoint so that config change events are pushed to connected admin clients.
 func WithConfigNotifier(n configstore.Notifier) AdminRouteOption {
 	return func(cfg *adminRouteConfig) { cfg.configNotifier = n }
+}
+
+// WithTokenManager enables JWT-based admin authentication in addition to the
+// static admin token. Users with role company_admin or system_admin may log in
+// and receive a signed JWT that is accepted by all admin routes.
+func WithTokenManager(tm *auth.TokenManager) AdminRouteOption {
+	return func(cfg *adminRouteConfig) { cfg.tokenMgr = tm }
+}
+
+type adminContextKey struct{}
+
+func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {
+	c, ok := ctx.Value(adminContextKey{}).(auth.Claims)
+	return c, ok
+}
+
+func adminJWTOrStaticAuth(token string, tokenMgr *auth.TokenManager, next http.HandlerFunc) http.HandlerFunc {
+	token = strings.TrimSpace(token)
+	return func(w http.ResponseWriter, r *http.Request) {
+		// No auth configured: allow all (dev/test mode, same as original adminAuth behaviour).
+		if token == "" && tokenMgr == nil {
+			if (r.Method == http.MethodGet || r.Method == http.MethodDelete) && !rejectBodylessRequestPayload(w, r) {
+				return
+			}
+			next(w, r)
+			return
+		}
+
+		got, ok := adminTokenFromRequest(w, r)
+		if !ok {
+			return
+		}
+		authorized := false
+		if tokenMgr != nil && got != "" {
+			if claims, err := tokenMgr.Verify(got); err == nil {
+				if claims.Role == "company_admin" || claims.Role == "system_admin" {
+					r = r.WithContext(context.WithValue(r.Context(), adminContextKey{}, claims))
+					authorized = true
+				}
+			}
+		}
+		if !authorized && token != "" && constantTimeTokenEqual(got, token) {
+			authorized = true
+		}
+		if !authorized {
+			writeError(w, http.StatusUnauthorized, "admin token is required")
+			return
+		}
+		if (r.Method == http.MethodGet || r.Method == http.MethodDelete) && !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		next(w, r)
+	}
 }
 
 func rejectUnknownAPIUsageAggregateQuery(w http.ResponseWriter, r *http.Request) bool {
@@ -135,6 +189,8 @@ type AdminService interface {
 	UpdateUserStatus(ctx context.Context, req maildb.UpdateUserStatusRequest) error
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
+	UpdateUserRole(ctx context.Context, req maildb.UpdateUserRoleRequest) error
+	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
 	GetOutboxEvent(ctx context.Context, id string) (maildb.OutboxEventView, error)
@@ -512,7 +568,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	// adminAuth closes over token and cfg.tokenMgr so call sites only pass the handler.
+	adminAuth := func(next http.HandlerFunc) http.HandlerFunc {
+		return adminJWTOrStaticAuth(token, cfg.tokenMgr, next)
+	}
+	mux.HandleFunc("GET /admin/v1/console/capabilities", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -523,7 +583,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	if cfg.routeCounters != nil {
-		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /admin/v1/delivery-routes/counters", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 			if !rejectUnknownQueryKeys(w, r) {
 				return
 			}
@@ -531,7 +591,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}))
 	}
 
-	mux.HandleFunc("GET /admin/v1/companies", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "status") {
 			return
 		}
@@ -554,7 +614,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"companies": companies})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -573,7 +633,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"company": company})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -589,7 +649,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"company": company})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/companies/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/companies/{id}/quota", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -612,7 +672,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/companies/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -635,7 +695,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"company": company})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -651,7 +711,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/users/bulk-import", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/users/bulk-import", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -719,7 +779,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/users/bulk-export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/users/bulk-export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -761,7 +821,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		_, _ = w.Write(buf.Bytes())
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -777,7 +837,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -801,7 +861,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -832,7 +892,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -874,7 +934,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/config/propagate", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/config/propagate", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r, "scope") {
@@ -906,7 +966,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "status", "dns_status") {
 			return
 		}
@@ -944,7 +1004,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"domains": domains})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -960,7 +1020,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"domain": domain})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -976,7 +1036,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-check", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-check", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -992,7 +1052,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dns_check": report})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-checks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/dns-checks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "status", "since") {
 			return
 		}
@@ -1030,7 +1090,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dns_checks": checks})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/domains", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/domains", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1049,11 +1109,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/domains/bulk", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/domains/bulk", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleBulkDomains(w, r, service)
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/domains/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/domains/{id}/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1076,7 +1136,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/domains/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/domains/{id}/quota", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1099,7 +1159,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/domains/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		if !rejectUnknownQueryKeys(w, r) {
 			return
@@ -1115,7 +1175,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1131,7 +1191,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1154,7 +1214,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/api-settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/api-settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1170,7 +1230,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/api-settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/api-settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1193,7 +1253,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/domains/{id}/api-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/domains/{id}/api-keys", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1227,7 +1287,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/api-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/api-keys", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1243,7 +1303,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/domains/{id}/api-keys/{keyid}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}/api-keys/{keyid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1258,7 +1318,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/domains/{id}/api-keys/{keyid}/rotate", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/domains/{id}/api-keys/{keyid}/rotate", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1279,7 +1339,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1295,7 +1355,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1319,7 +1379,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1350,7 +1410,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/domains/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/domains/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1392,7 +1452,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/domains/{id}/policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/domains/{id}/policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1416,7 +1476,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"domain_policy": policy})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "status", "password_configured") {
 			return
 		}
@@ -1454,7 +1514,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"users": users})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/users/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1470,7 +1530,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"user": user})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1504,7 +1564,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"user": user})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/users/{id}/invite", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/users/{id}/invite", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1562,7 +1622,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"user": user})
 	})
 
-	mux.HandleFunc("PATCH /admin/v1/users/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1585,7 +1645,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/users/{id}/quota", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/quota", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1608,7 +1668,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/users/{id}/password-hash", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/password-hash", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -1631,7 +1691,30 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/users/{id}/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/role", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		var req maildb.UpdateUserRoleRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		req.ID = id
+		if err := service.UpdateUserRole(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID, "role": req.Role})
+	}))
+
+	mux.HandleFunc("GET /admin/v1/users/{id}/config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1647,7 +1730,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entries})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/users/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1671,20 +1754,20 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"config": entry})
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/users/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/users/{id}/config/{key}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/users/{id}/config/{key}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		writeError(w, http.StatusForbidden, "admin cannot modify user scope config directly")
 	}))
 
 	// MFA management routes
-	mux.HandleFunc("GET /admin/v1/users/{id}/mfa", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/users/{id}/mfa", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1700,7 +1783,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"mfa_status": status})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/users/{id}/mfa", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/users/{id}/mfa", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		id, ok := parseBoundedAdminPathValue(w, r, "id")
 		if !ok {
@@ -1713,7 +1796,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/mfa/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/mfa/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1731,7 +1814,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 
 	registerAdminDeviceTokenRoutes(mux, service, token)
 
-	mux.HandleFunc("GET /admin/v1/config/stream", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/config/stream", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1777,7 +1860,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 	}))
 
-	mux.HandleFunc("GET /admin/v1/queue", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/queue", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1789,7 +1872,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"queues": stats})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/imap/mailboxes/{id}/uid-backfill", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -1829,7 +1912,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"imap_uid_backfill": items})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/outbox-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/outbox-events", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since", "topic", "partition_key", "status") {
 			return
 		}
@@ -1867,7 +1950,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"outbox_events": events})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/outbox-events/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1883,7 +1966,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"outbox_event": event})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/audit-logs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "category", "action", "action_prefix", "result", "target_type", "company_id", "domain_id", "user_id", "actor_id", "target_id", "since") {
 			return
 		}
@@ -1903,7 +1986,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"audit_logs": logs})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/audit-logs/integrity", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/audit-logs/integrity", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since") {
 			return
 		}
@@ -1926,7 +2009,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log_integrity": view})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/audit-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/audit-logs/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -1942,7 +2025,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"audit_log": log})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/mail-flow-logs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "direction", "company_id", "domain_id", "user_id", "message_id", "rfc_message_id", "from_addr", "to_addr", "subject", "flow_status", "since", "until") {
 			return
 		}
@@ -1962,7 +2045,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_logs": logs})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/mail-flow-logs/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "direction", "company_id", "domain_id", "user_id", "since", "until") {
 			return
 		}
@@ -1978,7 +2061,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/mail-flow-logs/daily-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/daily-stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "direction", "company_id", "domain_id", "user_id", "since", "until") {
 			return
 		}
@@ -1994,7 +2077,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_daily_stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/mail-flow-logs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/mail-flow-logs/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2010,7 +2093,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"mail_flow_log": log})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/directory/principals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/directory/principals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "organization_id", "kinds", "q", "active_only") {
 			return
 		}
@@ -2030,7 +2113,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_principals": principals})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/directory/aliases/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/directory/aliases/resolve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "address", "active_only") {
 			return
 		}
@@ -2046,7 +2129,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_alias": alias})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/directory/aliases", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/directory/aliases", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "target_kind", "target_id", "q", "active_only") {
 			return
 		}
@@ -2066,7 +2149,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_aliases": aliases})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/directory/aliases", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/directory/aliases", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2085,7 +2168,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_alias": alias})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/directory/aliases/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/directory/aliases/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2101,7 +2184,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_alias": alias})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/directory/delegations", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "owner_kind", "owner_id", "delegate_kind", "delegate_id", "scope", "role", "active_only") {
 			return
 		}
@@ -2121,7 +2204,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_delegations": delegations})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/directory/delegations", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/directory/delegations", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2140,7 +2223,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_delegation": delegation})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/directory/group-memberships", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/directory/group-memberships", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "group_id", "member_kind", "member_id", "role", "active_only") {
 			return
 		}
@@ -2160,7 +2243,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_group_memberships": memberships})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/directory/group-memberships", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/directory/group-memberships", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2179,7 +2262,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"directory_group_membership": membership})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/directory/group-memberships/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/directory/group-memberships/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2195,7 +2278,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_group_membership": membership})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/directory/group-memberships/{id}/role", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/directory/group-memberships/{id}/role", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2219,7 +2302,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_group_membership": membership})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/directory/group-memberships/{id}/assignment", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/directory/group-memberships/{id}/assignment", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2243,7 +2326,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_group_membership": membership})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/directory/delegations/{id}/role", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/directory/delegations/{id}/role", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2267,7 +2350,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_delegation": delegation})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/directory/delegations/{id}/assignment", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/directory/delegations/{id}/assignment", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2291,7 +2374,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_delegation": delegation})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/directory/delegations/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/directory/delegations/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2307,7 +2390,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"directory_delegation": delegation})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/backpressure", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2324,7 +2407,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/backpressure", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/backpressure", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -2348,7 +2431,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"backpressure": state})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "scope", "domain_id", "over_limit", "over_allocated") {
 			return
 		}
@@ -2386,7 +2469,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_usage": usages})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/attachment-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/attachment-cleanup/candidates", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2433,7 +2516,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/attachment-upload-sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/attachment-upload-sessions", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "draft_id", "status") {
 			return
 		}
@@ -2471,7 +2554,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"attachment_upload_sessions": sessions})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/drive-upload-sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/drive-upload-sessions", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "status") {
 			return
 		}
@@ -2509,7 +2592,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_upload_sessions": sessions})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/drive-nodes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/drive-nodes", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -2575,7 +2658,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_nodes": nodes})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/drive-nodes/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/drive-nodes/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -2612,7 +2695,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_node": node})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/drive-usage", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/drive-usage", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -2640,7 +2723,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_usage_summary": summary})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/candidates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/candidates", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2674,7 +2757,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/drive-upload-cleanup/runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2709,7 +2792,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/drive-cleanup-failures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/drive-cleanup-failures", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "user_id", "status") {
 			return
 		}
@@ -2743,7 +2826,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_cleanup_failures": failures})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/drive-cleanup-failures/{id}/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/drive-cleanup-failures/{id}/resolve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -2762,7 +2845,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"drive_cleanup_failure": resolved})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/drive-cleanup-failures/retry-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/drive-cleanup-failures/retry-runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2798,7 +2881,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/attachment-cleanup/runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2852,7 +2935,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/daily", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/daily", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageAggregateQuery(w, r) {
 			return
 		}
@@ -2872,7 +2955,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_daily": usages})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/monthly", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/monthly", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageAggregateQuery(w, r) {
 			return
 		}
@@ -2892,7 +2975,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_monthly": usages})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageLedgerQuery(w, r) {
 			return
 		}
@@ -2912,7 +2995,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger": usages})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageLedgerQuery(w, r) {
 			return
 		}
@@ -2933,7 +3016,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeNDJSON(w, http.StatusOK, usages)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageLedgerStatsQuery(w, r) {
 			return
 		}
@@ -2949,7 +3032,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-readiness", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageRetentionReadinessQuery(w, r) {
 			return
 		}
@@ -2965,7 +3048,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_readiness": readiness})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/ledger/retention-runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -2988,7 +3071,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageRetentionRunListQuery(w, r) {
 			return
 		}
@@ -3008,7 +3091,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_runs": runs})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/ledger/retention-runs/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3024,7 +3107,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_ledger_retention_run": run})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/dav-sync/retention-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-readiness", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownDAVSyncRetentionReadinessQuery(w, r) {
 			return
 		}
@@ -3040,7 +3123,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_readiness": readiness})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/dav-sync/retention-runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3063,7 +3146,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_run": run})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownDAVSyncRetentionRunListQuery(w, r) {
 			return
 		}
@@ -3083,7 +3166,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_runs": runs})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/dav-sync/retention-runs/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3099,7 +3182,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dav_sync_retention_run": run})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-capabilities", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3111,7 +3194,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_capabilities": capabilities})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -3134,7 +3217,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_batch": batch})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownAPIUsageExportBatchListQuery(w, r) {
 			return
 		}
@@ -3154,7 +3237,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batches": batches})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3170,7 +3253,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_batch": batch})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/handoff-readiness", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "deep") {
 			return
 		}
@@ -3190,7 +3273,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_handoff_readiness": handoff})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit") {
 			return
 		}
@@ -3217,7 +3300,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeNDJSON(w, http.StatusOK, usages)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3240,7 +3323,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_artifact": artifact})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit") {
 			return
 		}
@@ -3260,7 +3343,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifacts": artifacts})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts/write", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/artifacts/write", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3284,7 +3367,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_artifact": artifact})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3300,7 +3383,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifact": artifact})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/download", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3324,7 +3407,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		_, _ = io.Copy(w, body)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/artifacts/{artifact_id}/verification", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3340,7 +3423,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_artifact_verification": verification})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -3359,7 +3442,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_manifest_digest": digest})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit") {
 			return
 		}
@@ -3379,7 +3462,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digests": digests})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3395,7 +3478,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digest": digest})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/verification", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3411,7 +3494,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_digest_verification": verification})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -3430,7 +3513,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"api_usage_export_manifest_signature": signature})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit") {
 			return
 		}
@@ -3450,7 +3533,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_signatures": signatures})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3466,7 +3549,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_signature": signature})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/api-usage/export-batches/{id}/manifest-digests/{digest_id}/signatures/{signature_id}/verification", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3482,7 +3565,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"api_usage_export_manifest_signature_verification": verification})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-reconciliation", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit") {
 			return
 		}
@@ -3498,7 +3581,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_reconciliation": reconciliation})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/quota-reconciliation/corrections", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/quota-reconciliation/corrections", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -3517,7 +3600,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_correction": result})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "scope") {
 			return
 		}
@@ -3545,7 +3628,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_thresholds": thresholds})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-alert-thresholds/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3561,7 +3644,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_threshold": threshold})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/quota-alert-thresholds", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/quota-alert-thresholds", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -3580,7 +3663,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"quota_alert_threshold": threshold})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/quota-alert-thresholds/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -3604,7 +3687,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert_threshold": threshold})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/quota-alert-thresholds/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/quota-alert-thresholds/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3619,7 +3702,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-alerts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-alerts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "company_id", "domain_id", "user_id", "scope", "alert_type", "since", "until") {
 			return
 		}
@@ -3672,7 +3755,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alerts": alerts})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/quota-alerts/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/quota-alerts/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3688,7 +3771,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"quota_alert": alert})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/delivery-attempts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since", "status", "recipient_domain", "message_id", "farm", "sender") {
 			return
 		}
@@ -3736,7 +3819,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"delivery_attempts": attempts})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/delivery-attempts/stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/delivery-attempts/stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "since", "status", "recipient_domain", "message_id", "farm", "sender") {
 			return
 		}
@@ -3779,7 +3862,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"delivery_attempt_stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/delivery-attempts/exhausted", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/delivery-attempts/exhausted", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since", "recipient_domain", "message_id", "farm", "sender") {
 			return
 		}
@@ -3822,7 +3905,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"exhausted_attempts": attempts})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/push-notification-attempts", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/push-notification-attempts", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "since", "status", "user_id", "message_id", "platform", "device_id", "provider_status", "provider_message_id") {
 			return
 		}
@@ -3880,7 +3963,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"push_notification_attempts": attempts})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/push-notification-attempts/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/push-notification-attempts/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -3896,7 +3979,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"push_notification_attempt": attempt})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/push-notification-attempts/{id}/outcome", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/push-notification-attempts/{id}/outcome", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -3919,7 +4002,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/push-notification-stats", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/push-notification-stats", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "since", "user_id", "message_id", "platform", "device_id") {
 			return
 		}
@@ -3957,7 +4040,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"push_notification_stats": stats})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/suppression-list", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/suppression-list", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "email", "reason") {
 			return
 		}
@@ -3995,7 +4078,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"suppression_list": entries})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/trusted-relays", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "cidr", "description") {
 			return
 		}
@@ -4028,7 +4111,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"trusted_relays": relays})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/trusted-relays", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/trusted-relays", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -4047,7 +4130,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"trusted_relay": relay})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/delivery-routes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/delivery-routes", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "status", "farm", "domain_pattern") {
 			return
 		}
@@ -4085,7 +4168,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"delivery_routes": routes})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/delivery-routes", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/delivery-routes", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -4104,7 +4187,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"delivery_route": route})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/delivery-routes/resolve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "domain") {
 			return
 		}
@@ -4120,7 +4203,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"delivery_route_resolution": result})
 	}))
 
-	mux.HandleFunc("PATCH /admin/v1/delivery-routes/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /admin/v1/delivery-routes/{id}/status", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -4143,7 +4226,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
-	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "status") {
 			return
 		}
@@ -4176,7 +4259,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dkim_keys": keys})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/dkim-keys", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/dkim-keys", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -4195,7 +4278,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/dkim-keys/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -4210,7 +4293,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/dkim-keys/{id}/verify-dns", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -4229,7 +4312,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"dkim_verification": result})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/outbox/{id}/retry", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -4247,7 +4330,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/suppression-list/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/suppression-list/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -4262,7 +4345,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/trusted-relays/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/trusted-relays/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -4277,7 +4360,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/delivery-routes/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/delivery-routes/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r) {
 			return
 		}
@@ -4292,43 +4375,43 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": id})
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateAlertRule(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/alert-rules/{ruleid}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/alert-rules/{ruleid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetAlertRule(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListAlertRules(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/alert-rules/{ruleid}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/alert-rules/{ruleid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleUpdateAlertRule(w, r, service)
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/alert-rules/{ruleid}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/alert-rules/{ruleid}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteAlertRule(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-channels", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/alert-channels", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateAlertChannel(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-channels", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-channels", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListAlertChannels(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-events", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/alert-events", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListAlertEvents(w, r, service)
 	}))
 
 	mux.HandleFunc("POST /admin/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		handleAdminLogin(w, r, service)
+		handleAdminLogin(w, r, service, cfg.tokenMgr)
 	})
 
-	mux.HandleFunc("POST /admin/v1/auth/setup", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/auth/setup", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminSetup(w, r, service)
 	}))
 
@@ -4340,183 +4423,183 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handleAdminVerify(w, r)
 	})
 
-	mux.HandleFunc("GET /admin/v1/admin-users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/admin-users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListAdminUsers(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/admin-users", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/admin-users", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateAdminUser(w, r, service)
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/admin-users/{id}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteAdminUser(w, r)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/health", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleAdminHealth(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/organization/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/organization/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetOrganizationSettings(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/organization/settings", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/organization/settings", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleUpdateOrganizationSettings(w, r)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/compliance", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/compliance", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListCompliance(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/roles", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/roles", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListRoles(w, r)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/roles", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/roles", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreateRole(w, r)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/reports", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/reports", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleListReports(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/ip-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyIPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/ip-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyIPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/ip-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainIPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/ip-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/ip-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainIPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/auth-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/auth-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyAuthPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/auth-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/auth-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyAuthPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyRetentionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyRetentionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainRetentionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/retention-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/retention-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRetentionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/session-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/session-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanySessionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/session-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/session-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanySessionPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/sessions", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/sessions", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanySessions(w, r, service)
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}/sessions/{userId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/sessions/{userId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteCompanySession(w, r)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/rate-limit", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyRateLimitPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/rate-limit", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyRateLimitPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/rate-limit", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainRateLimitPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/rate-limit", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/rate-limit", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRateLimitPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainDmarcSpfPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/dmarc-spf", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainDmarcSpfPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/security/spam-filter", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanySpamFilterPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/security/spam-filter", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanySpamFilterPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/security/spam-filter", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainSpamFilterPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/spam-filter", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/security/spam-filter", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainSpamFilterPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/quota-summary", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/quota-summary", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyQuotaSummary(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/routing-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyRoutingRules(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/routing-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanyRoutingRules(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/routing-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainRoutingRules(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/routing-rules", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/routing-rules", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainRoutingRules(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/companies/{id}/sso/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/sso/config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanySSOConfig(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/sso/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/sso/config", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutCompanySSOConfig(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/sso/test", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/sso/test", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePostCompanySSOTest(w, r, service)
 	}))
 
-	mux.HandleFunc("GET /admin/v1/domains/{id}/smtp-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/domains/{id}/smtp-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetDomainSMTPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/domains/{id}/smtp-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/smtp-policy", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutDomainSMTPPolicy(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		if !rejectUnknownQueryKeys(w, r) {
@@ -4543,55 +4626,55 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 	}))
 
 	// ─── Audit Log Export ─────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/audit-logs/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/audit-logs/export", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleExportCompanyAuditLogs(w, r, service)
 	}))
 
 	// ─── Tenant Health ────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyHealth(w, r, service)
 	}))
 
 	// ─── Change History / Approval Queue ─────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/change-history", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/change-history", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyChangeHistory(w, r, service)
 	}))
-	mux.HandleFunc("GET /admin/v1/companies/{id}/pending-approvals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetPendingApprovals(w, r, service)
 	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleCreatePendingApproval(w, r, service)
 	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/approve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/approve", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleApproveApproval(w, r, service)
 	}))
-	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/reject", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/reject", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleRejectApproval(w, r, service)
 	}))
 
 	// ─── Webhooks ─────────────────────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyWebhooks(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePostCompanyWebhook(w, r, service)
 	}))
 
-	mux.HandleFunc("DELETE /admin/v1/companies/{id}/webhooks/{webhookId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /admin/v1/companies/{id}/webhooks/{webhookId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleDeleteCompanyWebhook(w, r, service)
 	}))
 
-	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks/{webhookId}/test", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /admin/v1/companies/{id}/webhooks/{webhookId}/test", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleTestCompanyWebhook(w, r, service)
 	}))
 
 	// ─── Notification Templates ───────────────────────────────────────────────
-	mux.HandleFunc("GET /admin/v1/companies/{id}/notification-templates", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /admin/v1/companies/{id}/notification-templates", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handleGetNotifTemplates(w, r, service)
 	}))
 
-	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/notification-templates/{templateId}", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		handlePutNotifTemplate(w, r, service)
 	}))
 }
@@ -5944,7 +6027,7 @@ func adminTokenFromRequest(w http.ResponseWriter, r *http.Request) (string, bool
 	return "", true
 }
 
-func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService) {
+func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminService, tokenMgr *auth.TokenManager) {
 	defer r.Body.Close()
 
 	if r.Method != "POST" {
@@ -5967,28 +6050,71 @@ func handleAdminLogin(w http.ResponseWriter, r *http.Request, service AdminServi
 		return
 	}
 
-	// Find user by email (search across all domains)
-	// For bootstrap, support "admin@system" which maps to system domain, admin username
-	if req.Email == "admin@system" {
-		// Bootstrap admin user: system domain, admin username
-		// Future: Query: SELECT id, username, password_hash, requires_initial_setup FROM users
-		// WHERE domain_id = (SELECT id FROM domains WHERE name = 'system') AND username = 'admin'
-		if req.Password == "admin1234" {
-			token := "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
-			writeJSON(w, http.StatusOK, map[string]any{
-				"access_token":           token,
-				"refresh_token":          "refresh-" + token,
-				"requires_initial_setup": true,
-			})
-			return
+	issueToken := func(claims auth.Claims) {
+		var accessToken string
+		if tokenMgr != nil {
+			var err error
+			accessToken, err = tokenMgr.Sign(claims, 24*time.Hour)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to issue token")
+				return
+			}
+		} else {
+			accessToken = "test-token-" + fmt.Sprintf("%d", time.Now().Unix())
 		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"access_token":  accessToken,
+			"refresh_token": "refresh-" + accessToken,
+			"user": map[string]any{
+				"id":         claims.UserID,
+				"role":       claims.Role,
+				"company_id": claims.CompanyID,
+			},
+		})
+	}
+
+	// Bootstrap system admin (no DB user required)
+	if req.Email == "admin@system" && req.Password == "admin1234" {
+		issueToken(auth.Claims{
+			UserID:    "system-admin",
+			DomainID:  "system",
+			CompanyID: "",
+			Role:      "system_admin",
+		})
+		return
+	}
+
+	// Authenticate real user from DB
+	authedUser, err := service.AuthenticateUser(r.Context(), req.Email, req.Password)
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
-	// For other users, would need full database integration
-	// This is placeholder for future user management
-	writeError(w, http.StatusUnauthorized, "invalid credentials")
+	userView, err := service.GetUser(r.Context(), authedUser.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load user")
+		return
+	}
+
+	if userView.Role != "company_admin" && userView.Role != "system_admin" {
+		writeError(w, http.StatusForbidden, "admin access required")
+		return
+	}
+
+	domain, err := service.GetDomain(r.Context(), authedUser.DomainID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to resolve company")
+		return
+	}
+
+	issueToken(auth.Claims{
+		UserID:         authedUser.UserID,
+		DomainID:       authedUser.DomainID,
+		CompanyID:      domain.CompanyID,
+		Role:           userView.Role,
+		SessionVersion: authedUser.SessionVersion,
+	})
 }
 
 func handleAdminSetup(w http.ResponseWriter, r *http.Request, service AdminService) {

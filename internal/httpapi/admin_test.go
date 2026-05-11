@@ -8620,6 +8620,14 @@ func (f *fakeAdminService) UpdateUserPasswordHash(_ context.Context, req maildb.
 	return nil
 }
 
+func (f *fakeAdminService) UpdateUserRole(_ context.Context, req maildb.UpdateUserRoleRequest) error {
+	return nil
+}
+
+func (f *fakeAdminService) AuthenticateUser(_ context.Context, email, password string) (maildb.AuthenticatedUser, error) {
+	return maildb.AuthenticatedUser{}, fmt.Errorf("invalid credentials")
+}
+
 func (f *fakeAdminService) ListQueueStats(context.Context) ([]maildb.QueueStat, error) {
 	return f.queueStats, nil
 }
