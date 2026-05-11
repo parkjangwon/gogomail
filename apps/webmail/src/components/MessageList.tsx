@@ -253,6 +253,19 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </button>
         );
       })}
+      <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
+        {filteredMessages.length}개
+      </span>
+      {filteredMessages.some((m) => !m.read) && (
+        <button
+          aria-label="읽지 않은 메일 선택"
+          onClick={() => setBulkSelected(new Set(filteredMessages.filter((m) => !m.read).map((m) => m.id)))}
+          title="안읽음 선택"
+          style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
+        >
+          안읽음 선택
+        </button>
+      )}
       {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
         <button
           aria-label={emptyFolderLabel}
