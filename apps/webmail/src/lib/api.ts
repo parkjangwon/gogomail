@@ -19,6 +19,10 @@ export interface MessageSummary {
   starred: boolean;
   has_attachment: boolean;
   preview: string;
+  // Thread view optional fields
+  thread_id?: string;
+  message_count?: number;
+  unread_count?: number;
 }
 
 export interface MessageDetail {
@@ -519,5 +523,55 @@ export async function listDirectoryUsers(q?: string, limit = 50): Promise<Direct
     if (!res.ok) return [];
     const data = await res.json() as { users?: DirectoryUser[] };
     return data.users ?? [];
+  } catch { return []; }
+}
+
+// ── Threads ──────────────────────────────────────────────────────────────────
+
+export interface ThreadSummary {
+  id: string;
+  subject: string;
+  preview: string;
+  message_count: number;
+  unread_count: number;
+  latest_message_id: string;
+  latest_from_addr: string;
+  latest_at: string;
+  has_attachment: boolean;
+  starred: boolean;
+}
+
+export async function listThreads(params: {
+  folder_id?: string;
+  starred?: boolean;
+  read?: boolean;
+  limit?: number;
+  cursor?: string;
+}): Promise<{ threads: ThreadSummary[]; has_more: boolean; next_cursor: string }> {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
+    const p = new URLSearchParams();
+    if (params.folder_id) p.set('folder_id', params.folder_id);
+    if (params.starred !== undefined) p.set('starred', String(params.starred));
+    if (params.read !== undefined) p.set('read', String(params.read));
+    if (params.limit !== undefined) p.set('limit', String(params.limit));
+    if (params.cursor) p.set('cursor', params.cursor);
+    const res = await fetch(`/api/v1/threads?${p}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return { threads: [], has_more: false, next_cursor: '' };
+    return res.json() as Promise<{ threads: ThreadSummary[]; has_more: boolean; next_cursor: string }>;
+  } catch { return { threads: [], has_more: false, next_cursor: '' }; }
+}
+
+export async function listThreadMessages(threadId: string): Promise<MessageSummary[]> {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
+    const res = await fetch(`/api/v1/threads/${encodeURIComponent(threadId)}/messages?limit=50`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { messages?: MessageSummary[] };
+    return data.messages ?? [];
   } catch { return []; }
 }

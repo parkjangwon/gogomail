@@ -742,7 +742,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
               onHoverArchive={!isMobile ? onArchiveMessage : undefined}
               onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
-              threadCount={threadCounts[msg.id]}
+              threadCount={msg.message_count ?? threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
               userEmail={userEmail}
             />
@@ -907,7 +907,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             {highlight(message.subject || '(제목 없음)', q)}
           </span>
           {threadCount && threadCount > 1 && (
-            <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
+            <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: (message.unread_count ?? 0) > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: (message.unread_count ?? 0) > 0 ? 'var(--color-accent-subtle)' : 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
           )}
           {message.preview && (
             <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>

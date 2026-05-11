@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
 import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -64,6 +64,12 @@ export default function MailPage() {
   const [activeApp, setActiveApp] = useState<AppId>('mail');
 
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
+
+  const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
+    try { return localStorage.getItem('webmail_thread_view') === '1'; } catch { return false; }
+  });
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
@@ -112,11 +118,45 @@ export default function MailPage() {
     return () => { cancelled = true; };
   }, [activeFolderId, setMessages]);
 
+  // Thread view: fetch threads when enabled and folder changes
+  useEffect(() => {
+    if (!threadViewEnabled || !activeFolderId || activeFolderId.startsWith('__')) {
+      setThreads([]);
+      return;
+    }
+    let cancelled = false;
+    listThreads({ folder_id: activeFolderId, limit: 50 })
+      .then((r) => { if (!cancelled) setThreads(r.threads); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [threadViewEnabled, activeFolderId]);
+
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
 
+  // selectedMessageSummary: the MessageSummary row that was clicked (may carry thread_id)
+  const selectedMessageSummary = (threadViewEnabled && threads.length > 0)
+    ? threads.find((t) => (t.latest_message_id || t.id) === selectedMessageId) ?? null
+    : null;
+  const selectedThreadId = selectedMessageSummary?.id ?? null;
+
   const [threadMessages, setThreadMessages] = useState<MessageSummary[]>([]);
   useEffect(() => {
+    // If viewing a thread from thread-view mode, fetch via thread API
+    if (selectedThreadId) {
+      let cancelled = false;
+      listThreadMessages(selectedThreadId)
+        .then((msgs) => {
+          if (cancelled) return;
+          const sorted = [...msgs].sort(
+            (a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
+          );
+          setThreadMessages(sorted);
+        })
+        .catch(() => { if (!cancelled) setThreadMessages([]); });
+      return () => { cancelled = true; };
+    }
+    // Fallback: subject-based grouping for normal message view
     if (!selectedMessage?.subject) { setThreadMessages([]); return; }
     const normalizedSubject = selectedMessage.subject.replace(/^(Re|Fwd?|Fw):\s*/gi, '').trim();
     if (!normalizedSubject) { setThreadMessages([]); return; }
@@ -131,7 +171,7 @@ export default function MailPage() {
       })
       .catch(() => { if (!cancelled) setThreadMessages([]); });
     return () => { cancelled = true; };
-  }, [selectedMessage?.id, selectedMessage?.subject]);
+  }, [selectedThreadId, selectedMessage?.id, selectedMessage?.subject]);
 
   // Update document title + favicon badge with total unread count
   useEffect(() => {
@@ -958,8 +998,52 @@ export default function MailPage() {
               </div>
             </div>
 
+            {/* Thread view toggle */}
+            {!searchResults && !activeFolderId.startsWith('__') && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 12px 0', flexShrink: 0 }}>
+                <button
+                  onClick={() => {
+                    const next = !threadViewEnabled;
+                    setThreadViewEnabled(next);
+                    try { localStorage.setItem('webmail_thread_view', next ? '1' : '0'); } catch { /* */ }
+                    if (!next) setThreads([]);
+                  }}
+                  style={{
+                    fontSize: '11px',
+                    padding: '2px 10px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-border-default)',
+                    background: threadViewEnabled ? 'var(--color-accent-subtle)' : 'transparent',
+                    color: threadViewEnabled ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {threadViewEnabled ? '스레드 보기' : '개별 보기'}
+                </button>
+              </div>
+            )}
             <MessageList
-              messages={searchResults ?? messages}
+              messages={(() => {
+                if (searchResults !== null) return searchResults;
+                if (threadViewEnabled && threads.length > 0) {
+                  return threads.map((t): MessageSummary => ({
+                    id: t.latest_message_id || t.id,
+                    subject: t.subject,
+                    from_addr: t.latest_from_addr,
+                    from_name: t.latest_from_addr,
+                    received_at: t.latest_at,
+                    read: t.unread_count === 0,
+                    starred: t.starred,
+                    has_attachment: t.has_attachment,
+                    preview: t.preview,
+                    thread_id: t.id,
+                    message_count: t.message_count,
+                    unread_count: t.unread_count,
+                  }));
+                }
+                return messages;
+              })()}
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
               loading={searchResults !== null ? searchLoading : messagesLoading}
