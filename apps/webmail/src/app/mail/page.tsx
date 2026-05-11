@@ -505,11 +505,23 @@ export default function MailPage() {
     const msgToArchive = messages.find((m) => m.id === id);
     if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    void moveMessage(id, archiveFolder.id).then(() => {
-      setMessages((prev) => prev.filter((m) => m.id !== id));
-      if (selectedMessageId === id) setSelectedMessageId(nextId);
-    }).catch(() => {});
-  }, [folders, getNextId, setMessages, selectedMessageId]);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMessageId === id) setSelectedMessageId(nextId);
+    addToast('아카이브했습니다', 'info', {
+      action: {
+        label: '실행 취소',
+        onClick: () => {
+          if (msgToArchive) {
+            setMessages((prev) => [msgToArchive, ...prev]);
+            if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, 1);
+          }
+        },
+      },
+    });
+    void moveMessage(id, archiveFolder.id).catch(() => {
+      if (msgToArchive) setMessages((prev) => [msgToArchive, ...prev]);
+    });
+  }, [folders, getNextId, setMessages, selectedMessageId, messages, addToast, adjustUnread, activeFolderId]);
 
   const handleArchive = useCallback(() => {
     if (!selectedMessageId) return;

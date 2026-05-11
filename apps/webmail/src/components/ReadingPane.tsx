@@ -229,6 +229,27 @@ export function ReadingPane({
     localStorage.setItem('webmail_font_size', String(fontSize));
   }, [fontSize]);
 
+  const [savedContact, setSavedContact] = useState(false);
+
+  function handleSaveContact() {
+    if (!message) return;
+    try {
+      const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
+      contacts[message.from_addr.toLowerCase()] = message.from_name || message.from_addr;
+      localStorage.setItem('webmail_contacts', JSON.stringify(contacts));
+    } catch { /* ignore */ }
+    setSavedContact(true);
+    setTimeout(() => setSavedContact(false), 2000);
+  }
+
+  const isContactSaved = useMemo(() => {
+    if (!message) return false;
+    try {
+      const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
+      return message.from_addr.toLowerCase() in contacts;
+    } catch { return false; }
+  }, [message]);
+
   const unsubscribeUrl = useMemo(() => {
     if (!message) return null;
     if (message.html_body) {
@@ -662,6 +683,15 @@ export function ReadingPane({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >메일 보내기</button>
+              )}
+              {!isContactSaved && (
+                <button
+                  onClick={handleSaveContact}
+                  title="연락처에 추가"
+                  style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: savedContact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '4px', lineHeight: 1.4 }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >{savedContact ? '저장됨 ✓' : '연락처에 추가'}</button>
               )}
             </div>
             {toList && (
