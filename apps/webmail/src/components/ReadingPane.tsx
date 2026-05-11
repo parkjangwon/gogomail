@@ -265,6 +265,13 @@ export function ReadingPane({
 
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const imagePreviewsRef = useRef<Record<string, string>>({});
+  const [lightbox, setLightbox] = useState<{ url: string; filename: string; attId: string } | null>(null);
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
 
   useEffect(() => {
     const imageAtts = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
@@ -692,9 +699,9 @@ export function ReadingPane({
                     <div key={att.id} style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', maxWidth: '200px' }}>
                       {previewUrl && (
                         <button
-                          onClick={() => handleDownload(att)}
-                          title={`${att.filename} 다운로드`}
-                          style={{ border: '1px solid var(--color-border-default)', borderRadius: '6px', overflow: 'hidden', background: 'none', cursor: 'pointer', padding: 0, display: 'block' }}
+                          onClick={() => setLightbox({ url: previewUrl, filename: att.filename, attId: att.id })}
+                          title={`${att.filename} 미리보기`}
+                          style={{ border: '1px solid var(--color-border-default)', borderRadius: '6px', overflow: 'hidden', background: 'none', cursor: 'zoom-in', padding: 0, display: 'block' }}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={previewUrl} alt={att.filename} style={{ width: '100%', height: '120px', objectFit: 'cover', display: 'block' }} />
@@ -874,6 +881,46 @@ export function ReadingPane({
           </div>
         )}
       </div>
+
+      {/* Image lightbox */}
+      {lightbox && (
+        <>
+          <div
+            aria-hidden="true"
+            onClick={() => setLightbox(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 500, cursor: 'zoom-out' }}
+          />
+          <div
+            role="dialog"
+            aria-label={lightbox.filename}
+            aria-modal="true"
+            style={{ position: 'fixed', inset: 0, zIndex: 501, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px', pointerEvents: 'none' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightbox.url}
+              alt={lightbox.filename}
+              style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', pointerEvents: 'auto' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto' }}>
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lightbox.filename}</span>
+              <button
+                onClick={() => { const a = attachments.find((x) => x.id === lightbox.attId); if (a) handleDownload(a); }}
+                style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'; }}
+              >다운로드</button>
+              <button
+                onClick={() => setLightbox(null)}
+                aria-label="닫기"
+                style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)'; }}
+              >닫기</button>
+            </div>
+          </div>
+        </>
+      )}
     </main>
   );
 }
