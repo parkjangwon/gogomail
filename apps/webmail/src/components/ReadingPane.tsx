@@ -10,7 +10,7 @@ interface ReadingPaneProps {
   loading?: boolean;
 }
 
-function formatFullDate(dateStr: string): string {
+function formatFullDate(receivedAt: string): string {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -18,7 +18,7 @@ function formatFullDate(dateStr: string): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(new Date(dateStr));
+  }).format(new Date(receivedAt));
 }
 
 const iconStyle: React.CSSProperties = {
@@ -140,8 +140,8 @@ export function ReadingPane({
     );
   }
 
-  const toList = message.to
-    .map((t) => (t.name ? `${t.name} <${t.email}>` : t.email))
+  const toList = (message.to_addrs ?? [])
+    .map((t) => (t.name ? `${t.name} <${t.address}>` : t.address))
     .join(', ');
 
   return (
@@ -207,8 +207,8 @@ export function ReadingPane({
                 color: 'var(--color-text-primary)',
               }}
             >
-              {message.from.name || message.from.email}
-              {message.from.name && (
+              {message.from_name || message.from_addr}
+              {message.from_name && (
                 <span
                   style={{
                     fontSize: '13px',
@@ -217,7 +217,7 @@ export function ReadingPane({
                     marginInlineStart: '6px',
                   }}
                 >
-                  &lt;{message.from.email}&gt;
+                  &lt;{message.from_addr}&gt;
                 </span>
               )}
             </div>
@@ -240,7 +240,7 @@ export function ReadingPane({
               flexShrink: 0,
             }}
           >
-            {formatFullDate(message.date)}
+            {formatFullDate(message.received_at)}
           </span>
         </div>
 
@@ -262,23 +262,16 @@ export function ReadingPane({
             color: 'var(--color-text-primary)',
           }}
         >
-          {message.body_html ? (
-            <div
-              dangerouslySetInnerHTML={{ __html: message.body_html }}
-              style={{ wordBreak: 'break-word' }}
-            />
-          ) : (
-            <pre
-              style={{
-                fontFamily: 'inherit',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                margin: 0,
-              }}
-            >
-              {message.body_text || '(내용 없음)'}
-            </pre>
-          )}
+          <pre
+            style={{
+              fontFamily: 'inherit',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              margin: 0,
+            }}
+          >
+            {message.text_body || '(내용 없음)'}
+          </pre>
         </div>
       </div>
     </main>

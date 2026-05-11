@@ -2,8 +2,8 @@
 
 import { MessageSummary } from '@/lib/api';
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+function formatDate(receivedAt: string): string {
+  const date = new Date(receivedAt);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -24,8 +24,8 @@ function formatDate(dateStr: string): string {
   }).format(date);
 }
 
-function getDateGroup(dateStr: string): string {
-  const date = new Date(dateStr);
+function getDateGroup(receivedAt: string): string {
+  const date = new Date(receivedAt);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -115,7 +115,7 @@ export function MessageList({ messages, selectedId, onSelect, loading }: Message
   const groupMap = new Map<string, MessageSummary[]>();
 
   for (const msg of messages) {
-    const group = getDateGroup(msg.date);
+    const group = getDateGroup(msg.received_at);
     if (!groupMap.has(group)) groupMap.set(group, []);
     groupMap.get(group)!.push(msg);
   }
@@ -180,7 +180,7 @@ interface MessageRowProps {
 }
 
 function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
-  const isUnread = !message.is_read;
+  const isUnread = !message.read;
 
   return (
     <div
@@ -256,7 +256,7 @@ function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
               minWidth: 0,
             }}
           >
-            {message.from.name || message.from.email}
+            {message.from_name || message.from_addr}
           </span>
           <span
             style={{
@@ -266,7 +266,7 @@ function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
               flexShrink: 0,
             }}
           >
-            {formatDate(message.date)}
+            {formatDate(message.received_at)}
           </span>
         </div>
 

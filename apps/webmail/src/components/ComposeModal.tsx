@@ -69,7 +69,6 @@ export function ComposeModal({ onClose }: ComposeModalProps) {
       setError('받는 사람 주소를 입력하세요.');
       return;
     }
-    const bodyHtml = editor?.getHTML() ?? '';
     const bodyText = editor?.getText() ?? '';
     if (!bodyText.trim() && !subject.trim()) {
       setError('제목 또는 본문을 입력하세요.');
@@ -78,7 +77,11 @@ export function ComposeModal({ onClose }: ComposeModalProps) {
     setError('');
     setSending(true);
     try {
-      await sendMessage({ to: to.trim(), subject: subject.trim(), body: bodyHtml });
+      await sendMessage({
+        to: [{ address: to.trim() }],
+        subject: subject.trim(),
+        text_body: bodyText,
+      });
       setSent(true);
       setTimeout(() => onClose(), 1500);
     } catch (err: unknown) {

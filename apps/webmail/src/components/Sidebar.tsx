@@ -2,12 +2,11 @@
 
 import { Folder } from '@/lib/api';
 
-const SYSTEM_FOLDERS = [
-  { id: 'inbox', label: '수신함' },
-  { id: 'sent', label: '보낸 편지함' },
-  { id: 'drafts', label: '임시 보관함' },
-  { id: 'trash', label: '휴지통' },
-  { id: 'all', label: '전체 메일' },
+const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
+  { systemType: 'inbox', label: '수신함' },
+  { systemType: 'sent', label: '보낸 편지함' },
+  { systemType: 'drafts', label: '임시 보관함' },
+  { systemType: 'trash', label: '휴지통' },
 ];
 
 function formatBadge(count: number): string {
@@ -40,8 +39,8 @@ export function Sidebar({
   onCompose,
   userName = '사용자',
 }: SidebarProps) {
-  // Merge server folders with system folder labels
-  const folderMap = new Map(folders.map((f) => [f.id, f]));
+  const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
+  const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
   return (
     <aside
@@ -140,16 +139,17 @@ export function Sidebar({
           메일함
         </div>
 
-        {SYSTEM_FOLDERS.map((sf) => {
-          const serverFolder = folderMap.get(sf.id);
-          const unread = serverFolder?.unread_count ?? 0;
-          const isActive = activeFolderId === sf.id;
+        {SYSTEM_FOLDER_META.map((sf) => {
+          const serverFolder = systemFoldersByType.get(sf.systemType);
+          const unread = serverFolder?.unread ?? 0;
+          const folderId = serverFolder?.id ?? sf.systemType;
+          const isActive = activeFolderId === folderId;
           const badge = formatBadge(unread);
 
           return (
             <button
-              key={sf.id}
-              onClick={() => onSelectFolder(sf.id)}
+              key={sf.systemType}
+              onClick={() => onSelectFolder(folderId)}
               aria-current={isActive ? 'page' : undefined}
               style={{
                 width: 'calc(100% - 8px)',
@@ -204,10 +204,10 @@ export function Sidebar({
 
         {/* Extra server folders not in system list */}
         {folders
-          .filter((f) => !SYSTEM_FOLDERS.find((sf) => sf.id === f.id))
+          .filter((f) => !systemFolderIds.has(f.id))
           .map((f) => {
             const isActive = activeFolderId === f.id;
-            const badge = formatBadge(f.unread_count);
+            const badge = formatBadge(f.unread);
             return (
               <button
                 key={f.id}
