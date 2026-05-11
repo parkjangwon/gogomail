@@ -504,6 +504,25 @@ export default function MailPage() {
   // Reset seen IDs when folder changes (avoid false notifications on folder switch)
   useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
 
+  // Extract sender names from messages and store as contacts
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      const stored: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
+      let changed = false;
+      messages.forEach((m) => {
+        if (m.from_name && m.from_addr) {
+          const key = m.from_addr.toLowerCase();
+          if (!stored[key] || stored[key] !== m.from_name) {
+            stored[key] = m.from_name;
+            changed = true;
+          }
+        }
+      });
+      if (changed) localStorage.setItem('webmail_contacts', JSON.stringify(stored));
+    } catch { /* ignore */ }
+  }, [messages]);
+
   if (foldersLoading) {
     return (
       <div
