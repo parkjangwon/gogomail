@@ -23,6 +23,7 @@ import { ContactsView } from '@/components/ContactsView';
 import { OrgChartView } from '@/components/OrgChartView';
 import { SettingsView } from '@/components/SettingsView';
 import { DriveView } from '@/components/DriveView';
+import { loadFilterRules } from '@/components/SettingsModal';
 
 export default function MailPage() {
   const router = useRouter();
@@ -769,6 +770,37 @@ export default function MailPage() {
 
   // Reset seen IDs when folder changes (avoid false notifications on folder switch)
   useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
+
+  // Apply client-side filter rules: auto-label messages matching stored rules
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const rules = loadFilterRules();
+    if (rules.length === 0) return;
+    setMessageLabels((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const msg of messages) {
+        if (next[msg.id]) continue; // don't overwrite manual labels
+        for (const rule of rules) {
+          const hay = rule.field === 'from'
+            ? (msg.from_addr + ' ' + (msg.from_name ?? '')).toLowerCase()
+            : rule.field === 'subject'
+            ? (msg.subject ?? '').toLowerCase()
+            : (msg.from_addr + ' ' + (msg.from_name ?? '') + ' ' + (msg.subject ?? '') + ' ' + (msg.preview ?? '')).toLowerCase();
+          if (hay.includes(rule.value.toLowerCase())) {
+            next[msg.id] = rule.labelColor;
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) {
+        try { localStorage.setItem('webmail_labels', JSON.stringify(next)); } catch { /* */ }
+        return next;
+      }
+      return prev;
+    });
+  }, [messages]);
 
   // Snooze: hide message until a future time, then resurface it
   const handleSnooze = useCallback((id: string, until: Date) => {
