@@ -617,7 +617,12 @@ export default function MailPage() {
         />
       )}
 
-      {(!isMobile || selectedMessageId) && (
+      {(!isMobile || selectedMessageId) && (() => {
+          const msgList = searchResults ?? messages;
+          const curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
+          const prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
+          const nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
+          return (
         <ReadingPane
           message={selectedMessage}
           folders={folders}
@@ -632,6 +637,8 @@ export default function MailPage() {
           onBack={isMobile ? () => setSelectedMessageId(null) : undefined}
           isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
           onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
+          onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
+          onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
           onQuickReply={selectedMessage ? async (body) => {
             await sendMessage({
               to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
@@ -643,7 +650,8 @@ export default function MailPage() {
             addToast('답장을 전송했습니다');
           } : undefined}
         />
-      )}
+          );
+        })()}
 
       </div>{/* end layout wrapper */}
 

@@ -86,6 +86,8 @@ interface ReadingPaneProps {
   isStarred?: boolean;
   onStar?: (starred: boolean) => void;
   onQuickReply?: (body: string) => Promise<void>;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 function readingTime(text: string): string {
@@ -165,6 +167,8 @@ export function ReadingPane({
   isStarred,
   onStar,
   onQuickReply,
+  onPrev,
+  onNext,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
@@ -299,6 +303,21 @@ export function ReadingPane({
             onClick={onBack}
             style={{ ...iconStyle, marginRight: 'auto', color: 'var(--color-text-secondary)' }}
           >← 뒤로</button>
+        )}
+        {(onPrev || onNext) && !onBack && <div style={{ marginRight: 'auto' }} />}
+        {onPrev && (
+          <button aria-label="이전 메일" title="이전 메일 (k)" onClick={onPrev}
+            style={{ ...iconStyle, color: 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >↑</button>
+        )}
+        {onNext && (
+          <button aria-label="다음 메일" title="다음 메일 (j)" onClick={onNext}
+            style={{ ...iconStyle, color: 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >↓</button>
         )}
         <ActionButton label="답장" onClick={onReply} />
         <ActionButton label="전체 답장" onClick={onReplyAll} />
