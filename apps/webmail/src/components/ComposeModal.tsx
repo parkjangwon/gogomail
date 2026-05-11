@@ -8,6 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { sendMessage, saveDraft, updateDraft, ComposeIntent, MessageDetail } from '@/lib/api';
+import { RecipientChips } from './RecipientChips';
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -173,7 +174,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
     setSending(true);
     try {
       await sendMessage({
-        to: [{ address: to.trim() }],
+        to: to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address),
         ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
         ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
         subject: subject.trim(),
@@ -279,40 +280,35 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
           {/* To */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px' }}>
             <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>받는 사람</label>
-            <input
+            <RecipientChips
               id="compose-to"
-              type="email"
               value={to}
-              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; if (error) setError(''); triggerAutoSave(e.target.value, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(v) => { setTo(v); toRef.current = v; if (error) setError(''); triggerAutoSave(v, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
-              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
+              hasError={error.includes('받는 사람')}
             />
           </div>
 
           {/* CC */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
             <label htmlFor="compose-cc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>참조</label>
-            <input
+            <RecipientChips
               id="compose-cc"
-              type="text"
               value={cc}
-              onChange={(e) => { setCc(e.target.value); ccRef.current = e.target.value; triggerAutoSave(toRef.current, e.target.value, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
-              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
           </div>
 
           {/* BCC */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
             <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>숨은 참조</label>
-            <input
+            <RecipientChips
               id="compose-bcc"
-              type="text"
               value={bcc}
-              onChange={(e) => { setBcc(e.target.value); bccRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, e.target.value, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
-              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
           </div>
 
