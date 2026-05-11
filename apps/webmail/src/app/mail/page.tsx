@@ -793,6 +793,7 @@ export default function MailPage() {
           draftMessage={composeContext.draft}
           initialTo={composeContext.to}
           userEmail={userEmail}
+          isMobile={isMobile}
           onClose={() => setComposeContext(null)}
         />
       )}
