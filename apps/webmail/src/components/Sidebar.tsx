@@ -21,6 +21,8 @@ import {
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { AccentPicker } from '@/components/AccentPicker';
 
 
 export const VIRTUAL_ALL = '__all__';
@@ -331,6 +333,8 @@ export function Sidebar({
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
           ><PencilSquareIcon style={{ width: '15px', height: '15px' }} /></button>
+          <ThemeToggle inline />
+          <AccentPicker />
         </div>
 
         {/* User menu dropdown */}
