@@ -104,6 +104,7 @@ export function Sidebar() {
         { type: 'link', text: t('nav.rate_limits'), href: p('/security/rate-limits') },
         { type: 'link', text: t('nav.dmarc_spf'), href: p('/security/dmarc') },
         { type: 'link', text: t('nav.spam_filter'), href: p('/security/spam-filter') },
+        { type: 'link', text: t('nav.smtp_policy'), href: p('/security/smtp-policy') },
         { type: 'link', text: t('nav.compliance'), href: p('/compliance') },
       ],
     },
