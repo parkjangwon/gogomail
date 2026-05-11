@@ -24,6 +24,13 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+export interface AdvancedFilters {
+  from?: string;
+  since?: string;
+  until?: string;
+  has_attachment?: boolean;
+}
+
 interface SidebarProps {
   folders: Folder[];
   activeFolderId: string;
@@ -31,6 +38,8 @@ interface SidebarProps {
   onCompose: () => void;
   onSearch?: (q: string) => void;
   searchQuery?: string;
+  advancedFilters?: AdvancedFilters;
+  onAdvancedFilterChange?: (filters: AdvancedFilters) => void;
   userName?: string;
   onLogout?: () => void;
   isMobile?: boolean;
@@ -45,12 +54,15 @@ export function Sidebar({
   onCompose,
   onSearch,
   searchQuery = '',
+  advancedFilters = {},
+  onAdvancedFilterChange,
   userName = '사용자',
   onLogout,
   isMobile,
   isOpen,
   onClose,
 }: SidebarProps) {
+  const showAdvanced = searchQuery.trim().length > 0;
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
@@ -151,30 +163,70 @@ export function Sidebar({
       </div>
 
       {/* Search */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-        <input
-          type="search"
-          placeholder="검색..."
-          aria-label="메일 검색"
-          value={searchQuery}
-          onChange={(e) => onSearch?.(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '7px 10px',
-            borderRadius: '6px',
-            border: '1px solid var(--color-border-default)',
-            background: 'var(--color-bg-primary)',
-            color: 'var(--color-text-primary)',
-            fontSize: '13px',
-            outline: 'none',
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = 'var(--color-accent)';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = 'var(--color-border-default)';
-          }}
-        />
+      <div style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+        <div style={{ padding: '12px 16px 8px' }}>
+          <input
+            type="search"
+            placeholder="검색..."
+            aria-label="메일 검색"
+            value={searchQuery}
+            onChange={(e) => onSearch?.(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-default)',
+              background: 'var(--color-bg-primary)',
+              color: 'var(--color-text-primary)',
+              fontSize: '13px',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--color-accent)'; }}
+            onBlur={(e) => { e.target.style.borderColor = 'var(--color-border-default)'; }}
+          />
+        </div>
+
+        {showAdvanced && onAdvancedFilterChange && (
+          <div style={{ padding: '0 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '2px' }}>필터</div>
+            {/* From */}
+            <input
+              type="text"
+              placeholder="보낸 사람"
+              aria-label="보낸 사람 필터"
+              value={advancedFilters.from ?? ''}
+              onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, from: e.target.value || undefined })}
+              style={{ padding: '5px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+            {/* Date range */}
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <input
+                type="date"
+                aria-label="시작 날짜"
+                value={advancedFilters.since ?? ''}
+                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, since: e.target.value || undefined })}
+                style={{ flex: 1, padding: '5px 4px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '11px', outline: 'none', minWidth: 0 }}
+              />
+              <input
+                type="date"
+                aria-label="종료 날짜"
+                value={advancedFilters.until ?? ''}
+                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, until: e.target.value || undefined })}
+                style={{ flex: 1, padding: '5px 4px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '11px', outline: 'none', minWidth: 0 }}
+              />
+            </div>
+            {/* Has attachment */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={advancedFilters.has_attachment ?? false}
+                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, has_attachment: e.target.checked || undefined })}
+              />
+              첨부파일 있음
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Nav */}
