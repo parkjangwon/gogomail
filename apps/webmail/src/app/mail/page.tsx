@@ -17,6 +17,10 @@ import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { SearchBar } from '@/components/SearchBar';
+import { AppIconBar, AppId } from '@/components/AppIconBar';
+import { CalendarPlaceholder } from '@/components/CalendarPlaceholder';
+import { ContactsPlaceholder } from '@/components/ContactsPlaceholder';
+import { OrgChartPlaceholder } from '@/components/OrgChartPlaceholder';
 
 export default function MailPage() {
   const router = useRouter();
@@ -56,6 +60,8 @@ export default function MailPage() {
       return next;
     });
   }, []);
+
+  const [activeApp, setActiveApp] = useState<AppId>('mail');
 
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
   const isMobile = useIsMobile();
@@ -837,130 +843,142 @@ export default function MailPage() {
         </div>
       )}
 
-      <Sidebar
-        folders={folders}
-        activeFolderId={activeFolderId}
-        onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
-        onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
-        onComposeInNewWindow={() => window.open('/compose', '_blank', 'width=620,height=720,menubar=no,toolbar=no,resizable=yes')}
-        userName={userEmail || '사용자'}
-        userEmailAddress={userEmail || undefined}
-        width={sidebarWidth}
-        onLogout={handleLogout}
-        isMobile={isMobile}
-        isOpen={mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
-        onDropMessage={(messageId, folderId) => {
-          setMessages((prev) => prev.filter((m) => m.id !== messageId));
-          if (selectedMessageId === messageId) setSelectedMessageId(null);
-          moveMessage(messageId, folderId)
-            .then(() => addToast('메일을 이동했습니다'))
-            .catch(() => addToast('이동에 실패했습니다', 'error'));
-        }}
-        onCreateFolder={async (name) => {
-          try { await createFolder(name); refresh(); addToast(`"${name}" 폴더를 만들었습니다`); }
-          catch { addToast('폴더 생성에 실패했습니다', 'error'); }
-        }}
-        onRenameFolder={async (id, name) => {
-          try { await renameFolder(id, name); refresh(); addToast('폴더 이름을 변경했습니다'); }
-          catch { addToast('이름 변경에 실패했습니다', 'error'); }
-        }}
-        onDeleteFolder={async (id) => {
-          try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
-          catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
-        }}
-      />
+      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} />
 
-      {/* Sidebar drag-resize handle */}
-      {!isMobile && !sidebarCollapsed && (
-        <div
-          aria-hidden="true"
-          style={{ width: '4px', flexShrink: 0, cursor: 'col-resize', position: 'relative', zIndex: 10, transition: 'background 150ms ease' }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            const startX = e.clientX;
-            const startWidth = sidebarWidth;
-            let lastWidth = startWidth;
-            const onMove = (ev: MouseEvent) => {
-              lastWidth = Math.min(360, Math.max(160, startWidth + ev.clientX - startX));
-              setSidebarWidth(lastWidth);
-            };
-            const onUp = () => {
-              document.removeEventListener('mousemove', onMove);
-              document.removeEventListener('mouseup', onUp);
-              try { localStorage.setItem('webmail_sidebar_width', String(lastWidth)); } catch { /* */ }
-            };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-        />
-      )}
+      {activeApp === 'mail' ? (
+        <>
+          <Sidebar
+            folders={folders}
+            activeFolderId={activeFolderId}
+            onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
+            onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
+            onComposeInNewWindow={() => window.open('/compose', '_blank', 'width=620,height=720,menubar=no,toolbar=no,resizable=yes')}
+            userName={userEmail || '사용자'}
+            userEmailAddress={userEmail || undefined}
+            width={sidebarWidth}
+            onLogout={handleLogout}
+            isMobile={isMobile}
+            isOpen={mobileSidebarOpen}
+            onClose={() => setMobileSidebarOpen(false)}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+            onDropMessage={(messageId, folderId) => {
+              setMessages((prev) => prev.filter((m) => m.id !== messageId));
+              if (selectedMessageId === messageId) setSelectedMessageId(null);
+              moveMessage(messageId, folderId)
+                .then(() => addToast('메일을 이동했습니다'))
+                .catch(() => addToast('이동에 실패했습니다', 'error'));
+            }}
+            onCreateFolder={async (name) => {
+              try { await createFolder(name); refresh(); addToast(`"${name}" 폴더를 만들었습니다`); }
+              catch { addToast('폴더 생성에 실패했습니다', 'error'); }
+            }}
+            onRenameFolder={async (id, name) => {
+              try { await renameFolder(id, name); refresh(); addToast('폴더 이름을 변경했습니다'); }
+              catch { addToast('이름 변경에 실패했습니다', 'error'); }
+            }}
+            onDeleteFolder={async (id) => {
+              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
+              catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
+            }}
+          />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-
-        {/* Gmail-style top search bar */}
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
-          <div style={{ maxWidth: '720px', width: '100%' }}>
-            <SearchBar
-              value={searchQuery}
-              onChange={handleSearch}
-              advancedFilters={advancedFilters}
-              onAdvancedFilterChange={handleFilterChange}
+          {/* Sidebar drag-resize handle */}
+          {!isMobile && !sidebarCollapsed && (
+            <div
+              aria-hidden="true"
+              style={{ width: '4px', flexShrink: 0, cursor: 'col-resize', position: 'relative', zIndex: 10, transition: 'background 150ms ease' }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startWidth = sidebarWidth;
+                let lastWidth = startWidth;
+                const onMove = (ev: MouseEvent) => {
+                  lastWidth = Math.min(360, Math.max(160, startWidth + ev.clientX - startX));
+                  setSidebarWidth(lastWidth);
+                };
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                  try { localStorage.setItem('webmail_sidebar_width', String(lastWidth)); } catch { /* */ }
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
             />
-          </div>
-        </div>
+          )}
 
-      <MessageList
-          messages={searchResults ?? messages}
-          selectedId={selectedMessageId}
-          onSelect={handleSelectMessage}
-          loading={searchResults !== null ? searchLoading : messagesLoading}
-          emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : (() => {
-            const f = folders.find((f) => f.id === activeFolderId);
-            const t = f?.system_type;
-            if (t === 'drafts') return '임시 보관된 메일이 없습니다';
-            if (t === 'sent') return '보낸 메일이 없습니다';
-            if (t === 'trash') return '휴지통이 비어있습니다';
-            if (t === 'inbox') return '받은 메일이 없습니다';
-            return undefined;
-          })()}
-          hasMore={searchResults === null ? hasMore : false}
-          loadingMore={loadingMore}
-          onLoadMore={loadMore}
-          onStar={handleStar}
-          onBulkDelete={handleBulkDelete}
-          onBulkMarkRead={handleBulkMarkRead}
-          folders={folders}
-          onBulkMove={async (ids, folderId) => {
-            setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
-            if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
-            await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
-            addToast(`${ids.length}개를 이동했습니다`);
-          }}
-          onRefresh={refresh}
-          refreshing={refreshing}
-          isMobile={isMobile}
-          onOpenSidebar={() => setMobileSidebarOpen(true)}
-          onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
-          onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
-          searchQuery={searchResults !== null ? searchQuery : undefined}
-          emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
-          onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
-          onDeleteMessage={handleDeleteById}
-          onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
-          onToggleReadMessage={handleToggleReadMessage}
-          onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
-          onBulkLabel={handleBulkLabel}
-          onBulkStar={handleBulkStar}
-          messageLabels={messageLabels}
-          userEmail={userEmail || undefined}
-        />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
-      </div>{/* end layout wrapper */}
+            {/* Gmail-style top search bar */}
+            <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
+              <div style={{ maxWidth: '720px', width: '100%' }}>
+                <SearchBar
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  advancedFilters={advancedFilters}
+                  onAdvancedFilterChange={handleFilterChange}
+                />
+              </div>
+            </div>
+
+            <MessageList
+              messages={searchResults ?? messages}
+              selectedId={selectedMessageId}
+              onSelect={handleSelectMessage}
+              loading={searchResults !== null ? searchLoading : messagesLoading}
+              emptyLabel={searchResults !== null ? (searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : '검색 결과가 없습니다') : (() => {
+                const f = folders.find((f) => f.id === activeFolderId);
+                const t = f?.system_type;
+                if (t === 'drafts') return '임시 보관된 메일이 없습니다';
+                if (t === 'sent') return '보낸 메일이 없습니다';
+                if (t === 'trash') return '휴지통이 비어있습니다';
+                if (t === 'inbox') return '받은 메일이 없습니다';
+                return undefined;
+              })()}
+              hasMore={searchResults === null ? hasMore : false}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              onStar={handleStar}
+              onBulkDelete={handleBulkDelete}
+              onBulkMarkRead={handleBulkMarkRead}
+              folders={folders}
+              onBulkMove={async (ids, folderId) => {
+                setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+                if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+                await Promise.allSettled(ids.map((id) => moveMessage(id, folderId)));
+                addToast(`${ids.length}개를 이동했습니다`);
+              }}
+              onRefresh={refresh}
+              refreshing={refreshing}
+              isMobile={isMobile}
+              onOpenSidebar={() => setMobileSidebarOpen(true)}
+              onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
+              onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
+              searchQuery={searchResults !== null ? searchQuery : undefined}
+              emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
+              onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
+              onDeleteMessage={handleDeleteById}
+              onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
+              onToggleReadMessage={handleToggleReadMessage}
+              onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
+              onBulkLabel={handleBulkLabel}
+              onBulkStar={handleBulkStar}
+              messageLabels={messageLabels}
+              userEmail={userEmail || undefined}
+            />
+
+          </div>{/* end mail layout wrapper */}
+        </>
+      ) : activeApp === 'calendar' ? (
+        <CalendarPlaceholder />
+      ) : activeApp === 'contacts' ? (
+        <ContactsPlaceholder />
+      ) : (
+        <OrgChartPlaceholder />
+      )}
 
       {/* Slide-in reading pane overlay */}
       {(() => {
