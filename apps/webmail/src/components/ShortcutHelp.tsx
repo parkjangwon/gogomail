@@ -2,29 +2,97 @@
 
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-const SHORTCUTS = [
-  { key: 'j / k', desc: '다음 / 이전 메일' },
-  { key: 'c / n', desc: '새 메일 작성' },
-  { key: 'r', desc: '답장' },
-  { key: 'a', desc: '전체 답장' },
-  { key: 'f', desc: '전달' },
-  { key: 'u', desc: '읽지 않음으로 표시' },
-  { key: 's', desc: '별표 토글' },
-  { key: 'e', desc: '아카이브' },
-  { key: '# / Delete', desc: '삭제' },
-  { key: 'g i', desc: '받은 편지함으로' },
-  { key: 'g s', desc: '보낸 편지함으로' },
-  { key: 'g d', desc: '임시 보관함으로' },
-  { key: 'g a', desc: '아카이브 폴더로' },
-  { key: 'g u', desc: '첫 번째 읽지 않은 메일로 이동' },
-  { key: '/', desc: '검색창 포커스' },
-  { key: '[', desc: '사이드바 접기 / 펼치기' },
-  { key: 'Escape', desc: '닫기 / 선택 해제' },
-  { key: 'x', desc: '현재 메일 선택 토글' },
-  { key: 'l', desc: '라벨 색상 순환' },
-  { key: 'z', desc: '1시간 스누즈' },
-  { key: '?', desc: '단축키 도움말' },
+const SECTIONS = [
+  {
+    title: '전역',
+    items: [
+      { key: '?', desc: '단축키 도움말' },
+      { key: 'Ctrl+k', desc: '검색창 포커스' },
+      { key: '[', desc: '사이드바 접기/펼치기' },
+    ],
+  },
+  {
+    title: '앱 전환',
+    items: [
+      { key: 'g  m', desc: '메일' },
+      { key: 'g  c', desc: '캘린더' },
+      { key: 'g  k', desc: '연락처' },
+      { key: 'g  o', desc: '조직도' },
+    ],
+  },
+  {
+    title: '메일 목록',
+    items: [
+      { key: 'c', desc: '새 메일 작성' },
+      { key: 'j / k', desc: '다음 / 이전 메일' },
+      { key: 'Enter', desc: '선택 메일 열기' },
+      { key: 'Esc', desc: '닫기 / 선택 해제' },
+      { key: '/', desc: '검색창 포커스' },
+      { key: 'x', desc: '체크박스 선택 토글' },
+    ],
+  },
+  {
+    title: '메일 동작',
+    items: [
+      { key: 'r', desc: '회신' },
+      { key: 'a', desc: '전체 회신' },
+      { key: 'f', desc: '전달' },
+      { key: 's', desc: '별표 토글' },
+      { key: 'e', desc: '보관' },
+      { key: '#  /  Del', desc: '삭제' },
+      { key: '!', desc: '스팸으로 이동' },
+      { key: 'm', desc: '읽음 표시' },
+      { key: 'Shift+m', desc: '안읽음 표시' },
+      { key: 'z', desc: '1시간 스누즈' },
+      { key: 'l', desc: '라벨 색상 순환' },
+    ],
+  },
+  {
+    title: '폴더 이동',
+    items: [
+      { key: 'g  i', desc: '받은 편지함' },
+      { key: 'g  s', desc: '보낸 편지함' },
+      { key: 'g  d', desc: '임시 보관함' },
+      { key: 'g  t', desc: '휴지통' },
+      { key: 'g  p', desc: '스팸 편지함' },
+      { key: 'g  u', desc: '첫 읽지 않은 메일' },
+    ],
+  },
+  {
+    title: '메일 작성',
+    items: [
+      { key: 'Ctrl+Enter', desc: '전송' },
+      { key: 'Ctrl+s', desc: '임시저장' },
+      { key: 'Esc', desc: '작성창 닫기' },
+    ],
+  },
 ];
+
+function KbdItem({ value }: { value: string }) {
+  const parts = value.split('/').map((p) => p.trim());
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+      {parts.map((part, i) => (
+        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+          {i > 0 && <span style={{ color: 'var(--color-text-tertiary)', fontSize: '11px', margin: '0 1px' }}>/</span>}
+          {part.split('+').map((k, j) => (
+            <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+              {j > 0 && <span style={{ color: 'var(--color-text-tertiary)', fontSize: '10px' }}>+</span>}
+              <kbd style={{
+                display: 'inline-block', padding: '1px 6px',
+                fontSize: '11px', fontFamily: 'monospace', fontWeight: 600,
+                color: 'var(--color-text-primary)',
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border-default)',
+                borderRadius: '4px', whiteSpace: 'nowrap',
+              }}>{k}</kbd>
+            </span>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 interface ShortcutHelpProps {
   onClose: () => void;
@@ -33,57 +101,68 @@ interface ShortcutHelpProps {
 export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
   return (
     <>
+      <div aria-hidden="true" onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 590 }} />
       <div
-        aria-hidden="true"
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300 }}
-      />
-      <div
-        role="dialog"
-        aria-label="키보드 단축키"
-        aria-modal="true"
+        role="dialog" aria-modal="true" aria-label="키보드 단축키"
         style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
+          position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          zIndex: 301,
+          zIndex: 591, width: '660px', maxHeight: '82vh',
           background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border-default)',
-          borderRadius: '8px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          padding: '24px',
-          minWidth: '320px',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: '12px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>키보드 단축키</span>
-          <button
-            onClick={onClose}
-            aria-label="닫기"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', lineHeight: 1, display: 'inline-flex' }}
-          ><XMarkIcon style={{ width: '18px', height: '18px' }} /></button>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0,
+        }}>
+          <div>
+            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)' }}>키보드 단축키</span>
+            <span style={{ marginLeft: '10px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>? 키로 열고 닫기</span>
+          </div>
+          <button aria-label="닫기" onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', padding: '4px', borderRadius: '6px' }}
+            onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
+          >
+            <XMarkIcon style={{ width: '18px', height: '18px' }} />
+          </button>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-            {SHORTCUTS.map(({ key, desc }) => (
-              <tr key={key} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                <td style={{ padding: '8px 12px 8px 0', width: '40%' }}>
-                  <kbd style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    background: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border-default)',
-                    borderRadius: '4px',
-                    padding: '2px 6px',
-                    color: 'var(--color-text-primary)',
-                  }}>{key}</kbd>
-                </td>
-                <td style={{ padding: '8px 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{desc}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+        {/* Body: 2-column grid */}
+        <div style={{ overflowY: 'auto', padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px 32px' }}>
+          {SECTIONS.map((section) => (
+            <div key={section.title}>
+              <div style={{
+                fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em',
+                textTransform: 'uppercase', color: 'var(--color-text-tertiary)',
+                marginBottom: '8px', paddingBottom: '4px',
+                borderBottom: '1px solid var(--color-border-subtle)',
+              }}>
+                {section.title}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {section.items.map((item) => (
+                  <div key={item.key} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '4px 6px', borderRadius: '4px', gap: '8px',
+                  }}
+                    onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                  >
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flex: 1, minWidth: 0 }}>{item.desc}</span>
+                    <KbdItem value={item.key} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </>
   );
