@@ -33,6 +33,9 @@ interface SidebarProps {
   searchQuery?: string;
   userName?: string;
   onLogout?: () => void;
+  isMobile?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export function Sidebar({
@@ -44,14 +47,31 @@ export function Sidebar({
   searchQuery = '',
   userName = '사용자',
   onLogout,
+  isMobile,
+  isOpen,
+  onClose,
 }: SidebarProps) {
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
-  return (
-    <aside
-      aria-label="메일 탐색"
-      style={{
+  const asideStyle: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        height: '100%',
+        width: '260px',
+        zIndex: 300,
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--color-bg-secondary)',
+        borderRight: '1px solid var(--color-border-subtle)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 200ms ease',
+      }
+    : {
         width: '220px',
         minWidth: '220px',
         height: '100%',
@@ -61,7 +81,25 @@ export function Sidebar({
         borderRight: '1px solid var(--color-border-subtle)',
         overflowY: 'auto',
         overflowX: 'hidden',
-      }}
+      };
+
+  return (
+    <>
+      {isMobile && isOpen && (
+        <div
+          aria-hidden="true"
+          onClick={onClose}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 299,
+          }}
+        />
+      )}
+    <aside
+      aria-label="메일 탐색"
+      style={asideStyle}
     >
       {/* Account header */}
       <div
@@ -73,6 +111,13 @@ export function Sidebar({
           borderBottom: '1px solid var(--color-border-subtle)',
         }}
       >
+        {isMobile && onClose && (
+          <button
+            aria-label="메뉴 닫기"
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '18px', padding: '0 4px 0 0', lineHeight: 1 }}
+          >×</button>
+        )}
         <div
           aria-hidden="true"
           style={{
@@ -306,5 +351,6 @@ export function Sidebar({
         </button>
       </div>
     </aside>
+    </>
   );
 }

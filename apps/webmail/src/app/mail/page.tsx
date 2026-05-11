@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
 import { ReadingPane } from '@/components/ReadingPane';
@@ -29,6 +30,8 @@ export default function MailPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
     const id = Math.random().toString(36).slice(2);
@@ -258,42 +261,52 @@ export default function MailPage() {
       <Sidebar
         folders={folders}
         activeFolderId={activeFolderId}
-        onSelectFolder={handleSelectFolder}
-        onCompose={() => setComposeContext({ intent: 'new' })}
+        onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
+        onCompose={() => { setComposeContext({ intent: 'new' }); setMobileSidebarOpen(false); }}
         onSearch={handleSearch}
         searchQuery={searchQuery}
         userName={userEmail || '사용자'}
         onLogout={handleLogout}
+        isMobile={isMobile}
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
       />
 
-      <MessageList
-        messages={searchResults ?? messages}
-        selectedId={selectedMessageId}
-        onSelect={handleSelectMessage}
-        loading={searchResults !== null ? searchLoading : messagesLoading}
-        emptyLabel={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : undefined}
-        hasMore={searchResults === null ? hasMore : false}
-        loadingMore={loadingMore}
-        onLoadMore={loadMore}
-        onStar={handleStar}
-        onBulkDelete={handleBulkDelete}
-        onBulkMarkRead={handleBulkMarkRead}
-        onRefresh={refresh}
-        refreshing={refreshing}
-      />
+      {(!isMobile || !selectedMessageId) && (
+        <MessageList
+          messages={searchResults ?? messages}
+          selectedId={selectedMessageId}
+          onSelect={handleSelectMessage}
+          loading={searchResults !== null ? searchLoading : messagesLoading}
+          emptyLabel={searchQuery ? `"${searchQuery}" 검색 결과가 없습니다` : undefined}
+          hasMore={searchResults === null ? hasMore : false}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
+          onStar={handleStar}
+          onBulkDelete={handleBulkDelete}
+          onBulkMarkRead={handleBulkMarkRead}
+          onRefresh={refresh}
+          refreshing={refreshing}
+          isMobile={isMobile}
+          onOpenSidebar={() => setMobileSidebarOpen(true)}
+        />
+      )}
 
-      <ReadingPane
-        message={selectedMessage}
-        folders={folders}
-        onDelete={handleDelete}
-        onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
-        onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
-        onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
-        onMarkUnread={handleMarkUnread}
-        onMove={handleMove}
-        onPrint={() => window.print()}
-        loading={messageLoading}
-      />
+      {(!isMobile || selectedMessageId) && (
+        <ReadingPane
+          message={selectedMessage}
+          folders={folders}
+          onDelete={handleDelete}
+          onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
+          onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
+          onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
+          onMarkUnread={handleMarkUnread}
+          onMove={handleMove}
+          onPrint={() => window.print()}
+          loading={messageLoading}
+          onBack={isMobile ? () => setSelectedMessageId(null) : undefined}
+        />
+      )}
 
       {composeContext && (
         <ComposeModal

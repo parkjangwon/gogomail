@@ -53,9 +53,11 @@ interface MessageListProps {
   onBulkMarkRead?: (ids: string[]) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  isMobile?: boolean;
+  onOpenSidebar?: () => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
 
@@ -76,12 +78,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? messages.filter((m) => m.starred)
     : messages;
 
+  const listWidth = isMobile ? { width: '100%', minWidth: 0 } : { width: '380px', minWidth: '380px' };
+
   if (loading) {
     return (
       <div
         style={{
-          width: '380px',
-          minWidth: '380px',
+          ...listWidth,
           height: '100%',
           borderRight: '1px solid var(--color-border-subtle)',
           overflowY: 'auto',
@@ -145,6 +148,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     </div>
   ) : (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+      {isMobile && onOpenSidebar && (
+        <button
+          aria-label="메뉴 열기"
+          onClick={onOpenSidebar}
+          style={{ fontSize: '16px', padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', lineHeight: 1 }}
+        >☰</button>
+      )}
       <button
         aria-label="전체 선택"
         onClick={selectAll}
@@ -201,7 +211,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   if (filteredMessages.length === 0) {
     return (
-      <div style={{ width: '380px', minWidth: '380px', height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ ...listWidth, height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
         {filterTabs}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
           {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
@@ -237,8 +247,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   return (
     <div
       style={{
-        width: '380px',
-        minWidth: '380px',
+        ...listWidth,
         height: '100%',
         borderRight: '1px solid var(--color-border-subtle)',
         display: 'flex',
