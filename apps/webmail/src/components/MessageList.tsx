@@ -1,6 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { MessageSummary } from '@/lib/api';
+
+type FilterMode = 'all' | 'unread' | 'starred';
 
 function formatDate(receivedAt: string): string {
   const date = new Date(receivedAt);
@@ -49,6 +52,14 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar }: MessageListProps) {
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+
+  const filteredMessages = filterMode === 'unread'
+    ? messages.filter((m) => !m.read)
+    : filterMode === 'starred'
+    ? messages.filter((m) => m.starred)
+    : messages;
+
   if (loading) {
     return (
       <div
@@ -94,22 +105,41 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     );
   }
 
-  if (messages.length === 0) {
+  const filterTabs = (
+    <div style={{ display: 'flex', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+      {(['all', 'unread', 'starred'] as FilterMode[]).map((mode) => {
+        const label = mode === 'all' ? '전체' : mode === 'unread' ? '안읽음' : '별표';
+        const active = filterMode === mode;
+        return (
+          <button
+            key={mode}
+            onClick={() => setFilterMode(mode)}
+            style={{
+              padding: '3px 10px',
+              borderRadius: '12px',
+              border: active ? 'none' : '1px solid var(--color-border-default)',
+              background: active ? 'var(--color-accent)' : 'transparent',
+              color: active ? '#fff' : 'var(--color-text-secondary)',
+              fontSize: '12px',
+              fontWeight: active ? 500 : 400,
+              cursor: 'pointer',
+              transition: 'all 100ms ease',
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (filteredMessages.length === 0) {
     return (
-      <div
-        style={{
-          width: '380px',
-          minWidth: '380px',
-          height: '100%',
-          borderRight: '1px solid var(--color-border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--color-text-tertiary)',
-          fontSize: '14px',
-        }}
-      >
-        {emptyLabel ?? '메일이 없습니다'}
+      <div style={{ width: '380px', minWidth: '380px', height: '100%', borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column' }}>
+        {filterTabs}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
+          {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
+        </div>
       </div>
     );
   }
@@ -119,7 +149,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const groupOrder = ['오늘', '어제', '지난 7일', '이번 달'];
   const groupMap = new Map<string, MessageSummary[]>();
 
-  for (const msg of messages) {
+  for (const msg of filteredMessages) {
     const group = getDateGroup(msg.received_at);
     if (!groupMap.has(group)) groupMap.set(group, []);
     groupMap.get(group)!.push(msg);
@@ -140,17 +170,21 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   return (
     <div
-      role="list"
-      aria-label="메일 목록"
       style={{
         width: '380px',
         minWidth: '380px',
         height: '100%',
         borderRight: '1px solid var(--color-border-subtle)',
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
+      {filterTabs}
+      <div
+        role="list"
+        aria-label="메일 목록"
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+      >
       {groups.map((group) => (
         <div key={group.label} role="group" aria-label={group.label}>
           <div
@@ -198,6 +232,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
