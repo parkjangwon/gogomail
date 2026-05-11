@@ -2,120 +2,45 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Folder,
-  MessageSummary,
-  MessageDetail,
-  getFolders,
-  getMessages,
-  getMessage,
-  markRead,
-  deleteMessage,
-} from '@/lib/api';
+import { deleteMessage } from '@/lib/api';
+import { useMailList } from '@/hooks/useMailList';
+import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageList } from '@/components/MessageList';
 import { ReadingPane } from '@/components/ReadingPane';
 import { ComposeModal } from '@/components/ComposeModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LocaleSelector } from '@/components/common/LocaleSelector';
 
 export default function MailPage() {
   const router = useRouter();
 
-  const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState('inbox');
-  const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
   const [showCompose, setShowCompose] = useState(false);
 
-  const [foldersLoading, setFoldersLoading] = useState(true);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [messageLoading, setMessageLoading] = useState(false);
+  const { folders, messages, setMessages, foldersLoading, messagesLoading } =
+    useMailList(activeFolderId);
+  const { message: selectedMessage, loading: messageLoading } =
+    useMessage(selectedMessageId);
 
   // Check auth on mount
   useEffect(() => {
     const token = localStorage.getItem('webmail_token');
-    if (!token) {
-      router.push('/login');
-    }
+    if (!token) router.push('/login');
   }, [router]);
 
-  // Load folders on mount
+  // Mark selected message as read locally
   useEffect(() => {
-    let cancelled = false;
-    setFoldersLoading(true);
-    getFolders()
-      .then((data) => {
-        if (!cancelled) setFolders(data.folders);
-      })
-      .catch(() => {
-        // folders optional — continue with empty list
-      })
-      .finally(() => {
-        if (!cancelled) setFoldersLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Load messages when folder changes
-  useEffect(() => {
-    let cancelled = false;
-    setMessages([]);
-    setSelectedMessageId(null);
-    setSelectedMessage(null);
-    setMessagesLoading(true);
-    getMessages(activeFolderId)
-      .then((data) => {
-        if (!cancelled) setMessages(data.messages);
-      })
-      .catch(() => {
-        if (!cancelled) setMessages([]);
-      })
-      .finally(() => {
-        if (!cancelled) setMessagesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeFolderId]);
-
-  // Load full message when selection changes
-  useEffect(() => {
-    if (!selectedMessageId) {
-      setSelectedMessage(null);
-      return;
-    }
-    let cancelled = false;
-    setMessageLoading(true);
-    getMessage(selectedMessageId)
-      .then((data) => {
-        if (!cancelled) {
-          setSelectedMessage(data);
-          // Mark as read locally
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === selectedMessageId ? { ...m, is_read: true } : m
-            )
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSelectedMessage(null);
-      })
-      .finally(() => {
-        if (!cancelled) setMessageLoading(false);
-      });
-    // Also mark read on server (fire and forget)
-    markRead(selectedMessageId, true).catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedMessageId]);
+    if (!selectedMessageId) return;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === selectedMessageId ? { ...m, is_read: true } : m))
+    );
+  }, [selectedMessageId, setMessages]);
 
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
+    setSelectedMessageId(null);
   }, []);
 
   const handleSelectMessage = useCallback((id: string) => {
@@ -128,11 +53,10 @@ export default function MailPage() {
       await deleteMessage(selectedMessageId);
       setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
       setSelectedMessageId(null);
-      setSelectedMessage(null);
     } catch {
       // ignore
     }
-  }, [selectedMessageId]);
+  }, [selectedMessageId, setMessages]);
 
   if (foldersLoading) {
     return (
@@ -197,10 +121,23 @@ export default function MailPage() {
         loading={messageLoading}
       />
 
-      {showCompose && (
-        <ComposeModal onClose={() => setShowCompose(false)} />
-      )}
-      <ThemeToggle />
+      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} />}
+
+      {/* Controls: locale + theme, top-right */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '14px',
+          right: '16px',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        <LocaleSelector />
+        <ThemeToggle inline />
+      </div>
     </div>
   );
 }
