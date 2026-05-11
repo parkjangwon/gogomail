@@ -84,6 +84,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
   const [minimized, setMinimized] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [showSigEditor, setShowSigEditor] = useState(false);
   const [signature, setSignature] = useState(() => {
@@ -244,10 +245,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         aria-modal="true"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          insetInlineEnd: '24px',
-          width: '560px',
-          maxWidth: 'calc(100vw - 48px)',
+          ...(fullscreen
+            ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
+            : { bottom: '24px', insetInlineEnd: '24px', width: '560px', maxWidth: 'calc(100vw - 48px)' }
+          ),
           background: 'var(--color-bg-primary)',
           border: '1px solid var(--color-border-default)',
           borderRadius: '8px',
@@ -256,7 +257,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           display: 'flex',
           flexDirection: 'column',
           animation: 'composeIn 120ms ease-out',
-          maxHeight: minimized ? '44px' : '80vh',
+          maxHeight: minimized ? '44px' : fullscreen ? 'none' : '80vh',
+          height: fullscreen && !minimized ? 'auto' : undefined,
           overflow: 'hidden',
           transition: 'max-height 180ms ease',
         }}
@@ -297,6 +299,19 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지')}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setFullscreen((v) => !v); if (minimized) setMinimized(false); }}
+              aria-label={fullscreen ? '창 축소' : '전체화면'}
+              title={fullscreen ? '창 축소' : '전체화면'}
+              style={{
+                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
+                background: 'transparent', color: 'var(--color-text-secondary)',
+                cursor: 'pointer', fontSize: '12px', lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >{fullscreen ? '⊡' : '⊞'}</button>
             <button
               onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}
               aria-label={minimized ? '창 복원' : '창 최소화'}

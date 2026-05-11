@@ -441,6 +441,11 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               fontSize: '12px',
               color: 'var(--color-text-tertiary)',
               fontWeight: 500,
+              position: 'sticky',
+              top: 0,
+              zIndex: 1,
+              background: 'var(--color-bg-primary)',
+              backdropFilter: 'blur(8px)',
             }}
           >
             {group.label}
