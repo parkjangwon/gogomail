@@ -360,6 +360,22 @@ export async function downloadAttachment(messageId: string, attachmentId: string
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
 
+export async function saveAttachmentToDrive(
+  messageId: string,
+  attachmentId: string,
+  filename: string,
+  mimeType: string,
+  parentId?: string
+): Promise<DriveNode | null> {
+  const token = getToken();
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+  const attachRes = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`, { headers });
+  if (!attachRes.ok) return null;
+  const blob = await attachRes.blob();
+  const file = new File([blob], filename, { type: mimeType || blob.type });
+  return uploadDriveFile(file, parentId);
+}
+
 // ── Contacts / Address Books ─────────────────────────────────────────────────
 
 export interface AddressBook {

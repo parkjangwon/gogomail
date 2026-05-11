@@ -18,6 +18,8 @@ const SECTIONS = [
       { key: 'g  c', desc: '캘린더' },
       { key: 'g  k', desc: '연락처' },
       { key: 'g  o', desc: '조직도' },
+      { key: 'g  v', desc: '드라이브' },
+      { key: 'g  ,', desc: '설정' },
     ],
   },
   {
