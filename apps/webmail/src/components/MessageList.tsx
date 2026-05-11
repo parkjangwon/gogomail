@@ -41,9 +41,10 @@ interface MessageListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   loading?: boolean;
+  emptyLabel?: string;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel }: MessageListProps) {
   if (loading) {
     return (
       <div
@@ -104,7 +105,7 @@ export function MessageList({ messages, selectedId, onSelect, loading }: Message
           fontSize: '14px',
         }}
       >
-        메일이 없습니다
+        {emptyLabel ?? '메일이 없습니다'}
       </div>
     );
   }
