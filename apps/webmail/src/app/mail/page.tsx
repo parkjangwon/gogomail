@@ -211,6 +211,21 @@ export default function MailPage() {
     });
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const handleMarkRead = useCallback(async () => {
+    if (!selectedMessageId) return;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
+    );
+    adjustUnread(activeFolderId, -1);
+    addToast('읽음으로 표시했습니다', 'info');
+    markRead(selectedMessageId, true).catch(() => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
+      );
+      adjustUnread(activeFolderId, 1);
+    });
+  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
+
   const parseSearchOperators = useCallback((raw: string): { q: string; operators: AdvancedFilters } => {
     let q = raw;
     const operators: AdvancedFilters = {};
@@ -929,6 +944,8 @@ export default function MailPage() {
                 onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
                 onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
                 onMarkUnread={handleMarkUnread}
+                onMarkRead={handleMarkRead}
+                isRead={messages.find((m) => m.id === selectedMessageId)?.read ?? true}
                 onMove={handleMove}
                 onPrint={() => window.print()}
                 loading={messageLoading}
