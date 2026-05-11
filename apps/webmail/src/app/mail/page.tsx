@@ -25,12 +25,14 @@ export default function MailPage() {
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  const [composeContext, setComposeContext] = useState<{
-    intent: ComposeIntent;
-    source?: MessageDetail;
-    draft?: MessageDetail;
-    to?: string;
-  } | null>(null);
+  type ComposeWindow = { id: string; intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string };
+  const [composeWindows, setComposeWindows] = useState<ComposeWindow[]>([]);
+  const openCompose = useCallback((ctx: Omit<ComposeWindow, 'id'>) => {
+    setComposeWindows((prev) => [...prev, { id: Math.random().toString(36).slice(2), ...ctx }]);
+  }, []);
+  const closeCompose = useCallback((id: string) => {
+    setComposeWindows((prev) => prev.filter((w) => w.id !== id));
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -53,13 +55,6 @@ export default function MailPage() {
   }, []);
 
   const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
-  const [listPaneWidth, setListPaneWidth] = useState(() => {
-    try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
-  });
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const [readingPanePosition, setReadingPanePosition] = useState<'right' | 'bottom'>(() => {
-    try { return (localStorage.getItem('webmail_pane_position') ?? 'right') as 'right' | 'bottom'; } catch { return 'right'; }
-  });
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
@@ -177,13 +172,13 @@ export default function MailPage() {
   // When a draft message loads, open it in compose instead of ReadingPane
   useEffect(() => {
     if (!selectedMessage || activeFolderSystemType !== 'drafts') return;
-    setComposeContext({ intent: 'new', draft: selectedMessage });
+    openCompose({ intent: 'new', draft: selectedMessage });
     setSelectedMessageId(null);
   }, [selectedMessage, activeFolderSystemType]);
 
   useEffect(() => {
     if (!pendingCompose || !selectedMessage || selectedMessage.id !== pendingCompose.messageId) return;
-    setComposeContext({ intent: pendingCompose.intent, source: selectedMessage });
+    openCompose({ intent: pendingCompose.intent, source: selectedMessage });
     setPendingCompose(null);
   }, [pendingCompose, selectedMessage]);
 
@@ -437,13 +432,6 @@ export default function MailPage() {
     });
   }, [setMessages]);
 
-  // Persist list pane width and pane layout
-  useEffect(() => {
-    localStorage.setItem('webmail_list_pane_width', String(listPaneWidth));
-  }, [listPaneWidth]);
-  useEffect(() => {
-    localStorage.setItem('webmail_pane_position', readingPanePosition);
-  }, [readingPanePosition]);
 
   // Persist last-selected message per folder
   useEffect(() => {
@@ -512,42 +500,42 @@ export default function MailPage() {
         }
         case 'c':
         case 'n':
-          if (!composeContext) { e.preventDefault(); setComposeContext({ intent: 'new' }); }
+          if (composeWindows.length === 0) { e.preventDefault(); openCompose({ intent: 'new' }); }
           break;
         case 'u':
-          if (selectedMessageId && !composeContext) handleMarkUnread();
+          if (selectedMessageId && composeWindows.length === 0) handleMarkUnread();
           break;
         case 's': {
-          if (selectedMessageId && !composeContext) {
+          if (selectedMessageId && composeWindows.length === 0) {
             const msg = messages.find((m) => m.id === selectedMessageId);
             if (msg) handleStar(selectedMessageId, !msg.starred);
           }
           break;
         }
         case 'r':
-          if (selectedMessage && !composeContext) {
+          if (selectedMessage && composeWindows.length === 0) {
             e.preventDefault();
-            setComposeContext({ intent: 'reply', source: selectedMessage });
+            openCompose({ intent: 'reply', source: selectedMessage });
           }
           break;
         case 'a':
-          if (selectedMessage && !composeContext) {
+          if (selectedMessage && composeWindows.length === 0) {
             e.preventDefault();
-            setComposeContext({ intent: 'reply_all', source: selectedMessage });
+            openCompose({ intent: 'reply_all', source: selectedMessage });
           }
           break;
         case 'f':
-          if (selectedMessage && !composeContext) {
+          if (selectedMessage && composeWindows.length === 0) {
             e.preventDefault();
-            setComposeContext({ intent: 'forward', source: selectedMessage });
+            openCompose({ intent: 'forward', source: selectedMessage });
           }
           break;
         case 'e': {
-          if (selectedMessageId && !composeContext) handleArchive();
+          if (selectedMessageId && composeWindows.length === 0) handleArchive();
           break;
         }
         case 'l': {
-          if (selectedMessageId && !composeContext) {
+          if (selectedMessageId && composeWindows.length === 0) {
             const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
             const current = messageLabels[selectedMessageId];
             const currentIdx = current ? colors.indexOf(current) : -1;
@@ -557,14 +545,14 @@ export default function MailPage() {
           break;
         }
         case 'z': {
-          if (selectedMessageId && !composeContext && activeFolderSystemType !== 'trash') {
+          if (selectedMessageId && composeWindows.length === 0 && activeFolderSystemType !== 'trash') {
             handleSnooze(selectedMessageId, new Date(Date.now() + 60 * 60 * 1000));
           }
           break;
         }
         case '#':
         case 'Delete':
-          if (selectedMessageId && !composeContext) handleDelete();
+          if (selectedMessageId && composeWindows.length === 0) handleDelete();
           break;
         case '/': {
           e.preventDefault();
@@ -576,18 +564,18 @@ export default function MailPage() {
           setShowShortcuts((v) => !v);
           break;
         case '[':
-          if (!composeContext) setSidebarCollapsed((v) => !v);
+          if (composeWindows.length === 0) setSidebarCollapsed((v) => !v);
           break;
         case 'Escape':
           if (showShortcuts) setShowShortcuts(false);
-          else if (composeContext) setComposeContext(null);
+          else if (composeWindows.length > 0) closeCompose(composeWindows[composeWindows.length - 1].id);
           else setSelectedMessageId(null);
           break;
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeWindows, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -805,7 +793,7 @@ export default function MailPage() {
         folders={folders}
         activeFolderId={activeFolderId}
         onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
-        onCompose={() => { setComposeContext({ intent: 'new' }); setMobileSidebarOpen(false); }}
+        onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
         onSearch={handleSearch}
         searchQuery={searchQuery}
         advancedFilters={advancedFilters}
@@ -845,10 +833,9 @@ export default function MailPage() {
         ) : undefined}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: (!isMobile && readingPanePosition === 'bottom') ? 'column' : 'row', overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', minWidth: 0 }}>
 
-      {(!isMobile || !selectedMessageId) && (
-        <MessageList
+      <MessageList
           messages={searchResults ?? messages}
           selectedId={selectedMessageId}
           onSelect={handleSelectMessage}
@@ -881,9 +868,6 @@ export default function MailPage() {
           onOpenSidebar={() => setMobileSidebarOpen(true)}
           onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
           onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
-          paneWidth={(!isMobile && readingPanePosition === 'right') ? listPaneWidth : undefined}
-          fullWidth={!isMobile && readingPanePosition === 'bottom'}
-          bottomLayout={!isMobile && readingPanePosition === 'bottom'}
           searchQuery={searchResults !== null ? searchQuery : undefined}
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
@@ -894,102 +878,109 @@ export default function MailPage() {
           onBulkStar={handleBulkStar}
           messageLabels={messageLabels}
         />
-      )}
-
-      {!isMobile && readingPanePosition === 'right' && (
-        <div
-          aria-hidden="true"
-          onMouseDown={(e) => {
-            dragRef.current = { startX: e.clientX, startWidth: listPaneWidth };
-            const onMove = (ev: MouseEvent) => {
-              if (!dragRef.current) return;
-              const delta = ev.clientX - dragRef.current.startX;
-              setListPaneWidth(Math.max(240, Math.min(600, dragRef.current.startWidth + delta)));
-            };
-            const onUp = () => {
-              dragRef.current = null;
-              document.removeEventListener('mousemove', onMove);
-              document.removeEventListener('mouseup', onUp);
-            };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-          }}
-          style={{
-            width: '4px',
-            flexShrink: 0,
-            cursor: 'ew-resize',
-            background: 'transparent',
-            transition: 'background 100ms ease',
-            zIndex: 1,
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-        />
-      )}
-
-      {(!isMobile || selectedMessageId) && (() => {
-          const msgList = searchResults ?? messages;
-          const curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
-          const prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
-          const nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
-          return (
-        <ReadingPane
-          message={selectedMessage}
-          folders={folders}
-          onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' ? handleArchive : undefined}
-          onSpam={folders.some((f) => f.system_type === 'spam' || f.system_type === 'junk') && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' && activeFolderSystemType !== 'trash' ? handleSpam : undefined}
-          onNotSpam={activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk' ? handleNotSpam : undefined}
-          onDelete={handleDelete}
-          onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
-          onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
-          onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
-          onMarkUnread={handleMarkUnread}
-          onMove={handleMove}
-          onPrint={() => window.print()}
-          loading={messageLoading}
-          onBack={isMobile ? () => setSelectedMessageId(null) : undefined}
-          isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
-          onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
-          onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
-          onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
-          messageIndex={curIdx >= 0 ? curIdx : undefined}
-          messageTotal={curIdx >= 0 ? msgList.length : undefined}
-          onQuickReply={selectedMessage ? async (body) => {
-            await sendMessage({
-              to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
-              subject: `Re: ${selectedMessage.subject || ''}`,
-              text_body: body,
-              intent: 'reply',
-              source_message_id: selectedMessage.id,
-            });
-            addToast('답장을 전송했습니다');
-          } : undefined}
-          onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
-          onComposeToAddress={(address) => setComposeContext({ intent: 'new', to: address })}
-          onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
-        />
-          );
-        })()}
 
       </div>{/* end layout wrapper */}
 
-      {composeContext && (
+      {/* Slide-in reading pane overlay */}
+      {(() => {
+        const msgList = searchResults ?? messages;
+        const curIdx = msgList.findIndex((m) => m.id === selectedMessageId);
+        const prevId = curIdx > 0 ? msgList[curIdx - 1].id : null;
+        const nextId = curIdx !== -1 && curIdx < msgList.length - 1 ? msgList[curIdx + 1].id : null;
+        const panelOpen = !!selectedMessageId;
+        return (
+          <>
+            {/* backdrop — semi-transparent, click closes panel */}
+            <div
+              aria-hidden="true"
+              onClick={() => setSelectedMessageId(null)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 49,
+                background: 'rgba(0,0,0,0.15)',
+                opacity: panelOpen ? 1 : 0,
+                pointerEvents: panelOpen ? 'auto' : 'none',
+                transition: 'opacity 200ms ease',
+              }}
+            />
+            <div
+              role="region"
+              aria-label="메일 읽기"
+              style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                height: '100dvh',
+                width: isMobile ? '100%' : 'min(720px, 55vw)',
+                transform: panelOpen ? 'translateX(0)' : 'translateX(100%)',
+                transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1)',
+                zIndex: 50,
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'var(--color-bg-primary)',
+                borderLeft: isMobile ? 'none' : '1px solid var(--color-border-default)',
+                boxShadow: panelOpen ? '-8px 0 32px rgba(0,0,0,0.12)' : 'none',
+              }}
+            >
+              <ReadingPane
+                message={selectedMessage}
+                folders={folders}
+                onArchive={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' ? handleArchive : undefined}
+                onSpam={folders.some((f) => f.system_type === 'spam' || f.system_type === 'junk') && activeFolderSystemType !== 'spam' && activeFolderSystemType !== 'junk' && activeFolderSystemType !== 'trash' ? handleSpam : undefined}
+                onNotSpam={activeFolderSystemType === 'spam' || activeFolderSystemType === 'junk' ? handleNotSpam : undefined}
+                onDelete={handleDelete}
+                onReply={() => selectedMessage && openCompose({ intent: 'reply', source: selectedMessage })}
+                onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
+                onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
+                onMarkUnread={handleMarkUnread}
+                onMove={handleMove}
+                onPrint={() => window.print()}
+                loading={messageLoading}
+                onBack={() => setSelectedMessageId(null)}
+                isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
+                onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
+                onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
+                onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
+                messageIndex={curIdx >= 0 ? curIdx : undefined}
+                messageTotal={curIdx >= 0 ? msgList.length : undefined}
+                onQuickReply={selectedMessage ? async (body) => {
+                  await sendMessage({
+                    to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
+                    subject: `Re: ${selectedMessage.subject || ''}`,
+                    text_body: body,
+                    intent: 'reply',
+                    source_message_id: selectedMessage.id,
+                  });
+                  addToast('답장을 전송했습니다');
+                } : undefined}
+                onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
+                onComposeToAddress={(address) => openCompose({ intent: 'new', to: address })}
+                onSnooze={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
+                onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
+              />
+            </div>
+          </>
+        );
+      })()}
+
+      {composeWindows.map((w, idx) => (
         <ComposeModal
-          intent={composeContext.intent}
-          sourceMessage={composeContext.source}
-          draftMessage={composeContext.draft}
-          initialTo={composeContext.to}
+          key={w.id}
+          intent={w.intent}
+          sourceMessage={w.source}
+          draftMessage={w.draft}
+          initialTo={w.to}
           userEmail={userEmail}
           isMobile={isMobile}
-          onClose={() => setComposeContext(null)}
+          windowOffset={idx}
+          onClose={() => closeCompose(w.id)}
         />
-      )}
+      ))}
 
       {/* Mobile FAB — compose button when sidebar is hidden */}
-      {isMobile && !selectedMessageId && !composeContext && (
+      {isMobile && !selectedMessageId && composeWindows.length === 0 && (
         <button
           aria-label="새 메일 작성"
-          onClick={() => setComposeContext({ intent: 'new' })}
+          onClick={() => openCompose({ intent: 'new' })}
           style={{
             position: 'fixed',
             bottom: '24px',
@@ -1090,16 +1081,6 @@ export default function MailPage() {
           gap: '8px',
         }}
       >
-        {!isMobile && (
-          <button
-            aria-label={readingPanePosition === 'right' ? '읽기 창 아래로' : '읽기 창 오른쪽으로'}
-            title={readingPanePosition === 'right' ? '읽기 창 아래로' : '읽기 창 오른쪽으로'}
-            onClick={() => setReadingPanePosition((p) => p === 'right' ? 'bottom' : 'right')}
-            style={{ fontSize: '14px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >{readingPanePosition === 'right' ? '⬇' : '➡'}</button>
-        )}
         <AccentPicker />
         <LocaleSelector />
         <ThemeToggle inline />

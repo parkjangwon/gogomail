@@ -121,6 +121,7 @@ interface ReadingPaneProps {
   onComposeToAddress?: (address: string) => void;
   onRestore?: () => void;
   onSnooze?: (messageId: string, until: Date) => void;
+  onOpenInWindow?: () => void;
 }
 
 function readingTime(text: string): string {
@@ -210,6 +211,7 @@ export function ReadingPane({
   onComposeToAddress,
   onRestore,
   onSnooze,
+  onOpenInWindow,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -460,6 +462,14 @@ export function ReadingPane({
           >
             {isStarred ? '★' : '☆'}
           </button>
+        )}
+        {onOpenInWindow && (
+          <button
+            aria-label="새 창으로 열기"
+            title="새 창으로 열기"
+            onClick={onOpenInWindow}
+            style={{ ...iconStyle }}
+          >⧉</button>
         )}
         <ActionButton label="인쇄" onClick={onPrint} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
