@@ -17,7 +17,7 @@ export default function LoginPage() {
   // Dev mode: skip login and go directly to mail
   useEffect(() => {
     if (DEV_USER_ID) {
-      localStorage.setItem('webmail_token', '__dev__');
+      localStorage.setItem('webmail_authenticated', '1');
       if (DEV_USER_ID.includes('@')) {
         localStorage.setItem('webmail_email', DEV_USER_ID);
       }
@@ -35,7 +35,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await loginUser(email.trim(), password);
-      localStorage.setItem('webmail_token', result.token);
+      // Token is stored as httpOnly cookie by the server — only store non-sensitive metadata
+      localStorage.setItem('webmail_authenticated', '1');
       localStorage.setItem('webmail_email', email.trim());
       localStorage.setItem('webmail_login_at', new Date().toISOString());
       if (result.expires_at) localStorage.setItem('webmail_token_expires_at', result.expires_at);

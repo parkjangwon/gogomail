@@ -292,18 +292,10 @@ export default function MailPage() {
 
   // Check auth on mount, load email
   useEffect(() => {
-    const token = localStorage.getItem('webmail_token');
-    if (!token) { router.push('/login'); return; }
+    const authenticated = localStorage.getItem('webmail_authenticated');
+    if (!authenticated && !DEV_USER_ID) { router.push('/login'); return; }
     let email = localStorage.getItem('webmail_email') ?? '';
-    if (!email && token === '__dev__' && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
-    // Fallback: decode JWT payload to extract email/sub claim
-    if (!email && token && token !== '__dev__') {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        const candidate = payload.email || payload.sub || '';
-        if (candidate.includes('@')) { email = candidate; localStorage.setItem('webmail_email', email); }
-      } catch { /* malformed token */ }
-    }
+    if (!email && DEV_USER_ID.includes('@')) email = DEV_USER_ID;
     setUserEmail(email);
     if (localStorage.getItem('webmail_must_change_password') === '1') {
       setMustChangePassword(true);
@@ -327,9 +319,11 @@ export default function MailPage() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('webmail_token');
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    localStorage.removeItem('webmail_authenticated');
     localStorage.removeItem('webmail_email');
     localStorage.removeItem('webmail_must_change_password');
+    localStorage.removeItem('webmail_token_expires_at');
     router.push('/login');
   }, [router]);
 

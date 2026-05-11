@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const BACKEND = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
 const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
@@ -20,8 +21,10 @@ async function handler(
   const url = `${BACKEND}/api/v1/${pathStr}${search}`;
 
   const headers = new Headers();
-  const auth = req.headers.get('authorization');
-  if (auth) headers.set('Authorization', auth);
+  // Read token from httpOnly cookie — never from client-supplied Authorization header
+  const cookieStore = await cookies();
+  const token = cookieStore.get('webmail_token')?.value;
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   const ct = req.headers.get('content-type');
   if (ct) headers.set('Content-Type', ct);
 
@@ -37,12 +40,12 @@ async function handler(
       body,
     });
     const data = await res.arrayBuffer();
-    return new NextResponse(data, {
-      status: res.status,
-      headers: {
-        'Content-Type': res.headers.get('content-type') || 'application/json',
-      },
-    });
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': res.headers.get('content-type') || 'application/json',
+    };
+    const cd = res.headers.get('content-disposition');
+    if (cd) responseHeaders['Content-Disposition'] = cd;
+    return new NextResponse(data, { status: res.status, headers: responseHeaders });
   } catch (_e) {
     return NextResponse.json({ error: 'Backend unreachable' }, { status: 503 });
   }

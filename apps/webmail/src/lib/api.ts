@@ -39,7 +39,6 @@ export interface MessageDetail {
 }
 
 export interface AuthTokenResponse {
-  token: string;
   expires_at: string;
   must_change_password: boolean;
   client_ip?: string;
@@ -71,13 +70,12 @@ export interface SendMessageRequest {
   scheduled_at?: string;
 }
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('webmail_token');
-}
-
 function clearTokenAndRedirect(): void {
-  localStorage.removeItem('webmail_token');
+  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  localStorage.removeItem('webmail_authenticated');
+  localStorage.removeItem('webmail_email');
+  localStorage.removeItem('webmail_token_expires_at');
+  localStorage.removeItem('webmail_must_change_password');
   window.location.href = '/login';
 }
 
@@ -85,12 +83,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
   const headers = new Headers(options.headers as HeadersInit | undefined);
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
   }
@@ -127,7 +120,7 @@ export async function loginUser(
   email: string,
   password: string
 ): Promise<AuthTokenResponse> {
-  const res = await fetch('/api/mail/auth/token', {
+  const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -149,10 +142,7 @@ export async function loginUser(
 
 export async function revokeAllSessions(): Promise<boolean> {
   try {
-    const res = await fetch('/api/mail/auth/sessions/revoke-all', {
-      method: 'POST',
-      headers: driveHeaders(),
-    });
+    const res = await fetch('/api/mail/auth/sessions/revoke-all', { method: 'POST' });
     return res.ok;
   } catch { return false; }
 }
@@ -394,13 +384,11 @@ export async function exportFolderZip(
 }
 
 export async function restoreMailbox(folderId: string, file: File): Promise<{ imported: number }> {
-  const token = getToken();
   const formData = new FormData();
   formData.append('file', file);
   formData.append('folder_id', folderId);
   const res = await fetch('/api/mail/messages/restore', {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
   if (!res.ok) {
@@ -424,10 +412,7 @@ export async function autocompleteContacts(q: string, limit = 8): Promise<Contac
   if (!q.trim()) return [];
   const params = new URLSearchParams({ q, limit: String(limit) });
   try {
-    const token = getToken();
-    const res = await fetch(`/api/mail/contacts/autocomplete?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(`/api/mail/contacts/autocomplete?${params}`);
     if (!res.ok) return [];
     const data = await res.json() as { results?: ContactSuggestion[] };
     return data.results ?? [];
@@ -435,13 +420,11 @@ export async function autocompleteContacts(q: string, limit = 8): Promise<Contac
 }
 
 export async function uploadAttachment(file: File, draftId?: string): Promise<Attachment> {
-  const token = getToken();
   const form = new FormData();
   form.append('file', file);
   if (draftId) form.append('draft_id', draftId);
   const res = await fetch('/api/mail/attachments/upload', {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   });
   if (res.status === 401) { clearTokenAndRedirect(); throw new Error('Unauthorized'); }
@@ -459,10 +442,7 @@ export function listAttachments(messageId: string): Promise<Attachment[]> {
 }
 
 export async function downloadAttachment(messageId: string, attachmentId: string, filename: string): Promise<void> {
-  const token = getToken();
-  const res = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -480,10 +460,7 @@ export async function attachDriveFileToEmail(
   mimeType: string,
   draftId?: string
 ): Promise<Attachment | null> {
-  const token = getToken();
-  const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/download`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/download`);
   if (!res.ok) return null;
   const blob = await res.blob();
   const file = new File([blob], filename, { type: mimeType || blob.type });
@@ -497,9 +474,7 @@ export async function saveAttachmentToDrive(
   mimeType: string,
   parentId?: string
 ): Promise<DriveNode | null> {
-  const token = getToken();
-  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-  const attachRes = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`, { headers });
+  const attachRes = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`);
   if (!attachRes.ok) return null;
   const blob = await attachRes.blob();
   const file = new File([blob], filename, { type: mimeType || blob.type });
@@ -817,10 +792,7 @@ export async function listDirectoryUsers(q?: string, limit = 50): Promise<Direct
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     params.set('limit', String(limit));
-    const token = localStorage.getItem('webmail_token');
-    const res = await fetch(`/api/mail/directory/users?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(`/api/mail/directory/users?${params}`);
     if (!res.ok) return [];
     const data = await res.json() as { users?: DirectoryUser[] };
     return data.users ?? [];
@@ -850,16 +822,13 @@ export async function listThreads(params: {
   cursor?: string;
 }): Promise<{ threads: ThreadSummary[]; has_more: boolean; next_cursor: string }> {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
     const p = new URLSearchParams();
     if (params.folder_id) p.set('folder_id', params.folder_id);
     if (params.starred !== undefined) p.set('starred', String(params.starred));
     if (params.read !== undefined) p.set('read', String(params.read));
     if (params.limit !== undefined) p.set('limit', String(params.limit));
     if (params.cursor) p.set('cursor', params.cursor);
-    const res = await fetch(`/api/mail/threads?${p}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(`/api/mail/threads?${p}`);
     if (!res.ok) return { threads: [], has_more: false, next_cursor: '' };
     return res.json() as Promise<{ threads: ThreadSummary[]; has_more: boolean; next_cursor: string }>;
   } catch { return { threads: [], has_more: false, next_cursor: '' }; }
@@ -867,10 +836,7 @@ export async function listThreads(params: {
 
 export async function listThreadMessages(threadId: string): Promise<MessageSummary[]> {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
-    const res = await fetch(`/api/mail/threads/${encodeURIComponent(threadId)}/messages?limit=50`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(`/api/mail/threads/${encodeURIComponent(threadId)}/messages?limit=50`);
     if (!res.ok) return [];
     const data = await res.json() as { messages?: MessageSummary[] };
     return data.messages ?? [];
@@ -907,16 +873,11 @@ export interface DriveShareLink {
   expires_at: string;
 }
 
-function driveHeaders(): HeadersInit {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function listDriveNodes(parentId?: string): Promise<DriveNode[]> {
   try {
     const p = new URLSearchParams({ status: 'active' });
     if (parentId) p.set('parent_id', parentId);
-    const res = await fetch(`/api/mail/drive/nodes?${p}`, { headers: driveHeaders() });
+    const res = await fetch(`/api/mail/drive/nodes?${p}`);
     if (!res.ok) return [];
     const data = await res.json() as { drive_nodes?: DriveNode[] };
     return data.drive_nodes ?? [];
@@ -926,7 +887,7 @@ export async function listDriveNodes(parentId?: string): Promise<DriveNode[]> {
 export async function listTrashedDriveNodes(): Promise<DriveNode[]> {
   try {
     const p = new URLSearchParams({ status: 'trashed' });
-    const res = await fetch(`/api/mail/drive/nodes?${p}`, { headers: driveHeaders() });
+    const res = await fetch(`/api/mail/drive/nodes?${p}`);
     if (!res.ok) return [];
     const data = await res.json() as { drive_nodes?: DriveNode[] };
     return data.drive_nodes ?? [];
@@ -937,7 +898,6 @@ export async function deleteDriveNodePermanently(nodeId: string): Promise<boolea
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}`, {
       method: 'DELETE',
-      headers: driveHeaders(),
     });
     return res.ok;
   } catch { return false; }
@@ -945,7 +905,7 @@ export async function deleteDriveNodePermanently(nodeId: string): Promise<boolea
 
 export async function getDriveUsage(): Promise<DriveUsage | null> {
   try {
-    const res = await fetch('/api/mail/drive/usage', { headers: driveHeaders() });
+    const res = await fetch('/api/mail/drive/usage');
     if (!res.ok) return null;
     const data = await res.json() as { usage?: DriveUsage };
     return data.usage ?? null;
@@ -956,7 +916,7 @@ export async function createDriveFolder(name: string, parentId?: string): Promis
   try {
     const res = await fetch('/api/mail/drive/folders', {
       method: 'POST',
-      headers: { ...driveHeaders(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, parent_id: parentId ?? '' }),
     });
     if (!res.ok) return null;
@@ -969,7 +929,7 @@ export async function renameDriveNode(nodeId: string, name: string): Promise<boo
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/name`, {
       method: 'PATCH',
-      headers: { ...driveHeaders(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     });
     return res.ok;
@@ -980,7 +940,6 @@ export async function trashDriveNode(nodeId: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/trash`, {
       method: 'POST',
-      headers: driveHeaders(),
     });
     return res.ok;
   } catch { return false; }
@@ -990,17 +949,13 @@ export async function restoreDriveNode(nodeId: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/restore`, {
       method: 'POST',
-      headers: driveHeaders(),
     });
     return res.ok;
   } catch { return false; }
 }
 
 export async function downloadDriveNode(nodeId: string, filename: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
-  const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/download`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/download`);
   if (!res.ok) throw new Error('Download failed');
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -1013,20 +968,20 @@ export async function uploadDriveFile(file: File, parentId?: string): Promise<Dr
   try {
     const sessionRes = await fetch('/api/mail/drive/upload-sessions', {
       method: 'POST',
-      headers: { ...driveHeaders(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: file.name, mime_type: file.type || 'application/octet-stream', size: file.size, parent_id: parentId ?? '' }),
     });
     if (!sessionRes.ok) return null;
     const { upload_session } = await sessionRes.json() as { upload_session: { id: string } };
     const bodyRes = await fetch(`/api/mail/drive/upload-sessions/${upload_session.id}/body`, {
       method: 'PUT',
-      headers: { ...driveHeaders(), 'Content-Type': file.type || 'application/octet-stream' },
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     });
     if (!bodyRes.ok) return null;
     const finalRes = await fetch('/api/mail/drive/files/finalize', {
       method: 'POST',
-      headers: { ...driveHeaders(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ upload_session_id: upload_session.id }),
     });
     if (!finalRes.ok) return null;
@@ -1039,7 +994,7 @@ export async function createDriveShareLink(nodeId: string, expiresAt: string): P
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/share-links`, {
       method: 'POST',
-      headers: { ...driveHeaders(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expires_at: expiresAt }),
     });
     if (!res.ok) return null;
@@ -1050,7 +1005,7 @@ export async function createDriveShareLink(nodeId: string, expiresAt: string): P
 
 export async function listDriveShareLinks(nodeId: string): Promise<DriveShareLink[]> {
   try {
-    const res = await fetch(`/api/mail/drive/share-links?node_id=${encodeURIComponent(nodeId)}`, { headers: driveHeaders() });
+    const res = await fetch(`/api/mail/drive/share-links?node_id=${encodeURIComponent(nodeId)}`);
     if (!res.ok) return [];
     const data = await res.json() as { drive_share_links?: DriveShareLink[] };
     return data.drive_share_links ?? [];
@@ -1060,7 +1015,7 @@ export async function listDriveShareLinks(nodeId: string): Promise<DriveShareLin
 export async function revokeDriveShareLink(linkId: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/mail/drive/share-links/${encodeURIComponent(linkId)}`, {
-      method: 'DELETE', headers: driveHeaders(),
+      method: 'DELETE',
     });
     return res.ok;
   } catch { return false; }

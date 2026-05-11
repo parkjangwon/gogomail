@@ -63,13 +63,11 @@ export default function LoginPage() {
         throw new Error(message);
       }
 
-      const data = await res.json();
-
-      if (data.access_token) {
-        document.cookie = `admin_access_token=${data.access_token}; path=/; secure; samesite=strict`;
+      if (res.ok) {
+        // Token is stored as httpOnly cookie by the server
         router.push('/companies/default/dashboard');
       } else {
-        throw new Error('No access token received');
+        throw new Error('Login failed');
       }
     } catch (err) {
       let errorMessage = 'Login failed';
