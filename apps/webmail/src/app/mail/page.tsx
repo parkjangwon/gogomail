@@ -351,6 +351,15 @@ export default function MailPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, showShortcuts, handleDelete]);
 
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshRef.current();
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (foldersLoading) {
     return (
       <div
