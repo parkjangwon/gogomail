@@ -41,7 +41,7 @@ const SECTIONS = [
       { key: 'f', desc: '전달' },
       { key: 's', desc: '별표 토글' },
       { key: 'e', desc: '보관' },
-      { key: 'v', desc: '폴더로 이동 (스팟라이트)' },
+      { key: 'v', desc: '편지함으로 이동 (스팟라이트)' },
       { key: '#  /  Del', desc: '삭제' },
       { key: '!', desc: '스팸으로 이동' },
       { key: 'm', desc: '읽음 표시' },
