@@ -5,8 +5,9 @@ import { Folder } from '@/lib/api';
 import {
   PencilSquareIcon,
   MagnifyingGlassIcon,
-  ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronDoubleLeftIcon,
   InboxIcon,
   StarIcon,
   PaperClipIcon,
@@ -155,7 +156,6 @@ export function Sidebar({
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
-  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -179,7 +179,10 @@ export function Sidebar({
   useEffect(() => {
     if (searchQuery.trim()) setSearchExpanded(true);
   }, [searchQuery]);
-  const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
+  const systemFoldersByType = new Map(folders.map((f) => {
+    const key = f.system_type === 'junk' ? 'spam' : (f.system_type ?? '');
+    return [key, f];
+  }));
   // Exclude all system-typed folders (including junk/archive not shown in nav) from custom section
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
@@ -230,8 +233,6 @@ export function Sidebar({
     <aside
       aria-label="메일 탐색"
       style={asideStyle}
-      onMouseEnter={() => setSidebarHovered(true)}
-      onMouseLeave={() => setSidebarHovered(false)}
     >
       {collapsed && !isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', padding: '8px 0', gap: '2px' }}>
@@ -293,58 +294,66 @@ export function Sidebar({
         </div>
       ) : (
       <>
-      {/* Account header */}
+      {/* Account header — Notion Mail style */}
       <div ref={userMenuRef} style={{ position: 'relative' }}>
-        <div style={{ padding: '14px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ padding: '10px 10px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isMobile && onClose && (
             <button aria-label="메뉴 닫기" onClick={onClose}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 4px 0 0', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}><XMarkIcon style={{ width: '18px', height: '18px' }} /></button>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 2px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}>
+              <XMarkIcon style={{ width: '18px', height: '18px' }} />
+            </button>
           )}
-          {/* Avatar — click to open account menu */}
+          {/* Avatar + name/email — click to open account menu */}
           <button
             aria-label="계정 메뉴"
             aria-expanded={showUserMenu}
             onClick={() => setShowUserMenu((v) => !v)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, borderRadius: '50%' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '3px 4px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, textAlign: 'left' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-overlay)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
             <div aria-hidden="true" style={{
-              width: '36px', height: '36px', borderRadius: '50%',
-              background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)',
+              width: '28px', height: '28px', borderRadius: '6px',
+              background: 'var(--color-accent)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px', fontWeight: 700,
+              fontSize: '12px', fontWeight: 700, flexShrink: 0,
             }}>
               {getInitials(userName)}
             </div>
-          </button>
-          {/* Name + email */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {userName !== userEmailAddress ? userName : userName.split('@')[0]}
-            </div>
-            {userEmailAddress && (
-              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {userEmailAddress}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {userName !== userEmailAddress ? userName : userName.split('@')[0]}
+                </span>
+                <ChevronDownIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
               </div>
-            )}
-          </div>
-          {/* Compose icon */}
-          <button
-            aria-label="편지 쓰기"
-            onClick={onCompose}
-            title="편지 쓰기 (c)"
-            style={{ width: '30px', height: '30px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-          ><PencilSquareIcon style={{ width: '16px', height: '16px' }} /></button>
+              {userEmailAddress && (
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {userEmailAddress}
+                </div>
+              )}
+            </div>
+          </button>
+          {/* Collapse button */}
           {!isMobile && onToggleCollapse && (
             <button
               aria-label="사이드바 접기"
               onClick={onToggleCollapse}
-              style={{ width: '30px', height: '30px', borderRadius: '6px', opacity: sidebarHovered ? 1 : 0, pointerEvents: sidebarHovered ? 'auto' : 'none', transition: 'opacity 150ms ease', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-            ><ChevronLeftIcon style={{ width: '16px', height: '16px' }} /></button>
+              title="사이드바 접기 ([)"
+              style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+            ><ChevronDoubleLeftIcon style={{ width: '15px', height: '15px' }} /></button>
           )}
+          {/* Compose button */}
+          <button
+            aria-label="편지 쓰기"
+            onClick={onCompose}
+            title="편지 쓰기 (c)"
+            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+          ><PencilSquareIcon style={{ width: '15px', height: '15px' }} /></button>
         </div>
 
         {/* User menu dropdown */}
