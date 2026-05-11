@@ -9,6 +9,15 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { sendMessage, saveDraft, updateDraft, uploadAttachment, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
+import {
+  PaperClipIcon,
+  LinkIcon,
+  PencilSquareIcon as PencilSquareIconHero,
+  ClipboardDocumentIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline';
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -416,7 +425,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         {dragOver && !minimized && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: '8px' }}>
             <div style={{ textAlign: 'center', color: 'var(--color-accent)', fontSize: '15px', fontWeight: 500 }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📎</div>
+              <PaperClipIcon style={{ width: '40px', height: '40px', marginBottom: '8px' }} />
               파일을 여기에 놓으세요
             </div>
           </div>
@@ -658,7 +667,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
                 return (
                   <div key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '12px', border: `1px solid ${att.error ? 'rgba(217,79,61,0.4)' : 'var(--color-border-default)'}`, background: 'var(--color-bg-secondary)', fontSize: '12px', color: att.error ? 'var(--color-destructive)' : 'var(--color-text-primary)' }}>
-                    <span>{att.uploading ? '⏳' : att.error ? '⚠' : '📎'}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>{att.uploading ? <ArrowPathIcon style={{ width: '12px', height: '12px', animation: 'spin 1s linear infinite' }} /> : att.error ? <ExclamationTriangleIcon style={{ width: '12px', height: '12px' }} /> : <PaperClipIcon style={{ width: '12px', height: '12px' }} />}</span>
                     <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.filename}</span>
                     {!att.uploading && <span style={{ color: 'var(--color-text-tertiary)' }}>{kb}</span>}
                     <button
@@ -722,15 +731,15 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
             <button type="button" aria-label="밑줄" title="밑줄" style={toolbarBtnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
             <button type="button" aria-label="목록" title="목록" style={toolbarBtnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}>≡</button>
-            <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyle(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}>🔗</button>
+            <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyle(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
 
             {/* Utility icons */}
-            <button type="button" onClick={() => fileInputRef.current?.click()} title="파일 첨부" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>📎</button>
-            <button type="button" onClick={() => setShowSigEditor((v) => !v)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}>✍</button>
+            <button type="button" onClick={() => fileInputRef.current?.click()} title="파일 첨부" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
+            <button type="button" onClick={() => setShowSigEditor((v) => !v)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}><PencilSquareIconHero style={{ width: '14px', height: '14px' }} /></button>
             <div style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setShowTemplates((v) => !v)} title="템플릿" style={toolbarBtnStyle(showTemplates)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}>📋</button>
+              <button type="button" onClick={() => setShowTemplates((v) => !v)} title="템플릿" style={toolbarBtnStyle(showTemplates)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ClipboardDocumentIcon style={{ width: '14px', height: '14px' }} /></button>
               {showTemplates && (
                 <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
                   {templates.length === 0 && <div style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿 없음</div>}
@@ -746,7 +755,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }} title="나중에 보내기" style={toolbarBtnStyle(showSchedule)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSchedule ? 'var(--color-bg-tertiary)' : 'transparent'; }}>🕐</button>
+            <button type="button" onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }} title="나중에 보내기" style={toolbarBtnStyle(showSchedule)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSchedule ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ClockIcon style={{ width: '14px', height: '14px' }} /></button>
             {showSchedule && (
               <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
             )}
