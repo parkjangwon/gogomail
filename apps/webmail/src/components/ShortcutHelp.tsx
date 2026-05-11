@@ -5,6 +5,7 @@ const SHORTCUTS = [
   { key: 'c', desc: '새 메일 작성' },
   { key: 'r', desc: '답장' },
   { key: 'f', desc: '전달' },
+  { key: 'u', desc: '읽지 않음으로 표시' },
   { key: '# / Delete', desc: '삭제' },
   { key: '/', desc: '검색창 포커스' },
   { key: 'Escape', desc: '닫기 / 선택 해제' },
