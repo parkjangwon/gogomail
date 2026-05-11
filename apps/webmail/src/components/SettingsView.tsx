@@ -4,6 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { revokeAllSessions } from '@/lib/api';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import LinkExt from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
 
 interface SettingsViewProps {
   userEmail?: string;
@@ -175,6 +180,64 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
   { id: 'accessibility', label: '접근성', icon: <EyeIcon style={{ width: 16, height: 16 }} /> },
   { id: 'about', label: '정보', icon: <InformationCircleIcon style={{ width: 16, height: 16 }} /> },
 ];
+
+// ─── MiniEditor ───────────────────────────────────────────────────────────────
+
+function MiniEditor({ value, onChange, placeholder }: { value: string; onChange: (html: string) => void; placeholder?: string }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      LinkExt.configure({ openOnClick: false }),
+      Placeholder.configure({ placeholder: placeholder ?? '' }),
+    ],
+    content: value,
+    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+  });
+
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  }, [value, editor]);
+
+  const btnStyle = (active?: boolean): React.CSSProperties => ({
+    background: active ? 'var(--color-bg-tertiary)' : 'transparent',
+    border: 'none', cursor: 'pointer', padding: '3px 6px',
+    borderRadius: '4px', fontSize: '12px', color: 'var(--color-text-secondary)',
+    display: 'inline-flex', alignItems: 'center',
+  });
+
+  return (
+    <div style={{ border: '1px solid var(--color-border-default)', borderRadius: '6px', overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
+      <style>{`
+        .mini-editor .tiptap { outline: none; }
+        .mini-editor .tiptap p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: var(--color-text-tertiary);
+          pointer-events: none;
+          height: 0;
+        }
+        .mini-editor .tiptap a { color: var(--color-accent); text-decoration: underline; }
+        .mini-editor .tiptap p { margin: 0 0 4px; }
+        .mini-editor .tiptap ul, .mini-editor .tiptap ol { padding-left: 20px; margin: 0; }
+      `}</style>
+      {/* Minimal toolbar */}
+      <div style={{ display: 'flex', gap: '2px', padding: '4px 6px', borderBottom: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
+        <button type="button" style={btnStyle(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
+        <button type="button" style={btnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
+        <button type="button" style={btnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
+        <span style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+        <button type="button" style={btnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()}>• 목록</button>
+        <button type="button" style={btnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>1. 목록</button>
+      </div>
+      <div className="mini-editor" style={{ minHeight: '80px', padding: '6px 10px', fontSize: '13px', color: 'var(--color-text-primary)' }}>
+        <EditorContent editor={editor} />
+      </div>
+    </div>
+  );
+}
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
@@ -406,7 +469,11 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
               <SectionHeader>서명</SectionHeader>
               <div style={{ padding: '16px 20px', background: 'var(--color-bg-primary)' }}>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginBottom: '10px' }}>메일 작성 시 자동으로 추가됩니다.</div>
-                <textarea value={signature} onChange={(e) => setSignature(e.target.value)} placeholder="서명을 입력하세요" rows={5} style={{ width: '100%', padding: '10px 12px', borderRadius: '7px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', lineHeight: 1.65, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }} />
+                <MiniEditor
+                  value={signature}
+                  onChange={(html) => { setSignature(html); }}
+                  placeholder="서명을 입력하세요..."
+                />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                   <button onClick={saveSignature} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '서명 저장'}
@@ -784,14 +851,13 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: '5px' }}>본문</label>
-                  <textarea
-                    value={vacBody}
-                    onChange={(e) => setVacBody(e.target.value)}
-                    disabled={!vacEnabled}
-                    rows={6}
-                    style={{ ...inSt, resize: 'vertical', lineHeight: 1.6, opacity: vacEnabled ? 1 : 0.5 }}
-                    placeholder={'안녕하세요,\n현재 부재중으로 메일 확인이 어렵습니다.\n돌아오는 즉시 답변 드리겠습니다.\n\n감사합니다.'}
-                  />
+                  <div style={{ opacity: vacEnabled ? 1 : 0.5, pointerEvents: vacEnabled ? 'auto' : 'none' }}>
+                    <MiniEditor
+                      value={vacBody}
+                      onChange={(html) => { setVacBody(html); }}
+                      placeholder="안녕하세요, 현재 부재중으로 메일 확인이 어렵습니다..."
+                    />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   {vacEnabled && vacStartDate && vacEndDate && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { MessageSummary, Folder } from '@/lib/api';
 import {
   StarIcon,
@@ -188,6 +188,26 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [page, setPage] = useState(0);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [contactCard, setContactCard] = useState<{ name: string; addr: string; count: number; x: number; y: number } | null>(null);
+  const contactCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const senderCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const msg of messages) m[msg.from_addr] = (m[msg.from_addr] ?? 0) + 1;
+    return m;
+  }, [messages]);
+
+  const handleAvatarEnter = useCallback((name: string, addr: string, rect: DOMRect) => {
+    if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current);
+    const count = senderCounts[addr] ?? 1;
+    contactCardTimerRef.current = setTimeout(() => {
+      setContactCard({ name, addr, count, x: rect.right + 6, y: rect.top - 8 });
+    }, 350);
+  }, [senderCounts]);
+  const handleAvatarLeave = useCallback(() => {
+    if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current);
+    contactCardTimerRef.current = setTimeout(() => setContactCard(null), 120);
+  }, []);
 
   // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
   useEffect(() => {
@@ -893,6 +913,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               showPreview={showPreview}
               hasNote={noteIds.has(msg.id)}
               isImportant={importantIds.has(msg.id)}
+              onAvatarEnter={!isMobile ? handleAvatarEnter : undefined}
+              onAvatarLeave={!isMobile ? handleAvatarLeave : undefined}
             />
           ))}
         </div>
@@ -904,7 +926,55 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           불러오는 중...
         </div>
       )}
+      {contactCard && (
+        <ContactHoverCard
+          {...contactCard}
+          onClose={() => { if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current); setContactCard(null); }}
+        />
+      )}
       </div>
+    </div>
+  );
+}
+
+function ContactHoverCard({ name, addr, count, x, y, onClose, onComposeTo }: {
+  name: string; addr: string; count: number; x: number; y: number;
+  onClose: () => void; onComposeTo?: (addr: string, name: string) => void;
+}) {
+  const initials = (name || addr).charAt(0).toUpperCase();
+  const color = avatarColor(name || addr);
+  const cardW = 224;
+  const clampedX = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - cardW - 16);
+  return (
+    <div onMouseEnter={() => { /* keep */ }} onMouseLeave={onClose}
+      style={{ position: 'fixed', top: y, left: clampedX, zIndex: 900, width: `${cardW}px`,
+        background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)',
+        borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', padding: '14px',
+      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: color, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, flexShrink: 0 }}>
+          {initials}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || addr}</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{addr}</div>
+        </div>
+      </div>
+      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-subtle)' }}>
+        받은 편지함에 {count}개 메일
+      </div>
+      {onComposeTo && (
+        <button type="button" onClick={() => { onComposeTo(addr, name); onClose(); }}
+          style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)',
+            background: 'transparent', color: 'var(--color-text-primary)', fontSize: '12px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+        >
+          + 새 메일 작성
+        </button>
+      )}
     </div>
   );
 }
@@ -933,12 +1003,15 @@ interface MessageRowProps {
   showPreview?: boolean;
   hasNote?: boolean;
   isImportant?: boolean;
+  onAvatarEnter?: (name: string, addr: string, rect: DOMRect) => void;
+  onAvatarLeave?: () => void;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true, hasNote = false, isImportant = false }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true, hasNote = false, isImportant = false, onAvatarEnter, onAvatarLeave }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
+  const avatarRef = useRef<HTMLDivElement>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [showSnoozePopover, setShowSnoozePopover] = useState(false);
@@ -1026,7 +1099,10 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
 
       {/* Sender avatar */}
       {!compact && (
-        <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}>
+        <div ref={avatarRef} aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}
+          onMouseEnter={() => { if (avatarRef.current && onAvatarEnter) { onAvatarEnter(message.from_name || '', message.from_addr, avatarRef.current.getBoundingClientRect()); } }}
+          onMouseLeave={() => onAvatarLeave?.()}
+        >
           {(() => {
             if (userEmail && message.from_addr === userEmail) {
               try { const av = localStorage.getItem('webmail_avatar'); if (av) return <img src={av} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />; } catch { /* */ }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage } from '@/lib/api';
 import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
@@ -480,6 +480,23 @@ export function ReadingPane({
     copyTimerRef.current = setTimeout(() => setCopiedEmail(''), 2000);
   }, []);
 
+  // Inline compose state
+  const [inlineCompose, setInlineCompose] = useState<{
+    intent: 'reply' | 'reply_all' | 'forward';
+    to: string;
+    subject: string;
+  } | null>(null);
+  const [inlineBody, setInlineBody] = useState('');
+  const [inlineSending, setInlineSending] = useState(false);
+  const [inlineSent, setInlineSent] = useState(false);
+  const inlineTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setInlineCompose(null);
+    setInlineBody('');
+    setInlineSent(false);
+  }, [message?.id]);
+
   const scrollContainerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0 });
@@ -618,12 +635,43 @@ export function ReadingPane({
         {/* Icon-only primary actions */}
         {(
           [
-            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />, label: '답장 (R)', action: onReply },
-            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />, label: '전체 답장 (A)', action: onReplyAll },
-            { icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />, label: '전달 (F)', action: onForward },
-          ] as Array<{ icon: ReactNode; label: string; action: (() => void) | undefined }>
-        ).map(({ icon, label, action }) => action ? (
-          <button key={label} aria-label={label} title={label} onClick={action}
+            {
+              icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />,
+              label: '답장 (R)',
+              action: onReply,
+              intent: 'reply' as const,
+            },
+            {
+              icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />,
+              label: '전체 답장 (A)',
+              action: onReplyAll,
+              intent: 'reply_all' as const,
+            },
+            {
+              icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />,
+              label: '전달 (F)',
+              action: onForward,
+              intent: 'forward' as const,
+            },
+          ] as Array<{ icon: ReactNode; label: string; action: (() => void) | undefined; intent: 'reply' | 'reply_all' | 'forward' }>
+        ).map(({ icon, label, action, intent }) => action ? (
+          <button key={label} aria-label={label} title={label} onClick={() => {
+            const to = intent === 'reply'
+              ? message.from_addr
+              : intent === 'reply_all'
+              ? [message.from_addr, ...(message.to_addrs ?? []).map((t) => t.address), ...(message.cc_addrs ?? []).map((t) => t.address)].filter((a, i, arr) => arr.indexOf(a) === i).join(', ')
+              : '';
+            const subject = intent === 'forward'
+              ? (message.subject?.startsWith('Fwd:') ? message.subject : `Fwd: ${message.subject ?? ''}`)
+              : (message.subject?.startsWith('Re:') ? message.subject : `Re: ${message.subject ?? ''}`);
+            setInlineCompose({ intent, to, subject });
+            setInlineBody('');
+            setInlineSent(false);
+            setTimeout(() => {
+              scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'smooth' });
+              inlineTextareaRef.current?.focus();
+            }, 50);
+          }}
             style={{ ...iconStyle, padding: '5px 8px', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -1221,6 +1269,120 @@ export function ReadingPane({
             onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-default)'; }}
           />
         </div>
+
+        {/* Inline compose editor */}
+        {inlineCompose && (
+          <div style={{ marginTop: '24px', maxWidth: '680px', borderRadius: '8px 8px 0 0', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>
+                {inlineCompose.intent === 'reply' ? '답장' : inlineCompose.intent === 'reply_all' ? '전체 답장' : '전달'}
+              </span>
+              <button
+                aria-label="새창으로 열기"
+                title="새창으로 열기"
+                onClick={() => {
+                  setInlineCompose(null);
+                  if (inlineCompose.intent === 'reply') onReply?.();
+                  else if (inlineCompose.intent === 'reply_all') onReplyAll?.();
+                  else onForward?.();
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                <ArrowTopRightOnSquareIcon style={{ width: '15px', height: '15px' }} />
+              </button>
+              <button
+                aria-label="닫기"
+                onClick={() => { setInlineCompose(null); setInlineBody(''); }}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px', fontSize: '16px', lineHeight: 1 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >×</button>
+            </div>
+            {/* To / Subject display */}
+            <div style={{ padding: '8px 14px 0', borderBottom: '1px solid var(--color-border-subtle)' }}>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', paddingBottom: '4px' }}>
+                <span style={{ color: 'var(--color-text-tertiary)', marginRight: '6px' }}>받는 사람:</span>
+                {inlineCompose.to || '(없음)'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', paddingBottom: '6px' }}>
+                <span style={{ marginRight: '6px' }}>제목:</span>
+                {inlineCompose.subject}
+              </div>
+            </div>
+            {/* Textarea */}
+            <textarea
+              ref={inlineTextareaRef}
+              value={inlineBody}
+              onChange={(e) => {
+                setInlineBody(e.target.value);
+                // auto-grow
+                e.currentTarget.style.height = 'auto';
+                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+              }}
+              placeholder="답장 내용을 입력하세요..."
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { e.preventDefault(); setInlineCompose(null); setInlineBody(''); }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  if (!inlineSending && inlineBody.trim()) {
+                    setInlineSending(true);
+                    const toAddrs = inlineCompose.to
+                      ? inlineCompose.to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address)
+                      : [];
+                    sendMessage({
+                      to: toAddrs,
+                      subject: inlineCompose.subject,
+                      text_body: inlineBody,
+                      source_message_id: message.id,
+                    })
+                      .then(() => {
+                        setInlineSent(true);
+                        setTimeout(() => { setInlineCompose(null); setInlineBody(''); setInlineSent(false); onReply?.(); }, 1500);
+                      })
+                      .catch(() => {})
+                      .finally(() => setInlineSending(false));
+                  }
+                }
+              }}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', border: 'none', outline: 'none', resize: 'none', minHeight: '120px', fontSize: '14px', lineHeight: 1.6, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit' }}
+            />
+            {/* Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Ctrl+Enter로 전송 · Escape로 닫기</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{inlineBody.length}자</span>
+                <button
+                  disabled={inlineSending || !inlineBody.trim()}
+                  onClick={() => {
+                    if (inlineSending || !inlineBody.trim()) return;
+                    setInlineSending(true);
+                    const toAddrs = inlineCompose.to
+                      ? inlineCompose.to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address)
+                      : [];
+                    sendMessage({
+                      to: toAddrs,
+                      subject: inlineCompose.subject,
+                      text_body: inlineBody,
+                      source_message_id: message.id,
+                    })
+                      .then(() => {
+                        setInlineSent(true);
+                        setTimeout(() => { setInlineCompose(null); setInlineBody(''); setInlineSent(false); onReply?.(); }, 1500);
+                      })
+                      .catch(() => {})
+                      .finally(() => setInlineSending(false));
+                  }}
+                  style={{ padding: '5px 16px', borderRadius: '5px', border: 'none', background: inlineSending || !inlineBody.trim() ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: inlineSending || !inlineBody.trim() ? 'not-allowed' : 'pointer' }}
+                >
+                  {inlineSent ? '전송됨 ✓' : inlineSending ? '전송 중...' : '전송'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Drive save toast */}
