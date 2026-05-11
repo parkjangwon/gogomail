@@ -788,6 +788,26 @@ export async function listDriveNodes(parentId?: string): Promise<DriveNode[]> {
   } catch { return []; }
 }
 
+export async function listTrashedDriveNodes(): Promise<DriveNode[]> {
+  try {
+    const p = new URLSearchParams({ status: 'trashed' });
+    const res = await fetch(`/api/mail/drive/nodes?${p}`, { headers: driveHeaders() });
+    if (!res.ok) return [];
+    const data = await res.json() as { drive_nodes?: DriveNode[] };
+    return data.drive_nodes ?? [];
+  } catch { return []; }
+}
+
+export async function deleteDriveNodePermanently(nodeId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}`, {
+      method: 'DELETE',
+      headers: driveHeaders(),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function getDriveUsage(): Promise<DriveUsage | null> {
   try {
     const res = await fetch('/api/mail/drive/usage', { headers: driveHeaders() });
