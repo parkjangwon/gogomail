@@ -8,6 +8,7 @@ const SHORTCUTS = [
   { key: 'f', desc: '전달' },
   { key: 'u', desc: '읽지 않음으로 표시' },
   { key: 's', desc: '별표 토글' },
+  { key: 'e', desc: '아카이브' },
   { key: '# / Delete', desc: '삭제' },
   { key: 'g i', desc: '받은 편지함으로' },
   { key: 'g s', desc: '보낸 편지함으로' },

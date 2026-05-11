@@ -234,6 +234,28 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     return () => clearTimeout(t);
   }, [sendCountdown, onClose, recentRecipients]);
 
+  const handleManualSave = useCallback(async () => {
+    const bodyText = editor?.getText() ?? '';
+    if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
+    setSaveStatus('saving');
+    try {
+      const data = {
+        intent,
+        ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
+        to: to.trim() ? [{ address: to.trim() }] : [],
+        ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+        ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+        subject,
+        text_body: bodyText,
+      };
+      if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
+      else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
+      const now = new Date();
+      setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+      setSaveStatus('saved');
+    } catch { setSaveStatus('idle'); }
+  }, [to, cc, bcc, subject, editor, intent, sourceMessage]);
+
   function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!to.trim()) {
@@ -428,7 +450,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         {/* Form */}
         <form
           onSubmit={handleSend}
-          onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSend(e); } }}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSend(e); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); void handleManualSave(); }
+          }}
           style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
         >
 
