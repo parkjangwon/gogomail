@@ -18,7 +18,6 @@ import {
   ArrowTopRightOnSquareIcon,
   XMarkIcon,
   CheckIcon,
-  Cog6ToothIcon,
   EnvelopeIcon,
   ClockIcon,
   BookmarkIcon,
@@ -26,8 +25,6 @@ import {
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { AccentPicker } from '@/components/AccentPicker';
 
 
 export const VIRTUAL_ALL = '__all__';
@@ -349,8 +346,6 @@ export function Sidebar({
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
           ><PencilSquareIcon style={{ width: '15px', height: '15px' }} /></button>
-          <ThemeToggle inline />
-          <AccentPicker />
         </div>
 
         {/* User menu dropdown */}
@@ -438,23 +433,6 @@ export function Sidebar({
                 {menuExtra}
               </div>
             )}
-            {/* Settings */}
-            <button
-              role="menuitem"
-              onClick={() => { setShowUserMenu(false); setShowSettings(true); }}
-              style={{
-                width: '100%', padding: '10px 14px', border: 'none',
-                background: 'transparent', color: 'var(--color-text-primary)',
-                fontSize: '13px', fontWeight: 500, cursor: 'pointer', textAlign: 'left',
-                display: 'flex', alignItems: 'center', gap: '8px',
-                borderTop: '1px solid var(--color-border-subtle)',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >
-              <Cog6ToothIcon style={{ width: '15px', height: '15px', color: 'var(--color-text-secondary)' }} />
-              설정
-            </button>
             {/* Logout */}
             {onLogout && (
               <button
@@ -567,10 +545,10 @@ export function Sidebar({
           );
         })}
 
-        {/* 개인 메일함 section */}
+        {/* 개인 편지함 section */}
         {folders.filter((f) => !systemFolderIds.has(f.id)).length > 0 || onCreateFolder ? (
           <div style={{ padding: '12px 16px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>개인 메일함</span>
+            <span>개인 편지함</span>
           </div>
         ) : null}
 
@@ -631,7 +609,7 @@ export function Sidebar({
                     {isHovered && (onRenameFolder || onDeleteFolder) ? (
                       <span style={{ display: 'flex', gap: '2px', flexShrink: 0, marginInlineStart: '4px' }}>
                         {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }} title="이름 변경"><PencilIcon style={{ width: '12px', height: '12px' }} /></span>}
-                        {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 폴더를 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-destructive)', display: 'inline-flex', alignItems: 'center' }} title="삭제"><TrashIcon style={{ width: '12px', height: '12px' }} /></span>}
+                        {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 편지함을 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-destructive)', display: 'inline-flex', alignItems: 'center' }} title="삭제"><TrashIcon style={{ width: '12px', height: '12px' }} /></span>}
                       </span>
                     ) : badge ? (
                       <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', flexShrink: 0, marginInlineStart: '8px' }}>{badge}</span>
@@ -651,7 +629,7 @@ export function Sidebar({
                   autoFocus
                   value={newFolderInput}
                   onChange={(e) => setNewFolderInput(e.target.value)}
-                  placeholder="폴더 이름"
+                  placeholder="편지함 이름"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); }
                     if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderInput(''); }
@@ -668,7 +646,7 @@ export function Sidebar({
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
               >
-                <span>+</span> 메일함 추가
+                <span>+</span> 편지함 추가
               </button>
             )}
           </div>

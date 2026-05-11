@@ -13,7 +13,7 @@ import {
   PaperClipIcon,
   LinkIcon,
   PencilSquareIcon as PencilSquareIconHero,
-  ClipboardDocumentIcon,
+  DocumentTextIcon,
   CalendarIcon,
   ChevronUpIcon,
   ExclamationTriangleIcon,
@@ -27,6 +27,13 @@ import {
   FaceSmileIcon,
   ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
+
+interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string; // HTML string
+}
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -168,9 +175,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [dragOver, setDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<Array<{ name: string; subject: string; body: string }>>(() => {
+  const [templates, setTemplates] = useState<EmailTemplate[]>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
   });
+  const [templateSaveName, setTemplateSaveName] = useState('');
+  const [showTemplateSave, setShowTemplateSave] = useState(false);
+  const templateMenuRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
@@ -259,6 +269,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target as Node)) {
+        setShowTemplates(false);
+        setShowTemplateSave(false);
+      }
+    }
+    if (showTemplates) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showTemplates]);
 
   const toRef = useRef(draftMessage ? draftTo : replyTo);
   const ccRef = useRef(draftMessage ? draftCc : replyCc);
@@ -379,29 +400,21 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } catch { setSaveStatus('idle'); }
   }, [to, cc, bcc, subject, editor, intent, sourceMessage]);
 
-  const saveTemplate = useCallback(() => {
-    const bodyText = editor?.getText() ?? '';
-    if (!subject.trim() && !bodyText.trim()) return;
-    const name = window.prompt('템플릿 이름을 입력하세요:');
-    if (!name?.trim()) return;
-    const entry = { name: name.trim(), subject, body: editor?.getHTML() ?? bodyText };
-    setTemplates((prev) => {
-      const next = [...prev.filter((t) => t.name !== entry.name), entry];
-      try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
-      return next;
-    });
-  }, [subject, editor]);
+  const saveTemplate = () => {
+    const name = templateSaveName.trim();
+    if (!name) return;
+    const body = editor?.getHTML() ?? '';
+    const newTemplate: EmailTemplate = { id: Date.now().toString(), name, subject, body };
+    const updated = [...templates, newTemplate];
+    setTemplates(updated);
+    try { localStorage.setItem('webmail_templates', JSON.stringify(updated)); } catch { /* */ }
+    setTemplateSaveName('');
+    setShowTemplateSave(false);
+  };
 
-  const loadTemplate = useCallback((t: { name: string; subject: string; body: string }) => {
-    setSubject(t.subject);
-    subjectRef.current = t.subject;
-    editor?.commands.setContent(t.body);
-    setShowTemplates(false);
-  }, [editor]);
-
-  const deleteTemplate = useCallback((name: string) => {
+  const deleteTemplate = useCallback((id: string) => {
     setTemplates((prev) => {
-      const next = prev.filter((t) => t.name !== name);
+      const next = prev.filter((t) => t.id !== id);
       try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
       return next;
     });
@@ -1066,20 +1079,69 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               )}
             </div>
             <button type="button" onClick={() => setShowSigEditor((v) => !v)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}><PencilSquareIconHero style={{ width: '14px', height: '14px' }} /></button>
-            <div style={{ position: 'relative' }}>
-              <button type="button" onClick={() => setShowTemplates((v) => !v)} title="템플릿" style={toolbarBtnStyle(showTemplates)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ClipboardDocumentIcon style={{ width: '14px', height: '14px' }} /></button>
+            <div style={{ position: 'relative' }} ref={templateMenuRef}>
+              <button type="button" onClick={() => { setShowTemplates((v) => !v); setShowTemplateSave(false); }}
+                title="템플릿" style={toolbarBtnStyle(showTemplates)}
+                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}>
+                <DocumentTextIcon style={{ width: '14px', height: '14px' }} />
+              </button>
               {showTemplates && (
-                <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
-                  {templates.length === 0 && <div style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿 없음</div>}
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px',
+                  background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)',
+                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400,
+                  width: '220px', overflow: 'hidden',
+                }}>
+                  {templates.length === 0 && !showTemplateSave && (
+                    <div style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                      저장된 템플릿이 없습니다
+                    </div>
+                  )}
                   {templates.map((t) => (
-                    <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 4px' }}>
-                      <button type="button" onClick={() => loadTemplate(t)} style={{ flex: 1, textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>{t.name}</button>
-                      <button type="button" onClick={() => deleteTemplate(t.name)} title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', padding: '4px 6px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}><XMarkIcon style={{ width: '13px', height: '13px' }} /></button>
+                    <div key={t.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                    >
+                      <button type="button"
+                        onClick={() => { editor?.chain().focus().setContent(t.body).run(); if (!subject.trim()) setSubject(t.subject); setShowTemplates(false); }}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1, padding: '8px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+                      >
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{t.name}</span>
+                        {t.subject && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{t.subject}</span>}
+                      </button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); deleteTemplate(t.id); }}
+                        title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', color: 'var(--color-text-tertiary)', display: 'inline-flex', flexShrink: 0 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-destructive)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+                      ><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
                     </div>
                   ))}
-                  <div style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '4px' }}>
-                    <button type="button" onClick={saveTemplate} style={{ width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>+ 현재 내용 저장</button>
-                  </div>
+                  {templates.length > 0 && <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '2px 0' }} />}
+                  {!showTemplateSave ? (
+                    <button type="button" onClick={() => setShowTemplateSave(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '12px', color: 'var(--color-accent)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >
+                      + 현재 내용을 템플릿으로 저장
+                    </button>
+                  ) : (
+                    <div style={{ padding: '8px 14px', display: 'flex', gap: '6px' }}>
+                      <input
+                        autoFocus
+                        value={templateSaveName}
+                        onChange={(e) => setTemplateSaveName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveTemplate(); if (e.key === 'Escape') { setShowTemplateSave(false); setTemplateSaveName(''); } }}
+                        placeholder="템플릿 이름"
+                        style={{ flex: 1, padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', outline: 'none' }}
+                      />
+                      <button type="button" onClick={saveTemplate}
+                        style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>
+                        저장
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

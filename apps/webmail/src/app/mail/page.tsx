@@ -1175,12 +1175,12 @@ export default function MailPage() {
               catch { addToast('폴더 생성에 실패했습니다', 'error'); }
             }}
             onRenameFolder={async (id, name) => {
-              try { await renameFolder(id, name); refresh(); addToast('폴더 이름을 변경했습니다'); }
+              try { await renameFolder(id, name); refresh(); addToast('편지함 이름을 변경했습니다'); }
               catch { addToast('이름 변경에 실패했습니다', 'error'); }
             }}
             onDeleteFolder={async (id) => {
-              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
-              catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
+              try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('편지함을 삭제했습니다'); }
+              catch { addToast('편지함 삭제에 실패했습니다', 'error'); }
             }}
           />
 
