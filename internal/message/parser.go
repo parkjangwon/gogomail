@@ -51,6 +51,7 @@ type ParsedMessage struct {
 	Date                 time.Time
 	TextBody             string
 	TextBodyTruncated    bool
+	HTMLBody             string
 	HasAttachment        bool
 	AttachmentsTruncated bool
 	PartsTruncated       bool
@@ -124,13 +125,21 @@ func ParseEMLWithOptions(r io.Reader, opts ParseOptions) (ParsedMessage, error) 
 			if isInlineAttachment {
 				recordAttachment(&parsed, opts, filename)
 			}
-			if !isInlineAttachment && !opts.SkipTextBody && parsed.TextBody == "" && isTextPlain(header) {
-				body, truncated, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
-				if err != nil {
-					return ParsedMessage{}, fmt.Errorf("read text body: %w", err)
+			if !isInlineAttachment && !opts.SkipTextBody {
+				if parsed.TextBody == "" && isTextPlain(header) {
+					body, truncated, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
+					if err != nil {
+						return ParsedMessage{}, fmt.Errorf("read text body: %w", err)
+					}
+					parsed.TextBody = strings.TrimRight(body, "\r\n")
+					parsed.TextBodyTruncated = truncated
+				} else if parsed.HTMLBody == "" && isTextHTML(header) {
+					body, _, err := readLimitedText(part.Body, opts.MaxTextBodyBytes)
+					if err != nil {
+						return ParsedMessage{}, fmt.Errorf("read html body: %w", err)
+					}
+					parsed.HTMLBody = strings.TrimRight(body, "\r\n")
 				}
-				parsed.TextBody = strings.TrimRight(body, "\r\n")
-				parsed.TextBodyTruncated = truncated
 			}
 		case *gomail.AttachmentHeader:
 			filename, err := header.Filename()
@@ -366,6 +375,14 @@ func isTextPlain(header *gomail.InlineHeader) bool {
 		return true
 	}
 	return strings.EqualFold(contentType, "text/plain")
+}
+
+func isTextHTML(header *gomail.InlineHeader) bool {
+	contentType, _, err := header.ContentType()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(contentType, "text/html")
 }
 
 func normalizeMessageID(messageID string) string {

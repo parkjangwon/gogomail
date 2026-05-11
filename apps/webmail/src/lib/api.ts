@@ -30,6 +30,7 @@ export interface MessageDetail {
   cc_addrs?: { address: string; name?: string }[];
   received_at: string;
   text_body: string;
+  html_body?: string;
   has_attachment: boolean;
 }
 
