@@ -554,15 +554,15 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
           {/* From (display only) */}
           {userEmail && (
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
-              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>보내는 사람</span>
-              <span style={{ flex: 1, padding: '8px 8px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{userEmail}</span>
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '6px 16px', gap: '8px', flexShrink: 0, background: 'var(--color-bg-secondary)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>보내는 사람</span>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{userEmail}</span>
             </div>
           )}
 
           {/* To */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px', flexShrink: 0 }}>
-            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>받는 사람</label>
+            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>받는 사람</label>
             <RecipientChips
               id="compose-to"
               value={to}
@@ -593,7 +593,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           {/* CC — only when toggled */}
           {showCc && (
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
-              <label htmlFor="compose-cc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>Cc</label>
+              <label htmlFor="compose-cc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>Cc</label>
               <RecipientChips
                 id="compose-cc"
                 value={cc}
@@ -607,7 +607,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           {/* BCC — only when toggled */}
           {showBcc && (
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
-              <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>Bcc</label>
+              <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>Bcc</label>
               <RecipientChips
                 id="compose-bcc"
                 value={bcc}
