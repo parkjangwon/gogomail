@@ -17,6 +17,7 @@ import { LocaleSelector } from '@/components/common/LocaleSelector';
 import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
+import { AccentPicker } from '@/components/AccentPicker';
 
 export default function MailPage() {
   const router = useRouter();
@@ -686,6 +687,7 @@ export default function MailPage() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >{readingPanePosition === 'right' ? '⬇' : '➡'}</button>
         )}
+        <AccentPicker />
         <LocaleSelector />
         <ThemeToggle inline />
       </div>
