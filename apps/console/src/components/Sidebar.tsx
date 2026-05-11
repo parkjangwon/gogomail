@@ -21,7 +21,7 @@ export function Sidebar() {
     if (pathname.includes('/access/') || pathname.includes('/roles')) return 'access';
     if (pathname.includes('/audit-logs') || pathname.includes('/security/') || pathname.includes('/compliance')) return 'gov';
     if (pathname.includes('/storage/') || pathname.includes('/analytics/') || pathname.includes('/reports')) return 'analytics';
-    if (pathname.includes('/config/') || pathname.includes('/tenancy/domain-settings')) return 'config';
+    if (pathname.includes('/config/') || pathname.includes('/tenancy/domain-settings') || pathname.includes('/organization/')) return 'config';
     if (pathname.includes('/tenancy/') || pathname.includes('/users') || pathname.includes('/admin-users')) return 'resources';
     return 'none';
   }, [pathname]);
@@ -54,6 +54,7 @@ export function Sidebar() {
       items: [
         { type: 'link', text: t('nav.company_config'), href: p('/config/company') },
         { type: 'link', text: t('nav.domain_settings'), href: p('/tenancy/domain-settings') },
+        { type: 'link', text: t('nav.sso_config'), href: p('/organization/sso') },
         { type: 'link', text: t('nav.user_config'), href: p('/config/user') },
       ],
     },

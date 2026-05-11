@@ -4379,6 +4379,26 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handlePutDomainRoutingRules(w, r, service)
 	}))
 
+	mux.HandleFunc("GET /admin/v1/companies/{id}/sso/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanySSOConfig(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/companies/{id}/sso/config", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutCompanySSOConfig(w, r, service)
+	}))
+
+	mux.HandleFunc("POST /admin/v1/companies/{id}/sso/test", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePostCompanySSOTest(w, r, service)
+	}))
+
+	mux.HandleFunc("GET /admin/v1/domains/{id}/smtp-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetDomainSMTPPolicy(w, r, service)
+	}))
+
+	mux.HandleFunc("PUT /admin/v1/domains/{id}/smtp-policy", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handlePutDomainSMTPPolicy(w, r, service)
+	}))
+
 	mux.HandleFunc("POST /admin/v1/onboarding/validate-domain", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -6579,6 +6599,198 @@ func handlePutDomainRoutingRules(w http.ResponseWriter, r *http.Request, service
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rules": cfg.Rules})
+}
+
+// ─── SSO / SAML Configuration ─────────────────────────────────────────────────
+
+const ssoConfigKey = "sso_config"
+
+type ssoConfig struct {
+	Enabled        bool   `json:"enabled"`
+	Provider       string `json:"provider"`
+	EntityID       string `json:"entity_id"`
+	MetadataURL    string `json:"metadata_url"`
+	SSOLoginURL    string `json:"sso_login_url"`
+	Certificate    string `json:"certificate"`
+	AttributeEmail string `json:"attribute_email"`
+	AttributeName  string `json:"attribute_name"`
+	ForceSSO       bool   `json:"force_sso"`
+	AutoProvision  bool   `json:"auto_provision"`
+	DefaultRole    string `json:"default_role"`
+}
+
+func defaultSSOConfig() ssoConfig {
+	return ssoConfig{
+		Enabled:        false,
+		Provider:       "saml",
+		EntityID:       "",
+		MetadataURL:    "",
+		SSOLoginURL:    "",
+		Certificate:    "",
+		AttributeEmail: "email",
+		AttributeName:  "displayName",
+		ForceSSO:       false,
+		AutoProvision:  false,
+		DefaultRole:    "viewer",
+	}
+}
+
+func handleGetCompanySSOConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, ssoConfigKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeJSON(w, http.StatusOK, map[string]any{"config": defaultSSOConfig()})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var cfg ssoConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse sso config")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"config": cfg})
+}
+
+func handlePutCompanySSOConfig(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var cfg ssoConfig
+	if err := decodeJSONBody(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal sso config")
+		return
+	}
+	if _, err := service.SetCompanyConfig(r.Context(), id, ssoConfigKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"config": cfg})
+}
+
+func handlePostCompanySSOTest(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetCompanyConfig(r.Context(), id, ssoConfigKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			writeError(w, http.StatusBadRequest, "SSO is not configured")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var cfg ssoConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to parse sso config")
+		return
+	}
+	if cfg.MetadataURL == "" && cfg.SSOLoginURL == "" {
+		writeError(w, http.StatusBadRequest, "metadata_url or sso_login_url is required")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "SSO configuration validated (simulation)",
+	})
+}
+
+// ─── Outbound SMTP Policy ─────────────────────────────────────────────────────
+
+const smtpPolicyKey = "smtp_policy"
+
+type smtpPolicy struct {
+	TLSRequired          bool     `json:"tls_required"`
+	TLSMinVersion        string   `json:"tls_min_version"`
+	STARTTLSEnabled      bool     `json:"starttls_enabled"`
+	DedicatedIPEnabled   bool     `json:"dedicated_ip_enabled"`
+	DedicatedIPs         []string `json:"dedicated_ips"`
+	RetryCount           int      `json:"retry_count"`
+	RetryIntervalMinutes int      `json:"retry_interval_minutes"`
+	ConnectionTimeout    int      `json:"connection_timeout_seconds"`
+	HELOHostname         string   `json:"helo_hostname"`
+	BounceAddress        string   `json:"bounce_address"`
+}
+
+func defaultSMTPPolicy() smtpPolicy {
+	return smtpPolicy{
+		TLSRequired:          false,
+		TLSMinVersion:        "tls1.2",
+		STARTTLSEnabled:      true,
+		DedicatedIPEnabled:   false,
+		DedicatedIPs:         []string{},
+		RetryCount:           3,
+		RetryIntervalMinutes: 60,
+		ConnectionTimeout:    30,
+		HELOHostname:         "",
+		BounceAddress:        "",
+	}
+}
+
+func handleGetDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	entry, err := service.GetDomainConfig(r.Context(), id, smtpPolicyKey)
+	policy := defaultSMTPPolicy()
+	if err == nil {
+		_ = json.Unmarshal(entry.Value, &policy)
+		if policy.DedicatedIPs == nil {
+			policy.DedicatedIPs = []string{}
+		}
+	} else if !errors.Is(err, configstore.ErrConfigNotFound) {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+}
+
+func handlePutDomainSMTPPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var policy smtpPolicy
+	if err := decodeJSONBody(r, &policy); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if policy.RetryCount < 0 || policy.RetryCount > 10 {
+		writeError(w, http.StatusBadRequest, "retry_count must be 0-10")
+		return
+	}
+	if policy.DedicatedIPs == nil {
+		policy.DedicatedIPs = []string{}
+	}
+	b, err := json.Marshal(policy)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to marshal smtp policy")
+		return
+	}
+	if _, err := service.SetDomainConfig(r.Context(), id, smtpPolicyKey, json.RawMessage(b), false, 0); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
 }
 
 func handleGetDomainDmarcSpfPolicy(w http.ResponseWriter, r *http.Request, service AdminService) {
