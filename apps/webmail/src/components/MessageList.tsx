@@ -42,9 +42,13 @@ interface MessageListProps {
   onSelect: (id: string) => void;
   loading?: boolean;
   emptyLabel?: string;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
+  onStar?: (id: string, starred: boolean) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar }: MessageListProps) {
   if (loading) {
     return (
       <div
@@ -166,10 +170,34 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               message={msg}
               isSelected={selectedId === msg.id}
               onSelect={onSelect}
+              onStar={onStar}
             />
           ))}
         </div>
       ))}
+
+      {hasMore && (
+        <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+          <button
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            style={{
+              padding: '7px 20px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-default)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
+              fontSize: '13px',
+              cursor: loadingMore ? 'not-allowed' : 'pointer',
+              transition: 'background 100ms ease',
+            }}
+            onMouseEnter={(e) => { if (!loadingMore) (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+          >
+            {loadingMore ? '불러오는 중...' : '더 보기'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,9 +206,10 @@ interface MessageRowProps {
   message: MessageSummary;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onStar?: (id: string, starred: boolean) => void;
 }
 
-function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
+function MessageRow({ message, isSelected, onSelect, onStar }: MessageRowProps) {
   const isUnread = !message.read;
 
   return (
@@ -201,22 +230,16 @@ function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
         gap: '8px',
         padding: '12px 16px',
         borderBottom: '1px solid var(--color-border-subtle)',
-        background: isSelected
-          ? 'var(--color-accent-subtle)'
-          : 'var(--color-bg-primary)',
+        background: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
         cursor: 'pointer',
         transition: 'background 100ms ease',
         position: 'relative',
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
-        }
+        if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) {
-          (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
-        }
+        if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
       }}
     >
       {/* Unread dot */}
@@ -229,22 +252,13 @@ function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
           background: isUnread ? 'var(--color-accent)' : 'transparent',
           marginTop: '6px',
           flexShrink: 0,
-          transition: 'opacity 200ms ease',
         }}
       />
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: sender + date */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: '8px',
-            marginBottom: '3px',
-          }}
-        >
+        {/* Row 1: sender + date + icons */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', marginBottom: '3px' }}>
           <span
             style={{
               fontSize: '14px',
@@ -259,41 +273,57 @@ function MessageRow({ message, isSelected, onSelect }: MessageRowProps) {
           >
             {message.from_name || message.from_addr}
           </span>
-          <span
-            style={{
-              fontSize: '13px',
-              color: 'var(--color-text-secondary)',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
-          >
-            {formatDate(message.received_at)}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            {message.has_attachment && (
+              <span aria-label="첨부파일 있음" title="첨부파일" style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>📎</span>
+            )}
+            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+              {formatDate(message.received_at)}
+            </span>
+          </div>
         </div>
 
-        {/* Row 2: subject + preview */}
-        <div
-          style={{
-            fontSize: '14px',
-            color: 'var(--color-text-primary)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={{ fontWeight: isUnread ? 600 : 400 }}>
-            {message.subject || '(제목 없음)'}
-          </span>
-          {message.preview && (
-            <span
-              style={{
-                color: 'var(--color-text-secondary)',
-                fontWeight: 400,
-              }}
-            >
-              {' · '}
-              {message.preview}
+        {/* Row 2: subject + preview + star */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{
+              flex: 1,
+              fontSize: '14px',
+              color: 'var(--color-text-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ fontWeight: isUnread ? 600 : 400 }}>
+              {message.subject || '(제목 없음)'}
             </span>
+            {message.preview && (
+              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
+                {' · '}{message.preview}
+              </span>
+            )}
+          </div>
+          {onStar && (
+            <button
+              aria-label={message.starred ? '별표 해제' : '별표 추가'}
+              onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
+              style={{
+                flexShrink: 0,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px',
+                fontSize: '14px',
+                color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)',
+                opacity: message.starred ? 1 : 0.4,
+                lineHeight: 1,
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.opacity = '1'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.opacity = message.starred ? '1' : '0.4'; }}
+            >
+              ★
+            </button>
           )}
         </div>
       </div>

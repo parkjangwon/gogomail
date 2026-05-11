@@ -31,6 +31,7 @@ interface ReadingPaneProps {
   message: MessageDetail | null;
   onDelete?: () => void;
   onReply?: () => void;
+  onReplyAll?: () => void;
   onForward?: () => void;
   loading?: boolean;
 }
@@ -95,6 +96,7 @@ export function ReadingPane({
   message,
   onDelete,
   onReply,
+  onReplyAll,
   onForward,
   loading,
 }: ReadingPaneProps) {
@@ -195,6 +197,7 @@ export function ReadingPane({
         }}
       >
         <ActionButton label="답장" onClick={onReply} />
+        <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>

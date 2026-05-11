@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Folder, MessageSummary, getFolders, getMessages } from '@/lib/api';
 
 export function useMailList(folderId: string) {
@@ -8,8 +8,10 @@ export function useMailList(folderId: string) {
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState('');
+  const nextCursorRef = useRef('');
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +28,7 @@ export function useMailList(folderId: string) {
     setMessages([]);
     setHasMore(false);
     setNextCursor('');
+    nextCursorRef.current = '';
     setMessagesLoading(true);
     getMessages(folderId)
       .then((data) => {
@@ -33,6 +36,7 @@ export function useMailList(folderId: string) {
           setMessages(data.messages ?? []);
           setHasMore(data.has_more);
           setNextCursor(data.next_cursor);
+          nextCursorRef.current = data.next_cursor;
         }
       })
       .catch(() => { if (!cancelled) setMessages([]); })
@@ -40,5 +44,22 @@ export function useMailList(folderId: string) {
     return () => { cancelled = true; };
   }, [folderId]);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, nextCursor };
+  const loadMore = useCallback(async () => {
+    const cursor = nextCursorRef.current;
+    if (!cursor) return;
+    setLoadingMore(true);
+    try {
+      const data = await getMessages(folderId, cursor);
+      setMessages((prev) => [...prev, ...(data.messages ?? [])]);
+      setHasMore(data.has_more);
+      setNextCursor(data.next_cursor);
+      nextCursorRef.current = data.next_cursor;
+    } catch {
+      // ignore
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [folderId]);
+
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore };
 }

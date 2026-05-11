@@ -44,6 +44,7 @@ export type ComposeIntent = 'new' | 'reply' | 'reply_all' | 'forward';
 
 export interface SendMessageRequest {
   to: { address: string; name?: string }[];
+  cc?: { address: string; name?: string }[];
   subject: string;
   text_body: string;
   from?: string;
@@ -210,6 +211,10 @@ export async function getMessage(id: string): Promise<MessageDetail> {
 
 export function markRead(id: string, value: boolean): Promise<{ status: string }> {
   return apiPatch<{ status: string }>(`messages/${id}/flags`, { flag: 'read', value });
+}
+
+export function starMessage(id: string, value: boolean): Promise<{ status: string }> {
+  return apiPatch<{ status: string }>(`messages/${id}/flags`, { flag: 'starred', value });
 }
 
 export function deleteMessage(id: string): Promise<void> {
