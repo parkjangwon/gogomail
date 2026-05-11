@@ -500,3 +500,24 @@ export async function listCalendarObjects(calendarId: string): Promise<CalendarO
     return data.objects ?? [];
   } catch { return []; }
 }
+
+export interface DirectoryUser {
+  id: string;
+  display_name: string;
+  email: string;
+}
+
+export async function listDirectoryUsers(q?: string, limit = 50): Promise<DirectoryUser[]> {
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    params.set('limit', String(limit));
+    const token = localStorage.getItem('webmail_token');
+    const res = await fetch(`/api/v1/directory/users?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { users?: DirectoryUser[] };
+    return data.users ?? [];
+  } catch { return []; }
+}

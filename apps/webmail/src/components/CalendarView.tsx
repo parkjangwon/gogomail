@@ -168,7 +168,6 @@ interface MonthViewProps {
 }
 
 function MonthView({ currentDate, events, today, onDayClick, onEventClick }: MonthViewProps) {
-  const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const firstDay = startOfMonth(currentDate);
   // Grid starts on Monday

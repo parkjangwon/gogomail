@@ -431,6 +431,62 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 
 		writeJSON(w, http.StatusOK, AutocompleteResponse{Results: results})
 	})
+
+	mux.HandleFunc("GET /api/v1/directory/users", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "q", "limit") {
+			return
+		}
+		if tokenManager == nil {
+			writeError(w, http.StatusServiceUnavailable, "directory not available")
+			return
+		}
+		claims, ok := claimsFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if handler.directoryRepo == nil {
+			writeError(w, http.StatusServiceUnavailable, "directory not available")
+			return
+		}
+		q := r.URL.Query().Get("q")
+		limit := 50
+		if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+			if n, ok := parsePositiveInt(limitStr); ok {
+				limit = n
+			}
+		}
+		if limit > 200 {
+			limit = 200
+		}
+		principals, err := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
+			DomainID:   claims.DomainID,
+			Kinds:      []string{directory.PrincipalKindUser},
+			Query:      q,
+			ActiveOnly: true,
+			Limit:      limit,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "directory search failed")
+			return
+		}
+		type DirectoryUser struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"display_name"`
+			Email       string `json:"email"`
+		}
+		users := make([]DirectoryUser, 0, len(principals))
+		for _, p := range principals {
+			users = append(users, DirectoryUser{
+				ID:          p.ID,
+				DisplayName: p.DisplayName,
+				Email:       p.PrimaryEmail,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	})
 }
 
 // vcardPropValue returns the first value of the named vCard property,
