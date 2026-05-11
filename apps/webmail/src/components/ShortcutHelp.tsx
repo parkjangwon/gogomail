@@ -13,6 +13,7 @@ const SHORTCUTS = [
   { key: 'g s', desc: '보낸 편지함으로' },
   { key: 'g d', desc: '임시 보관함으로' },
   { key: '/', desc: '검색창 포커스' },
+  { key: '[', desc: '사이드바 접기 / 펼치기' },
   { key: 'Escape', desc: '닫기 / 선택 해제' },
   { key: '?', desc: '단축키 도움말' },
 ];
