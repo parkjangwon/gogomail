@@ -124,7 +124,12 @@ export default function AuthPolicyPage() {
           variant="h1"
           description={t('pages.auth_policy_page.description')}
           actions={
-            <Button variant="primary" onClick={handleSave} loading={saving}>
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              loading={saving}
+              disabled={policy.mfa_required && policy.mfa_methods.length === 0}
+            >
               {t('pages.auth_policy_page.save')}
             </Button>
           }
