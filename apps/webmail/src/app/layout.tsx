@@ -42,6 +42,24 @@ export default async function RootLayout({
             __html: `(function(){try{var s=localStorage.getItem('webmail_theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',s||(d?'dark':'light'));}catch(e){}})();`,
           }}
         />
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body { background: white !important; color: black !important; }
+            nav, aside, [role="navigation"], [aria-label="폴더 목록"],
+            [aria-label="메일 목록"], [aria-label="사이드바"], header,
+            button, .compose-modal, [role="toolbar"] { display: none !important; }
+            [aria-label="메일 읽기"] {
+              position: static !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              box-shadow: none !important;
+              border: none !important;
+              font-size: 13pt !important;
+            }
+            a[href]:after { content: " (" attr(href) ")"; font-size: 10pt; color: #666; }
+          }
+        `}} />
       </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
