@@ -261,6 +261,14 @@ export function deleteMessage(id: string): Promise<void> {
   return apiDelete<void>(`messages/${id}`);
 }
 
+export function restoreMessage(id: string): Promise<void> {
+  return apiPost<void>(`messages/${id}/restore`, {});
+}
+
+export function bulkRestoreMessages(ids: string[]): Promise<void> {
+  return apiPost<void>('messages/bulk/restore', { message_ids: ids });
+}
+
 export function sendMessage(data: SendMessageRequest): Promise<void> {
   return apiPost<void>('messages/send', data);
 }

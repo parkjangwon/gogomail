@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { AdvancedFilters } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -286,6 +286,20 @@ export default function MailPage() {
     } else {
       addToast(`${ids.length}개 삭제했습니다`);
     }
+  }, [selectedMessageId, setMessages, addToast]);
+
+  const handleRestore = useCallback(async (id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMessageId === id) setSelectedMessageId(null);
+    try { await restoreMessage(id); addToast('메일을 복구했습니다'); }
+    catch { addToast('복구에 실패했습니다', 'error'); }
+  }, [selectedMessageId, setMessages, addToast]);
+
+  const handleBulkRestore = useCallback(async (ids: string[]) => {
+    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+    if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
+    try { await bulkRestoreMessages(ids); addToast(`${ids.length}개를 복구했습니다`); }
+    catch { addToast('복구에 실패했습니다', 'error'); }
   }, [selectedMessageId, setMessages, addToast]);
 
   const handleBulkMarkRead = useCallback(async (ids: string[]) => {
@@ -678,6 +692,7 @@ export default function MailPage() {
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
           onDeleteMessage={handleDeleteById}
+          onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
         />
       )}
 
@@ -744,6 +759,7 @@ export default function MailPage() {
             });
             addToast('답장을 전송했습니다');
           } : undefined}
+          onRestore={activeFolderSystemType === 'trash' && selectedMessageId ? () => handleRestore(selectedMessageId) : undefined}
           onComposeToAddress={(address) => setComposeContext({ intent: 'new', to: address })}
         />
           );
