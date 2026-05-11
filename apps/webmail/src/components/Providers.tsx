@@ -6,10 +6,17 @@ import { ErrorBoundary } from './ErrorBoundary';
 
 function ThemeInitializer() {
   useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const stored = localStorage.getItem('webmail_theme');
+      if (!stored) {
+        document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light');
+      }
+    };
     const stored = localStorage.getItem('webmail_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = stored || (prefersDark ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', stored || (mq.matches ? 'dark' : 'light'));
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
   }, []);
   return null;
 }
