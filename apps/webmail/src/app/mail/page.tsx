@@ -177,8 +177,10 @@ export default function MailPage() {
 
   const handleDeleteById = useCallback((id: string) => {
     const msgToDelete = messages.find((m) => m.id === id);
+    const currentIdx = messages.findIndex((m) => m.id === id);
+    const nextMsg = messages[currentIdx + 1] ?? messages[currentIdx - 1];
     setMessages((prev) => prev.filter((m) => m.id !== id));
-    if (selectedMessageId === id) setSelectedMessageId(null);
+    if (selectedMessageId === id) setSelectedMessageId(nextMsg?.id ?? null);
 
     const timer = setTimeout(() => {
       pendingDeletesRef.current.delete(id);
