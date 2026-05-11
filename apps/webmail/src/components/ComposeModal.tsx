@@ -102,6 +102,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [to, setTo] = useState(draftMessage ? draftTo : (initialTo ?? replyTo));
   const [cc, setCc] = useState(draftMessage ? draftCc : replyCc);
   const [bcc, setBcc] = useState('');
+  const [showCc, setShowCc] = useState(!!(draftMessage ? draftCc : replyCc));
+  const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : replySubject);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -550,9 +552,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
         >
 
+          {/* From (display only) */}
+          {userEmail && (
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>보내는 사람</span>
+              <span style={{ flex: 1, padding: '8px 8px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{userEmail}</span>
+            </div>
+          )}
+
           {/* To */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px' }}>
-            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>받는 사람</label>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-border-subtle)'}`, padding: '0 16px', flexShrink: 0 }}>
+            <label htmlFor="compose-to" style={{ fontSize: '13px', color: error.includes('받는 사람') ? 'var(--color-destructive)' : 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>받는 사람</label>
             <RecipientChips
               id="compose-to"
               value={to}
@@ -562,153 +572,66 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               hasError={error.includes('받는 사람')}
               suggestions={recentRecipients}
             />
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '4px' }}>
+              {!showCc && (
+                <button type="button" onClick={() => setShowCc(true)}
+                  style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
+                  onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
+                >Cc</button>
+              )}
+              {!showBcc && (
+                <button type="button" onClick={() => setShowBcc(true)}
+                  style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
+                  onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
+                >Bcc</button>
+              )}
+            </div>
           </div>
 
-          {/* CC */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
-            <label htmlFor="compose-cc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>참조</label>
-            <RecipientChips
-              id="compose-cc"
-              value={cc}
-              onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
-              placeholder="example@domain.com, ..."
-              suggestions={recentRecipients}
-            />
-          </div>
+          {/* CC — only when toggled */}
+          {showCc && (
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
+              <label htmlFor="compose-cc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>Cc</label>
+              <RecipientChips
+                id="compose-cc"
+                value={cc}
+                onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+                placeholder="example@domain.com, ..."
+                suggestions={recentRecipients}
+              />
+            </div>
+          )}
 
-          {/* BCC */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
-            <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>숨은 참조</label>
-            <RecipientChips
-              id="compose-bcc"
-              value={bcc}
-              onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? ''); }}
-              placeholder="example@domain.com, ..."
-              suggestions={recentRecipients}
-            />
-          </div>
+          {/* BCC — only when toggled */}
+          {showBcc && (
+            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
+              <label htmlFor="compose-bcc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>Bcc</label>
+              <RecipientChips
+                id="compose-bcc"
+                value={bcc}
+                onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? ''); }}
+                placeholder="example@domain.com, ..."
+                suggestions={recentRecipients}
+              />
+            </div>
+          )}
 
           {/* Subject */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
-            <label htmlFor="compose-subject" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', width: '68px', flexShrink: 0 }}>제목</label>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px', flexShrink: 0 }}>
             <input
               id="compose-subject"
               type="text"
               value={subject}
               onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, bccRef.current, e.target.value, editor?.getText() ?? ''); }}
-              placeholder="메일 제목"
-              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
+              placeholder="제목"
+              style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', fontWeight: 500 }}
             />
           </div>
 
-          {/* Toolbar */}
-          <div style={{
-            display: 'flex',
-            gap: '2px',
-            padding: '6px 12px',
-            borderBottom: '1px solid var(--color-border-subtle)',
-            background: 'var(--color-bg-secondary)',
-          }}>
-            <button type="button" aria-label="굵게" title="굵게 (Ctrl+B)"
-              style={toolbarBtnStyle(editor?.isActive('bold'))}
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            ><b>B</b></button>
-
-            <button type="button" aria-label="기울임" title="기울임 (Ctrl+I)"
-              style={toolbarBtnStyle(editor?.isActive('italic'))}
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            ><i>I</i></button>
-
-            <button type="button" aria-label="밑줄" title="밑줄 (Ctrl+U)"
-              style={toolbarBtnStyle(editor?.isActive('underline'))}
-              onClick={() => editor?.chain().focus().toggleUnderline().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            ><u>U</u></button>
-
-            <div style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '4px 4px' }} />
-
-            <button type="button" aria-label="목록" title="글머리 기호"
-              style={toolbarBtnStyle(editor?.isActive('bulletList'))}
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            >≡</button>
-
-            <button type="button" aria-label="번호 목록" title="번호 목록"
-              style={toolbarBtnStyle(editor?.isActive('orderedList'))}
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            >1.</button>
-
-            <button type="button" aria-label="취소선" title="취소선"
-              style={toolbarBtnStyle(editor?.isActive('strike'))}
-              onClick={() => editor?.chain().focus().toggleStrike().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('strike') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            ><s>S</s></button>
-
-            <button type="button" aria-label="인용" title="인용구"
-              style={toolbarBtnStyle(editor?.isActive('blockquote'))}
-              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('blockquote') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            >"</button>
-
-            <button type="button" aria-label="인라인 코드" title="인라인 코드"
-              style={toolbarBtnStyle(editor?.isActive('code'))}
-              onClick={() => editor?.chain().focus().toggleCode().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('code') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            ><code style={{ fontSize: '11px' }}>`c`</code></button>
-
-            <button type="button" aria-label="링크 삽입" title="링크 삽입"
-              style={toolbarBtnStyle(editor?.isActive('link'))}
-              onClick={handleLinkInsert}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}
-            >🔗</button>
-
-            <div style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '4px 4px' }} />
-
-            <button type="button" aria-label="왼쪽 정렬" title="왼쪽 정렬"
-              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'left' }))}
-              onClick={() => editor?.chain().focus().setTextAlign('left').run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >⇤</button>
-
-            <button type="button" aria-label="가운데 정렬" title="가운데 정렬"
-              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'center' }))}
-              onClick={() => editor?.chain().focus().setTextAlign('center').run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >⟺</button>
-
-            <button type="button" aria-label="오른쪽 정렬" title="오른쪽 정렬"
-              style={toolbarBtnStyle(editor?.isActive({ textAlign: 'right' }))}
-              onClick={() => editor?.chain().focus().setTextAlign('right').run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >⇥</button>
-
-            <div style={{ width: '1px', background: 'var(--color-border-subtle)', margin: '4px 4px' }} />
-
-            <button type="button" aria-label="실행 취소" title="실행 취소 (Ctrl+Z)"
-              style={toolbarBtnStyle()}
-              onClick={() => editor?.chain().focus().undo().run()}
-              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >↩</button>
-          </div>
-
           {/* TipTap editor body */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: '200px', maxHeight: '320px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: '160px' }}>
             <EditorContent editor={editor} />
           </div>
 
@@ -749,124 +672,84 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             </div>
           )}
 
-          {/* Footer */}
+          {/* Footer — send left, icons right */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 16px',
+            gap: '8px',
+            padding: '8px 12px',
             borderTop: '1px solid var(--color-border-subtle)',
+            flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                style={{ display: 'none' }}
-                onChange={(e) => { if (e.target.files?.length) { handleFileSelect(e.target.files); e.target.value = ''; } }}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="파일 첨부"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--color-text-tertiary)', padding: '2px 4px', borderRadius: '4px', lineHeight: 1 }}
-                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-              >📎</button>
-              {error && <span role="alert" style={{ fontSize: '13px', color: 'var(--color-destructive)' }}>{error}</span>}
-              {sent && <span style={{ fontSize: '13px', color: 'var(--color-success)' }}>전송 완료 ✓</span>}
-              {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
-              {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>임시저장됨 {savedAt}</span>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setShowSigEditor((v) => !v)}
-                title="서명 관리"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px' }}
-                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-              >서명</button>
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowTemplates((v) => !v)}
-                  title="템플릿"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: showTemplates ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px', fontWeight: showTemplates ? 600 : undefined }}
-                  onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-                >템플릿</button>
-                {showTemplates && (
-                  <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
-                    {templates.length === 0 && (
-                      <div style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿 없음</div>
-                    )}
-                    {templates.map((t) => (
-                      <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 4px' }}>
-                        <button
-                          type="button"
-                          onClick={() => loadTemplate(t)}
-                          style={{ flex: 1, textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
-                          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-                        >{t.name}</button>
-                        <button
-                          type="button"
-                          onClick={() => deleteTemplate(t.name)}
-                          title="삭제"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '14px', padding: '4px 6px', lineHeight: 1, flexShrink: 0 }}
-                        >×</button>
-                      </div>
-                    ))}
-                    <div style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '4px' }}>
-                      <button
-                        type="button"
-                        onClick={saveTemplate}
-                        style={{ width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
-                        onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
-                        onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-                      >+ 현재 내용 저장</button>
+            {/* Send button — left */}
+            <button
+              type="submit"
+              disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
+              style={{
+                padding: '7px 18px',
+                borderRadius: '20px',
+                border: 'none',
+                background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
+                transition: 'background 100ms ease',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
+              onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
+            >
+              {sending ? '전송 중...' : sent ? '전송됨 ✓' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
+            </button>
+
+            {/* Status messages */}
+            {error && <span role="alert" style={{ fontSize: '12px', color: 'var(--color-destructive)', flex: 1 }}>{error}</span>}
+            {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
+            {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>임시저장 {savedAt}</span>}
+            <div style={{ flex: 1 }} />
+
+            {/* Right-side icon actions */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => { if (e.target.files?.length) { handleFileSelect(e.target.files); e.target.value = ''; } }}
+            />
+            {/* Formatting icons */}
+            <button type="button" aria-label="굵게" title="굵게" style={toolbarBtnStyle(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
+            <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
+            <button type="button" aria-label="밑줄" title="밑줄" style={toolbarBtnStyle(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
+            <button type="button" aria-label="목록" title="목록" style={toolbarBtnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}>≡</button>
+            <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyle(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}>🔗</button>
+
+            <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
+
+            {/* Utility icons */}
+            <button type="button" onClick={() => fileInputRef.current?.click()} title="파일 첨부" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>📎</button>
+            <button type="button" onClick={() => setShowSigEditor((v) => !v)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}>✍</button>
+            <div style={{ position: 'relative' }}>
+              <button type="button" onClick={() => setShowTemplates((v) => !v)} title="템플릿" style={toolbarBtnStyle(showTemplates)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}>📋</button>
+              {showTemplates && (
+                <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
+                  {templates.length === 0 && <div style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>저장된 템플릿 없음</div>}
+                  {templates.map((t) => (
+                    <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 4px' }}>
+                      <button type="button" onClick={() => loadTemplate(t)} style={{ flex: 1, textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>{t.name}</button>
+                      <button type="button" onClick={() => deleteTemplate(t.name)} title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '14px', padding: '4px 6px', lineHeight: 1, flexShrink: 0 }}>×</button>
                     </div>
+                  ))}
+                  <div style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '4px' }}>
+                    <button type="button" onClick={saveTemplate} style={{ width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', background: 'transparent', color: 'var(--color-accent)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>+ 현재 내용 저장</button>
                   </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }}
-                title="나중에 보내기"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: showSchedule ? 'var(--color-accent)' : 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px', fontWeight: showSchedule ? 600 : undefined }}
-                onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-              >🕐</button>
-              {showSchedule && (
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                  style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }}
-                />
+                </div>
               )}
-              <button
-                type="submit"
-                disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
-                  color: '#fff',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
-                  transition: 'background 100ms ease',
-                }}
-                onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
-                onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
-              >
-                {sending ? '전송 중...' : sent ? '전송됨' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 보내기' : '보내기'}
-              </button>
             </div>
+            <button type="button" onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }} title="나중에 보내기" style={toolbarBtnStyle(showSchedule)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSchedule ? 'var(--color-bg-tertiary)' : 'transparent'; }}>🕐</button>
+            {showSchedule && (
+              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+            )}
           </div>
         </form>
         {sendCountdown !== null && sendCountdown > 0 && (
