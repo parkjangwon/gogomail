@@ -342,6 +342,7 @@ export default function MailPage() {
     let q = raw;
     const operators: AdvancedFilters = {};
     q = q.replace(/\bfrom:(\S+)/gi, (_, val) => { operators.from = val; return ''; });
+    q = q.replace(/\bto:(\S+)/gi, (_, val) => { operators.to = val; return ''; });
     q = q.replace(/\bsubject:(?:"([^"]+)"|(\S+))/gi, (_, quoted, plain) => { operators.subject = quoted ?? plain; return ''; });
     q = q.replace(/\bhas:attachment\b/gi, () => { operators.has_attachment = true; return ''; });
     q = q.replace(/\bbefore:(\S+)/gi, (_, val) => { operators.until = val; return ''; });
@@ -939,7 +940,7 @@ export default function MailPage() {
         </div>
       )}
 
-      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} />
+      <AppIconBar activeApp={activeApp} onChangeApp={setActiveApp} mailUnread={folders.reduce((s, f) => s + (f.unread ?? 0), 0)} />
 
       {activeApp === 'mail' ? (
         <>

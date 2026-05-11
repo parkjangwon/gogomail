@@ -7,6 +7,7 @@ export type AppId = 'mail' | 'calendar' | 'contacts' | 'orgchart' | 'drive' | 's
 interface AppIconBarProps {
   activeApp: AppId;
   onChangeApp: (app: AppId) => void;
+  mailUnread?: number;
 }
 
 const MAIN_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: React.ReactNode }[] = [
@@ -21,10 +22,11 @@ const BOTTOM_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon
   { id: 'settings', label: '설정', icon: <Cog6ToothIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <Cog6ToothSolid style={{ width: '20px', height: '20px' }} /> },
 ];
 
-function AppBtn({ app, isActive, onChangeApp }: { app: typeof MAIN_APPS[0]; isActive: boolean; onChangeApp: (id: AppId) => void }) {
+function AppBtn({ app, isActive, onChangeApp, badge }: { app: typeof MAIN_APPS[0]; isActive: boolean; onChangeApp: (id: AppId) => void; badge?: number }) {
+  const badgeLabel = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : '';
   return (
     <button
-      aria-label={app.label}
+      aria-label={`${app.label}${badgeLabel ? ` (읽지 않음 ${badgeLabel})` : ''}`}
       aria-pressed={isActive}
       title={app.label}
       onClick={() => onChangeApp(app.id)}
@@ -40,6 +42,7 @@ function AppBtn({ app, isActive, onChangeApp }: { app: typeof MAIN_APPS[0]; isAc
         alignItems: 'center',
         justifyContent: 'center',
         transition: 'background 100ms ease, color 100ms ease',
+        position: 'relative',
       }}
       onMouseEnter={(e) => {
         if (!isActive) {
@@ -55,11 +58,33 @@ function AppBtn({ app, isActive, onChangeApp }: { app: typeof MAIN_APPS[0]; isAc
       }}
     >
       {isActive ? app.activeIcon : app.icon}
+      {badgeLabel && (
+        <span style={{
+          position: 'absolute',
+          top: '2px',
+          right: '2px',
+          minWidth: '14px',
+          height: '14px',
+          borderRadius: '7px',
+          background: 'var(--color-destructive, #dc2626)',
+          color: '#fff',
+          fontSize: '9px',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 3px',
+          lineHeight: 1,
+          pointerEvents: 'none',
+        }}>
+          {badgeLabel}
+        </span>
+      )}
     </button>
   );
 }
 
-export function AppIconBar({ activeApp, onChangeApp }: AppIconBarProps) {
+export function AppIconBar({ activeApp, onChangeApp, mailUnread }: AppIconBarProps) {
   return (
     <div
       role="navigation"
@@ -78,7 +103,13 @@ export function AppIconBar({ activeApp, onChangeApp }: AppIconBarProps) {
       }}
     >
       {MAIN_APPS.map((app) => (
-        <AppBtn key={app.id} app={app} isActive={activeApp === app.id} onChangeApp={onChangeApp} />
+        <AppBtn
+          key={app.id}
+          app={app}
+          isActive={activeApp === app.id}
+          onChangeApp={onChangeApp}
+          badge={app.id === 'mail' ? mailUnread : undefined}
+        />
       ))}
       <div style={{ flex: 1 }} />
       {BOTTOM_APPS.map((app) => (
