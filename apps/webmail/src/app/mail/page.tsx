@@ -305,6 +305,8 @@ export default function MailPage() {
           onPrint={() => window.print()}
           loading={messageLoading}
           onBack={isMobile ? () => setSelectedMessageId(null) : undefined}
+          isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
+          onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
         />
       )}
 

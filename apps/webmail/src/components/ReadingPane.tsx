@@ -62,6 +62,8 @@ interface ReadingPaneProps {
   onPrint?: () => void;
   loading?: boolean;
   onBack?: () => void;
+  isStarred?: boolean;
+  onStar?: (starred: boolean) => void;
 }
 
 function formatFullDate(receivedAt: string): string {
@@ -132,6 +134,8 @@ export function ReadingPane({
   onPrint,
   loading,
   onBack,
+  isStarred,
+  onStar,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   if (loading) {
@@ -241,6 +245,23 @@ export function ReadingPane({
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
         <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
+        {onStar && (
+          <button
+            onClick={() => onStar(!isStarred)}
+            title={isStarred ? '별표 해제' : '별표'}
+            aria-label={isStarred ? '별표 해제' : '별표'}
+            style={{
+              ...iconStyle,
+              color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)',
+              borderColor: isStarred ? 'rgba(245,158,11,0.4)' : 'var(--color-border-default)',
+              fontSize: '15px',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >
+            {isStarred ? '★' : '☆'}
+          </button>
+        )}
         <ActionButton label="인쇄" onClick={onPrint} />
         {onMove && folders.length > 0 && (
           <div style={{ position: 'relative' }}>

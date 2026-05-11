@@ -56,7 +56,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
   const draftIdRef = useRef<string>('');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const triggerAutoSave = useCallback((toVal: string, ccVal: string, subjectVal: string, bodyText: string) => {
+  const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
@@ -67,6 +67,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
           ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
           to: toVal.trim() ? [{ address: toVal.trim() }] : [],
           ...(ccVal.trim() && { cc: ccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+          ...(bccVal.trim() && { bcc: bccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
           subject: subjectVal,
           text_body: bodyText,
         };
@@ -119,7 +120,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
       },
     },
     onUpdate: ({ editor: e }) => {
-      triggerAutoSave(toRef.current, ccRef.current, subjectRef.current, e.getText());
+      triggerAutoSave(toRef.current, ccRef.current, bccRef.current, subjectRef.current, e.getText());
     },
     immediatelyRender: false,
   });
@@ -244,7 +245,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-to"
               type="email"
               value={to}
-              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; triggerAutoSave(e.target.value, ccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; triggerAutoSave(e.target.value, ccRef.current, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
@@ -258,7 +259,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-cc"
               type="text"
               value={cc}
-              onChange={(e) => { setCc(e.target.value); ccRef.current = e.target.value; triggerAutoSave(toRef.current, e.target.value, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(e) => { setCc(e.target.value); ccRef.current = e.target.value; triggerAutoSave(toRef.current, e.target.value, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
@@ -271,7 +272,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-bcc"
               type="text"
               value={bcc}
-              onChange={(e) => { setBcc(e.target.value); bccRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
+              onChange={(e) => { setBcc(e.target.value); bccRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, e.target.value, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
@@ -284,7 +285,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-subject"
               type="text"
               value={subject}
-              onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, e.target.value, editor?.getText() ?? ''); }}
+              onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, bccRef.current, e.target.value, editor?.getText() ?? ''); }}
               placeholder="메일 제목"
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
