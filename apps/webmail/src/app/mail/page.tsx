@@ -376,6 +376,18 @@ export default function MailPage() {
             setComposeContext({ intent: 'forward', source: selectedMessage });
           }
           break;
+        case 'e': {
+          if (selectedMessageId && !composeContext) {
+            const archiveFolder = folders.find((f) => f.system_type === 'archive');
+            if (archiveFolder) {
+              void moveMessage(selectedMessageId, archiveFolder.id).then(() => {
+                setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
+                setSelectedMessageId(null);
+              }).catch(() => {});
+            }
+          }
+          break;
+        }
         case '#':
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
