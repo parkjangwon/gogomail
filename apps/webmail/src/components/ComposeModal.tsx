@@ -16,6 +16,7 @@ interface ComposeModalProps {
   sourceMessage?: MessageDetail;
   draftMessage?: MessageDetail;
   userEmail?: string;
+  initialTo?: string;
 }
 
 function escapeHtml(text: string): string {
@@ -55,7 +56,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -74,7 +75,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const draftTo = draftMessage ? (draftMessage.to_addrs ?? []).map((a) => a.address).join(', ') : '';
   const draftCc = draftMessage ? (draftMessage.cc_addrs ?? []).map((a) => a.address).join(', ') : '';
 
-  const [to, setTo] = useState(draftMessage ? draftTo : replyTo);
+  const [to, setTo] = useState(draftMessage ? draftTo : (initialTo ?? replyTo));
   const [cc, setCc] = useState(draftMessage ? draftCc : replyCc);
   const [bcc, setBcc] = useState('');
   const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : replySubject);

@@ -29,6 +29,7 @@ export default function MailPage() {
     intent: ComposeIntent;
     source?: MessageDetail;
     draft?: MessageDetail;
+    to?: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
@@ -743,6 +744,7 @@ export default function MailPage() {
             });
             addToast('답장을 전송했습니다');
           } : undefined}
+          onComposeToAddress={(address) => setComposeContext({ intent: 'new', to: address })}
         />
           );
         })()}
@@ -754,6 +756,7 @@ export default function MailPage() {
           intent={composeContext.intent}
           sourceMessage={composeContext.source}
           draftMessage={composeContext.draft}
+          initialTo={composeContext.to}
           userEmail={userEmail}
           onClose={() => setComposeContext(null)}
         />
