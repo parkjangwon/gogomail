@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { AdvancedFilters } from '@/components/Sidebar';
@@ -117,9 +117,11 @@ export default function MailPage() {
     }
   }, []);
 
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q);
-    runSearch(q, advancedFilters);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => runSearch(q, advancedFilters), 300);
   }, [advancedFilters, runSearch]);
 
   const handleFilterChange = useCallback((filters: AdvancedFilters) => {
@@ -223,6 +225,12 @@ export default function MailPage() {
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
           break;
+        case '/': {
+          e.preventDefault();
+          const searchInput = document.querySelector<HTMLInputElement>('[aria-label="메일 검색"]');
+          searchInput?.focus();
+          break;
+        }
         case '?':
           setShowShortcuts((v) => !v);
           break;

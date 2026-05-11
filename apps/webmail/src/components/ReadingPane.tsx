@@ -208,6 +208,9 @@ export function ReadingPane({
   const toList = (message.to_addrs ?? [])
     .map((t) => (t.name ? `${t.name} <${t.address}>` : t.address))
     .join(', ');
+  const ccList = (message.cc_addrs ?? [])
+    .map((t) => (t.name ? `${t.name} <${t.address}>` : t.address))
+    .join(', ');
 
   return (
     <main
@@ -358,14 +361,13 @@ export function ReadingPane({
               )}
             </div>
             {toList && (
-              <div
-                style={{
-                  fontSize: '13px',
-                  color: 'var(--color-text-secondary)',
-                  marginTop: '2px',
-                }}
-              >
+              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                 받는 사람: {toList}
+              </div>
+            )}
+            {ccList && (
+              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                참조: {ccList}
               </div>
             )}
           </div>
