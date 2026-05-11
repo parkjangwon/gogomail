@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';
 
-export function ThemeToggle() {
+export function ThemeToggle({ inline = false }: { inline?: boolean }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
@@ -29,10 +29,9 @@ export function ThemeToggle() {
       aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
       title={isDark ? '라이트 모드' : '다크 모드'}
       style={{
-        position: 'fixed',
-        top: '14px',
-        right: '16px',
-        zIndex: 50,
+        ...(inline
+          ? {}
+          : { position: 'fixed', top: '14px', right: '16px', zIndex: 50 }),
         width: '34px',
         height: '34px',
         borderRadius: '8px',

@@ -1,20 +1,40 @@
 import './globals.css';
+import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { Providers } from '@/components/Providers';
-import koMessages from '../../messages/ko.json';
 
 export const metadata = {
   title: 'GoGoMail',
   description: 'Webmail',
 };
 
-export default function RootLayout({
+const VALID_LOCALES = ['ko', 'en', 'ja', 'zh-CN'] as const;
+type Locale = (typeof VALID_LOCALES)[number];
+
+async function loadMessages(locale: Locale) {
+  const loaders: Record<Locale, () => Promise<{ default: Record<string, unknown> }>> = {
+    ko: () => import('../../messages/ko.json'),
+    en: () => import('../../messages/en.json'),
+    ja: () => import('../../messages/ja.json'),
+    'zh-CN': () => import('../../messages/zh-CN.json'),
+  };
+  return (await loaders[locale]()).default;
+}
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get('webmail_locale')?.value ?? 'ko';
+  const locale: Locale = (VALID_LOCALES as readonly string[]).includes(raw)
+    ? (raw as Locale)
+    : 'ko';
+  const messages = await loadMessages(locale);
+
   return (
-    <html lang="ko">
+    <html lang={locale}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script
@@ -24,7 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <NextIntlClientProvider locale="ko" messages={koMessages}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>
       </body>
