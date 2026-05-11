@@ -248,7 +248,7 @@ export function ReadingPane({
       const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
       return message.from_addr.toLowerCase() in contacts;
     } catch { return false; }
-  }, [message]);
+  }, [message, savedContact]);
 
   const unsubscribeUrl = useMemo(() => {
     if (!message) return null;

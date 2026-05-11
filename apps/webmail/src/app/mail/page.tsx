@@ -1206,7 +1206,18 @@ export default function MailPage() {
                 onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
                 onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
                 onMove={handleMove}
-                onPrint={() => window.print()}
+                onPrint={selectedMessage ? () => {
+                  const msg = selectedMessage;
+                  const w = window.open('', '_blank', 'width=780,height=900,menubar=yes,toolbar=yes');
+                  if (!w) { window.print(); return; }
+                  const date = new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short', hour12: false }).format(new Date(msg.received_at));
+                  const body = msg.html_body
+                    ? `<div>${msg.html_body}</div>`
+                    : (msg.text_body || '').split('\n').map((l) => `<p style="margin:0 0 4px">${l || '&nbsp;'}</p>`).join('');
+                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${msg.subject || '(제목 없음)'}</title><style>body{font-family:-apple-system,sans-serif;font-size:14px;color:#111;max-width:720px;margin:0 auto;padding:24px}h1{font-size:20px;margin:0 0 12px}table{border-collapse:collapse;margin-bottom:16px;font-size:13px}td{padding:3px 8px 3px 0;vertical-align:top}td:first-child{color:#555;white-space:nowrap;min-width:80px}hr{border:none;border-top:1px solid #ddd;margin:16px 0}@media print{body{padding:0}}</style></head><body><h1>${msg.subject || '(제목 없음)'}</h1><table><tr><td>보낸 사람</td><td><b>${msg.from_name ? `${msg.from_name} &lt;${msg.from_addr}&gt;` : msg.from_addr}</b></td></tr><tr><td>받는 사람</td><td>${(msg.to_addrs ?? []).map((a) => a.name ? `${a.name} &lt;${a.address}&gt;` : a.address).join(', ')}</td></tr><tr><td>날짜</td><td>${date}</td></tr></table><hr>${body}</body></html>`);
+                  w.document.close();
+                  w.onload = () => w.print();
+                } : undefined}
                 loading={messageLoading}
                 onBack={() => setSelectedMessageId(null)}
                 onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
