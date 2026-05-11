@@ -84,6 +84,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
   const [minimized, setMinimized] = useState(false);
+  const [showSigEditor, setShowSigEditor] = useState(false);
+  const [signature, setSignature] = useState(() => {
+    try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
+  });
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,13 +130,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const bccRef = useRef('');
   const subjectRef = useRef(draftMessage ? (draftMessage.subject ?? '') : replySubject);
 
+  const sigHTML = signature.trim()
+    ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l) => escapeHtml(l)).join('</p><p>')}</p>`
+    : '';
+
   const initialContent = draftMessage
     ? (draftMessage.html_body ?? (draftMessage.text_body
         ? draftMessage.text_body.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
         : ''))
     : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
-        ? buildQuoteHTML(intent, sourceMessage)
-        : '');
+        ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${buildQuoteHTML(intent, sourceMessage)}`
+        : `<p></p>${sigHTML}`);
 
   const editor = useEditor({
     extensions: [
@@ -420,6 +428,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <EditorContent editor={editor} />
           </div>
 
+          {/* Signature editor */}
+          {showSigEditor && (
+            <div style={{ padding: '8px 16px', borderTop: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>서명</div>
+              <textarea
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                onBlur={() => { try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ } }}
+                placeholder="서명을 입력하세요..."
+                rows={3}
+                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              />
+              <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>변경 사항은 다음 메시지 작성 시 적용됩니다</div>
+            </div>
+          )}
+
           {/* Footer */}
           <div style={{
             display: 'flex',
@@ -434,6 +458,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
               {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>임시저장됨 {savedAt}</span>}
             </div>
+            <button
+              type="button"
+              onClick={() => setShowSigEditor((v) => !v)}
+              title="서명 관리"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '2px 6px', borderRadius: '4px' }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >서명</button>
             <button
               type="submit"
               disabled={sending || sent}
