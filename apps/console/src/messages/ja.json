@@ -1143,6 +1143,24 @@
         "importing": "インポート中...",
         "close": "閉じる"
       }
+    },
+    "auth_policy_page": {
+      "title": "パスワード・認証ポリシー",
+      "description": "パスワードルール、MFA要件、セッション設定を構成します",
+      "password_section": "パスワードポリシー",
+      "min_length": "最小長",
+      "require_uppercase": "大文字を必須にする",
+      "require_numbers": "数字を必須にする",
+      "require_symbols": "記号を必須にする",
+      "max_age_days": "パスワード有効期限（日、0 = 無期限）",
+      "history_count": "パスワード履歴（再利用禁止回数）",
+      "mfa_section": "多要素認証（MFA）",
+      "mfa_required": "全ユーザーにMFAを必須にする",
+      "mfa_methods": "許可されたMFA方式",
+      "session_section": "セッション設定",
+      "session_timeout": "セッションタイムアウト（分）",
+      "max_concurrent": "最大同時セッション数（0 = 無制限）",
+      "save": "ポリシーを保存"
     }
   },
   "buttons": {
