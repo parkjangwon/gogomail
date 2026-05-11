@@ -88,6 +88,7 @@ export function SpotlightSearch({
   const [items, setItems] = useState<SpotlightItem[]>([]);
   const [selIdx, setSelIdx] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [activeOperators, setActiveOperators] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,6 +134,24 @@ export function SpotlightSearch({
     } catch { return []; }
   }, [onCompose, onClose]);
 
+  // Parse Gmail-style operators from a query string
+  function parseQuery(raw: string): { params: Record<string, string | boolean>; freeText: string; operators: string[] } {
+    const operatorRe = /\b(from|to|subject):(\S+)|\bhas:attachment\b/gi;
+    const params: Record<string, string | boolean> = {};
+    const operators: string[] = [];
+    const freeText = raw.replace(operatorRe, (match, key, val) => {
+      if (match.toLowerCase() === 'has:attachment') {
+        params.has_attachment = true;
+        operators.push('has:attachment');
+      } else {
+        params[key.toLowerCase()] = val;
+        operators.push(`${key.toLowerCase()}:${val}`);
+      }
+      return '';
+    }).replace(/\s+/g, ' ').trim();
+    return { params, freeText, operators };
+  }
+
   const recentSearchKey = 'webmail_recent_searches';
   const recentSearches: string[] = (() => {
     try { return JSON.parse(localStorage.getItem(recentSearchKey) ?? '[]').slice(0, 4) as string[]; } catch { return []; }
@@ -144,6 +163,7 @@ export function SpotlightSearch({
     const q = query.trim();
 
     if (!q) {
+      setActiveOperators([]);
       const quickActions = buildQuickActions();
       const contacts = isMoveMode ? [] : buildContactItems('').slice(0, 3);
       setItems([...quickActions, ...contacts]);
@@ -162,11 +182,21 @@ export function SpotlightSearch({
 
     if (isMoveMode) return;
 
-    // Debounced: search mail
+    // Parse operators
+    const { params: opParams, freeText, operators } = parseQuery(q);
+    setActiveOperators(operators);
+
+    // Debounced: search mail with operator support
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await searchMessages({ q, limit: 8 });
+        const searchParams: Record<string, string | boolean | number> = { limit: 8 };
+        if (freeText) searchParams.q = freeText;
+        if (opParams.from) searchParams.from = opParams.from as string;
+        if (opParams.to) searchParams.to = opParams.to as string;
+        if (opParams.subject) searchParams.subject = opParams.subject as string;
+        if (opParams.has_attachment) searchParams.has_attachment = true;
+        const res = await searchMessages(searchParams as Parameters<typeof searchMessages>[0]);
         const mailItems: SpotlightItem[] = (res.messages ?? []).map((m: MessageSummary) => ({
           type: 'mail' as const,
           id: m.id,
@@ -288,6 +318,17 @@ export function SpotlightSearch({
           />
           <kbd style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '1px solid var(--color-border-default)', flexShrink: 0 }}>Esc</kbd>
         </div>
+
+        {/* Active operator chips */}
+        {activeOperators.length > 0 && !isMoveMode && (
+          <div style={{ display: 'flex', gap: '6px', padding: '4px 18px', flexWrap: 'wrap' }}>
+            {activeOperators.map((op) => (
+              <span key={op} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', fontWeight: 600, color: 'var(--color-accent)', background: 'var(--color-accent-subtle)', borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.02em' }}>
+                {op}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Recent searches (shown only when empty + no query, not in move mode) */}
         {!query && recentSearches.length > 0 && !isMoveMode && (
