@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
-import { AdvancedFilters } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -92,6 +92,20 @@ export default function MailPage() {
     const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
     if (inbox) setActiveFolderId(inbox.id);
   }, [folders, activeFolderId]);
+
+  // Virtual folder message loading
+  useEffect(() => {
+    if (!activeFolderId.startsWith('__')) return;
+    let cancelled = false;
+    const params = activeFolderId === VIRTUAL_ATTACHMENTS ? { has_attachment: true, limit: 100 } : { limit: 100 };
+    searchMessages(params).then((res) => {
+      if (cancelled) return;
+      let msgs = res.messages ?? [];
+      if (activeFolderId === VIRTUAL_STARRED) msgs = msgs.filter((m) => m.starred);
+      setMessages(msgs);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeFolderId, setMessages]);
 
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
