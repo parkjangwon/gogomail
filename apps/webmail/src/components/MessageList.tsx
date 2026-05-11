@@ -669,11 +669,22 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   );
 
   if (filteredMessages.length === 0) {
+    const isInboxZero = !emptyLabel && filterMode === 'all' && messages.length === 0 && !loading;
     return (
       <div data-print="hide" style={{ ...listWidth, height: containerHeight, ...containerBorder, display: 'flex', flexDirection: 'column' }}>
         {filterTabs}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
-          {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          {isInboxZero ? (
+            <>
+              <div style={{ fontSize: '36px', lineHeight: 1 }}>✓</div>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>받은 편지함이 깨끗합니다</div>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', textAlign: 'center', maxWidth: '240px', lineHeight: 1.5 }}>모든 메일을 처리했습니다. 잠시 여유를 즐기세요.</div>
+            </>
+          ) : (
+            <div style={{ color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
+              {emptyLabel ?? (filterMode === 'unread' ? '읽지 않은 메일이 없습니다' : filterMode === 'starred' ? '별표 메일이 없습니다' : '메일이 없습니다')}
+            </div>
+          )}
         </div>
       </div>
     );
