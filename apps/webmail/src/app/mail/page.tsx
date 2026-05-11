@@ -67,6 +67,18 @@ export default function MailPage() {
       return next;
     });
   }, []);
+  const [importantIds, setImportantIds] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem('webmail_important') ?? '[]') as string[]); } catch { return new Set(); }
+  });
+  const handleImportant = useCallback((id: string) => {
+    setImportantIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('webmail_important', JSON.stringify([...next])); } catch { /* */ }
+      return next;
+    });
+  }, []);
+
   const setLabel = useCallback((id: string, color: string | null) => {
     setMessageLabels((prev) => {
       const next = { ...prev };
@@ -768,6 +780,24 @@ export default function MailPage() {
           if (selectedMessageId && !composeContext) handlePin(selectedMessageId);
           break;
         }
+        case 'i': {
+          if (selectedMessageId && !composeContext) {
+            handleImportant(selectedMessageId);
+            addToast(importantIds.has(selectedMessageId) ? '중요 표시 해제했습니다' : '중요 메일로 표시했습니다', 'info');
+          }
+          break;
+        }
+        case 't': {
+          if (selectedMessageId && !composeContext && selectedMessage) {
+            try {
+              const tasks: unknown[] = JSON.parse(localStorage.getItem('webmail_tasks') ?? '[]');
+              tasks.unshift({ id: crypto.randomUUID(), subject: selectedMessage.subject || '(제목 없음)', from: selectedMessage.from_addr, messageId: selectedMessageId, done: false, createdAt: new Date().toISOString() });
+              localStorage.setItem('webmail_tasks', JSON.stringify(tasks));
+              addToast(`할 일 추가: "${selectedMessage.subject || '(제목 없음)'}"`, 'success');
+            } catch { /* */ }
+          }
+          break;
+        }
         case '#':
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();
@@ -1264,6 +1294,7 @@ export default function MailPage() {
               onSnoozeMessage={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
               onPinMessage={handlePin}
               pinnedIds={pinnedIds}
+              importantIds={importantIds}
               onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
               onBulkLabel={handleBulkLabel}
               onBulkStar={handleBulkStar}

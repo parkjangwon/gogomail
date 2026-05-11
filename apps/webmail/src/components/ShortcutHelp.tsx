@@ -48,6 +48,8 @@ const SECTIONS = [
       { key: 'Shift+m', desc: '안읽음 표시' },
       { key: 'z', desc: '1시간 스누즈' },
       { key: 'p', desc: '핀 고정 / 해제' },
+      { key: 'i', desc: '중요 표시 / 해제' },
+      { key: 't', desc: '이 메일을 할 일로 추가' },
       { key: 'l', desc: '라벨 색상 순환' },
     ],
   },
