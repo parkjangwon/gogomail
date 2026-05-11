@@ -24,6 +24,14 @@ export function useMailList(folderId: string) {
   }, []);
 
   useEffect(() => {
+    if (folderId.startsWith('__')) {
+      // Virtual folders are loaded externally via searchMessages
+      setMessages([]);
+      setHasMore(false);
+      setNextCursor('');
+      nextCursorRef.current = '';
+      return;
+    }
     let cancelled = false;
     setMessages([]);
     setHasMore(false);

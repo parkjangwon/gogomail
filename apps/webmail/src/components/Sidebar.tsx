@@ -23,10 +23,21 @@ function saveRecentSearch(query: string): string[] {
   return next;
 }
 
+export const VIRTUAL_ALL = '__all__';
+export const VIRTUAL_STARRED = '__starred__';
+export const VIRTUAL_ATTACHMENTS = '__attachments__';
+
+const VIRTUAL_NAV: { id: string; label: string; icon: string }[] = [
+  { id: VIRTUAL_ALL, label: '모든 편지함', icon: '📬' },
+  { id: VIRTUAL_STARRED, label: '중요 편지함', icon: '⭐' },
+  { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: '📎' },
+];
+
 const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
-  { systemType: 'inbox', label: '수신함' },
+  { systemType: 'inbox', label: '받은 편지함' },
   { systemType: 'sent', label: '보낸 편지함' },
   { systemType: 'drafts', label: '임시 보관함' },
+  { systemType: 'spam', label: '스팸 편지함' },
   { systemType: 'trash', label: '휴지통' },
 ];
 
@@ -128,6 +139,8 @@ export function Sidebar({
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -144,7 +157,12 @@ export function Sidebar({
   useEffect(() => {
     setRecentSearches(loadRecentSearches());
   }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim()) setSearchExpanded(true);
+  }, [searchQuery]);
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
+  // Exclude all system-typed folders (including junk/archive not shown in nav) from custom section
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
 
   const asideStyle: React.CSSProperties = isMobile
@@ -258,95 +276,57 @@ export function Sidebar({
       ) : (
       <>
       {/* Account header */}
-      <div ref={userMenuRef} style={{ position: 'relative', borderBottom: '1px solid var(--color-border-subtle)' }}>
-        <div
-          style={{
-            padding: '10px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
+      <div ref={userMenuRef} style={{ position: 'relative' }}>
+        <div style={{ padding: '14px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isMobile && onClose && (
-            <button
-              aria-label="메뉴 닫기"
-              onClick={onClose}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '18px', padding: '0 4px 0 0', lineHeight: 1, flexShrink: 0 }}
-            >×</button>
+            <button aria-label="메뉴 닫기" onClick={onClose}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '18px', padding: '0 4px 0 0', lineHeight: 1, flexShrink: 0 }}>×</button>
           )}
-          {/* Clickable user info → opens dropdown */}
+          {/* Avatar — click to open account menu */}
           <button
             aria-label="계정 메뉴"
             aria-expanded={showUserMenu}
             onClick={() => setShowUserMenu((v) => !v)}
-            style={{
-              flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px',
-              background: 'none', border: 'none', cursor: 'pointer', borderRadius: '6px',
-              padding: '4px 6px', textAlign: 'left',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, borderRadius: '50%' }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                width: '30px', height: '30px', borderRadius: '50%',
-                background: 'var(--color-accent)', color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '11px', fontWeight: 700, flexShrink: 0,
-              }}
-            >
+            <div aria-hidden="true" style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', fontWeight: 700,
+            }}>
               {getInitials(userName)}
             </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {userName !== userEmailAddress ? userName : userName.split('@')[0]}
-              </div>
-              {userEmailAddress && (
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {userEmailAddress}
-                </div>
-              )}
-            </div>
           </button>
-          {/* Action icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', flexShrink: 0 }}>
-            <button
-              aria-label="편지 쓰기"
-              onClick={onCompose}
-              title="편지 쓰기"
-              style={{ width: '26px', height: '26px', borderRadius: '5px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
-            >✏</button>
-            {onComposeInNewWindow && (
-              <button
-                aria-label="새창으로 쓰기"
-                onClick={onComposeInNewWindow}
-                title="새창으로 쓰기"
-                style={{ width: '26px', height: '26px', borderRadius: '5px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
-              >⧉</button>
-            )}
-            {!isMobile && onToggleCollapse && (
-              <button
-                aria-label="사이드바 접기"
-                onClick={onToggleCollapse}
-                style={{
-                  width: '26px', height: '26px', borderRadius: '5px',
-                  opacity: sidebarHovered ? 1 : 0,
-                  pointerEvents: sidebarHovered ? 'auto' : 'none',
-                  transition: 'opacity 150ms ease',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--color-text-tertiary)', fontSize: '13px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-              >«</button>
+          {/* Name + email */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userName !== userEmailAddress ? userName : userName.split('@')[0]}
+            </div>
+            {userEmailAddress && (
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {userEmailAddress}
+              </div>
             )}
           </div>
+          {/* Compose icon */}
+          <button
+            aria-label="편지 쓰기"
+            onClick={onCompose}
+            title="편지 쓰기 (c)"
+            style={{ width: '30px', height: '30px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+          >✏</button>
+          {!isMobile && onToggleCollapse && (
+            <button
+              aria-label="사이드바 접기"
+              onClick={onToggleCollapse}
+              style={{ width: '30px', height: '30px', borderRadius: '6px', opacity: sidebarHovered ? 1 : 0, pointerEvents: sidebarHovered ? 'auto' : 'none', transition: 'opacity 150ms ease', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+            >«</button>
+          )}
         </div>
 
         {/* User menu dropdown */}
@@ -445,8 +425,20 @@ export function Sidebar({
 
       {/* Search */}
       <div style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-        <div style={{ padding: '12px 16px 8px', position: 'relative' }}>
+        {!searchExpanded ? (
+          <button
+            onClick={() => { setSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', textAlign: 'left', borderRadius: 0 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+          >
+            <span style={{ fontSize: '15px', lineHeight: 1 }}>🔍</span>
+            <span>검색</span>
+          </button>
+        ) : (
+        <div style={{ padding: '10px 16px 8px', position: 'relative' }}>
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="검색... (from: subject: has:attachment)"
             aria-label="메일 검색"
@@ -462,6 +454,10 @@ export function Sidebar({
                 setRecentSearches(next);
                 setShowSuggestions(false);
               }
+              if (e.key === 'Escape') {
+                onSearch?.('');
+                setSearchExpanded(false);
+              }
             }}
             onFocus={(e) => {
               e.target.style.borderColor = 'var(--color-accent)';
@@ -471,6 +467,7 @@ export function Sidebar({
             onBlur={(e) => {
               e.target.style.borderColor = 'var(--color-border-default)';
               hideTimeout.current = setTimeout(() => setShowSuggestions(false), 150);
+              if (!searchQuery.trim()) setSearchExpanded(false);
             }}
             style={{
               width: '100%',
@@ -539,8 +536,9 @@ export function Sidebar({
             </div>
           )}
         </div>
+        )}
 
-        {showAdvanced && onAdvancedFilterChange && (
+        {searchExpanded && showAdvanced && onAdvancedFilterChange && (
           <div style={{ padding: '0 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '2px' }}>필터</div>
             {/* From */}
@@ -583,24 +581,34 @@ export function Sidebar({
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '8px 0' }}>
-        <div
-          style={{
-            padding: '12px 16px 4px',
-            fontSize: '11px',
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-tertiary)',
-          }}
-        >
-          메일함
-        </div>
+      <nav style={{ flex: 1, padding: '8px 0 8px' }}>
+
+        {/* Virtual folders */}
+        {VIRTUAL_NAV.map((vf) => {
+          const isActive = activeFolderId === vf.id;
+          return (
+            <button
+              key={vf.id}
+              onClick={() => onSelectFolder(vf.id)}
+              aria-current={isActive ? 'page' : undefined}
+              style={{ width: 'calc(100% - 8px)', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 16px', border: '1px solid transparent', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', fontSize: '14px', fontWeight: isActive ? 500 : 400, cursor: 'pointer', borderRadius: '4px', marginInline: '4px' } as React.CSSProperties}
+              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-overlay)'; }}
+              onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>{vf.icon}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vf.label}</span>
+            </button>
+          );
+        })}
+
+        {/* Divider */}
+        <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '6px 16px' }} />
 
         {SYSTEM_FOLDER_META.map((sf) => {
           const serverFolder = systemFoldersByType.get(sf.systemType);
-          const unread = serverFolder?.unread ?? 0;
-          const folderId = serverFolder?.id ?? sf.systemType;
+          if (!serverFolder) return null;
+          const unread = serverFolder.unread ?? 0;
+          const folderId = serverFolder.id;
           const isActive = activeFolderId === folderId;
           const badge = formatBadge(unread);
 
@@ -662,6 +670,13 @@ export function Sidebar({
             </button>
           );
         })}
+
+        {/* 개인 메일함 section */}
+        {folders.filter((f) => !systemFolderIds.has(f.id)).length > 0 || onCreateFolder ? (
+          <div style={{ padding: '12px 16px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>개인 메일함</span>
+          </div>
+        ) : null}
 
         {/* Extra server folders not in system list */}
         {folders
