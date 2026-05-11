@@ -18,6 +18,7 @@ import { ToastContainer, ToastItem } from '@/components/Toast';
 import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
 import { AccentPicker } from '@/components/AccentPicker';
+import { PencilSquareIcon } from '@heroicons/react/24/outline';
 
 export default function MailPage() {
   const router = useRouter();
@@ -1132,7 +1133,6 @@ export default function MailPage() {
             border: 'none',
             boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
             cursor: 'pointer',
-            fontSize: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1140,7 +1140,7 @@ export default function MailPage() {
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent-hover)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent)'; }}
-        >✏</button>
+        ><PencilSquareIcon style={{ width: '24px', height: '24px' }} /></button>
       )}
 
       {contextMenu && (() => {
