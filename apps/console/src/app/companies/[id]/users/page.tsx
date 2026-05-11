@@ -20,6 +20,7 @@ import {
   Alert,
   CopyToClipboard,
   Flashbar,
+  Pagination,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -82,6 +83,15 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Offboarding modal
+  const [offboardTarget, setOffboardTarget] = useState<User | null>(null);
+  const [offboardForward, setOffboardForward] = useState('');
+  const [offboarding, setOffboarding] = useState(false);
+
+  // Pagination
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchUsers();
@@ -232,20 +242,44 @@ export default function UsersPage() {
   };
 
   const handleToggleStatus = async (user: User) => {
+    if (user.status === 'active') {
+      setOffboardTarget(user);
+      setOffboardForward('');
+      return;
+    }
     setTogglingId(user.id);
-    const nextStatus = user.status === 'active' ? 'suspended' : 'active';
     try {
       await fetch(`/api/admin/users/${user.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ status: 'active' }),
         credentials: 'include',
       });
       fetchUsers();
     } catch (e) {
-      console.error('Failed to toggle status:', e);
+      console.error('Failed to activate user:', e);
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const handleOffboard = async () => {
+    if (!offboardTarget) return;
+    setOffboarding(true);
+    try {
+      await fetch(`/api/admin/users/${offboardTarget.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'suspended' }),
+        credentials: 'include',
+      });
+      setOffboardTarget(null);
+      setOffboardForward('');
+      fetchUsers();
+    } catch (e) {
+      console.error('Failed to offboard user:', e);
+    } finally {
+      setOffboarding(false);
     }
   };
 
@@ -348,6 +382,9 @@ export default function UsersPage() {
       return matchesText && matchesStatus;
     });
   }, [users, filter, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
@@ -507,7 +544,7 @@ export default function UsersPage() {
               width: '10%',
             },
           ]}
-          items={filteredUsers}
+          items={pagedUsers}
           header={
             <Header variant="h2" counter={`(${filteredUsers.length})`}>
               {t('pages.users_page.user_list')}
@@ -518,15 +555,24 @@ export default function UsersPage() {
               <TextFilter
                 filteringText={filter}
                 filteringPlaceholder={t('pages.users_page.search_placeholder')}
-                onChange={(e) => setFilter(e.detail.filteringText)}
+                onChange={(e) => { setFilter(e.detail.filteringText); setCurrentPage(1); }}
               />
               <Select
                 selectedOption={statusOptions.find(o => o.value === statusFilter) ?? statusOptions[0]}
                 options={statusOptions}
-                onChange={(e) => setStatusFilter(e.detail.selectedOption.value ?? '')}
+                onChange={(e) => { setStatusFilter(e.detail.selectedOption.value ?? ''); setCurrentPage(1); }}
                 expandToViewport
               />
             </SpaceBetween>
+          }
+          pagination={
+            pageCount > 1 ? (
+              <Pagination
+                currentPageIndex={currentPage}
+                pagesCount={pageCount}
+                onChange={e => setCurrentPage(e.detail.currentPageIndex)}
+              />
+            ) : undefined
           }
           empty={
             <Box textAlign="center" padding="l">
@@ -699,6 +745,47 @@ export default function UsersPage() {
               onChange={(e) => setEditForm({ ...editForm, role: e.detail.selectedOption.value ?? 'user' })}
             />
           </FormField>
+        </SpaceBetween>
+      </Modal>
+
+      {/* Offboarding Modal */}
+      <Modal
+        visible={!!offboardTarget}
+        onDismiss={() => { setOffboardTarget(null); setOffboardForward(''); }}
+        size="medium"
+        header={`Offboard User — ${offboardTarget?.username ?? ''}`}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button onClick={() => { setOffboardTarget(null); setOffboardForward(''); }}>Cancel</Button>
+              <Button variant="primary" onClick={handleOffboard} loading={offboarding}>
+                Suspend User
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          <Alert type="warning">
+            This will suspend <strong>{offboardTarget?.username}</strong> and prevent them from logging in.
+            Their mailbox and data will be preserved.
+          </Alert>
+          <FormField
+            label="Forward mail to (optional)"
+            description="Set up an email alias to forward incoming mail to another address after offboarding."
+          >
+            <Input
+              value={offboardForward}
+              onChange={e => setOffboardForward(e.detail.value)}
+              placeholder="team-inbox@company.com"
+            />
+          </FormField>
+          {offboardForward && (
+            <Alert type="info">
+              Note: To activate mail forwarding, go to <strong>Access → Aliases</strong> and create an alias
+              from <strong>{offboardTarget?.username}</strong> to <strong>{offboardForward}</strong> after suspending.
+            </Alert>
+          )}
         </SpaceBetween>
       </Modal>
 

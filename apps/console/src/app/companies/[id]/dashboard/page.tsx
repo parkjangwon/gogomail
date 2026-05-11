@@ -12,7 +12,6 @@ import {
   KeyValuePairs,
   Button,
   StatusIndicator,
-  Badge,
 } from '@cloudscape-design/components';
 import { useParams, useRouter } from 'next/navigation';
 import { useDashboard } from '@/hooks/useDashboard';
@@ -62,6 +61,8 @@ export default function DashboardPage() {
 
   const stats = data?.stats ?? {
     total_users: 0,
+    active_users: 0,
+    suspended_users: 0,
     active_domains: 0,
     domain_count: 0,
     total_storage_used: 0,
@@ -70,6 +71,10 @@ export default function DashboardPage() {
     over_allocated: false,
     active_webhooks: 0,
     health_status: 'unknown' as const,
+    security_score: 0,
+    mfa_rate: 0,
+    mfa_enabled: 0,
+    mfa_total: 0,
   };
 
   const storageUsed = stats.total_storage_used;
@@ -123,27 +128,29 @@ export default function DashboardPage() {
           </Container>
           <Container>
             <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">{stats.active_domains}</Box>
+              <Box fontSize="display-l" fontWeight="bold"
+                color={stats.security_score >= 80 ? 'text-status-success' : stats.security_score >= 50 ? 'text-status-warning' : 'text-status-error'}>
+                {stats.security_score > 0 ? `${stats.security_score}/100` : '—'}
+              </Box>
+              <Box color="text-body-secondary" fontSize="body-s">Security Score</Box>
+            </SpaceBetween>
+          </Container>
+          <Container>
+            <SpaceBetween size="xs">
+              <Box fontSize="display-l" fontWeight="bold">{stats.total_users > 0 ? stats.total_users : stats.active_domains}</Box>
               <Box color="text-body-secondary" fontSize="body-s">
-                {t('pages.dashboard_page.active_domains')}
-                {stats.domain_count > stats.active_domains && (
-                  <Badge color="red"> {stats.domain_count - stats.active_domains} inactive</Badge>
-                )}
+                {stats.total_users > 0 ? `Users (${stats.active_users} active)` : t('pages.dashboard_page.active_domains')}
               </Box>
             </SpaceBetween>
           </Container>
           <Container>
             <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">{fmtGb(storageUsed)}</Box>
-              <Box color="text-body-secondary" fontSize="body-s">
-                {storageLimit > 0 ? `/ ${fmtGb(storageLimit)} (${storagePct}%)` : 'Storage Used'}
+              <Box fontSize="display-l" fontWeight="bold">
+                {stats.mfa_total > 0 ? `${stats.mfa_rate.toFixed(0)}%` : '—'}
               </Box>
-            </SpaceBetween>
-          </Container>
-          <Container>
-            <SpaceBetween size="xs">
-              <Box fontSize="display-l" fontWeight="bold">{stats.active_webhooks}</Box>
-              <Box color="text-body-secondary" fontSize="body-s">Active Webhooks</Box>
+              <Box color="text-body-secondary" fontSize="body-s">
+                MFA Adoption{stats.mfa_total > 0 ? ` (${stats.mfa_enabled}/${stats.mfa_total})` : ''}
+              </Box>
             </SpaceBetween>
           </Container>
         </ColumnLayout>
