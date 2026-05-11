@@ -350,7 +350,7 @@ export default function MailPage() {
   }, []);
 
   const runSearch = useCallback(async (q: string, filters: AdvancedFilters) => {
-    if (!q.trim() && !filters.from && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
+    if (!q.trim() && !filters.from && !filters.to && !filters.subject && !filters.since && !filters.until && !filters.has_attachment) {
       setSearchResults(null);
       return;
     }
@@ -359,6 +359,7 @@ export default function MailPage() {
       const res = await searchMessages({
         q: q.trim() || undefined,
         from: filters.from || undefined,
+        to: filters.to || undefined,
         subject: filters.subject || undefined,
         since: filters.since || undefined,
         until: filters.until || undefined,
