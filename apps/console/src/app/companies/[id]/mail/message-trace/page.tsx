@@ -15,6 +15,7 @@ import {
   SelectProps,
   Container,
   ExpandableSection,
+  ColumnLayout,
 } from '@cloudscape-design/components';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -310,10 +311,3 @@ export default function MessageTracePage() {
   );
 }
 
-function ColumnLayout({ columns, children }: { columns: number; children: React.ReactNode; variant?: string; minColumnWidth?: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: '16px' }}>
-      {children}
-    </div>
-  );
-}

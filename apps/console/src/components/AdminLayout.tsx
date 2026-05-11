@@ -3,6 +3,7 @@
 import {
   AppLayout,
   Flashbar,
+  FlashbarProps,
   TopNavigation,
   Select,
   SelectProps,
@@ -19,20 +20,27 @@ const VISIT_KEY = 'ggm_recent_visits';
 const MAX_VISITS = 30;
 
 export function recordVisit(path: string) {
+  if (typeof window === 'undefined') return;
   try {
     const raw = localStorage.getItem(VISIT_KEY);
     const visits: Array<{ path: string; ts: number }> = raw ? JSON.parse(raw) : [];
     const filtered = visits.filter(v => v.path !== path);
     filtered.unshift({ path, ts: Date.now() });
     localStorage.setItem(VISIT_KEY, JSON.stringify(filtered.slice(0, MAX_VISITS)));
-  } catch {}
+  } catch {
+    localStorage.removeItem(VISIT_KEY);
+  }
 }
 
 export function getRecentVisits(): Array<{ path: string; ts: number }> {
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(VISIT_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch {
+    localStorage.removeItem(VISIT_KEY);
+    return [];
+  }
 }
 
 const languageOptions: SelectProps.Option[] = [
@@ -55,7 +63,7 @@ function useIsMobile(breakpoint = 688) {
 }
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [notifications] = useState<any[]>([]);
+  const [notifications] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [alertCount, setAlertCount] = useState(0);
   const { locale, setLocale } = useI18n();
   const { companies, currentCompany, switchCompany } = useCompany();

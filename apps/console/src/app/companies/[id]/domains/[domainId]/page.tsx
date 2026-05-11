@@ -129,7 +129,10 @@ export default function DomainDetailPage() {
   const handleVerifyDNS = async () => {
     setVerifying(true);
     try {
-      const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, {
+        method: 'POST',
+        credentials: 'include',
+      });
       if (res.ok) {
         const data = await res.json();
         setDomain(prev => prev ? { ...prev, last_dns_check_status: data.dns_check?.status ?? prev.last_dns_check_status } : prev);
@@ -143,25 +146,30 @@ export default function DomainDetailPage() {
     setSaving(true);
     setSaveError('');
     try {
-      const quotaBytes = editForm.quota_gb ? parseInt(editForm.quota_gb) * 1073741824 : 0;
-      const [statusRes, quotaRes] = await Promise.all([
-        domain?.status !== editForm.status
-          ? fetch(`/api/admin/domains/${domainId}/status`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: editForm.status }),
-              credentials: 'include',
-            })
-          : Promise.resolve({ ok: true } as Response),
+      const quotaBytes = editForm.quota_gb ? parseInt(editForm.quota_gb, 10) * 1073741824 : 0;
+      const statusChanged = domain?.status !== editForm.status;
+
+      const calls: Promise<Response>[] = [
         fetch(`/api/admin/domains/${domainId}/quota`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes }),
           credentials: 'include',
         }),
-      ]);
-      if (!statusRes.ok || !quotaRes.ok) {
-        const errData = await (statusRes.ok ? quotaRes : statusRes).json().catch(() => ({})) as { error?: { message?: string } };
+      ];
+      if (statusChanged) {
+        calls.push(fetch(`/api/admin/domains/${domainId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: editForm.status }),
+          credentials: 'include',
+        }));
+      }
+
+      const results = await Promise.all(calls);
+      const failed = results.find(r => !r.ok);
+      if (failed) {
+        const errData = await failed.json().catch(() => ({})) as { error?: { message?: string } };
         setSaveError(errData.error?.message ?? '저장 실패');
         return;
       }
@@ -298,7 +306,7 @@ export default function DomainDetailPage() {
                 <Button onClick={() => router.push(`/companies/${companyId}/tenancy/domains`)}>
                   ← {t('pages.domain_detail.back_to_list') || '도메인 목록'}
                 </Button>
-                <Button onClick={handleVerifyDNS} loading={verifying} disabled={domain.last_dns_check_status === 'pass'}>
+                <Button onClick={handleVerifyDNS} loading={verifying}>
                   {t('pages.domain_detail.verify_dns')}
                 </Button>
                 <Button onClick={() => setShowEdit(true)}>

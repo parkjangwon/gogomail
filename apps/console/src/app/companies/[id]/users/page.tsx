@@ -87,7 +87,6 @@ export default function UsersPage() {
 
   // Offboarding modal
   const [offboardTarget, setOffboardTarget] = useState<User | null>(null);
-  const [offboardForward, setOffboardForward] = useState('');
   const [offboarding, setOffboarding] = useState(false);
 
   // Bulk selection
@@ -249,7 +248,6 @@ export default function UsersPage() {
   const handleToggleStatus = async (user: User) => {
     if (user.status === 'active') {
       setOffboardTarget(user);
-      setOffboardForward('');
       return;
     }
     setTogglingId(user.id);
@@ -272,17 +270,20 @@ export default function UsersPage() {
     if (!offboardTarget) return;
     setOffboarding(true);
     try {
-      await fetch(`/api/admin/users/${offboardTarget.id}/status`, {
+      const res = await fetch(`/api/admin/users/${offboardTarget.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'suspended' }),
         credentials: 'include',
       });
+      if (!res.ok) {
+        addFlash('error', 'Failed to suspend user');
+        return;
+      }
       setOffboardTarget(null);
-      setOffboardForward('');
       fetchUsers();
-    } catch (e) {
-      console.error('Failed to offboard user:', e);
+    } catch {
+      addFlash('error', 'Failed to suspend user');
     } finally {
       setOffboarding(false);
     }
@@ -313,15 +314,21 @@ export default function UsersPage() {
     setBulkLoading(true);
     try {
       const status = action === 'activate' ? 'active' : 'suspended';
-      await Promise.all(selectedUsers.map(u =>
+      const results = await Promise.allSettled(selectedUsers.map(u =>
         fetch(`/api/admin/users/${u.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status }),
           credentials: 'include',
-        })
+        }).then(r => { if (!r.ok) throw new Error(r.status.toString()); })
       ));
-      addFlash('success', `${action}: ${selectedUsers.length} user(s) updated`);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed === 0) {
+        addFlash('success', `${action}: ${succeeded} user(s) updated`);
+      } else {
+        addFlash('error', `${action}: ${succeeded} succeeded, ${failed} failed`);
+      }
       setSelectedUsers([]);
       fetchUsers();
     } catch {
@@ -778,7 +785,7 @@ export default function UsersPage() {
       >
         <SpaceBetween size="m">
           <FormField label={t('pages.users_page.display_name_label')}>
-            <Input value={editForm.display_name} readOnly onChange={() => {}} />
+            <Box color="text-body-secondary">{editForm.display_name || '—'}</Box>
           </FormField>
           <FormField label={t('pages.users_page.quota_label')}>
             <Input
@@ -803,13 +810,13 @@ export default function UsersPage() {
       {/* Offboarding Modal */}
       <Modal
         visible={!!offboardTarget}
-        onDismiss={() => { setOffboardTarget(null); setOffboardForward(''); }}
+        onDismiss={() => setOffboardTarget(null)}
         size="medium"
         header={`Offboard User — ${offboardTarget?.username ?? ''}`}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={() => { setOffboardTarget(null); setOffboardForward(''); }}>Cancel</Button>
+              <Button onClick={() => setOffboardTarget(null)}>Cancel</Button>
               <Button variant="primary" onClick={handleOffboard} loading={offboarding}>
                 Suspend User
               </Button>
@@ -822,22 +829,10 @@ export default function UsersPage() {
             This will suspend <strong>{offboardTarget?.username}</strong> and prevent them from logging in.
             Their mailbox and data will be preserved.
           </Alert>
-          <FormField
-            label="Forward mail to (optional)"
-            description="Set up an email alias to forward incoming mail to another address after offboarding."
-          >
-            <Input
-              value={offboardForward}
-              onChange={e => setOffboardForward(e.detail.value)}
-              placeholder="team-inbox@company.com"
-            />
-          </FormField>
-          {offboardForward && (
-            <Alert type="info">
-              Note: To activate mail forwarding, go to <strong>Access → Aliases</strong> and create an alias
-              from <strong>{offboardTarget?.username}</strong> to <strong>{offboardForward}</strong> after suspending.
-            </Alert>
-          )}
+          <Alert type="info">
+            To forward incoming mail after offboarding, go to <strong>Access → Aliases</strong> and create
+            an alias from <strong>{offboardTarget?.username}</strong> to the desired address.
+          </Alert>
         </SpaceBetween>
       </Modal>
 

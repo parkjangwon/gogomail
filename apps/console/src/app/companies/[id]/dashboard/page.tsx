@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, isFetching } = useDashboard(companyId);
   const [countdown, setCountdown] = useState(30);
+  const [recentVisitMap, setRecentVisitMap] = useState<Map<string, number>>(new Map());
 
   // Countdown to next auto-refresh
   useEffect(() => {
@@ -47,6 +48,13 @@ export default function DashboardPage() {
     const iv = setInterval(() => setCountdown(c => (c <= 1 ? 30 : c - 1)), 1000);
     return () => clearInterval(iv);
   }, [data?.fetchedAt]);
+
+  useEffect(() => {
+    const visits = getRecentVisits();
+    const map = new Map<string, number>();
+    for (const v of visits) map.set(v.path, v.ts);
+    setRecentVisitMap(map);
+  }, []);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard', companyId] });
@@ -95,14 +103,6 @@ export default function DashboardPage() {
     { labelKey: 'quota_usage', path: '/storage/quota-usage' },
     { labelKey: 'api_health', path: '/system/health' },
   ];
-
-  const [recentVisitMap, setRecentVisitMap] = useState<Map<string, number>>(new Map());
-  useEffect(() => {
-    const visits = getRecentVisits();
-    const map = new Map<string, number>();
-    for (const v of visits) map.set(v.path, v.ts);
-    setRecentVisitMap(map);
-  }, []);
 
   const quickLinks = [...ALL_QUICK_LINKS].sort((a, b) => {
     const tsA = recentVisitMap.get(`/companies/${companyId}${a.path}`) ?? 0;
