@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { sendMessage, ComposeIntent, MessageDetail } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, ComposeIntent, MessageDetail } from '@/lib/api';
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -50,6 +50,47 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [savedAt, setSavedAt] = useState('');
+  const draftIdRef = useRef<string>('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerAutoSave = useCallback((toVal: string, ccVal: string, subjectVal: string, bodyText: string) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
+      setSaveStatus('saving');
+      try {
+        const data = {
+          intent,
+          ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
+          to: toVal.trim() ? [{ address: toVal.trim() }] : [],
+          ...(ccVal.trim() && { cc: ccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+          subject: subjectVal,
+          text_body: bodyText,
+        };
+        if (draftIdRef.current) {
+          await updateDraft(draftIdRef.current, data);
+        } else {
+          const res = await saveDraft(data);
+          draftIdRef.current = res.draft.id;
+        }
+        const now = new Date();
+        setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+        setSaveStatus('saved');
+      } catch {
+        setSaveStatus('idle');
+      }
+    }, 3000);
+  }, [intent, sourceMessage]);
+
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
+
+  const toRef = useRef(replyTo);
+  const ccRef = useRef(replyCc);
+  const subjectRef = useRef(replySubject);
 
   const editor = useEditor({
     extensions: [
@@ -74,6 +115,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
         role: 'textbox',
         'aria-multiline': 'true',
       },
+    },
+    onUpdate: ({ editor: e }) => {
+      triggerAutoSave(toRef.current, ccRef.current, subjectRef.current, e.getText());
     },
     immediatelyRender: false,
   });
@@ -197,7 +241,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-to"
               type="email"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => { setTo(e.target.value); toRef.current = e.target.value; triggerAutoSave(e.target.value, ccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com"
               autoFocus
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
@@ -211,7 +255,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-cc"
               type="text"
               value={cc}
-              onChange={(e) => setCc(e.target.value)}
+              onChange={(e) => { setCc(e.target.value); ccRef.current = e.target.value; triggerAutoSave(toRef.current, e.target.value, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
@@ -224,7 +268,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
               id="compose-subject"
               type="text"
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={(e) => { setSubject(e.target.value); subjectRef.current = e.target.value; triggerAutoSave(toRef.current, ccRef.current, e.target.value, editor?.getText() ?? ''); }}
               placeholder="메일 제목"
               style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)' }}
             />
@@ -301,6 +345,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
             <div>
               {error && <span role="alert" style={{ fontSize: '13px', color: 'var(--color-destructive)' }}>{error}</span>}
               {sent && <span style={{ fontSize: '13px', color: 'var(--color-success)' }}>전송 완료 ✓</span>}
+              {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
+              {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>임시저장됨 {savedAt}</span>}
             </div>
             <button
               type="submit"
