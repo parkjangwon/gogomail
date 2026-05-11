@@ -15,12 +15,19 @@ import { LocaleSelector } from '@/components/common/LocaleSelector';
 export default function MailPage() {
   const router = useRouter();
 
-  const [activeFolderId, setActiveFolderId] = useState('inbox');
+  const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
 
   const { folders, messages, setMessages, foldersLoading, messagesLoading } =
     useMailList(activeFolderId);
+
+  // Set default folder to inbox UUID once folders are loaded
+  useEffect(() => {
+    if (activeFolderId || folders.length === 0) return;
+    const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
+    if (inbox) setActiveFolderId(inbox.id);
+  }, [folders, activeFolderId]);
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
 

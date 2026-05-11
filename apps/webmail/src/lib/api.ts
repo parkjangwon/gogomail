@@ -1,31 +1,36 @@
 export interface Folder {
   id: string;
   name: string;
-  unread_count: number;
-  total_count: number;
-}
-
-export interface EmailAddress {
-  name: string;
-  email: string;
+  full_path: string;
+  type: string;
+  system_type?: string;
+  total: number;
+  unread: number;
+  starred: number;
 }
 
 export interface MessageSummary {
   id: string;
   subject: string;
-  from: EmailAddress;
-  date: string;
-  is_read: boolean;
-  is_starred: boolean;
+  from_addr: string;
+  from_name: string;
+  received_at: string;
+  read: boolean;
+  starred: boolean;
+  has_attachment: boolean;
   preview: string;
-  folder_id: string;
 }
 
-export interface MessageDetail extends MessageSummary {
-  body_html?: string;
-  body_text?: string;
-  to: EmailAddress[];
-  cc?: EmailAddress[];
+export interface MessageDetail {
+  id: string;
+  subject: string;
+  from_addr: string;
+  from_name: string;
+  to_addrs: { address: string; name?: string }[];
+  cc_addrs?: { address: string; name?: string }[];
+  received_at: string;
+  text_body: string;
+  has_attachment: boolean;
 }
 
 export interface AuthTokenResponse {
@@ -35,9 +40,10 @@ export interface AuthTokenResponse {
 }
 
 export interface SendMessageRequest {
-  to: string;
+  to: { address: string; name?: string }[];
   subject: string;
-  body: string;
+  text_body: string;
+  from?: string;
 }
 
 function getToken(): string | null {
@@ -116,26 +122,26 @@ export async function loginUser(
   return res.json() as Promise<AuthTokenResponse>;
 }
 
-export function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
+function apiGet<T>(path: string, params?: Record<string, string>): Promise<T> {
   const search = params ? '?' + new URLSearchParams(params).toString() : '';
   return request<T>(`${path}${search}`, { method: 'GET' });
 }
 
-export function apiPost<T>(path: string, body?: unknown): Promise<T> {
+function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, {
     method: 'POST',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 }
 
-export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, {
     method: 'PATCH',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 }
 
-export function apiDelete<T>(path: string): Promise<T> {
+function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' });
 }
 
@@ -145,22 +151,27 @@ export function getFolders(): Promise<{ folders: Folder[] }> {
 
 export function getMessages(
   folderId: string,
-  page = 1,
-  perPage = 50
-): Promise<{ messages: MessageSummary[]; total: number }> {
-  return apiGet<{ messages: MessageSummary[]; total: number }>('messages', {
+  cursor = '',
+  limit = 50
+): Promise<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }> {
+  const params: Record<string, string> = {
     folder_id: folderId,
-    page: String(page),
-    per_page: String(perPage),
-  });
+    limit: String(limit),
+  };
+  if (cursor) params.cursor = cursor;
+  return apiGet<{ messages: MessageSummary[]; has_more: boolean; next_cursor: string }>(
+    'messages',
+    params
+  );
 }
 
-export function getMessage(id: string): Promise<MessageDetail> {
-  return apiGet<MessageDetail>(`messages/${id}`);
+export async function getMessage(id: string): Promise<MessageDetail> {
+  const res = await apiGet<{ message: MessageDetail }>(`messages/${id}`);
+  return res.message;
 }
 
-export function markRead(id: string, isRead: boolean): Promise<MessageDetail> {
-  return apiPatch<MessageDetail>(`messages/${id}`, { is_read: isRead });
+export function markRead(id: string, value: boolean): Promise<{ status: string }> {
+  return apiPatch<{ status: string }>(`messages/${id}/flags`, { flag: 'read', value });
 }
 
 export function deleteMessage(id: string): Promise<void> {

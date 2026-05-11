@@ -8,7 +8,8 @@ export function useMailList(folderId: string) {
   const [messages, setMessages] = useState<MessageSummary[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -23,12 +24,15 @@ export function useMailList(folderId: string) {
   useEffect(() => {
     let cancelled = false;
     setMessages([]);
+    setHasMore(false);
+    setNextCursor('');
     setMessagesLoading(true);
     getMessages(folderId)
       .then((data) => {
         if (!cancelled) {
-          setMessages(data.messages);
-          setTotal(data.total);
+          setMessages(data.messages ?? []);
+          setHasMore(data.has_more);
+          setNextCursor(data.next_cursor);
         }
       })
       .catch(() => { if (!cancelled) setMessages([]); })
@@ -36,5 +40,5 @@ export function useMailList(folderId: string) {
     return () => { cancelled = true; };
   }, [folderId]);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, total };
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, nextCursor };
 }
