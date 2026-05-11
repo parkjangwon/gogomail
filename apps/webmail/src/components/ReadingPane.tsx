@@ -5,25 +5,48 @@ import { MessageDetail, Folder } from '@/lib/api';
 
 function SafeHTMLBody({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [showImages, setShowImages] = useState(false);
+  const hasImages = /<img\s/i.test(html);
 
   useEffect(() => {
     if (!ref.current) return;
     import('dompurify').then(({ default: DOMPurify }) => {
       if (!ref.current) return;
+      const forbidTags: string[] = ['script', 'style', 'iframe', 'form', 'input'];
+      if (!showImages) forbidTags.push('img');
       const clean = DOMPurify.sanitize(html, {
         USE_PROFILES: { html: true },
-        FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input'],
+        FORBID_TAGS: forbidTags,
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
       });
       ref.current.innerHTML = clean;
     });
-  }, [html]);
+  }, [html, showImages]);
 
   return (
-    <div
-      ref={ref}
-      style={{ wordBreak: 'break-word', lineHeight: 1.6 }}
-    />
+    <>
+      {hasImages && !showImages && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '8px 16px',
+          background: 'var(--color-bg-secondary)',
+          borderBottom: '1px solid var(--color-border-subtle)',
+          fontSize: '13px',
+          color: 'var(--color-text-secondary)',
+        }}>
+          <span>원격 이미지가 차단됨</span>
+          <button
+            onClick={() => setShowImages(true)}
+            style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}
+          >
+            이미지 표시
+          </button>
+        </div>
+      )}
+      <div ref={ref} style={{ wordBreak: 'break-word', lineHeight: 1.6 }} />
+    </>
   );
 }
 
