@@ -19,6 +19,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { useI18n } from '@/app/i18n-provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { getRecentVisits } from '@/components/AdminLayout';
 
 const healthIndicator = (status: string) => {
   if (status === 'healthy') return <StatusIndicator type="success">Healthy</StatusIndicator>;
@@ -86,7 +87,7 @@ export default function DashboardPage() {
     ? fetchedAt.toLocaleTimeString()
     : '—';
 
-  const quickLinks = [
+  const ALL_QUICK_LINKS = [
     { labelKey: 'manage_users', path: '/users' },
     { labelKey: 'manage_domains', path: '/tenancy/domains' },
     { labelKey: 'audit_logs', path: '/audit-logs' },
@@ -94,6 +95,20 @@ export default function DashboardPage() {
     { labelKey: 'quota_usage', path: '/storage/quota-usage' },
     { labelKey: 'api_health', path: '/system/health' },
   ];
+
+  const [recentVisitMap, setRecentVisitMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    const visits = getRecentVisits();
+    const map = new Map<string, number>();
+    for (const v of visits) map.set(v.path, v.ts);
+    setRecentVisitMap(map);
+  }, []);
+
+  const quickLinks = [...ALL_QUICK_LINKS].sort((a, b) => {
+    const tsA = recentVisitMap.get(`/companies/${companyId}${a.path}`) ?? 0;
+    const tsB = recentVisitMap.get(`/companies/${companyId}${b.path}`) ?? 0;
+    return tsB - tsA;
+  });
 
   return (
     <ContentLayout
@@ -184,15 +199,28 @@ export default function DashboardPage() {
           {/* Quick Links */}
           <Container header={<Header variant="h3">{t('pages.dashboard_page.quick_actions')}</Header>}>
             <SpaceBetween size="s">
-              {quickLinks.map(({ labelKey, path }) => (
-                <Button
-                  key={labelKey}
-                  variant="inline-link"
-                  onClick={() => router.push(`/companies/${companyId}${path}`)}
-                >
-                  {t(`pages.dashboard_page.${labelKey}`)} →
-                </Button>
-              ))}
+              {quickLinks.map(({ labelKey, path }) => {
+                const ts = recentVisitMap.get(`/companies/${companyId}${path}`);
+                const ago = ts ? (() => {
+                  const mins = Math.floor((Date.now() - ts) / 60000);
+                  if (mins < 1) return 'just now';
+                  if (mins < 60) return `${mins}m ago`;
+                  const hrs = Math.floor(mins / 60);
+                  if (hrs < 24) return `${hrs}h ago`;
+                  return `${Math.floor(hrs / 24)}d ago`;
+                })() : null;
+                return (
+                  <SpaceBetween key={labelKey} direction="horizontal" size="xs">
+                    <Button
+                      variant="inline-link"
+                      onClick={() => router.push(`/companies/${companyId}${path}`)}
+                    >
+                      {t(`pages.dashboard_page.${labelKey}`)} →
+                    </Button>
+                    {ago && <Box color="text-body-secondary" fontSize="body-s" padding={{ top: 'xxs' }}>{ago}</Box>}
+                  </SpaceBetween>
+                );
+              })}
             </SpaceBetween>
           </Container>
         </ColumnLayout>

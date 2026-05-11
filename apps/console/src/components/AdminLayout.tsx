@@ -10,10 +10,30 @@ import {
 } from '@cloudscape-design/components';
 import { Sidebar } from './Sidebar';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
 import { locales, type Locale } from '@/i18n/config';
+
+const VISIT_KEY = 'ggm_recent_visits';
+const MAX_VISITS = 30;
+
+export function recordVisit(path: string) {
+  try {
+    const raw = localStorage.getItem(VISIT_KEY);
+    const visits: Array<{ path: string; ts: number }> = raw ? JSON.parse(raw) : [];
+    const filtered = visits.filter(v => v.path !== path);
+    filtered.unshift({ path, ts: Date.now() });
+    localStorage.setItem(VISIT_KEY, JSON.stringify(filtered.slice(0, MAX_VISITS)));
+  } catch {}
+}
+
+export function getRecentVisits(): Array<{ path: string; ts: number }> {
+  try {
+    const raw = localStorage.getItem(VISIT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
 
 const languageOptions: SelectProps.Option[] = [
   { label: '한국어', value: 'ko' },
@@ -43,6 +63,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
 
   const cid = currentCompany?.id ?? 'default';
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname) recordVisit(pathname);
+  }, [pathname]);
 
   const alertTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
