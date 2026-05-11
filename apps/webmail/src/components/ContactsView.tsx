@@ -8,6 +8,7 @@ import {
   listContacts,
   deleteContact,
   parseVCard,
+  upsertContact,
 } from '@/lib/api';
 import {
   UserGroupIcon,
@@ -65,6 +66,9 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
   const [selectedContactIdx, setSelectedContactIdx] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [editMode, setEditMode] = useState(false);
+  const [isNewContact, setIsNewContact] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [editFields, setEditFields] = useState<ParsedContact>({ fn: '', email: '', tel: '', org: '', title: '', note: '' });
   const [loading, setLoading] = useState(false);
   const [booksLoading, setBooksLoading] = useState(true);
@@ -139,6 +143,8 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
 
   const handleEditCancel = useCallback(() => {
     setEditMode(false);
+    setIsNewContact(false);
+    setSaveError('');
   }, []);
 
   // j/k/c/Delete keyboard shortcuts
@@ -329,6 +335,27 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
             />
           </div>
         </div>
+
+        {/* New contact button */}
+        {selectedBookId && !editMode && (
+          <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                setEditFields({ fn: '', email: '', tel: '', org: '', title: '', note: '' });
+                setIsNewContact(true);
+                setSaveError('');
+                setSelectedContactIdx(null);
+                setEditMode(true);
+              }}
+              style={{ width: '100%', padding: '6px', border: '1px dashed var(--color-border-default)', borderRadius: '6px', background: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+            >
+              <PlusIcon style={{ width: '13px', height: '13px' }} />
+              새 연락처
+            </button>
+          </div>
+        )}
 
         {/* Contact list */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -582,6 +609,7 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                       )}
                     </div>
                   ))}
+                  {saveError && <div style={{ fontSize: '12px', color: '#e53e3e', marginTop: '4px' }}>{saveError}</div>}
                   <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                     <button
                       onClick={handleEditCancel}
@@ -600,10 +628,24 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                       취소
                     </button>
                     <button
-                      onClick={() => {
-                        // Save is a no-op for now (PUT endpoint exists but we keep it simple)
-                        alert('저장 기능은 준비 중입니다.');
-                        setEditMode(false);
+                      disabled={saving}
+                      onClick={async () => {
+                        if (!editFields.fn.trim()) { setSaveError('이름은 필수입니다'); return; }
+                        if (!selectedBookId) { setSaveError('주소록을 선택하세요'); return; }
+                        setSaving(true); setSaveError('');
+                        try {
+                          const objectName = isNewContact
+                            ? `${Date.now()}-${Math.random().toString(36).slice(2)}.vcf`
+                            : (selectedContact?.ObjectName ?? `${Date.now()}.vcf`);
+                          await upsertContact(selectedBookId, objectName, editFields);
+                          const updated = await listContacts(selectedBookId);
+                          setContacts(updated);
+                          setIsNewContact(false);
+                          setEditMode(false);
+                          if (isNewContact) setSelectedContactIdx(updated.length - 1);
+                        } catch (e) {
+                          setSaveError(e instanceof Error ? e.message : '저장 실패');
+                        } finally { setSaving(false); }
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '4px',
@@ -613,12 +655,13 @@ export function ContactsView({ onCompose }: ContactsViewProps) {
                         borderRadius: '6px',
                         fontSize: '13px',
                         fontWeight: 500,
-                        cursor: 'pointer',
+                        cursor: saving ? 'wait' : 'pointer',
                         color: '#fff',
+                        opacity: saving ? 0.7 : 1,
                       }}
                     >
                       <CheckIcon style={{ width: '14px', height: '14px' }} />
-                      저장
+                      {saving ? '저장 중...' : '저장'}
                     </button>
                   </div>
                 </div>
