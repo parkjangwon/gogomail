@@ -7459,6 +7459,39 @@ paths:
                           type: string
         default:
           $ref: "#/components/responses/Error"
+  /companies/{id}/audit-logs/export:
+    get:
+      operationId: adminExportCompanyAuditLogs
+      summary: Export company audit logs as CSV
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: action_prefix
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/change-history:
     get:
       operationId: adminGetCompanyChangeHistory

@@ -3,138 +3,174 @@
 import {
   ContentLayout,
   Header,
-  Table,
-  Button,
-  SpaceBetween,
-  Box,
-  Spinner,
   Container,
+  SpaceBetween,
+  Button,
+  Box,
+  ColumnLayout,
+  ButtonDropdown,
+  Flashbar,
+  FlashbarProps,
+  Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/app/i18n-provider';
+import { useCompany } from '@/contexts/CompanyContext';
 
-interface Report {
+interface ReportDef {
   id: string;
   name: string;
-  type: string;
-  generated_at: string;
-  file_size: number;
+  description: string;
+  category: string;
+  exportEndpoint?: string; // CSV backend endpoint (relative)
 }
+
+const REPORT_DEFS: ReportDef[] = [
+  {
+    id: 'audit_logs',
+    name: 'Audit Log Report',
+    description: 'Full audit trail of admin actions for compliance review',
+    category: 'Compliance',
+    exportEndpoint: 'audit-logs/export',
+  },
+  {
+    id: 'users_export',
+    name: 'User Directory Export',
+    description: 'All users with status, quota, and domain assignments',
+    category: 'Users',
+    exportEndpoint: 'users/bulk-export',
+  },
+  {
+    id: 'domain_health',
+    name: 'Domain Health Summary',
+    description: 'Domain status, DNS check results, and quota usage per domain',
+    category: 'Domains',
+  },
+  {
+    id: 'quota_summary',
+    name: 'Storage Quota Summary',
+    description: 'Storage allocation and usage breakdown across domains',
+    category: 'Storage',
+  },
+];
+
+const CATEGORY_COLORS: Record<string, 'blue' | 'green' | 'red' | 'grey'> = {
+  Compliance: 'red',
+  Users: 'blue',
+  Domains: 'green',
+  Storage: 'grey',
+};
 
 export default function ReportsPage() {
   const { t } = useI18n();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { currentCompany } = useCompany();
+  const cid = currentCompany?.id;
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
+  const [exporting, setExporting] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
+  const err = (msg: string) => setFlash([{ type: 'error', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
+  const ok = (msg: string) => setFlash([{ type: 'success', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
 
-  const fetchReports = async () => {
-    setLoading(true);
+  const handleCSVExport = async (report: ReportDef) => {
+    if (!report.exportEndpoint || !cid) {
+      err('CSV export not available for this report');
+      return;
+    }
+    setExporting(report.id);
     try {
-      const res = await fetch('/api/admin/reports?limit=100', {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReports(data.reports || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch reports:', error);
+      const res = await fetch(`/admin/v1/companies/${cid}/${report.exportEndpoint}`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.id}-${cid}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      ok(`${report.name} exported`);
+    } catch (e: unknown) {
+      err(String(e));
     } finally {
-      setLoading(false);
+      setExporting(null);
     }
   };
 
-  const handleExport = () => {
-    const header = ['id', 'name', 'type', 'generated_at', 'file_size'].join(',');
-    const rows = reports.map((r) =>
-      [
-        r.id,
-        `"${r.name.replace(/"/g, '""')}"`,
-        `"${r.type.replace(/"/g, '""')}"`,
-        r.generated_at,
-        r.file_size,
-      ].join(',')
-    );
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'reports.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handlePrint = () => {
+    window.print();
   };
-
-  if (loading) {
-    return (
-      <ContentLayout header={<Header variant="h1">{t('pages.reports.title')}</Header>}>
-        <Box textAlign="center" padding="xl">
-          <Spinner />
-        </Box>
-      </ContentLayout>
-    );
-  }
 
   return (
     <ContentLayout
       header={
         <Header
           variant="h1"
-          description={t('pages.reports_page.description')}
+          description="Generate and export compliance and operational reports"
           actions={
-            <Button
-              variant="primary"
-              onClick={handleExport}
-              disabled={loading || reports.length === 0}
-            >
-              {t('pages.reports_page.generate_report')}
-            </Button>
+            <Button iconName="file" onClick={handlePrint}>Print / Save as PDF</Button>
           }
         >
-          {t('pages.reports.title')}
+          {t('nav.reports')}
         </Header>
       }
     >
-      <SpaceBetween size="l">
-        <Container
-          header={<Header variant="h3">{t('pages.reports_page.available_reports')}</Header>}
-        >
-          <Box color="text-body-secondary">{t('pages.reports_page.reports_desc')}</Box>
-        </Container>
+      <SpaceBetween size="m">
+        {flash.length > 0 && <Flashbar items={flash} />}
 
-        <Table
-          columnDefinitions={[
-            {
-              header: t('pages.reports_page.name'),
-              cell: (item: Report) => item.name,
-              width: '30%',
-            },
-            {
-              header: t('pages.reports_page.type'),
-              cell: (item: Report) => item.type,
-              width: '25%',
-            },
-            {
-              header: t('pages.reports_page.size'),
-              cell: (item: Report) => `${(item.file_size / 1024 / 1024).toFixed(2)} MB`,
-              width: '15%',
-            },
-            {
-              header: t('pages.reports_page.generated'),
-              cell: (item: Report) => new Date(item.generated_at).toLocaleString(),
-              width: '30%',
-            },
-          ]}
-          items={reports}
-          header={
-            <Header variant="h2" counter={`(${reports.length})`}>
-              {t('pages.reports.title')}
-            </Header>
-          }
-        />
+        <ColumnLayout columns={2}>
+          {REPORT_DEFS.map(report => (
+            <Container
+              key={report.id}
+              header={
+                <Header
+                  variant="h3"
+                  actions={
+                    <ButtonDropdown
+                      loading={exporting === report.id}
+                      items={[
+                        { id: 'csv', text: 'Export as CSV', disabled: !report.exportEndpoint },
+                        { id: 'print', text: 'Print / Save as PDF' },
+                      ]}
+                      onItemClick={({ detail }) => {
+                        if (detail.id === 'csv') handleCSVExport(report);
+                        else handlePrint();
+                      }}
+                    >
+                      Export
+                    </ButtonDropdown>
+                  }
+                >
+                  <SpaceBetween size="xs" direction="horizontal">
+                    <Badge color={CATEGORY_COLORS[report.category] ?? 'grey'}>{report.category}</Badge>
+                    <span>{report.name}</span>
+                  </SpaceBetween>
+                </Header>
+              }
+            >
+              <Box color="text-body-secondary">{report.description}</Box>
+              {!report.exportEndpoint && (
+                <Box color="text-status-inactive" fontSize="body-s" padding={{ top: 'xs' }}>
+                  CSV export: available via API
+                </Box>
+              )}
+            </Container>
+          ))}
+        </ColumnLayout>
+
+        <Container header={<Header variant="h3">Custom Export</Header>}>
+          <SpaceBetween size="m">
+            <Box color="text-body-secondary">
+              Use the Change History page for filtered audit exports, or the Tenant Health page for a real-time health snapshot.
+            </Box>
+            <SpaceBetween size="xs" direction="horizontal">
+              <Button variant="inline-link" href={`/companies/${cid}/tenancy/change-history`}>
+                Change History & Audit Export →
+              </Button>
+              <Button variant="inline-link" href={`/companies/${cid}/tenancy/health`}>
+                Tenant Health Report →
+              </Button>
+            </SpaceBetween>
+          </SpaceBetween>
+        </Container>
       </SpaceBetween>
     </ContentLayout>
   );
