@@ -245,11 +245,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return { filteredMessages: msgs, threadCounts: counts };
   })();
 
-  const listWidth = (isMobile || fullWidth || bottomLayout)
-    ? { width: '100%', minWidth: 0 }
-    : paneWidth
-      ? { width: `${paneWidth}px`, minWidth: `${paneWidth}px` }
-      : { width: '380px', minWidth: '380px' };
+  const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
+    ? { flex: 1, minWidth: 0 }
+    : { width: `${paneWidth}px`, minWidth: `${paneWidth}px` };
   const containerHeight = bottomLayout ? '35vh' : '100%';
   const containerBorder: React.CSSProperties = bottomLayout
     ? { borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }
