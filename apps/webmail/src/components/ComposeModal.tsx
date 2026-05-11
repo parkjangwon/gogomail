@@ -264,12 +264,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     ? `<p></p><p>--</p><p>${signature.trim().split('\n').map((l) => escapeHtml(l)).join('</p><p>')}</p>`
     : '';
 
+  const quoteOnReply = (() => {
+    try { return (JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { quoteOnReply?: boolean }).quoteOnReply !== false; } catch { return true; }
+  })();
+
   const initialContent = draftMessage
     ? (draftMessage.html_body ?? (draftMessage.text_body
         ? draftMessage.text_body.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')
         : ''))
     : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
-        ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${buildQuoteHTML(intent, sourceMessage)}`
+        ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${quoteOnReply ? buildQuoteHTML(intent, sourceMessage) : ''}`
         : `<p></p>${sigHTML}`);
 
   const editor = useEditor({
