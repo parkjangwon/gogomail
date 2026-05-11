@@ -52,6 +52,13 @@ export interface AdvancedFilters {
   has_attachment?: boolean;
 }
 
+const SYSTEM_FOLDER_ICONS: Record<string, string> = {
+  inbox: '📥',
+  sent: '📤',
+  drafts: '✏️',
+  trash: '🗑️',
+};
+
 interface SidebarProps {
   folders: Folder[];
   activeFolderId: string;
@@ -66,6 +73,8 @@ interface SidebarProps {
   isMobile?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function Sidebar({
@@ -82,6 +91,8 @@ export function Sidebar({
   isMobile,
   isOpen,
   onClose,
+  collapsed = false,
+  onToggleCollapse,
 }: SidebarProps) {
   const showAdvanced = searchQuery.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -112,8 +123,8 @@ export function Sidebar({
         transition: 'transform 200ms ease',
       }
     : {
-        width: '220px',
-        minWidth: '220px',
+        width: collapsed ? '48px' : '220px',
+        minWidth: collapsed ? '48px' : '220px',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -121,6 +132,7 @@ export function Sidebar({
         borderRight: '1px solid var(--color-border-subtle)',
         overflowY: 'auto',
         overflowX: 'hidden',
+        transition: 'width 200ms ease, min-width 200ms ease',
       };
 
   return (
@@ -141,6 +153,55 @@ export function Sidebar({
       aria-label="메일 탐색"
       style={asideStyle}
     >
+      {collapsed && !isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', padding: '8px 0', gap: '2px' }}>
+          {/* Expand button */}
+          {onToggleCollapse && (
+            <button
+              aria-label="사이드바 확장"
+              onClick={onToggleCollapse}
+              title="사이드바 확장"
+              style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >→</button>
+          )}
+          {/* Compose */}
+          <button
+            aria-label="편지 쓰기"
+            onClick={onCompose}
+            title="편지 쓰기"
+            style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}
+          >✏</button>
+          {/* System folders */}
+          {SYSTEM_FOLDER_META.map((sf) => {
+            const serverFolder = systemFoldersByType.get(sf.systemType);
+            const unread = serverFolder?.unread ?? 0;
+            const folderId = serverFolder?.id ?? sf.systemType;
+            const isActive = activeFolderId === folderId;
+            const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? '📁';
+            return (
+              <button
+                key={sf.systemType}
+                onClick={() => onSelectFolder(folderId)}
+                title={sf.label}
+                aria-label={`${sf.label}${unread > 0 ? ` (읽지 않음 ${unread})` : ''}`}
+                style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: isActive ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onMouseEnter={(e) => { if (!isActive) (e.currentTarget).style.background = 'var(--color-bg-overlay)'; }}
+                onMouseLeave={(e) => { if (!isActive) (e.currentTarget).style.background = 'transparent'; }}
+              >
+                {icon}
+                {unread > 0 && (
+                  <span style={{ position: 'absolute', top: '2px', right: '2px', width: '14px', height: '14px', borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+      <>
       {/* Account header */}
       <div
         style={{
@@ -501,7 +562,19 @@ export function Sidebar({
         >
           편지 쓰기
         </button>
+        {!isMobile && onToggleCollapse && (
+          <button
+            aria-label="사이드바 접기"
+            onClick={onToggleCollapse}
+            title="사이드바 접기"
+            style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '12px', cursor: 'pointer' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >← 접기</button>
+        )}
       </div>
+      </>
+      )}
     </aside>
     </>
   );
