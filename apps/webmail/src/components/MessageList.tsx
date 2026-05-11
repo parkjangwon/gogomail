@@ -90,10 +90,11 @@ interface MessageListProps {
   onBulkLabel?: (ids: string[], color: string | null) => void;
   onBulkStar?: (ids: string[], starred: boolean) => void;
   onArchiveMessage?: (id: string) => void;
+  onToggleReadMessage?: (id: string, read: boolean) => void;
   messageLabels?: Record<string, string>;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, messageLabels = {} }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -698,6 +699,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onDelete={isMobile ? onDeleteMessage : undefined}
               onArchiveRow={isMobile ? onArchiveMessage : undefined}
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
+              onHoverArchive={!isMobile ? onArchiveMessage : undefined}
+              onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
               threadCount={threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
             />
@@ -729,11 +732,13 @@ interface MessageRowProps {
   onDelete?: (id: string) => void;
   onArchiveRow?: (id: string) => void;
   onHoverDelete?: (id: string) => void;
+  onHoverArchive?: (id: string) => void;
+  onHoverToggleRead?: (id: string, read: boolean) => void;
   threadCount?: number;
   labelColor?: string;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, threadCount, labelColor }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -861,24 +866,45 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
       </div>
 
       {/* Right: date normally, hover-actions on hover */}
-      <div style={{ width: '90px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', alignSelf: 'center' }}>
+      <div style={{ width: '120px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1px', alignSelf: 'center' }}>
         {hovered ? (
           <>
             {onStar && (
               <button
                 aria-label={message.starred ? '별표 해제' : '별표 추가'}
+                title={message.starred ? '별표 해제' : '별표 추가'}
                 onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >★</button>
+              >{message.starred ? '★' : '☆'}</button>
+            )}
+            {onHoverToggleRead && (
+              <button
+                aria-label={message.read ? '읽지 않음으로' : '읽음으로'}
+                title={message.read ? '읽지 않음으로' : '읽음으로'}
+                onClick={(e) => { e.stopPropagation(); onHoverToggleRead(message.id, !message.read); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              >{message.read ? '○' : '◉'}</button>
+            )}
+            {onHoverArchive && (
+              <button
+                aria-label="아카이브"
+                title="아카이브"
+                onClick={(e) => { e.stopPropagation(); onHoverArchive(message.id); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              >🗂</button>
             )}
             {onHoverDelete && (
               <button
                 aria-label="삭제"
                 title="삭제"
                 onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
               >🗑</button>
