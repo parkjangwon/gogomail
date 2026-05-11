@@ -439,6 +439,8 @@ export default function MailPage() {
     const spamFolder = folders.find((f) => f.system_type === 'spam' || f.system_type === 'junk');
     if (!spamFolder) return;
     const id = selectedMessageId;
+    const spamMsg = messages.find((m) => m.id === id);
+    if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     void moveMessage(id, spamFolder.id).then(() => {
       setMessages((prev) => prev.filter((m) => m.id !== id));
@@ -452,6 +454,8 @@ export default function MailPage() {
     const inboxFolder = folders.find((f) => f.system_type === 'inbox');
     if (!inboxFolder) return;
     const id = selectedMessageId;
+    const notSpamMsg = messages.find((m) => m.id === id);
+    if (notSpamMsg && !notSpamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     void moveMessage(id, inboxFolder.id).then(() => {
       setMessages((prev) => prev.filter((m) => m.id !== id));
@@ -463,6 +467,8 @@ export default function MailPage() {
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
+    const msg = messages.find((m) => m.id === id);
+    if (msg && !msg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     setSelectedMessageId(nextId);
