@@ -368,6 +368,38 @@ export default function MailPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Request notification permission once on mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Detect new unread messages after refresh and notify
+  const seenMsgIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (seenMsgIdsRef.current === null) {
+      seenMsgIdsRef.current = new Set(messages.map((m) => m.id));
+      return;
+    }
+    const newUnread = messages.filter((m) => !m.read && !seenMsgIdsRef.current!.has(m.id));
+    messages.forEach((m) => seenMsgIdsRef.current!.add(m.id));
+    if (newUnread.length > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+      const title = newUnread.length === 1
+        ? `새 메일: ${newUnread[0].from_name || newUnread[0].from_addr}`
+        : `새 메일 ${newUnread.length}개`;
+      const n = new Notification(title, {
+        body: newUnread.length === 1 ? (newUnread[0].subject || '(제목 없음)') : undefined,
+        icon: '/favicon.ico',
+      });
+      n.onclick = () => window.focus();
+    }
+  }, [messages]);
+
+  // Reset seen IDs when folder changes (avoid false notifications on folder switch)
+  useEffect(() => { seenMsgIdsRef.current = null; }, [activeFolderId]);
+
   if (foldersLoading) {
     return (
       <div
