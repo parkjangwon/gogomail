@@ -17,11 +17,12 @@ import {
   TrashIcon,
   PaperAirplaneIcon,
   ArchiveBoxIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { ReactNode } from 'react';
 
 interface SpotlightItem {
-  type: 'action' | 'mail' | 'contact' | 'folder';
+  type: 'action' | 'mail' | 'contact' | 'folder' | 'template';
   id: string;
   title: string;
   subtitle?: string;
@@ -40,6 +41,7 @@ interface SpotlightSearchProps {
   onSearch: (q: string) => void;
   movingMessageId?: string;
   onMoveMessage?: (folderId: string) => void;
+  onComposeWithTemplate?: (t: { name: string; subject: string; body: string }) => void;
 }
 
 const SYSTEM_ICONS: Record<string, ReactNode> = {
@@ -57,6 +59,7 @@ function sectionLabel(type: SpotlightItem['type']): string {
     case 'folder': return '폴더';
     case 'mail': return '메일';
     case 'contact': return '연락처';
+    case 'template': return '템플릿';
   }
 }
 
@@ -82,6 +85,7 @@ export function SpotlightSearch({
   onSearch,
   movingMessageId,
   onMoveMessage,
+  onComposeWithTemplate,
 }: SpotlightSearchProps) {
   const isMoveMode = !!movingMessageId;
   const [query, setQuery] = useState('');
@@ -152,6 +156,24 @@ export function SpotlightSearch({
     return { params, freeText, operators };
   }
 
+  const buildTemplateItems = useCallback((q: string): SpotlightItem[] => {
+    if (!onComposeWithTemplate) return [];
+    try {
+      const templates: { name: string; subject: string; body: string }[] = JSON.parse(localStorage.getItem('webmail_templates') ?? '[]');
+      return templates
+        .filter((t) => !q || t.name.toLowerCase().includes(q.toLowerCase()) || t.subject.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 5)
+        .map((t) => ({
+          type: 'template' as const,
+          id: `tpl-${t.name}`,
+          title: t.name,
+          subtitle: t.subject || '(제목 없음)',
+          icon: <DocumentTextIcon style={{ width: 16, height: 16 }} />,
+          onSelect: () => { onComposeWithTemplate(t); onClose(); },
+        }));
+    } catch { return []; }
+  }, [onComposeWithTemplate, onClose]);
+
   const recentSearchKey = 'webmail_recent_searches';
   const recentSearches: string[] = (() => {
     try { return JSON.parse(localStorage.getItem(recentSearchKey) ?? '[]').slice(0, 4) as string[]; } catch { return []; }
@@ -166,18 +188,20 @@ export function SpotlightSearch({
       setActiveOperators([]);
       const quickActions = buildQuickActions();
       const contacts = isMoveMode ? [] : buildContactItems('').slice(0, 3);
-      setItems([...quickActions, ...contacts]);
+      const templates = isMoveMode ? [] : buildTemplateItems('').slice(0, 3);
+      setItems([...quickActions, ...contacts, ...templates]);
       setSelIdx(0);
       return;
     }
 
-    // Immediate: filter actions + contacts
+    // Immediate: filter actions + contacts + templates
     const ql = q.toLowerCase();
     const actions = buildQuickActions().filter((a) =>
       a.title.toLowerCase().includes(ql) || (a.subtitle ?? '').toLowerCase().includes(ql)
     );
     const contacts = isMoveMode ? [] : buildContactItems(ql);
-    setItems([...actions, ...contacts]);
+    const templates = isMoveMode ? [] : buildTemplateItems(ql);
+    setItems([...actions, ...contacts, ...templates]);
     setSelIdx(0);
 
     if (isMoveMode) return;
@@ -214,14 +238,14 @@ export function SpotlightSearch({
           icon: <MagnifyingGlassIcon style={{ width: 16, height: 16 }} />,
           onSelect: () => { onSearch(q); onClose(); },
         };
-        setItems([...actions, ...contacts, ...mailItems, searchAll]);
+        setItems([...actions, ...contacts, ...templates, ...mailItems, searchAll]);
         setSelIdx(0);
       } catch { /* */ }
       setSearching(false);
     }, 200);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, buildQuickActions, buildContactItems, onSelectMessage, onSearch, onClose, isMoveMode]);
+  }, [query, buildQuickActions, buildContactItems, buildTemplateItems, onSelectMessage, onSearch, onClose, isMoveMode]);
 
   // Keyboard navigation
   useEffect(() => {

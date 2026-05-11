@@ -34,6 +34,8 @@ interface ComposeModalProps {
   draftMessage?: MessageDetail;
   userEmail?: string;
   initialTo?: string;
+  initialSubject?: string;
+  initialBody?: string;
   isMobile?: boolean;
   windowOffset?: number;
 }
@@ -97,7 +99,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, isMobile, windowOffset = 0 }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, isMobile, windowOffset = 0 }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -121,7 +123,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [bcc, setBcc] = useState('');
   const [showCc, setShowCc] = useState(!!(draftMessage ? draftCc : replyCc));
   const [showBcc, setShowBcc] = useState(false);
-  const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : replySubject);
+  const [subject, setSubject] = useState(draftMessage ? (draftMessage.subject ?? '') : (initialSubject ?? replySubject));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
@@ -274,6 +276,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         : ''))
     : (sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
         ? `<p></p>${sigHTML ? sigHTML + '<p></p>' : ''}${quoteOnReply ? buildQuoteHTML(intent, sourceMessage) : ''}`
+        : initialBody
+        ? `${initialBody.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
         : `<p></p>${sigHTML}`);
 
   const editor = useEditor({

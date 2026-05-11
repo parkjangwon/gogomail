@@ -190,6 +190,13 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [notifSound, setNotifSound] = useState(false);
   const [notifDetail, setNotifDetail] = useState<'sender' | 'subject' | 'preview'>('subject');
 
+  // Templates
+  const [templates, setTemplates] = useState<{ name: string; subject: string; body: string }[]>([]);
+  const [newTplName, setNewTplName] = useState('');
+  const [newTplSubject, setNewTplSubject] = useState('');
+  const [newTplBody, setNewTplBody] = useState('');
+  const [showNewTpl, setShowNewTpl] = useState(false);
+
   // Security
   const [revokingAll, setRevokingAll] = useState(false);
 
@@ -213,6 +220,7 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
       setInlineImagePreview((wm.inlineImagePreview as boolean) !== false);
       setNotifSound(localStorage.getItem('webmail_notif_sound') === '1');
       setNotifDetail((localStorage.getItem('webmail_notif_detail') as 'sender' | 'subject' | 'preview') ?? 'subject');
+      setTemplates(JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'));
     } catch { /* ignore */ }
     if (typeof Notification !== 'undefined') setNotifPerm(Notification.permission);
   }, [userName]);
@@ -373,7 +381,19 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
           </SectionCard>
         );
 
-      case 'compose':
+      case 'compose': {
+        function saveTpl() {
+          if (!newTplName.trim()) return;
+          const next = [...templates.filter((t) => t.name !== newTplName.trim()), { name: newTplName.trim(), subject: newTplSubject.trim(), body: newTplBody.trim() }];
+          setTemplates(next);
+          try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+          setNewTplName(''); setNewTplSubject(''); setNewTplBody(''); setShowNewTpl(false);
+        }
+        function deleteTpl(name: string) {
+          const next = templates.filter((t) => t.name !== name);
+          setTemplates(next);
+          try { localStorage.setItem('webmail_templates', JSON.stringify(next)); } catch { /* */ }
+        }
         return (
           <>
             <SectionCard>
@@ -396,8 +416,42 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 />
               </Row>
             </SectionCard>
+            <SectionCard>
+              <SectionHeader>빠른 답장 템플릿</SectionHeader>
+              {templates.length === 0 && !showNewTpl && (
+                <div style={{ padding: '16px 20px', fontSize: '13px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-primary)' }}>
+                  저장된 템플릿이 없습니다. 자주 사용하는 답장 내용을 저장해 두세요.
+                </div>
+              )}
+              {templates.map((t, i) => (
+                <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < templates.length - 1 || showNewTpl ? '1px solid var(--color-border-subtle)' : 'none', background: 'var(--color-bg-primary)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{t.name}</div>
+                    {t.subject && <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>제목: {t.subject}</div>}
+                  </div>
+                  <button onClick={() => deleteTpl(t.name)} style={{ padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(220,38,38,0.3)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '12px', cursor: 'pointer' }}>삭제</button>
+                </div>
+              ))}
+              {showNewTpl && (
+                <div style={{ padding: '14px 20px', background: 'var(--color-bg-secondary)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder="템플릿 이름 (필수)" style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
+                  <input value={newTplSubject} onChange={(e) => setNewTplSubject(e.target.value)} placeholder="기본 제목 (선택)" style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }} />
+                  <textarea value={newTplBody} onChange={(e) => setNewTplBody(e.target.value)} placeholder="본문 내용" rows={4} style={{ padding: '8px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', resize: 'vertical', fontFamily: 'inherit', outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button onClick={() => setShowNewTpl(false)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer' }}>취소</button>
+                    <button onClick={saveTpl} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>저장</button>
+                  </div>
+                </div>
+              )}
+              {!showNewTpl && (
+                <div style={{ padding: '10px 20px', background: 'var(--color-bg-primary)', borderTop: templates.length > 0 ? '1px solid var(--color-border-subtle)' : 'none' }}>
+                  <button onClick={() => setShowNewTpl(true)} style={{ fontSize: '13px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>+ 새 템플릿 추가</button>
+                </div>
+              )}
+            </SectionCard>
           </>
         );
+      }
 
       case 'appearance':
         return (

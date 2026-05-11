@@ -32,7 +32,7 @@ export default function MailPage() {
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  type ComposeContext = { intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string };
+  type ComposeContext = { intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string; initialSubject?: string; initialBody?: string };
   const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
   const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
   const closeCompose = useCallback(() => setComposeContext(null), []);
@@ -1348,6 +1348,8 @@ export default function MailPage() {
           sourceMessage={composeContext.source}
           draftMessage={composeContext.draft}
           initialTo={composeContext.to}
+          initialSubject={composeContext.initialSubject}
+          initialBody={composeContext.initialBody}
           userEmail={userEmail}
           isMobile={isMobile}
           onClose={closeCompose}
@@ -1481,6 +1483,7 @@ export default function MailPage() {
           onSelectMessage={(id) => { handleSelectMessage(id); setShowSpotlight(false); }}
           onOpenSettings={() => { setActiveApp('settings'); setShowSpotlight(false); }}
           onSearch={(q) => { handleSearch(q); setActiveApp('mail'); setShowSpotlight(false); }}
+          onComposeWithTemplate={(t) => { openCompose({ intent: 'new', initialSubject: t.subject, initialBody: t.body }); setShowSpotlight(false); }}
           movingMessageId={spotlightMoveId ?? undefined}
           onMoveMessage={(folderId: string) => {
             handleMove(folderId);
