@@ -27,6 +27,7 @@ export default function MailPage() {
   const [composeContext, setComposeContext] = useState<{
     intent: ComposeIntent;
     source?: MessageDetail;
+    draft?: MessageDetail;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
@@ -86,15 +87,24 @@ export default function MailPage() {
     router.push('/login');
   }, [router]);
 
-  // Mark selected message as read locally + update sidebar badge
+  const activeFolderSystemType = folders.find((f) => f.id === activeFolderId)?.system_type;
+
+  // When a draft message loads, open it in compose instead of ReadingPane
   useEffect(() => {
-    if (!selectedMessageId) return;
+    if (!selectedMessage || activeFolderSystemType !== 'drafts') return;
+    setComposeContext({ intent: 'new', draft: selectedMessage });
+    setSelectedMessageId(null);
+  }, [selectedMessage, activeFolderSystemType]);
+
+  // Mark selected message as read locally + update sidebar badge (skip drafts)
+  useEffect(() => {
+    if (!selectedMessageId || activeFolderSystemType === 'drafts') return;
     setMessages((prev) => {
       const msg = prev.find((m) => m.id === selectedMessageId);
       if (msg && !msg.read) adjustUnread(activeFolderId, -1);
       return prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m));
     });
-  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId]);
+  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, activeFolderSystemType]);
 
   const handleMarkUnread = useCallback(async () => {
     if (!selectedMessageId) return;
@@ -456,6 +466,7 @@ export default function MailPage() {
         <ComposeModal
           intent={composeContext.intent}
           sourceMessage={composeContext.source}
+          draftMessage={composeContext.draft}
           onClose={() => setComposeContext(null)}
         />
       )}
