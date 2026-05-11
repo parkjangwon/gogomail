@@ -17,6 +17,8 @@ import {
   ClockIcon,
   PencilIcon,
   ArrowTopRightOnSquareIcon,
+  XMarkIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 
 const RECENT_SEARCHES_KEY = 'webmail_recent_searches';
@@ -296,7 +298,7 @@ export function Sidebar({
         <div style={{ padding: '14px 16px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isMobile && onClose && (
             <button aria-label="메뉴 닫기" onClick={onClose}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '18px', padding: '0 4px 0 0', lineHeight: 1, flexShrink: 0 }}>×</button>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 4px 0 0', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}><XMarkIcon style={{ width: '18px', height: '18px' }} /></button>
           )}
           {/* Avatar — click to open account menu */}
           <button
@@ -722,8 +724,8 @@ export function Sidebar({
                       }}
                       style={{ flex: 1, fontSize: '13px', padding: '3px 6px', border: '1px solid var(--color-accent)', borderRadius: '4px', outline: 'none', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
                     />
-                    <button onClick={() => { if (renamingValue.trim()) { onRenameFolder?.(f.id, renamingValue.trim()); setRenamingFolderId(null); } }} style={{ fontSize: '11px', padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
-                    <button onClick={() => setRenamingFolderId(null)} style={{ fontSize: '11px', padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                    <button onClick={() => { if (renamingValue.trim()) { onRenameFolder?.(f.id, renamingValue.trim()); setRenamingFolderId(null); } }} style={{ padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex' }}><CheckIcon style={{ width: '12px', height: '12px' }} /></button>
+                    <button onClick={() => setRenamingFolderId(null)} style={{ padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex' }}><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
                   </div>
                 ) : (
                   <button
@@ -779,8 +781,8 @@ export function Sidebar({
                   }}
                   style={{ flex: 1, fontSize: '13px', padding: '3px 6px', border: '1px solid var(--color-accent)', borderRadius: '4px', outline: 'none', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
                 />
-                <button onClick={() => { if (newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); } }} style={{ fontSize: '11px', padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
-                <button onClick={() => { setShowNewFolder(false); setNewFolderInput(''); }} style={{ fontSize: '11px', padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                <button onClick={() => { if (newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); } }} style={{ padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex' }}><CheckIcon style={{ width: '12px', height: '12px' }} /></button>
+                <button onClick={() => { setShowNewFolder(false); setNewFolderInput(''); }} style={{ padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex' }}><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
               </div>
             ) : (
               <button

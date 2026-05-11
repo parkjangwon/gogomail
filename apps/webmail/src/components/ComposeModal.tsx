@@ -19,6 +19,7 @@ import {
   ArrowPathIcon,
   ListBulletIcon,
   NumberedListIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 interface ComposeModalProps {
@@ -675,8 +676,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     <button
                       type="button"
                       onClick={() => setUploadedAttachments((prev) => prev.filter((a) => a.id !== att.id))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '0 2px' }}
-                    >×</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', lineHeight: 1, padding: '0 2px', display: 'inline-flex' }}
+                    ><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
                   </div>
                 );
               })}
@@ -749,7 +750,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   {templates.map((t) => (
                     <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 4px' }}>
                       <button type="button" onClick={() => loadTemplate(t)} style={{ flex: 1, textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>{t.name}</button>
-                      <button type="button" onClick={() => deleteTemplate(t.name)} title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', fontSize: '14px', padding: '4px 6px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                      <button type="button" onClick={() => deleteTemplate(t.name)} title="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-destructive)', padding: '4px 6px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}><XMarkIcon style={{ width: '13px', height: '13px' }} /></button>
                     </div>
                   ))}
                   <div style={{ borderTop: '1px solid var(--color-border-subtle)', padding: '4px' }}>
