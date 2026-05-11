@@ -35,6 +35,7 @@ export default function MailPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
+  const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
@@ -203,7 +204,22 @@ export default function MailPage() {
       const list = searchResults ?? messages;
       const currentIdx = list.findIndex((m) => m.id === selectedMessageId);
 
+      // g+key two-key folder navigation
+      if (gPrefixRef.current) {
+        gPrefixRef.current = false;
+        const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash' };
+        const target = systemTypeMap[e.key];
+        if (target) {
+          const folder = folders.find((f) => f.system_type === target);
+          if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
+        }
+      }
+
       switch (e.key) {
+        case 'g':
+          gPrefixRef.current = true;
+          setTimeout(() => { gPrefixRef.current = false; }, 1000);
+          return;
         case 'j': {
           const next = list[currentIdx + 1];
           if (next) setSelectedMessageId(next.id);

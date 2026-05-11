@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, KeyboardEvent, ClipboardEvent } from 'react';
 
 interface RecipientChipsProps {
   value: string;
@@ -33,6 +33,14 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
     const next = chips.filter((_, idx) => idx !== i);
     setChips(next);
     onChange(next.join(', '));
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLInputElement>) {
+    const text = e.clipboardData.getData('text');
+    if (text.includes(',') || text.includes(';') || text.includes('\n')) {
+      e.preventDefault();
+      commit(text);
+    }
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -89,6 +97,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
         onBlur={() => { if (input.trim()) commit(input); }}
         placeholder={chips.length === 0 ? placeholder : ''}
         autoFocus={autoFocus}
