@@ -88,6 +88,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [signature, setSignature] = useState(() => {
     try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
   });
+  const [recentRecipients] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]'); } catch { return []; }
+  });
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -206,6 +209,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           source_message_id: sourceMessage.id,
         }),
       });
+      // Persist recently used recipients
+      try {
+        const newAddrs = [...to.split(','), ...cc.split(','), ...bcc.split(',')]
+          .map((a) => a.trim()).filter(Boolean);
+        const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
+        localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
+      } catch { /* ignore */ }
       setSent(true);
       setTimeout(() => onClose(), 1500);
     } catch (err: unknown) {
@@ -330,6 +340,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               placeholder="example@domain.com"
               autoFocus
               hasError={error.includes('받는 사람')}
+              suggestions={recentRecipients}
             />
           </div>
 
@@ -341,6 +352,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               value={cc}
               onChange={(v) => { setCc(v); ccRef.current = v; triggerAutoSave(toRef.current, v, bccRef.current, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
+              suggestions={recentRecipients}
             />
           </div>
 
@@ -352,6 +364,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               value={bcc}
               onChange={(v) => { setBcc(v); bccRef.current = v; triggerAutoSave(toRef.current, ccRef.current, v, subjectRef.current, editor?.getText() ?? ''); }}
               placeholder="example@domain.com, ..."
+              suggestions={recentRecipients}
             />
           </div>
 
