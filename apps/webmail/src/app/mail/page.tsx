@@ -1128,9 +1128,11 @@ export default function MailPage() {
             )}
             <MessageList
               messages={(() => {
-                if (searchResults !== null) return searchResults;
-                if (threadViewEnabled && threads.length > 0) {
-                  return threads.map((t): MessageSummary => ({
+                let msgs: MessageSummary[];
+                if (searchResults !== null) {
+                  msgs = searchResults;
+                } else if (threadViewEnabled && threads.length > 0) {
+                  msgs = threads.map((t): MessageSummary => ({
                     id: t.latest_message_id || t.id,
                     subject: t.subject,
                     from_addr: t.latest_from_addr,
@@ -1144,8 +1146,16 @@ export default function MailPage() {
                     message_count: t.message_count,
                     unread_count: t.unread_count,
                   }));
+                } else {
+                  msgs = messages;
                 }
-                return messages;
+                try {
+                  const blocked: string[] = JSON.parse(localStorage.getItem('webmail_blocked_senders') ?? '[]');
+                  if (blocked.length > 0) {
+                    msgs = msgs.filter((m) => !blocked.some((b) => m.from_addr.toLowerCase().includes(b)));
+                  }
+                } catch { /* ignore */ }
+                return msgs;
               })()}
               selectedId={selectedMessageId}
               onSelect={handleSelectMessage}
@@ -1184,6 +1194,7 @@ export default function MailPage() {
               onDeleteMessage={handleDeleteById}
               onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
               onToggleReadMessage={handleToggleReadMessage}
+              onSnoozeMessage={activeFolderSystemType !== 'trash' ? handleSnooze : undefined}
               onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
               onBulkLabel={handleBulkLabel}
               onBulkStar={handleBulkStar}
