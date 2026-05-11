@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD, VIRTUAL_SNOOZED, VIRTUAL_PINNED } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -154,6 +154,13 @@ export default function MailPage() {
           const snoozed: Record<string, string> = JSON.parse(localStorage.getItem('webmail_snoozed') ?? '{}');
           const now = Date.now();
           msgs = msgs.filter((m) => snoozed[m.id] && new Date(snoozed[m.id]).getTime() > now);
+        } catch { /* ignore */ }
+      }
+      if (activeFolderId === VIRTUAL_PINNED) {
+        try {
+          const pinned: string[] = JSON.parse(localStorage.getItem('webmail_pinned') ?? '[]');
+          const pinnedSet = new Set(pinned);
+          msgs = msgs.filter((m) => pinnedSet.has(m.id));
         } catch { /* ignore */ }
       }
       setMessages(msgs);
