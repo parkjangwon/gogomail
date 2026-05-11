@@ -37,7 +37,7 @@ export default function MailPage() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread } =
+  const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId);
 
   // Set default folder to inbox UUID once folders are loaded
@@ -171,6 +171,9 @@ export default function MailPage() {
           if (prev) setSelectedMessageId(prev.id);
           break;
         }
+        case 'c':
+          if (!composeContext) { e.preventDefault(); setComposeContext({ intent: 'new' }); }
+          break;
         case 'r':
           if (selectedMessage && !composeContext) {
             e.preventDefault();
@@ -265,6 +268,8 @@ export default function MailPage() {
         onStar={handleStar}
         onBulkDelete={handleBulkDelete}
         onBulkMarkRead={handleBulkMarkRead}
+        onRefresh={refresh}
+        refreshing={refreshing}
       />
 
       <ReadingPane
@@ -276,6 +281,7 @@ export default function MailPage() {
         onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
         onMarkUnread={handleMarkUnread}
         onMove={handleMove}
+        onPrint={() => window.print()}
         loading={messageLoading}
       />
 

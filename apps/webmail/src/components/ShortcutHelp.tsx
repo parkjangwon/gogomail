@@ -2,6 +2,7 @@
 
 const SHORTCUTS = [
   { key: 'j / k', desc: '다음 / 이전 메일' },
+  { key: 'c', desc: '새 메일 작성' },
   { key: 'r', desc: '답장' },
   { key: 'f', desc: '전달' },
   { key: '# / Delete', desc: '삭제' },
