@@ -51,9 +51,11 @@ interface MessageListProps {
   onStar?: (id: string, starred: boolean) => void;
   onBulkDelete?: (ids: string[]) => void;
   onBulkMarkRead?: (ids: string[]) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
 
@@ -142,7 +144,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       </button>
     </div>
   ) : (
-    <div style={{ display: 'flex', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
       <button
         aria-label="전체 선택"
         onClick={selectAll}
@@ -172,6 +174,28 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </button>
         );
       })}
+      {onRefresh && (
+        <button
+          aria-label="새로고침"
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="새로고침"
+          style={{
+            marginLeft: 'auto',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            border: '1px solid var(--color-border-default)',
+            background: 'transparent',
+            color: 'var(--color-text-tertiary)',
+            cursor: refreshing ? 'not-allowed' : 'pointer',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+        </button>
+      )}
     </div>
   );
 

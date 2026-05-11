@@ -94,5 +94,24 @@ export function useMailList(folderId: string) {
     return () => clearInterval(id);
   }, [folderId]);
 
-  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread };
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!folderId || refreshing) return;
+    setRefreshing(true);
+    try {
+      const [fData, mData] = await Promise.all([getFolders(), getMessages(folderId)]);
+      setFolders(fData.folders);
+      setMessages(mData.messages ?? []);
+      setHasMore(mData.has_more);
+      setNextCursor(mData.next_cursor);
+      nextCursorRef.current = mData.next_cursor;
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [folderId, refreshing]);
+
+  return { folders, messages, setMessages, foldersLoading, messagesLoading, loadingMore, hasMore, nextCursor, loadMore, adjustUnread, refresh, refreshing };
 }

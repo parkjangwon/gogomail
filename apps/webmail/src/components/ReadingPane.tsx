@@ -36,6 +36,7 @@ interface ReadingPaneProps {
   onForward?: () => void;
   onMarkUnread?: () => void;
   onMove?: (folderId: string) => void;
+  onPrint?: () => void;
   loading?: boolean;
 }
 
@@ -104,6 +105,7 @@ export function ReadingPane({
   onForward,
   onMarkUnread,
   onMove,
+  onPrint,
   loading,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
@@ -207,6 +209,7 @@ export function ReadingPane({
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
         <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
+        <ActionButton label="인쇄" onClick={onPrint} />
         {onMove && folders.length > 0 && (
           <div style={{ position: 'relative' }}>
             <ActionButton label="이동" onClick={() => setShowMoveMenu((v) => !v)} />
