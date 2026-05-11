@@ -158,6 +158,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
+  const [noteIds, setNoteIds] = useState<Set<string>>(() => {
+    try { return new Set(Object.keys(JSON.parse(localStorage.getItem('webmail_notes') ?? '{}'))); } catch { return new Set(); }
+  });
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== 'webmail_notes') return;
+      try { setNoteIds(new Set(Object.keys(JSON.parse(e.newValue ?? '{}')))); } catch { /* */ }
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const [compact, setCompact] = useState(() => {
     try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
   });
@@ -879,6 +890,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               labelColor={messageLabels[msg.id]}
               userEmail={userEmail}
               showPreview={showPreview}
+              hasNote={noteIds.has(msg.id)}
             />
           ))}
         </div>
@@ -917,9 +929,10 @@ interface MessageRowProps {
   labelColor?: string;
   userEmail?: string;
   showPreview?: boolean;
+  hasNote?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true, hasNote = false }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -1153,6 +1166,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           <>
             {isPinned && <BookmarkIconSolid style={{ width: '12px', height: '12px', color: 'var(--color-accent)', marginRight: '2px', flexShrink: 0 }} />}
             {message.starred && <StarIconSolid style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '2px', flexShrink: 0 }} />}
+            {hasNote && <span title="메모 있음" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a78bfa', display: 'inline-block', marginRight: '3px', flexShrink: 0 }} />}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
               <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
                 title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>

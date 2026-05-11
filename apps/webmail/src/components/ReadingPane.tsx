@@ -261,6 +261,35 @@ export function ReadingPane({
 
   const [savedContact, setSavedContact] = useState(false);
 
+  // Private notes
+  const NOTES_KEY = 'webmail_notes';
+  const [noteText, setNoteText] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
+  const noteSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!message) return;
+    try {
+      const notes: Record<string, string> = JSON.parse(localStorage.getItem(NOTES_KEY) ?? '{}');
+      setNoteText(notes[message.id] ?? '');
+    } catch { setNoteText(''); }
+  }, [message?.id]);
+
+  function saveNote(text: string) {
+    if (!message) return;
+    try {
+      const notes: Record<string, string> = JSON.parse(localStorage.getItem(NOTES_KEY) ?? '{}');
+      if (text.trim()) notes[message.id] = text;
+      else delete notes[message.id];
+      const serialized = JSON.stringify(notes);
+      localStorage.setItem(NOTES_KEY, serialized);
+      window.dispatchEvent(new StorageEvent('storage', { key: NOTES_KEY, newValue: serialized }));
+    } catch { /* */ }
+    setNoteSaved(true);
+    if (noteSaveTimerRef.current) clearTimeout(noteSaveTimerRef.current);
+    noteSaveTimerRef.current = setTimeout(() => setNoteSaved(false), 1500);
+  }
+
   function handleSaveContact() {
     if (!message) return;
     try {
@@ -1164,6 +1193,23 @@ export function ReadingPane({
             )}
           </div>
         )}
+
+        {/* Private note */}
+        <div style={{ marginTop: '24px', maxWidth: '680px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🗒 나만의 메모</span>
+            {noteSaved && <span style={{ fontSize: '10px', color: 'var(--color-success, #22c55e)', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>저장됨 ✓</span>}
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(e) => { setNoteText(e.target.value); saveNote(e.target.value); }}
+            placeholder="이 메일에 대한 비공개 메모를 남기세요 (나만 볼 수 있습니다)..."
+            rows={2}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: noteText ? 'rgba(250,204,21,0.06)' : 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', lineHeight: 1.6, resize: 'vertical', outline: 'none', fontFamily: 'inherit', transition: 'border-color 150ms, background 150ms' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-default)'; }}
+          />
+        </div>
       </div>
 
       {/* Drive save toast */}
