@@ -4602,3 +4602,7 @@ Next focus areas:
 - TOCTOU race eliminated: StoreUploadSessionBody now uses SELECT FOR UPDATE inside a transaction; concurrent writers for the same session are serialised and the authoritative prior storage_path is returned from the locked row
 - Chunk ordering enforced: ValidateChunkSequence rejects non-asterisk content-range chunks whose Start != session.ReceivedSize; out-of-order and duplicate chunks return an error before any I/O
 - Orphan cleanup: newly written storage objects are deleted immediately on DB failure or validation error so no chunk objects are left stranded
+
+## webmail spam folder + system folder migration (2026-05-12)
+- Added Spam folder to createSystemFolders list for new users
+- ListFolders now calls createSystemFolders (idempotent, ON CONFLICT DO NOTHING) so existing users get missing system folders (e.g. Spam) on next folder fetch

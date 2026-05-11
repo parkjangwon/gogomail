@@ -11,6 +11,8 @@ interface WebmailSettings {
   signature: string;
   theme: 'light' | 'dark' | 'system';
   notifications: boolean;
+  accentColor: string;
+  locale: string;
 }
 
 const DEFAULT_SETTINGS: WebmailSettings = {
@@ -21,14 +23,40 @@ const DEFAULT_SETTINGS: WebmailSettings = {
   signature: '',
   theme: 'system',
   notifications: false,
+  accentColor: '#2F6EE0',
+  locale: 'ko',
 };
+
+const ACCENT_PRESETS = [
+  { name: '블루',  swatch: '#2F6EE0', light: { accent: '#2F6EE0', hover: '#2560C8', subtle: '#EBF1FD' }, dark: { accent: '#5B8EF0', hover: '#6B9AF4', subtle: '#1E2B45' } },
+  { name: '틸',   swatch: '#0D9488', light: { accent: '#0D9488', hover: '#0F766E', subtle: '#CCFBF1' }, dark: { accent: '#14B8A6', hover: '#2DD4BF', subtle: '#1A3D38' } },
+  { name: '보라', swatch: '#7C3AED', light: { accent: '#7C3AED', hover: '#6D28D9', subtle: '#EDE9FE' }, dark: { accent: '#A78BFA', hover: '#C4B5FD', subtle: '#2E1B4E' } },
+  { name: '주황', swatch: '#EA580C', light: { accent: '#EA580C', hover: '#C2410C', subtle: '#FFEDD5' }, dark: { accent: '#FB923C', hover: '#FDBA74', subtle: '#451A03' } },
+  { name: '핑크', swatch: '#DB2777', light: { accent: '#DB2777', hover: '#BE185D', subtle: '#FCE7F3' }, dark: { accent: '#F472B6', hover: '#FBCFE8', subtle: '#4A1032' } },
+  { name: '그린', swatch: '#059669', light: { accent: '#059669', hover: '#047857', subtle: '#D1FAE5' }, dark: { accent: '#34D399', hover: '#6EE7B7', subtle: '#1A3B30' } },
+];
+
+function applyAccent(swatch: string) {
+  const preset = ACCENT_PRESETS.find((p) => p.swatch === swatch) ?? ACCENT_PRESETS[0];
+  const id = 'webmail-accent-override';
+  let el = document.getElementById(id) as HTMLStyleElement | null;
+  if (!el) { el = document.createElement('style'); el.id = id; document.head.appendChild(el); }
+  el.textContent = `:root { --color-accent: ${preset.light.accent}; --color-accent-hover: ${preset.light.hover}; --color-accent-subtle: ${preset.light.subtle}; } [data-theme="dark"] { --color-accent: ${preset.dark.accent}; --color-accent-hover: ${preset.dark.hover}; --color-accent-subtle: ${preset.dark.subtle}; }`;
+  try { localStorage.setItem('webmail_accent', swatch); } catch { /* */ }
+}
+
+function getInitialLocale(): string {
+  if (typeof document === 'undefined') return 'ko';
+  const match = document.cookie.match(/(?:^|;\s*)webmail_locale=([^;]+)/);
+  return match?.[1] ?? 'ko';
+}
 
 function loadSettings(): WebmailSettings {
   try {
     const raw = localStorage.getItem('webmail_settings');
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    return { ...DEFAULT_SETTINGS, locale: getInitialLocale(), ...(raw ? JSON.parse(raw) : {}) };
   } catch { /* */ }
-  return { ...DEFAULT_SETTINGS };
+  return { ...DEFAULT_SETTINGS, locale: getInitialLocale() };
 }
 
 function saveSettings(s: WebmailSettings) {
@@ -60,6 +88,10 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
+
+  useEffect(() => {
+    if (settings.accentColor) applyAccent(settings.accentColor);
+  }, [settings.accentColor]);
 
   function update<K extends keyof WebmailSettings>(key: K, value: WebmailSettings[K]) {
     setSettings((prev) => {
@@ -221,24 +253,67 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
         );
       case 'theme':
         return (
-          <div style={sectionStyle}>
-            <span style={labelStyle}>테마</span>
-            <div style={radioGroupStyle}>
-              {([['light', '라이트'], ['dark', '다크'], ['system', '시스템']] as const).map(([val, lbl]) => (
-                <label key={val} style={radioLabelStyle}>
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={val}
-                    data-theme={val}
-                    checked={settings.theme === val}
-                    onChange={() => applyTheme(val)}
-                  />
-                  {lbl}
-                </label>
-              ))}
+          <>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>테마</span>
+              <div style={radioGroupStyle}>
+                {([['light', '라이트'], ['dark', '다크'], ['system', '시스템']] as const).map(([val, lbl]) => (
+                  <label key={val} style={radioLabelStyle}>
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={val}
+                      data-theme={val}
+                      checked={settings.theme === val}
+                      onChange={() => applyTheme(val)}
+                    />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>프라이머리 색상</span>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {ACCENT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.swatch}
+                    title={preset.name}
+                    onClick={() => { applyAccent(preset.swatch); update('accentColor', preset.swatch); }}
+                    style={{
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      background: preset.swatch, border: 'none', cursor: 'pointer',
+                      boxShadow: settings.accentColor === preset.swatch
+                        ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${preset.swatch}`
+                        : 'none',
+                      transition: 'box-shadow 100ms ease',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>언어</span>
+              <div style={radioGroupStyle}>
+                {([['ko', '한국어'], ['en', 'English'], ['ja', '日本語'], ['zh-CN', '中文(简体)']] as const).map(([code, label]) => (
+                  <label key={code} style={radioLabelStyle}>
+                    <input
+                      type="radio"
+                      name="locale"
+                      value={code}
+                      checked={settings.locale === code}
+                      onChange={() => {
+                        update('locale', code);
+                        document.cookie = `webmail_locale=${code}; path=/; max-age=31536000; SameSite=Lax`;
+                        window.location.reload();
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </>
         );
       case 'notifications':
         return (

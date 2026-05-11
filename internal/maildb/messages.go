@@ -465,6 +465,9 @@ LEFT JOIN (
 WHERE f.user_id = $1
 ORDER BY type DESC, order_index ASC, full_path ASC`
 
+	// Ensure all system folders exist (idempotent, ON CONFLICT DO NOTHING)
+	_ = createSystemFolders(ctx, r.db, userID)
+
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list folders: %w", err)

@@ -168,7 +168,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [size, setSize] = useState<{ w: number; h: number }>(() => {
     try {
       const s = localStorage.getItem('webmail_compose_size');
-      return s ? JSON.parse(s) : { w: 560, h: 520 };
+      return s ? JSON.parse(s) : { w: 560, h: 620 };
     } catch { return { w: 560, h: 520 }; }
   });
   const [showSendDropdown, setShowSendDropdown] = useState(false);
@@ -414,7 +414,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const offsetY = e.clientY - curY;
     function onMove(ev: MouseEvent) {
       const nx = Math.max(0, Math.min(ev.clientX - offsetX, window.innerWidth - size.w));
-      const ny = Math.max(0, Math.min(ev.clientY - offsetY, window.innerHeight - 60));
+      const ny = Math.max(0, Math.min(ev.clientY - offsetY, window.innerHeight - size.h));
       setPos({ x: nx, y: ny });
     }
     function onUp() {
@@ -498,7 +498,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
               : pos
                 ? { top: pos.y, left: pos.x, width: size.w, height: minimized ? undefined : size.h, maxHeight: minimized ? '44px' : undefined }
-                : { bottom: '24px', insetInlineEnd: `${24 + windowOffset * 576}px`, width: size.w, maxHeight: minimized ? '44px' : '80vh' }
+                : { bottom: '24px', insetInlineEnd: `${24 + windowOffset * 576}px`, width: size.w, height: minimized ? undefined : size.h, maxHeight: minimized ? '44px' : 'calc(100vh - 48px)' }
           ),
           background: 'var(--color-bg-primary)',
           border: `1px solid ${dragOver ? 'var(--color-accent)' : isMobile ? 'transparent' : 'var(--color-border-default)'}`,
@@ -746,7 +746,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           </div>
 
           {/* TipTap editor body */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: '160px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <EditorContent editor={editor} />
           </div>
 
@@ -850,31 +850,31 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                         setScheduledAt(opt.date.toISOString().slice(0, 16));
                         setShowSendDropdown(false);
                       }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 16px', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                     >
-                      <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid var(--color-border-default)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: '10px', color: 'var(--color-destructive)', fontWeight: 600, lineHeight: 1 }}>{new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(opt.date)}</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{opt.date.getDate()}일</span>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: '9px', color: 'var(--color-destructive)', fontWeight: 600, lineHeight: 1 }}>{new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(opt.date)}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{opt.date.getDate()}</span>
                       </div>
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{opt.label}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{opt.sub}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{opt.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{opt.sub}</div>
                       </div>
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={() => { setShowSendDropdown(false); setShowSchedule(true); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                   >
-                    <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <CalendarIcon style={{ width: '22px', height: '22px', color: 'var(--color-accent)' }} />
+                    <div style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <CalendarIcon style={{ width: '16px', height: '16px', color: 'var(--color-accent)' }} />
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>사용자 지정 날짜</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>사용자 지정 날짜</div>
                   </button>
                 </div>
               )}
