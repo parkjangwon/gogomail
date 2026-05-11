@@ -659,6 +659,13 @@ export default function MailPage() {
           try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
           catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
         }}
+        footerExtra={isMobile ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', paddingBottom: '4px' }}>
+            <AccentPicker />
+            <LocaleSelector />
+            <ThemeToggle inline />
+          </div>
+        ) : undefined}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: (!isMobile && readingPanePosition === 'bottom') ? 'column' : 'row', overflow: 'hidden', minWidth: 0 }}>
@@ -879,14 +886,14 @@ export default function MailPage() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
 
-      {/* Controls: locale + theme, top-right */}
+      {/* Controls: locale + theme, top-right — hidden on mobile (shown in sidebar instead) */}
       <div
         style={{
           position: 'fixed',
           top: '14px',
           right: '16px',
           zIndex: 50,
-          display: 'flex',
+          display: isMobile ? 'none' : 'flex',
           alignItems: 'center',
           gap: '8px',
         }}

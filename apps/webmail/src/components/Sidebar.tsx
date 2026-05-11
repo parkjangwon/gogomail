@@ -79,6 +79,7 @@ interface SidebarProps {
   onCreateFolder?: (name: string) => void;
   onRenameFolder?: (id: string, name: string) => void;
   onDeleteFolder?: (id: string) => void;
+  footerExtra?: React.ReactNode;
 }
 
 export function Sidebar({
@@ -101,6 +102,7 @@ export function Sidebar({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  footerExtra,
 }: SidebarProps) {
   const showAdvanced = searchQuery.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -591,6 +593,7 @@ export function Sidebar({
 
       {/* Compose button + logout */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {footerExtra}
         {onLogout && (
           <button
             onClick={onLogout}
