@@ -7,7 +7,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { sendMessage, saveDraft, updateDraft, uploadAttachment, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 import {
   PaperClipIcon,
@@ -21,6 +21,9 @@ import {
   ListBulletIcon,
   NumberedListIcon,
   XMarkIcon,
+  CloudIcon,
+  FolderIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 interface ComposeModalProps {
@@ -162,6 +165,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [templates, setTemplates] = useState<Array<{ name: string; subject: string; body: string }>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
   });
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
+  const [drivePickerLoading, setDrivePickerLoading] = useState(false);
+  const [drivePickerCrumbs, setDrivePickerCrumbs] = useState<Array<{ id: string | undefined; name: string }>>([{ id: undefined, name: '드라이브' }]);
+  const [attachingDriveId, setAttachingDriveId] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -186,6 +194,30 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
     }
   }, []);
+
+  const openDrivePicker = useCallback(async (parentId?: string, crumbs?: Array<{ id: string | undefined; name: string }>) => {
+    setShowDrivePicker(true);
+    setDrivePickerLoading(true);
+    if (crumbs) setDrivePickerCrumbs(crumbs);
+    const nodes = await listDriveNodes(parentId);
+    setDrivePickerNodes(nodes ?? []);
+    setDrivePickerLoading(false);
+  }, []);
+
+  const handleAttachFromDrive = useCallback(async (node: DriveNode) => {
+    if (node.node_type === 'folder') {
+      const newCrumbs = [...drivePickerCrumbs, { id: node.id, name: node.name }];
+      await openDrivePicker(node.id, newCrumbs);
+      return;
+    }
+    setAttachingDriveId(node.id);
+    const att = await attachDriveFileToEmail(node.id, node.name, node.mime_type ?? '', draftIdRef.current || undefined);
+    if (att) {
+      setUploadedAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
+      setShowDrivePicker(false);
+    }
+    setAttachingDriveId(null);
+  }, [drivePickerCrumbs, openDrivePicker]);
 
   const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -906,6 +938,45 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
             {/* Utility icons */}
             <button type="button" onClick={() => fileInputRef.current?.click()} title="파일 첨부" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
+            <div style={{ position: 'relative' }}>
+              <button type="button" onClick={() => { if (!showDrivePicker) { openDrivePicker(undefined, [{ id: undefined, name: '드라이브' }]); } else { setShowDrivePicker(false); } }} title="드라이브에서 첨부" style={toolbarBtnStyle(showDrivePicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showDrivePicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><CloudIcon style={{ width: '14px', height: '14px' }} /></button>
+              {showDrivePicker && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400, width: '280px', overflow: 'hidden' }}>
+                  {/* Breadcrumbs */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '8px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
+                    {drivePickerCrumbs.map((crumb, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                        {i > 0 && <ChevronRightIcon style={{ width: '10px', height: '10px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />}
+                        <button type="button" onClick={() => { const newCrumbs = drivePickerCrumbs.slice(0, i + 1); openDrivePicker(crumb.id, newCrumbs); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: i === drivePickerCrumbs.length - 1 ? 'var(--color-text-primary)' : 'var(--color-accent)', padding: '1px 3px', borderRadius: '3px', fontWeight: i === drivePickerCrumbs.length - 1 ? 600 : 400 }}>
+                          {crumb.name}
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {/* File list */}
+                  <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                    {drivePickerLoading ? (
+                      <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
+                    ) : drivePickerNodes.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>파일 없음</div>
+                    ) : drivePickerNodes.map((node) => (
+                      <button key={node.id} type="button" onClick={() => handleAttachFromDrive(node)} disabled={attachingDriveId === node.id} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: 'none', background: 'transparent', cursor: attachingDriveId === node.id ? 'wait' : 'pointer', textAlign: 'left' }}
+                        onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                      >
+                        {node.node_type === 'folder'
+                          ? <FolderIcon style={{ width: '14px', height: '14px', color: 'var(--color-accent)', flexShrink: 0 }} />
+                          : <PaperClipIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                        }
+                        <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{node.name}</span>
+                        {node.node_type === 'folder' && <ChevronRightIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />}
+                        {attachingDriveId === node.id && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>첨부 중...</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button type="button" onClick={() => setShowSigEditor((v) => !v)} title="서명" style={toolbarBtnStyle(showSigEditor)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSigEditor ? 'var(--color-bg-tertiary)' : 'transparent'; }}><PencilSquareIconHero style={{ width: '14px', height: '14px' }} /></button>
             <div style={{ position: 'relative' }}>
               <button type="button" onClick={() => setShowTemplates((v) => !v)} title="템플릿" style={toolbarBtnStyle(showTemplates)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showTemplates ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ClipboardDocumentIcon style={{ width: '14px', height: '14px' }} /></button>
