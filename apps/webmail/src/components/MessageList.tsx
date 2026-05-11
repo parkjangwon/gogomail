@@ -62,6 +62,7 @@ interface MessageListProps {
   onLoadMore?: () => void;
   onStar?: (id: string, starred: boolean) => void;
   onBulkDelete?: (ids: string[]) => void;
+  onDeleteMessage?: (id: string) => void;
   onBulkMarkRead?: (ids: string[]) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -79,7 +80,7 @@ interface MessageListProps {
   searchQuery?: string;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -479,6 +480,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onContextMenu={onContextMenuMessage}
               searchQuery={searchQuery}
               compact={compact}
+              onDelete={isMobile ? onDeleteMessage : undefined}
             />
           ))}
         </div>
@@ -505,19 +507,44 @@ interface MessageRowProps {
   onContextMenu?: (id: string, x: number, y: number) => void;
   searchQuery?: string;
   compact?: boolean;
+  onDelete?: (id: string) => void;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
+  const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
+  const [swipeX, setSwipeX] = useState(0);
 
   return (
     <div
       role="listitem"
       data-message-id={message.id}
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData('text/plain', message.id); e.dataTransfer.effectAllowed = 'move'; }}
-      onClick={() => onSelect(message.id)}
+      style={{ position: 'relative', overflow: 'hidden' }}
+    >
+      {onDelete && swipeX < -20 && (
+        <div aria-hidden="true" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(120, -swipeX), background: 'var(--color-destructive)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>
+          {-swipeX > 70 ? '삭제' : '←'}
+        </div>
+      )}
+      <div
+      draggable={!onDelete}
+      onDragStart={!onDelete ? (e) => { e.dataTransfer.setData('text/plain', message.id); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+      onTouchStart={onDelete ? (e) => { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; } : undefined}
+      onTouchMove={onDelete ? (e) => {
+        if (!swipeRef.current) return;
+        const dx = e.touches[0].clientX - swipeRef.current.startX;
+        const dy = e.touches[0].clientY - swipeRef.current.startY;
+        if (Math.abs(dy) > Math.abs(dx)) { swipeRef.current = null; return; }
+        e.preventDefault();
+        setSwipeX(Math.max(-120, Math.min(0, dx)));
+      } : undefined}
+      onTouchEnd={onDelete ? () => {
+        if (swipeX < -70) { onDelete(message.id); }
+        setSwipeX(0);
+        swipeRef.current = null;
+      } : undefined}
+      onClick={() => { if (swipeX !== 0) { setSwipeX(0); return; } onSelect(message.id); }}
       onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(message.id, e.clientX, e.clientY); } : undefined}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -535,8 +562,9 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
         borderBottom: '1px solid var(--color-border-subtle)',
         background: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
         cursor: 'pointer',
-        transition: 'background 100ms ease',
+        transition: 'background 100ms ease, transform 80ms ease',
         position: 'relative',
+        transform: `translateX(${swipeX}px)`,
       }}
       onMouseEnter={(e) => {
         if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
@@ -643,6 +671,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
