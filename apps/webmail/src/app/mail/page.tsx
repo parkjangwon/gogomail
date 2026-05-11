@@ -1217,6 +1217,8 @@ export default function MailPage() {
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
                 onToggleRead={selectedMessageId ? () => { const m = messages.find((x) => x.id === selectedMessageId); if (m?.read) handleMarkUnread(); else void handleMarkRead(); } : undefined}
                 isRead={messages.find((m) => m.id === selectedMessageId)?.read}
+                onStar={selectedMessageId ? () => { const m = messages.find((x) => x.id === selectedMessageId); if (m) handleStar(m.id, !m.starred); } : undefined}
+                isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
                 userEmail={userEmail || undefined}
