@@ -360,6 +360,22 @@ export async function downloadAttachment(messageId: string, attachmentId: string
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
 
+export async function attachDriveFileToEmail(
+  nodeId: string,
+  filename: string,
+  mimeType: string,
+  draftId?: string
+): Promise<Attachment | null> {
+  const token = getToken();
+  const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  const file = new File([blob], filename, { type: mimeType || blob.type });
+  try { return await uploadAttachment(file, draftId); } catch { return null; }
+}
+
 export async function saveAttachmentToDrive(
   messageId: string,
   attachmentId: string,
