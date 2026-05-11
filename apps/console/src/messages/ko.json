@@ -85,6 +85,7 @@
     "section_governance": "거버넌스",
     "section_analytics_storage": "분석 & 저장",
     "onboarding": "테넌트 온보딩",
+    "tenant_health": "테넌트 상태",
     "sso_config": "SSO / SAML",
     "webhooks": "웹훅",
     "notif_templates": "알림 템플릿",

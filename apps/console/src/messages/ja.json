@@ -85,6 +85,7 @@
     "section_governance": "ガバナンス",
     "section_analytics_storage": "分析 & ストレージ",
     "onboarding": "テナント設定ウィザード",
+    "tenant_health": "テナント健全性",
     "sso_config": "SSO / SAML",
     "webhooks": "Webhook",
     "notif_templates": "通知テンプレート",

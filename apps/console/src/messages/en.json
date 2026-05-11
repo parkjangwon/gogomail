@@ -85,6 +85,7 @@
     "section_governance": "Governance",
     "section_analytics_storage": "Analytics & Storage",
     "onboarding": "New Tenant Wizard",
+    "tenant_health": "Tenant Health",
     "sso_config": "SSO / SAML",
     "smtp_policy": "Outbound SMTP",
     "webhooks": "Webhooks",
