@@ -106,15 +106,10 @@ interface ReadingPaneProps {
   onReply?: () => void;
   onReplyAll?: () => void;
   onForward?: () => void;
-  onMarkUnread?: () => void;
-  onMarkRead?: () => void;
-  isRead?: boolean;
   onMove?: (folderId: string) => void;
   onPrint?: () => void;
   loading?: boolean;
   onBack?: () => void;
-  isStarred?: boolean;
-  onStar?: (starred: boolean) => void;
   onQuickReply?: (body: string) => Promise<void>;
   onPrev?: () => void;
   onNext?: () => void;
@@ -169,15 +164,10 @@ export function ReadingPane({
   onReply,
   onReplyAll,
   onForward,
-  onMarkUnread,
-  onMarkRead,
-  isRead,
   onMove,
   onPrint,
   loading,
   onBack,
-  isStarred,
-  onStar,
   onQuickReply,
   onPrev,
   onNext,
@@ -191,7 +181,6 @@ export function ReadingPane({
   onSelectThread,
   userEmail,
 }: ReadingPaneProps) {
-  const [toolbarHovered, setToolbarHovered] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
@@ -393,8 +382,6 @@ export function ReadingPane({
     >
       {/* Toolbar */}
       <div
-        onMouseEnter={() => setToolbarHovered(true)}
-        onMouseLeave={() => setToolbarHovered(false)}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -444,27 +431,6 @@ export function ReadingPane({
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >{icon}</button>
         ) : null)}
-
-        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
-
-        {/* Hover-only: Read/unread toggle + Star */}
-        {toolbarHovered && (onMarkRead || onMarkUnread) && (
-          <button
-            aria-label={isRead === false ? '읽음으로' : '읽지 않음으로'}
-            title={isRead === false ? '읽음으로' : '읽지 않음으로'}
-            onClick={isRead === false ? onMarkRead : onMarkUnread}
-            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >{isRead === false ? '◉' : '○'}</button>
-        )}
-        {toolbarHovered && onStar && (
-          <button onClick={() => onStar(!isStarred)} title={isStarred ? '별표 해제' : '별표'} aria-label={isStarred ? '별표 해제' : '별표'}
-            style={{ ...iconStyle, border: 'none', fontSize: '15px', padding: '5px 8px', color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >{isStarred ? '★' : '☆'}</button>
-        )}
 
         <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
 

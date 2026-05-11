@@ -241,20 +241,16 @@ export default function MailPage() {
     });
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
-  const handleMarkRead = useCallback(async () => {
-    if (!selectedMessageId) return;
-    setMessages((prev) =>
-      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
-    );
-    adjustUnread(activeFolderId, -1);
-    addToast('읽음으로 표시했습니다', 'info');
-    markRead(selectedMessageId, true).catch(() => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
-      );
-      adjustUnread(activeFolderId, 1);
+  const handleToggleReadMessage = useCallback((id: string, read: boolean) => {
+    const prev = messages.find((m) => m.id === id);
+    if (!prev || prev.read === read) return;
+    setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, read } : m)));
+    adjustUnread(activeFolderId, read ? -1 : 1);
+    markRead(id, read).catch(() => {
+      setMessages((ms) => ms.map((m) => (m.id === id ? { ...m, read: !read } : m)));
+      adjustUnread(activeFolderId, read ? 1 : -1);
     });
-  }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
+  }, [messages, setMessages, adjustUnread, activeFolderId]);
 
   const parseSearchOperators = useCallback((raw: string): { q: string; operators: AdvancedFilters } => {
     let q = raw;
@@ -962,6 +958,7 @@ export default function MailPage() {
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
           onDeleteMessage={handleDeleteById}
           onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
+          onToggleReadMessage={handleToggleReadMessage}
           onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
           onBulkLabel={handleBulkLabel}
           onBulkStar={handleBulkStar}
@@ -1059,15 +1056,10 @@ export default function MailPage() {
                 onReply={() => selectedMessage && openCompose({ intent: 'reply', source: selectedMessage })}
                 onReplyAll={() => selectedMessage && openCompose({ intent: 'reply_all', source: selectedMessage })}
                 onForward={() => selectedMessage && openCompose({ intent: 'forward', source: selectedMessage })}
-                onMarkUnread={handleMarkUnread}
-                onMarkRead={handleMarkRead}
-                isRead={messages.find((m) => m.id === selectedMessageId)?.read ?? true}
                 onMove={handleMove}
                 onPrint={() => window.print()}
                 loading={messageLoading}
                 onBack={() => setSelectedMessageId(null)}
-                isStarred={messages.find((m) => m.id === selectedMessageId)?.starred}
-                onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
                 onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
                 onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
                 messageIndex={curIdx >= 0 ? curIdx : undefined}
