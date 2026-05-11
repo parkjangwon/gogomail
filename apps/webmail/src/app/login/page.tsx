@@ -18,6 +18,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (DEV_USER_ID) {
       localStorage.setItem('webmail_token', '__dev__');
+      if (DEV_USER_ID.includes('@')) {
+        localStorage.setItem('webmail_email', DEV_USER_ID);
+      }
       router.push('/mail');
     }
   }, [router]);
