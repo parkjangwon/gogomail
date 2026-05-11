@@ -65,16 +65,22 @@ export default function MailPage() {
     document.title = totalUnread > 0 ? `GoGoMail (${totalUnread})` : 'GoGoMail';
   }, [folders]);
 
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+
   // Check auth on mount, load email
   useEffect(() => {
     const token = localStorage.getItem('webmail_token');
     if (!token) { router.push('/login'); return; }
     setUserEmail(localStorage.getItem('webmail_email') ?? '');
+    if (localStorage.getItem('webmail_must_change_password') === '1') {
+      setMustChangePassword(true);
+    }
   }, [router]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('webmail_token');
     localStorage.removeItem('webmail_email');
+    localStorage.removeItem('webmail_must_change_password');
     router.push('/login');
   }, [router]);
 
@@ -323,6 +329,32 @@ export default function MailPage() {
         background: 'var(--color-bg-primary)',
       }}
     >
+      {mustChangePassword && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 500,
+            background: '#b45309',
+            color: '#fff',
+            textAlign: 'center',
+            fontSize: '13px',
+            padding: '6px 40px',
+            fontWeight: 500,
+          }}
+        >
+          보안을 위해 비밀번호를 변경해 주세요.
+          <button
+            onClick={() => { localStorage.removeItem('webmail_must_change_password'); setMustChangePassword(false); }}
+            style={{ marginLeft: '12px', background: 'none', border: '1px solid rgba(255,255,255,0.6)', color: '#fff', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}
+          >닫기</button>
+        </div>
+      )}
+
       {!isOnline && (
         <div
           role="status"
@@ -413,6 +445,35 @@ export default function MailPage() {
           sourceMessage={composeContext.source}
           onClose={() => setComposeContext(null)}
         />
+      )}
+
+      {/* Mobile FAB — compose button when sidebar is hidden */}
+      {isMobile && !selectedMessageId && !composeContext && (
+        <button
+          aria-label="새 메일 작성"
+          onClick={() => setComposeContext({ intent: 'new' })}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '20px',
+            zIndex: 200,
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            background: 'var(--color-accent)',
+            color: '#fff',
+            border: 'none',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            cursor: 'pointer',
+            fontSize: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 100ms ease, transform 100ms ease',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent-hover)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-accent)'; }}
+        >✏</button>
       )}
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

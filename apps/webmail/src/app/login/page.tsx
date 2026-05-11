@@ -34,6 +34,9 @@ export default function LoginPage() {
       const result = await loginUser(email.trim(), password);
       localStorage.setItem('webmail_token', result.token);
       localStorage.setItem('webmail_email', email.trim());
+      if (result.must_change_password) {
+        localStorage.setItem('webmail_must_change_password', '1');
+      }
       router.push('/mail');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '로그인에 실패했습니다.';
