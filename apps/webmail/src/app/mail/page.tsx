@@ -19,6 +19,7 @@ import { ShortcutHelp } from '@/components/ShortcutHelp';
 import { ContextMenu } from '@/components/ContextMenu';
 import { AccentPicker } from '@/components/AccentPicker';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
+import { SearchBar } from '@/components/SearchBar';
 
 export default function MailPage() {
   const router = useRouter();
@@ -497,27 +498,6 @@ export default function MailPage() {
 
 
   // Persist last-selected message per folder
-  useEffect(() => {
-    if (!selectedMessageId || !activeFolderId) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem('webmail_last_selected') ?? '{}');
-      saved[activeFolderId] = selectedMessageId;
-      localStorage.setItem('webmail_last_selected', JSON.stringify(saved));
-    } catch { /* */ }
-  }, [selectedMessageId, activeFolderId]);
-
-  // Restore last-selected message when folder loads
-  useEffect(() => {
-    if (selectedMessageId || !activeFolderId || messages.length === 0) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem('webmail_last_selected') ?? '{}');
-      const lastId = saved[activeFolderId] as string | undefined;
-      if (lastId && messages.some((m) => m.id === lastId)) {
-        setSelectedMessageId(lastId);
-      }
-    } catch { /* */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFolderId, messages.length]);
 
   // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
   useEffect(() => {
@@ -858,10 +838,6 @@ export default function MailPage() {
         onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
         onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
         onComposeInNewWindow={() => window.open('/compose', '_blank', 'width=620,height=720,menubar=no,toolbar=no,resizable=yes')}
-        onSearch={handleSearch}
-        searchQuery={searchQuery}
-        advancedFilters={advancedFilters}
-        onAdvancedFilterChange={handleFilterChange}
         userName={userEmail || '사용자'}
         userEmailAddress={userEmail || undefined}
         width={sidebarWidth}
@@ -933,7 +909,17 @@ export default function MailPage() {
         />
       )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
+        {/* Gmail-style top search bar */}
+        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', background: 'var(--color-bg-primary)', flexShrink: 0 }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={handleSearch}
+            advancedFilters={advancedFilters}
+            onAdvancedFilterChange={handleFilterChange}
+          />
+        </div>
 
       <MessageList
           messages={searchResults ?? messages}
