@@ -126,6 +126,7 @@ interface ReadingPaneProps {
   onOpenInWindow?: () => void;
   threadMessages?: MessageSummary[];
   onSelectThread?: (id: string) => void;
+  userEmail?: string;
 }
 
 function readingTime(text: string): string {
@@ -188,6 +189,7 @@ export function ReadingPane({
   onOpenInWindow,
   threadMessages,
   onSelectThread,
+  userEmail,
 }: ReadingPaneProps) {
   const [toolbarHovered, setToolbarHovered] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -780,27 +782,30 @@ export function ReadingPane({
               <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '1px', background: 'var(--color-border-subtle)' }} />
               {threadMessages.map((msg) => {
                 const isCurrent = msg.id === message.id;
+                const isMine = userEmail ? msg.from_addr.toLowerCase() === userEmail.toLowerCase() : false;
                 const date = new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(msg.received_at));
                 const initial = (msg.from_name || msg.from_addr)[0]?.toUpperCase() ?? '?';
                 return (
                   <div
                     key={msg.id}
                     onClick={() => !isCurrent && onSelectThread?.(msg.id)}
-                    style={{ display: 'flex', gap: '12px', padding: '6px 0', cursor: isCurrent ? 'default' : 'pointer' }}
-                    onMouseEnter={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-                    onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '0.85'; }}
+                    style={{ display: 'flex', flexDirection: isMine ? 'row-reverse' : 'row', gap: '10px', padding: '4px 0', cursor: isCurrent ? 'default' : 'pointer', alignItems: 'flex-end' }}
                   >
-                    <div style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: isCurrent ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: isCurrent ? '#fff' : 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, zIndex: 1, position: 'relative', border: `2px solid ${isCurrent ? 'var(--color-accent)' : 'var(--color-border-default)'}`, boxSizing: 'border-box' }}>
+                    {/* Avatar */}
+                    <div style={{ flexShrink: 0, width: '26px', height: '26px', borderRadius: '50%', background: isCurrent ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: isCurrent ? '#fff' : 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, border: `2px solid ${isCurrent ? 'var(--color-accent)' : 'var(--color-border-default)'}`, boxSizing: 'border-box' }}>
                       {initial}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0, background: isCurrent ? 'var(--color-bg-secondary)' : 'transparent', borderRadius: '6px', padding: isCurrent ? '8px 12px' : '4px 0', opacity: isCurrent ? 1 : 0.85 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: isCurrent ? 600 : 400, color: 'var(--color-text-primary)' }}>
-                          {msg.from_name || msg.from_addr}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>{date}</span>
+                    {/* Bubble */}
+                    <div
+                      style={{ maxWidth: '75%', background: isCurrent ? 'var(--color-accent)' : isMine ? 'var(--color-bg-secondary)' : 'var(--color-bg-tertiary)', borderRadius: isMine ? '12px 12px 4px 12px' : '12px 12px 12px 4px', padding: '8px 12px', opacity: isCurrent ? 1 : 0.88, boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.15)' : 'none' }}
+                      onMouseEnter={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                      onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '0.88'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px' }}>
+                        {!isMine && <span style={{ fontSize: '11px', fontWeight: 600, color: isCurrent ? 'rgba(255,255,255,0.9)' : 'var(--color-text-secondary)' }}>{msg.from_name || msg.from_addr}</span>}
+                        <span style={{ fontSize: '10px', color: isCurrent ? 'rgba(255,255,255,0.7)' : 'var(--color-text-tertiary)', marginLeft: 'auto' }}>{date}</span>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '12px', color: isCurrent ? '#fff' : 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
                         {msg.preview || msg.subject || '(내용 없음)'}
                       </div>
                     </div>
