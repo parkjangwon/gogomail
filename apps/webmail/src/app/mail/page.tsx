@@ -372,6 +372,9 @@ export default function MailPage() {
         case '?':
           setShowShortcuts((v) => !v);
           break;
+        case '[':
+          if (!composeContext) setSidebarCollapsed((v) => !v);
+          break;
         case 'Escape':
           if (showShortcuts) setShowShortcuts(false);
           else if (composeContext) setComposeContext(null);
