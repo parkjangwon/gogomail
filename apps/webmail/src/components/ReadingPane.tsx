@@ -40,9 +40,9 @@ function linkify(text: string): ReactNode[] {
   return parts;
 }
 
-function SafeHTMLBody({ html, onMailto }: { html: string; onMailto?: (addr: string) => void }) {
+function SafeHTMLBody({ html, onMailto, externalImages = 'ask' }: { html: string; onMailto?: (addr: string) => void; externalImages?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [showImages, setShowImages] = useState(false);
+  const [showImages, setShowImages] = useState(externalImages === 'always');
   const [showQuoted, setShowQuoted] = useState(false);
   const hasImages = /<img\s/i.test(html);
   const hasQuoted = /<blockquote/i.test(html);
@@ -79,7 +79,7 @@ function SafeHTMLBody({ html, onMailto }: { html: string; onMailto?: (addr: stri
 
   return (
     <>
-      {hasImages && !showImages && (
+      {hasImages && !showImages && externalImages !== 'never' && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -142,6 +142,7 @@ interface ReadingPaneProps {
   threadMessages?: MessageSummary[];
   onSelectThread?: (id: string) => void;
   userEmail?: string;
+  externalImages?: string;
 }
 
 function readingTime(text: string): string {
@@ -204,6 +205,7 @@ export function ReadingPane({
   threadMessages,
   onSelectThread,
   userEmail,
+  externalImages = 'ask',
 }: ReadingPaneProps) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -968,7 +970,7 @@ export function ReadingPane({
           }}
         >
           {message.html_body ? (
-            <SafeHTMLBody html={message.html_body} onMailto={onComposeToAddress} />
+            <SafeHTMLBody html={message.html_body} onMailto={onComposeToAddress} externalImages={externalImages} />
           ) : (
             <pre
               style={{
