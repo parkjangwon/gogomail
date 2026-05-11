@@ -107,6 +107,8 @@ interface ReadingPaneProps {
   onQuickReply?: (body: string) => Promise<void>;
   onPrev?: () => void;
   onNext?: () => void;
+  messageIndex?: number;
+  messageTotal?: number;
   onComposeToAddress?: (address: string) => void;
   onRestore?: () => void;
   onSnooze?: (messageId: string, until: Date) => void;
@@ -192,6 +194,8 @@ export function ReadingPane({
   onQuickReply,
   onPrev,
   onNext,
+  messageIndex,
+  messageTotal,
   onComposeToAddress,
   onRestore,
   onSnooze,
@@ -406,6 +410,11 @@ export function ReadingPane({
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >↑</button>
+        )}
+        {messageIndex !== undefined && messageTotal !== undefined && (
+          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', minWidth: '40px', textAlign: 'center' }}>
+            {messageIndex + 1} / {messageTotal}
+          </span>
         )}
         {onNext && (
           <button aria-label="다음 메일" title="다음 메일 (j)" onClick={onNext}
