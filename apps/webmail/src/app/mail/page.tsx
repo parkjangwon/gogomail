@@ -36,6 +36,7 @@ export default function MailPage() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
@@ -431,6 +432,8 @@ export default function MailPage() {
         isMobile={isMobile}
         isOpen={mobileSidebarOpen}
         onClose={() => setMobileSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
       {(!isMobile || !selectedMessageId) && (
