@@ -315,6 +315,7 @@ export default function MailPage() {
 
   const handleDeleteById = useCallback((id: string) => {
     const msgToDelete = messages.find((m) => m.id === id);
+    if (msgToDelete && !msgToDelete.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     setMessages((prev) => prev.filter((m) => m.id !== id));
     if (selectedMessageId === id) setSelectedMessageId(nextId);
@@ -344,6 +345,8 @@ export default function MailPage() {
   }, [selectedMessageId, handleDeleteById]);
 
   const handleBulkDelete = useCallback(async (ids: string[]) => {
+    const unreadDeleteCount = messages.filter((m) => ids.includes(m.id) && !m.read).length;
+    if (unreadDeleteCount > 0) adjustUnread(activeFolderId, -unreadDeleteCount);
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
     if (ids.includes(selectedMessageId ?? '')) setSelectedMessageId(null);
     const results = await Promise.allSettled(ids.map((id) => deleteMessage(id)));
@@ -408,6 +411,8 @@ export default function MailPage() {
   const handleArchiveById = useCallback((id: string) => {
     const archiveFolder = folders.find((f) => f.system_type === 'archive');
     if (!archiveFolder) return;
+    const msgToArchive = messages.find((m) => m.id === id);
+    if (msgToArchive && !msgToArchive.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
     void moveMessage(id, archiveFolder.id).then(() => {
       setMessages((prev) => prev.filter((m) => m.id !== id));
