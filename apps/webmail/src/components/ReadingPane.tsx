@@ -27,7 +27,11 @@ function linkify(text: string): ReactNode[] {
 function SafeHTMLBody({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [showImages, setShowImages] = useState(false);
+  const [showQuoted, setShowQuoted] = useState(false);
   const hasImages = /<img\s/i.test(html);
+  const hasQuoted = /<blockquote/i.test(html);
+
+  useEffect(() => { setShowQuoted(false); setShowImages(false); }, [html]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -41,8 +45,14 @@ function SafeHTMLBody({ html }: { html: string }) {
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
       });
       ref.current.innerHTML = clean;
+      // Collapse blockquotes when not showing quoted text
+      if (hasQuoted && !showQuoted) {
+        ref.current.querySelectorAll('blockquote').forEach((bq) => {
+          (bq as HTMLElement).style.display = 'none';
+        });
+      }
     });
-  }, [html, showImages]);
+  }, [html, showImages, showQuoted, hasQuoted]);
 
   return (
     <>
@@ -67,6 +77,14 @@ function SafeHTMLBody({ html }: { html: string }) {
         </div>
       )}
       <div ref={ref} style={{ wordBreak: 'break-word', lineHeight: 1.6 }} />
+      {hasQuoted && (
+        <button
+          onClick={() => setShowQuoted((v) => !v)}
+          style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', padding: '3px 10px' }}
+        >
+          {showQuoted ? '인용문 숨기기' : '원본 메시지 보기 ···'}
+        </button>
+      )}
     </>
   );
 }
