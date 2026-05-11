@@ -157,6 +157,22 @@ interface ReadingPaneProps {
   externalImages?: string;
 }
 
+function getSmartReplies(subject: string, body: string): string[] {
+  const text = ((subject ?? '') + ' ' + (body ?? '')).toLowerCase();
+  const replies: string[] = [];
+  if (/언제|일정|미팅|회의|가능|schedule|meet|available|when/.test(text))
+    replies.push('일정 확인 후 연락드리겠습니다.', '해당 시간에 가능합니다.');
+  if (/감사|thanks|thank you|appreciate/.test(text))
+    replies.push('천만에요. 도움이 되었으면 합니다.');
+  if (/[?？]|알려|문의|질문|어떻게|어디|누가|무엇|왜/.test(text))
+    replies.push('확인 후 답변드리겠습니다.', '네, 알겠습니다.');
+  if (/검토|확인|리뷰|review|check/.test(text))
+    replies.push('검토 후 피드백 드리겠습니다.');
+  if (replies.length < 2) replies.push('감사합니다, 확인하겠습니다.', '알겠습니다.');
+  if (replies.length < 3) replies.push('좀 더 검토 후 연락드리겠습니다.');
+  return [...new Set(replies)].slice(0, 3);
+}
+
 function readingTime(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   const mins = Math.ceil(words / 200);
@@ -1066,23 +1082,38 @@ export function ReadingPane({
         {onQuickReply && (
           <div style={{ marginTop: '24px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
             {!quickReplyOpen ? (
-              <button
-                onClick={() => { setQuickReplyOpen(true); setTimeout(() => quickReplyRef.current?.focus(), 50); }}
-                style={{
-                  width: '100%',
-                  maxWidth: '680px',
-                  textAlign: 'left',
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--color-border-default)',
-                  background: 'var(--color-bg-secondary)',
-                  color: 'var(--color-text-tertiary)',
-                  fontSize: '14px',
-                  cursor: 'text',
-                }}
-              >
-                ← 답장하기...
-              </button>
+              <>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  {getSmartReplies(message.subject, message.text_body || '').map((reply) => (
+                    <button
+                      key={reply}
+                      onClick={() => { setQuickReplyText(reply); setQuickReplyOpen(true); setTimeout(() => quickReplyRef.current?.focus(), 50); }}
+                      style={{ padding: '6px 12px', borderRadius: '16px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer', flexShrink: 0, transition: 'border-color 120ms, color 120ms' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-accent)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border-default)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
+                    >
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { setQuickReplyOpen(true); setTimeout(() => quickReplyRef.current?.focus(), 50); }}
+                  style={{
+                    width: '100%',
+                    maxWidth: '680px',
+                    textAlign: 'left',
+                    padding: '10px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border-default)',
+                    background: 'var(--color-bg-secondary)',
+                    color: 'var(--color-text-tertiary)',
+                    fontSize: '14px',
+                    cursor: 'text',
+                  }}
+                >
+                  ← 답장하기...
+                </button>
+              </>
             ) : (
               <div style={{ maxWidth: '680px', border: '1px solid var(--color-accent)', borderRadius: '6px', overflow: 'hidden' }}>
                 <textarea

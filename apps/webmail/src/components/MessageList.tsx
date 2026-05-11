@@ -47,6 +47,23 @@ function highlight(text: string, query: string): React.ReactNode {
   );
 }
 
+function readingTimeLabel(preview: string): string | null {
+  if (!preview) return null;
+  const words = Math.round((preview.length / 5) * 8);
+  const mins = Math.max(1, Math.round(words / 200));
+  return mins === 1 ? '~1분' : `~${mins}분`;
+}
+
+function getAutoCategory(fromAddr: string, subject: string): { label: string; color: string } | null {
+  const from = (fromAddr ?? '').toLowerCase();
+  const subj = (subject ?? '').toLowerCase();
+  if (/no.?reply|noreply|automated?@|do.not.reply|donotreply/.test(from)) return { label: '알림', color: '#6b7280' };
+  if (/newsletter|hello@|hi@|info@|updates?@|news@|digest@/.test(from)) return { label: '뉴스레터', color: '#3b82f6' };
+  if (/주문|order|purchase|receipt|배송|shipped|delivered|tracking/.test(subj)) return { label: '주문', color: '#16a34a' };
+  if (/invoice|청구|영수증|payment|결제|billing/.test(subj)) return { label: '청구서', color: '#f97316' };
+  return null;
+}
+
 function formatDate(receivedAt: string): string {
   const date = new Date(receivedAt);
   const now = new Date();
@@ -120,9 +137,19 @@ interface MessageListProps {
   messageLabels?: Record<string, string>;
   userEmail?: string;
   showPreview?: boolean;
+  showCategoryTabs?: boolean;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
+type CategoryTab = 'all' | '알림' | '뉴스레터' | '주문' | '청구서';
+const CATEGORY_TABS: { id: CategoryTab; label: string }[] = [
+  { id: 'all', label: '전체' },
+  { id: '알림', label: '알림' },
+  { id: '뉴스레터', label: '뉴스레터' },
+  { id: '주문', label: '주문' },
+  { id: '청구서', label: '청구서' },
+];
+
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), messageLabels = {}, userEmail, showPreview = true, showCategoryTabs = false }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -130,6 +157,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [categoryTab, setCategoryTab] = useState<CategoryTab>('all');
   const [compact, setCompact] = useState(() => {
     try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
   });
@@ -274,10 +302,24 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const activeLabelColors = [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))];
 
+  const afterCategoryFilter = (showCategoryTabs && categoryTab !== 'all')
+    ? afterLabelFilter.filter((m) => getAutoCategory(m.from_addr, m.subject)?.label === categoryTab)
+    : afterLabelFilter;
+
+  const categoryUnreadCounts = showCategoryTabs ? (() => {
+    const counts: Partial<Record<CategoryTab, number>> = {};
+    for (const m of afterLabelFilter) {
+      if (m.read) continue;
+      const cat = getAutoCategory(m.from_addr, m.subject)?.label as CategoryTab | undefined;
+      if (cat) counts[cat] = (counts[cat] ?? 0) + 1;
+    }
+    return counts;
+  })() : {};
+
   const sortedBase = (() => {
     const base = sortAsc
-      ? [...afterLabelFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
-      : afterLabelFilter;
+      ? [...afterCategoryFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+      : afterCategoryFilter;
     if (pinnedIds.size === 0) return base;
     return [...base].sort((a, b) => {
       const aPin = pinnedIds.has(a.id) ? 0 : 1;
@@ -668,11 +710,43 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     </div>
   );
 
+  const categoryTabsUI = showCategoryTabs ? (
+    <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+      {CATEGORY_TABS.map((tab) => {
+        const isActive = categoryTab === tab.id;
+        const unread = tab.id !== 'all' ? (categoryUnreadCounts[tab.id] ?? 0) : 0;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => { setCategoryTab(tab.id); setPage(0); }}
+            style={{
+              padding: '9px 14px', border: 'none', background: 'none', cursor: 'pointer',
+              fontSize: '13px', fontWeight: isActive ? 600 : 400,
+              color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+              borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+              marginBottom: '-1px', display: 'inline-flex', alignItems: 'center', gap: '5px',
+              whiteSpace: 'nowrap', flexShrink: 0,
+              transition: 'color 120ms, border-color 120ms',
+            }}
+          >
+            {tab.label}
+            {unread > 0 && (
+              <span style={{ fontSize: '10px', fontWeight: 700, padding: '0 5px', borderRadius: '10px', background: 'var(--color-accent)', color: '#fff', minWidth: '16px', textAlign: 'center' }}>
+                {unread}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
+
   if (filteredMessages.length === 0) {
     const isInboxZero = !emptyLabel && filterMode === 'all' && messages.length === 0 && !loading;
     return (
       <div data-print="hide" style={{ ...listWidth, height: containerHeight, ...containerBorder, display: 'flex', flexDirection: 'column' }}>
         {filterTabs}
+        {categoryTabsUI}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
           {isInboxZero ? (
             <>
@@ -728,6 +802,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       }}
     >
       {filterTabs}
+      {categoryTabsUI}
       {isMobile && pullY > 0 && (
         <div aria-hidden="true" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -973,6 +1048,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           {threadCount && threadCount > 1 && (
             <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: (message.unread_count ?? 0) > 0 ? 'var(--color-accent)' : 'var(--color-text-tertiary)', background: (message.unread_count ?? 0) > 0 ? 'var(--color-accent-subtle)' : 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
           )}
+          {(() => { const cat = getAutoCategory(message.from_addr, message.subject); return cat ? <span style={{ marginLeft: '5px', fontSize: '10px', fontWeight: 600, padding: '1px 5px', borderRadius: '3px', background: cat.color + '1a', color: cat.color, flexShrink: 0, verticalAlign: 'middle', letterSpacing: '0.02em' }}>{cat.label}</span> : null; })()}
           {showPreview && message.preview && (
             <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
               {' · '}{highlight(message.preview, q)}
@@ -1077,10 +1153,17 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           <>
             {isPinned && <BookmarkIconSolid style={{ width: '12px', height: '12px', color: 'var(--color-accent)', marginRight: '2px', flexShrink: 0 }} />}
             {message.starred && <StarIconSolid style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '2px', flexShrink: 0 }} />}
-            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
-              title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
-              {formatDate(message.received_at)}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
+                title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
+                {formatDate(message.received_at)}
+              </span>
+              {!compact && message.preview && (
+                <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>
+                  {readingTimeLabel(message.preview)}
+                </span>
+              )}
+            </div>
           </>
         )}
       </div>
