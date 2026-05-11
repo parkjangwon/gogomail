@@ -407,6 +407,38 @@ export async function deleteContact(addressBookId: string, objectName: string): 
   await request<void>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts/${encodeURIComponent(objectName)}`, { method: 'DELETE' });
 }
 
+export interface UpsertContactFields {
+  fn: string;
+  email?: string;
+  tel?: string;
+  org?: string;
+  title?: string;
+  note?: string;
+}
+
+function vcardEscape(s: string): string { return s.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n'); }
+
+export async function upsertContact(addressBookId: string, objectName: string, fields: UpsertContactFields): Promise<ContactObject> {
+  const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${vcardEscape(fields.fn)}`];
+  const nameParts = fields.fn.trim().split(/\s+/);
+  const last = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const first = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0];
+  lines.push(`N:${vcardEscape(last)};${vcardEscape(first)};;;`);
+  if (fields.email) lines.push(`EMAIL:${vcardEscape(fields.email)}`);
+  if (fields.tel) lines.push(`TEL:${vcardEscape(fields.tel)}`);
+  if (fields.org) lines.push(`ORG:${vcardEscape(fields.org)}`);
+  if (fields.title) lines.push(`TITLE:${vcardEscape(fields.title)}`);
+  if (fields.note) lines.push(`NOTE:${vcardEscape(fields.note)}`);
+  lines.push('END:VCARD');
+  const vcard = lines.join('\r\n');
+  const data = await request<{ contact: ContactObject }>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts/${encodeURIComponent(objectName)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/vcard' },
+    body: vcard,
+  });
+  return data.contact;
+}
+
 // ── Calendars ────────────────────────────────────────────────────────────────
 
 export interface Calendar {
