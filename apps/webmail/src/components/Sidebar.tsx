@@ -76,6 +76,9 @@ interface SidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   onDropMessage?: (messageId: string, folderId: string) => void;
+  onCreateFolder?: (name: string) => void;
+  onRenameFolder?: (id: string, name: string) => void;
+  onDeleteFolder?: (id: string) => void;
 }
 
 export function Sidebar({
@@ -95,12 +98,20 @@ export function Sidebar({
   collapsed = false,
   onToggleCollapse,
   onDropMessage,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
 }: SidebarProps) {
   const showAdvanced = searchQuery.trim().length > 0;
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [newFolderInput, setNewFolderInput] = useState('');
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingValue, setRenamingValue] = useState('');
+  const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
 
   useEffect(() => {
     setRecentSearches(loadRecentSearches());
@@ -483,52 +494,99 @@ export function Sidebar({
           .map((f) => {
             const isActive = activeFolderId === f.id;
             const badge = formatBadge(f.unread);
+            const isRenaming = renamingFolderId === f.id;
+            const isHovered = hoveredFolderId === f.id;
             return (
-              <button
+              <div
                 key={f.id}
-                onClick={() => onSelectFolder(f.id)}
-                aria-current={isActive ? 'page' : undefined}
-                style={{
-                  width: 'calc(100% - 8px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '7px 16px',
-                  border: dragOverFolderId === f.id ? '1px solid var(--color-accent)' : '1px solid transparent',
-                  background: dragOverFolderId === f.id ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
-                  color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                  fontSize: '14px',
-                  fontWeight: isActive ? 500 : 400,
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  marginInline: '4px',
-                  transition: 'background 80ms ease, border 80ms ease',
-                } as React.CSSProperties}
-                onDragOver={(e) => { if (onDropMessage) { e.preventDefault(); setDragOverFolderId(f.id); } }}
-                onDragLeave={() => setDragOverFolderId(null)}
-                onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, f.id); }}
+                style={{ position: 'relative', marginInline: '4px' }}
+                onMouseEnter={() => setHoveredFolderId(f.id)}
+                onMouseLeave={() => setHoveredFolderId(null)}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {f.name}
-                </span>
-                {badge && (
-                  <span
+                {isRenaming ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px' }}>
+                    <input
+                      autoFocus
+                      value={renamingValue}
+                      onChange={(e) => setRenamingValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renamingValue.trim()) { onRenameFolder?.(f.id, renamingValue.trim()); setRenamingFolderId(null); }
+                        if (e.key === 'Escape') setRenamingFolderId(null);
+                      }}
+                      style={{ flex: 1, fontSize: '13px', padding: '3px 6px', border: '1px solid var(--color-accent)', borderRadius: '4px', outline: 'none', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    />
+                    <button onClick={() => { if (renamingValue.trim()) { onRenameFolder?.(f.id, renamingValue.trim()); setRenamingFolderId(null); } }} style={{ fontSize: '11px', padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
+                    <button onClick={() => setRenamingFolderId(null)} style={{ fontSize: '11px', padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onSelectFolder(f.id)}
+                    aria-current={isActive ? 'page' : undefined}
                     style={{
-                      fontSize: '12px',
-                      color: 'var(--color-text-secondary)',
-                      background: 'var(--color-bg-tertiary)',
-                      borderRadius: '10px',
-                      padding: '1px 6px',
-                      flexShrink: 0,
-                      marginInlineStart: '8px',
-                    }}
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '7px 16px',
+                      border: dragOverFolderId === f.id ? '1px solid var(--color-accent)' : '1px solid transparent',
+                      background: dragOverFolderId === f.id ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+                      color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                      fontSize: '14px',
+                      fontWeight: isActive ? 500 : 400,
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background 80ms ease, border 80ms ease',
+                    } as React.CSSProperties}
+                    onDragOver={(e) => { if (onDropMessage) { e.preventDefault(); setDragOverFolderId(f.id); } }}
+                    onDragLeave={() => setDragOverFolderId(null)}
+                    onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, f.id); }}
                   >
-                    {badge}
-                  </span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{f.name}</span>
+                    {isHovered && (onRenameFolder || onDeleteFolder) ? (
+                      <span style={{ display: 'flex', gap: '2px', flexShrink: 0, marginInlineStart: '4px' }}>
+                        {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '1px 5px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', color: 'var(--color-text-tertiary)' }} title="이름 변경">✏</span>}
+                        {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 폴더를 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '1px 5px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', color: 'var(--color-destructive)' }} title="삭제">🗑</span>}
+                      </span>
+                    ) : badge ? (
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', flexShrink: 0, marginInlineStart: '8px' }}>{badge}</span>
+                    ) : null}
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
+
+        {/* Create new folder */}
+        {onCreateFolder && (
+          <div style={{ marginInline: '4px' }}>
+            {showNewFolder ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px' }}>
+                <input
+                  autoFocus
+                  value={newFolderInput}
+                  onChange={(e) => setNewFolderInput(e.target.value)}
+                  placeholder="폴더 이름"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); }
+                    if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderInput(''); }
+                  }}
+                  style={{ flex: 1, fontSize: '13px', padding: '3px 6px', border: '1px solid var(--color-accent)', borderRadius: '4px', outline: 'none', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                />
+                <button onClick={() => { if (newFolderInput.trim()) { onCreateFolder(newFolderInput.trim()); setNewFolderInput(''); setShowNewFolder(false); } }} style={{ fontSize: '11px', padding: '3px 6px', border: 'none', background: 'var(--color-accent)', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
+                <button onClick={() => { setShowNewFolder(false); setNewFolderInput(''); }} style={{ fontSize: '11px', padding: '3px 6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewFolder(true)}
+                style={{ width: '100%', textAlign: 'left', padding: '5px 16px', border: '1px solid transparent', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
+              >
+                <span>+</span> 폴더 추가
+              </button>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Compose button + logout */}

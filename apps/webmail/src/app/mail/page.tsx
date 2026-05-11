@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, restoreMessage, bulkRestoreMessages, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { AdvancedFilters } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
@@ -646,6 +646,18 @@ export default function MailPage() {
           moveMessage(messageId, folderId)
             .then(() => addToast('메일을 이동했습니다'))
             .catch(() => addToast('이동에 실패했습니다', 'error'));
+        }}
+        onCreateFolder={async (name) => {
+          try { await createFolder(name); refresh(); addToast(`"${name}" 폴더를 만들었습니다`); }
+          catch { addToast('폴더 생성에 실패했습니다', 'error'); }
+        }}
+        onRenameFolder={async (id, name) => {
+          try { await renameFolder(id, name); refresh(); addToast('폴더 이름을 변경했습니다'); }
+          catch { addToast('이름 변경에 실패했습니다', 'error'); }
+        }}
+        onDeleteFolder={async (id) => {
+          try { await deleteFolder(id); if (activeFolderId === id) setActiveFolderId(''); refresh(); addToast('폴더를 삭제했습니다'); }
+          catch { addToast('폴더 삭제에 실패했습니다', 'error'); }
         }}
       />
 
