@@ -46,6 +46,7 @@ const SECTIONS = [
       { key: 'm', desc: '읽음 표시' },
       { key: 'Shift+m', desc: '안읽음 표시' },
       { key: 'z', desc: '1시간 스누즈' },
+      { key: 'p', desc: '핀 고정 / 해제' },
       { key: 'l', desc: '라벨 색상 순환' },
     ],
   },

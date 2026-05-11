@@ -20,7 +20,9 @@ import {
   BarsArrowDownIcon,
   BarsArrowUpIcon,
   ClockIcon,
+  BookmarkIcon,
 } from '@heroicons/react/24/outline';
+import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { SnoozePopover } from './SnoozePopover';
 
@@ -113,12 +115,14 @@ interface MessageListProps {
   onArchiveMessage?: (id: string) => void;
   onToggleReadMessage?: (id: string, read: boolean) => void;
   onSnoozeMessage?: (id: string, until: Date) => void;
+  onPinMessage?: (id: string) => void;
+  pinnedIds?: Set<string>;
   messageLabels?: Record<string, string>;
   userEmail?: string;
   showPreview?: boolean;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, onSnoozeMessage, onPinMessage, pinnedIds = new Set(), messageLabels = {}, userEmail, showPreview = true }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -270,9 +274,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
 
   const activeLabelColors = [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))];
 
-  const sortedBase = sortAsc
-    ? [...afterLabelFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
-    : afterLabelFilter;
+  const sortedBase = (() => {
+    const base = sortAsc
+      ? [...afterLabelFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+      : afterLabelFilter;
+    if (pinnedIds.size === 0) return base;
+    return [...base].sort((a, b) => {
+      const aPin = pinnedIds.has(a.id) ? 0 : 1;
+      const bPin = pinnedIds.has(b.id) ? 0 : 1;
+      return aPin - bPin;
+    });
+  })();
 
   const [conversationMode] = useState(() => {
     try { return localStorage.getItem('webmail_conv_mode') !== '0'; } catch { return true; }
@@ -775,6 +787,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onHoverArchive={!isMobile ? onArchiveMessage : undefined}
               onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
               onHoverSnooze={!isMobile ? onSnoozeMessage : undefined}
+              onHoverPin={!isMobile ? onPinMessage : undefined}
+              isPinned={pinnedIds.has(msg.id)}
               threadCount={msg.message_count ?? threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
               userEmail={userEmail}
@@ -811,13 +825,15 @@ interface MessageRowProps {
   onHoverArchive?: (id: string) => void;
   onHoverToggleRead?: (id: string, read: boolean) => void;
   onHoverSnooze?: (id: string, until: Date) => void;
+  onHoverPin?: (id: string) => void;
+  isPinned?: boolean;
   threadCount?: number;
   labelColor?: string;
   userEmail?: string;
   showPreview?: boolean;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, onHoverSnooze, onHoverPin, isPinned, threadCount, labelColor, userEmail, showPreview = true }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -1019,6 +1035,19 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
                 )}
               </div>
             )}
+            {onHoverPin && (
+              <button
+                aria-label={isPinned ? '핀 해제' : '핀 고정'}
+                title={isPinned ? '핀 해제 (P)' : '핀 고정 (P)'}
+                onClick={(e) => { e.stopPropagation(); onHoverPin(message.id); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 4px 2px', color: isPinned ? 'var(--color-accent)' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              >
+                {isPinned ? <BookmarkIconSolid style={{ width: '14px', height: '14px' }} /> : <BookmarkIcon style={{ width: '14px', height: '14px' }} />}
+                <kbd style={{ fontSize: '8px', lineHeight: 1, color: 'var(--color-text-tertiary)', background: 'none', border: 'none', fontFamily: 'monospace', fontWeight: 700 }}>P</kbd>
+              </button>
+            )}
             {onHoverDelete && (
               <button
                 aria-label="삭제"
@@ -1035,6 +1064,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
           </>
         ) : (
           <>
+            {isPinned && <BookmarkIconSolid style={{ width: '12px', height: '12px', color: 'var(--color-accent)', marginRight: '2px', flexShrink: 0 }} />}
             {message.starred && <StarIconSolid style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '2px', flexShrink: 0 }} />}
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
               title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
