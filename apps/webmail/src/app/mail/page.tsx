@@ -1049,6 +1049,7 @@ export default function MailPage() {
                 onOpenInWindow={selectedMessageId ? () => window.open(`/mail/${selectedMessageId}`, '_blank', 'width=900,height=700,menubar=no,toolbar=no') : undefined}
                 threadMessages={threadMessages.length > 1 ? threadMessages : undefined}
                 onSelectThread={handleSelectMessage}
+                userEmail={userEmail || undefined}
               />
             </div>
           </>
