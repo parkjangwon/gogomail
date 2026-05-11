@@ -209,6 +209,35 @@ export function ReadingPane({
     finally { setDownloadingId(null); }
   }, [message]);
 
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const imagePreviewsRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    const imageAtts = attachments.filter((a) => a.mime_type.startsWith('image/') && a.status === 'stored');
+    if (!message || imageAtts.length === 0) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('webmail_token') : null;
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    let cancelled = false;
+    imageAtts.forEach((att) => {
+      if (imagePreviewsRef.current[att.id]) return;
+      fetch(`/api/mail/messages/${message.id}/attachments/${att.id}/download`, { headers })
+        .then((r) => r.ok ? r.blob() : null)
+        .then((blob) => {
+          if (cancelled || !blob) return;
+          const url = URL.createObjectURL(blob);
+          imagePreviewsRef.current[att.id] = url;
+          setImagePreviews((prev) => ({ ...prev, [att.id]: url }));
+        })
+        .catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [attachments, message]);
+
+  useEffect(() => {
+    const urls = imagePreviewsRef.current;
+    return () => { Object.values(urls).forEach((u) => URL.revokeObjectURL(u)); };
+  }, []);
+
   const [copiedEmail, setCopiedEmail] = useState('');
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -552,33 +581,45 @@ export function ReadingPane({
                   const isPdf = att.mime_type === 'application/pdf';
                   const icon = isImg ? '🖼️' : isPdf ? '📄' : '📎';
                   const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
+                  const previewUrl = isImg ? imagePreviews[att.id] : undefined;
                   return (
-                    <button
-                      key={att.id}
-                      onClick={() => handleDownload(att)}
-                      disabled={downloadingId === att.id}
-                      title={`${att.filename} (${kb}) 다운로드`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--color-border-default)',
-                        background: downloadingId === att.id ? 'var(--color-bg-tertiary)' : 'var(--color-bg-secondary)',
-                        color: 'var(--color-text-primary)',
-                        fontSize: '13px',
-                        cursor: downloadingId === att.id ? 'wait' : 'pointer',
-                        maxWidth: '260px',
-                        textAlign: 'left',
-                      }}
-                      onMouseEnter={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                      onMouseLeave={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                    >
-                      <span aria-hidden="true">{downloadingId === att.id ? '⏳' : icon}</span>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
-                    </button>
+                    <div key={att.id} style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', maxWidth: '200px' }}>
+                      {previewUrl && (
+                        <button
+                          onClick={() => handleDownload(att)}
+                          title={`${att.filename} 다운로드`}
+                          style={{ border: '1px solid var(--color-border-default)', borderRadius: '6px', overflow: 'hidden', background: 'none', cursor: 'pointer', padding: 0, display: 'block' }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={previewUrl} alt={att.filename} style={{ width: '100%', height: '120px', objectFit: 'cover', display: 'block' }} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDownload(att)}
+                        disabled={downloadingId === att.id}
+                        title={`${att.filename} (${kb}) 다운로드`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--color-border-default)',
+                          background: downloadingId === att.id ? 'var(--color-bg-tertiary)' : 'var(--color-bg-secondary)',
+                          color: 'var(--color-text-primary)',
+                          fontSize: '13px',
+                          cursor: downloadingId === att.id ? 'wait' : 'pointer',
+                          maxWidth: '100%',
+                          textAlign: 'left',
+                        }}
+                        onMouseEnter={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                        onMouseLeave={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      >
+                        <span aria-hidden="true">{downloadingId === att.id ? '⏳' : icon}</span>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
