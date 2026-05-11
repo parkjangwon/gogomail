@@ -185,6 +185,15 @@ export default function MailPage() {
     addToast(`${ids.length}개를 읽음으로 표시했습니다`, 'info');
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const handleMarkAllRead = useCallback(async () => {
+    const unreadIds = messages.filter((m) => !m.read).map((m) => m.id);
+    if (unreadIds.length === 0) return;
+    setMessages((prev) => prev.map((m) => ({ ...m, read: true })));
+    adjustUnread(activeFolderId, -unreadIds.length);
+    bulkMarkRead(unreadIds, true).catch(() => {});
+    addToast(`${unreadIds.length}개를 읽음으로 표시했습니다`, 'info');
+  }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
+
   const handleMove = useCallback(async (folderId: string) => {
     if (!selectedMessageId) return;
     const id = selectedMessageId;
@@ -421,6 +430,7 @@ export default function MailPage() {
           isMobile={isMobile}
           onOpenSidebar={() => setMobileSidebarOpen(true)}
           onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
+          onMarkAllRead={handleMarkAllRead}
         />
       )}
 
