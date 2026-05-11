@@ -79,6 +79,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [sent, setSent] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
+  const [minimized, setMinimized] = useState(false);
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -232,6 +233,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           display: 'flex',
           flexDirection: 'column',
           animation: 'composeIn 120ms ease-out',
+          maxHeight: minimized ? '44px' : '80vh',
+          overflow: 'hidden',
+          transition: 'max-height 180ms ease',
         }}
       >
         <style>{`
@@ -252,30 +256,49 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         `}</style>
 
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 16px',
-          borderBottom: '1px solid var(--color-border-subtle)',
-          background: 'var(--color-bg-secondary)',
-          borderRadius: '8px 8px 0 0',
-        }}>
-          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지'}
+        <div
+          onClick={minimized ? () => setMinimized(false) : undefined}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px',
+            borderBottom: minimized ? 'none' : '1px solid var(--color-border-subtle)',
+            background: 'var(--color-bg-secondary)',
+            borderRadius: minimized ? '8px' : '8px 8px 0 0',
+            cursor: minimized ? 'pointer' : 'default',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+            {minimized && subject ? subject : (intent === 'reply' || intent === 'reply_all' ? '답장' : intent === 'forward' ? '전달' : '새 메시지')}
           </span>
-          <button
-            onClick={onClose}
-            aria-label="창 닫기"
-            style={{
-              width: '24px', height: '24px', borderRadius: '4px', border: 'none',
-              background: 'transparent', color: 'var(--color-text-secondary)',
-              cursor: 'pointer', fontSize: '16px', lineHeight: 1,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-          >×</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '8px' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setMinimized((v) => !v); }}
+              aria-label={minimized ? '창 복원' : '창 최소화'}
+              style={{
+                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
+                background: 'transparent', color: 'var(--color-text-secondary)',
+                cursor: 'pointer', fontSize: '14px', lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >{minimized ? '□' : '─'}</button>
+            <button
+              onClick={onClose}
+              aria-label="창 닫기"
+              style={{
+                width: '24px', height: '24px', borderRadius: '4px', border: 'none',
+                background: 'transparent', color: 'var(--color-text-secondary)',
+                cursor: 'pointer', fontSize: '16px', lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >×</button>
+          </div>
         </div>
 
         {/* Form */}
