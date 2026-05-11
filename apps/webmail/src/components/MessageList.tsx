@@ -57,9 +57,11 @@ interface MessageListProps {
   onOpenSidebar?: () => void;
   onContextMenuMessage?: (id: string, x: number, y: number) => void;
   onMarkAllRead?: () => void;
+  emptyFolderLabel?: string;
+  onEmptyFolder?: () => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -206,6 +208,25 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </button>
         );
       })}
+      {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
+        <button
+          aria-label={emptyFolderLabel}
+          onClick={onEmptyFolder}
+          title={emptyFolderLabel}
+          style={{
+            marginLeft: '4px',
+            padding: '3px 8px',
+            borderRadius: '4px',
+            border: '1px solid rgba(217,79,61,0.4)',
+            background: 'transparent',
+            color: 'var(--color-destructive)',
+            cursor: 'pointer',
+            fontSize: '12px',
+          }}
+        >
+          {emptyFolderLabel}
+        </button>
+      )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
         {onMarkAllRead && messages.some((m) => !m.read) && (
           <button
