@@ -40,6 +40,16 @@ export interface AuthTokenResponse {
   must_change_password: boolean;
 }
 
+export interface Attachment {
+  id: string;
+  message_id: string;
+  filename: string;
+  size: number;
+  mime_type: string;
+  status: 'uploading' | 'stored' | 'deleted';
+  created_at: string;
+}
+
 export type ComposeIntent = 'new' | 'reply' | 'reply_all' | 'forward';
 
 export interface SendMessageRequest {
@@ -252,4 +262,24 @@ export function deleteMessage(id: string): Promise<void> {
 
 export function sendMessage(data: SendMessageRequest): Promise<void> {
   return apiPost<void>('messages/send', data);
+}
+
+export function listAttachments(messageId: string): Promise<Attachment[]> {
+  return request<{ attachments: Attachment[] }>(`messages/${messageId}/attachments`).then((r) => r.attachments);
+}
+
+export async function downloadAttachment(messageId: string, attachmentId: string, filename: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`/api/mail/messages/${messageId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
