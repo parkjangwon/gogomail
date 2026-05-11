@@ -25,6 +25,7 @@ import {
   FolderIcon,
   ChevronRightIcon,
   FaceSmileIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 
 interface ComposeModalProps {
@@ -38,6 +39,7 @@ interface ComposeModalProps {
   initialBody?: string;
   isMobile?: boolean;
   windowOffset?: number;
+  onArchiveSource?: () => void;
 }
 
 function escapeHtml(text: string): string {
@@ -99,7 +101,7 @@ const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   transition: 'background 80ms ease',
 });
 
-export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, isMobile, windowOffset = 0 }: ComposeModalProps) {
+export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMessage, userEmail, initialTo, initialSubject, initialBody, isMobile, windowOffset = 0, onArchiveSource }: ComposeModalProps) {
   const replyTo = intent === 'reply' || intent === 'reply_all'
     ? sourceMessage?.from_addr ?? ''
     : '';
@@ -129,6 +131,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [sent, setSent] = useState(false);
   const [sendCountdown, setSendCountdown] = useState<number | null>(null);
   const pendingMsgRef = useRef<SendMessageRequest | null>(null);
+  const sendAndArchiveRef = useRef(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -340,7 +343,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             }
           } catch { /* */ }
           setSent(true);
-          setTimeout(() => onClose(), 1500);
+          setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500);
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
@@ -433,7 +436,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       // Scheduled sends bypass the undo countdown and go immediately
       setSending(true);
       sendMessage(msg)
-        .then(() => { setSent(true); setTimeout(() => onClose(), 1500); })
+        .then(() => { setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
           setError(message);
@@ -446,7 +449,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         // No undo window — send immediately
         setSending(true);
         sendMessage(msg)
-          .then(() => { setSent(true); setTimeout(() => onClose(), 1500); })
+          .then(() => { setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
           .catch((err: unknown) => { setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
           .finally(() => setSending(false));
       } else {
@@ -935,6 +938,23 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                       </div>
                     </button>
                   ))}
+                  {onArchiveSource && (
+                    <button
+                      type="button"
+                      onClick={() => { setShowSendDropdown(false); sendAndArchiveRef.current = true; handleSend({ preventDefault: () => {} }); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >
+                      <div style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <ArchiveBoxIcon style={{ width: '16px', height: '16px', color: 'var(--color-accent)' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)' }}>보내고 보관</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>전송 후 원본 메일을 보관함으로 이동</div>
+                      </div>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => { setShowSendDropdown(false); setShowSchedule(true); }}

@@ -28,6 +28,7 @@ const SECTIONS = [
     items: [
       { key: 'c', desc: '새 메일 작성' },
       { key: 'j / k', desc: '다음 / 이전 메일' },
+      { key: 'n / N', desc: '다음 / 이전 읽지 않은 메일' },
       { key: 'Enter / o', desc: '선택 메일 열기' },
       { key: 'Esc', desc: '읽기창 닫기 / 선택 해제' },
     ],

@@ -693,9 +693,20 @@ export default function MailPage() {
           break;
         }
         case 'c':
-        case 'n':
           if (!composeContext) { e.preventDefault(); openCompose({ intent: 'new' }); }
           break;
+        case 'n': {
+          // Next unread message
+          const nextUnread = list.slice(currentIdx + 1).find((m) => !m.read);
+          if (nextUnread) setSelectedMessageId(nextUnread.id);
+          break;
+        }
+        case 'N': {
+          // Prev unread message (Shift+n)
+          const prevUnread = list.slice(0, currentIdx).reverse().find((m) => !m.read);
+          if (prevUnread) setSelectedMessageId(prevUnread.id);
+          break;
+        }
         case 'u':
           if (selectedMessageId && !composeContext) handleMarkUnread();
           break;
@@ -1423,6 +1434,9 @@ export default function MailPage() {
           userEmail={userEmail}
           isMobile={isMobile}
           onClose={closeCompose}
+          onArchiveSource={(composeContext.intent === 'reply' || composeContext.intent === 'reply_all') && composeContext.source
+            ? () => handleArchiveById(composeContext.source!.id)
+            : undefined}
         />
       )}
 
