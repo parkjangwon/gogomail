@@ -138,6 +138,7 @@ export function ReadingPane({
   onStar,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [fontSize, setFontSize] = useState(14);
   if (loading) {
     return (
       <main
@@ -266,6 +267,22 @@ export function ReadingPane({
           </button>
         )}
         <ActionButton label="인쇄" onClick={onPrint} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+          <button
+            aria-label="글자 크기 줄이기"
+            onClick={() => setFontSize((f) => Math.max(11, f - 1))}
+            style={{ ...iconStyle, fontSize: '11px', padding: '5px 7px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >A-</button>
+          <button
+            aria-label="글자 크기 늘리기"
+            onClick={() => setFontSize((f) => Math.min(24, f + 1))}
+            style={{ ...iconStyle, fontSize: '13px', padding: '5px 7px' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >A+</button>
+        </div>
         {onMove && folders.length > 0 && (
           <div style={{ position: 'relative' }}>
             <ActionButton label="이동" onClick={() => setShowMoveMenu((v) => !v)} />
@@ -395,7 +412,7 @@ export function ReadingPane({
         <div
           style={{
             maxWidth: '680px',
-            fontSize: '14px',
+            fontSize: `${fontSize}px`,
             lineHeight: 1.6,
             color: 'var(--color-text-primary)',
           }}
