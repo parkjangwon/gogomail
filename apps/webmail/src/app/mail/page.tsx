@@ -268,6 +268,23 @@ export default function MailPage() {
     });
   }, [selectedMessageId, setMessages, adjustUnread, activeFolderId, addToast]);
 
+  const handleMarkRead = useCallback(async () => {
+    if (!selectedMessageId) return;
+    const msg = messages.find((m) => m.id === selectedMessageId);
+    if (msg?.read) return;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === selectedMessageId ? { ...m, read: true } : m))
+    );
+    adjustUnread(activeFolderId, -1);
+    addToast('읽음으로 표시했습니다', 'info');
+    markRead(selectedMessageId, true).catch(() => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === selectedMessageId ? { ...m, read: false } : m))
+      );
+      adjustUnread(activeFolderId, 1);
+    });
+  }, [selectedMessageId, messages, setMessages, adjustUnread, activeFolderId, addToast]);
+
   const handleToggleReadMessage = useCallback((id: string, read: boolean) => {
     const prev = messages.find((m) => m.id === id);
     if (!prev || prev.read === read) return;
@@ -535,6 +552,9 @@ export default function MailPage() {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
+        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', o: 'orgchart' };
+        const appTarget = appSwitchMap[e.key];
+        if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
 
       switch (e.key) {
@@ -548,8 +568,13 @@ export default function MailPage() {
           break;
         }
         case 'k': {
-          const prev = list[currentIdx - 1];
-          if (prev) setSelectedMessageId(prev.id);
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            document.querySelector<HTMLInputElement>('[aria-label="메일 검색"]')?.focus();
+          } else {
+            const prev = list[currentIdx - 1];
+            if (prev) setSelectedMessageId(prev.id);
+          }
           break;
         }
         case 'c':
@@ -558,6 +583,15 @@ export default function MailPage() {
           break;
         case 'u':
           if (selectedMessageId && !composeContext) handleMarkUnread();
+          break;
+        case 'm':
+          if (selectedMessageId && !composeContext) void handleMarkRead();
+          break;
+        case 'M': // Shift+m
+          if (selectedMessageId && !composeContext) void handleMarkUnread();
+          break;
+        case '!':
+          if (selectedMessageId && !composeContext) handleSpam();
           break;
         case 's': {
           if (selectedMessageId && !composeContext) {
@@ -629,7 +663,7 @@ export default function MailPage() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, handleSpam, handleMarkRead, handleMarkUnread, handleStar, getNextId, folders, messageLabels, setLabel, activeFolderSystemType, setActiveApp]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
