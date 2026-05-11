@@ -19,7 +19,7 @@ import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { SearchBar } from '@/components/SearchBar';
 import { AppIconBar, AppId } from '@/components/AppIconBar';
 import { CalendarPlaceholder } from '@/components/CalendarPlaceholder';
-import { ContactsPlaceholder } from '@/components/ContactsPlaceholder';
+import { ContactsView } from '@/components/ContactsView';
 import { OrgChartPlaceholder } from '@/components/OrgChartPlaceholder';
 
 export default function MailPage() {
@@ -1009,7 +1009,7 @@ export default function MailPage() {
       ) : activeApp === 'calendar' ? (
         <CalendarPlaceholder />
       ) : activeApp === 'contacts' ? (
-        <ContactsPlaceholder />
+        <ContactsView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
       ) : (
         <OrgChartPlaceholder />
       )}

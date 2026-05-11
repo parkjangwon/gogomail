@@ -345,3 +345,158 @@ export async function downloadAttachment(messageId: string, attachmentId: string
   a.click();
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
 }
+
+// ── Contacts / Address Books ─────────────────────────────────────────────────
+
+export interface AddressBook {
+  ID: string;
+  Name: string;
+  Description: string;
+  UserID: string;
+}
+
+export interface ContactObject {
+  ID: string;
+  AddressBookID: string;
+  ObjectName: string;
+  UID: string;
+  VCard: string; // base64-encoded vCard bytes
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+/** Parse vCard fields from base64-encoded vCard data. */
+export function parseVCard(base64VCard: string): {
+  fn: string; email: string; tel: string; org: string; note: string; title: string;
+} {
+  let text = '';
+  try { text = atob(base64VCard); } catch { text = base64VCard; }
+  const get = (prop: string) => {
+    const m = text.match(new RegExp(`(?:^|\\n)${prop}[;:][^\\n]*:([^\\n]*)`, 'im'));
+    return m ? m[1].trim() : '';
+  };
+  return {
+    fn: get('FN'),
+    email: get('EMAIL'),
+    tel: get('TEL'),
+    org: get('ORG'),
+    title: get('TITLE'),
+    note: get('NOTE'),
+  };
+}
+
+export async function listAddressBooks(): Promise<AddressBook[]> {
+  try {
+    const data = await request<{ address_books?: AddressBook[] }>('addressbooks');
+    return data.address_books ?? [];
+  } catch { return []; }
+}
+
+export async function listContacts(addressBookId: string): Promise<ContactObject[]> {
+  try {
+    const data = await request<{ contacts?: ContactObject[] }>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts`);
+    return data.contacts ?? [];
+  } catch { return []; }
+}
+
+export async function deleteContact(addressBookId: string, objectName: string): Promise<void> {
+  await request<void>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts/${encodeURIComponent(objectName)}`, { method: 'DELETE' });
+}
+
+// ── Calendars ────────────────────────────────────────────────────────────────
+
+export interface Calendar {
+  ID: string;
+  UserID: string;
+  Name: string;
+  Color: string;
+  Description: string;
+  SyncToken: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+export interface CalendarObject {
+  ID: string;
+  UserID: string;
+  CalendarID: string;
+  ObjectName: string;
+  UID: string;
+  Component: string;
+  ETag: string;
+  Size: number;
+  ICS: string; // base64-encoded iCalendar bytes
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+/** Parse key iCal fields from base64-encoded ICS data. */
+export function parseICS(base64ICS: string): {
+  summary: string;
+  description: string;
+  location: string;
+  dtstart: string;
+  dtend: string;
+  allDay: boolean;
+} {
+  let text = '';
+  try { text = atob(base64ICS); } catch { text = base64ICS; }
+
+  // Unfold long lines (RFC 5545 line folding: CRLF + whitespace)
+  text = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+
+  const get = (prop: string): string => {
+    const m = text.match(new RegExp(`(?:^|\\n)${prop}(?:;[^\\n:]*)?:([^\\n]*)`, 'im'));
+    return m ? m[1].trim() : '';
+  };
+
+  const dtstart = get('DTSTART');
+  const dtend = get('DTEND');
+  // All-day events use DATE format (8 digits, no T)
+  const allDay = /^\d{8}$/.test(dtstart);
+
+  return {
+    summary: get('SUMMARY'),
+    description: get('DESCRIPTION'),
+    location: get('LOCATION'),
+    dtstart,
+    dtend,
+    allDay,
+  };
+}
+
+/** Convert iCal date/datetime string to JS Date. */
+export function icalDateToDate(dtStr: string): Date | null {
+  if (!dtStr) return null;
+  // DATE format: YYYYMMDD
+  if (/^\d{8}$/.test(dtStr)) {
+    const y = parseInt(dtStr.slice(0, 4), 10);
+    const mo = parseInt(dtStr.slice(4, 6), 10) - 1;
+    const d = parseInt(dtStr.slice(6, 8), 10);
+    return new Date(y, mo, d);
+  }
+  // DATETIME format: YYYYMMDDTHHmmss[Z]
+  const m = dtStr.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
+  if (m) {
+    const [, y, mo, d, h, min, s, z] = m;
+    if (z === 'Z') {
+      return new Date(Date.UTC(+y, +mo - 1, +d, +h, +min, +s));
+    }
+    return new Date(+y, +mo - 1, +d, +h, +min, +s);
+  }
+  return null;
+}
+
+export async function listCalendars(): Promise<Calendar[]> {
+  try {
+    const data = await request<{ calendars?: Calendar[] }>('calendars');
+    return data.calendars ?? [];
+  } catch { return []; }
+}
+
+export async function listCalendarObjects(calendarId: string): Promise<CalendarObject[]> {
+  try {
+    const data = await request<{ objects?: CalendarObject[] }>(`calendars/${encodeURIComponent(calendarId)}/objects`);
+    return data.objects ?? [];
+  } catch { return []; }
+}
