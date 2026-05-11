@@ -102,6 +102,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const pullRef = useRef<{ startY: number } | null>(null);
   const [pullY, setPullY] = useState(0);
   const PULL_THRESHOLD = 64;
+  const [quickFilter, setQuickFilter] = useState('');
+  const [showQuickFilter, setShowQuickFilter] = useState(false);
+  const quickFilterRef = useRef<HTMLInputElement>(null);
 
   // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
   useEffect(() => {
@@ -162,9 +165,19 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? messages.filter((m) => m.starred)
     : messages;
 
-  const filteredMessages = sortAsc
-    ? [...baseFiltered].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+  const qf = quickFilter.trim().toLowerCase();
+  const afterQuickFilter = qf
+    ? baseFiltered.filter((m) =>
+        m.from_name?.toLowerCase().includes(qf) ||
+        m.from_addr.toLowerCase().includes(qf) ||
+        m.subject.toLowerCase().includes(qf) ||
+        m.preview?.toLowerCase().includes(qf)
+      )
     : baseFiltered;
+
+  const filteredMessages = sortAsc
+    ? [...afterQuickFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+    : afterQuickFilter;
 
   const listWidth = (isMobile || fullWidth || bottomLayout)
     ? { width: '100%', minWidth: 0 }
@@ -357,6 +370,26 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </button>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {showQuickFilter && (
+          <input
+            ref={quickFilterRef}
+            type="text"
+            value={quickFilter}
+            onChange={(e) => setQuickFilter(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setQuickFilter(''); setShowQuickFilter(false); } }}
+            placeholder="필터..."
+            aria-label="빠른 필터"
+            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-accent)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none', width: '120px' }}
+          />
+        )}
+        <button
+          aria-label="빠른 필터 열기"
+          title="빠른 필터 (/)  "
+          onClick={() => { const next = !showQuickFilter; setShowQuickFilter(next); if (!next) { setQuickFilter(''); } else { setTimeout(() => quickFilterRef.current?.focus(), 50); } }}
+          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: showQuickFilter ? 'var(--color-accent-subtle)' : 'transparent', color: showQuickFilter ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
+        >
+          {quickFilter ? `🔍 ${messages.length - filteredMessages.length > 0 ? `${filteredMessages.length}/${messages.length}` : ''}` : '🔍'}
+        </button>
         <button
           aria-label={compact ? '넓은 보기' : '촘촘한 보기'}
           title={compact ? '넓은 보기' : '촘촘한 보기'}
