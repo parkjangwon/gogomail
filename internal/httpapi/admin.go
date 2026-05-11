@@ -1049,6 +1049,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusCreated, map[string]any{"domain": domain})
 	}))
 
+	mux.HandleFunc("POST /admin/v1/domains/bulk", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleBulkDomains(w, r, service)
+	}))
+
 	mux.HandleFunc("PATCH /admin/v1/domains/{id}/status", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -7312,6 +7316,54 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"template": input})
+}
+
+// ─── Bulk Domain Operations ───────────────────────────────────────────────────
+
+func handleBulkDomains(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	var input struct {
+		IDs    []string `json:"ids"`
+		Action string   `json:"action"` // "activate", "suspend", "delete"
+	}
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if len(input.IDs) == 0 {
+		writeError(w, http.StatusBadRequest, "ids is required")
+		return
+	}
+	if input.Action == "" {
+		writeError(w, http.StatusBadRequest, "action is required")
+		return
+	}
+	ctx := r.Context()
+	succeeded := []string{}
+	failed := []map[string]string{}
+	for _, id := range input.IDs {
+		var err error
+		switch input.Action {
+		case "activate":
+			err = service.UpdateDomainStatus(ctx, maildb.UpdateDomainStatusRequest{ID: id, Status: "active"})
+		case "suspend":
+			err = service.UpdateDomainStatus(ctx, maildb.UpdateDomainStatusRequest{ID: id, Status: "suspended"})
+		case "delete":
+			err = service.DeleteDomain(ctx, id)
+		default:
+			writeError(w, http.StatusBadRequest, "unknown action: "+input.Action)
+			return
+		}
+		if err != nil {
+			failed = append(failed, map[string]string{"id": id, "error": err.Error()})
+		} else {
+			succeeded = append(succeeded, id)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"succeeded": succeeded,
+		"failed":    failed,
+	})
 }
 
 // ─── Change History ───────────────────────────────────────────────────────────

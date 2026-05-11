@@ -7411,6 +7411,54 @@ paths:
                     type: string
         default:
           $ref: "#/components/responses/Error"
+  /domains/bulk:
+    post:
+      operationId: adminBulkDomains
+      summary: Bulk activate, suspend, or delete domains
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, action]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                action:
+                  type: string
+                  enum: [activate, suspend, delete]
+      responses:
+        "200":
+          description: Bulk operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  succeeded:
+                    type: array
+                    items:
+                      type: string
+                  failed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        error:
+                          type: string
+        default:
+          $ref: "#/components/responses/Error"
   /companies/{id}/change-history:
     get:
       operationId: adminGetCompanyChangeHistory

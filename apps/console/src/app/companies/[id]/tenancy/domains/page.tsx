@@ -16,10 +16,14 @@ import {
   Select,
   StatusIndicator,
   Alert,
+  Flashbar,
+  FlashbarProps,
+  ButtonDropdown,
 } from '@cloudscape-design/components';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useCompany } from '@/contexts/CompanyContext';
 
 const STATUS_OPTIONS = [
   { label: 'active', value: 'active' },
@@ -31,165 +35,151 @@ interface Domain {
   company_id: string;
   company_name: string;
   name: string;
-  name_ace: string;
   status: string;
   last_dns_check_status: string;
   quota_used: number;
   quota_limit: number;
-  quota_remaining: number;
-  allocated_user_quota: number;
-  allocatable_user_quota: number;
   created_at: string;
 }
 
-interface Company {
-  id: string;
-  name: string;
-}
+const dnsBadge = (status: string) => {
+  if (status === 'pass') return <Badge color="green">Pass</Badge>;
+  if (status === 'fail') return <Badge color="red">Fail</Badge>;
+  if (status === 'partial') return <Badge color="severity-high">Partial</Badge>;
+  return <Badge color="grey">Unchecked</Badge>;
+};
+
+const fmtQuota = (used: number, limit: number) => {
+  const gb = (b: number) => `${(b / 1073741824).toFixed(1)} GB`;
+  if (limit <= 0) return `${gb(used)} (unlimited)`;
+  const pct = Math.round((used / limit) * 100);
+  return `${gb(used)} / ${gb(limit)} (${pct}%)`;
+};
 
 export default function DomainsPage() {
   const { t } = useI18n();
-  const params = useParams();
   const router = useRouter();
-  const companyId = params?.id as string;
+  const { currentCompany } = useCompany();
+  const cid = currentCompany?.id;
 
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
-  const [filterCompany, setFilterCompany] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [newDomain, setNewDomain] = useState({ name: '', company_id: companyId === 'default' ? '' : companyId, quota_gb: '100' });
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState('');
+  const [flash, setFlash] = useState<FlashbarProps.MessageDefinition[]>([]);
+  const [selected, setSelected] = useState<Domain[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
 
-  // Edit modal
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', quota_gb: '100' });
+  const [creating, setCreating] = useState(false);
+
   const [editTarget, setEditTarget] = useState<Domain | null>(null);
   const [editForm, setEditForm] = useState({ quota_gb: '', status: 'active' });
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
 
-  // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<Domain | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
 
-  useEffect(() => {
-    fetchDomains();
-    fetchCompanies();
-  }, []);
+  const ok = (msg: string) => setFlash([{ type: 'success', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
+  const err = (msg: string) => setFlash([{ type: 'error', content: msg, dismissible: true, onDismiss: () => setFlash([]) }]);
 
-  const fetchDomains = async () => {
+  const load = useCallback(async () => {
+    if (!cid) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/domains?limit=200', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setDomains(data.domains || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch domains:', error);
+      const url = cid === 'default'
+        ? '/admin/v1/domains?limit=200'
+        : `/admin/v1/domains?company_id=${cid}&limit=200`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setDomains(data.domains ?? []);
+      setSelected([]);
+    } catch {
+      err('Failed to load domains');
     } finally {
       setLoading(false);
     }
-  };
+  }, [cid]);
 
-  const fetchCompanies = async () => {
-    try {
-      const res = await fetch('/api/admin/companies?limit=200', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setCompanies(data.companies || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch companies:', error);
-    }
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const handleCreateDomain = async () => {
-    if (!newDomain.name.trim() || !newDomain.company_id) return;
+  const filtered = useMemo(() => {
+    if (!filter) return domains;
+    const q = filter.toLowerCase();
+    return domains.filter(d => d.name.toLowerCase().includes(q) || d.company_name?.toLowerCase().includes(q));
+  }, [domains, filter]);
+
+  const handleCreate = async () => {
+    if (!createForm.name.trim()) return;
     setCreating(true);
-    setCreateError('');
     try {
-      const quotaBytes = parseInt(newDomain.quota_gb) * 1024 * 1024 * 1024;
-      const res = await fetch('/api/admin/domains', {
+      const res = await fetch('/admin/v1/domains', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newDomain.name.trim(),
-          company_id: newDomain.company_id,
-          quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes,
+          name: createForm.name.trim(),
+          company_id: cid,
+          quota_limit: parseInt(createForm.quota_gb) * 1073741824 || 0,
         }),
-        credentials: 'include',
       });
-      if (res.ok) {
-        setShowModal(false);
-        setNewDomain({ name: '', company_id: companyId === 'default' ? '' : companyId, quota_gb: '100' });
-        fetchDomains();
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        setCreateError(data.error ?? `오류 ${res.status}`);
-      }
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : '네트워크 오류');
+      if (!res.ok) throw new Error(await res.text());
+      ok('Domain created');
+      setShowCreate(false);
+      setCreateForm({ name: '', quota_gb: '100' });
+      load();
+    } catch (e: unknown) {
+      err(String(e));
     } finally {
       setCreating(false);
     }
   };
 
-  const handleVerifyDNS = async (domainId: string) => {
-    setVerifying(domainId);
+  const handleVerifyDNS = async (id: string) => {
+    setVerifying(id);
     try {
-      const res = await fetch(`/api/admin/domains/${domainId}/dns-check`, {
-        credentials: 'include',
-      });
-      if (res.ok) fetchDomains();
-    } catch (error) {
-      console.error('Failed to verify DNS:', error);
+      await fetch(`/admin/v1/domains/${id}/dns-check`, { method: 'POST' });
+      load();
+    } catch {
+      err('DNS check failed');
     } finally {
       setVerifying(null);
     }
   };
 
-  const openEdit = useCallback((d: Domain) => {
+  const openEdit = (d: Domain) => {
     setEditTarget(d);
     setEditForm({
-      quota_gb: d.quota_limit > 0 ? String(Math.round(d.quota_limit / 1073741824)) : '',
       status: d.status,
+      quota_gb: d.quota_limit > 0 ? String(Math.round(d.quota_limit / 1073741824)) : '',
     });
-    setSaveError('');
-  }, []);
+  };
 
   const handleSaveEdit = async () => {
     if (!editTarget) return;
     setSaving(true);
-    setSaveError('');
     try {
-      const quotaBytes = editForm.quota_gb ? parseInt(editForm.quota_gb) * 1073741824 : 0;
-      const [statusRes, quotaRes] = await Promise.all([
-        editTarget.status !== editForm.status
-          ? fetch(`/api/admin/domains/${editTarget.id}/status`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: editForm.status }),
-              credentials: 'include',
-            })
-          : Promise.resolve({ ok: true } as Response),
-        fetch(`/api/admin/domains/${editTarget.id}/quota`, {
+      const calls: Promise<Response>[] = [];
+      if (editTarget.status !== editForm.status) {
+        calls.push(fetch(`/admin/v1/domains/${editTarget.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quota_limit: isNaN(quotaBytes) ? 0 : quotaBytes }),
-          credentials: 'include',
-        }),
-      ]);
-      if (!statusRes.ok || !quotaRes.ok) {
-        const errData = await (statusRes.ok ? quotaRes : statusRes).json().catch(() => ({})) as { error?: { message?: string } };
-        setSaveError(errData.error?.message ?? '저장 실패');
-        return;
+          body: JSON.stringify({ status: editForm.status }),
+        }));
       }
+      if (editForm.quota_gb) {
+        calls.push(fetch(`/admin/v1/domains/${editTarget.id}/quota`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quota_limit: parseInt(editForm.quota_gb) * 1073741824 }),
+        }));
+      }
+      await Promise.all(calls);
+      ok('Domain updated');
       setEditTarget(null);
-      fetchDomains();
+      load();
+    } catch (e: unknown) {
+      err(String(e));
     } finally {
       setSaving(false);
     }
@@ -198,294 +188,210 @@ export default function DomainsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    setDeleteError('');
     try {
-      const res = await fetch(`/api/admin/domains/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) {
-        setDeleteTarget(null);
-        fetchDomains();
-      } else {
-        const data = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setDeleteError(data.error?.message ?? '삭제 실패');
-      }
+      const res = await fetch(`/admin/v1/domains/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      ok('Domain deleted');
+      setDeleteTarget(null);
+      load();
+    } catch (e: unknown) {
+      err(String(e));
     } finally {
       setDeleting(false);
     }
   };
 
-  const getDNSBadge = (status: string) => {
-    switch (status) {
-      case 'pass': return <Badge color="green">Pass</Badge>;
-      case 'fail': return <Badge color="red">Fail</Badge>;
-      case 'partial': return <Badge color="severity-high">Partial</Badge>;
-      default: return <Badge color="grey">{t('pages.tenancy_domains.unchecked') || 'Unchecked'}</Badge>;
+  const handleBulk = async (action: 'activate' | 'suspend' | 'delete') => {
+    if (selected.length === 0) return;
+    if (action === 'delete' && !confirm(`Delete ${selected.length} domain(s)?`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/admin/v1/domains/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selected.map(d => d.id), action }),
+      });
+      const data = await res.json();
+      const s = data.succeeded?.length ?? 0;
+      const f = data.failed?.length ?? 0;
+      ok(`${action}: ${s} succeeded${f > 0 ? `, ${f} failed` : ''}`);
+      load();
+    } catch (e: unknown) {
+      err(String(e));
+    } finally {
+      setBulkLoading(false);
     }
   };
 
-  const filteredDomains = domains.filter(d => {
-    const matchesName = d.name.toLowerCase().includes(filter.toLowerCase());
-    const matchesCompany = !filterCompany || d.company_id === filterCompany;
-    return matchesName && matchesCompany;
-  });
-
-  const companyOptions = [
-    { label: t('pages.tenancy_domains.all_companies'), value: '' },
-    ...companies.map(c => ({ label: c.name, value: c.id })),
-  ];
-
-  if (loading) {
-    return (
-      <ContentLayout header={<Header variant="h1">{t('pages.domains.title')}</Header>}>
-        <Box textAlign="center" padding="xl"><Spinner /></Box>
-      </ContentLayout>
-    );
-  }
+  if (loading && domains.length === 0) return <Box padding="xl"><Spinner /></Box>;
 
   return (
-    <>
     <ContentLayout
       header={
         <Header
           variant="h1"
-          description={t('pages.tenancy_domains.description')}
           counter={`(${domains.length})`}
-          actions={
-            <Button variant="primary" onClick={() => setShowModal(true)}>
-              {t('pages.domains.create_domain')}
-            </Button>
-          }
+          actions={<Button variant="primary" onClick={() => setShowCreate(true)}>Add Domain</Button>}
         >
           {t('pages.domains.title')}
         </Header>
       }
     >
-      <SpaceBetween size="l">
+      <SpaceBetween size="m">
+        {flash.length > 0 && <Flashbar items={flash} />}
+
         <Table
+          selectionType="multi"
+          selectedItems={selected}
+          onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
+          trackBy="id"
+          items={filtered}
+          loading={loading}
           columnDefinitions={[
             {
-              header: t('pages.tenancy_domains.domain'),
-              cell: (d: Domain) => (
+              id: 'name', header: 'Domain',
+              cell: (d) => (
                 <Button variant="inline-link" onClick={() => router.push(`/companies/${d.company_id}/domains/${d.id}`)}>
                   {d.name}
                 </Button>
               ),
-              width: '22%',
             },
             {
-              header: t('pages.tenancy_domains.company'),
-              cell: (d: Domain) => (
-                <Box>
-                  <Box fontWeight="bold" fontSize="body-s">{d.company_name || '—'}</Box>
-                  <Box color="text-body-secondary" fontSize="body-s">{d.company_id}</Box>
-                </Box>
-              ),
-              width: '20%',
+              id: 'company', header: 'Company',
+              cell: (d) => d.company_name || d.company_id,
             },
             {
-              header: t('pages.domains.status'),
-              cell: (d: Domain) => (
-                <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>
-              ),
-              width: '10%',
+              id: 'status', header: 'Status',
+              cell: (d) => <Badge color={d.status === 'active' ? 'green' : 'grey'}>{d.status}</Badge>,
             },
             {
-              header: t('pages.tenancy_domains.dns'),
-              cell: (d: Domain) => getDNSBadge(d.last_dns_check_status),
-              width: '10%',
+              id: 'dns', header: 'DNS',
+              cell: (d) => dnsBadge(d.last_dns_check_status),
             },
             {
-              header: t('pages.tenancy_domains.quota_used'),
-              cell: (d: Domain) => {
-                const limit = d.quota_limit ?? 0;
-                const used = d.quota_used ?? 0;
-                const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
-                return (
-                  <Box>
-                    <Box>
-                      {limit > 0
-                        ? `${(used / 1073741824).toFixed(1)} / ${(limit / 1073741824).toFixed(1)} GB`
-                        : `${(used / 1073741824).toFixed(1)} GB (${t('pages.tenancy_domains.unlimited')})`}
-                    </Box>
-                    {limit > 0 && (
-                      <Box color={pct > 80 ? 'text-status-error' : 'text-body-secondary'} fontSize="body-s">{pct}%</Box>
-                    )}
-                  </Box>
-                );
-              },
-              width: '18%',
+              id: 'quota', header: 'Quota',
+              cell: (d) => fmtQuota(d.quota_used, d.quota_limit),
             },
             {
-              header: t('pages.domains.created'),
-              cell: (d: Domain) => new Date(d.created_at).toLocaleDateString(),
-              width: '10%',
+              id: 'created', header: 'Created',
+              cell: (d) => new Date(d.created_at).toLocaleDateString(),
             },
             {
-              header: t('pages.tenancy_domains.actions'),
-              cell: (d: Domain) => (
+              id: 'actions', header: '',
+              cell: (d) => (
                 <SpaceBetween direction="horizontal" size="xs">
-                  <Button
-                    variant="inline-link"
-                    onClick={() => handleVerifyDNS(d.id)}
-                    loading={verifying === d.id}
-                    disabled={d.last_dns_check_status === 'pass'}
-                  >
-                    {t('pages.tenancy_domains.verify_dns')}
-                  </Button>
-                  <Button variant="inline-link" onClick={() => openEdit(d)}>
-                    {t('common.edit') || '수정'}
-                  </Button>
-                  <Button variant="inline-link" onClick={() => { setDeleteTarget(d); setDeleteError(''); }}>
-                    {t('common.delete') || '삭제'}
-                  </Button>
+                  <Button variant="inline-link" loading={verifying === d.id} onClick={() => handleVerifyDNS(d.id)}>Verify DNS</Button>
+                  <Button variant="inline-link" onClick={() => openEdit(d)}>Edit</Button>
+                  <Button variant="inline-link" onClick={() => setDeleteTarget(d)}>Delete</Button>
                 </SpaceBetween>
               ),
-              width: '20%',
             },
           ]}
-          items={filteredDomains}
-          header={<Header variant="h2" counter={`(${filteredDomains.length})`}>{t('pages.tenancy_domains.domain_list')}</Header>}
+          header={
+            <Header
+              variant="h2"
+              counter={selected.length > 0 ? `(${selected.length}/${filtered.length})` : `(${filtered.length})`}
+              actions={
+                selected.length > 0 ? (
+                  <SpaceBetween size="xs" direction="horizontal">
+                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>{selected.length} selected</Box>
+                    <ButtonDropdown
+                      loading={bulkLoading}
+                      items={[
+                        { id: 'activate', text: 'Activate selected' },
+                        { id: 'suspend', text: 'Suspend selected' },
+                        { id: 'delete', text: 'Delete selected', disabled: false },
+                      ]}
+                      onItemClick={({ detail }) => handleBulk(detail.id as 'activate' | 'suspend' | 'delete')}
+                    >
+                      Bulk Actions
+                    </ButtonDropdown>
+                  </SpaceBetween>
+                ) : undefined
+              }
+            >
+              Domains
+            </Header>
+          }
           filter={
-            <SpaceBetween direction="horizontal" size="xs">
-              <TextFilter
-                filteringText={filter}
-                filteringPlaceholder={t('pages.tenancy_domains.search_by_domain')}
-                onChange={(e) => setFilter(e.detail.filteringText)}
-              />
-              <Select
-                selectedOption={companyOptions.find(o => o.value === filterCompany) ?? companyOptions[0]}
-                options={companyOptions}
-                onChange={(e) => setFilterCompany(e.detail.selectedOption.value ?? '')}
-                placeholder={t('pages.tenancy_domains.filter_by_company')}
-              />
-            </SpaceBetween>
+            <TextFilter
+              filteringText={filter}
+              filteringPlaceholder="Search domains…"
+              onChange={(e) => setFilter(e.detail.filteringText)}
+              countText={`${filtered.length} domains`}
+            />
           }
-          empty={
-            <Box textAlign="center" padding="l">
-              <StatusIndicator type="info">{t('pages.tenancy_domains.no_domains')}</StatusIndicator>
-            </Box>
-          }
+          empty={<Box textAlign="center" padding="l"><StatusIndicator type="info">No domains found</StatusIndicator></Box>}
         />
 
-        {/* Create Domain Modal */}
         <Modal
-          onDismiss={() => setShowModal(false)}
-          visible={showModal}
-          size="medium"
+          visible={showCreate}
+          onDismiss={() => setShowCreate(false)}
+          header="Add Domain"
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
-                <Button
-                  variant="primary"
-                  onClick={handleCreateDomain}
-                  loading={creating}
-                  disabled={!newDomain.name.trim() || !newDomain.company_id}
-                >
-                  {t('pages.tenancy_domains.add_domain_btn')}
-                </Button>
+                <Button onClick={() => setShowCreate(false)}>Cancel</Button>
+                <Button variant="primary" loading={creating} onClick={handleCreate} disabled={!createForm.name.trim()}>Create</Button>
               </SpaceBetween>
             </Box>
           }
-          header={t('pages.tenancy_domains.add_new_domain')}
         >
           <SpaceBetween size="m">
-            <FormField
-              key="company"
-              label={t('pages.tenancy_domains.company')}
-              description={t('pages.tenancy_domains.filter_by_company')}
-            >
-              <Select
-                selectedOption={
-                  companies.find(c => c.id === newDomain.company_id)
-                    ? { label: companies.find(c => c.id === newDomain.company_id)!.name, value: newDomain.company_id }
-                    : null
-                }
-                options={companies.map(c => ({ label: c.name, value: c.id }))}
-                onChange={(e) => setNewDomain({ ...newDomain, company_id: e.detail.selectedOption.value ?? '' })}
-                placeholder={t('pages.tenancy_domains.select_company')}
-                empty={t('pages.tenancy_domains.no_companies')}
-              />
+            <FormField label="Domain Name">
+              <Input value={createForm.name} placeholder="example.com" onChange={(e) => setCreateForm(f => ({ ...f, name: e.detail.value }))} />
             </FormField>
-            <FormField key="name" label={t('pages.domains.domain_name')}>
-              <Input
-                value={newDomain.name}
-                onChange={(e) => setNewDomain({ ...newDomain, name: e.detail.value })}
-                placeholder="example.com"
-              />
+            <FormField label="Storage Quota (GB)" constraintText="0 = unlimited">
+              <Input type="number" value={createForm.quota_gb} onChange={(e) => setCreateForm(f => ({ ...f, quota_gb: e.detail.value }))} />
             </FormField>
-            <FormField key="quota" label={t('pages.tenancy_domains.storage_quota_gb')}>
-              <Input
-                type="number"
-                value={newDomain.quota_gb}
-                onChange={(e) => setNewDomain({ ...newDomain, quota_gb: e.detail.value })}
-              />
-            </FormField>
-            {createError ? (
-              <Alert key="error" type="error" onDismiss={() => setCreateError('')}>
-                {createError}
-              </Alert>
-            ) : null}
           </SpaceBetween>
         </Modal>
 
+        <Modal
+          visible={!!editTarget}
+          onDismiss={() => setEditTarget(null)}
+          header={`Edit — ${editTarget?.name ?? ''}`}
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button onClick={() => setEditTarget(null)}>Cancel</Button>
+                <Button variant="primary" loading={saving} onClick={handleSaveEdit}>Save</Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <SpaceBetween size="m">
+            <FormField label="Status">
+              <Select
+                selectedOption={STATUS_OPTIONS.find(o => o.value === editForm.status) ?? STATUS_OPTIONS[0]}
+                options={STATUS_OPTIONS}
+                onChange={(e) => setEditForm(f => ({ ...f, status: e.detail.selectedOption.value ?? 'active' }))}
+              />
+            </FormField>
+            <FormField label="Storage Quota (GB)" constraintText="0 = unlimited">
+              <Input type="number" value={editForm.quota_gb} onChange={(e) => setEditForm(f => ({ ...f, quota_gb: e.detail.value }))} />
+            </FormField>
+          </SpaceBetween>
+        </Modal>
+
+        <Modal
+          visible={!!deleteTarget}
+          onDismiss={() => setDeleteTarget(null)}
+          header="Delete Domain"
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+                <Button variant="primary" loading={deleting} onClick={handleDelete}>Delete</Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <Alert type="warning">
+            Delete <strong>{deleteTarget?.name}</strong>? This cannot be undone.
+          </Alert>
+        </Modal>
       </SpaceBetween>
     </ContentLayout>
-
-    {/* Edit Domain Modal */}
-    <Modal
-      visible={!!editTarget}
-      onDismiss={() => { setEditTarget(null); setSaveError(''); }}
-      header={`${t('common.edit') || '도메인 수정'} — ${editTarget?.name ?? ''}`}
-      footer={
-        <Box float="right">
-          <SpaceBetween direction="horizontal" size="xs">
-            <Button onClick={() => { setEditTarget(null); setSaveError(''); }}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handleSaveEdit} loading={saving}>{t('common.save') || '저장'}</Button>
-          </SpaceBetween>
-        </Box>
-      }
-    >
-      <SpaceBetween size="m">
-        <FormField label={t('pages.domains.status') || '상태'}>
-          <Select
-            selectedOption={STATUS_OPTIONS.find(o => o.value === editForm.status) ?? STATUS_OPTIONS[0]}
-            options={STATUS_OPTIONS}
-            onChange={(e) => setEditForm({ ...editForm, status: e.detail.selectedOption.value ?? 'active' })}
-          />
-        </FormField>
-        <FormField label={t('pages.tenancy_domains.storage_quota_gb') || '스토리지 할당량 (GB)'} description="0 = 무제한">
-          <Input
-            type="number"
-            value={editForm.quota_gb}
-            onChange={(e) => setEditForm({ ...editForm, quota_gb: e.detail.value })}
-            placeholder="0 = 무제한"
-          />
-        </FormField>
-        {saveError ? <Alert type="error">{saveError}</Alert> : null}
-      </SpaceBetween>
-    </Modal>
-
-    {/* Delete Domain Modal */}
-    <Modal
-      visible={!!deleteTarget}
-      onDismiss={() => { setDeleteTarget(null); setDeleteError(''); }}
-      header={t('common.delete') || '도메인 삭제'}
-      footer={
-        <Box float="right">
-          <SpaceBetween direction="horizontal" size="xs">
-            <Button onClick={() => { setDeleteTarget(null); setDeleteError(''); }}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handleDelete} loading={deleting}>
-              {t('common.delete') || '삭제'}
-            </Button>
-          </SpaceBetween>
-        </Box>
-      }
-    >
-      <SpaceBetween size="m">
-        <Box><strong>{deleteTarget?.name}</strong> 도메인을 삭제하시겠습니까? 사용자가 있는 경우 삭제할 수 없습니다.</Box>
-        {deleteError ? <Alert type="error">{deleteError}</Alert> : null}
-      </SpaceBetween>
-    </Modal>
-    </>
   );
 }
