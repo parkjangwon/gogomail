@@ -434,6 +434,12 @@ export default function MailPage() {
       // g+key two-key folder navigation
       if (gPrefixRef.current) {
         gPrefixRef.current = false;
+        if (e.key === 'u') {
+          e.preventDefault();
+          const firstUnread = list.find((m) => !m.read);
+          if (firstUnread) setSelectedMessageId(firstUnread.id);
+          return;
+        }
         const systemTypeMap: Record<string, string> = { i: 'inbox', s: 'sent', d: 'drafts', t: 'trash' };
         const target = systemTypeMap[e.key];
         if (target) {
