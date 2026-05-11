@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMessage, restoreMessage, bulkRestoreMessages, createFolder, renameFolder, deleteFolder, starMessage, markRead, moveMessage, bulkMarkRead, searchMessages, sendMessage, listThreads, listThreadMessages, ComposeIntent, MessageDetail, MessageSummary, ThreadSummary } from '@/lib/api';
-import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS } from '@/components/Sidebar';
+import { AdvancedFilters, VIRTUAL_STARRED, VIRTUAL_ATTACHMENTS, VIRTUAL_UNREAD } from '@/components/Sidebar';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -115,6 +115,7 @@ export default function MailPage() {
       if (cancelled) return;
       let msgs = res.messages ?? [];
       if (activeFolderId === VIRTUAL_STARRED) msgs = msgs.filter((m) => m.starred);
+      if (activeFolderId === VIRTUAL_UNREAD) msgs = msgs.filter((m) => !m.read);
       setMessages(msgs);
     }).catch(() => {});
     return () => { cancelled = true; };
