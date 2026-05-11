@@ -957,6 +957,7 @@ export default function MailPage() {
           onBulkLabel={handleBulkLabel}
           onBulkStar={handleBulkStar}
           messageLabels={messageLabels}
+          userEmail={userEmail || undefined}
         />
 
       </div>{/* end layout wrapper */}

@@ -109,9 +109,10 @@ interface MessageListProps {
   onArchiveMessage?: (id: string) => void;
   onToggleReadMessage?: (id: string, read: boolean) => void;
   messageLabels?: Record<string, string>;
+  userEmail?: string;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {} }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, onToggleReadMessage, messageLabels = {}, userEmail }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -743,6 +744,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               onHoverToggleRead={!isMobile ? onToggleReadMessage : undefined}
               threadCount={threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
+              userEmail={userEmail}
             />
           ))}
         </div>
@@ -776,9 +778,10 @@ interface MessageRowProps {
   onHoverToggleRead?: (id: string, read: boolean) => void;
   threadCount?: number;
   labelColor?: string;
+  userEmail?: string;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, onHoverArchive, onHoverToggleRead, threadCount, labelColor, userEmail }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
@@ -868,8 +871,13 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
 
       {/* Sender avatar */}
       {!compact && (
-        <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center' }}>
-          {(message.from_name || message.from_addr).charAt(0).toUpperCase()}
+        <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center', overflow: 'hidden' }}>
+          {(() => {
+            if (userEmail && message.from_addr === userEmail) {
+              try { const av = localStorage.getItem('webmail_avatar'); if (av) return <img src={av} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />; } catch { /* */ }
+            }
+            return (message.from_name || message.from_addr).charAt(0).toUpperCase();
+          })()}
         </div>
       )}
 

@@ -13,6 +13,13 @@ interface WebmailSettings {
   notifications: boolean;
   accentColor: string;
   locale: string;
+  autoSaveDraft: boolean;
+  sendDelay: 0 | 5 | 10 | 30;
+  threadView: boolean;
+  showPreview: boolean;
+  inlineImages: boolean;
+  externalImages: 'always' | 'ask' | 'never';
+  fontSize: 'small' | 'medium' | 'large';
 }
 
 const DEFAULT_SETTINGS: WebmailSettings = {
@@ -25,6 +32,13 @@ const DEFAULT_SETTINGS: WebmailSettings = {
   notifications: false,
   accentColor: '#2F6EE0',
   locale: 'ko',
+  autoSaveDraft: true,
+  sendDelay: 0,
+  threadView: true,
+  showPreview: true,
+  inlineImages: true,
+  externalImages: 'ask',
+  fontSize: 'medium',
 };
 
 const ACCENT_PRESETS = [
@@ -65,7 +79,7 @@ function saveSettings(s: WebmailSettings) {
   } catch { /* */ }
 }
 
-type Category = 'mailbox' | 'compose' | 'theme' | 'notifications' | 'account';
+type Category = 'mailbox' | 'compose' | 'theme' | 'notifications' | 'account' | 'security' | 'shortcuts' | 'advanced';
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'mailbox', label: '메일함' },
@@ -73,6 +87,9 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'theme', label: '테마' },
   { id: 'notifications', label: '알림' },
   { id: 'account', label: '계정' },
+  { id: 'security', label: '보안' },
+  { id: 'shortcuts', label: '단축키' },
+  { id: 'advanced', label: '고급' },
 ];
 
 interface SettingsModalProps {
@@ -84,9 +101,11 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
   const [activeCategory, setActiveCategory] = useState<Category>('mailbox');
   const [settings, setSettings] = useState<WebmailSettings>(DEFAULT_SETTINGS);
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   useEffect(() => {
     setSettings(loadSettings());
+    try { setAvatarUrl(localStorage.getItem('webmail_avatar') ?? ''); } catch { /* */ }
   }, []);
 
   useEffect(() => {
@@ -206,6 +225,18 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
                 ))}
               </div>
             </div>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.showPreview ?? true} onChange={(e) => update('showPreview', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>본문 미리보기</span>
+              </label>
+            </div>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.threadView ?? true} onChange={(e) => update('threadView', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>대화 묶음 보기</span>
+              </label>
+            </div>
           </>
         );
       case 'compose':
@@ -248,6 +279,23 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
               <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px', textAlign: 'right' }}>
                 {settings.signature.length}/500
               </div>
+            </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>전송 취소 시간</span>
+              <div style={radioGroupStyle}>
+                {([['0', '사용 안 함'], ['5', '5초'], ['10', '10초'], ['30', '30초']] as const).map(([val, lbl]) => (
+                  <label key={val} style={radioLabelStyle}>
+                    <input type="radio" name="sendDelay" value={val} checked={String(settings.sendDelay ?? 0) === val} onChange={() => update('sendDelay', Number(val) as 0 | 5 | 10 | 30)} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.autoSaveDraft ?? true} onChange={(e) => update('autoSaveDraft', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>자동 임시 저장</span>
+              </label>
             </div>
           </>
         );
@@ -339,6 +387,54 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
         return (
           <>
             <div style={sectionStyle}>
+              <span style={labelStyle}>프로필 사진</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '72px', height: '72px', borderRadius: '50%',
+                  background: avatarUrl ? 'transparent' : 'var(--color-accent)', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', fontWeight: 700, overflow: 'hidden', flexShrink: 0,
+                  border: '2px solid var(--color-border-subtle)',
+                }}>
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="프로필" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : (userEmail ?? '?').charAt(0).toUpperCase()
+                  }
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 500 }}
+                  >
+                    사진 업로드
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const url = ev.target?.result as string;
+                          setAvatarUrl(url);
+                          try { localStorage.setItem('webmail_avatar', url); } catch { /* */ }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  {avatarUrl && (
+                    <button
+                      onClick={() => { setAvatarUrl(''); try { localStorage.removeItem('webmail_avatar'); } catch { /* */ } }}
+                      style={{ padding: '7px 14px', background: 'transparent', border: '1px solid var(--color-border-default)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-destructive)' }}
+                    >
+                      사진 제거
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={sectionStyle}>
               <span style={labelStyle}>이메일</span>
               <input
                 type="email"
@@ -377,6 +473,110 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
                   cursor: 'default',
                 }}
               />
+            </div>
+          </>
+        );
+      case 'security':
+        return (
+          <>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>세션 정보</span>
+              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  ['최근 로그인', (() => { try { const v = localStorage.getItem('webmail_login_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
+                  ['최근 접속 IP', (() => { try { return localStorage.getItem('webmail_login_ip') ?? '-'; } catch { return '-'; } })()],
+                  ['세션 만료', (() => { try { const v = localStorage.getItem('webmail_token_expires_at'); return v ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)) : '-'; } catch { return '-'; } })()],
+                ].map(([label, val]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: '6px' }}>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
+                    <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>외부 이미지 로드</span>
+              <div style={radioGroupStyle}>
+                {([['always', '항상 표시'], ['ask', '확인 후 표시'], ['never', '차단']] as const).map(([val, lbl]) => (
+                  <label key={val} style={radioLabelStyle}>
+                    <input type="radio" name="externalImages" value={val} checked={settings.externalImages === val} onChange={() => update('externalImages', val)} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </>
+        );
+      case 'shortcuts':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {[
+              ['c', '새 메일 작성'],
+              ['r', '회신'],
+              ['a', '전체 회신'],
+              ['f', '전달'],
+              ['/', '검색 포커스'],
+              ['[', '사이드바 접기/펼치기'],
+              ['j / k', '다음/이전 메일'],
+              ['e', '보관'],
+              ['Delete', '삭제'],
+              ['m', '읽음으로 표시'],
+              ['u', '안읽음으로 표시'],
+              ['s', '중요 표시 토글'],
+              ['Esc', '메일 닫기'],
+            ].map(([key, desc]) => (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: '6px', background: 'var(--color-bg-secondary)', marginBottom: '2px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{desc}</span>
+                <kbd style={{ fontSize: '11px', fontFamily: 'monospace', padding: '2px 8px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '4px', color: 'var(--color-text-primary)', fontWeight: 600 }}>{key}</kbd>
+              </div>
+            ))}
+          </div>
+        );
+      case 'advanced':
+        return (
+          <>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.threadView ?? true} onChange={(e) => update('threadView', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>대화 묶음 보기</span>
+              </label>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>같은 주제의 메일을 하나의 대화로 묶어서 표시합니다.</p>
+            </div>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.showPreview ?? true} onChange={(e) => update('showPreview', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>미리보기 표시</span>
+              </label>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>메일 목록에서 본문 일부를 미리 표시합니다.</p>
+            </div>
+            <div style={sectionStyle}>
+              <label style={{ ...radioLabelStyle, cursor: 'pointer' }}>
+                <input type="checkbox" checked={settings.autoSaveDraft ?? true} onChange={(e) => update('autoSaveDraft', e.target.checked)} />
+                <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontWeight: 500 }}>임시 저장 자동 저장</span>
+              </label>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px', marginLeft: '24px' }}>메일 작성 중 일정 시간마다 자동으로 임시 저장합니다.</p>
+            </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>전송 취소 시간</span>
+              <div style={radioGroupStyle}>
+                {([['0', '사용 안 함'], ['5', '5초'], ['10', '10초'], ['30', '30초']] as const).map(([val, lbl]) => (
+                  <label key={val} style={radioLabelStyle}>
+                    <input type="radio" name="sendDelay" value={val} checked={String(settings.sendDelay ?? 0) === val} onChange={() => update('sendDelay', Number(val) as 0 | 5 | 10 | 30)} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={sectionStyle}>
+              <span style={labelStyle}>글꼴 크기</span>
+              <div style={radioGroupStyle}>
+                {([['small', '작게'], ['medium', '보통'], ['large', '크게']] as const).map(([val, lbl]) => (
+                  <label key={val} style={radioLabelStyle}>
+                    <input type="radio" name="fontSize" value={val} checked={(settings.fontSize ?? 'medium') === val} onChange={() => update('fontSize', val)} />
+                    {lbl}
+                  </label>
+                ))}
+              </div>
             </div>
           </>
         );
