@@ -447,6 +447,22 @@ export default function MailPage() {
           }
           break;
         }
+        case 'l': {
+          if (selectedMessageId && !composeContext) {
+            const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
+            const current = messageLabels[selectedMessageId];
+            const currentIdx = current ? colors.indexOf(current) : -1;
+            if (currentIdx === colors.length - 1) setLabel(selectedMessageId, null);
+            else setLabel(selectedMessageId, colors[currentIdx + 1]);
+          }
+          break;
+        }
+        case 'z': {
+          if (selectedMessageId && !composeContext && activeFolderSystemType !== 'trash') {
+            handleSnooze(selectedMessageId, new Date(Date.now() + 60 * 60 * 1000));
+          }
+          break;
+        }
         case '#':
         case 'Delete':
           if (selectedMessageId && !composeContext) handleDelete();

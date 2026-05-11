@@ -16,6 +16,8 @@ const SHORTCUTS = [
   { key: '/', desc: '검색창 포커스' },
   { key: '[', desc: '사이드바 접기 / 펼치기' },
   { key: 'Escape', desc: '닫기 / 선택 해제' },
+  { key: 'l', desc: '라벨 색상 순환' },
+  { key: 'z', desc: '1시간 스누즈' },
   { key: '?', desc: '단축키 도움말' },
 ];
 
