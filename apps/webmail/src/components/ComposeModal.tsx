@@ -15,6 +15,27 @@ interface ComposeModalProps {
   sourceMessage?: MessageDetail;
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildQuoteHTML(intent: string, source: MessageDetail): string {
+  const from = source.from_name
+    ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
+    : escapeHtml(source.from_addr);
+  const date = new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(source.received_at));
+  const bodyLines = (source.text_body || '')
+    .split('\n')
+    .map((line) => `<p>${escapeHtml(line) || '&nbsp;'}</p>`)
+    .join('');
+  const header = intent === 'forward'
+    ? '<p><strong>---------- 전달된 메시지 ----------</strong></p>'
+    : '<p><strong>--- 원본 메시지 ---</strong></p>';
+  return `<p></p>${header}<blockquote><p><strong>보낸 사람:</strong> ${from}</p><p><strong>날짜:</strong> ${escapeHtml(date)}</p><p><strong>제목:</strong> ${escapeHtml(source.subject || '(제목 없음)')}</p><p>&nbsp;</p>${bodyLines}</blockquote>`;
+}
+
 const toolbarBtnStyle = (active?: boolean): React.CSSProperties => ({
   width: '28px',
   height: '28px',
@@ -95,6 +116,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
   const bccRef = useRef('');
   const subjectRef = useRef(replySubject);
 
+  const initialContent = sourceMessage && (intent === 'reply' || intent === 'reply_all' || intent === 'forward')
+    ? buildQuoteHTML(intent, sourceMessage)
+    : '';
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -103,6 +128,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: '메시지를 입력하세요...' }),
     ],
+    content: initialContent,
     editorProps: {
       attributes: {
         style: [
@@ -125,6 +151,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
     immediatelyRender: false,
   });
 
+  // Move cursor to start so user types above the quoted text
+  useEffect(() => {
+    if (editor && initialContent) {
+      editor.commands.focus('start');
+    }
+  }, [editor, initialContent]);
+
   async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!to.trim()) {
@@ -145,6 +178,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage }: Compose
         ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
         subject: subject.trim(),
         text_body: bodyText,
+        ...(editor && { html_body: editor.getHTML() }),
         ...(intent !== 'new' && sourceMessage && {
           intent,
           source_message_id: sourceMessage.id,

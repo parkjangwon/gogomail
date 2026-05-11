@@ -48,6 +48,7 @@ export interface SendMessageRequest {
   bcc?: { address: string; name?: string }[];
   subject: string;
   text_body: string;
+  html_body?: string;
   from?: string;
   intent?: ComposeIntent;
   source_message_id?: string;
