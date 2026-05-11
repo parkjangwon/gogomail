@@ -95,6 +95,7 @@ interface MessageListProps {
 
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [filterLabel, setFilterLabel] = useState<string | null>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
@@ -202,15 +203,21 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? messages.filter((m) => m.starred)
     : messages;
 
+  const afterLabelFilter = filterLabel
+    ? baseFiltered.filter((m) => messageLabels[m.id] === filterLabel)
+    : baseFiltered;
+
   const qf = quickFilter.trim().toLowerCase();
   const afterQuickFilter = qf
-    ? baseFiltered.filter((m) =>
+    ? afterLabelFilter.filter((m) =>
         m.from_name?.toLowerCase().includes(qf) ||
         m.from_addr.toLowerCase().includes(qf) ||
         m.subject.toLowerCase().includes(qf) ||
         m.preview?.toLowerCase().includes(qf)
       )
-    : baseFiltered;
+    : afterLabelFilter;
+
+  const activeLabelColors = [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))];
 
   const sortedBase = sortAsc
     ? [...afterQuickFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
@@ -430,8 +437,27 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           </button>
         );
       })}
+      {/* Label color filter dots */}
+      {activeLabelColors.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '2px' }}>
+          {activeLabelColors.map((color) => (
+            <button
+              key={color}
+              title={filterLabel === color ? '라벨 필터 해제' : '이 라벨로 필터'}
+              onClick={() => setFilterLabel(filterLabel === color ? null : color)}
+              style={{
+                width: '12px', height: '12px', borderRadius: '50%', background: color,
+                border: filterLabel === color ? '2px solid var(--color-text-primary)' : '2px solid transparent',
+                cursor: 'pointer', flexShrink: 0, padding: 0,
+                boxShadow: filterLabel === color ? '0 0 0 1px ' + color : 'none',
+                transition: 'border-color 100ms ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
       <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
-        {filterMode !== 'all' ? `${filteredMessages.length} / ${messages.length}개` : `${filteredMessages.length}개`}
+        {filterMode !== 'all' || filterLabel ? `${filteredMessages.length} / ${messages.length}개` : `${filteredMessages.length}개`}
       </span>
       {filteredMessages.some((m) => !m.read) && (
         <button
