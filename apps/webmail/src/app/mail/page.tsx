@@ -39,6 +39,7 @@ export default function MailPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [pendingCompose, setPendingCompose] = useState<{ intent: 'reply' | 'forward'; messageId: string } | null>(null);
   const [listPaneWidth, setListPaneWidth] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
   });
@@ -106,6 +107,12 @@ export default function MailPage() {
     setComposeContext({ intent: 'new', draft: selectedMessage });
     setSelectedMessageId(null);
   }, [selectedMessage, activeFolderSystemType]);
+
+  useEffect(() => {
+    if (!pendingCompose || !selectedMessage || selectedMessage.id !== pendingCompose.messageId) return;
+    setComposeContext({ intent: pendingCompose.intent, source: selectedMessage });
+    setPendingCompose(null);
+  }, [pendingCompose, selectedMessage]);
 
   // Mark selected message as read locally + server after 1.5s (skip drafts)
   useEffect(() => {
@@ -674,34 +681,41 @@ export default function MailPage() {
                 label: '답장',
                 onClick: () => {
                   handleSelectMessage(contextMenu.id);
-                  if (selectedMessage?.id === contextMenu.id) {
-                    setComposeContext({ intent: 'reply', source: selectedMessage });
-                  }
+                  setPendingCompose({ intent: 'reply', messageId: contextMenu.id });
                 },
               },
               {
                 label: '전달',
                 onClick: () => {
                   handleSelectMessage(contextMenu.id);
-                  if (selectedMessage?.id === contextMenu.id) {
-                    setComposeContext({ intent: 'forward', source: selectedMessage });
-                  }
+                  setPendingCompose({ intent: 'forward', messageId: contextMenu.id });
                 },
               },
               {
                 label: ctxMsg?.starred ? '별표 해제' : '별표 추가',
                 onClick: () => ctxMsg && handleStar(contextMenu.id, !ctxMsg.starred),
               },
-              {
-                label: '읽지 않음으로',
-                onClick: () => {
-                  setMessages((prev) =>
-                    prev.map((m) => (m.id === contextMenu.id ? { ...m, read: false } : m))
-                  );
-                  adjustUnread(activeFolderId, 1);
-                  markRead(contextMenu.id, false).catch(() => {});
-                },
-              },
+              ctxMsg?.read
+                ? {
+                    label: '읽지 않음으로',
+                    onClick: () => {
+                      setMessages((prev) =>
+                        prev.map((m) => (m.id === contextMenu.id ? { ...m, read: false } : m))
+                      );
+                      adjustUnread(activeFolderId, 1);
+                      markRead(contextMenu.id, false).catch(() => {});
+                    },
+                  }
+                : {
+                    label: '읽음으로',
+                    onClick: () => {
+                      setMessages((prev) =>
+                        prev.map((m) => (m.id === contextMenu.id ? { ...m, read: true } : m))
+                      );
+                      adjustUnread(activeFolderId, -1);
+                      markRead(contextMenu.id, true).catch(() => {});
+                    },
+                  },
               {
                 label: '삭제',
                 danger: true,
