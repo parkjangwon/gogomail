@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { MessageDetail } from '@/lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { MessageDetail, Folder } from '@/lib/api';
 
 function SafeHTMLBody({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -29,11 +29,13 @@ function SafeHTMLBody({ html }: { html: string }) {
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
+  folders?: Folder[];
   onDelete?: () => void;
   onReply?: () => void;
   onReplyAll?: () => void;
   onForward?: () => void;
   onMarkUnread?: () => void;
+  onMove?: (folderId: string) => void;
   loading?: boolean;
 }
 
@@ -95,13 +97,16 @@ function ActionButton({
 
 export function ReadingPane({
   message,
+  folders = [],
   onDelete,
   onReply,
   onReplyAll,
   onForward,
   onMarkUnread,
+  onMove,
   loading,
 }: ReadingPaneProps) {
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   if (loading) {
     return (
       <main
@@ -202,6 +207,50 @@ export function ReadingPane({
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
         <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
+        {onMove && folders.length > 0 && (
+          <div style={{ position: 'relative' }}>
+            <ActionButton label="이동" onClick={() => setShowMoveMenu((v) => !v)} />
+            {showMoveMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '4px',
+                  background: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                  zIndex: 200,
+                  minWidth: '160px',
+                  overflow: 'hidden',
+                }}
+              >
+                {folders.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => { onMove(f.id); setShowMoveMenu(false); }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '8px 14px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+                  >
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <ActionButton label="삭제" onClick={onDelete} danger />
       </div>
 

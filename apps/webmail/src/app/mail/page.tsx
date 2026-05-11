@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteMessage, starMessage, markRead, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
+import { deleteMessage, starMessage, markRead, moveMessage, searchMessages, ComposeIntent, MessageDetail, MessageSummary } from '@/lib/api';
 import { useMailList } from '@/hooks/useMailList';
 import { useMessage } from '@/hooks/useMessage';
 import { Sidebar } from '@/components/Sidebar';
@@ -102,6 +102,16 @@ export default function MailPage() {
     } catch {
       // ignore
     }
+  }, [selectedMessageId, setMessages]);
+
+  const handleMove = useCallback(async (folderId: string) => {
+    if (!selectedMessageId) return;
+    const id = selectedMessageId;
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    setSelectedMessageId(null);
+    moveMessage(id, folderId).catch(() => {
+      // message already removed from list; reload will reconcile
+    });
   }, [selectedMessageId, setMessages]);
 
   const handleStar = useCallback(async (id: string, starred: boolean) => {
@@ -224,11 +234,13 @@ export default function MailPage() {
 
       <ReadingPane
         message={selectedMessage}
+        folders={folders}
         onDelete={handleDelete}
         onReply={() => selectedMessage && setComposeContext({ intent: 'reply', source: selectedMessage })}
         onReplyAll={() => selectedMessage && setComposeContext({ intent: 'reply_all', source: selectedMessage })}
         onForward={() => selectedMessage && setComposeContext({ intent: 'forward', source: selectedMessage })}
         onMarkUnread={handleMarkUnread}
+        onMove={handleMove}
         loading={messageLoading}
       />
 

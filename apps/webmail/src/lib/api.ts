@@ -217,6 +217,28 @@ export function starMessage(id: string, value: boolean): Promise<{ status: strin
   return apiPatch<{ status: string }>(`messages/${id}/flags`, { flag: 'starred', value });
 }
 
+export function moveMessage(id: string, folderId: string): Promise<{ status: string }> {
+  return apiPatch<{ status: string }>(`messages/${id}/folder`, { folder_id: folderId });
+}
+
+export interface DraftData {
+  draft_id?: string;
+  intent: ComposeIntent;
+  source_message_id?: string;
+  to: { address: string; name?: string }[];
+  cc?: { address: string; name?: string }[];
+  subject: string;
+  text_body: string;
+}
+
+export function saveDraft(data: DraftData): Promise<{ draft: { id: string } }> {
+  return apiPost<{ draft: { id: string } }>('drafts', data);
+}
+
+export function updateDraft(draftId: string, data: DraftData): Promise<{ draft: { id: string } }> {
+  return apiPatch<{ draft: { id: string } }>(`drafts/${draftId}`, data);
+}
+
 export function deleteMessage(id: string): Promise<void> {
   return apiDelete<void>(`messages/${id}`);
 }
