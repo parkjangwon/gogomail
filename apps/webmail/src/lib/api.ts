@@ -736,6 +736,25 @@ export async function listCalendarObjects(calendarId: string): Promise<CalendarO
   } catch { return []; }
 }
 
+export async function createCalendar(name: string, color: string, description = ''): Promise<Calendar> {
+  const data = await request<{ calendar: Calendar }>('calendars', {
+    method: 'POST',
+    body: JSON.stringify({ name, color, description }),
+  });
+  return data.calendar;
+}
+
+export async function updateCalendar(id: string, patch: { name?: string; color?: string; description?: string }): Promise<void> {
+  await request<unknown>(`calendars/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteCalendar(id: string): Promise<void> {
+  await request<unknown>(`calendars/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export interface CreateCalendarEventRequest {
   title: string;
   start: Date;
@@ -743,6 +762,7 @@ export interface CreateCalendarEventRequest {
   allDay: boolean;
   location?: string;
   description?: string;
+  rrule?: string;
 }
 
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
@@ -776,6 +796,7 @@ export async function createCalendarEvent(calendarId: string, req: CreateCalenda
   }
   if (req.location) lines.push(`LOCATION:${icsEscape(req.location)}`);
   if (req.description) lines.push(`DESCRIPTION:${icsEscape(req.description)}`);
+  if (req.rrule) lines.push(`RRULE:${req.rrule}`);
   lines.push('END:VEVENT', 'END:VCALENDAR');
   const ics = lines.join('\r\n');
   await request<unknown>(`calendars/${encodeURIComponent(calendarId)}/objects/${encodeURIComponent(objectName)}`, {
