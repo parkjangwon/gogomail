@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive } from '@/lib/api';
 import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
@@ -274,6 +274,20 @@ export function ReadingPane({
     setDownloadingId(att.id);
     try { await downloadAttachment(message.id, att.id, att.filename); } catch { /* ignore */ }
     finally { setDownloadingId(null); }
+  }, [message]);
+
+  const [savingToDriveId, setSavingToDriveId] = useState<string | null>(null);
+  const [driveToast, setDriveToast] = useState('');
+
+  const handleSaveToDrive = useCallback(async (att: Attachment) => {
+    if (!message) return;
+    setSavingToDriveId(att.id);
+    try {
+      const node = await saveAttachmentToDrive(message.id, att.id, att.filename, att.mime_type);
+      setDriveToast(node ? `"${att.filename}" 드라이브에 저장됨` : '드라이브 저장 실패');
+      setTimeout(() => setDriveToast(''), 3000);
+    } catch { setDriveToast('드라이브 저장 실패'); setTimeout(() => setDriveToast(''), 3000); }
+    finally { setSavingToDriveId(null); }
   }, [message]);
 
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
@@ -751,7 +765,7 @@ export function ReadingPane({
                   const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
                   const previewUrl = isImg ? imagePreviews[att.id] : undefined;
                   return (
-                    <div key={att.id} style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', maxWidth: '200px' }}>
+                    <div key={att.id} style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px', maxWidth: '220px' }}>
                       {previewUrl && (
                         <button
                           onClick={() => setLightbox({ url: previewUrl, filename: att.filename, attId: att.id })}
@@ -786,6 +800,17 @@ export function ReadingPane({
                         <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center' }}>{downloadingId === att.id ? <ArrowPathIcon style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} /> : icon}</span>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
                         <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
+                      </button>
+                      <button
+                        onClick={() => handleSaveToDrive(att)}
+                        disabled={savingToDriveId === att.id}
+                        title="드라이브에 저장"
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '4px 8px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '11px', cursor: savingToDriveId === att.id ? 'wait' : 'pointer', width: '100%' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                      >
+                        {savingToDriveId === att.id ? <ArrowPathIcon style={{ width: '11px', height: '11px', animation: 'spin 1s linear infinite' }} /> : '☁'}
+                        {savingToDriveId === att.id ? '저장 중...' : '드라이브에 저장'}
                       </button>
                     </div>
                   );
@@ -936,6 +961,13 @@ export function ReadingPane({
           </div>
         )}
       </div>
+
+      {/* Drive save toast */}
+      {driveToast && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'var(--color-text-primary)', color: 'var(--color-bg-primary)', fontSize: '13px', padding: '8px 18px', borderRadius: '20px', zIndex: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {driveToast}
+        </div>
+      )}
 
       {/* Image lightbox */}
       {lightbox && (
