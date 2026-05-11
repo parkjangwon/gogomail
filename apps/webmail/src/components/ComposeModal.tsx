@@ -425,7 +425,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         })
         .finally(() => setSending(false));
     } else {
-      setSendCountdown(5);
+      let sendDelay = 5;
+      try { sendDelay = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { sendDelay?: number }).sendDelay ?? 5); } catch { /* */ }
+      if (sendDelay === 0) {
+        // No undo window — send immediately
+        setSending(true);
+        sendMessage(msg)
+          .then(() => { setSent(true); setTimeout(() => onClose(), 1500); })
+          .catch((err: unknown) => { setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
+          .finally(() => setSending(false));
+      } else {
+        setSendCountdown(sendDelay);
+      }
     }
   }
 
