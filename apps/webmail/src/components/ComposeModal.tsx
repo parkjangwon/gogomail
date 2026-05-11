@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 import {
@@ -26,6 +27,7 @@ import {
   ChevronRightIcon,
   FaceSmileIcon,
   ArchiveBoxIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 
 interface EmailTemplate {
@@ -304,6 +306,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         ? `${initialBody.split('\n').map((l) => `<p>${escapeHtml(l) || '&nbsp;'}</p>`).join('')}<p></p>${sigHTML}`
         : `<p></p>${sigHTML}`);
 
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageResizeToolbar, setImageResizeToolbar] = useState<{ top: number; left: number } | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -311,6 +316,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       Link.configure({ openOnClick: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: '메시지를 입력하세요...' }),
+      Image.configure({ inline: true, allowBase64: true }),
     ],
     content: initialContent,
     editorProps: {
@@ -331,6 +337,20 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     },
     onUpdate: ({ editor: e }) => {
       triggerAutoSave(toRef.current, ccRef.current, bccRef.current, subjectRef.current, e.getText());
+    },
+    onSelectionUpdate: ({ editor: e }) => {
+      if (e.isActive('image')) {
+        // Find the selected image DOM node and position the toolbar
+        const selectedImg = e.view.dom.querySelector('img.ProseMirror-selectednode') as HTMLImageElement | null;
+        if (selectedImg) {
+          const rect = selectedImg.getBoundingClientRect();
+          setImageResizeToolbar({ top: rect.bottom + 6, left: rect.left });
+        } else {
+          setImageResizeToolbar(null);
+        }
+      } else {
+        setImageResizeToolbar(null);
+      }
     },
     immediatelyRender: false,
   });
@@ -477,6 +497,31 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       editor.chain().focus().setLink({ href: url }).run();
     }
   }
+
+  const handleImageFileSelect = useCallback(async (file: File) => {
+    if (!editor) return;
+    let src: string;
+    if (file.size < 500 * 1024) {
+      // Small image: convert to base64 data URL inline (fast, no upload needed)
+      src = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    } else {
+      // Large image: upload as attachment, then create an object URL for inline display
+      const objectUrl = URL.createObjectURL(file);
+      // Also upload in the background so it's attached to the email
+      uploadAttachment(file, draftIdRef.current || undefined)
+        .then((att) => {
+          setUploadedAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
+        })
+        .catch(() => { /* silent — image still displays via objectUrl */ });
+      src = objectUrl;
+    }
+    editor.chain().focus().setImage({ src, alt: file.name }).run();
+  }, [editor]);
 
   function startDrag(e: React.MouseEvent<HTMLDivElement>) {
     if (fullscreen || minimized || isMobile) return;
@@ -639,6 +684,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           .tiptap ul, .tiptap ol { padding-left: 20px; }
 .tiptap blockquote { border-left: 3px solid var(--color-border-default); margin: 4px 0; padding: 4px 12px; color: var(--color-text-secondary); }
 .tiptap code { background: var(--color-bg-secondary); border: 1px solid var(--color-border-subtle); border-radius: 3px; padding: 1px 4px; font-family: monospace; font-size: 12px; }
+.ProseMirror img { max-width: 100%; height: auto; cursor: pointer; }
+.ProseMirror img.ProseMirror-selectednode { outline: 2px solid var(--color-accent); }
         `}</style>
 
         {/* Header */}
@@ -998,6 +1045,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               style={{ display: 'none' }}
               onChange={(e) => { if (e.target.files?.length) { handleFileSelect(e.target.files); e.target.value = ''; } }}
             />
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => { if (e.target.files?.[0]) { void handleImageFileSelect(e.target.files[0]); e.target.value = ''; } }}
+            />
             {/* Formatting icons */}
             <button type="button" aria-label="굵게" title="굵게" style={toolbarBtnStyle(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
             <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyle(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
@@ -1034,6 +1088,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 </div>
               )}
             </div>
+
+            <button type="button" onClick={() => imageInputRef.current?.click()} title="이미지 삽입" style={toolbarBtnStyle()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
 
@@ -1165,6 +1221,50 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           </div>
         )}
       </div>
+
+      {/* Floating image resize toolbar */}
+      {imageResizeToolbar && editor?.isActive('image') && (
+        <div
+          style={{
+            position: 'fixed',
+            top: imageResizeToolbar.top,
+            left: imageResizeToolbar.left,
+            zIndex: 500,
+            display: 'flex',
+            gap: '2px',
+            background: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.16)',
+            padding: '3px',
+          }}
+        >
+          {([['소', '25%'], ['중', '50%'], ['대', '75%'], ['원본', '100%']] as const).map(([label, pct]) => (
+            <button
+              key={label}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                editor.chain().focus().updateAttributes('image', { style: `width: ${pct}` }).run();
+              }}
+              style={{
+                padding: '2px 8px',
+                fontSize: '11px',
+                fontWeight: 500,
+                borderRadius: '4px',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 }
