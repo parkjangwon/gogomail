@@ -260,6 +260,13 @@ export function ReadingPane({
   }, [fontSize]);
 
   const [savedContact, setSavedContact] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  function handleReadingScroll() {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const max = el.scrollHeight - el.clientHeight;
+    setScrollProgress(max > 0 ? Math.round((el.scrollTop / max) * 100) : 0);
+  }
 
   // Private notes
   const NOTES_KEY = 'webmail_notes';
@@ -555,6 +562,7 @@ export function ReadingPane({
     <main
       ref={scrollContainerRef}
       aria-label="메일 읽기"
+      onScroll={handleReadingScroll}
       style={{
         flex: 1,
         minWidth: 0,
@@ -563,8 +571,11 @@ export function ReadingPane({
         background: 'var(--color-bg-primary)',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
+      {/* Reading progress bar */}
+      <div aria-hidden="true" style={{ position: 'sticky', top: 0, left: 0, height: '2px', width: `${scrollProgress}%`, background: 'var(--color-accent)', zIndex: 10, transition: 'width 80ms linear', flexShrink: 0, marginBottom: '-2px' }} />
       {/* Toolbar */}
       <div
         style={{
