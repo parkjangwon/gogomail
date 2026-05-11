@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus } from '@/lib/api';
 import {
   ArrowUturnLeftIcon,
   ArrowUturnRightIcon,
@@ -246,6 +246,8 @@ export function ReadingPane({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<MessageDeliveryStatus | null>(null);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
 
   useEffect(() => {
     if (!message?.has_attachment || !message.id) { setAttachments([]); return; }
@@ -255,6 +257,17 @@ export function ReadingPane({
       .catch(() => setAttachments([]))
       .finally(() => setAttachmentsLoading(false));
   }, [message?.id, message?.has_attachment]);
+
+  const isSent = userEmail && message?.from_addr
+    ? message.from_addr.toLowerCase() === userEmail.toLowerCase()
+    : false;
+
+  useEffect(() => {
+    setDeliveryStatus(null);
+    setDeliveryOpen(false);
+    if (!message?.id || !isSent) return;
+    getMessageDeliveryStatus(message.id).then(setDeliveryStatus).catch(() => {});
+  }, [message?.id, isSent]);
 
   const handleDownload = useCallback(async (att: Attachment) => {
     if (!message) return;
@@ -669,6 +682,48 @@ export function ReadingPane({
             margin: '16px 0',
           }}
         />
+
+        {/* Delivery status — only for sent messages */}
+        {isSent && deliveryStatus && (
+          <div style={{ marginBottom: '16px', maxWidth: '680px' }}>
+            <button
+              onClick={() => setDeliveryOpen((v) => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: deliveryOpen ? '8px' : 0 }}
+            >
+              <span style={{ fontSize: '11px', transform: deliveryOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 150ms' }}>▶</span>
+              배달 현황
+              <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: '12px', color: deliveryStatus.delivery_status === 'delivered' ? 'var(--color-success, #22c55e)' : deliveryStatus.delivery_status === 'failed' ? 'var(--color-destructive)' : 'var(--color-text-tertiary)' }}>
+                ({deliveryStatus.delivery_status === 'delivered' ? '전달됨' : deliveryStatus.delivery_status === 'failed' ? '실패' : deliveryStatus.delivery_status === 'partial' ? '일부 실패' : '대기 중'})
+              </span>
+            </button>
+            {deliveryOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {deliveryStatus.attempts.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', padding: '6px 0' }}>배달 기록이 없습니다.</div>
+                ) : deliveryStatus.attempts.map((att, i) => {
+                  const isOk = att.status === 'delivered' || att.status === 'success';
+                  const isFail = att.status === 'failed' || att.status === 'bounced' || att.status === 'error';
+                  const statusColor = isOk ? 'var(--color-success, #22c55e)' : isFail ? 'var(--color-destructive)' : 'var(--color-text-tertiary)';
+                  const statusLabel = isOk ? '전달됨' : isFail ? '실패' : att.status === 'pending' ? '대기 중' : att.status;
+                  const dot = isOk ? '●' : isFail ? '●' : '○';
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 10px', borderRadius: '5px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
+                      <span style={{ color: statusColor, fontSize: '10px', marginTop: '2px' }}>{dot}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.recipient}</div>
+                        {att.error_message && <div style={{ fontSize: '11px', color: 'var(--color-destructive)', marginTop: '2px' }}>{att.error_message}</div>}
+                      </div>
+                      <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: statusColor }}>{statusLabel}</div>
+                        {att.attempted_at && <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginTop: '1px' }}>{new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(att.attempted_at))}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Attachments */}
         {message.has_attachment && (

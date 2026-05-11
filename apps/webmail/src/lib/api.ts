@@ -407,6 +407,29 @@ export async function deleteContact(addressBookId: string, objectName: string): 
   await request<void>(`addressbooks/${encodeURIComponent(addressBookId)}/contacts/${encodeURIComponent(objectName)}`, { method: 'DELETE' });
 }
 
+export interface DeliveryAttempt {
+  id: string;
+  recipient: string;
+  status: string;
+  error_message: string;
+  attempted_at: string;
+}
+
+export interface MessageDeliveryStatus {
+  message_id: string;
+  delivery_status: string;
+  bounce_status: string;
+  attempts: DeliveryAttempt[];
+  updated_at: string;
+}
+
+export async function getMessageDeliveryStatus(messageId: string): Promise<MessageDeliveryStatus | null> {
+  try {
+    const data = await request<{ delivery_status: MessageDeliveryStatus }>(`messages/${encodeURIComponent(messageId)}/delivery-status`);
+    return data.delivery_status ?? null;
+  } catch { return null; }
+}
+
 export interface UpsertContactFields {
   fn: string;
   email?: string;
