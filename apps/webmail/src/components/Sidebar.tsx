@@ -1,7 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import { Folder } from '@/lib/api';
+import {
+  PencilSquareIcon,
+  MagnifyingGlassIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  InboxIcon,
+  StarIcon,
+  PaperClipIcon,
+  PaperAirplaneIcon,
+  ArchiveBoxIcon,
+  TrashIcon,
+  NoSymbolIcon,
+  ClockIcon,
+  PencilIcon,
+  ArrowTopRightOnSquareIcon,
+} from '@heroicons/react/24/outline';
 
 const RECENT_SEARCHES_KEY = 'webmail_recent_searches';
 const MAX_RECENT = 5;
@@ -27,10 +43,10 @@ export const VIRTUAL_ALL = '__all__';
 export const VIRTUAL_STARRED = '__starred__';
 export const VIRTUAL_ATTACHMENTS = '__attachments__';
 
-const VIRTUAL_NAV: { id: string; label: string; icon: string }[] = [
-  { id: VIRTUAL_ALL, label: '모든 편지함', icon: '📬' },
-  { id: VIRTUAL_STARRED, label: '중요 편지함', icon: '⭐' },
-  { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: '📎' },
+const VIRTUAL_NAV: { id: string; label: string; icon: ReactNode }[] = [
+  { id: VIRTUAL_ALL, label: '모든 편지함', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_STARRED, label: '중요 편지함', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
 ];
 
 const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
@@ -64,14 +80,14 @@ export interface AdvancedFilters {
   has_attachment?: boolean;
 }
 
-const SYSTEM_FOLDER_ICONS: Record<string, string> = {
-  inbox: '📥',
-  sent: '📤',
-  drafts: '✏️',
-  trash: '🗑️',
-  spam: '🚫',
-  junk: '🚫',
-  archive: '📦',
+const SYSTEM_FOLDER_ICONS: Record<string, ReactNode> = {
+  inbox: <InboxIcon style={{ width: '18px', height: '18px' }} />,
+  sent: <PaperAirplaneIcon style={{ width: '18px', height: '18px' }} />,
+  drafts: <PencilSquareIcon style={{ width: '18px', height: '18px' }} />,
+  trash: <TrashIcon style={{ width: '18px', height: '18px' }} />,
+  spam: <NoSymbolIcon style={{ width: '18px', height: '18px' }} />,
+  junk: <NoSymbolIcon style={{ width: '18px', height: '18px' }} />,
+  archive: <ArchiveBoxIcon style={{ width: '18px', height: '18px' }} />,
 };
 
 interface SidebarProps {
@@ -226,22 +242,22 @@ export function Sidebar({
               style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}
               onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
               onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-            >→</button>
+            ><ChevronRightIcon style={{ width: '16px', height: '16px' }} /></button>
           )}
           {/* Compose */}
           <button
             aria-label="편지 쓰기"
             onClick={onCompose}
             title="편지 쓰기"
-            style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >✏</button>
+            style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          ><PencilSquareIcon style={{ width: '18px', height: '18px' }} /></button>
           {onComposeInNewWindow && (
             <button
               aria-label="새창으로 쓰기"
               onClick={onComposeInNewWindow}
               title="새창으로 쓰기"
-              style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}
-            >⧉</button>
+              style={{ width: '36px', height: '36px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}
+            ><ArrowTopRightOnSquareIcon style={{ width: '16px', height: '16px' }} /></button>
           )}
           {/* System folders */}
           {SYSTEM_FOLDER_META.map((sf) => {
@@ -249,7 +265,7 @@ export function Sidebar({
             const unread = serverFolder?.unread ?? 0;
             const folderId = serverFolder?.id ?? sf.systemType;
             const isActive = activeFolderId === folderId;
-            const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? '📁';
+            const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? <InboxIcon style={{ width: '18px', height: '18px' }} />;
             return (
               <button
                 key={sf.systemType}
@@ -317,7 +333,7 @@ export function Sidebar({
             style={{ width: '30px', height: '30px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-          >✏</button>
+          ><PencilSquareIcon style={{ width: '16px', height: '16px' }} /></button>
           {!isMobile && onToggleCollapse && (
             <button
               aria-label="사이드바 접기"
@@ -325,7 +341,7 @@ export function Sidebar({
               style={{ width: '30px', height: '30px', borderRadius: '6px', opacity: sidebarHovered ? 1 : 0, pointerEvents: sidebarHovered ? 'auto' : 'none', transition: 'opacity 150ms ease', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-            >«</button>
+            ><ChevronLeftIcon style={{ width: '16px', height: '16px' }} /></button>
           )}
         </div>
 
@@ -432,7 +448,7 @@ export function Sidebar({
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
           >
-            <span style={{ fontSize: '15px', lineHeight: 1 }}>🔍</span>
+            <MagnifyingGlassIcon style={{ width: '15px', height: '15px', flexShrink: 0 }} />
             <span>검색</span>
           </button>
         ) : (
@@ -529,7 +545,7 @@ export function Sidebar({
                   onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >
-                  <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>↺</span>
+                  <ClockIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
                   {q}
                 </button>
               ))}
@@ -734,8 +750,8 @@ export function Sidebar({
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{f.name}</span>
                     {isHovered && (onRenameFolder || onDeleteFolder) ? (
                       <span style={{ display: 'flex', gap: '2px', flexShrink: 0, marginInlineStart: '4px' }}>
-                        {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '1px 5px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', color: 'var(--color-text-tertiary)' }} title="이름 변경">✏</span>}
-                        {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 폴더를 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '1px 5px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', color: 'var(--color-destructive)' }} title="삭제">🗑</span>}
+                        {onRenameFolder && <span onClick={(e) => { e.stopPropagation(); setRenamingValue(f.name); setRenamingFolderId(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }} title="이름 변경"><PencilIcon style={{ width: '12px', height: '12px' }} /></span>}
+                        {onDeleteFolder && <span onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 폴더를 삭제하시겠습니까?`)) onDeleteFolder(f.id); }} style={{ padding: '2px 4px', borderRadius: '3px', cursor: 'pointer', color: 'var(--color-destructive)', display: 'inline-flex', alignItems: 'center' }} title="삭제"><TrashIcon style={{ width: '12px', height: '12px' }} /></span>}
                       </span>
                     ) : badge ? (
                       <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', flexShrink: 0, marginInlineStart: '8px' }}>{badge}</span>

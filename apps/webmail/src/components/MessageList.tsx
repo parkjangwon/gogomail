@@ -2,6 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MessageSummary, Folder } from '@/lib/api';
+import {
+  StarIcon,
+  EnvelopeIcon,
+  EnvelopeOpenIcon,
+  ArchiveBoxIcon,
+  TrashIcon,
+  PaperClipIcon,
+  MagnifyingGlassIcon,
+  Bars3Icon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 type FilterMode = 'all' | 'unread' | 'starred';
 
@@ -406,8 +418,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         <button
           aria-label="메뉴 열기"
           onClick={onOpenSidebar}
-          style={{ fontSize: '16px', padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', lineHeight: 1 }}
-        >☰</button>
+          style={{ padding: '3px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', marginRight: '4px', display: 'inline-flex', alignItems: 'center' }}
+        ><Bars3Icon style={{ width: '18px', height: '18px' }} /></button>
       )}
       <button
         aria-label="전체 선택"
@@ -506,9 +518,10 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           aria-label="빠른 필터 열기"
           title="빠른 필터 (/)  "
           onClick={() => { const next = !showQuickFilter; setShowQuickFilter(next); if (!next) { setQuickFilter(''); } else { setTimeout(() => quickFilterRef.current?.focus(), 50); } }}
-          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: showQuickFilter ? 'var(--color-accent-subtle)' : 'transparent', color: showQuickFilter ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
+          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: showQuickFilter ? 'var(--color-accent-subtle)' : 'transparent', color: showQuickFilter ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
         >
-          {quickFilter ? `🔍 ${messages.length - filteredMessages.length > 0 ? `${filteredMessages.length}/${messages.length}` : ''}` : '🔍'}
+          <MagnifyingGlassIcon style={{ width: '13px', height: '13px' }} />
+          {quickFilter && messages.length - filteredMessages.length > 0 && <span style={{ fontSize: '11px' }}>{filteredMessages.length}/{messages.length}</span>}
         </button>
         <button
           aria-label={conversationMode ? '대화 보기 해제' : '대화 보기'}
@@ -576,7 +589,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               alignItems: 'center',
             }}
           >
-            <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+            <ArrowPathIcon style={{ width: '14px', height: '14px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         )}
       </div>
@@ -860,7 +873,7 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             </span>
           )}
           {message.has_attachment && (
-            <span aria-label="첨부파일" style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>📎</span>
+            <PaperClipIcon aria-label="첨부파일" style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', display: 'inline-block', verticalAlign: 'middle', marginLeft: '4px', flexShrink: 0 }} />
           )}
         </div>
       </div>
@@ -874,45 +887,45 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
                 aria-label={message.starred ? '별표 해제' : '별표 추가'}
                 title={message.starred ? '별표 해제' : '별표 추가'}
                 onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >{message.starred ? '★' : '☆'}</button>
+              >{message.starred ? <StarIconSolid style={{ width: '14px', height: '14px' }} /> : <StarIcon style={{ width: '14px', height: '14px' }} />}</button>
             )}
             {onHoverToggleRead && (
               <button
                 aria-label={message.read ? '읽지 않음으로' : '읽음으로'}
                 title={message.read ? '읽지 않음으로' : '읽음으로'}
                 onClick={(e) => { e.stopPropagation(); onHoverToggleRead(message.id, !message.read); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >{message.read ? '○' : '◉'}</button>
+              >{message.read ? <EnvelopeOpenIcon style={{ width: '14px', height: '14px' }} /> : <EnvelopeIcon style={{ width: '14px', height: '14px' }} />}</button>
             )}
             {onHoverArchive && (
               <button
                 aria-label="아카이브"
                 title="아카이브"
                 onClick={(e) => { e.stopPropagation(); onHoverArchive(message.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >🗂</button>
+              ><ArchiveBoxIcon style={{ width: '14px', height: '14px' }} /></button>
             )}
             {onHoverDelete && (
               <button
                 aria-label="삭제"
                 title="삭제"
                 onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', fontSize: '13px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', color: 'var(--color-text-tertiary)', borderRadius: '4px', display: 'inline-flex', alignItems: 'center' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              >🗑</button>
+              ><TrashIcon style={{ width: '14px', height: '14px' }} /></button>
             )}
           </>
         ) : (
           <>
-            {message.starred && <span style={{ fontSize: '12px', color: '#f59e0b', marginRight: '2px' }}>★</span>}
+            {message.starred && <StarIconSolid style={{ width: '12px', height: '12px', color: '#f59e0b', marginRight: '2px', flexShrink: 0 }} />}
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
               title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
               {formatDate(message.received_at)}

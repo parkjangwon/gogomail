@@ -2,6 +2,20 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
 import { MessageDetail, MessageSummary, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
+import {
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  ArchiveBoxIcon,
+  ArrowTopRightOnSquareIcon,
+  EllipsisHorizontalIcon,
+  ArrowLeftIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  PaperClipIcon,
+  PhotoIcon,
+  DocumentIcon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 function linkify(text: string): ReactNode[] {
@@ -396,16 +410,16 @@ export function ReadingPane({
           <button
             aria-label="뒤로"
             onClick={onBack}
-            style={{ ...iconStyle, marginRight: 'auto', color: 'var(--color-text-secondary)' }}
-          >← 뒤로</button>
+            style={{ ...iconStyle, marginRight: 'auto', color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          ><ArrowLeftIcon style={{ width: '16px', height: '16px' }} /> 뒤로</button>
         )}
         {(onPrev || onNext) && !onBack && <div style={{ marginRight: 'auto' }} />}
         {onPrev && (
           <button aria-label="이전 메일" title="이전 메일 (k)" onClick={onPrev}
-            style={{ ...iconStyle, color: 'var(--color-text-secondary)' }}
+            style={{ ...iconStyle, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >↑</button>
+          ><ChevronUpIcon style={{ width: '16px', height: '16px' }} /></button>
         )}
         {messageIndex !== undefined && messageTotal !== undefined && (
           <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', minWidth: '40px', textAlign: 'center' }}>
@@ -414,19 +428,21 @@ export function ReadingPane({
         )}
         {onNext && (
           <button aria-label="다음 메일" title="다음 메일 (j)" onClick={onNext}
-            style={{ ...iconStyle, color: 'var(--color-text-secondary)' }}
+            style={{ ...iconStyle, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >↓</button>
+          ><ChevronDownIcon style={{ width: '16px', height: '16px' }} /></button>
         )}
         {/* Icon-only primary actions */}
-        {[
-          { icon: '↩', label: '답장', action: onReply },
-          { icon: '↩↩', label: '전체 답장', action: onReplyAll },
-          { icon: '↪', label: '전달', action: onForward },
-        ].map(({ icon, label, action }) => action ? (
+        {(
+          [
+            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px' }} />, label: '답장', action: onReply },
+            { icon: <ArrowUturnLeftIcon style={{ width: '16px', height: '16px', opacity: 0.7 }} />, label: '전체 답장', action: onReplyAll },
+            { icon: <ArrowUturnRightIcon style={{ width: '16px', height: '16px' }} />, label: '전달', action: onForward },
+          ] as Array<{ icon: ReactNode; label: string; action: (() => void) | undefined }>
+        ).map(({ icon, label, action }) => action ? (
           <button key={label} aria-label={label} title={label} onClick={action}
-            style={{ ...iconStyle, fontSize: '14px', padding: '5px 8px', border: 'none' }}
+            style={{ ...iconStyle, padding: '5px 8px', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >{icon}</button>
@@ -437,28 +453,28 @@ export function ReadingPane({
         {/* Archive */}
         {onArchive && (
           <button aria-label="아카이브" title="아카이브" onClick={onArchive}
-            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
+            style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >📁</button>
+          ><ArchiveBoxIcon style={{ width: '16px', height: '16px' }} /></button>
         )}
 
         {/* Open in window */}
         {onOpenInWindow && (
           <button aria-label="새 창으로 열기" title="새 창으로 열기" onClick={onOpenInWindow}
-            style={{ ...iconStyle, border: 'none', fontSize: '14px', padding: '5px 8px' }}
+            style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >⧉</button>
+          ><ArrowTopRightOnSquareIcon style={{ width: '16px', height: '16px' }} /></button>
         )}
 
         {/* More menu */}
         <div ref={moreMenuRef} style={{ position: 'relative' }}>
           <button aria-label="더 보기" title="더 보기" onClick={() => setShowMoreMenu((v) => !v)}
-            style={{ ...iconStyle, border: 'none', fontSize: '16px', padding: '5px 8px', letterSpacing: '-1px' }}
+            style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-          >···</button>
+          ><EllipsisHorizontalIcon style={{ width: '18px', height: '18px' }} /></button>
           {showMoreMenu && (
             <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.14)', zIndex: 300, minWidth: '200px', overflow: 'hidden' }}>
               {/* Move to folder */}
@@ -657,7 +673,7 @@ export function ReadingPane({
               <div style={{ fontSize: '13px', color: 'var(--color-text-tertiary)' }}>로딩 중...</div>
             ) : attachments.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                <span aria-hidden="true">📎</span>
+                <PaperClipIcon aria-hidden="true" style={{ width: '14px', height: '14px', flexShrink: 0 }} />
                 <span>첨부파일을 불러올 수 없습니다</span>
               </div>
             ) : (
@@ -665,7 +681,11 @@ export function ReadingPane({
                 {attachments.map((att) => {
                   const isImg = att.mime_type.startsWith('image/');
                   const isPdf = att.mime_type === 'application/pdf';
-                  const icon = isImg ? '🖼️' : isPdf ? '📄' : '📎';
+                  const icon = isImg
+                    ? <PhotoIcon style={{ width: '14px', height: '14px' }} />
+                    : isPdf
+                    ? <DocumentIcon style={{ width: '14px', height: '14px' }} />
+                    : <PaperClipIcon style={{ width: '14px', height: '14px' }} />;
                   const kb = att.size < 1024 * 1024 ? `${Math.round(att.size / 1024)} KB` : `${(att.size / 1024 / 1024).toFixed(1)} MB`;
                   const previewUrl = isImg ? imagePreviews[att.id] : undefined;
                   return (
@@ -701,7 +721,7 @@ export function ReadingPane({
                         onMouseEnter={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                         onMouseLeave={(e) => { if (downloadingId !== att.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                       >
-                        <span aria-hidden="true">{downloadingId === att.id ? '⏳' : icon}</span>
+                        <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center' }}>{downloadingId === att.id ? <ArrowPathIcon style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} /> : icon}</span>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{att.filename}</span>
                         <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{kb}</span>
                       </button>
