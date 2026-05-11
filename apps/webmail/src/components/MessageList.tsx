@@ -28,22 +28,23 @@ function formatDate(receivedAt: string): string {
   const date = new Date(receivedAt);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
+  if (diffMins < 1) return '방금 전';
+  if (diffMins < 60) return `${diffMins}분 전`;
+  if (diffHours < 12 && date.getDate() === now.getDate()) return `${diffHours}시간 전`;
   if (diffDays === 0) {
-    return new Intl.DateTimeFormat('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date);
+    return new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
   }
   if (diffDays < 7) {
     return new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date);
   }
-  return new Intl.DateTimeFormat('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-  }).format(date);
+  if (date.getFullYear() === now.getFullYear()) {
+    return new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric' }).format(date);
+  }
+  return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(date);
 }
 
 function getDateGroup(receivedAt: string): string {
@@ -859,7 +860,10 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
             {message.has_attachment && (
               <span aria-label="첨부파일 있음" title="첨부파일" style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>📎</span>
             )}
-            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+            <span
+              style={{ fontSize: '13px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
+              title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}
+            >
               {formatDate(message.received_at)}
             </span>
           </div>
