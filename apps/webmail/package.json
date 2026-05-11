@@ -18,6 +18,8 @@
     "@tiptap/pm": "^2.27.2",
     "@tiptap/react": "^2.27.2",
     "@tiptap/starter-kit": "^2.27.2",
+    "@types/dompurify": "^3.2.0",
+    "dompurify": "^3.4.2",
     "next": "^15.5.18",
     "next-intl": "^4.11.1",
     "react": "^19.2.6",

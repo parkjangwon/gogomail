@@ -34,7 +34,7 @@ export default async function RootLayout({
   const messages = await loadMessages(locale);
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script

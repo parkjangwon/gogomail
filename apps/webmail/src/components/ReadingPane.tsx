@@ -1,6 +1,31 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { MessageDetail } from '@/lib/api';
+
+function SafeHTMLBody({ html }: { html: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    import('dompurify').then(({ default: DOMPurify }) => {
+      if (!ref.current) return;
+      const clean = DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+      });
+      ref.current.innerHTML = clean;
+    });
+  }, [html]);
+
+  return (
+    <div
+      ref={ref}
+      style={{ wordBreak: 'break-word', lineHeight: 1.6 }}
+    />
+  );
+}
 
 interface ReadingPaneProps {
   message: MessageDetail | null;
@@ -262,16 +287,20 @@ export function ReadingPane({
             color: 'var(--color-text-primary)',
           }}
         >
-          <pre
-            style={{
-              fontFamily: 'inherit',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              margin: 0,
-            }}
-          >
-            {message.text_body || '(내용 없음)'}
-          </pre>
+          {message.html_body ? (
+            <SafeHTMLBody html={message.html_body} />
+          ) : (
+            <pre
+              style={{
+                fontFamily: 'inherit',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0,
+              }}
+            >
+              {message.text_body || '(내용 없음)'}
+            </pre>
+          )}
         </div>
       </div>
     </main>

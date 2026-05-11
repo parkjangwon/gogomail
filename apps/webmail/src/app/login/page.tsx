@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, KeyboardEvent } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+
+const DEV_USER_ID = process.env.NEXT_PUBLIC_GOGOMAIL_DEV_USER_ID || '';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +13,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Dev mode: skip login and go directly to mail
+  useEffect(() => {
+    if (DEV_USER_ID) {
+      localStorage.setItem('webmail_token', '__dev__');
+      router.push('/mail');
+    }
+  }, [router]);
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();

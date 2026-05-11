@@ -9,6 +9,12 @@
 
 **STATUS: IN PROGRESS**
 
+### 진행 로그 (2026-05-11)
+
+- TASK-090: API 통합 완료 — field name 불일치 전면 수정 (from_addr, read, received_at 등)
+- TASK-090: HTML 이메일 렌더링 — EML 파서 HTML body 추출, DOMPurify 새니타이징
+- TASK-090: dev 모드 bypass — GOGOMAIL_DEV_USER_ID로 JWT 없이 테스트 가능
+
 ### 핫픽스 적용 (2026-05-11)
 - `internal/maildb/admin.go`: `NULLIF($N, 0)` → `NULLIF($N::bigint, 0)` — pgx int4 타입 추론 오버플로우 수정 (도메인/사용자/회사 quota 5곳)
 - `apps/console` 도메인 모달 React key prop 경고 수정

@@ -542,6 +542,7 @@ func (s *Service) GetMessage(ctx context.Context, userID string, messageID strin
 		return maildb.MessageDetail{}, fmt.Errorf("parse message body: %w", err)
 	}
 	detail.TextBody = parsed.TextBody
+	detail.HTMLBody = parsed.HTMLBody
 	return detail, nil
 }
 
