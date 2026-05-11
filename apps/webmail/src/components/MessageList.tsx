@@ -122,8 +122,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
-  const [compact] = useState(() => {
+  const [compact, setCompact] = useState(() => {
     try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
+  });
+  const toggleCompact = () => setCompact((v) => {
+    const next = !v;
+    try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ }
+    return next;
   });
   const lastBulkIndexRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -552,6 +557,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </button>
         {showMoreMenu && (
           <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
+            <button
+              onClick={() => { toggleCompact(); setShowMoreMenu(false); }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <span>컴팩트 보기</span>
+              <span style={{ width: '28px', height: '16px', borderRadius: '8px', background: compact ? 'var(--color-accent)' : 'var(--color-border-default)', display: 'inline-flex', alignItems: 'center', transition: 'background 150ms ease', flexShrink: 0 }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#fff', marginLeft: compact ? '14px' : '2px', transition: 'margin-left 150ms ease', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </span>
+            </button>
             {onMarkAllRead && messages.some((m) => !m.read) && (
               <button
                 onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }}
