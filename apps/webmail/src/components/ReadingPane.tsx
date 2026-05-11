@@ -107,6 +107,8 @@ interface ReadingPaneProps {
   onReplyAll?: () => void;
   onForward?: () => void;
   onMarkUnread?: () => void;
+  onMarkRead?: () => void;
+  isRead?: boolean;
   onMove?: (folderId: string) => void;
   onPrint?: () => void;
   loading?: boolean;
@@ -197,6 +199,8 @@ export function ReadingPane({
   onReplyAll,
   onForward,
   onMarkUnread,
+  onMarkRead,
+  isRead,
   onMove,
   onPrint,
   loading,
@@ -445,7 +449,10 @@ export function ReadingPane({
         <ActionButton label="답장" onClick={onReply} />
         <ActionButton label="전체 답장" onClick={onReplyAll} />
         <ActionButton label="전달" onClick={onForward} />
-        <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
+        {isRead === false
+          ? <ActionButton label="읽음으로" onClick={onMarkRead} />
+          : <ActionButton label="읽지 않음으로" onClick={onMarkUnread} />
+        }
         {onStar && (
           <button
             onClick={() => onStar(!isStarred)}
