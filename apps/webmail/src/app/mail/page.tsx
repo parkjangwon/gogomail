@@ -24,6 +24,7 @@ import { OrgChartView } from '@/components/OrgChartView';
 import { SettingsView } from '@/components/SettingsView';
 import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/SettingsModal';
+import { SpotlightSearch } from '@/components/SpotlightSearch';
 
 export default function MailPage() {
   const router = useRouter();
@@ -65,6 +66,7 @@ export default function MailPage() {
   }, []);
 
   const [activeApp, setActiveApp] = useState<AppId>('mail');
+  const [showSpotlight, setShowSpotlight] = useState(false);
 
   const [wmSettings, setWmSettings] = useState<{ showPreview: boolean; externalImages: string }>(() => {
     try {
@@ -657,7 +659,7 @@ export default function MailPage() {
         case 'k': {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            document.querySelector<HTMLInputElement>('[aria-label="메일 검색"]')?.focus();
+            setShowSpotlight(true);
           } else {
             const prev = list[currentIdx - 1];
             if (prev) setSelectedMessageId(prev.id);
@@ -1446,6 +1448,18 @@ export default function MailPage() {
           />
         );
       })()}
+
+      {showSpotlight && (
+        <SpotlightSearch
+          onClose={() => setShowSpotlight(false)}
+          folders={folders}
+          onSelectFolder={(id) => { handleSelectFolder(id); setShowSpotlight(false); }}
+          onCompose={() => { openCompose({ intent: 'new' }); setShowSpotlight(false); }}
+          onSelectMessage={(id) => { handleSelectMessage(id); setShowSpotlight(false); }}
+          onOpenSettings={() => { setActiveApp('settings'); setShowSpotlight(false); }}
+          onSearch={(q) => { handleSearch(q); setActiveApp('mail'); setShowSpotlight(false); }}
+        />
+      )}
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
