@@ -32,6 +32,7 @@ interface SidebarProps {
   onSearch?: (q: string) => void;
   searchQuery?: string;
   userName?: string;
+  onLogout?: () => void;
 }
 
 export function Sidebar({
@@ -42,6 +43,7 @@ export function Sidebar({
   onSearch,
   searchQuery = '',
   userName = '사용자',
+  onLogout,
 }: SidebarProps) {
   const systemFoldersByType = new Map(folders.map((f) => [f.system_type ?? '', f]));
   const systemFolderIds = new Set(folders.filter((f) => f.system_type).map((f) => f.id));
@@ -258,8 +260,27 @@ export function Sidebar({
           })}
       </nav>
 
-      {/* Compose button */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border-subtle)' }}>
+      {/* Compose button + logout */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            style={{
+              width: '100%',
+              padding: '7px 16px',
+              borderRadius: '6px',
+              border: '1px solid var(--color-border-default)',
+              background: 'transparent',
+              color: 'var(--color-text-secondary)',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >
+            로그아웃
+          </button>
+        )}
         <button
           onClick={onCompose}
           style={{

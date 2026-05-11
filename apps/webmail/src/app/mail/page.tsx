@@ -19,6 +19,7 @@ export default function MailPage() {
 
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
   const [composeContext, setComposeContext] = useState<{
     intent: ComposeIntent;
     source?: MessageDetail;
@@ -50,10 +51,17 @@ export default function MailPage() {
   const { message: selectedMessage, loading: messageLoading } =
     useMessage(selectedMessageId);
 
-  // Check auth on mount
+  // Check auth on mount, load email
   useEffect(() => {
     const token = localStorage.getItem('webmail_token');
-    if (!token) router.push('/login');
+    if (!token) { router.push('/login'); return; }
+    setUserEmail(localStorage.getItem('webmail_email') ?? '');
+  }, [router]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('webmail_token');
+    localStorage.removeItem('webmail_email');
+    router.push('/login');
   }, [router]);
 
   // Mark selected message as read locally + update sidebar badge
@@ -254,6 +262,8 @@ export default function MailPage() {
         onCompose={() => setComposeContext({ intent: 'new' })}
         onSearch={handleSearch}
         searchQuery={searchQuery}
+        userName={userEmail || '사용자'}
+        onLogout={handleLogout}
       />
 
       <MessageList
