@@ -297,6 +297,120 @@ export function bulkRestoreMessages(ids: string[]): Promise<void> {
   return apiPost<void>('messages/bulk/restore', { message_ids: ids });
 }
 
+// ─── Storage / Backup / Restore ───────────────────────────────────────────────
+
+export interface FolderStats {
+  id: string;
+  name: string;
+  system_type?: string;
+  total: number;
+  unread: number;
+  starred: number;
+  size_bytes: number;
+}
+
+export async function getFolderStats(): Promise<FolderStats[]> {
+  const { folders } = await getFolders();
+  return folders.map((f) => ({ ...f, size_bytes: f.total * 32 * 1024 }));
+}
+
+function formatEml(msg: MessageDetail): string {
+  const date = new Date(msg.received_at ?? Date.now()).toUTCString();
+  const to = msg.to_addrs.map((a) => (a.name ? `"${a.name}" <${a.address}>` : a.address)).join(', ');
+  const from = msg.from_name ? `"${msg.from_name}" <${msg.from_addr}>` : msg.from_addr;
+  const body = msg.html_body ?? msg.text_body ?? '';
+  return [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${msg.subject ?? ''}`,
+    `Date: ${date}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: ${msg.html_body ? 'text/html' : 'text/plain'}; charset=utf-8`,
+    ``,
+    body,
+  ].join('\r\n');
+}
+
+async function fetchAllMessages(
+  folderId: string,
+  onProgress?: (fetched: number, total: number) => void
+): Promise<MessageDetail[]> {
+  const details: MessageDetail[] = [];
+  let cursor = '';
+  let estimatedTotal = 0;
+  while (true) {
+    const { messages, has_more, next_cursor } = await getMessages(folderId, cursor, 50);
+    if (!cursor) estimatedTotal = has_more ? messages.length * 2 : messages.length;
+    for (const summary of messages) {
+      const detail = await getMessage(summary.id);
+      details.push(detail);
+      onProgress?.(details.length, Math.max(estimatedTotal, details.length));
+    }
+    if (!has_more) break;
+    cursor = next_cursor;
+    estimatedTotal = Math.max(estimatedTotal, details.length + 50);
+  }
+  return details;
+}
+
+export async function exportFolderEml(
+  folderId: string,
+  folderName: string,
+  onProgress?: (fetched: number, total: number) => void
+): Promise<void> {
+  const messages = await fetchAllMessages(folderId, onProgress);
+  const mbox = messages
+    .map((m) => `From ${m.from_addr} ${new Date(m.received_at).toUTCString()}\r\n${formatEml(m)}`)
+    .join('\r\n\r\n');
+  const blob = new Blob([mbox], { type: 'application/mbox' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${folderName}-backup.mbox`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+export async function exportFolderZip(
+  folderId: string,
+  folderName: string,
+  onProgress?: (fetched: number, total: number) => void
+): Promise<void> {
+  const { zipSync, strToU8 } = await import('fflate');
+  const messages = await fetchAllMessages(folderId, onProgress);
+  const files: Record<string, Uint8Array> = {};
+  messages.forEach((m, i) => {
+    const safeSubject = (m.subject ?? 'untitled').replace(/[^\w가-힣\s-]/g, '').trim().slice(0, 48) || 'untitled';
+    files[`${String(i + 1).padStart(4, '0')}-${safeSubject}.eml`] = strToU8(formatEml(m));
+  });
+  const zipped = zipSync(files);
+  const blob = new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${folderName}-backup.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+export async function restoreMailbox(folderId: string, file: File): Promise<{ imported: number }> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder_id', folderId);
+  const res = await fetch('/api/mail/messages/restore', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) {
+    let msg = `Restore failed: ${res.status}`;
+    try { const e = (await res.json()) as { error?: string }; msg = e.error ?? msg; } catch { /* */ }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<{ imported: number }>;
+}
+
 export function sendMessage(data: SendMessageRequest): Promise<void> {
   return apiPost<void>('messages/send', data);
 }
