@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, KeyboardEvent, ClipboardEvent } from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface RecipientChipsProps {
   value: string;
@@ -99,8 +100,8 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
             type="button"
             onClick={(e) => { e.stopPropagation(); removeChip(i); }}
             aria-label={`${chip} 제거`}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 1px', lineHeight: 1, fontSize: '14px', flexShrink: 0 }}
-          >×</button>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 1px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}
+          ><XMarkIcon style={{ width: '12px', height: '12px' }} /></button>
         </span>
       ))}
       <input

@@ -1,5 +1,7 @@
 'use client';
 
+import { XMarkIcon } from '@heroicons/react/24/outline';
+
 const SHORTCUTS = [
   { key: 'j / k', desc: '다음 / 이전 메일' },
   { key: 'c / n', desc: '새 메일 작성' },
@@ -59,8 +61,8 @@ export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
           <button
             onClick={onClose}
             aria-label="닫기"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--color-text-secondary)', lineHeight: 1 }}
-          >×</button>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', lineHeight: 1, display: 'inline-flex' }}
+          ><XMarkIcon style={{ width: '18px', height: '18px' }} /></button>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>

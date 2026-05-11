@@ -15,6 +15,7 @@ import {
   BarsArrowDownIcon,
   BarsArrowUpIcon,
   ArrowPathIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -400,8 +401,8 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           <button
             title="라벨 제거"
             onClick={() => { onBulkLabel([...bulkSelected], null); clearAll(); }}
-            style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-          >✕</button>
+            style={{ padding: '3px 6px', borderRadius: '10px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+          ><XMarkIcon style={{ width: '11px', height: '11px' }} /></button>
         </div>
       )}
       {onBulkDelete && (
