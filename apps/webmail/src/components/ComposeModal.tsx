@@ -84,6 +84,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [savedAt, setSavedAt] = useState('');
   const [minimized, setMinimized] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
   const [showSigEditor, setShowSigEditor] = useState(false);
   const [signature, setSignature] = useState(() => {
     try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
@@ -309,7 +310,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
             >{minimized ? '□' : '─'}</button>
             <button
-              onClick={onClose}
+              onClick={() => {
+                const hasContent = !sent && (to.trim() || subject.trim() || (editor && editor.getText().trim()));
+                if (hasContent) setConfirmClose(true); else onClose();
+              }}
               aria-label="창 닫기"
               style={{
                 width: '24px', height: '24px', borderRadius: '4px', border: 'none',
@@ -322,6 +326,44 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             >×</button>
           </div>
         </div>
+
+        {/* Close confirmation panel */}
+        {confirmClose && (
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>임시저장 후 닫으시겠습니까?</span>
+            <button
+              type="button"
+              onClick={async () => {
+                const bodyText = editor?.getText() ?? '';
+                if (to.trim() || subject.trim() || bodyText.trim()) {
+                  const data = {
+                    intent,
+                    to: to.trim() ? [{ address: to.trim() }] : [],
+                    subject,
+                    text_body: bodyText,
+                    ...(editor && { html_body: editor.getHTML() }),
+                  };
+                  try {
+                    if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
+                    else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
+                  } catch { /* ignore */ }
+                }
+                onClose();
+              }}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}
+            >임시저장</button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
+            >버리기</button>
+            <button
+              type="button"
+              onClick={() => setConfirmClose(false)}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+            >취소</button>
+          </div>
+        )}
 
         {/* Form */}
         <form
