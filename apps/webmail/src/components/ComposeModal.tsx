@@ -14,7 +14,8 @@ import {
   LinkIcon,
   PencilSquareIcon as PencilSquareIconHero,
   ClipboardDocumentIcon,
-  ClockIcon,
+  CalendarIcon,
+  ChevronUpIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
   ListBulletIcon,
@@ -161,6 +162,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [templates, setTemplates] = useState<Array<{ name: string; subject: string; body: string }>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
   });
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number }>(() => {
+    try {
+      const s = localStorage.getItem('webmail_compose_size');
+      return s ? JSON.parse(s) : { w: 560, h: 520 };
+    } catch { return { w: 560, h: 520 }; }
+  });
+  const [showSendDropdown, setShowSendDropdown] = useState(false);
 
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
@@ -391,11 +402,87 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
   }
 
+  function startDrag(e: React.MouseEvent<HTMLDivElement>) {
+    if (fullscreen || minimized || isMobile) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    // if no pos set yet, compute current position
+    const curX = pos?.x ?? rect.left;
+    const curY = pos?.y ?? rect.top;
+    const offsetX = e.clientX - curX;
+    const offsetY = e.clientY - curY;
+    function onMove(ev: MouseEvent) {
+      const nx = Math.max(0, Math.min(ev.clientX - offsetX, window.innerWidth - size.w));
+      const ny = Math.max(0, Math.min(ev.clientY - offsetY, window.innerHeight - 60));
+      setPos({ x: nx, y: ny });
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function startResize(e: React.MouseEvent, dir: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const startW = rect.width, startH = rect.height;
+    const startL = rect.left, startT = rect.top;
+    function onMove(ev: MouseEvent) {
+      let nw = startW, nh = startH;
+      let nx = pos?.x ?? startL, ny = pos?.y ?? startT;
+      if (dir.includes('e')) nw = Math.max(400, startW + ev.clientX - startX);
+      if (dir.includes('s')) nh = Math.max(300, startH + ev.clientY - startY);
+      if (dir.includes('w')) { nw = Math.max(400, startW - (ev.clientX - startX)); nx = startL + (startW - nw); }
+      if (dir.includes('n')) { nh = Math.max(300, startH - (ev.clientY - startY)); ny = startT + (startH - nh); }
+      setSize({ w: nw, h: nh });
+      if (dir.includes('w') || dir.includes('n')) setPos({ x: nx, y: ny });
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setSize((s) => {
+        try { localStorage.setItem('webmail_compose_size', JSON.stringify(s)); } catch { /* */ }
+        return s;
+      });
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function getScheduleOptions(): { label: string; sub: string; date: Date }[] {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowMorning = new Date(tomorrow); tomorrowMorning.setHours(8, 0, 0, 0);
+    const tomorrowAfternoon = new Date(tomorrow); tomorrowAfternoon.setHours(13, 0, 0, 0);
+    // next Monday
+    const nextMonday = new Date(now);
+    const day = now.getDay(); // 0=Sun, 1=Mon...
+    const daysUntilMonday = day === 0 ? 1 : (8 - day);
+    nextMonday.setDate(now.getDate() + daysUntilMonday);
+    nextMonday.setHours(8, 0, 0, 0);
+    const fmt = (d: Date) => new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
+    const dayFmt = (d: Date) => new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(d);
+    return [
+      { label: '내일 아침', sub: fmt(tomorrowMorning), date: tomorrowMorning },
+      { label: '내일 오후', sub: fmt(tomorrowAfternoon), date: tomorrowAfternoon },
+      { label: `${dayFmt(nextMonday)}요일 오전`, sub: fmt(nextMonday), date: nextMonday },
+    ];
+  }
+
   return (
     <>
       <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 99, pointerEvents: 'none' }} />
 
       <div
+        ref={dialogRef}
         role="dialog"
         aria-label="새 메시지 작성"
         aria-modal="true"
@@ -409,7 +496,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             ? { inset: 0, borderRadius: 0, width: '100%', maxWidth: 'none', maxHeight: '100dvh', height: '100dvh' }
             : fullscreen
               ? { inset: '16px', width: 'auto', maxWidth: 'none', bottom: '16px' }
-              : { bottom: '24px', insetInlineEnd: `${24 + windowOffset * 576}px`, width: '560px', maxWidth: 'calc(100vw - 48px)' }
+              : pos
+                ? { top: pos.y, left: pos.x, width: size.w, height: minimized ? undefined : size.h, maxHeight: minimized ? '44px' : undefined }
+                : { bottom: '24px', insetInlineEnd: `${24 + windowOffset * 576}px`, width: size.w, maxHeight: minimized ? '44px' : '80vh' }
           ),
           background: 'var(--color-bg-primary)',
           border: `1px solid ${dragOver ? 'var(--color-accent)' : isMobile ? 'transparent' : 'var(--color-border-default)'}`,
@@ -419,12 +508,25 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           display: 'flex',
           flexDirection: 'column',
           animation: 'composeIn 120ms ease-out',
-          maxHeight: isMobile ? '100dvh' : minimized ? '44px' : fullscreen ? 'none' : '80vh',
           height: isMobile || (fullscreen && !minimized) ? '100%' : undefined,
           overflow: 'hidden',
-          transition: 'max-height 180ms ease, border-color 100ms ease, box-shadow 100ms ease',
+          transition: 'border-color 100ms ease, box-shadow 100ms ease',
         }}
       >
+        {/* Resize handles */}
+        {!isMobile && !fullscreen && !minimized && (
+          <>
+            <div onMouseDown={(e) => startResize(e, 'n')} style={{ position: 'absolute', top: 0, left: 4, right: 4, height: '4px', cursor: 'n-resize', zIndex: 10 }} />
+            <div onMouseDown={(e) => startResize(e, 's')} style={{ position: 'absolute', bottom: 0, left: 4, right: 4, height: '4px', cursor: 's-resize', zIndex: 10 }} />
+            <div onMouseDown={(e) => startResize(e, 'e')} style={{ position: 'absolute', top: 4, right: 0, bottom: 4, width: '4px', cursor: 'e-resize', zIndex: 10 }} />
+            <div onMouseDown={(e) => startResize(e, 'w')} style={{ position: 'absolute', top: 4, left: 0, bottom: 4, width: '4px', cursor: 'w-resize', zIndex: 10 }} />
+            <div onMouseDown={(e) => startResize(e, 'ne')} style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '8px', cursor: 'ne-resize', zIndex: 11 }} />
+            <div onMouseDown={(e) => startResize(e, 'nw')} style={{ position: 'absolute', top: 0, left: 0, width: '8px', height: '8px', cursor: 'nw-resize', zIndex: 11 }} />
+            <div onMouseDown={(e) => startResize(e, 'se')} style={{ position: 'absolute', bottom: 0, right: 0, width: '8px', height: '8px', cursor: 'se-resize', zIndex: 11 }} />
+            <div onMouseDown={(e) => startResize(e, 'sw')} style={{ position: 'absolute', bottom: 0, left: 0, width: '8px', height: '8px', cursor: 'sw-resize', zIndex: 11 }} />
+          </>
+        )}
+
         {dragOver && !minimized && (
           <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: '8px' }}>
             <div style={{ textAlign: 'center', color: 'var(--color-accent)', fontSize: '15px', fontWeight: 500 }}>
@@ -455,6 +557,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         {/* Header */}
         <div
           onClick={minimized ? () => setMinimized(false) : undefined}
+          onMouseDown={startDrag}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -463,7 +566,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             borderBottom: minimized ? 'none' : '1px solid var(--color-border-subtle)',
             background: 'var(--color-bg-secondary)',
             borderRadius: minimized ? '8px' : '8px 8px 0 0',
-            cursor: minimized ? 'pointer' : 'default',
+            cursor: minimized ? 'pointer' : (fullscreen || isMobile ? 'default' : 'move'),
             flexShrink: 0,
           }}
         >
@@ -561,7 +664,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSend(e); }
             if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); void handleManualSave(); }
           }}
-          style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
         >
 
           {/* From (display only) */}
@@ -585,20 +688,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               suggestions={recentRecipients}
             />
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '4px' }}>
-              {!showCc && (
-                <button type="button" onClick={() => setShowCc(true)}
-                  style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
-                  onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
-                >Cc</button>
-              )}
-              {!showBcc && (
-                <button type="button" onClick={() => setShowBcc(true)}
-                  style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
-                  onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget).style.color = 'var(--color-text-tertiary)'; }}
-                >Bcc</button>
-              )}
+              <button type="button"
+                onClick={() => { setShowCc(v => !v); if (showCc) { setCc(''); ccRef.current = ''; } }}
+                style={{ fontSize: '12px', color: showCc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
+                onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.color = showCc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'; }}
+              >Cc</button>
+              <button type="button"
+                onClick={() => { setShowBcc(v => !v); if (showBcc) { setBcc(''); bccRef.current = ''; } }}
+                style={{ fontSize: '12px', color: showBcc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}
+                onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget).style.color = showBcc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'; }}
+              >Bcc</button>
             </div>
           </div>
 
@@ -613,6 +714,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
+              <button type="button" onClick={() => { setShowCc(false); setCc(''); ccRef.current = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}><XMarkIcon style={{ width: '13px', height: '13px' }} /></button>
             </div>
           )}
 
@@ -627,6 +729,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
+              <button type="button" onClick={() => { setShowBcc(false); setBcc(''); bccRef.current = ''; }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}><XMarkIcon style={{ width: '13px', height: '13px' }} /></button>
             </div>
           )}
 
@@ -693,27 +796,89 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             borderTop: '1px solid var(--color-border-subtle)',
             flexShrink: 0,
           }}>
-            {/* Send button — left */}
-            <button
-              type="submit"
-              disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
-              style={{
-                padding: '7px 18px',
-                borderRadius: '20px',
-                border: 'none',
-                background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
-                transition: 'background 100ms ease',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent-hover)'; }}
-              onMouseLeave={(e) => { if (!sending && !sent) (e.currentTarget).style.background = 'var(--color-accent)'; }}
-            >
-              {sending ? '전송 중...' : sent ? '전송됨 ✓' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
-            </button>
+            {/* Split send button — left */}
+            <div style={{ position: 'relative', display: 'flex', borderRadius: '20px', overflow: 'visible', flexShrink: 0 }}>
+              <button
+                type="submit"
+                disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '20px 0 0 20px',
+                  border: 'none',
+                  background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {sending ? '전송 중...' : sent ? '전송됨 ✓' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSendDropdown((v) => !v)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: '0 20px 20px 0',
+                  border: 'none',
+                  borderLeft: '1px solid rgba(255,255,255,0.25)',
+                  background: 'var(--color-accent)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center',
+                }}
+              >
+                <ChevronUpIcon style={{ width: '14px', height: '14px' }} />
+              </button>
+              {showSendDropdown && (
+                <div style={{
+                  position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
+                  background: 'var(--color-bg-primary)',
+                  border: '1px solid var(--color-border-default)',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.16)',
+                  minWidth: '260px',
+                  overflow: 'hidden',
+                  zIndex: 200,
+                }}>
+                  <div style={{ padding: '12px 16px 8px', fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>예약 전송</div>
+                  {getScheduleOptions().map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => {
+                        setScheduledAt(opt.date.toISOString().slice(0, 16));
+                        setShowSendDropdown(false);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 16px', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                    >
+                      <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid var(--color-border-default)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: '10px', color: 'var(--color-destructive)', fontWeight: 600, lineHeight: 1 }}>{new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(opt.date)}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{opt.date.getDate()}일</span>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{opt.label}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{opt.sub}</div>
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => { setShowSendDropdown(false); setShowSchedule(true); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                  >
+                    <div style={{ width: '44px', height: '44px', borderRadius: '8px', border: '1px solid var(--color-border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <CalendarIcon style={{ width: '22px', height: '22px', color: 'var(--color-accent)' }} />
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>사용자 지정 날짜</div>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Status messages */}
             {error && <span role="alert" style={{ fontSize: '12px', color: 'var(--color-destructive)', flex: 1 }}>{error}</span>}
@@ -759,7 +924,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 </div>
               )}
             </div>
-            <button type="button" onClick={() => { setShowSchedule((v) => !v); if (showSchedule) setScheduledAt(''); }} title="나중에 보내기" style={toolbarBtnStyle(showSchedule)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showSchedule ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ClockIcon style={{ width: '14px', height: '14px' }} /></button>
             {showSchedule && (
               <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
             )}

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, ReactNode } from 'react';
 import { Folder } from '@/lib/api';
 import {
   PencilSquareIcon,
-  MagnifyingGlassIcon,
   ChevronRightIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
@@ -15,32 +14,12 @@ import {
   ArchiveBoxIcon,
   TrashIcon,
   NoSymbolIcon,
-  ClockIcon,
   PencilIcon,
   ArrowTopRightOnSquareIcon,
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
 
-const RECENT_SEARCHES_KEY = 'webmail_recent_searches';
-const MAX_RECENT = 5;
-
-function loadRecentSearches(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? '[]') as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentSearch(query: string): string[] {
-  const trimmed = query.trim();
-  if (!trimmed) return loadRecentSearches();
-  const prev = loadRecentSearches().filter((q) => q !== trimmed);
-  const next = [trimmed, ...prev].slice(0, MAX_RECENT);
-  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-  return next;
-}
 
 export const VIRTUAL_ALL = '__all__';
 export const VIRTUAL_STARRED = '__starred__';
@@ -99,10 +78,6 @@ interface SidebarProps {
   onSelectFolder: (id: string) => void;
   onCompose: () => void;
   onComposeInNewWindow?: () => void;
-  onSearch?: (q: string) => void;
-  searchQuery?: string;
-  advancedFilters?: AdvancedFilters;
-  onAdvancedFilterChange?: (filters: AdvancedFilters) => void;
   userName?: string;
   userEmailAddress?: string;
   onLogout?: () => void;
@@ -125,10 +100,6 @@ export function Sidebar({
   activeFolderId,
   onSelectFolder,
   onCompose,
-  onSearch,
-  searchQuery = '',
-  advancedFilters = {},
-  onAdvancedFilterChange,
   userName = '사용자',
   userEmailAddress,
   onLogout,
@@ -146,19 +117,14 @@ export function Sidebar({
   menuExtra,
   width,
 }: SidebarProps) {
-  const showAdvanced = searchQuery.trim().length > 0;
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
-  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [newFolderInput, setNewFolderInput] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [headerHovered, setHeaderHovered] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -172,13 +138,6 @@ export function Sidebar({
     return () => document.removeEventListener('mousedown', onClick);
   }, [showUserMenu]);
 
-  useEffect(() => {
-    setRecentSearches(loadRecentSearches());
-  }, []);
-
-  useEffect(() => {
-    if (searchQuery.trim()) setSearchExpanded(true);
-  }, [searchQuery]);
   const systemFoldersByType = new Map(folders.map((f) => {
     const key = f.system_type === 'junk' ? 'spam' : (f.system_type ?? '');
     return [key, f];
@@ -296,7 +255,7 @@ export function Sidebar({
       <>
       {/* Account header — Notion Mail style */}
       <div ref={userMenuRef} style={{ position: 'relative' }}>
-        <div style={{ padding: '10px 10px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ padding: '10px 10px 8px', display: 'flex', alignItems: 'center', gap: '6px' }} onMouseEnter={() => setHeaderHovered(true)} onMouseLeave={() => setHeaderHovered(false)}>
           {isMobile && onClose && (
             <button aria-label="메뉴 닫기" onClick={onClose}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '0 2px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}>
@@ -325,7 +284,7 @@ export function Sidebar({
                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {userName !== userEmailAddress ? userName : userName.split('@')[0]}
                 </span>
-                <ChevronDownIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                <ChevronDownIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0, opacity: headerHovered ? 1 : 0, transition: 'opacity 150ms' }} />
               </div>
               {userEmailAddress && (
                 <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -340,7 +299,7 @@ export function Sidebar({
               aria-label="사이드바 접기"
               onClick={onToggleCollapse}
               title="사이드바 접기 ([)"
-              style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: headerHovered ? 1 : 0, pointerEvents: (headerHovered ? 'auto' : 'none') as React.CSSProperties['pointerEvents'], transition: 'opacity 150ms' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-primary)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
             ><ChevronDoubleLeftIcon style={{ width: '15px', height: '15px' }} /></button>
@@ -446,163 +405,6 @@ export function Sidebar({
                 로그아웃
               </button>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* Search */}
-      <div style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-        {!searchExpanded ? (
-          <button
-            onClick={() => { setSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', textAlign: 'left', borderRadius: 0 }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
-          >
-            <MagnifyingGlassIcon style={{ width: '15px', height: '15px', flexShrink: 0 }} />
-            <span>검색</span>
-          </button>
-        ) : (
-        <div style={{ padding: '10px 16px 8px', position: 'relative' }}>
-          <input
-            ref={searchInputRef}
-            type="search"
-            placeholder="검색... (from: subject: has:attachment)"
-            aria-label="메일 검색"
-            value={searchQuery}
-            onChange={(e) => {
-              onSearch?.(e.target.value);
-              if (e.target.value.trim()) setShowSuggestions(false);
-              else setShowSuggestions(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                const next = saveRecentSearch(searchQuery);
-                setRecentSearches(next);
-                setShowSuggestions(false);
-              }
-              if (e.key === 'Escape') {
-                onSearch?.('');
-                setSearchExpanded(false);
-              }
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = 'var(--color-accent)';
-              if (hideTimeout.current) clearTimeout(hideTimeout.current);
-              if (!searchQuery.trim()) setShowSuggestions(true);
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'var(--color-border-default)';
-              hideTimeout.current = setTimeout(() => setShowSuggestions(false), 150);
-              if (!searchQuery.trim()) setSearchExpanded(false);
-            }}
-            style={{
-              width: '100%',
-              padding: '7px 10px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-default)',
-              background: 'var(--color-bg-primary)',
-              color: 'var(--color-text-primary)',
-              fontSize: '13px',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          {showSuggestions && !searchQuery.trim() && recentSearches.length > 0 && (
-            <div
-              role="listbox"
-              aria-label="최근 검색"
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: '16px',
-                right: '16px',
-                background: 'var(--color-bg-primary)',
-                border: '1px solid var(--color-border-default)',
-                borderRadius: '6px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-                zIndex: 350,
-                overflow: 'hidden',
-                marginTop: '2px',
-              }}
-            >
-              <div style={{ padding: '6px 10px 4px', fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                최근 검색
-              </div>
-              {recentSearches.map((q) => (
-                <button
-                  key={q}
-                  role="option"
-                  aria-selected={false}
-                  onMouseDown={() => {
-                    onSearch?.(q);
-                    const next = saveRecentSearch(q);
-                    setRecentSearches(next);
-                    setShowSuggestions(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '7px 10px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--color-text-primary)',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                >
-                  <ClockIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        )}
-
-        {searchExpanded && showAdvanced && onAdvancedFilterChange && (
-          <div style={{ padding: '0 16px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '2px' }}>필터</div>
-            {/* From */}
-            <input
-              type="text"
-              placeholder="보낸 사람"
-              aria-label="보낸 사람 필터"
-              value={advancedFilters.from ?? ''}
-              onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, from: e.target.value || undefined })}
-              style={{ padding: '5px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '12px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            />
-            {/* Date range */}
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <input
-                type="date"
-                aria-label="시작 날짜"
-                value={advancedFilters.since ?? ''}
-                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, since: e.target.value || undefined })}
-                style={{ flex: 1, padding: '5px 4px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '11px', outline: 'none', minWidth: 0 }}
-              />
-              <input
-                type="date"
-                aria-label="종료 날짜"
-                value={advancedFilters.until ?? ''}
-                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, until: e.target.value || undefined })}
-                style={{ flex: 1, padding: '5px 4px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '11px', outline: 'none', minWidth: 0 }}
-              />
-            </div>
-            {/* Has attachment */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={advancedFilters.has_attachment ?? false}
-                onChange={(e) => onAdvancedFilterChange({ ...advancedFilters, has_attachment: e.target.checked || undefined })}
-              />
-              첨부파일 있음
-            </label>
           </div>
         )}
       </div>

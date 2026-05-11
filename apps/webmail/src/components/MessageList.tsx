@@ -9,15 +9,14 @@ import {
   ArchiveBoxIcon,
   TrashIcon,
   PaperClipIcon,
-  MagnifyingGlassIcon,
-  Bars3Icon,
-  Bars4Icon,
-  BarsArrowDownIcon,
-  BarsArrowUpIcon,
   ArrowPathIcon,
   XMarkIcon,
   ChevronDownIcon,
   CheckIcon as CheckIconOutline,
+  Bars3Icon,
+  EllipsisVerticalIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -118,9 +117,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortAsc] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
-  const [compact, setCompact] = useState(() => {
+  const [compact] = useState(() => {
     try { return localStorage.getItem('webmail_compact') === '1'; } catch { return false; }
   });
   const lastBulkIndexRef = useRef<number | null>(null);
@@ -129,9 +128,10 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const pullRef = useRef<{ startY: number } | null>(null);
   const [pullY, setPullY] = useState(0);
   const PULL_THRESHOLD = 64;
-  const [quickFilter, setQuickFilter] = useState('');
-  const [showQuickFilter, setShowQuickFilter] = useState(false);
-  const quickFilterRef = useRef<HTMLInputElement>(null);
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // Scroll selected message into view when selectedId changes (e.g., j/k keyboard nav)
   useEffect(() => {
@@ -150,6 +150,17 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [showFilterDropdown]);
+
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    function onDown(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showMoreMenu]);
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || !onLoadMore) return;
@@ -229,6 +240,9 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  useEffect(() => { setPage(0); }, [filterMode, filterLabel]);
+  useEffect(() => { setPage(0); }, [messages]);
+
   const baseFiltered =
     filterMode === 'unread' ? messages.filter((m) => !m.read)
     : filterMode === 'read' ? messages.filter((m) => m.read)
@@ -242,23 +256,13 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? baseFiltered.filter((m) => messageLabels[m.id] === filterLabel)
     : baseFiltered;
 
-  const qf = quickFilter.trim().toLowerCase();
-  const afterQuickFilter = qf
-    ? afterLabelFilter.filter((m) =>
-        m.from_name?.toLowerCase().includes(qf) ||
-        m.from_addr.toLowerCase().includes(qf) ||
-        m.subject.toLowerCase().includes(qf) ||
-        m.preview?.toLowerCase().includes(qf)
-      )
-    : afterLabelFilter;
-
   const activeLabelColors = [...new Set(messages.map((m) => messageLabels[m.id]).filter(Boolean))];
 
   const sortedBase = sortAsc
-    ? [...afterQuickFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
-    : afterQuickFilter;
+    ? [...afterLabelFilter].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+    : afterLabelFilter;
 
-  const [conversationMode, setConversationMode] = useState(() => {
+  const [conversationMode] = useState(() => {
     try { return localStorage.getItem('webmail_conv_mode') !== '0'; } catch { return true; }
   });
 
@@ -286,6 +290,10 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     seen.forEach((v) => { counts[v.msg.id] = v.count; });
     return { filteredMessages: msgs, threadCounts: counts };
   })();
+
+  const pageStart = page * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const pagedMessages = filteredMessages.slice(pageStart, pageEnd);
 
   const listWidth = (isMobile || fullWidth || bottomLayout || !paneWidth)
     ? { flex: 1, minWidth: 0 }
@@ -545,122 +553,72 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
           ))}
         </div>
       )}
-      <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
-        {filterMode !== 'all' || filterLabel ? `${filteredMessages.length} / ${messages.length}개` : `${filteredMessages.length}개`}
-      </span>
-      {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
-        <button
-          aria-label={emptyFolderLabel}
-          onClick={onEmptyFolder}
-          title={emptyFolderLabel}
-          style={{
-            marginLeft: '4px',
-            padding: '3px 8px',
-            borderRadius: '4px',
-            border: '1px solid rgba(217,79,61,0.4)',
-            background: 'transparent',
-            color: 'var(--color-destructive)',
-            cursor: 'pointer',
-            fontSize: '12px',
-          }}
-        >
-          {emptyFolderLabel}
-        </button>
-      )}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        {showQuickFilter && (
-          <input
-            ref={quickFilterRef}
-            type="text"
-            value={quickFilter}
-            onChange={(e) => setQuickFilter(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { setQuickFilter(''); setShowQuickFilter(false); } }}
-            placeholder="필터..."
-            aria-label="빠른 필터"
-            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-accent)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none', width: '120px' }}
-          />
-        )}
-        <button
-          aria-label="빠른 필터 열기"
-          title="빠른 필터 (/)  "
-          onClick={() => { const next = !showQuickFilter; setShowQuickFilter(next); if (!next) { setQuickFilter(''); } else { setTimeout(() => quickFilterRef.current?.focus(), 50); } }}
-          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: showQuickFilter ? 'var(--color-accent-subtle)' : 'transparent', color: showQuickFilter ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-        >
-          <MagnifyingGlassIcon style={{ width: '13px', height: '13px' }} />
-          {quickFilter && messages.length - filteredMessages.length > 0 && <span style={{ fontSize: '11px' }}>{filteredMessages.length}/{messages.length}</span>}
-        </button>
-        <button
-          aria-label={conversationMode ? '대화 보기 해제' : '대화 보기'}
-          title={conversationMode ? '대화 보기 해제' : '대화 보기'}
-          onClick={() => { const next = !conversationMode; setConversationMode(next); try { localStorage.setItem('webmail_conv_mode', next ? '1' : '0'); } catch { /* */ } }}
-          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: conversationMode ? 'var(--color-accent-subtle)' : 'transparent', color: conversationMode ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px' }}
-        >대화</button>
-        <button
-          aria-label={compact ? '넓은 보기' : '촘촘한 보기'}
-          title={compact ? '넓은 보기' : '촘촘한 보기'}
-          onClick={() => { const next = !compact; setCompact(next); try { localStorage.setItem('webmail_compact', next ? '1' : '0'); } catch { /* */ } }}
-          style={{ padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: compact ? 'var(--color-accent-subtle)' : 'transparent', color: compact ? 'var(--color-accent)' : 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
-        >
-          {compact ? <Bars4Icon style={{ width: '13px', height: '13px' }} /> : <Bars3Icon style={{ width: '13px', height: '13px' }} />}
-        </button>
-        <button
-          aria-label={sortAsc ? '오래된순 정렬 중' : '최신순 정렬 중'}
-          title={sortAsc ? '오래된순 — 클릭하면 최신순' : '최신순 — 클릭하면 오래된순'}
-          onClick={() => setSortAsc((v) => !v)}
-          style={{
-            padding: '3px 8px',
-            borderRadius: '4px',
-            border: '1px solid var(--color-border-default)',
-            background: sortAsc ? 'var(--color-accent-subtle)' : 'transparent',
-            color: sortAsc ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '3px',
-            fontSize: '11px',
-          }}
-        >
-          {sortAsc ? <BarsArrowUpIcon style={{ width: '13px', height: '13px' }} /> : <BarsArrowDownIcon style={{ width: '13px', height: '13px' }} />}
-        </button>
-        {onMarkAllRead && messages.some((m) => !m.read) && (
-          <button
-            aria-label="모두 읽음으로 표시"
-            onClick={onMarkAllRead}
-            title="모두 읽음"
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              border: '1px solid var(--color-border-default)',
-              background: 'transparent',
-              color: 'var(--color-text-tertiary)',
-              cursor: 'pointer',
-              fontSize: '12px',
-            }}
-          >
-            모두 읽음
-          </button>
-        )}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}>
         {onRefresh && (
           <button
             aria-label="새로고침"
             onClick={onRefresh}
             disabled={refreshing}
             title="새로고침"
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              border: '1px solid var(--color-border-default)',
-              background: 'transparent',
-              color: 'var(--color-text-tertiary)',
-              cursor: refreshing ? 'not-allowed' : 'pointer',
-              fontSize: '13px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
+            style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: refreshing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}
           >
-            <ArrowPathIcon style={{ width: '14px', height: '14px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            <ArrowPathIcon style={{ width: '16px', height: '16px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         )}
+        <div ref={moreMenuRef} style={{ position: 'relative' }}>
+          <button
+            aria-label="더 보기"
+            onClick={() => setShowMoreMenu((v) => !v)}
+            style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: showMoreMenu ? 'var(--color-bg-tertiary)' : 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+          >
+            <EllipsisVerticalIcon style={{ width: '16px', height: '16px' }} />
+          </button>
+          {showMoreMenu && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '2px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '180px', overflow: 'hidden', padding: '4px 0' }}>
+              {onMarkAllRead && messages.some((m) => !m.read) && (
+                <button
+                  onClick={() => { onMarkAllRead(); setShowMoreMenu(false); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >모두 읽음으로 표시</button>
+              )}
+              {emptyFolderLabel && onEmptyFolder && messages.length > 0 && (
+                <button
+                  onClick={() => { onEmptyFolder(); setShowMoreMenu(false); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 16px', border: 'none', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >{emptyFolderLabel}</button>
+              )}
+            </div>
+          )}
+        </div>
+        {filteredMessages.length > 0 && (
+          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '0 4px', whiteSpace: 'nowrap' }}>
+            {`${pageStart + 1}–${Math.min(pageEnd, filteredMessages.length)}`}{hasMore ? '+' : ` / ${filteredMessages.length}`}
+          </span>
+        )}
+        <button
+          aria-label="이전 페이지"
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+          disabled={page === 0}
+          style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: page === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', opacity: page === 0 ? 0.35 : 1 }}
+        >
+          <ChevronLeftIcon style={{ width: '16px', height: '16px' }} />
+        </button>
+        <button
+          aria-label="다음 페이지"
+          onClick={() => {
+            const next = page + 1;
+            if (next * PAGE_SIZE >= filteredMessages.length && hasMore && onLoadMore) onLoadMore();
+            if (next * PAGE_SIZE < filteredMessages.length || hasMore) setPage(next);
+          }}
+          disabled={!hasMore && (page + 1) * PAGE_SIZE >= filteredMessages.length}
+          style={{ padding: '4px 6px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: (!hasMore && (page + 1) * PAGE_SIZE >= filteredMessages.length) ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', opacity: (!hasMore && (page + 1) * PAGE_SIZE >= filteredMessages.length) ? 0.35 : 1 }}
+        >
+          <ChevronRightIcon style={{ width: '16px', height: '16px' }} />
+        </button>
       </div>
     </div>
   );
@@ -681,7 +639,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const groupOrder = ['오늘', '어제', '지난 7일', '이번 달'];
   const groupMap = new Map<string, MessageSummary[]>();
 
-  for (const msg of filteredMessages) {
+  for (const msg of pagedMessages) {
     const group = getDateGroup(msg.received_at);
     if (!groupMap.has(group)) groupMap.set(group, []);
     groupMap.get(group)!.push(msg);
