@@ -55,6 +55,7 @@ interface MessageListProps {
   refreshing?: boolean;
   isMobile?: boolean;
   onOpenSidebar?: () => void;
+  paneWidth?: number;
   onContextMenuMessage?: (id: string, x: number, y: number) => void;
   onMarkAllRead?: () => void;
   emptyFolderLabel?: string;
@@ -63,7 +64,7 @@ interface MessageListProps {
   onBulkMove?: (ids: string[], folderId: string) => void;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -109,7 +110,11 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
     ? [...baseFiltered].sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
     : baseFiltered;
 
-  const listWidth = isMobile ? { width: '100%', minWidth: 0 } : { width: '380px', minWidth: '380px' };
+  const listWidth = isMobile
+    ? { width: '100%', minWidth: 0 }
+    : paneWidth
+      ? { width: `${paneWidth}px`, minWidth: `${paneWidth}px` }
+      : { width: '380px', minWidth: '380px' };
 
   if (loading) {
     return (

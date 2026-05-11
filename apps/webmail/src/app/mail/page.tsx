@@ -38,6 +38,10 @@ export default function MailPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [listPaneWidth, setListPaneWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem('webmail_list_pane_width') ?? '380', 10) || 380; } catch { return 380; }
+  });
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const isMobile = useIsMobile();
   const gPrefixRef = useRef(false);
   const isOnline = useIsOnline();
@@ -240,6 +244,11 @@ export default function MailPage() {
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, starred: !starred } : m)));
     });
   }, [setMessages]);
+
+  // Persist list pane width
+  useEffect(() => {
+    localStorage.setItem('webmail_list_pane_width', String(listPaneWidth));
+  }, [listPaneWidth]);
 
   // Keyboard shortcuts (skip when typing in input/textarea/contenteditable)
   useEffect(() => {
@@ -470,8 +479,40 @@ export default function MailPage() {
           onOpenSidebar={() => setMobileSidebarOpen(true)}
           onContextMenuMessage={(id, x, y) => setContextMenu({ id, x, y })}
           onMarkAllRead={activeFolderSystemType !== 'trash' ? handleMarkAllRead : undefined}
+          paneWidth={isMobile ? undefined : listPaneWidth}
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
+        />
+      )}
+
+      {!isMobile && (
+        <div
+          aria-hidden="true"
+          onMouseDown={(e) => {
+            dragRef.current = { startX: e.clientX, startWidth: listPaneWidth };
+            const onMove = (ev: MouseEvent) => {
+              if (!dragRef.current) return;
+              const delta = ev.clientX - dragRef.current.startX;
+              setListPaneWidth(Math.max(240, Math.min(600, dragRef.current.startWidth + delta)));
+            };
+            const onUp = () => {
+              dragRef.current = null;
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+          }}
+          style={{
+            width: '4px',
+            flexShrink: 0,
+            cursor: 'ew-resize',
+            background: 'transparent',
+            transition: 'background 100ms ease',
+            zIndex: 1,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
         />
       )}
 
