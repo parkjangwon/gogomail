@@ -81,13 +81,13 @@ export interface AdvancedFilters {
 }
 
 const SYSTEM_FOLDER_ICONS: Record<string, ReactNode> = {
-  inbox: <InboxIcon style={{ width: '18px', height: '18px' }} />,
-  sent: <PaperAirplaneIcon style={{ width: '18px', height: '18px' }} />,
-  drafts: <PencilSquareIcon style={{ width: '18px', height: '18px' }} />,
-  trash: <TrashIcon style={{ width: '18px', height: '18px' }} />,
-  spam: <NoSymbolIcon style={{ width: '18px', height: '18px' }} />,
-  junk: <NoSymbolIcon style={{ width: '18px', height: '18px' }} />,
-  archive: <ArchiveBoxIcon style={{ width: '18px', height: '18px' }} />,
+  inbox: <InboxIcon style={{ width: '16px', height: '16px' }} />,
+  sent: <PaperAirplaneIcon style={{ width: '16px', height: '16px' }} />,
+  drafts: <PencilSquareIcon style={{ width: '16px', height: '16px' }} />,
+  trash: <TrashIcon style={{ width: '16px', height: '16px' }} />,
+  spam: <NoSymbolIcon style={{ width: '16px', height: '16px' }} />,
+  junk: <NoSymbolIcon style={{ width: '16px', height: '16px' }} />,
+  archive: <ArchiveBoxIcon style={{ width: '16px', height: '16px' }} />,
 };
 
 interface SidebarProps {
@@ -250,7 +250,7 @@ export function Sidebar({
             onClick={onCompose}
             title="편지 쓰기"
             style={{ width: '36px', height: '36px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          ><PencilSquareIcon style={{ width: '18px', height: '18px' }} /></button>
+          ><PencilSquareIcon style={{ width: '16px', height: '16px' }} /></button>
           {onComposeInNewWindow && (
             <button
               aria-label="새창으로 쓰기"
@@ -265,7 +265,7 @@ export function Sidebar({
             const unread = serverFolder?.unread ?? 0;
             const folderId = serverFolder?.id ?? sf.systemType;
             const isActive = activeFolderId === folderId;
-            const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? <InboxIcon style={{ width: '18px', height: '18px' }} />;
+            const icon = SYSTEM_FOLDER_ICONS[sf.systemType] ?? <InboxIcon style={{ width: '16px', height: '16px' }} />;
             return (
               <button
                 key={sf.systemType}
@@ -663,8 +663,9 @@ export function Sidebar({
               onDragLeave={() => setDragOverFolderId(null)}
               onDrop={(e) => { e.preventDefault(); setDragOverFolderId(null); const id = e.dataTransfer.getData('text/plain'); if (id && onDropMessage) onDropMessage(id, folderId); }}
             >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {sf.label}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <span style={{ flexShrink: 0, display: 'inline-flex', opacity: 0.6 }}>{SYSTEM_FOLDER_ICONS[sf.systemType]}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sf.label}</span>
               </span>
               {badge && (
                 <span
