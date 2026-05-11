@@ -290,7 +290,7 @@ export function Sidebar({
                 <ChevronDownIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0, opacity: headerHovered ? 1 : 0, transition: 'opacity 150ms' }} />
               </div>
               {userEmailAddress && (
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {userEmailAddress}
                 </div>
               )}
