@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, listAttachments, downloadAttachment } from '@/lib/api';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 function linkify(text: string): ReactNode[] {
@@ -124,6 +124,8 @@ interface ReadingPaneProps {
   onRestore?: () => void;
   onSnooze?: (messageId: string, until: Date) => void;
   onOpenInWindow?: () => void;
+  threadMessages?: MessageSummary[];
+  onSelectThread?: (id: string) => void;
 }
 
 function readingTime(text: string): string {
@@ -184,6 +186,8 @@ export function ReadingPane({
   onRestore,
   onSnooze,
   onOpenInWindow,
+  threadMessages,
+  onSelectThread,
 }: ReadingPaneProps) {
   const [toolbarHovered, setToolbarHovered] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -765,6 +769,47 @@ export function ReadingPane({
             </pre>
           )}
         </div>
+
+        {/* Thread view */}
+        {threadMessages && threadMessages.length > 1 && (
+          <div style={{ marginTop: '32px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px', maxWidth: '680px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '12px' }}>
+              대화 {threadMessages.length}개
+            </div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', left: '15px', top: '16px', bottom: '16px', width: '1px', background: 'var(--color-border-subtle)' }} />
+              {threadMessages.map((msg) => {
+                const isCurrent = msg.id === message.id;
+                const date = new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(msg.received_at));
+                const initial = (msg.from_name || msg.from_addr)[0]?.toUpperCase() ?? '?';
+                return (
+                  <div
+                    key={msg.id}
+                    onClick={() => !isCurrent && onSelectThread?.(msg.id)}
+                    style={{ display: 'flex', gap: '12px', padding: '6px 0', cursor: isCurrent ? 'default' : 'pointer' }}
+                    onMouseEnter={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                    onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.opacity = '0.85'; }}
+                  >
+                    <div style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', background: isCurrent ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: isCurrent ? '#fff' : 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, zIndex: 1, position: 'relative', border: `2px solid ${isCurrent ? 'var(--color-accent)' : 'var(--color-border-default)'}`, boxSizing: 'border-box' }}>
+                      {initial}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, background: isCurrent ? 'var(--color-bg-secondary)' : 'transparent', borderRadius: '6px', padding: isCurrent ? '8px 12px' : '4px 0', opacity: isCurrent ? 1 : 0.85 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: isCurrent ? 600 : 400, color: 'var(--color-text-primary)' }}>
+                          {msg.from_name || msg.from_addr}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>{date}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {msg.preview || msg.subject || '(내용 없음)'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Quick reply */}
         {onQuickReply && (
