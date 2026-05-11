@@ -920,6 +920,8 @@ export default function MailPage() {
           onStar={selectedMessageId ? (starred) => handleStar(selectedMessageId, starred) : undefined}
           onPrev={prevId ? () => handleSelectMessage(prevId) : undefined}
           onNext={nextId ? () => handleSelectMessage(nextId) : undefined}
+          messageIndex={curIdx >= 0 ? curIdx : undefined}
+          messageTotal={curIdx >= 0 ? msgList.length : undefined}
           onQuickReply={selectedMessage ? async (body) => {
             await sendMessage({
               to: [{ address: selectedMessage.from_addr, name: selectedMessage.from_name || undefined }],
