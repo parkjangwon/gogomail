@@ -332,12 +332,12 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
       {onBulkStar && (
         <>
           <button onClick={() => { onBulkStar([...bulkSelected], true); clearAll(); }}
-            title="별표 추가" style={{ fontSize: '14px', padding: '2px 6px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer' }}>
-            ★
+            title="별표 추가" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: '#f59e0b', display: 'inline-flex', alignItems: 'center' }}>
+            <StarIconSolid style={{ width: '13px', height: '13px' }} />
           </button>
           <button onClick={() => { onBulkStar([...bulkSelected], false); clearAll(); }}
-            title="별표 제거" style={{ fontSize: '14px', padding: '2px 6px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}>
-            ☆
+            title="별표 제거" style={{ padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', display: 'inline-flex', alignItems: 'center' }}>
+            <StarIcon style={{ width: '13px', height: '13px' }} />
           </button>
         </>
       )}
