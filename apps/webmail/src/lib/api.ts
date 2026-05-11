@@ -40,11 +40,15 @@ export interface AuthTokenResponse {
   must_change_password: boolean;
 }
 
+export type ComposeIntent = 'new' | 'reply' | 'reply_all' | 'forward';
+
 export interface SendMessageRequest {
   to: { address: string; name?: string }[];
   subject: string;
   text_body: string;
   from?: string;
+  intent?: ComposeIntent;
+  source_message_id?: string;
 }
 
 function getToken(): string | null {
