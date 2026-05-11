@@ -25,14 +25,10 @@ export default function MailPage() {
   const [activeFolderId, setActiveFolderId] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  type ComposeWindow = { id: string; intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string };
-  const [composeWindows, setComposeWindows] = useState<ComposeWindow[]>([]);
-  const openCompose = useCallback((ctx: Omit<ComposeWindow, 'id'>) => {
-    setComposeWindows((prev) => [...prev, { id: Math.random().toString(36).slice(2), ...ctx }]);
-  }, []);
-  const closeCompose = useCallback((id: string) => {
-    setComposeWindows((prev) => prev.filter((w) => w.id !== id));
-  }, []);
+  type ComposeContext = { intent: ComposeIntent; source?: MessageDetail; draft?: MessageDetail; to?: string };
+  const [composeContext, setComposeContext] = useState<ComposeContext | null>(null);
+  const openCompose = useCallback((ctx: ComposeContext) => setComposeContext(ctx), []);
+  const closeCompose = useCallback(() => setComposeContext(null), []);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MessageSummary[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -500,42 +496,42 @@ export default function MailPage() {
         }
         case 'c':
         case 'n':
-          if (composeWindows.length === 0) { e.preventDefault(); openCompose({ intent: 'new' }); }
+          if (!composeContext) { e.preventDefault(); openCompose({ intent: 'new' }); }
           break;
         case 'u':
-          if (selectedMessageId && composeWindows.length === 0) handleMarkUnread();
+          if (selectedMessageId && !composeContext) handleMarkUnread();
           break;
         case 's': {
-          if (selectedMessageId && composeWindows.length === 0) {
+          if (selectedMessageId && !composeContext) {
             const msg = messages.find((m) => m.id === selectedMessageId);
             if (msg) handleStar(selectedMessageId, !msg.starred);
           }
           break;
         }
         case 'r':
-          if (selectedMessage && composeWindows.length === 0) {
+          if (selectedMessage && !composeContext) {
             e.preventDefault();
             openCompose({ intent: 'reply', source: selectedMessage });
           }
           break;
         case 'a':
-          if (selectedMessage && composeWindows.length === 0) {
+          if (selectedMessage && !composeContext) {
             e.preventDefault();
             openCompose({ intent: 'reply_all', source: selectedMessage });
           }
           break;
         case 'f':
-          if (selectedMessage && composeWindows.length === 0) {
+          if (selectedMessage && !composeContext) {
             e.preventDefault();
             openCompose({ intent: 'forward', source: selectedMessage });
           }
           break;
         case 'e': {
-          if (selectedMessageId && composeWindows.length === 0) handleArchive();
+          if (selectedMessageId && !composeContext) handleArchive();
           break;
         }
         case 'l': {
-          if (selectedMessageId && composeWindows.length === 0) {
+          if (selectedMessageId && !composeContext) {
             const colors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
             const current = messageLabels[selectedMessageId];
             const currentIdx = current ? colors.indexOf(current) : -1;
@@ -545,14 +541,14 @@ export default function MailPage() {
           break;
         }
         case 'z': {
-          if (selectedMessageId && composeWindows.length === 0 && activeFolderSystemType !== 'trash') {
+          if (selectedMessageId && !composeContext && activeFolderSystemType !== 'trash') {
             handleSnooze(selectedMessageId, new Date(Date.now() + 60 * 60 * 1000));
           }
           break;
         }
         case '#':
         case 'Delete':
-          if (selectedMessageId && composeWindows.length === 0) handleDelete();
+          if (selectedMessageId && !composeContext) handleDelete();
           break;
         case '/': {
           e.preventDefault();
@@ -564,18 +560,18 @@ export default function MailPage() {
           setShowShortcuts((v) => !v);
           break;
         case '[':
-          if (composeWindows.length === 0) setSidebarCollapsed((v) => !v);
+          if (!composeContext) setSidebarCollapsed((v) => !v);
           break;
         case 'Escape':
           if (showShortcuts) setShowShortcuts(false);
-          else if (composeWindows.length > 0) closeCompose(composeWindows[composeWindows.length - 1].id);
+          else if (composeContext) closeCompose();
           else setSelectedMessageId(null);
           break;
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [messages, searchResults, selectedMessageId, selectedMessage, composeWindows, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
+  }, [messages, searchResults, selectedMessageId, selectedMessage, composeContext, openCompose, closeCompose, showShortcuts, handleDelete, handleArchive, getNextId, folders, messageLabels, setLabel, activeFolderSystemType]);
 
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
@@ -794,6 +790,7 @@ export default function MailPage() {
         activeFolderId={activeFolderId}
         onSelectFolder={(id) => { handleSelectFolder(id); setMobileSidebarOpen(false); }}
         onCompose={() => { openCompose({ intent: 'new' }); setMobileSidebarOpen(false); }}
+        onComposeInNewWindow={() => window.open('/compose', '_blank', 'width=620,height=720,menubar=no,toolbar=no,resizable=yes')}
         onSearch={handleSearch}
         searchQuery={searchQuery}
         advancedFilters={advancedFilters}
@@ -962,22 +959,21 @@ export default function MailPage() {
         );
       })()}
 
-      {composeWindows.map((w, idx) => (
+      {composeContext && (
         <ComposeModal
-          key={w.id}
-          intent={w.intent}
-          sourceMessage={w.source}
-          draftMessage={w.draft}
-          initialTo={w.to}
+          intent={composeContext.intent}
+          sourceMessage={composeContext.source}
+          draftMessage={composeContext.draft}
+          initialTo={composeContext.to}
           userEmail={userEmail}
           isMobile={isMobile}
-          windowOffset={idx}
-          onClose={() => closeCompose(w.id)}
+          onClose={closeCompose}
         />
-      ))}
+      )}
 
       {/* Mobile FAB — compose button when sidebar is hidden */}
-      {isMobile && !selectedMessageId && composeWindows.length === 0 && (
+      {isMobile && !selectedMessageId && !composeContext && (
+
         <button
           aria-label="새 메일 작성"
           onClick={() => openCompose({ intent: 'new' })}
