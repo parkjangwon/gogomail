@@ -261,6 +261,18 @@ export function deleteMessage(id: string): Promise<void> {
   return apiDelete<void>(`messages/${id}`);
 }
 
+export function createFolder(name: string): Promise<{ folder: Folder }> {
+  return apiPost<{ folder: Folder }>('folders', { name });
+}
+
+export function renameFolder(id: string, name: string): Promise<{ folder: Folder }> {
+  return apiPatch<{ folder: Folder }>(`folders/${id}`, { name });
+}
+
+export function deleteFolder(id: string): Promise<void> {
+  return apiDelete<void>(`folders/${id}`);
+}
+
 export function restoreMessage(id: string): Promise<void> {
   return apiPost<void>(`messages/${id}/restore`, {});
 }
