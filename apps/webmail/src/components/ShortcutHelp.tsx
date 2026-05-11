@@ -6,6 +6,7 @@ const SHORTCUTS = [
   { key: 'r', desc: '답장' },
   { key: 'f', desc: '전달' },
   { key: '# / Delete', desc: '삭제' },
+  { key: '/', desc: '검색창 포커스' },
   { key: 'Escape', desc: '닫기 / 선택 해제' },
   { key: '?', desc: '단축키 도움말' },
 ];
