@@ -4,6 +4,7 @@ const SHORTCUTS = [
   { key: 'j / k', desc: '다음 / 이전 메일' },
   { key: 'c / n', desc: '새 메일 작성' },
   { key: 'r', desc: '답장' },
+  { key: 'a', desc: '전체 답장' },
   { key: 'f', desc: '전달' },
   { key: 'u', desc: '읽지 않음으로 표시' },
   { key: 's', desc: '별표 토글' },

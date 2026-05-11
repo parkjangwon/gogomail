@@ -314,6 +314,12 @@ export default function MailPage() {
             setComposeContext({ intent: 'reply', source: selectedMessage });
           }
           break;
+        case 'a':
+          if (selectedMessage && !composeContext) {
+            e.preventDefault();
+            setComposeContext({ intent: 'reply_all', source: selectedMessage });
+          }
+          break;
         case 'f':
           if (selectedMessage && !composeContext) {
             e.preventDefault();
