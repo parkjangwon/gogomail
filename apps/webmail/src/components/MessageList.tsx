@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageSummary } from '@/lib/api';
 
 type FilterMode = 'all' | 'unread' | 'starred';
@@ -60,6 +60,17 @@ interface MessageListProps {
 export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) onLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore, messages.length]);
 
   const toggleBulk = (id: string) => {
     setBulkSelected((prev) => {
@@ -287,26 +298,10 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
         </div>
       ))}
 
-      {hasMore && (
-        <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-          <button
-            onClick={onLoadMore}
-            disabled={loadingMore}
-            style={{
-              padding: '7px 20px',
-              borderRadius: '6px',
-              border: '1px solid var(--color-border-default)',
-              background: 'transparent',
-              color: 'var(--color-text-secondary)',
-              fontSize: '13px',
-              cursor: loadingMore ? 'not-allowed' : 'pointer',
-              transition: 'background 100ms ease',
-            }}
-            onMouseEnter={(e) => { if (!loadingMore) (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
-            onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-          >
-            {loadingMore ? '불러오는 중...' : '더 보기'}
-          </button>
+      <div ref={sentinelRef} style={{ height: '1px' }} aria-hidden="true" />
+      {loadingMore && (
+        <div style={{ padding: '12px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+          불러오는 중...
         </div>
       )}
       </div>
