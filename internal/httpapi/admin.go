@@ -4543,6 +4543,23 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		handleGetCompanyHealth(w, r, service)
 	}))
 
+	// ─── Change History / Approval Queue ─────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/change-history", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetCompanyChangeHistory(w, r, service)
+	}))
+	mux.HandleFunc("GET /admin/v1/companies/{id}/pending-approvals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleGetPendingApprovals(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleCreatePendingApproval(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/approve", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleApproveApproval(w, r, service)
+	}))
+	mux.HandleFunc("POST /admin/v1/companies/{id}/pending-approvals/{approvalId}/reject", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleRejectApproval(w, r, service)
+	}))
+
 	// ─── Webhooks ─────────────────────────────────────────────────────────────
 	mux.HandleFunc("GET /admin/v1/companies/{id}/webhooks", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyWebhooks(w, r, service)
@@ -7295,6 +7312,209 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"template": input})
+}
+
+// ─── Change History ───────────────────────────────────────────────────────────
+
+func handleGetCompanyChangeHistory(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	q := r.URL.Query()
+	limit := 100
+	if l := q.Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+	req := maildb.AuditLogListRequest{
+		CompanyID:    id,
+		Limit:        limit,
+		ActionPrefix: q.Get("action_prefix"),
+		Category:     q.Get("category"),
+		ActorID:      q.Get("actor_id"),
+	}
+	logs, err := service.ListAuditLogs(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"changes": logs, "total": len(logs)})
+}
+
+// ─── Pending Approvals ────────────────────────────────────────────────────────
+
+const pendingApprovalsKey = "pending_approvals"
+
+type approvalItem struct {
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	Category    string          `json:"category"`
+	Payload     json.RawMessage `json:"payload"`
+	RequestedBy string          `json:"requested_by"`
+	RequestedAt string          `json:"requested_at"`
+	Status      string          `json:"status"`
+	ReviewedBy  string          `json:"reviewed_by,omitempty"`
+	ReviewedAt  string          `json:"reviewed_at,omitempty"`
+	Comment     string          `json:"comment,omitempty"`
+}
+
+type approvalsConfig struct {
+	Items []approvalItem `json:"items"`
+}
+
+func getApprovalsConfig(ctx context.Context, service AdminService, companyID string) (approvalsConfig, error) {
+	entry, err := service.GetCompanyConfig(ctx, companyID, pendingApprovalsKey)
+	if errors.Is(err, configstore.ErrConfigNotFound) {
+		return approvalsConfig{Items: []approvalItem{}}, nil
+	}
+	if err != nil {
+		return approvalsConfig{}, err
+	}
+	var cfg approvalsConfig
+	if err := json.Unmarshal(entry.Value, &cfg); err != nil {
+		return approvalsConfig{Items: []approvalItem{}}, nil
+	}
+	if cfg.Items == nil {
+		cfg.Items = []approvalItem{}
+	}
+	return cfg, nil
+}
+
+func saveApprovalsConfig(ctx context.Context, service AdminService, companyID string, cfg approvalsConfig) error {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	_, err = service.SetCompanyConfig(ctx, companyID, pendingApprovalsKey, json.RawMessage(b), false, 0)
+	return err
+}
+
+func handleGetPendingApprovals(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	cfg, err := getApprovalsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	status := r.URL.Query().Get("status")
+	if status == "" {
+		status = "pending"
+	}
+	out := []approvalItem{}
+	for _, item := range cfg.Items {
+		if item.Status == status {
+			out = append(out, item)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"approvals": out})
+}
+
+func handleCreatePendingApproval(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	var input approvalItem
+	if err := decodeJSONBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if input.Title == "" {
+		writeError(w, http.StatusBadRequest, "title is required")
+		return
+	}
+	input.ID = fmt.Sprintf("ap-%d", time.Now().UnixNano())
+	input.Status = "pending"
+	input.RequestedAt = time.Now().UTC().Format(time.RFC3339)
+
+	cfg, err := getApprovalsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	cfg.Items = append(cfg.Items, input)
+	if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"approval": input})
+}
+
+func handleApproveApproval(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	approvalID := r.PathValue("approvalId")
+	var input struct {
+		ReviewedBy string `json:"reviewed_by"`
+		Comment    string `json:"comment"`
+	}
+	_ = decodeJSONBody(r, &input)
+
+	cfg, err := getApprovalsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for i := range cfg.Items {
+		if cfg.Items[i].ID == approvalID {
+			cfg.Items[i].Status = "approved"
+			cfg.Items[i].ReviewedBy = input.ReviewedBy
+			cfg.Items[i].ReviewedAt = time.Now().UTC().Format(time.RFC3339)
+			cfg.Items[i].Comment = input.Comment
+			if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"approval": cfg.Items[i]})
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "approval not found")
+}
+
+func handleRejectApproval(w http.ResponseWriter, r *http.Request, service AdminService) {
+	defer r.Body.Close()
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	approvalID := r.PathValue("approvalId")
+	var input struct {
+		ReviewedBy string `json:"reviewed_by"`
+		Comment    string `json:"comment"`
+	}
+	_ = decodeJSONBody(r, &input)
+
+	cfg, err := getApprovalsConfig(r.Context(), service, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for i := range cfg.Items {
+		if cfg.Items[i].ID == approvalID {
+			cfg.Items[i].Status = "rejected"
+			cfg.Items[i].ReviewedBy = input.ReviewedBy
+			cfg.Items[i].ReviewedAt = time.Now().UTC().Format(time.RFC3339)
+			cfg.Items[i].Comment = input.Comment
+			if err := saveApprovalsConfig(r.Context(), service, id, cfg); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"approval": cfg.Items[i]})
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "approval not found")
 }
 
 func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service AdminService) {

@@ -86,6 +86,7 @@
     "section_analytics_storage": "분석 & 저장",
     "onboarding": "테넌트 온보딩",
     "tenant_health": "테넌트 상태",
+    "change_history": "변경 이력",
     "sso_config": "SSO / SAML",
     "webhooks": "웹훅",
     "notif_templates": "알림 템플릿",
