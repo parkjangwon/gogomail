@@ -24,6 +24,7 @@ import {
   CloudIcon,
   FolderIcon,
   ChevronRightIcon,
+  FaceSmileIcon,
 } from '@heroicons/react/24/outline';
 
 interface ComposeModalProps {
@@ -165,6 +166,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [templates, setTemplates] = useState<Array<{ name: string; subject: string; body: string }>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_templates') ?? '[]'); } catch { return []; }
   });
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [drivePickerNodes, setDrivePickerNodes] = useState<DriveNode[]>([]);
   const [drivePickerLoading, setDrivePickerLoading] = useState(false);
@@ -933,6 +935,35 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button type="button" aria-label="글머리 목록" title="글머리 목록" style={toolbarBtnStyle(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
             <button type="button" aria-label="번호 목록" title="번호 목록" style={toolbarBtnStyle(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
             <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyle(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
+
+            <div style={{ position: 'relative' }}>
+              <button type="button" onClick={() => setShowEmojiPicker((v) => !v)} title="이모지" style={toolbarBtnStyle(showEmojiPicker)} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = showEmojiPicker ? 'var(--color-bg-tertiary)' : 'transparent'; }}><FaceSmileIcon style={{ width: '14px', height: '14px' }} /></button>
+              {showEmojiPicker && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: '4px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 400, width: '260px', padding: '8px' }}>
+                  {[
+                    { label: '😊 자주 쓰는', emojis: ['😀','😂','🥰','😍','🤔','😮','😢','😎','🙏','👍','👎','❤️','🎉','✨','🔥','💯','😁','🤣','😇','🥳'] },
+                    { label: '🐾 자연', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🌸','🌺','🍀','🌈','⭐','🌙','☀️','❄️'] },
+                    { label: '🍕 음식', emojis: ['🍕','🍔','🌮','🍜','🍣','🍰','☕','🍺','🎂','🍎','🥑','🍓','🍦','🧁','🍩','🧇','🥐','🍿','🍫','🥤'] },
+                    { label: '✈️ 여행', emojis: ['✈️','🚀','🚗','🚂','⛵','🏖️','🏔️','🌏','🗺️','🗼','🎡','🏰','🎠','🚁','🛸','🚢','🛶','🚌','🚲','🏄'] },
+                    { label: '🎵 활동', emojis: ['⚽','🏀','🎾','🎯','🎮','🎵','🎸','📚','💻','📱','🎨','🎭','🏋️','🤸','🧘','🎲','♟️','🎻','🎺','🥁'] },
+                    { label: '💡 기호', emojis: ['✅','❌','⚠️','💡','🔑','📌','📍','🔒','🔓','💰','📧','📞','🔔','💬','📊','📈','📉','🏆','🎁','🎗️'] },
+                  ].map((cat) => (
+                    <div key={cat.label} style={{ marginBottom: '6px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontWeight: 600, marginBottom: '4px', letterSpacing: '0.05em' }}>{cat.label}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                        {cat.emojis.map((em) => (
+                          <button key={em} type="button" onClick={() => { editor?.chain().focus().insertContent(em).run(); setShowEmojiPicker(false); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '2px', borderRadius: '4px', lineHeight: 1 }}
+                            onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
+                            onMouseLeave={(e) => { (e.currentTarget).style.background = 'none'; }}
+                          >{em}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
 
