@@ -4542,6 +4542,11 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"valid": true, "message": "domain format is valid"})
 	}))
 
+	// ─── Audit Log Export ─────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/v1/companies/{id}/audit-logs/export", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
+		handleExportCompanyAuditLogs(w, r, service)
+	}))
+
 	// ─── Tenant Health ────────────────────────────────────────────────────────
 	mux.HandleFunc("GET /admin/v1/companies/{id}/health", adminAuth(token, func(w http.ResponseWriter, r *http.Request) {
 		handleGetCompanyHealth(w, r, service)
@@ -7316,6 +7321,45 @@ func handlePutNotifTemplate(w http.ResponseWriter, r *http.Request, service Admi
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"template": input})
+}
+
+// ─── Audit Log Export ─────────────────────────────────────────────────────────
+
+func handleExportCompanyAuditLogs(w http.ResponseWriter, r *http.Request, service AdminService) {
+	id, ok := parseBoundedAdminPathValue(w, r, "id")
+	if !ok {
+		return
+	}
+	q := r.URL.Query()
+	limit := 1000
+	if l := q.Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 10000 {
+			limit = parsed
+		}
+	}
+	req := maildb.AuditLogListRequest{
+		CompanyID:    id,
+		Limit:        limit,
+		Category:     q.Get("category"),
+		ActionPrefix: q.Get("action_prefix"),
+	}
+	logs, err := service.ListAuditLogs(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="audit-logs-%s.csv"`, id))
+	wr := csv.NewWriter(w)
+	_ = wr.Write([]string{"id", "company_id", "actor_id", "category", "action", "target_type", "target_id", "result", "ip_address", "created_at"})
+	for _, l := range logs {
+		_ = wr.Write([]string{
+			l.ID, l.CompanyID, l.ActorID, l.Category, l.Action,
+			l.TargetType, l.TargetID, l.Result, l.IPAddress,
+			l.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	wr.Flush()
 }
 
 // ─── Bulk Domain Operations ───────────────────────────────────────────────────
