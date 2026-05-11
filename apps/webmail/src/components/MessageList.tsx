@@ -133,6 +133,18 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
   const selectAll = () => setBulkSelected(new Set(filteredMessages.map((m) => m.id)));
   const clearAll = () => { setBulkSelected(new Set()); lastBulkIndexRef.current = null; };
 
+  const bulkSize = bulkSelected.size;
+  const clearAllRef = useRef(clearAll);
+  useEffect(() => { clearAllRef.current = clearAll; });
+  useEffect(() => {
+    if (bulkSize === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); clearAllRef.current(); }
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [bulkSize]);
+
   const baseFiltered = filterMode === 'unread'
     ? messages.filter((m) => !m.read)
     : filterMode === 'starred'
