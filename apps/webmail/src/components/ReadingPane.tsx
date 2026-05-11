@@ -64,6 +64,7 @@ interface ReadingPaneProps {
   onBack?: () => void;
   isStarred?: boolean;
   onStar?: (starred: boolean) => void;
+  onQuickReply?: (body: string) => Promise<void>;
 }
 
 function formatFullDate(receivedAt: string): string {
@@ -136,8 +137,14 @@ export function ReadingPane({
   onBack,
   isStarred,
   onStar,
+  onQuickReply,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [quickReplyOpen, setQuickReplyOpen] = useState(false);
+  const [quickReplyText, setQuickReplyText] = useState('');
+  const [quickReplySending, setQuickReplySending] = useState(false);
+  const [quickReplySent, setQuickReplySent] = useState(false);
+  const quickReplyRef = useRef<HTMLTextAreaElement>(null);
   const [fontSize, setFontSize] = useState(() => {
     try { return parseInt(localStorage.getItem('webmail_font_size') ?? '14', 10) || 14; } catch { return 14; }
   });
@@ -145,6 +152,12 @@ export function ReadingPane({
   useEffect(() => {
     localStorage.setItem('webmail_font_size', String(fontSize));
   }, [fontSize]);
+
+  useEffect(() => {
+    setQuickReplyOpen(false);
+    setQuickReplyText('');
+    setQuickReplySent(false);
+  }, [message?.id]);
   const [copiedEmail, setCopiedEmail] = useState('');
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -476,6 +489,78 @@ export function ReadingPane({
             </pre>
           )}
         </div>
+
+        {/* Quick reply */}
+        {onQuickReply && (
+          <div style={{ marginTop: '24px', borderTop: '1px solid var(--color-border-subtle)', paddingTop: '16px' }}>
+            {!quickReplyOpen ? (
+              <button
+                onClick={() => { setQuickReplyOpen(true); setTimeout(() => quickReplyRef.current?.focus(), 50); }}
+                style={{
+                  width: '100%',
+                  maxWidth: '680px',
+                  textAlign: 'left',
+                  padding: '10px 14px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--color-border-default)',
+                  background: 'var(--color-bg-secondary)',
+                  color: 'var(--color-text-tertiary)',
+                  fontSize: '14px',
+                  cursor: 'text',
+                }}
+              >
+                ← 답장하기...
+              </button>
+            ) : (
+              <div style={{ maxWidth: '680px', border: '1px solid var(--color-accent)', borderRadius: '6px', overflow: 'hidden' }}>
+                <textarea
+                  ref={quickReplyRef}
+                  value={quickReplyText}
+                  onChange={(e) => setQuickReplyText(e.target.value)}
+                  placeholder="답장 내용을 입력하세요..."
+                  rows={4}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      if (!quickReplySending && quickReplyText.trim()) {
+                        setQuickReplySending(true);
+                        onQuickReply(quickReplyText.trim())
+                          .then(() => { setQuickReplySent(true); setQuickReplyText(''); setTimeout(() => { setQuickReplySent(false); setQuickReplyOpen(false); }, 1500); })
+                          .catch(() => {})
+                          .finally(() => setQuickReplySending(false));
+                      }
+                    }
+                    if (e.key === 'Escape') { setQuickReplyOpen(false); setQuickReplyText(''); }
+                  }}
+                  style={{ width: '100%', padding: '12px 14px', border: 'none', outline: 'none', resize: 'vertical', fontSize: '14px', lineHeight: 1.6, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Ctrl+Enter로 전송 · Escape로 취소</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => { setQuickReplyOpen(false); setQuickReplyText(''); }}
+                      style={{ padding: '5px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
+                    >취소</button>
+                    <button
+                      disabled={quickReplySending || !quickReplyText.trim()}
+                      onClick={() => {
+                        if (quickReplySending || !quickReplyText.trim()) return;
+                        setQuickReplySending(true);
+                        onQuickReply(quickReplyText.trim())
+                          .then(() => { setQuickReplySent(true); setQuickReplyText(''); setTimeout(() => { setQuickReplySent(false); setQuickReplyOpen(false); }, 1500); })
+                          .catch(() => {})
+                          .finally(() => setQuickReplySending(false));
+                      }}
+                      style={{ padding: '5px 14px', borderRadius: '5px', border: 'none', background: quickReplySending || !quickReplyText.trim() ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: quickReplySending || !quickReplyText.trim() ? 'not-allowed' : 'pointer' }}
+                    >
+                      {quickReplySent ? '전송됨 ✓' : quickReplySending ? '전송 중...' : '보내기'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
