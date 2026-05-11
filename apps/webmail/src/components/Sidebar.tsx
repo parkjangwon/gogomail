@@ -22,6 +22,8 @@ import {
   EnvelopeIcon,
   ClockIcon,
   BookmarkIcon,
+  ExclamationCircleIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { SettingsModal } from '@/components/SettingsModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -34,14 +36,18 @@ export const VIRTUAL_ATTACHMENTS = '__attachments__';
 export const VIRTUAL_UNREAD = '__unread__';
 export const VIRTUAL_SNOOZED = '__snoozed__';
 export const VIRTUAL_PINNED = '__pinned__';
+export const VIRTUAL_IMPORTANT = '__important__';
+export const VIRTUAL_TASKS = '__tasks__';
 
 const VIRTUAL_NAV: { id: string; label: string; icon: ReactNode }[] = [
   { id: VIRTUAL_ALL, label: '모든 편지함', icon: <InboxIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
-  { id: VIRTUAL_STARRED, label: '중요 편지함', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_STARRED, label: '별표 편지함', icon: <StarIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_IMPORTANT, label: '중요 메일', icon: <ExclamationCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_UNREAD, label: '읽지 않은 메일', icon: <EnvelopeIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_ATTACHMENTS, label: '첨부 편지함', icon: <PaperClipIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_SNOOZED, label: '다시 알림', icon: <ClockIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
   { id: VIRTUAL_PINNED, label: '핀 고정', icon: <BookmarkIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
+  { id: VIRTUAL_TASKS, label: '할 일', icon: <ClipboardDocumentListIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} /> },
 ];
 
 const SYSTEM_FOLDER_META: { systemType: string; label: string }[] = [
