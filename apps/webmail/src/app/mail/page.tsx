@@ -378,17 +378,20 @@ export default function MailPage() {
     }
   }, [messages, setMessages, adjustUnread, activeFolderId, addToast]);
 
-  const handleArchive = useCallback(() => {
-    if (!selectedMessageId) return;
+  const handleArchiveById = useCallback((id: string) => {
     const archiveFolder = folders.find((f) => f.system_type === 'archive');
     if (!archiveFolder) return;
-    const id = selectedMessageId;
     const nextId = getNextId(id);
     void moveMessage(id, archiveFolder.id).then(() => {
       setMessages((prev) => prev.filter((m) => m.id !== id));
-      setSelectedMessageId(nextId);
+      if (selectedMessageId === id) setSelectedMessageId(nextId);
     }).catch(() => {});
-  }, [selectedMessageId, folders, getNextId, setMessages]);
+  }, [folders, getNextId, setMessages, selectedMessageId]);
+
+  const handleArchive = useCallback(() => {
+    if (!selectedMessageId) return;
+    handleArchiveById(selectedMessageId);
+  }, [selectedMessageId, handleArchiveById]);
 
   const handleSpam = useCallback(() => {
     if (!selectedMessageId) return;
@@ -885,6 +888,7 @@ export default function MailPage() {
           emptyFolderLabel={activeFolderSystemType === 'trash' ? '휴지통 비우기' : undefined}
           onEmptyFolder={activeFolderSystemType === 'trash' ? () => handleBulkDelete(messages.map((m) => m.id)) : undefined}
           onDeleteMessage={handleDeleteById}
+          onArchiveMessage={activeFolderSystemType !== 'archive' && activeFolderSystemType !== 'trash' ? handleArchiveById : undefined}
           onBulkRestore={activeFolderSystemType === 'trash' ? handleBulkRestore : undefined}
           onBulkLabel={handleBulkLabel}
           onBulkStar={handleBulkStar}

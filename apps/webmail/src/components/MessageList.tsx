@@ -88,10 +88,11 @@ interface MessageListProps {
   onBulkRestore?: (ids: string[]) => void;
   onBulkLabel?: (ids: string[], color: string | null) => void;
   onBulkStar?: (ids: string[], starred: boolean) => void;
+  onArchiveMessage?: (id: string) => void;
   messageLabels?: Record<string, string>;
 }
 
-export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, messageLabels = {} }: MessageListProps) {
+export function MessageList({ messages, selectedId, onSelect, loading, emptyLabel, hasMore, loadingMore, onLoadMore, onStar, onBulkDelete, onBulkMarkRead, onRefresh, refreshing, isMobile, onOpenSidebar, onContextMenuMessage, onMarkAllRead, emptyFolderLabel, onEmptyFolder, folders, onBulkMove, paneWidth, fullWidth, bottomLayout, searchQuery, onDeleteMessage, onBulkRestore, onBulkLabel, onBulkStar, onArchiveMessage, messageLabels = {} }: MessageListProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [sortAsc, setSortAsc] = useState(false);
@@ -651,6 +652,7 @@ export function MessageList({ messages, selectedId, onSelect, loading, emptyLabe
               searchQuery={searchQuery}
               compact={compact}
               onDelete={isMobile ? onDeleteMessage : undefined}
+              onArchiveRow={isMobile ? onArchiveMessage : undefined}
               onHoverDelete={!isMobile ? onDeleteMessage : undefined}
               threadCount={threadCounts[msg.id]}
               labelColor={messageLabels[msg.id]}
@@ -681,17 +683,19 @@ interface MessageRowProps {
   searchQuery?: string;
   compact?: boolean;
   onDelete?: (id: string) => void;
+  onArchiveRow?: (id: string) => void;
   onHoverDelete?: (id: string) => void;
   threadCount?: number;
   labelColor?: string;
 }
 
-function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onHoverDelete, threadCount, labelColor }: MessageRowProps) {
+function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onToggleBulk, onContextMenu, searchQuery, compact, onDelete, onArchiveRow, onHoverDelete, threadCount, labelColor }: MessageRowProps) {
   const q = searchQuery ?? '';
   const isUnread = !message.read;
   const swipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const swipeEnabled = onDelete || onArchiveRow;
 
   return (
     <div
@@ -699,25 +703,33 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
       data-message-id={message.id}
       style={{ position: 'relative', overflow: 'hidden', borderLeft: labelColor ? `3px solid ${labelColor}` : '3px solid transparent' }}
     >
+      {onArchiveRow && swipeX > 20 && (
+        <div aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(120, swipeX), background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>
+          {swipeX > 70 ? '아카이브' : '→'}
+        </div>
+      )}
       {onDelete && swipeX < -20 && (
         <div aria-hidden="true" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: Math.min(120, -swipeX), background: 'var(--color-destructive)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 600, pointerEvents: 'none' }}>
           {-swipeX > 70 ? '삭제' : '←'}
         </div>
       )}
       <div
-      draggable={!onDelete}
-      onDragStart={!onDelete ? (e) => { e.dataTransfer.setData('text/plain', message.id); e.dataTransfer.effectAllowed = 'move'; } : undefined}
-      onTouchStart={onDelete ? (e) => { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; } : undefined}
-      onTouchMove={onDelete ? (e) => {
+      draggable={!swipeEnabled}
+      onDragStart={!swipeEnabled ? (e) => { e.dataTransfer.setData('text/plain', message.id); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+      onTouchStart={swipeEnabled ? (e) => { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; } : undefined}
+      onTouchMove={swipeEnabled ? (e) => {
         if (!swipeRef.current) return;
         const dx = e.touches[0].clientX - swipeRef.current.startX;
         const dy = e.touches[0].clientY - swipeRef.current.startY;
         if (Math.abs(dy) > Math.abs(dx)) { swipeRef.current = null; return; }
         e.preventDefault();
-        setSwipeX(Math.max(-120, Math.min(0, dx)));
+        const minX = onDelete ? -120 : 0;
+        const maxX = onArchiveRow ? 120 : 0;
+        setSwipeX(Math.max(minX, Math.min(maxX, dx)));
       } : undefined}
-      onTouchEnd={onDelete ? () => {
-        if (swipeX < -70) { onDelete(message.id); }
+      onTouchEnd={swipeEnabled ? () => {
+        if (swipeX < -70 && onDelete) onDelete(message.id);
+        else if (swipeX > 70 && onArchiveRow) onArchiveRow(message.id);
         setSwipeX(0);
         swipeRef.current = null;
       } : undefined}
