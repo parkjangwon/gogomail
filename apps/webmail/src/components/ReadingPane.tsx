@@ -15,7 +15,9 @@ import {
   PhotoIcon,
   DocumentIcon,
   ArrowPathIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 function linkify(text: string): ReactNode[] {
@@ -135,6 +137,8 @@ interface ReadingPaneProps {
   onOpenInWindow?: () => void;
   onToggleRead?: () => void;
   isRead?: boolean;
+  onStar?: () => void;
+  isStarred?: boolean;
   threadMessages?: MessageSummary[];
   onSelectThread?: (id: string) => void;
   userEmail?: string;
@@ -195,6 +199,8 @@ export function ReadingPane({
   onOpenInWindow,
   onToggleRead,
   isRead,
+  onStar,
+  isStarred,
   threadMessages,
   onSelectThread,
   userEmail,
@@ -487,6 +493,15 @@ export function ReadingPane({
         ) : null)}
 
         <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
+
+        {/* Star */}
+        {onStar && (
+          <button aria-label={isStarred ? '별표 해제' : '별표'} title={isStarred ? '별표 해제' : '별표'} onClick={onStar}
+            style={{ ...iconStyle, border: 'none', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: isStarred ? '#f59e0b' : 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+          >{isStarred ? <StarIconSolid style={{ width: '16px', height: '16px' }} /> : <StarIcon style={{ width: '16px', height: '16px' }} />}</button>
+        )}
 
         {/* Archive */}
         {onArchive && (
