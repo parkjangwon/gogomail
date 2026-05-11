@@ -88,6 +88,7 @@ interface ReadingPaneProps {
   onQuickReply?: (body: string) => Promise<void>;
   onPrev?: () => void;
   onNext?: () => void;
+  onComposeToAddress?: (address: string) => void;
 }
 
 function readingTime(text: string): string {
@@ -169,6 +170,7 @@ export function ReadingPane({
   onQuickReply,
   onPrev,
   onNext,
+  onComposeToAddress,
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
@@ -499,6 +501,15 @@ export function ReadingPane({
                 >
                   {copiedEmail === message.from_addr ? '' : `<${message.from_addr}>`}
                 </span>
+              )}
+              {onComposeToAddress && (
+                <button
+                  onClick={() => onComposeToAddress(message.from_addr)}
+                  title={`${message.from_addr}에게 새 메일 작성`}
+                  style={{ background: 'none', border: '1px solid var(--color-border-default)', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'var(--color-text-tertiary)', padding: '1px 6px', marginInlineStart: '6px', lineHeight: 1.4 }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >메일 보내기</button>
               )}
             </div>
             {toList && (
