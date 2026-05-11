@@ -21,6 +21,7 @@ import {
   CopyToClipboard,
   Flashbar,
   Pagination,
+  ButtonDropdown,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -88,6 +89,10 @@ export default function UsersPage() {
   const [offboardTarget, setOffboardTarget] = useState<User | null>(null);
   const [offboardForward, setOffboardForward] = useState('');
   const [offboarding, setOffboarding] = useState(false);
+
+  // Bulk selection
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Pagination
   const PAGE_SIZE = 25;
@@ -303,6 +308,29 @@ export default function UsersPage() {
     setFlashItems(prev => [...prev, { type, content, id, dismissible: true, onDismiss: () => setFlashItems(f => f.filter(i => i.id !== id)) }]);
   };
 
+  const handleBulkAction = async (action: 'activate' | 'suspend') => {
+    if (selectedUsers.length === 0) return;
+    setBulkLoading(true);
+    try {
+      const status = action === 'activate' ? 'active' : 'suspended';
+      await Promise.all(selectedUsers.map(u =>
+        fetch(`/api/admin/users/${u.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+          credentials: 'include',
+        })
+      ));
+      addFlash('success', `${action}: ${selectedUsers.length} user(s) updated`);
+      setSelectedUsers([]);
+      fetchUsers();
+    } catch {
+      addFlash('error', `Bulk ${action} failed`);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       const res = await fetch(`/api/admin/companies/${companyId}/users/bulk-export`, { credentials: 'include' });
@@ -461,6 +489,10 @@ export default function UsersPage() {
 
         {/* User Table */}
         <Table
+          selectionType="multi"
+          selectedItems={selectedUsers}
+          onSelectionChange={e => setSelectedUsers(e.detail.selectedItems)}
+          trackBy="id"
           columnDefinitions={[
             {
               header: t('pages.users_page.username'),
@@ -546,7 +578,27 @@ export default function UsersPage() {
           ]}
           items={pagedUsers}
           header={
-            <Header variant="h2" counter={`(${filteredUsers.length})`}>
+            <Header
+              variant="h2"
+              counter={selectedUsers.length > 0 ? `(${selectedUsers.length}/${filteredUsers.length})` : `(${filteredUsers.length})`}
+              actions={
+                selectedUsers.length > 0 ? (
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <Box color="text-status-inactive" padding={{ top: 'xs' }}>{selectedUsers.length} selected</Box>
+                    <ButtonDropdown
+                      loading={bulkLoading}
+                      items={[
+                        { id: 'activate', text: 'Activate selected' },
+                        { id: 'suspend', text: 'Suspend selected' },
+                      ]}
+                      onItemClick={({ detail }) => handleBulkAction(detail.id as 'activate' | 'suspend')}
+                    >
+                      Bulk Actions
+                    </ButtonDropdown>
+                  </SpaceBetween>
+                ) : undefined
+              }
+            >
               {t('pages.users_page.user_list')}
             </Header>
           }
