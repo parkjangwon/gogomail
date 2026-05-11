@@ -24,6 +24,28 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function parseAddr(raw: string): { address: string; name?: string } {
+  const m = raw.match(/^(.+?)\s*<([^>]+)>$/);
+  if (m) return { name: m[1].trim() || undefined, address: m[2].trim() };
+  return { address: raw.trim() };
+}
+
+function parseAddrs(raw: string): { address: string; name?: string }[] {
+  // Split on commas not inside angle brackets
+  const parts: string[] = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === '<') depth++;
+    else if (raw[i] === '>') depth--;
+    else if (raw[i] === ',' && depth === 0) {
+      parts.push(raw.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(raw.slice(start));
+  return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
+}
+
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
   const from = source.from_name
     ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
@@ -97,7 +119,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
   });
   const [recentRecipients] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]'); } catch { return []; }
+    try {
+      const recents: string[] = JSON.parse(localStorage.getItem('webmail_recent_recipients') ?? '[]');
+      const contacts: Record<string, string> = JSON.parse(localStorage.getItem('webmail_contacts') ?? '{}');
+      // Enrich plain email entries with stored contact names
+      const enriched = recents.map((r) => {
+        if (r.includes('<')) return r;
+        const name = contacts[r.toLowerCase()];
+        return name ? `${name} <${r}>` : r;
+      });
+      // Add contacts not yet in recents
+      const recentEmails = new Set(recents.map((r) => { const m = r.match(/<([^>]+)>/); return (m ? m[1] : r).toLowerCase(); }));
+      Object.entries(contacts).forEach(([email, name]) => {
+        if (!recentEmails.has(email)) enriched.push(`${name} <${email}>`);
+      });
+      return enriched.slice(0, 50);
+    } catch { return []; }
   });
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,7 +260,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         .then(() => {
           try {
             const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
-              .map((a) => a.address).filter(Boolean);
+              .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
             const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
             localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
           } catch { /* */ }
@@ -306,9 +343,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     setError('');
     const readyAttachmentIds = uploadedAttachments.filter((a) => !a.uploading && !a.error).map((a) => a.id);
     const msg: SendMessageRequest = {
-      to: to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address),
-      ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
-      ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+      to: parseAddrs(to),
+      ...(cc.trim() && { cc: parseAddrs(cc) }),
+      ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
       subject: subject.trim(),
       text_body: bodyText,
       ...(editor && { html_body: editor.getHTML() }),
