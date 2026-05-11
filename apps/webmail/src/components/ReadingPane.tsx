@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { MessageDetail, Folder } from '@/lib/api';
 
 function SafeHTMLBody({ html }: { html: string }) {
@@ -139,6 +139,15 @@ export function ReadingPane({
 }: ReadingPaneProps) {
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+  const [copiedEmail, setCopiedEmail] = useState('');
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const copyEmail = useCallback((email: string) => {
+    navigator.clipboard.writeText(email).catch(() => {});
+    setCopiedEmail(email);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedEmail(''), 2000);
+  }, []);
   if (loading) {
     return (
       <main
@@ -356,35 +365,64 @@ export function ReadingPane({
           }}
         >
           <div>
-            <div
-              style={{
-                fontSize: '14px',
-                fontWeight: 500,
-                color: 'var(--color-text-primary)',
-              }}
-            >
-              {message.from_name || message.from_addr}
+            <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
+              <span
+                title="클릭하면 주소 복사"
+                onClick={() => copyEmail(message.from_addr)}
+                style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-secondary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
+              >
+                {copiedEmail === message.from_addr ? '복사됨 ✓' : (message.from_name || message.from_addr)}
+              </span>
               {message.from_name && (
                 <span
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 400,
-                    color: 'var(--color-text-secondary)',
-                    marginInlineStart: '6px',
-                  }}
+                  title="클릭하면 주소 복사"
+                  onClick={() => copyEmail(message.from_addr)}
+                  style={{ fontSize: '13px', fontWeight: 400, color: 'var(--color-text-secondary)', marginInlineStart: '6px', cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-secondary)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
                 >
-                  &lt;{message.from_addr}&gt;
+                  {copiedEmail === message.from_addr ? '' : `<${message.from_addr}>`}
                 </span>
               )}
             </div>
             {toList && (
               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                받는 사람: {toList}
+                받는 사람:{' '}
+                {(message.to_addrs ?? []).map((t, i) => (
+                  <span key={t.address}>
+                    {i > 0 && ', '}
+                    <span
+                      title="클릭하면 주소 복사"
+                      onClick={() => copyEmail(t.address)}
+                      style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-tertiary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
+                    >
+                      {copiedEmail === t.address ? '복사됨 ✓' : (t.name ? `${t.name} <${t.address}>` : t.address)}
+                    </span>
+                  </span>
+                ))}
               </div>
             )}
             {ccList && (
               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                참조: {ccList}
+                참조:{' '}
+                {(message.cc_addrs ?? []).map((t, i) => (
+                  <span key={t.address}>
+                    {i > 0 && ', '}
+                    <span
+                      title="클릭하면 주소 복사"
+                      onClick={() => copyEmail(t.address)}
+                      style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-tertiary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
+                    >
+                      {copiedEmail === t.address ? '복사됨 ✓' : (t.name ? `${t.name} <${t.address}>` : t.address)}
+                    </span>
+                  </span>
+                ))}
               </div>
             )}
           </div>
