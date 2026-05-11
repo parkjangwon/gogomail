@@ -536,12 +536,19 @@ export default function MailPage() {
     const spamMsg = messages.find((m) => m.id === id);
     if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, -1);
     const nextId = getNextId(id);
-    void moveMessage(id, spamFolder.id).then(() => {
-      setMessages((prev) => prev.filter((m) => m.id !== id));
-      setSelectedMessageId(nextId);
-      addToast('스팸으로 이동했습니다', 'info');
-    }).catch(() => addToast('이동에 실패했습니다', 'error'));
-  }, [selectedMessageId, folders, getNextId, setMessages, addToast]);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    setSelectedMessageId(nextId);
+    addToast('스팸으로 이동했습니다', 'info', {
+      action: {
+        label: '실행 취소',
+        onClick: () => { if (spamMsg) { setMessages((prev) => [spamMsg, ...prev]); if (spamMsg && !spamMsg.read) adjustUnread(activeFolderId, 1); } },
+      },
+    });
+    void moveMessage(id, spamFolder.id).catch(() => {
+      if (spamMsg) setMessages((prev) => [spamMsg, ...prev]);
+      addToast('이동에 실패했습니다', 'error');
+    });
+  }, [selectedMessageId, folders, getNextId, setMessages, addToast, messages, adjustUnread, activeFolderId]);
 
   const handleNotSpam = useCallback(() => {
     if (!selectedMessageId) return;
