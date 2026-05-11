@@ -763,9 +763,9 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
       aria-selected={isSelected}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         gap: '8px',
-        padding: compact ? '5px 16px' : '12px 16px',
+        padding: compact ? '4px 16px' : '9px 16px',
         borderBottom: '1px solid var(--color-border-subtle)',
         background: isSelected ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
         cursor: 'pointer',
@@ -782,137 +782,91 @@ function MessageRow({ message, isSelected, isBulkChecked, onSelect, onStar, onTo
         if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)';
       }}
     >
-      {/* Hover quick-delete overlay (desktop only) */}
-      {hovered && onHoverDelete && !compact && !isBulkChecked && (
-        <button
-          aria-label="삭제"
-          title="삭제"
-          onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
-          style={{
-            position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-            background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-default)',
-            borderRadius: '6px', padding: '3px 7px', cursor: 'pointer',
-            fontSize: '14px', color: 'var(--color-text-secondary)', zIndex: 2,
-            lineHeight: 1,
-          }}
-        >🗑</button>
-      )}
-      {/* Checkbox / unread dot — click to toggle bulk selection */}
+      {/* Unread dot / checkbox */}
       <div
         onClick={(e) => { e.stopPropagation(); onToggleBulk(message.id, e.shiftKey); }}
         title={isBulkChecked ? '선택 해제' : '선택'}
-        style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '3px', cursor: 'pointer' }}
+        style={{ width: '16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', alignSelf: 'center' }}
       >
         {isBulkChecked ? (
-          <input
-            type="checkbox"
-            checked
-            readOnly
-            aria-label="선택됨"
-            style={{ cursor: 'pointer', accentColor: 'var(--color-accent)', pointerEvents: 'none' }}
-          />
+          <input type="checkbox" checked readOnly aria-label="선택됨" style={{ cursor: 'pointer', accentColor: 'var(--color-accent)', pointerEvents: 'none' }} />
         ) : (
-          <div
-            aria-hidden="true"
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: isUnread ? 'var(--color-accent)' : 'transparent',
-            }}
-          />
+          <div aria-hidden="true" style={{ width: '6px', height: '6px', borderRadius: '50%', background: isUnread ? 'var(--color-accent)' : 'transparent' }} />
         )}
       </div>
 
       {/* Sender avatar */}
       {!compact && (
-        <div aria-hidden="true" style={{
-          width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-          background: avatarColor(message.from_name || message.from_addr),
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '13px', fontWeight: 600, userSelect: 'none',
-        }}>
+        <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, background: avatarColor(message.from_name || message.from_addr), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, userSelect: 'none', alignSelf: 'center' }}>
           {(message.from_name || message.from_addr).charAt(0).toUpperCase()}
         </div>
       )}
 
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: sender + date + icons */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', marginBottom: '3px' }}>
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: isUnread ? 500 : 400,
-              color: 'var(--color-text-primary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            {highlight(message.from_name || message.from_addr, q)}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-            {message.has_attachment && (
-              <span aria-label="첨부파일 있음" title="첨부파일" style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>📎</span>
-            )}
-            <span
-              style={{ fontSize: '13px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
-              title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}
-            >
-              {formatDate(message.received_at)}
-            </span>
-          </div>
+      {/* Sender name + email */}
+      <div style={{ width: compact ? '100px' : '130px', flexShrink: 0, minWidth: 0, alignSelf: 'center' }}>
+        <div style={{ fontSize: '13px', fontWeight: isUnread ? 600 : 400, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {highlight(message.from_name || message.from_addr, q)}
         </div>
-
-        {/* Row 2: subject + preview + star */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div
-            style={{
-              flex: 1,
-              fontSize: '14px',
-              color: 'var(--color-text-primary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span style={{ fontWeight: isUnread ? 600 : 400 }}>
-              {highlight(message.subject || '(제목 없음)', q)}
-            </span>
-            {threadCount && threadCount > 1 && (
-              <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
-            )}
-            {!compact && message.preview && (
-              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
-                {' · '}{highlight(message.preview, q)}
-              </span>
-            )}
+        {!compact && message.from_name && (
+          <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>
+            {message.from_addr}
           </div>
-          {onStar && (
-            <button
-              aria-label={message.starred ? '별표 해제' : '별표 추가'}
-              onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
-              style={{
-                flexShrink: 0,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '2px',
-                fontSize: '14px',
-                color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)',
-                opacity: message.starred ? 1 : 0.4,
-                lineHeight: 1,
-              }}
-              onMouseEnter={(e) => { (e.currentTarget).style.opacity = '1'; }}
-              onMouseLeave={(e) => { (e.currentTarget).style.opacity = message.starred ? '1' : '0.4'; }}
-            >
-              ★
-            </button>
+        )}
+      </div>
+
+      {/* Subject + preview */}
+      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', alignSelf: 'center' }}>
+        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+          <span style={{ fontWeight: isUnread ? 600 : 400, color: 'var(--color-text-primary)' }}>
+            {highlight(message.subject || '(제목 없음)', q)}
+          </span>
+          {threadCount && threadCount > 1 && (
+            <span aria-label={`${threadCount}개 메시지`} style={{ marginLeft: '5px', fontSize: '11px', color: 'var(--color-text-tertiary)', background: 'var(--color-bg-tertiary)', borderRadius: '10px', padding: '1px 6px', verticalAlign: 'middle', fontWeight: 500 }}>{threadCount}</span>
+          )}
+          {message.preview && (
+            <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>
+              {' · '}{highlight(message.preview, q)}
+            </span>
+          )}
+          {message.has_attachment && (
+            <span aria-label="첨부파일" style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>📎</span>
           )}
         </div>
+      </div>
+
+      {/* Right: date normally, hover-actions on hover */}
+      <div style={{ width: '90px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', alignSelf: 'center' }}>
+        {hovered ? (
+          <>
+            {onStar && (
+              <button
+                aria-label={message.starred ? '별표 해제' : '별표 추가'}
+                onClick={(e) => { e.stopPropagation(); onStar(message.id, !message.starred); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: message.starred ? '#f59e0b' : 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              >★</button>
+            )}
+            {onHoverDelete && (
+              <button
+                aria-label="삭제"
+                title="삭제"
+                onClick={(e) => { e.stopPropagation(); onHoverDelete(message.id); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '14px', color: 'var(--color-text-tertiary)', lineHeight: 1, borderRadius: '4px' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              >🗑</button>
+            )}
+          </>
+        ) : (
+          <>
+            {message.starred && <span style={{ fontSize: '12px', color: '#f59e0b', marginRight: '2px' }}>★</span>}
+            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}
+              title={new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(message.received_at))}>
+              {formatDate(message.received_at)}
+            </span>
+          </>
+        )}
       </div>
       </div>
     </div>

@@ -37,6 +37,9 @@ export default function MailPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try { return parseInt(localStorage.getItem('webmail_sidebar_width') ?? '220', 10) || 220; } catch { return 220; }
+  });
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [messageLabels, setMessageLabels] = useState<Record<string, string>>(() => {
     try { return JSON.parse(localStorage.getItem('webmail_labels') ?? '{}'); } catch { return {}; }
@@ -811,6 +814,8 @@ export default function MailPage() {
         advancedFilters={advancedFilters}
         onAdvancedFilterChange={handleFilterChange}
         userName={userEmail || '사용자'}
+        userEmailAddress={userEmail || undefined}
+        width={sidebarWidth}
         onLogout={handleLogout}
         isMobile={isMobile}
         isOpen={mobileSidebarOpen}
@@ -843,7 +848,41 @@ export default function MailPage() {
             <ThemeToggle inline />
           </div>
         ) : undefined}
+        menuExtra={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AccentPicker />
+            <LocaleSelector />
+            <ThemeToggle inline />
+          </div>
+        }
       />
+
+      {/* Sidebar drag-resize handle */}
+      {!isMobile && !sidebarCollapsed && (
+        <div
+          aria-hidden="true"
+          style={{ width: '4px', flexShrink: 0, cursor: 'col-resize', position: 'relative', zIndex: 10, transition: 'background 150ms ease' }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startWidth = sidebarWidth;
+            let lastWidth = startWidth;
+            const onMove = (ev: MouseEvent) => {
+              lastWidth = Math.min(360, Math.max(160, startWidth + ev.clientX - startX));
+              setSidebarWidth(lastWidth);
+            };
+            const onUp = () => {
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+              try { localStorage.setItem('webmail_sidebar_width', String(lastWidth)); } catch { /* */ }
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-accent)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+        />
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', minWidth: 0 }}>
 
@@ -1082,22 +1121,6 @@ export default function MailPage() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}
 
-      {/* Controls: locale + theme, top-right — hidden on mobile (shown in sidebar instead) */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '14px',
-          right: '16px',
-          zIndex: 50,
-          display: isMobile ? 'none' : 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
-      >
-        <AccentPicker />
-        <LocaleSelector />
-        <ThemeToggle inline />
-      </div>
     </div>
   );
 }
