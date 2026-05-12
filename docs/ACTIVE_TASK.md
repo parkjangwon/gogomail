@@ -5,28 +5,49 @@
 
 ---
 
-## ⏸️ TASK-097: Phase 4 완성 — 방향 선택 대기 (Direction Decision Awaited)
+## ✅ TASK-098: 사용자 웹메일 베타 안정화 — API base-path 정합성 + 베타 시드 데이터
 
-**STATUS: BLOCKED**
-**Issue**: TASK-096 blocked on unresolved UI rendering issue. Choose direction for TASK-097:
+**STATUS: COMPLETE**
 
-### 선택 옵션
+### 배경
 
-**Option 1: 백엔드 Phase 5 — Mail Security & Milter Protocol**
-- RFC 5764 (Milter 프로토콜) 클라이언트 구현
-- SMTP 파이프라인에 Milter 통합
-- 스팸 필터링 하드닝
-- DNSBL/RBL 체크 (RFC 5782)
+목표는 사용자 웹메일 베타서비스다. 관리자 콘솔 이후 사용자 웹메일 프론트엔드가 진행 중이며, 프론트엔드와 백엔드 기능이 실제로 연결되어 동작해야 한다.
 
-**Option 2: 웹메일 모바일 반응형 강화**
-- 태블릿/모바일 UI 개선
-- 터치 제스처 지원
-- 반응형 레이아웃 최적화
-- 모바일 성능 최적화
+현재 가장 먼저 해소해야 할 베타 블로커는 웹메일 API base-path 드리프트다.
 
-### 다음 단계
+- 웹메일 브라우저 코드는 `/api/mail/...`을 호출한다.
+- 백엔드 CardDAV/Directory 라우트는 `/api/mail/...`로 등록되어 있다.
+- 기존 Mail API와 OpenAPI 문서에는 `/api/v1/...` 라우트가 여전히 존재한다.
+- 따라서 프록시는 기능 영역별로 의도된 backend base path를 명확히 선택해야 한다.
 
-사용자가 Option 1 또는 Option 2 중 하나를 선택하면 해당 태스크가 ACTIVE_TASK.md로 이동됩니다.
+### 구현 대상
+
+- `apps/webmail/src/app/api/mail/[...path]/route.ts`
+- `apps/webmail/src/components/OrgPickerModal.tsx`
+- `scripts/seed_dev_beta.sh`
+- `scripts/seed_dev_data.sql`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `/api/mail/addressbooks`, `/api/mail/contacts`, `/api/mail/directory` 프록시가 backend `/api/mail/...`로 전달된다.
+- [x] 기존 Mail API 요청은 backend `/api/v1/...` 전달을 유지한다.
+- [x] 조직도 피커가 사용자 소속 조직을 기본 선택하고 부모 체인을 확장한다.
+- [x] Docker PostgreSQL 컨테이너에 풍부한 어드민/웹메일 베타 데이터를 넣는 실행 스크립트가 있다.
+- [x] 시드 데이터는 조직도, 주소록, 사용자, 메일 목록 테스트에 충분하다.
+- [x] 디자인 토큰/레이아웃/시각 톤은 변경하지 않는다.
+- [x] 표준 경로 드리프트를 문서화한다.
+- [x] 관련 검증 통과 후 기능 단위 커밋.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-099: 사용자 웹메일 베타 안정화 — 핵심 메일 화면/작성 흐름 점검 및 보강
 
 ---
 
