@@ -68,6 +68,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing immediate, scheduled, and undo-countdown send behavior is preserved.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail recipient validation stabilization (TASK-106, 2026-05-12, complete)
+- Completed recipient address validation pass for user webmail beta.
+- To/Cc/Bcc addresses are validated at send time before payload creation proceeds.
+- Malformed addresses block send with a clear Korean error listing the problematic values.
+- Display-name recipient syntax such as `Name <addr@example.com>` remains supported through the existing parser.
+- Draft save flexibility is preserved; validation is send-only.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

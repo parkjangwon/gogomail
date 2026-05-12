@@ -79,6 +79,22 @@ function parseAddrs(raw: string): { address: string; name?: string }[] {
   return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
 }
 
+function isValidEmailAddress(address: string): boolean {
+  if (!address || /\s|<|>/.test(address)) return false;
+  const at = address.indexOf('@');
+  if (at <= 0 || at !== address.lastIndexOf('@') || at === address.length - 1) return false;
+  const domain = address.slice(at + 1);
+  if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false;
+  return true;
+}
+
+function invalidRecipientAddresses(...values: string[]): string[] {
+  return values
+    .flatMap((value) => parseAddrs(value))
+    .map((addr) => addr.address)
+    .filter((address) => !isValidEmailAddress(address));
+}
+
 function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
   return intent === 'reply_all' ? 'reply' : intent;
 }
@@ -615,6 +631,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return;
     }
     setError('');
+    const invalidRecipients = invalidRecipientAddresses(to, cc, bcc);
+    if (invalidRecipients.length > 0) {
+      setError(`주소 형식을 확인해 주세요: ${invalidRecipients.join(', ')}`);
+      return;
+    }
     const hasUploadingAttachments = uploadedAttachments.some((attachment) => attachment.uploading);
     if (hasUploadingAttachments) {
       setError('첨부파일 업로드가 완료될 때까지 기다려 주세요.');
