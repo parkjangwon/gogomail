@@ -2256,7 +2256,10 @@ Target outcome:
       reads. Malformed WebDAV `If` coverage now asserts parser errors return
       HTTP 400 before body reads and before attempted language mutations,
       including line breaks, unterminated lists/tokens, empty lists, and
-      unsupported conditions.
+      unsupported conditions. Absolute URI tagged `If` coverage now asserts
+      HTTP(S) resource tags match by collection path, preserving omitted
+      language tags on matching paths and rejecting non-matching paths before
+      body reads.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2646,7 +2649,10 @@ Target outcome:
       reads. Malformed WebDAV `If` coverage now asserts parser errors return
       HTTP 400 before body reads and before attempted language mutations,
       including line breaks, unterminated lists/tokens, empty lists, and
-      unsupported conditions.
+      unsupported conditions. Absolute URI tagged `If` coverage now asserts
+      HTTP(S) resource tags match by collection path, preserving omitted
+      language tags on matching paths and rejecting non-matching paths before
+      body reads.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

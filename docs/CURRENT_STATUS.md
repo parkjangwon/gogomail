@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang absolute URI WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` tagged lists whose
+  resource tag is an absolute HTTP(S) URI and whose path matches the current
+  CalDAV/CardDAV collection path, preserving omitted language tags.
+- Absolute URI tags with non-matching paths now reject before request-body
+  reads and leave attempted explicit `xml:lang` mutations unapplied.
+
 ## CalDAV/CardDAV xml:lang malformed WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now assert malformed WebDAV `If` headers return
   HTTP 400 before request-body reads and before attempted explicit
