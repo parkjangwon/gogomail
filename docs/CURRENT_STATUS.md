@@ -231,6 +231,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing backend response contracts, success timing, and visual design direction are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send result display extraction (TASK-127, 2026-05-12, complete)
+- Completed send-result display logic extraction for user webmail beta.
+- Send, delivery, and bounce status label mapping now live in focused pure helpers.
+- The final footer label is assembled by `formatSendResultLabel`, keeping ComposeModal's render body simpler.
+- Existing user-facing copy, display conditions, success timing, and backend contracts are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
