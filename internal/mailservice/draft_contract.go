@@ -3,6 +3,7 @@ package mailservice
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/outbound"
 )
@@ -20,6 +21,7 @@ type SaveDraftRequest struct {
 	TextBody        string             `json:"text_body"`
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	TrackOpens      bool               `json:"track_opens,omitempty"`
+	ScheduledAt     time.Time          `json:"scheduled_at,omitempty"`
 }
 
 func ValidateSaveDraftRequest(req SaveDraftRequest) error {

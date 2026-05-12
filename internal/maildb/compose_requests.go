@@ -1,6 +1,10 @@
 package maildb
 
-import "github.com/gogomail/gogomail/internal/outbound"
+import (
+	"time"
+
+	"github.com/gogomail/gogomail/internal/outbound"
+)
 
 type SaveDraftRequest struct {
 	UserID          string
@@ -15,6 +19,7 @@ type SaveDraftRequest struct {
 	TextBody        string
 	AttachmentIDs   []string
 	TrackOpens      bool
+	ScheduledAt     time.Time
 }
 
 type CreateAttachmentUploadRequest struct {

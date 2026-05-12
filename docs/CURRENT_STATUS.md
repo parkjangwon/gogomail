@@ -117,6 +117,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Scheduled sends still keep direct send until the draft contract can represent `scheduled_at`.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send scheduled parity (TASK-112, 2026-05-12, complete)
+- Completed draft-send scheduled parity pass for user webmail beta.
+- Draft save contracts now carry `scheduled_at`.
+- Draft persistence stores scheduled send time in message flags and `GetDraftForSend` restores it.
+- `SendDraft` now forwards saved `ScheduledAt` into `SendText`.
+- Webmail draft payloads now include `scheduled_at`, and scheduled sends use the backend draft-send contract.
+- Existing scheduled time validation and schedule UI clearing behavior are preserved.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

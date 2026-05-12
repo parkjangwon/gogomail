@@ -3152,6 +3152,7 @@ func (f *fakeRepository) GetDraftForSend(context.Context, string, string) (maild
 		TextBody:      "draft body",
 		AttachmentIDs: []string{"att-1"},
 		TrackOpens:    true,
+		ScheduledAt:   time.Unix(4102444800, 0).UTC(),
 	}, nil
 }
 
@@ -3773,6 +3774,9 @@ func TestSendDraftSendsAndMarksDraftSent(t *testing.T) {
 	if !repo.lastOutgoing.HasAttachment {
 		t.Fatal("draft attachments were not reflected on outgoing message")
 	}
+	if repo.lastOutgoing.ScheduledAt.IsZero() {
+		t.Fatal("draft scheduled_at was not reflected on outgoing message")
+	}
 }
 
 func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
@@ -3789,6 +3793,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		To:              []outbound.Address{{Name: " User ", Email: " user@example.net "}},
 		AttachmentIDs:   []string{" att-1 "},
 		TrackOpens:      true,
+		ScheduledAt:     time.Unix(4102444800, 0).UTC(),
 		Subject:         "draft",
 	})
 	if err != nil {
@@ -3804,6 +3809,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		repo.lastDraft.To[0].Email != "user@example.net" ||
 		repo.lastDraft.AttachmentIDs[0] != "att-1" ||
 		!repo.lastDraft.TrackOpens ||
+		repo.lastDraft.ScheduledAt.IsZero() ||
 		repo.lastDraft.Subject != "draft" {
 		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
 	}

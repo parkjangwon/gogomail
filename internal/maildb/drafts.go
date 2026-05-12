@@ -24,6 +24,7 @@ type DraftForSend struct {
 	TextBody        string
 	AttachmentIDs   []string
 	TrackOpens      bool
+	ScheduledAt     time.Time
 }
 
 func (r *Repository) GetDraftForSend(ctx context.Context, userID string, draftID string) (DraftForSend, error) {
@@ -43,7 +44,8 @@ SELECT
   bcc_addrs,
   subject,
   COALESCE(draft_text_body, ''),
-  COALESCE((flags->>'track_opens')::boolean, false)
+  COALESCE((flags->>'track_opens')::boolean, false),
+  COALESCE(flags->>'scheduled_at', '')
 FROM messages
 WHERE user_id = $1
   AND id = $2
@@ -52,6 +54,7 @@ LIMIT 1`
 
 	var draft DraftForSend
 	var toJSON, ccJSON, bccJSON []byte
+	var scheduledAtText string
 	if err := r.db.QueryRowContext(ctx, query, strings.TrimSpace(userID), strings.TrimSpace(draftID)).Scan(
 		&draft.ID,
 		&draft.UserID,
@@ -64,6 +67,7 @@ LIMIT 1`
 		&draft.Subject,
 		&draft.TextBody,
 		&draft.TrackOpens,
+		&scheduledAtText,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return DraftForSend{}, fmt.Errorf("draft %q not found", draftID)
@@ -85,6 +89,13 @@ LIMIT 1`
 		return DraftForSend{}, err
 	}
 	draft.AttachmentIDs = attachments
+	if strings.TrimSpace(scheduledAtText) != "" {
+		scheduledAt, err := time.Parse(time.RFC3339, strings.TrimSpace(scheduledAtText))
+		if err != nil {
+			return DraftForSend{}, fmt.Errorf("parse draft scheduled_at: %w", err)
+		}
+		draft.ScheduledAt = scheduledAt
+	}
 	return draft, nil
 }
 
@@ -197,7 +208,7 @@ INSERT INTO messages (
   NULLIF($5, '')::uuid, $6,
   $7, $8, $9,
   $10::jsonb, $11::jsonb, $12::jsonb,
-  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean), 'draft'
+  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean, 'scheduled_at', $16), 'draft'
 ) RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body`
 
@@ -220,6 +231,7 @@ INSERT INTO messages (
 		req.TextBody,
 		now,
 		req.TrackOpens,
+		draftScheduledAtText(req.ScheduledAt),
 	).Scan(
 		&draft.ID,
 		&draft.MessageID,
@@ -286,7 +298,7 @@ SET source_message_id = NULLIF($3, '')::uuid,
     draft_text_body = $11,
     draft_updated_at = $12,
     updated_at = $12,
-    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean)
+    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean, 'scheduled_at', $14)
 WHERE user_id = $1
   AND id = $2
   AND status = 'draft'
@@ -310,6 +322,7 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		req.TextBody,
 		now,
 		req.TrackOpens,
+		draftScheduledAtText(req.ScheduledAt),
 	).Scan(
 		&draft.ID,
 		&draft.MessageID,
@@ -533,6 +546,13 @@ func draftOutboundAddresses(raw []byte) ([]outbound.Address, error) {
 		return nil, fmt.Errorf("decode draft addresses: %w", err)
 	}
 	return addresses, nil
+}
+
+func draftScheduledAtText(scheduledAt time.Time) string {
+	if scheduledAt.IsZero() {
+		return ""
+	}
+	return scheduledAt.UTC().Format(time.RFC3339)
 }
 
 func (r *Repository) draftAttachmentIDs(ctx context.Context, userID string, draftID string) ([]string, error) {

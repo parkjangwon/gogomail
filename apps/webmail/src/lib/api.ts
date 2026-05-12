@@ -270,6 +270,7 @@ export interface DraftData {
   subject: string;
   text_body: string;
   track_opens?: boolean;
+  scheduled_at?: string;
 }
 
 export function saveDraft(data: DraftData): Promise<{ draft: { id: string } }> {
