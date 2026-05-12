@@ -324,6 +324,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visual design is unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail datetime-local formatter fixture (TASK-139, 2026-05-12, complete)
+- Completed datetime-local formatter extraction and fixture pass for user webmail beta.
+- The formatter now lives in `apps/webmail/src/lib/dateTimeLocal.ts`.
+- ComposeModal imports the shared helper for preset, default custom, and minimum scheduled-send values.
+- `apps/webmail/src/lib/dateTimeLocal.contract.ts` adds `tsc`-checked examples for padded one-digit and two-digit date/time values.
+- Existing scheduled-send UI behavior is unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
