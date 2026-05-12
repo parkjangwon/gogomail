@@ -4565,7 +4565,9 @@ Target outcome:
   repository, bounded vCard 3.0/4.0 validation, REPORT parsing, and multistatus
   response boundaries. CardDAV `sync-collection` now uses a joined
   change+object read path for incremental responses and returns RFC-shaped
-  truncation preconditions for over-limit deltas.
+  truncation preconditions for over-limit deltas. `addressbook-multiget` now
+  batches href object lookup while preserving WebDAV per-href response
+  ordering and 404 semantics.
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters

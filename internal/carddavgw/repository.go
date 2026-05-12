@@ -16,6 +16,13 @@ type Repository struct {
 	db *sql.DB
 }
 
+const carddavContactObjectLookupBatchSize = 256
+
+type contactObjectNameLookup struct {
+	addressBookID string
+	objectName    string
+}
+
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
@@ -586,6 +593,109 @@ WHERE user_id = $1::uuid
 		return ContactObject{}, fmt.Errorf("get CardDAV contact object: %w", err)
 	}
 	return object, nil
+}
+
+func (r *Repository) ListContactObjectsByNameGroups(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string, status string) ([]ContactObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID, err := validateCardDAVID("user_id", userID, true)
+	if err != nil {
+		return nil, err
+	}
+	status, err = ValidateAddressBookStatus(status)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[contactObjectNameLookup]struct{})
+	lookups := make([]contactObjectNameLookup, 0)
+	for addressBookID, names := range objectNamesByAddressBook {
+		addressBookID, err := validateCardDAVID("addressbook_id", addressBookID, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range names {
+			name, err := ValidateContactObjectName(name)
+			if err != nil {
+				return nil, err
+			}
+			key := contactObjectNameLookup{addressBookID: addressBookID, objectName: name}
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			lookups = append(lookups, key)
+		}
+	}
+	if len(lookups) == 0 {
+		return nil, nil
+	}
+
+	objects := make([]ContactObject, 0, len(lookups))
+	for start := 0; start < len(lookups); start += carddavContactObjectLookupBatchSize {
+		end := start + carddavContactObjectLookupBatchSize
+		if end > len(lookups) {
+			end = len(lookups)
+		}
+		chunkObjects, err := r.listContactObjectsByNameGroupsChunk(ctx, userID, status, lookups[start:end])
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, chunkObjects...)
+	}
+	return objects, nil
+}
+
+func (r *Repository) listContactObjectsByNameGroupsChunk(ctx context.Context, userID string, status string, lookups []contactObjectNameLookup) ([]ContactObject, error) {
+	var values strings.Builder
+	args := make([]any, 0, 2+len(lookups)*2)
+	args = append(args, userID, status)
+	for i, lookup := range lookups {
+		if i > 0 {
+			values.WriteString(", ")
+		}
+		addressBookArg := len(args) + 1
+		objectNameArg := len(args) + 2
+		values.WriteString(fmt.Sprintf("($%d::uuid, $%d)", addressBookArg, objectNameArg))
+		args = append(args, lookup.addressBookID, lookup.objectName)
+	}
+	query := `
+WITH requested(addressbook_id, object_name) AS (
+  VALUES ` + values.String() + `
+)
+SELECT c.id::text,
+       c.user_id::text,
+       c.addressbook_id::text,
+       c.object_name,
+       c.uid,
+       c.etag,
+       c.size,
+       c.vcard,
+       c.created_at,
+       c.updated_at
+FROM requested r
+JOIN carddav_contact_objects c
+  ON c.addressbook_id = r.addressbook_id
+ AND c.object_name = r.object_name
+WHERE c.user_id = $1::uuid
+  AND c.status = $2`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list CardDAV contact objects by names: %w", err)
+	}
+	defer rows.Close()
+	objects := make([]ContactObject, 0, len(lookups))
+	for rows.Next() {
+		var object ContactObject
+		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.CreatedAt, &object.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan CardDAV contact object by names: %w", err)
+		}
+		objects = append(objects, object)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CardDAV contact objects by names: %w", err)
+	}
+	return objects, nil
 }
 
 func (r *Repository) SearchContactsByEmail(ctx context.Context, req SearchContactsByEmailRequest) ([]ContactObject, error) {
