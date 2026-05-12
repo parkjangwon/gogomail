@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, listAttachments, downloadAttachment, getMessageDeliveryStatus, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
+import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, TrackingEvent, listAttachments, downloadAttachment, getMessageDeliveryStatus, getMessageTracking, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -659,6 +659,15 @@ export function ReadingPane({
     getMessageDeliveryStatus(message.id).then(setDeliveryStatus).catch(() => {});
   }, [message?.id, isSent]);
 
+  const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[] | null>(null);
+  const [trackingOpen, setTrackingOpen] = useState(false);
+  useEffect(() => {
+    setTrackingEvents(null);
+    setTrackingOpen(false);
+    if (!message?.id || !isSent) return;
+    getMessageTracking(message.id).then((evs) => { if (evs.length > 0) setTrackingEvents(evs); }).catch(() => {});
+  }, [message?.id, isSent]);
+
   const handleDownload = useCallback(async (att: Attachment) => {
     if (!message) return;
     setDownloadingId(att.id);
@@ -1236,6 +1245,44 @@ export function ReadingPane({
                         <div style={{ fontSize: '11px', fontWeight: 600, color: statusColor }}>{statusLabel}</div>
                         {att.attempted_at && <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginTop: '1px' }}>{new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(att.attempted_at))}</div>}
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 수신확인 — only for sent messages with tracking data */}
+        {isSent && trackingEvents && trackingEvents.length > 0 && (
+          <div style={{ marginBottom: '16px', maxWidth: '680px' }}>
+            <button
+              onClick={() => setTrackingOpen((v) => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', fontWeight: 600, color: 'var(--color-text-tertiary)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: trackingOpen ? '8px' : 0 }}
+            >
+              <span style={{ fontSize: '11px', transform: trackingOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 150ms' }}>▶</span>
+              수신확인
+              <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                ({trackingEvents.filter((e) => e.open_count > 0).length}/{trackingEvents.length} 열람)
+              </span>
+            </button>
+            {trackingOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {trackingEvents.map((ev) => {
+                  const opened = ev.open_count > 0;
+                  return (
+                    <div key={ev.recipient_email} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '13px' }}>
+                      <span style={{ color: opened ? 'var(--color-success, #22c55e)' : 'var(--color-text-tertiary)', fontSize: '14px' }}>{opened ? '✓' : '○'}</span>
+                      <span style={{ flex: 1, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.recipient_email}</span>
+                      {opened && ev.opened_at && (
+                        <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          {new Intl.DateTimeFormat('ko-KR', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(ev.opened_at))}
+                          {ev.open_count > 1 && ` (${ev.open_count}회)`}
+                        </span>
+                      )}
+                      {!opened && (
+                        <span style={{ color: 'var(--color-text-tertiary)', fontSize: '12px' }}>미열람</span>
+                      )}
                     </div>
                   );
                 })}

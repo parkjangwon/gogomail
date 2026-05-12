@@ -225,6 +225,7 @@ type Config struct {
 	DKIMEnabled                         bool
 	AdminToken                          string
 	AuthJWTSecret                       string
+	PublicBaseURL                       string
 }
 
 func Load() Config {
@@ -446,6 +447,7 @@ func Load() Config {
 		DKIMEnabled:                         boolEnvOrDefault("GOGOMAIL_DKIM_ENABLED", false),
 		AdminToken:                          envOrDefault("GOGOMAIL_ADMIN_TOKEN", ""),
 		AuthJWTSecret:                       envOrDefault("GOGOMAIL_AUTH_JWT_SECRET", ""),
+		PublicBaseURL:                       envOrDefault("GOGOMAIL_PUBLIC_BASE_URL", "http://localhost:8080"),
 	}
 	if cfg.EventConsumerDeadLetterStream == "" {
 		cfg.EventConsumerDeadLetterStream = cfg.EventStream + ".dead"

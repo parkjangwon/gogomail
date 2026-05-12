@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"mime"
+	"mime/multipart"
 	"mime/quotedprintable"
 	"net/mail"
+	"net/textproto"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -27,6 +29,7 @@ type TextMessage struct {
 	Bcc        []Address
 	Subject    string
 	TextBody   string
+	HTMLBody   string
 	MessageID  string
 	InReplyTo  string
 	References []string
@@ -95,18 +98,66 @@ func ComposeText(msg TextMessage) (ComposedMessage, error) {
 		writeHeader(&buf, "References", references)
 	}
 	writeHeader(&buf, "MIME-Version", "1.0")
-	writeHeader(&buf, "Content-Type", `text/plain; charset="utf-8"`)
-	writeHeader(&buf, "Content-Transfer-Encoding", "quoted-printable")
-	buf.WriteString("\r\n")
 
-	body := quotedprintable.NewWriter(&buf)
-	if _, err := body.Write([]byte(normalizeCRLF(msg.TextBody))); err != nil {
-		return ComposedMessage{}, fmt.Errorf("write quoted-printable body: %w", err)
+	if msg.HTMLBody != "" {
+		// multipart/alternative: text/plain + text/html.
+		// multipart.NewWriter writes parts to &buf but does NOT emit the
+		// Content-Type header itself — we write it manually first.
+		mw := multipart.NewWriter(&buf)
+		boundary := mw.Boundary()
+		buf.WriteString("Content-Type: multipart/alternative; boundary=\"")
+		buf.WriteString(boundary)
+		buf.WriteString("\"\r\n\r\n")
+
+		// text/plain part
+		plainHeader := make(textproto.MIMEHeader)
+		plainHeader.Set("Content-Type", `text/plain; charset="utf-8"`)
+		plainHeader.Set("Content-Transfer-Encoding", "quoted-printable")
+		plainPart, err := mw.CreatePart(plainHeader)
+		if err != nil {
+			return ComposedMessage{}, fmt.Errorf("create text/plain part: %w", err)
+		}
+		plainQP := quotedprintable.NewWriter(plainPart)
+		if _, err := plainQP.Write([]byte(normalizeCRLF(msg.TextBody))); err != nil {
+			return ComposedMessage{}, fmt.Errorf("write text/plain quoted-printable: %w", err)
+		}
+		if err := plainQP.Close(); err != nil {
+			return ComposedMessage{}, fmt.Errorf("close text/plain quoted-printable: %w", err)
+		}
+
+		// text/html part
+		htmlHeader := make(textproto.MIMEHeader)
+		htmlHeader.Set("Content-Type", `text/html; charset="utf-8"`)
+		htmlHeader.Set("Content-Transfer-Encoding", "quoted-printable")
+		htmlPart, err := mw.CreatePart(htmlHeader)
+		if err != nil {
+			return ComposedMessage{}, fmt.Errorf("create text/html part: %w", err)
+		}
+		htmlQP := quotedprintable.NewWriter(htmlPart)
+		if _, err := htmlQP.Write([]byte(normalizeCRLF(msg.HTMLBody))); err != nil {
+			return ComposedMessage{}, fmt.Errorf("write text/html quoted-printable: %w", err)
+		}
+		if err := htmlQP.Close(); err != nil {
+			return ComposedMessage{}, fmt.Errorf("close text/html quoted-printable: %w", err)
+		}
+
+		if err := mw.Close(); err != nil {
+			return ComposedMessage{}, fmt.Errorf("close multipart writer: %w", err)
+		}
+	} else {
+		writeHeader(&buf, "Content-Type", `text/plain; charset="utf-8"`)
+		writeHeader(&buf, "Content-Transfer-Encoding", "quoted-printable")
+		buf.WriteString("\r\n")
+
+		body := quotedprintable.NewWriter(&buf)
+		if _, err := body.Write([]byte(normalizeCRLF(msg.TextBody))); err != nil {
+			return ComposedMessage{}, fmt.Errorf("write quoted-printable body: %w", err)
+		}
+		if err := body.Close(); err != nil {
+			return ComposedMessage{}, fmt.Errorf("close quoted-printable body: %w", err)
+		}
+		buf.WriteString("\r\n")
 	}
-	if err := body.Close(); err != nil {
-		return ComposedMessage{}, fmt.Errorf("close quoted-printable body: %w", err)
-	}
-	buf.WriteString("\r\n")
 
 	raw := buf.Bytes()
 	return ComposedMessage{

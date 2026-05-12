@@ -120,12 +120,19 @@ type MeRepository interface {
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
+// TrackingRepository is the minimal interface required for open-tracking.
+type TrackingRepository interface {
+	CreateTrackingPixels(ctx context.Context, pixels []maildb.TrackingPixel) error
+}
+
 type Service struct {
 	repository         Repository
 	store              storage.Store
 	searchIDSource     SearchIDSource
 	imapEvents         IMAPMailboxEventPublisher
 	quotaAlertEmitter  maildb.QuotaWarningEmitterInterface
+	trackingRepo       TrackingRepository
+	publicBaseURL      string
 }
 
 func New(repository Repository, store storage.Store) *Service {
@@ -152,6 +159,18 @@ func (s *Service) WithIMAPMailboxEvents(publisher IMAPMailboxEventPublisher) *Se
 
 func (s *Service) WithQuotaAlertEmitter(emitter maildb.QuotaWarningEmitterInterface) *Service {
 	s.quotaAlertEmitter = emitter
+	return s
+}
+
+// WithTrackingRepo enables open-tracking pixel injection on outgoing mail.
+// publicBaseURL is the externally reachable base URL of this server
+// (e.g. "https://mail.example.com"). If empty, "http://localhost:8080" is used.
+func (s *Service) WithTrackingRepo(repo TrackingRepository, publicBaseURL string) *Service {
+	s.trackingRepo = repo
+	s.publicBaseURL = strings.TrimRight(strings.TrimSpace(publicBaseURL), "/")
+	if s.publicBaseURL == "" {
+		s.publicBaseURL = "http://localhost:8080"
+	}
 	return s
 }
 
@@ -2234,6 +2253,7 @@ type SendTextRequest struct {
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
 	Transactional   bool               `json:"transactional"`
 	ScheduledAt     time.Time          `json:"scheduled_at"`
+	TrackOpens      bool               `json:"track_opens,omitempty"`
 }
 
 type SendTextResult struct {
@@ -2334,6 +2354,37 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	}
 
 	from := outbound.Address{Name: sender.DisplayName, Email: sender.Address}
+
+	// Build tracking pixels if requested.
+	type pixelEntry struct {
+		pixelID string
+		email   string
+	}
+	var pixels []pixelEntry
+	var htmlBody string
+	if req.TrackOpens && s.trackingRepo != nil {
+		allRecipients := make([]outbound.Address, 0, len(req.To)+len(req.Cc)+len(req.Bcc))
+		allRecipients = append(allRecipients, req.To...)
+		allRecipients = append(allRecipients, req.Cc...)
+		allRecipients = append(allRecipients, req.Bcc...)
+		var pixelImgs strings.Builder
+		for _, addr := range allRecipients {
+			var raw [16]byte
+			if _, err := rand.Read(raw[:]); err != nil {
+				return SendTextResult{}, fmt.Errorf("generate pixel id: %w", err)
+			}
+			pid := hex.EncodeToString(raw[:])
+			pixels = append(pixels, pixelEntry{pixelID: pid, email: addr.Email})
+			pixelImgs.WriteString(`<img src="`)
+			pixelImgs.WriteString(s.publicBaseURL)
+			pixelImgs.WriteString("/t/")
+			pixelImgs.WriteString(pid)
+			pixelImgs.WriteString(`" width="1" height="1" alt="" style="display:none">`)
+		}
+		htmlBody = `<html><body><pre style="font-family:inherit;white-space:pre-wrap">` +
+			req.TextBody + `</pre>` + pixelImgs.String() + `</body></html>`
+	}
+
 	composed, err := outbound.ComposeText(outbound.TextMessage{
 		From:       from,
 		To:         req.To,
@@ -2341,6 +2392,7 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		Bcc:        req.Bcc,
 		Subject:    req.Subject,
 		TextBody:   req.TextBody,
+		HTMLBody:   htmlBody,
 		InReplyTo:  sourceThread.MessageID,
 		References: sourceThread.References(),
 	})
@@ -2398,6 +2450,23 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 	}
 	if err := s.markSourceMessageAfterSend(ctx, req); err != nil {
 		return SendTextResult{}, err
+	}
+
+	// Store tracking pixels (best-effort: do not fail the send on error).
+	if len(pixels) > 0 && s.trackingRepo != nil {
+		dbPixels := make([]maildb.TrackingPixel, 0, len(pixels))
+		for _, p := range pixels {
+			dbPixels = append(dbPixels, maildb.TrackingPixel{
+				PixelID:        p.pixelID,
+				MessageID:      id,
+				SenderUserID:   sender.UserID,
+				RecipientEmail: p.email,
+			})
+		}
+		if err := s.trackingRepo.CreateTrackingPixels(ctx, dbPixels); err != nil {
+			// Log but don't fail the send.
+			_ = err
+		}
 	}
 
 	return NormalizeSendTextResult(SendTextResult{
