@@ -2122,7 +2122,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	fetchLimit := limit + 1
+	fetchLimit := MaxWebDAVReportLimit + 1
 	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
 	if changeWithObjectStore, ok := store.(CalendarChangeWithObjectStore); ok {
 		changesWithObject, err := changeWithObjectStore.ListCalendarChangesWithObjectsSince(ctx, ListChangesSinceRequest{
@@ -2134,20 +2134,23 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		if err != nil {
 			return nil, "", err
 		}
-		if len(changesWithObject) > limit {
+		if len(changesWithObject) > MaxWebDAVReportLimit {
 			return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 		}
 		syncToken := report.SyncToken
+		for _, item := range changesWithObject {
+			if strings.TrimSpace(item.Change.SyncToken) != "" {
+				syncToken = strings.TrimSpace(item.Change.SyncToken)
+			}
+		}
+		changesWithObject = coalesceCalendarChangesWithObjects(changesWithObject)
+		if len(changesWithObject) > limit {
+			return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
+		}
 		propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 		responses := make([]MultiStatusResponse, 0, len(changesWithObject))
 		for _, item := range changesWithObject {
 			change := item.Change
-			if strings.TrimSpace(change.SyncToken) != "" {
-				syncToken = strings.TrimSpace(change.SyncToken)
-			}
-			if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
-				continue
-			}
 			href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
 			if err != nil {
 				return nil, "", err
@@ -2184,15 +2187,21 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 	if err != nil {
 		return nil, "", err
 	}
-	if len(changes) > limit {
+	if len(changes) > MaxWebDAVReportLimit {
 		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 	}
 	syncToken := report.SyncToken
+	for _, change := range changes {
+		if strings.TrimSpace(change.SyncToken) != "" {
+			syncToken = strings.TrimSpace(change.SyncToken)
+		}
+	}
+	changes = coalesceCalendarChanges(changes)
+	if len(changes) > limit {
+		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
+	}
 	requestedByCalendarNames := make(map[string]map[string]struct{}, len(changes))
 	for _, change := range changes {
-		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
-			continue
-		}
 		names, ok := requestedByCalendarNames[change.CalendarID]
 		if !ok {
 			names = make(map[string]struct{}, 4)
@@ -2220,12 +2229,6 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(changes))
 	for _, change := range changes {
-		if strings.TrimSpace(change.SyncToken) != "" {
-			syncToken = strings.TrimSpace(change.SyncToken)
-		}
-		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
-			continue
-		}
 		href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
 		if err != nil {
 			return nil, "", err
@@ -2255,6 +2258,66 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, syncToken, nil
+}
+
+type coalescedCalendarChangeWithObject struct {
+	item   CalendarChangeWithObject
+	active bool
+}
+
+func coalesceCalendarChangesWithObjects(changes []CalendarChangeWithObject) []CalendarChangeWithObject {
+	entries := make([]coalescedCalendarChangeWithObject, 0, len(changes))
+	latestIndex := make(map[calendarObjectLookupKey]int, len(changes))
+	for _, item := range changes {
+		if !calendarChangeHasObjectResponse(item.Change) {
+			continue
+		}
+		key := calendarObjectLookupKey{calendarID: item.Change.CalendarID, objectName: item.Change.ObjectName}
+		if previous, ok := latestIndex[key]; ok {
+			entries[previous].active = false
+		}
+		latestIndex[key] = len(entries)
+		entries = append(entries, coalescedCalendarChangeWithObject{item: item, active: true})
+	}
+	coalesced := make([]CalendarChangeWithObject, 0, len(latestIndex))
+	for _, entry := range entries {
+		if entry.active {
+			coalesced = append(coalesced, entry.item)
+		}
+	}
+	return coalesced
+}
+
+type coalescedCalendarChange struct {
+	change CalendarChange
+	active bool
+}
+
+func coalesceCalendarChanges(changes []CalendarChange) []CalendarChange {
+	entries := make([]coalescedCalendarChange, 0, len(changes))
+	latestIndex := make(map[calendarObjectLookupKey]int, len(changes))
+	for _, change := range changes {
+		if !calendarChangeHasObjectResponse(change) {
+			continue
+		}
+		key := calendarObjectLookupKey{calendarID: change.CalendarID, objectName: change.ObjectName}
+		if previous, ok := latestIndex[key]; ok {
+			entries[previous].active = false
+		}
+		latestIndex[key] = len(entries)
+		entries = append(entries, coalescedCalendarChange{change: change, active: true})
+	}
+	coalesced := make([]CalendarChange, 0, len(latestIndex))
+	for _, entry := range entries {
+		if entry.active {
+			coalesced = append(coalesced, entry.change)
+		}
+	}
+	return coalesced
+}
+
+func calendarChangeHasObjectResponse(change CalendarChange) bool {
+	return change.Action != "collection-deleted" && change.Action != "collection-updated" && strings.TrimSpace(change.ObjectName) != ""
 }
 
 func (h *Handler) lookupCalendarObjectsByNames(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) (map[calendarObjectLookupKey]CalendarObject, error) {

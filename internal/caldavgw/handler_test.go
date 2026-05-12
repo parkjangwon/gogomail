@@ -1184,6 +1184,59 @@ func TestHandlerReportSyncCollectionAllowsExactChangeLimit(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionCoalescesDuplicateObjectChangesBeforeLimit(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].SyncToken = "sync-updated-2"
+	store.changes = append(store.changes,
+		CalendarChange{
+			ID:         int64(len(store.changes) + 1),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			ETag:       store.objects[0].ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-1",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC),
+		},
+		CalendarChange{
+			ID:         int64(len(store.changes) + 2),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			ETag:       store.objects[0].ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-2",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 1, 0, 0, time.UTC),
+		},
+	)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if count := strings.Count(body, "<D:response>"); count != 1 {
+		t.Fatalf("response count = %d, want 1:\n%s", count, body)
+	}
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") {
+		t.Fatalf("coalesced sync response missing latest object:\n%s", body)
+	}
+	if !strings.Contains(body, "<D:sync-token>sync-updated-2</D:sync-token>") {
+		t.Fatalf("coalesced sync response missing latest token:\n%s", body)
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsNonZeroHTTPDepth(t *testing.T) {
 	t.Parallel()
 

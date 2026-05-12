@@ -1,33 +1,31 @@
 # ACTIVE_TASK
 
-## ✅ TASK-185: CalDAV calendar-query time-range 후보 인덱스 고도화
+## ✅ TASK-186: CalDAV sync-collection delta duplicate href coalescing
 
 ### 배경
 
-CalDAV `calendar-query` time-range 경로는 RFC 정합성을 위해 limit을 최종 time-range 필터 뒤에 적용하지만,
-그 과정에서 component 후보 인덱스를 사용하지 못하고 전체 캘린더 객체 본문을 스캔했다.
-기존 `component_type` 인덱스가 있는 만큼 `VEVENT`/`VTODO` 등 요청 component 후보만 스트리밍하고,
-최종 time-range 판정과 truncation 판단은 기존 RFC 4791 iCalendar matcher에 맡긴다.
+CalDAV `sync-collection` delta 경로는 같은 object href가 토큰 이후 여러 번 변경되어도
+raw change 개수를 기준으로 먼저 truncation을 판단했다.
+클라이언트 응답에는 최신 상태의 href 하나만 필요하므로, object별 최신 변경으로 coalescing한 뒤
+`nresults` limit을 판단해 불필요한 truncation을 줄인다.
 
 ### 구현 대상
 
 - `internal/caldavgw/handler.go`
 - `internal/caldavgw/handler_test.go`
-- `internal/caldavgw/repository_discovery.go`
-- `internal/caldavgw/repository_discovery_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 
 ### 완료 조건
 
-- [x] time-range `calendar-query`가 component 후보 walker를 우선 사용한다.
-- [x] repository candidate walker가 `user_id/calendar_id/status/component_type` scope를 적용해 기존 component 인덱스를 활용한다.
-- [x] 후보 결과는 기존 `CalendarObjectMatchesTimeRange`로 재검증해 recurrence/timezone/VTODO 정합성을 보존한다.
-- [x] `nresults` limit은 time-range 최종 매칭 뒤에 적용해 최근 정합성 수정을 유지한다.
-- [x] handler 회귀 테스트가 candidate path 사용과 non-requested component 제외를 검증한다.
+- [x] joined change+object fast path가 object href별 최신 변경만 응답 후보로 남긴다.
+- [x] fallback change-list path가 object href별 최신 변경만 배치 조회 및 응답 후보로 남긴다.
+- [x] collection-only changes는 sync-token 갱신에는 반영하되 object response count에서는 제외한다.
+- [x] raw change stream이 WebDAV report 최대치를 넘는 경우에는 기존 truncation precondition을 유지한다.
+- [x] 회귀 테스트가 duplicate object changes + `nresults=1` 조합에서 단일 응답과 최신 sync-token을 검증한다.
 - [x] `go test ./internal/caldavgw` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-186: CalDAV sync-collection delta duplicate href coalescing
+TASK-187: CalDAV calendar-timezone VTIMEZONE RFC 정합성

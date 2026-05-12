@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV sync-collection delta duplicate coalescing (2026-05-12, complete)
+- CalDAV `sync-collection` delta 경로가 같은 object href의 반복 변경을 최신 변경 하나로 coalescing한 뒤
+  `nresults` limit을 판단하도록 정리했다.
+- joined change+object fast path와 fallback change-list path 모두 동일한 coalescing을 적용하며,
+  collection-only changes는 sync-token 갱신에는 반영하되 object response count에서는 제외한다.
+- raw change stream이 WebDAV report 최대치를 넘는 경우에는 기존 truncation precondition을 유지한다.
+
 ## CalDAV calendar-query time-range 후보 인덱스 (2026-05-12, complete)
 - time-range `calendar-query`가 요청 component가 있을 때 전체 캘린더 객체 스캔 대신
   component 후보 walker를 우선 사용하도록 했다.
