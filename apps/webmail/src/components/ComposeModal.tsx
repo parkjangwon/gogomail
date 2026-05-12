@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
@@ -354,6 +355,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     uploading: sendButtonUploading,
   });
   const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt);
+  const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress);
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
   const cancelCloseConfirmation = useCallback(() => setConfirmClose(false), []);
@@ -1144,7 +1146,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               disabled={closeSaveInProgress}
               onClick={() => { void saveDraftAndClose(); }}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
-            >{closeSaveInProgress ? '저장 중...' : '임시저장'}</button>
+            >{closeSaveButtonLabel}</button>
             <button
               type="button"
               aria-label="저장하지 않고 작성창 닫기"
