@@ -2713,6 +2713,43 @@ func TestHandlerProppatchPreservesCalendarPropertyLanguageWhenOmitted(t *testing
 	}
 }
 
+func TestHandlerProppatchClearsCalendarPropertyLanguageWhenExplicitlyEmpty(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].Description = "Old description"
+	store.calendars[0].DescriptionLang = "fr"
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set>
+    <D:prop xml:lang="">
+      <D:displayname>Product</D:displayname>
+      <C:calendar-description>Launch dates</C:calendar-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.NameLang != "" || calendar.DescriptionLang != "" {
+		t.Fatalf("calendar languages = name %q description %q, want cleared", calendar.NameLang, calendar.DescriptionLang)
+	}
+	if !strings.Contains(rec.Body.String(), "<D:displayname>Product</D:displayname>") {
+		t.Fatalf("response should omit empty xml:lang attribute:\n%s", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `calendar-description xml:lang`) {
+		t.Fatalf("response should omit empty description xml:lang attribute:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerProppatchRejectsMalformedLanguageBeforeMutation(t *testing.T) {
 	t.Parallel()
 

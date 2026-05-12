@@ -180,6 +180,60 @@ WHERE id = $1::uuid
 	}
 }
 
+func TestPostgresCalendarPropertyLanguagesClearWhenExplicitlyEmpty(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCalDAVPostgresTestDB(t)
+	userID := seedCalDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	nameLang := "ko-KR"
+	descriptionLang := "en-US"
+	calendar, err := repo.CreateCalendar(ctx, CreateCalendarRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Clear",
+		NameLang:        &nameLang,
+		Description:     "Initial description",
+		DescriptionLang: &descriptionLang,
+	})
+	if err != nil {
+		t.Fatalf("CreateCalendar returned error: %v", err)
+	}
+
+	emptyLang := ""
+	newName := "Cleared"
+	newDescription := "Cleared description"
+	updated, err := repo.UpdateCalendarProperties(ctx, UpdateCalendarRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		CalendarID:      calendar.ID,
+		Name:            &newName,
+		NameLang:        &emptyLang,
+		Description:     &newDescription,
+		DescriptionLang: &emptyLang,
+	})
+	if err != nil {
+		t.Fatalf("UpdateCalendarProperties returned error: %v", err)
+	}
+	if updated.NameLang != "" || updated.DescriptionLang != "" {
+		t.Fatalf("updated calendar languages = name %q description %q, want cleared", updated.NameLang, updated.DescriptionLang)
+	}
+
+	var storedNameLang, storedDescriptionLang string
+	if err := db.QueryRowContext(ctx, `
+SELECT displayname_lang, description_lang
+FROM caldav_calendars
+WHERE id = $1::uuid
+`, calendar.ID).Scan(&storedNameLang, &storedDescriptionLang); err != nil {
+		t.Fatalf("query stored calendar language columns: %v", err)
+	}
+	if storedNameLang != "" || storedDescriptionLang != "" {
+		t.Fatalf("raw calendar language columns = name %q description %q, want cleared", storedNameLang, storedDescriptionLang)
+	}
+}
+
 func seedCalDAVPostgresUser(t *testing.T, ctx context.Context, db *sql.DB) string {
 	t.Helper()
 

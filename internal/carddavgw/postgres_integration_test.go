@@ -162,6 +162,58 @@ WHERE id = $1::uuid
 	}
 }
 
+func TestPostgresAddressBookPropertyLanguagesClearWhenExplicitlyEmpty(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCardDAVPostgresTestDB(t)
+	userID := seedCardDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	book, err := repo.CreateAddressBook(ctx, CreateAddressBookRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Clear",
+		NameLang:        "ko-KR",
+		Description:     "Initial contacts",
+		DescriptionLang: "en-US",
+	})
+	if err != nil {
+		t.Fatalf("CreateAddressBook returned error: %v", err)
+	}
+
+	emptyLang := ""
+	newName := "Cleared"
+	newDescription := "Cleared contacts"
+	updated, err := repo.UpdateAddressBookProperties(ctx, UpdateAddressBookRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		AddressBookID:   book.ID,
+		Name:            &newName,
+		NameLang:        &emptyLang,
+		Description:     &newDescription,
+		DescriptionLang: &emptyLang,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAddressBookProperties returned error: %v", err)
+	}
+	if updated.NameLang != "" || updated.DescriptionLang != "" {
+		t.Fatalf("updated address book languages = name %q description %q, want cleared", updated.NameLang, updated.DescriptionLang)
+	}
+
+	var storedNameLang, storedDescriptionLang string
+	if err := db.QueryRowContext(ctx, `
+SELECT displayname_lang, description_lang
+FROM carddav_addressbooks
+WHERE id = $1::uuid
+`, book.ID).Scan(&storedNameLang, &storedDescriptionLang); err != nil {
+		t.Fatalf("query stored address book language columns: %v", err)
+	}
+	if storedNameLang != "" || storedDescriptionLang != "" {
+		t.Fatalf("raw address book language columns = name %q description %q, want cleared", storedNameLang, storedDescriptionLang)
+	}
+}
+
 func seedCardDAVPostgresUser(t *testing.T, ctx context.Context, db *sql.DB) string {
 	t.Helper()
 
