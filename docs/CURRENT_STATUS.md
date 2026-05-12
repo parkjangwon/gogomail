@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV creation xml:lang PROPFIND compatibility (2026-05-13, complete)
+- CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now parse `DAV:prop
+  xml:lang` and store language tags for collection display names and
+  descriptions at creation time.
+- Freshly created collections return those language tags on collection
+  `PROPFIND` as `xml:lang` attributes on the corresponding properties.
+- Malformed creation language tags are rejected before creating calendars or
+  address books.
+
 ## CalDAV/CardDAV PROPPATCH xml:lang persistence (2026-05-13, complete)
 - CalDAV/CardDAV collection `PROPPATCH` now parses `DAV:prop xml:lang` and
   stores language tags for `DAV:displayname` plus calendar/address-book

@@ -2219,7 +2219,9 @@ Target outcome:
       `remove (prop)` grammar. `DAV:prop xml:lang` is persisted for
       `DAV:displayname` and `CALDAV:calendar-description`, returned on
       `PROPFIND` and successful `PROPPATCH`, and cleared with removed
-      description values.
+      description values. `MKCALENDAR` creation now stores the same
+      `xml:lang` metadata and exposes it on the newly created collection's
+      `PROPFIND` responses.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2572,7 +2574,9 @@ Target outcome:
       `remove (prop)` grammar. `DAV:prop xml:lang` is persisted for
       `DAV:displayname` and `CARDDAV:addressbook-description`, returned on
       `PROPFIND` and successful `PROPPATCH`, and cleared with removed
-      description values.
+      description values. Extended `MKCOL` creation now stores the same
+      `xml:lang` metadata and exposes it on the newly created address book's
+      `PROPFIND` responses.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

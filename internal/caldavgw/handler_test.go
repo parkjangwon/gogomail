@@ -2219,6 +2219,78 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarStoresAndReturnsCalendarPropertyLanguage(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	createReq := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:displayname>제품</D:displayname>
+      <C:calendar-description>출시 일정</C:calendar-description>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`))
+	createRec := httptest.NewRecorder()
+	handler.ServeHTTP(createRec, createReq)
+
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("MKCALENDAR status = %d body = %s", createRec.Code, createRec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", calendarID)
+	if err != nil {
+		t.Fatalf("created calendar lookup failed: %v", err)
+	}
+	if calendar.NameLang != "ko-KR" || calendar.DescriptionLang != "ko-KR" {
+		t.Fatalf("calendar languages = name %q description %q", calendar.NameLang, calendar.DescriptionLang)
+	}
+
+	propfindReq := httptest.NewRequest(MethodPropfind, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:displayname/>
+    <C:calendar-description/>
+  </D:prop>
+</D:propfind>`))
+	propfindReq.Header.Set("Depth", "0")
+	propfindRec := httptest.NewRecorder()
+	handler.ServeHTTP(propfindRec, propfindReq)
+
+	if propfindRec.Code != http.StatusMultiStatus {
+		t.Fatalf("PROPFIND status = %d body = %s", propfindRec.Code, propfindRec.Body.String())
+	}
+	body := propfindRec.Body.String()
+	for _, want := range []string{
+		`<D:displayname xml:lang="ko-KR">제품</D:displayname>`,
+		`<C:calendar-description xml:lang="ko-KR">출시 일정</C:calendar-description>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPFIND body missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerMkcalendarRejectsMalformedLanguageBeforeCreate(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set><D:prop xml:lang="ko KR"><D:displayname>Product</D:displayname></D:prop></D:set>
+</C:mkcalendar>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite malformed MKCALENDAR xml:lang")
+	}
+}
+
 func TestHandlerMkcalendarRejectsNonXMLContentTypeBeforeCreate(t *testing.T) {
 	t.Parallel()
 
@@ -3744,6 +3816,12 @@ func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateC
 		SyncToken:   syncToken,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+	}
+	if validated.NameLang != nil {
+		calendar.NameLang = *validated.NameLang
+	}
+	if validated.DescriptionLang != nil {
+		calendar.DescriptionLang = *validated.DescriptionLang
 	}
 	s.calendars = append(s.calendars, calendar)
 	return calendar, nil

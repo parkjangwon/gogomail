@@ -180,6 +180,48 @@ func TestParseMKCalendarCollectsCreationProperties(t *testing.T) {
 	}
 }
 
+func TestParseMKCalendarCollectsPropLanguageForTextProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:displayname> 제품 </D:displayname>
+      <C:calendar-description> 출시 일정 </C:calendar-description>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`
+	req, err := ParseMKCalendar(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseMKCalendar returned error: %v", err)
+	}
+	if req.DisplayName != "제품" || req.Description != "출시 일정" {
+		t.Fatalf("request = %+v", req)
+	}
+	if req.DisplayNameLang == nil || *req.DisplayNameLang != "ko-KR" {
+		t.Fatalf("displayname lang = %v", req.DisplayNameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "ko-KR" {
+		t.Fatalf("description lang = %v", req.DescriptionLang)
+	}
+}
+
+func TestParseMKCalendarRejectsMalformedPropLanguage(t *testing.T) {
+	t.Parallel()
+
+	for _, lang := range []string{"ko KR", "en\nUS", strings.Repeat("a", MaxDAVPropertyLanguageLength+1)} {
+		lang := lang
+		t.Run(lang, func(t *testing.T) {
+			t.Parallel()
+
+			body := `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop xml:lang="` + lang + `"><D:displayname>Product</D:displayname></D:prop></D:set></C:mkcalendar>`
+			if _, err := ParseMKCalendar(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseMKCalendar error = nil, want xml:lang rejection")
+			}
+		})
+	}
+}
+
 func TestParseMKCalendarCollectsUnsupportedProperties(t *testing.T) {
 	t.Parallel()
 
