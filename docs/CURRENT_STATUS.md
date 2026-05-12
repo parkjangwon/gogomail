@@ -99,6 +99,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Draft cleanup is best-effort; cleanup failure does not turn a successful send into a failed send.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send contract stabilization (TASK-110, 2026-05-12, complete)
+- Completed draft-send backend contract pass for user webmail beta.
+- Webmail API helpers now expose `sendDraft` for backend `POST /drafts/{id}/send`.
+- Non-scheduled, non-tracked sends now persist the latest compose state to draft first, then use the backend draft-send contract.
+- Scheduled sends and open-tracked sends keep direct send because the current draft-send contract does not represent `scheduled_at` or `track_opens`.
+- Undo-countdown sends preserve whether they should use draft-send or direct-send after the countdown expires.
+- Draft-send success clears local draft state without a redundant best-effort delete call because the backend marks the draft sent.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
