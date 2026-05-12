@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang postgres repository integration (2026-05-13, complete)
+- Optional PostgreSQL integration tests now create migrated temp schemas and
+  verify CalDAV calendar plus CardDAV address-book `xml:lang` persistence.
+- The tests cover repository create/get/update round-trips and raw
+  `displayname_lang`/`description_lang` columns after migration 0097.
+- They follow the existing `GOGOMAIL_TEST_DATABASE_URL` convention and skip
+  cleanly when no PostgreSQL test database is configured.
+
 ## CalDAV/CardDAV xml:lang migration guardrails (2026-05-13, complete)
 - Migration 0097 now has static coverage for CalDAV/CardDAV collection
   language columns, DB-level length/whitespace constraints, and Down cleanup.
