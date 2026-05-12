@@ -110,6 +110,42 @@ function isDriveNodeDrag(dataTransfer: DataTransfer): boolean {
   );
 }
 
+function createDriveDragGhost(count: number, names: string[]): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.style.position = 'absolute';
+  wrap.style.top = '-9999px';
+  wrap.style.left = '-9999px';
+  wrap.style.padding = '10px 12px';
+  wrap.style.borderRadius = '10px';
+  wrap.style.background = '#121926';
+  wrap.style.color = '#f8fafc';
+  wrap.style.boxShadow = '0 10px 24px rgba(8, 12, 24, 0.35)';
+  wrap.style.border = '1px solid rgba(148, 163, 184, 0.28)';
+  wrap.style.fontSize = '12px';
+  wrap.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  wrap.style.minWidth = '130px';
+  wrap.style.maxWidth = '220px';
+  wrap.style.whiteSpace = 'nowrap';
+  wrap.style.overflow = 'hidden';
+
+  const title = document.createElement('div');
+  title.textContent = `${count}개 항목 이동`;
+  title.style.fontWeight = '600';
+  title.style.marginBottom = '4px';
+  title.style.letterSpacing = '0.01em';
+  wrap.appendChild(title);
+
+  const detail = document.createElement('div');
+  const visible = names.length > 0 ? names.slice(0, 2) : [];
+  detail.textContent = visible.length > 0
+    ? `${visible.join(', ')}${names.length > 2 ? ', ...' : ''}`
+    : '선택 항목';
+  detail.style.opacity = '0.92';
+  wrap.appendChild(detail);
+
+  return wrap;
+}
+
 function normalizeDroppedPath(path: string): string {
   return path.replace(/[\\/]+/g, '/').replace(/^\/+|\/+$/g, '');
 }
@@ -560,6 +596,9 @@ export function DriveView() {
 
   const usedPct = usage && usage.quota_limit > 0 ? Math.min(100, (usage.quota_used / usage.quota_limit) * 100) : 0;
   const barColor = usedPct >= 90 ? '#ef4444' : usedPct >= 70 ? '#f59e0b' : '#22c55e';
+  const draggingNodeNames = draggingNodeIds
+    .map((id) => nodes.find((node) => node.id === id)?.name)
+    .filter(Boolean) as string[];
 
   return (
     <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', background: 'var(--color-bg-primary)', position: 'relative' }}>
@@ -811,6 +850,30 @@ export function DriveView() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: uploading ? 'wait' : 'pointer' }}>
               <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {uploading ? '업로드 중...' : '업로드'}
             </button>
+            {draggingNodeIds.length > 1 && (
+              <div
+                style={{
+                  marginLeft: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '5px 10px',
+                  borderRadius: '999px',
+                  border: '1px solid var(--color-accent)',
+                  background: 'rgba(96, 165, 250, 0.12)',
+                  color: 'var(--color-accent)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  maxWidth: '240px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={draggingNodeNames.join(', ')}
+              >
+                주렁주렁 이동 중: {draggingNodeIds.length}개 선택
+              </div>
+            )}
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined); e.target.value = ''; } }} />
             <input
               ref={folderInputRef}
@@ -874,11 +937,22 @@ export function DriveView() {
                       }}
                       onDragStart={(e) => {
                         const idsToDrag = (selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id]);
+                        const dragNodeNames = idsToDrag
+                          .map((dragId) => nodes.find((n) => n.id === dragId)?.name)
+                          .filter(Boolean) as string[];
                         const payload = JSON.stringify({ nodeIds: [...new Set(idsToDrag)] });
                         e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, payload);
                         e.dataTransfer.setData(DRIVE_NODE_DRAG_TEXT, `nodes:${idsToDrag.join(',')}`);
-                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}`);
+                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}\n${idsToDrag.length}개 항목 이동`);
                         e.dataTransfer.effectAllowed = 'move';
+                        if (idsToDrag.length > 1) {
+                          const ghost = createDriveDragGhost(idsToDrag.length, dragNodeNames);
+                          document.body.appendChild(ghost);
+                          e.dataTransfer.setDragImage(ghost, 18, 18);
+                          requestAnimationFrame(() => {
+                            if (ghost.isConnected) document.body.removeChild(ghost);
+                          });
+                        }
                         setDraggingNodeIds(idsToDrag);
                       }}
                       onDragEnd={() => {
