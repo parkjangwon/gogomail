@@ -238,6 +238,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [fromAddress, setFromAddress] = useState(userEmail ?? '');
   const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
 
+  const readyAttachmentIds = useCallback(() =>
+    uploadedAttachments
+      .filter((a) => !a.uploading && !a.error)
+      .map((a) => a.id),
+  [uploadedAttachments]);
+
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
     for (const file of newFiles) {
@@ -282,6 +288,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
       setSaveStatus('saving');
       try {
+        const attachmentIds = readyAttachmentIds();
         const data = {
           intent: backendComposeIntent(intent),
           ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
@@ -291,6 +298,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           subject: subjectVal,
           text_body: bodyText,
           ...(fromAddress && { from: fromAddress }),
+          ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
         };
         if (draftIdRef.current) {
           await updateDraft(draftIdRef.current, data);
@@ -305,7 +313,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         setSaveStatus('idle');
       }
     }, 3000);
-  }, [intent, sourceMessage]);
+  }, [intent, sourceMessage, fromAddress, readyAttachmentIds]);
 
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -516,6 +524,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
     setSaveStatus('saving');
     try {
+      const attachmentIds = readyAttachmentIds();
       const data = {
         intent: backendComposeIntent(intent),
         ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
@@ -525,6 +534,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         subject,
         text_body: bodyText,
         ...(fromAddress && { from: fromAddress }),
+        ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
       };
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
@@ -532,7 +542,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
       setSaveStatus('saved');
     } catch { setSaveStatus('idle'); }
-  }, [to, cc, bcc, subject, editor, intent, sourceMessage]);
+  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds]);
 
   const saveTemplate = () => {
     const name = templateSaveName.trim();
@@ -566,7 +576,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return;
     }
     setError('');
-    const readyAttachmentIds = uploadedAttachments.filter((a) => !a.uploading && !a.error).map((a) => a.id);
+    const attachmentIds = readyAttachmentIds();
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
       ...(cc.trim() && { cc: parseAddrs(cc) }),
@@ -575,7 +585,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       text_body: bodyText,
       ...(editor && { html_body: editor.getHTML() }),
       ...(intent !== 'new' && sourceMessage && { intent: backendComposeIntent(intent), source_message_id: sourceMessage.id }),
-      ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
+      ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
       ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
       ...(fromAddress && { from: fromAddress }),
       ...(trackOpens && { track_opens: true }),
@@ -910,6 +920,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onClick={async () => {
                 const bodyText = editor?.getText() ?? '';
                 if (to.trim() || subject.trim() || bodyText.trim()) {
+                  const attachmentIds = readyAttachmentIds();
                   const data = {
                     intent: backendComposeIntent(intent),
                     ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
@@ -920,6 +931,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     text_body: bodyText,
                     ...(editor && { html_body: editor.getHTML() }),
                     ...(fromAddress && { from: fromAddress }),
+                    ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
                   };
                   try {
                     if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
