@@ -199,7 +199,7 @@ export default function MailPage() {
     }
     let cancelled = false;
     listThreads({ folder_id: activeFolderId, limit: 50 })
-      .then((r) => { if (!cancelled) setThreads(r.threads); })
+      .then((r) => { if (!cancelled) setThreads(r.threads ?? []); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [threadViewEnabled, activeFolderId]);

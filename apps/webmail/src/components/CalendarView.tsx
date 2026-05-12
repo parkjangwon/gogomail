@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CalendarDaysIcon, CheckIcon, FolderPlusIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, parseVTODOICS, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -1296,11 +1297,11 @@ export function CalendarView() {
                 overflow: 'hidden', padding: '4px 0',
               }}>
                 {[
-                  { icon: '📅', label: '일정', action: () => { setShowAddMenu(false); openCreateModal(currentDate); } },
-                  { icon: '✓', label: '할 일', action: () => { setShowAddMenu(false); setTodoFocused(true); } },
-                  { icon: '📁', label: '새 캘린더', action: () => { setShowAddMenu(false); openCalModal(null); } },
-                  { icon: '🔗', label: '캘린더 구독', action: () => { setShowAddMenu(false); setShowSubModal(true); setSubError(''); } },
-                ].map(({ icon, label, action }) => (
+                  { Icon: CalendarDaysIcon, label: '일정', action: () => { setShowAddMenu(false); openCreateModal(currentDate); } },
+                  { Icon: CheckIcon, label: '할 일', action: () => { setShowAddMenu(false); setTodoFocused(true); } },
+                  { Icon: FolderPlusIcon, label: '새 캘린더', action: () => { setShowAddMenu(false); openCalModal(null); } },
+                  { Icon: LinkIcon, label: '캘린더 구독', action: () => { setShowAddMenu(false); setShowSubModal(true); setSubError(''); } },
+                ].map(({ Icon, label, action }) => (
                   <button
                     key={label}
                     onClick={action}
@@ -1313,7 +1314,7 @@ export function CalendarView() {
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
                   >
-                    <span style={{ fontSize: '15px', width: '20px', textAlign: 'center' }}>{icon}</span>
+                    <Icon style={{ width: '16px', height: '16px', flexShrink: 0, color: 'var(--color-text-secondary)' }} />
                     {label}
                   </button>
                 ))}
