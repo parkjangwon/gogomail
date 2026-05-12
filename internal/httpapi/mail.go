@@ -93,6 +93,7 @@ type MessageService interface {
 	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
 	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
@@ -1998,6 +1999,25 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"user": profile})
+	})
+
+	mux.HandleFunc("GET /api/v1/me/addresses", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		addrs, err := service.ListUserAddresses(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to list addresses")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"addresses": addrs})
 	})
 
 	mux.HandleFunc("POST /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {

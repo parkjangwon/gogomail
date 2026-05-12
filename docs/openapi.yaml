@@ -1829,6 +1829,33 @@ paths:
                       quota_limit: { type: integer, nullable: true }
         default:
           $ref: "#/components/responses/Error"
+  /me/addresses:
+    get:
+      operationId: listUserAddresses
+      summary: List all email addresses for the authenticated user
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: List of email addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  addresses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        address: { type: string }
+                        is_primary: { type: boolean }
+        default:
+          $ref: "#/components/responses/Error"
   /me/password:
     post:
       operationId: changeUserPassword

@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 import {
   PaperClipIcon,
@@ -224,6 +224,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } catch { return { w: 560, h: 520 }; }
   });
   const [showSendDropdown, setShowSendDropdown] = useState(false);
+  const [fromAddress, setFromAddress] = useState(userEmail ?? '');
+  const [availableAddresses, setAvailableAddresses] = useState<UserAddressEntry[]>([]);
 
   const handleFileSelect = useCallback(async (files: FileList) => {
     const newFiles = Array.from(files);
@@ -277,6 +279,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           ...(bccVal.trim() && { bcc: bccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
           subject: subjectVal,
           text_body: bodyText,
+          ...(fromAddress && { from: fromAddress }),
         };
         if (draftIdRef.current) {
           await updateDraft(draftIdRef.current, data);
@@ -295,6 +298,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
+
+  useEffect(() => {
+    listUserAddresses().then((addrs) => {
+      setAvailableAddresses(addrs);
+      const primary = addrs.find((a) => a.is_primary);
+      if (primary && !fromAddress) setFromAddress(primary.address);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -502,6 +513,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
         subject,
         text_body: bodyText,
+        ...(fromAddress && { from: fromAddress }),
       };
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
@@ -554,6 +566,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ...(intent !== 'new' && sourceMessage && { intent, source_message_id: sourceMessage.id }),
       ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
       ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
+      ...(fromAddress && { from: fromAddress }),
     };
     pendingMsgRef.current = msg;
     if (scheduledAt) {
@@ -891,6 +904,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     subject,
                     text_body: bodyText,
                     ...(editor && { html_body: editor.getHTML() }),
+                    ...(fromAddress && { from: fromAddress }),
                   };
                   try {
                     if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
@@ -924,11 +938,23 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
         >
 
-          {/* From (display only) */}
-          {userEmail && (
+          {/* From */}
+          {(userEmail || availableAddresses.length > 0) && (
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '6px 16px', gap: '8px', flexShrink: 0, background: 'var(--color-bg-secondary)' }}>
               <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>보내는 사람</span>
-              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{userEmail}</span>
+              {availableAddresses.length > 1 ? (
+                <select
+                  value={fromAddress}
+                  onChange={(e) => setFromAddress(e.target.value)}
+                  style={{ fontSize: '13px', color: 'var(--color-text-secondary)', background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', flex: 1 }}
+                >
+                  {availableAddresses.map((a) => (
+                    <option key={a.id} value={a.address}>{a.address}</option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{fromAddress || userEmail}</span>
+              )}
             </div>
           )}
 
