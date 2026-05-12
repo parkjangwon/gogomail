@@ -136,15 +136,19 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"empty":                    ``,
-		"wrong root":               `<D:propfind xmlns:D="DAV:"/>`,
-		"unsupported child":        `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
-		"unsupported set child":    `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop><D:href>/addressbooks/team/</D:href></D:set></D:propertyupdate>`,
-		"unsupported remove child": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description/></D:prop><D:href>/addressbooks/team/</D:href></D:remove></D:propertyupdate>`,
-		"nested supported value":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
-		"remove supported text":    `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description>old</C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
-		"remove supported child":   `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description><C:x/></C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
-		"remove unsupported text":  `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:unknown>old</C:unknown></D:prop></D:remove></D:propertyupdate>`,
+		"empty":                     ``,
+		"wrong root":                `<D:propfind xmlns:D="DAV:"/>`,
+		"unsupported child":         `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+		"unsupported set child":     `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop><D:href>/addressbooks/team/</D:href></D:set></D:propertyupdate>`,
+		"unsupported remove child":  `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description/></D:prop><D:href>/addressbooks/team/</D:href></D:remove></D:propertyupdate>`,
+		"nested supported value":    `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
+		"remove supported text":     `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description>old</C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
+		"remove supported child":    `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description><C:x/></C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
+		"remove unsupported text":   `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:unknown>old</C:unknown></D:prop></D:remove></D:propertyupdate>`,
+		"empty set self closing":    `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set/><D:remove><D:prop><C:addressbook-description/></D:prop></D:remove></D:propertyupdate>`,
+		"empty set explicit":        `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set></D:set><D:remove><D:prop><C:addressbook-description/></D:prop></D:remove></D:propertyupdate>`,
+		"empty remove self closing": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set><D:remove/></D:propertyupdate>`,
+		"empty remove explicit":     `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set><D:remove></D:remove></D:propertyupdate>`,
 	}
 	for name, body := range tests {
 		name, body := name, body

@@ -402,6 +402,22 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 		"remove supported property text":   `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:remove><D:prop><C:calendar-description>Launch dates</C:calendar-description></D:prop></D:remove></D:propertyupdate>`,
 		"remove supported property child":  `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:remove><D:prop><C:calendar-description><C:x/></C:calendar-description></D:prop></D:remove></D:propertyupdate>`,
 		"remove unsupported property text": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test"><D:remove><D:prop><E:unsupported>value</E:unsupported></D:prop></D:remove></D:propertyupdate>`,
+		"empty self closing set with valid remove": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set/>
+  <D:remove><D:prop><C:calendar-description/></D:prop></D:remove>
+</D:propertyupdate>`,
+		"empty set with valid remove": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set></D:set>
+  <D:remove><D:prop><C:calendar-description/></D:prop></D:remove>
+</D:propertyupdate>`,
+		"empty self closing remove with valid set": `<D:propertyupdate xmlns:D="DAV:">
+  <D:remove/>
+  <D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set>
+</D:propertyupdate>`,
+		"empty remove with valid set": `<D:propertyupdate xmlns:D="DAV:">
+  <D:remove></D:remove>
+  <D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set>
+</D:propertyupdate>`,
 		"unsupported child shape":          `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
 		"unsupported set child": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set><D:prop><D:displayname>Product</D:displayname></D:prop><E:unsupported/></D:set>
