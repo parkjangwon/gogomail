@@ -1323,7 +1323,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 <ChevronUpIcon style={{ width: '14px', height: '14px' }} />
               </button>
               {showSendDropdown && (
-                <div id="compose-send-options-menu" role="menu" style={{
+                <div
+                  id="compose-send-options-menu"
+                  role="menu"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      setShowSendDropdown(false);
+                    }
+                  }}
+                  style={{
                   position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
                   background: 'var(--color-bg-primary)',
                   border: '1px solid var(--color-border-default)',
