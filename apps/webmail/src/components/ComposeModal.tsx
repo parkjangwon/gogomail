@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
@@ -351,9 +352,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
   });
-  const closeSavePrompt = scheduledAt
-    ? '예약 설정을 포함해 임시저장 후 닫으시겠습니까?'
-    : '임시저장 후 닫으시겠습니까?';
+  const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt);
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
 
