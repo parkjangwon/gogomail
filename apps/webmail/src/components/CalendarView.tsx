@@ -1149,21 +1149,22 @@ export function CalendarView() {
             onClick={() => openCreateModal(currentDate)}
             style={{
               width: '100%',
-              padding: '10px 14px',
+              padding: '12px 16px',
               borderRadius: '24px',
               border: 'none',
-              background: 'var(--color-accent)',
-              color: '#fff',
+              background: 'var(--color-bg-primary)',
+              color: 'var(--color-accent)',
               fontSize: '13px',
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              gap: '10px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.07)',
             }}
           >
-            <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 400 }}>+</span> 새 일정
+            <span style={{ fontSize: '22px', lineHeight: 1, fontWeight: 300 }}>+</span>
+            <span>새 일정 만들기</span>
           </button>
         </div>
 
@@ -1224,11 +1225,12 @@ export function CalendarView() {
           })}
 
           {/* Todo section */}
-          <div style={{ marginTop: '12px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '6px 6px 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               할일
             </div>
 
+            {/* Todo list items */}
             {todos.map((todo) => {
               const isHovered = todoHoverId === todo.obj.ID;
               const isToggling = todoTogglingId === todo.obj.ID;
@@ -1238,68 +1240,88 @@ export function CalendarView() {
                   key={todo.obj.ID}
                   onMouseEnter={() => setTodoHoverId(todo.obj.ID)}
                   onMouseLeave={() => setTodoHoverId(null)}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', padding: '3px 6px', borderRadius: '5px', background: isHovered ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'default' }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '4px 6px', borderRadius: '6px', background: isHovered ? 'var(--color-bg-tertiary)' : 'transparent' }}
                 >
+                  {/* Circle checkbox */}
                   <button
                     onClick={() => handleToggleTodo(todo)}
                     disabled={isToggling || isDeleting}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 0', fontSize: '14px', color: todo.completed ? 'var(--color-accent)' : 'var(--color-text-tertiary)', flexShrink: 0, lineHeight: 1, opacity: isToggling ? 0.5 : 1 }}
                     title={todo.completed ? '완료 취소' : '완료 표시'}
+                    style={{
+                      background: todo.completed ? 'var(--color-accent)' : 'transparent',
+                      border: `1.5px solid ${todo.completed ? 'var(--color-accent)' : 'var(--color-text-tertiary)'}`,
+                      borderRadius: '50%', width: '16px', height: '16px',
+                      cursor: 'pointer', padding: 0, flexShrink: 0, marginTop: '2px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: isToggling ? 0.5 : 1, transition: 'border-color 150ms, background 150ms',
+                    }}
                   >
-                    {todo.completed ? '☑' : '☐'}
+                    {todo.completed && <span style={{ color: '#fff', fontSize: '9px', lineHeight: 1, fontWeight: 700 }}>✓</span>}
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', color: todo.completed ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)', textDecoration: todo.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '13px', color: todo.completed ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)', textDecoration: todo.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {todo.summary}
                     </div>
                     {todo.dueDate && (
-                      <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
-                        {todo.dueDate.getMonth() + 1}/{todo.dueDate.getDate()}
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '1px' }}>
+                        {todo.dueDate.getMonth() + 1}월 {todo.dueDate.getDate()}일
                       </div>
                     )}
                   </div>
                   {isHovered && (
-                    <button
-                      onClick={() => handleDeleteTodo(todo)}
-                      disabled={isDeleting}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '1px 2px', flexShrink: 0, lineHeight: 1, opacity: isDeleting ? 0.5 : 1 }}
-                      title="삭제"
-                    >×</button>
+                    <button onClick={() => handleDeleteTodo(todo)} disabled={isDeleting}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text-tertiary)', padding: '0 2px', flexShrink: 0, lineHeight: 1, opacity: isDeleting ? 0.5 : 1 }}>×</button>
                   )}
                 </div>
               );
             })}
 
-            {/* Inline todo creation */}
-            <div style={{ marginTop: '6px', padding: '0 4px' }}>
-              <input
-                type="text"
-                placeholder="할일 추가..."
-                value={todoDraft}
-                onFocus={() => setTodoFocused(true)}
-                onChange={(e) => setTodoDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTodo(); if (e.key === 'Escape') { setTodoDraft(''); setTodoDueDate(''); setTodoFocused(false); } }}
-                style={{ width: '100%', padding: '5px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
-              />
-              {todoFocused && (
-                <div style={{ marginTop: '4px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+            {/* Add todo — Google Tasks style */}
+            {todoFocused ? (
+              <div style={{ marginTop: '6px', border: '1px solid var(--color-border-default)', borderRadius: '8px', background: 'var(--color-bg-primary)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="새 할 일"
+                  value={todoDraft}
+                  onChange={(e) => setTodoDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTodo(); if (e.key === 'Escape') { setTodoDraft(''); setTodoDueDate(''); setTodoFocused(false); } }}
+                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: '13px', color: 'var(--color-text-primary)', background: 'transparent', padding: '10px 12px 6px', boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 12px 6px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)' }}>📅</span>
                   <input
                     type="date"
                     value={todoDueDate}
                     onChange={(e) => setTodoDueDate(e.target.value)}
-                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                    placeholder="마감일"
+                    style={{ flex: 1, border: 'none', outline: 'none', fontSize: '12px', color: todoDueDate ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)', background: 'transparent', cursor: 'pointer' }}
                   />
-                  <button
-                    onClick={handleCreateTodo}
-                    disabled={!todoDraft.trim()}
-                    style={{ padding: '4px 10px', borderRadius: '5px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '11px', cursor: todoDraft.trim() ? 'pointer' : 'default', opacity: todoDraft.trim() ? 1 : 0.5 }}
-                  >
-                    추가
+                </div>
+                <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '0 10px' }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', padding: '8px 10px' }}>
+                  <button onClick={() => { setTodoDraft(''); setTodoDueDate(''); setTodoFocused(false); }}
+                    style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
+                    취소
+                  </button>
+                  <button onClick={handleCreateTodo} disabled={!todoDraft.trim()}
+                    style={{ padding: '5px 14px', borderRadius: '6px', border: 'none', background: todoDraft.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: todoDraft.trim() ? '#fff' : 'var(--color-text-tertiary)', fontSize: '12px', cursor: todoDraft.trim() ? 'pointer' : 'default', fontWeight: 500 }}>
+                    저장
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setTodoFocused(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 6px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '13px', width: '100%', textAlign: 'left' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', border: '1.5px solid var(--color-text-tertiary)', flexShrink: 0 }}>
+                  <span style={{ fontSize: '11px', lineHeight: 1 }}>+</span>
+                </span>
+                할 일 추가
+              </button>
+            )}
           </div>
         </div>
       </div>
