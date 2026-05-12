@@ -1321,11 +1321,11 @@ func TestHandlerReportSyncCollectionRejectsTruncatingChangeLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "limit may truncate") {
-		t.Fatalf("truncating change-limit error missing:\n%s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "<D:number-of-matches>0</D:number-of-matches>") {
+		t.Fatalf("RFC 6578 truncation response missing number-of-matches:\n%s", rec.Body.String())
 	}
 }
 
