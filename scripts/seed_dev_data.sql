@@ -63,15 +63,43 @@ SET user_id = EXCLUDED.user_id,
     is_primary = true;
 
 INSERT INTO folders (id, user_id, name, full_path, type, system_type, order_index)
-VALUES
-  ('124979e1-0e59-4577-8ec6-72d5b89b9834', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Inbox',  'Inbox',  'system', 'inbox',  1),
-  ('124979e1-0e59-4577-8ec6-72d5b89b9835', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Sent',   'Sent',   'system', 'sent',   2),
-  ('124979e1-0e59-4577-8ec6-72d5b89b9836', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Drafts', 'Drafts', 'system', 'drafts', 3),
-  ('124979e1-0e59-4577-8ec6-72d5b89b9837', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Trash',  'Trash',  'system', 'trash',  4)
-ON CONFLICT (user_id, full_path) DO UPDATE
-SET type = EXCLUDED.type,
-    system_type = EXCLUDED.system_type,
-    order_index = EXCLUDED.order_index;
+SELECT gen_random_uuid(), 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid, f.name, f.full_path, 'system', f.stype, f.ord
+FROM (VALUES
+  ('Inbox',  '/Inbox',  'inbox',  0),
+  ('Drafts', '/Drafts', 'drafts', 1),
+  ('Sent',   '/Sent',   'sent',   2),
+  ('Trash',  '/Trash',  'trash',  4)
+) AS f(name, full_path, stype, ord)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM folders fo
+  WHERE fo.user_id = 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid
+    AND fo.system_type = f.stype
+);
+
+WITH canonical_inbox AS (
+  SELECT id
+  FROM folders
+  WHERE user_id = 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid
+    AND system_type = 'inbox'
+  ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at
+  LIMIT 1
+)
+UPDATE messages
+SET folder_id = (SELECT id FROM canonical_inbox)
+WHERE user_id = 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid
+  AND folder_id = '124979e1-0e59-4577-8ec6-72d5b89b9834'::uuid
+  AND EXISTS (SELECT 1 FROM canonical_inbox);
+
+DELETE FROM folders
+WHERE user_id = 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid
+  AND id IN (
+    '124979e1-0e59-4577-8ec6-72d5b89b9834'::uuid,
+    '124979e1-0e59-4577-8ec6-72d5b89b9835'::uuid,
+    '124979e1-0e59-4577-8ec6-72d5b89b9836'::uuid,
+    '124979e1-0e59-4577-8ec6-72d5b89b9837'::uuid
+  )
+  AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.folder_id = folders.id);
 
 -- ── 1. Users ──────────────────────────────────────────────────────────────────
 
@@ -93,7 +121,11 @@ VALUES
   ('a1000000-0000-0000-0000-000000000013', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'hong.seungwoo','홍승우',  'plain:pass1234', 'local', 'user', 'active'),
   ('a1000000-0000-0000-0000-000000000014', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'yoon.jieun',   '윤지은',  'plain:pass1234', 'local', 'user', 'active'),
   ('a1000000-0000-0000-0000-000000000015', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'bae.jinhun',   '배진흔',  'plain:pass1234', 'local', 'user', 'active'),
-  ('a1000000-0000-0000-0000-000000000016', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lee.hyejin',   '이혜진',  'plain:pass1234', 'local', 'user', 'active')
+  ('a1000000-0000-0000-0000-000000000016', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lee.hyejin',   '이혜진',  'plain:pass1234', 'local', 'user', 'active'),
+  ('a1000000-0000-0000-0000-000000000017', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'moon.sora',    '문소라',  'plain:pass1234', 'local', 'user', 'active'),
+  ('a1000000-0000-0000-0000-000000000018', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lim.dohyun',   '임도현',  'plain:pass1234', 'local', 'user', 'active'),
+  ('a1000000-0000-0000-0000-000000000019', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'kwak.seoyeon', '곽서연',  'plain:pass1234', 'local', 'user', 'active'),
+  ('a1000000-0000-0000-0000-000000000020', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'no.jaemin',    '노재민',  'plain:pass1234', 'local', 'user', 'active')
 ON CONFLICT (domain_id, username) DO NOTHING;
 
 -- ── 2. User email addresses ────────────────────────────────────────────────────
@@ -115,7 +147,11 @@ VALUES
   ('b1000000-0000-0000-0000-000000000013', 'a1000000-0000-0000-0000-000000000013', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'hong.seungwoo','hong.seungwoo', 'parkjw.org', 'hong.seungwoo@parkjw.org','hong.seungwoo@parkjw.org', true),
   ('b1000000-0000-0000-0000-000000000014', 'a1000000-0000-0000-0000-000000000014', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'yoon.jieun',   'yoon.jieun',   'parkjw.org', 'yoon.jieun@parkjw.org',   'yoon.jieun@parkjw.org',   true),
   ('b1000000-0000-0000-0000-000000000015', 'a1000000-0000-0000-0000-000000000015', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'bae.jinhun',   'bae.jinhun',   'parkjw.org', 'bae.jinhun@parkjw.org',   'bae.jinhun@parkjw.org',   true),
-  ('b1000000-0000-0000-0000-000000000016', 'a1000000-0000-0000-0000-000000000016', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lee.hyejin',   'lee.hyejin',   'parkjw.org', 'lee.hyejin@parkjw.org',   'lee.hyejin@parkjw.org',   true)
+  ('b1000000-0000-0000-0000-000000000016', 'a1000000-0000-0000-0000-000000000016', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lee.hyejin',   'lee.hyejin',   'parkjw.org', 'lee.hyejin@parkjw.org',   'lee.hyejin@parkjw.org',   true),
+  ('b1000000-0000-0000-0000-000000000017', 'a1000000-0000-0000-0000-000000000017', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'moon.sora',    'moon.sora',    'parkjw.org', 'moon.sora@parkjw.org',    'moon.sora@parkjw.org',    true),
+  ('b1000000-0000-0000-0000-000000000018', 'a1000000-0000-0000-0000-000000000018', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'lim.dohyun',   'lim.dohyun',   'parkjw.org', 'lim.dohyun@parkjw.org',   'lim.dohyun@parkjw.org',   true),
+  ('b1000000-0000-0000-0000-000000000019', 'a1000000-0000-0000-0000-000000000019', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'kwak.seoyeon', 'kwak.seoyeon', 'parkjw.org', 'kwak.seoyeon@parkjw.org', 'kwak.seoyeon@parkjw.org', true),
+  ('b1000000-0000-0000-0000-000000000020', 'a1000000-0000-0000-0000-000000000020', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'no.jaemin',    'no.jaemin',    'parkjw.org', 'no.jaemin@parkjw.org',    'no.jaemin@parkjw.org',    true)
 ON CONFLICT DO NOTHING;
 
 -- ── 3. Folders for new users ──────────────────────────────────────────────────
@@ -138,7 +174,11 @@ FROM (VALUES
   ('a1000000-0000-0000-0000-000000000013'),
   ('a1000000-0000-0000-0000-000000000014'),
   ('a1000000-0000-0000-0000-000000000015'),
-  ('a1000000-0000-0000-0000-000000000016')
+  ('a1000000-0000-0000-0000-000000000016'),
+  ('a1000000-0000-0000-0000-000000000017'),
+  ('a1000000-0000-0000-0000-000000000018'),
+  ('a1000000-0000-0000-0000-000000000019'),
+  ('a1000000-0000-0000-0000-000000000020')
 ) AS u(id)
 CROSS JOIN (VALUES
   ('Inbox',  'inbox',  1),
@@ -162,18 +202,50 @@ ON CONFLICT DO NOTHING;
 -- ── 5. Organisation members (legacy) ──────────────────────────────────────────
 
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, is_primary)
-VALUES
+SELECT gen_random_uuid(), v.organization_unit_id::uuid, v.user_id::uuid, v.role, v.is_primary
+FROM (VALUES
   -- 개발팀: pjw (manager), 김철수 (manager), 이영희 (member)
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000001', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'manager', true),
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'manager', true),
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'manager', true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'manager', true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', 'member',  true),
   -- 마케팅팀: 박민준 (manager), 정수연 (member), 한지연 (member)
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000003', 'manager', true),
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000004', 'member',  true),
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000006', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000003', 'manager', true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000004', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000006', 'member',  true),
   -- 인사팀: 최준호 (manager)
-  (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000005', 'manager', true)
-ON CONFLICT DO NOTHING;
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000005', 'manager', true),
+  -- 개발팀 확장: depth-2 개발/인프라/데브옵스 구성원도 legacy org_members에서 조회 가능하게 유지
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000007', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000008', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000009', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000010', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000011', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000012', 'member',  true),
+  -- 마케팅팀 확장
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000013', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000014', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000015', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000016', 'member',  true),
+  -- 경영지원부 확장
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000017', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000018', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000019', 'member',  true),
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000020', 'member',  true)
+) AS v(organization_unit_id, user_id, role, is_primary)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM organization_members om
+  WHERE om.organization_unit_id = v.organization_unit_id::uuid
+    AND om.user_id = v.user_id::uuid
+    AND om.role = v.role
+);
+
+DELETE FROM organization_members om
+USING organization_members keep
+WHERE om.organization_unit_id = keep.organization_unit_id
+  AND om.user_id = keep.user_id
+  AND om.role = keep.role
+  AND om.ctid > keep.ctid;
 
 -- ── 5b. Organizations (directory table used by SearchPrincipals / org-tree) ───
 -- Level 0: 본부/부서 (root)
@@ -182,7 +254,14 @@ VALUES
   ('c2000000-0000-0000-0000-000000000001', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '개발본부',   'dev',  0, 1, 'active'),
   ('c2000000-0000-0000-0000-000000000002', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '마케팅본부', 'mkt',  0, 2, 'active'),
   ('c2000000-0000-0000-0000-000000000003', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '경영지원부', 'biz',  0, 3, 'active')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET domain_id = EXCLUDED.domain_id,
+    parent_id = EXCLUDED.parent_id,
+    name = EXCLUDED.name,
+    code = EXCLUDED.code,
+    depth = EXCLUDED.depth,
+    order_index = EXCLUDED.order_index,
+    status = EXCLUDED.status;
 
 -- Level 1: 팀 (under 개발본부)
 INSERT INTO organizations (id, domain_id, parent_id, name, code, depth, order_index, status)
@@ -196,7 +275,14 @@ VALUES
   -- under 경영지원부
   ('c3000000-0000-0000-0000-000000000006', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000003', '인사팀',       'hr',   1, 1, 'active'),
   ('c3000000-0000-0000-0000-000000000007', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000003', '재무팀',       'fin',  1, 2, 'active')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET domain_id = EXCLUDED.domain_id,
+    parent_id = EXCLUDED.parent_id,
+    name = EXCLUDED.name,
+    code = EXCLUDED.code,
+    depth = EXCLUDED.depth,
+    order_index = EXCLUDED.order_index,
+    status = EXCLUDED.status;
 
 -- Level 2: 그룹/팀 (under 백엔드팀)
 INSERT INTO organizations (id, domain_id, parent_id, name, code, depth, order_index, status)
@@ -221,7 +307,14 @@ VALUES
   -- under 재무팀
   ('c4000000-0000-0000-0000-000000000013', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c3000000-0000-0000-0000-000000000007', '회계 그룹', 'fin-accounting', 2, 1, 'active'),
   ('c4000000-0000-0000-0000-000000000014', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c3000000-0000-0000-0000-000000000007', '예산 그룹', 'fin-budget', 2, 2, 'active')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET domain_id = EXCLUDED.domain_id,
+    parent_id = EXCLUDED.parent_id,
+    name = EXCLUDED.name,
+    code = EXCLUDED.code,
+    depth = EXCLUDED.depth,
+    order_index = EXCLUDED.order_index,
+    status = EXCLUDED.status;
 
 -- Link users to leaf-team org_id (depth 1 teams for original users)
 UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000001'  -- 백엔드팀
@@ -246,6 +339,10 @@ UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000007' WHERE id = 'a10
 UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000008' WHERE id = 'a1000000-0000-0000-0000-000000000014';  -- 윤지은 → 컨텐츠 그룹
 UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000009' WHERE id = 'a1000000-0000-0000-0000-000000000015';  -- 배진흔 → 광고 운영 그룹
 UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000010' WHERE id = 'a1000000-0000-0000-0000-000000000016';  -- 이혜진 → 분석 그룹
+UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000011' WHERE id = 'a1000000-0000-0000-0000-000000000017';  -- 문소라 → 채용 그룹
+UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000012' WHERE id = 'a1000000-0000-0000-0000-000000000018';  -- 임도현 → 보상 그룹
+UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000013' WHERE id = 'a1000000-0000-0000-0000-000000000019';  -- 곽서연 → 회계 그룹
+UPDATE users SET org_id = 'c4000000-0000-0000-0000-000000000014' WHERE id = 'a1000000-0000-0000-0000-000000000020';  -- 노재민 → 예산 그룹
 
 -- ── 6. pjw 주소록 + 연락처 ──────────────────────────────────────────────────────
 
@@ -308,7 +405,44 @@ VALUES
    E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:배진흔\r\nEMAIL:bae.jinhun@parkjw.org\r\nORG:광고 운영 그룹\r\nTITLE:광고운영\r\nEND:VCARD', 'active'),
   ('e1000000-0000-0000-0000-000000000016', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000001',
    'lee.hyejin.vcf', 'lee-hyejin-uid', '"0000000000000000000000000000000000000000000000000000000000000016"', 150,
-   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:이혜진\r\nEMAIL:lee.hyejin@parkjw.org\r\nORG:분석 그룹\r\nTITLE:데이터 애널리스트\r\nEND:VCARD', 'active')
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:이혜진\r\nEMAIL:lee.hyejin@parkjw.org\r\nORG:분석 그룹\r\nTITLE:데이터 애널리스트\r\nEND:VCARD', 'active'),
+  ('e1000000-0000-0000-0000-000000000017', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000001',
+   'moon.sora.vcf', 'moon-sora-uid', '"0000000000000000000000000000000000000000000000000000000000000017"', 150,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:문소라\r\nEMAIL:moon.sora@parkjw.org\r\nORG:채용 그룹\r\nTITLE:채용담당자\r\nEND:VCARD', 'active'),
+  ('e1000000-0000-0000-0000-000000000018', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000001',
+   'lim.dohyun.vcf', 'lim-dohyun-uid', '"0000000000000000000000000000000000000000000000000000000000000018"', 150,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:임도현\r\nEMAIL:lim.dohyun@parkjw.org\r\nORG:보상 그룹\r\nTITLE:보상담당자\r\nEND:VCARD', 'active'),
+  ('e1000000-0000-0000-0000-000000000019', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000001',
+   'kwak.seoyeon.vcf', 'kwak-seoyeon-uid', '"0000000000000000000000000000000000000000000000000000000000000019"', 150,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:곽서연\r\nEMAIL:kwak.seoyeon@parkjw.org\r\nORG:회계 그룹\r\nTITLE:회계담당자\r\nEND:VCARD', 'active'),
+  ('e1000000-0000-0000-0000-000000000020', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000001',
+   'no.jaemin.vcf', 'no-jaemin-uid', '"0000000000000000000000000000000000000000000000000000000000000020"', 150,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:노재민\r\nEMAIL:no.jaemin@parkjw.org\r\nORG:예산 그룹\r\nTITLE:예산담당자\r\nEND:VCARD', 'active')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO carddav_addressbooks (id, company_id, domain_id, user_id, name, normalized_name, sync_token, status)
+VALUES (
+  'd1000000-0000-0000-0000-000000000002',
+  '6106af4e-fc44-4a65-890d-55bb35741d6c',
+  '6049fa6e-d649-44d3-83d2-b548c7e787d5',
+  'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
+  '외부 협력사', 'partners', '1', 'active'
+) ON CONFLICT DO NOTHING;
+
+INSERT INTO carddav_contact_objects (id, user_id, addressbook_id, object_name, uid, etag, size, vcard, status)
+VALUES
+  ('e2000000-0000-0000-0000-000000000001', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000002',
+   'minji.kwon.vcf', 'partner-minji-kwon-uid', '"1000000000000000000000000000000000000000000000000000000000000001"', 190,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:권민지\r\nEMAIL:minji.kwon@example-partner.test\r\nTEL;TYPE=WORK:+82-2-555-0101\r\nORG:넥스트웨이브 스튜디오\r\nTITLE:프로젝트 매니저\r\nNOTE:런칭 캠페인 협력사 PM\r\nEND:VCARD', 'active'),
+  ('e2000000-0000-0000-0000-000000000002', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000002',
+   'taeho.seo.vcf', 'partner-taeho-seo-uid', '"1000000000000000000000000000000000000000000000000000000000000002"', 190,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:서태호\r\nEMAIL:taeho.seo@example-cloud.test\r\nTEL;TYPE=WORK:+82-2-555-0102\r\nORG:클라우드브릿지\r\nTITLE:솔루션 아키텍트\r\nNOTE:인프라 비용 최적화 담당\r\nEND:VCARD', 'active'),
+  ('e2000000-0000-0000-0000-000000000003', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000002',
+   'sarah.lee.vcf', 'partner-sarah-lee-uid', '"1000000000000000000000000000000000000000000000000000000000000003"', 190,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Sarah Lee\r\nEMAIL:sarah.lee@example-legal.test\r\nTEL;TYPE=WORK:+1-415-555-0103\r\nORG:Open Standard Legal\r\nTITLE:Counsel\r\nNOTE:오픈소스 라이선스/계약 검토\r\nEND:VCARD', 'active'),
+  ('e2000000-0000-0000-0000-000000000004', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'd1000000-0000-0000-0000-000000000002',
+   'jisu.nam.vcf', 'partner-jisu-nam-uid', '"1000000000000000000000000000000000000000000000000000000000000004"', 190,
+   E'BEGIN:VCARD\r\nVERSION:3.0\r\nFN:남지수\r\nEMAIL:jisu.nam@example-design.test\r\nTEL;TYPE=WORK:+82-2-555-0104\r\nORG:프레이머스 랩\r\nTITLE:브랜드 디자이너\r\nNOTE:제품 웹사이트/브랜드 시스템 협업\r\nEND:VCARD', 'active')
 ON CONFLICT DO NOTHING;
 
 -- ── 7. pjw 수신함 테스트 메일 ────────────────────────────────────────────────────
@@ -325,7 +459,7 @@ VALUES
   -- 1
   ('f1000000-0000-0000-0000-000000000001',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg1@parkjw.org>', 'f1000000-0000-0000-0000-000000000001',
    '[개발팀] 5월 스프린트 킥오프 일정 공유',
    'kim.chulsoo@parkjw.org', '김철수',
@@ -336,7 +470,7 @@ VALUES
   -- 2
   ('f1000000-0000-0000-0000-000000000002',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg2@parkjw.org>', 'f1000000-0000-0000-0000-000000000002',
    'Re: PR #247 코드 리뷰 요청',
    'lee.younghee@parkjw.org', '이영희',
@@ -347,7 +481,7 @@ VALUES
   -- 3
   ('f1000000-0000-0000-0000-000000000003',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg3@parkjw.org>', 'f1000000-0000-0000-0000-000000000003',
    'Q2 마케팅 캠페인 협업 요청',
    'park.minjun@parkjw.org', '박민준',
@@ -359,7 +493,7 @@ VALUES
   -- 4
   ('f1000000-0000-0000-0000-000000000004',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg4@parkjw.org>', 'f1000000-0000-0000-0000-000000000004',
    '5월 인사평가 일정 및 자가평가 제출 안내',
    'choi.junho@parkjw.org', '최준호',
@@ -370,7 +504,7 @@ VALUES
   -- 5
   ('f1000000-0000-0000-0000-000000000005',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg5@parkjw.org>', 'f1000000-0000-0000-0000-000000000005',
    '[전체] 5월 타운홀 미팅 일정 안내',
    'jung.sooyeon@parkjw.org', '정수연',
@@ -381,7 +515,7 @@ VALUES
   -- 6
   ('f1000000-0000-0000-0000-000000000006',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg6@parkjw.org>', 'f1000000-0000-0000-0000-000000000006',
    '클라우드 인프라 비용 최적화 제안',
    'han.jiyeon@parkjw.org', '한지연',
@@ -392,7 +526,7 @@ VALUES
   -- 7 (starred important)
   ('f1000000-0000-0000-0000-000000000007',
    '6106af4e-fc44-4a65-890d-55bb35741d6c', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
-   '124979e1-0e59-4577-8ec6-72d5b89b9834',
+   (SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1),
    '<msg7@parkjw.org>', 'f1000000-0000-0000-0000-000000000007',
    '신규 서비스 런칭 계획 최종 검토 요청',
    'kim.chulsoo@parkjw.org', '김철수',
@@ -401,7 +535,25 @@ VALUES
    NOW() - INTERVAL '5 days', NOW() - INTERVAL '5 days', 3200, true,
    '{"read":true,"starred":true,"answered":false}'::jsonb, 'active', '',
    '장원님, 내달 런칭 예정인 gogomail 서비스의 최종 계획서를 공유드립니다. 기술 검토 완료 후 사인오프 부탁드립니다. 마케팅팀과 협의된 출시 일정도 포함되어 있습니다.')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+SET folder_id = EXCLUDED.folder_id,
+    rfc_message_id = EXCLUDED.rfc_message_id,
+    thread_id = EXCLUDED.thread_id,
+    subject = EXCLUDED.subject,
+    from_addr = EXCLUDED.from_addr,
+    from_name = EXCLUDED.from_name,
+    to_addrs = EXCLUDED.to_addrs,
+    cc_addrs = EXCLUDED.cc_addrs,
+    bcc_addrs = EXCLUDED.bcc_addrs,
+    received_at = EXCLUDED.received_at,
+    sent_at = EXCLUDED.sent_at,
+    size = EXCLUDED.size,
+    has_attachment = EXCLUDED.has_attachment,
+    flags = EXCLUDED.flags,
+    status = EXCLUDED.status,
+    storage_path = EXCLUDED.storage_path,
+    draft_text_body = EXCLUDED.draft_text_body,
+    updated_at = now();
 
 COMMIT;
 
@@ -410,4 +562,4 @@ SELECT 'users' AS tbl, COUNT(*) FROM users WHERE domain_id='6049fa6e-d649-44d3-8
 UNION ALL SELECT 'org_units', COUNT(*) FROM organization_units WHERE company_id='6106af4e-fc44-4a65-890d-55bb35741d6c'
 UNION ALL SELECT 'org_members', COUNT(*) FROM organization_members
 UNION ALL SELECT 'contacts', COUNT(*) FROM carddav_contact_objects WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'
-UNION ALL SELECT 'inbox_msgs', COUNT(*) FROM messages WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c' AND folder_id='124979e1-0e59-4577-8ec6-72d5b89b9834';
+UNION ALL SELECT 'inbox_msgs', COUNT(*) FROM messages WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c' AND folder_id=(SELECT id FROM folders WHERE user_id='f4b5a283-d1e6-47a9-a69a-e71e90f5343c'::uuid AND system_type='inbox' ORDER BY CASE full_path WHEN '/Inbox' THEN 0 WHEN 'Inbox' THEN 1 ELSE 2 END, order_index, created_at LIMIT 1);

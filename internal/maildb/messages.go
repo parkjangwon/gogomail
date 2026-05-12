@@ -799,7 +799,7 @@ func (r *Repository) SetMessageFlag(ctx context.Context, userID string, messageI
 
 	const query = `
 UPDATE messages
-SET flags = jsonb_set(flags, $4::text[], to_jsonb($5::boolean), true),
+SET flags = jsonb_set(COALESCE(flags, '{}'::jsonb), $3::text[], to_jsonb($4::boolean), true),
     updated_at = now()
 WHERE user_id = $1
   AND id = $2
@@ -834,7 +834,7 @@ func (r *Repository) BulkSetMessageFlag(ctx context.Context, req BulkMessageFlag
 
 	const query = `
 UPDATE messages
-SET flags = jsonb_set(flags, $3::text[], to_jsonb($4::boolean), true),
+SET flags = jsonb_set(COALESCE(flags, '{}'::jsonb), $3::text[], to_jsonb($4::boolean), true),
     updated_at = now()
 WHERE user_id = $1
   AND id IN (SELECT value::uuid FROM jsonb_array_elements_text($2::jsonb))
@@ -896,7 +896,7 @@ WITH target_messages AS (
 ),
 updated_messages AS (
   UPDATE messages
-  SET flags = jsonb_set(flags, $3::text[], to_jsonb($4::boolean), true),
+  SET flags = jsonb_set(COALESCE(flags, '{}'::jsonb), $3::text[], to_jsonb($4::boolean), true),
       updated_at = now()
   WHERE id IN (SELECT id FROM target_messages)
   RETURNING id::text
