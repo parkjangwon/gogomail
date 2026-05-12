@@ -61,6 +61,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Design direction remains unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail compose duplicate-send stabilization (TASK-105, 2026-05-12, complete)
+- Completed duplicate-send guard pass for user webmail beta.
+- `handleSend` now ignores duplicate calls while a send is in progress or already completed.
+- `handleSend` now blocks duplicate sends during the undo countdown and tells the user to cancel before sending again.
+- Existing immediate, scheduled, and undo-countdown send behavior is preserved.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
