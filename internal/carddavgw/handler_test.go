@@ -1822,6 +1822,48 @@ func TestHandlerProppatchRejectsNonMatchingTaggedIfHeaderBeforeBodyRead(t *testi
 	}
 }
 
+func TestHandlerProppatchRejectsMalformedNonMatchingTaggedIfHeaderBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname><C:addressbook-description>Launch contacts</C:addressbook-description></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Set("If", `([`+etag+`]) </carddav/addressbooks/user-1/other/> ()`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header contains an empty condition list") {
+		t.Fatalf("body = %s, want malformed If detail", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" || book.NameLang != "ko-KR" {
+		t.Fatalf("address book name mutated despite malformed precondition: %+v", book)
+	}
+	if book.Description != "Old contacts" || book.DescriptionLang != "fr" {
+		t.Fatalf("address book description mutated despite malformed precondition: %+v", book)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite malformed precondition: %+v", store.lastBookUpdate)
+	}
+}
+
 func TestHandlerProppatchRejectsStaleTaggedIfHeaderBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 

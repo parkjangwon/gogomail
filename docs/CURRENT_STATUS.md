@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang irrelevant tagged malformed WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover tagged WebDAV `If` lists whose
+  resource tag does not match the current CalDAV/CardDAV collection but whose
+  condition-list is malformed.
+- WebDAV `If` evaluation now validates condition-list syntax before applying
+  resource-tag relevance, returning HTTP 400 before body reads and before
+  attempted explicit `xml:lang` mutations can reach repository updates.
+
 ## CalDAV/CardDAV xml:lang repeated malformed WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover repeated HTTP `If` headers where a
   matching earlier condition list is followed by a malformed relevant list.
