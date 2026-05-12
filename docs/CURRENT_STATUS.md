@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang migration guardrails (2026-05-13, complete)
+- Migration 0097 now has static coverage for CalDAV/CardDAV collection
+  language columns, DB-level length/whitespace constraints, and Down cleanup.
+- The guard protects the `displayname_lang` and `description_lang` column names
+  used by both repository implementations for `PROPPATCH`, `MKCALENDAR`, and
+  extended `MKCOL` persistence.
+
 ## CalDAV/CardDAV creation xml:lang PROPFIND compatibility (2026-05-13, complete)
 - CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now parse `DAV:prop
   xml:lang` and store language tags for collection display names and

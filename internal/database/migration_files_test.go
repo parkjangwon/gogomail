@@ -88,3 +88,37 @@ func TestMigrationsDeclareGooseSections(t *testing.T) {
 		}
 	}
 }
+
+func TestDAVCollectionPropertyLanguageMigrationMatchesRepositoryColumns(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", "0097_dav_collection_property_lang.sql"))
+	if err != nil {
+		t.Fatalf("read DAV collection property language migration: %v", err)
+	}
+	text := string(raw)
+
+	required := []string{
+		"ALTER TABLE caldav_calendars",
+		"ALTER TABLE carddav_addressbooks",
+		"ADD COLUMN displayname_lang text NOT NULL DEFAULT ''",
+		"ADD COLUMN description_lang text NOT NULL DEFAULT ''",
+		"caldav_calendars_displayname_lang_check",
+		"caldav_calendars_description_lang_check",
+		"carddav_addressbooks_displayname_lang_check",
+		"carddav_addressbooks_description_lang_check",
+		"CHECK (char_length(displayname_lang) <= 64 AND displayname_lang !~ '[[:space:][:cntrl:]]')",
+		"CHECK (char_length(description_lang) <= 64 AND description_lang !~ '[[:space:][:cntrl:]]')",
+		"DROP CONSTRAINT IF EXISTS carddav_addressbooks_description_lang_check",
+		"DROP CONSTRAINT IF EXISTS carddav_addressbooks_displayname_lang_check",
+		"DROP COLUMN IF EXISTS description_lang",
+		"DROP COLUMN IF EXISTS displayname_lang",
+		"DROP CONSTRAINT IF EXISTS caldav_calendars_description_lang_check",
+		"DROP CONSTRAINT IF EXISTS caldav_calendars_displayname_lang_check",
+	}
+	for _, fragment := range required {
+		if !strings.Contains(text, fragment) {
+			t.Fatalf("migration 0097 must contain %q", fragment)
+		}
+	}
+}

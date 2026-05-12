@@ -2221,7 +2221,9 @@ Target outcome:
       `PROPFIND` and successful `PROPPATCH`, and cleared with removed
       description values. `MKCALENDAR` creation now stores the same
       `xml:lang` metadata and exposes it on the newly created collection's
-      `PROPFIND` responses.
+      `PROPFIND` responses. Migration guardrails assert 0097 keeps the CalDAV
+      language columns, constraints, and Down cleanup aligned with repository
+      SQL.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2576,7 +2578,9 @@ Target outcome:
       `PROPFIND` and successful `PROPPATCH`, and cleared with removed
       description values. Extended `MKCOL` creation now stores the same
       `xml:lang` metadata and exposes it on the newly created address book's
-      `PROPFIND` responses.
+      `PROPFIND` responses. Migration guardrails assert 0097 keeps the CardDAV
+      language columns, constraints, and Down cleanup aligned with repository
+      SQL.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
