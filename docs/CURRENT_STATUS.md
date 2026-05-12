@@ -253,6 +253,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing send APIs, success timing, and visual design direction are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send button label helper (TASK-130, 2026-05-12, complete)
+- Completed compose send button label calculation cleanup for user webmail beta.
+- Send button copy now comes from `composeSendButtonLabel`, covering sending, sent, scheduled-sent, uploading, scheduled-ready, and default states.
+- ComposeModal now computes upload/disabled state once for the send button instead of repeating the same attachment check in JSX.
+- `apps/webmail/src/lib/composeSendButtonLabel.contract.ts` adds `tsc`-checked label state fixtures.
+- Existing button design, disabled behavior, and send flow are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

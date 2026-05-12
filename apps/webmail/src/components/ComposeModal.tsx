@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
@@ -338,6 +339,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, []);
 
   const sendResultLabel = formatSendResultLabel(sendResult);
+  const sendButtonUploading = uploadedAttachments.some((a) => a.uploading);
+  const sendButtonDisabled = sending || sent || sendButtonUploading;
+  const sendButtonLabel = composeSendButtonLabel({
+    sending,
+    sent,
+    scheduled: !!scheduledAt,
+    uploading: sendButtonUploading,
+  });
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
     try {
@@ -1276,19 +1285,19 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <div style={{ position: 'relative', display: 'flex', borderRadius: '20px', overflow: 'visible', flexShrink: 0 }}>
               <button
                 type="submit"
-                disabled={sending || sent || uploadedAttachments.some((a) => a.uploading)}
+                disabled={sendButtonDisabled}
                 style={{
                   padding: '7px 16px',
                   borderRadius: '20px 0 0 20px',
                   border: 'none',
-                  background: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'var(--color-border-default)' : 'var(--color-accent)',
+                  background: sendButtonDisabled ? 'var(--color-border-default)' : 'var(--color-accent)',
                   color: '#fff',
                   fontSize: '13px',
                   fontWeight: 500,
-                  cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
+                  cursor: sendButtonDisabled ? 'not-allowed' : 'pointer',
                 }}
               >
-                {sending ? '전송 중...' : sent ? (scheduledAt ? '예약됨 ✓' : '전송됨 ✓') : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
+                {sendButtonLabel}
               </button>
               <button
                 type="button"
