@@ -166,6 +166,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - OpenAPI contract tests now verify `POST /drafts/{id}/send` remains bodyless.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft scheduled/tracking DB integration (TASK-118, 2026-05-12, complete)
+- Completed PostgreSQL integration coverage for draft `track_opens` and `scheduled_at` persistence.
+- `TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox` now verifies `TrackOpens` survives `SaveDraft` → `GetDraftForSend`.
+- The same integration test now verifies `ScheduledAt` survives `SaveDraft` → `GetDraftForSend`.
+- Existing draft attachment handoff and outbox queue assertions remain intact.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
