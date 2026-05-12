@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar } from '@/lib/api';
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, parseVTODOICS, createCalendarTodo, setTodoStatus, deleteCalendarObject } from '@/lib/api';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +94,45 @@ function parseEvents(objects: CalendarObject[], calendars: Calendar[]): ParsedEv
     });
   }
   return events;
+}
+
+// ── ParsedTodo ────────────────────────────────────────────────────────────────
+
+interface ParsedTodo {
+  obj: CalendarObject;
+  summary: string;
+  description: string;
+  dueDate: Date | null;
+  completed: boolean;
+  calendarId: string;
+  color: string;
+}
+
+function parseTodos(objects: CalendarObject[], calendars: Calendar[]): ParsedTodo[] {
+  const calMap = new Map(calendars.map((c) => [c.ID, c]));
+  const todos: ParsedTodo[] = [];
+  for (const obj of objects) {
+    if (obj.Component !== 'VTODO' || !obj.ICS) continue;
+    const f = parseVTODOICS(obj.ICS);
+    const dueDate = f.due ? icalDateToDate(f.due) : null;
+    const cal = calMap.get(obj.CalendarID);
+    todos.push({
+      obj,
+      summary: f.summary || '(제목 없음)',
+      description: f.description,
+      dueDate,
+      completed: f.status === 'COMPLETED',
+      calendarId: obj.CalendarID,
+      color: cal?.Color || 'var(--color-accent)',
+    });
+  }
+  return todos.sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (a.dueDate && b.dueDate) return a.dueDate.getTime() - b.dueDate.getTime();
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return 0;
+  });
 }
 
 // ── MiniCalendar ─────────────────────────────────────────────────────────────
@@ -261,12 +300,14 @@ function EventPopover({ event, anchorRect, onClose }: EventPopoverProps) {
 interface MonthViewProps {
   currentDate: Date;
   events: ParsedEvent[];
+  todos: ParsedTodo[];
   today: Date;
   onDayClick: (d: Date) => void;
   onEventClick: (e: ParsedEvent, rect: DOMRect) => void;
+  onTodoToggle: (t: ParsedTodo) => void;
 }
 
-function MonthView({ currentDate, events, today, onDayClick, onEventClick }: MonthViewProps) {
+function MonthView({ currentDate, events, todos, today, onDayClick, onEventClick, onTodoToggle }: MonthViewProps) {
   const month = currentDate.getMonth();
   const firstDay = startOfMonth(currentDate);
   // Grid starts on Monday
@@ -318,6 +359,7 @@ function MonthView({ currentDate, events, today, onDayClick, onEventClick }: Mon
             const d = new Date(day); d.setHours(12, 0, 0, 0);
             return d >= s && d <= e;
           });
+          const dayTodos = todos.filter((t) => t.dueDate && isSameDay(t.dueDate, day));
 
           return (
             <div
@@ -382,6 +424,31 @@ function MonthView({ currentDate, events, today, onDayClick, onEventClick }: Mon
                   +{dayEvents.length - 3}개 더
                 </div>
               )}
+              {dayTodos.map((todo) => (
+                <div
+                  key={todo.obj.ID}
+                  onClick={(e) => { e.stopPropagation(); onTodoToggle(todo); }}
+                  title={todo.summary}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '11px',
+                    padding: '1px 3px',
+                    marginBottom: '1px',
+                    cursor: 'pointer',
+                    color: todo.completed ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)',
+                    textDecoration: todo.completed ? 'line-through' : 'none',
+                  }}
+                >
+                  <span style={{ color: todo.color, flexShrink: 0, fontSize: '12px', lineHeight: 1 }}>
+                    {todo.completed ? '☑' : '☐'}
+                  </span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {todo.summary}
+                  </span>
+                </div>
+              ))}
             </div>
           );
         })}
@@ -714,6 +781,14 @@ export function CalendarView() {
   const [calError, setCalError] = useState('');
   const [calHoverId, setCalHoverId] = useState<string | null>(null);
 
+  // Todo state
+  const [todoDraft, setTodoDraft] = useState('');
+  const [todoFocused, setTodoFocused] = useState(false);
+  const [todoDueDate, setTodoDueDate] = useState('');
+  const [todoTogglingId, setTodoTogglingId] = useState<string | null>(null);
+  const [todoDeleteId, setTodoDeleteId] = useState<string | null>(null);
+  const [todoHoverId, setTodoHoverId] = useState<string | null>(null);
+
   // Load calendars on mount
   useEffect(() => {
     let cancelled = false;
@@ -740,9 +815,11 @@ export function CalendarView() {
     return () => { cancelled = true; };
   }, [calendars]);
 
-  // Derived: parse + filter events
+  // Derived: parse + filter events and todos
   const allEvents = parseEvents(objects, calendars);
   const events = allEvents.filter((ev) => selectedCalIds.has(ev.calendarId));
+  const allTodos = parseTodos(objects, calendars);
+  const todos = allTodos.filter((t) => selectedCalIds.has(t.calendarId));
 
   // Navigation
   const navigate = useCallback((delta: number) => {
@@ -758,6 +835,46 @@ export function CalendarView() {
   const goToday = useCallback(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); setCurrentDate(d);
   }, []);
+
+  const reloadObjects = useCallback(async () => {
+    if (calendars.length === 0) return;
+    const results = await Promise.all(calendars.map((c) => listCalendarObjects(c.ID)));
+    setObjects(results.flat());
+  }, [calendars]);
+
+  const handleToggleTodo = useCallback(async (todo: ParsedTodo) => {
+    setTodoTogglingId(todo.obj.ID);
+    try {
+      await setTodoStatus(todo.calendarId, todo.obj, !todo.completed);
+      await reloadObjects();
+    } finally {
+      setTodoTogglingId(null);
+    }
+  }, [reloadObjects]);
+
+  const handleDeleteTodo = useCallback(async (todo: ParsedTodo) => {
+    setTodoDeleteId(todo.obj.ID);
+    try {
+      await deleteCalendarObject(todo.calendarId, todo.obj.ObjectName);
+      await reloadObjects();
+    } finally {
+      setTodoDeleteId(null);
+    }
+  }, [reloadObjects]);
+
+  const handleCreateTodo = useCallback(async () => {
+    const title = todoDraft.trim();
+    if (!title || calendars.length === 0) return;
+    const due = todoDueDate ? new Date(todoDueDate + 'T00:00:00') : undefined;
+    const calId = calendars[0].ID;
+    try {
+      await createCalendarTodo({ title, due, calendarId: calId });
+      setTodoDraft('');
+      setTodoDueDate('');
+      setTodoFocused(false);
+      await reloadObjects();
+    } catch { /* ignore */ }
+  }, [todoDraft, todoDueDate, calendars, reloadObjects]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -936,6 +1053,30 @@ export function CalendarView() {
           background: 'var(--color-bg-secondary)',
         }}
       >
+        {/* New event button */}
+        <div style={{ padding: '12px 10px 0' }}>
+          <button
+            onClick={() => openCreateModal(currentDate)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: '24px',
+              border: 'none',
+              background: 'var(--color-accent)',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 400 }}>+</span> 새 일정
+          </button>
+        </div>
+
         {/* Mini monthly calendar */}
         <MiniCalendar
           selectedDate={currentDate}
@@ -991,6 +1132,85 @@ export function CalendarView() {
               </div>
             );
           })}
+
+          {/* Todo section */}
+          <div style={{ marginTop: '12px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              할일
+            </div>
+
+            {todos.map((todo) => {
+              const isHovered = todoHoverId === todo.obj.ID;
+              const isToggling = todoTogglingId === todo.obj.ID;
+              const isDeleting = todoDeleteId === todo.obj.ID;
+              return (
+                <div
+                  key={todo.obj.ID}
+                  onMouseEnter={() => setTodoHoverId(todo.obj.ID)}
+                  onMouseLeave={() => setTodoHoverId(null)}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', padding: '3px 6px', borderRadius: '5px', background: isHovered ? 'var(--color-bg-tertiary)' : 'transparent', cursor: 'default' }}
+                >
+                  <button
+                    onClick={() => handleToggleTodo(todo)}
+                    disabled={isToggling || isDeleting}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 0', fontSize: '14px', color: todo.completed ? 'var(--color-accent)' : 'var(--color-text-tertiary)', flexShrink: 0, lineHeight: 1, opacity: isToggling ? 0.5 : 1 }}
+                    title={todo.completed ? '완료 취소' : '완료 표시'}
+                  >
+                    {todo.completed ? '☑' : '☐'}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', color: todo.completed ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)', textDecoration: todo.completed ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {todo.summary}
+                    </div>
+                    {todo.dueDate && (
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
+                        {todo.dueDate.getMonth() + 1}/{todo.dueDate.getDate()}
+                      </div>
+                    )}
+                  </div>
+                  {isHovered && (
+                    <button
+                      onClick={() => handleDeleteTodo(todo)}
+                      disabled={isDeleting}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '1px 2px', flexShrink: 0, lineHeight: 1, opacity: isDeleting ? 0.5 : 1 }}
+                      title="삭제"
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Inline todo creation */}
+            <div style={{ marginTop: '6px', padding: '0 4px' }}>
+              <input
+                type="text"
+                placeholder="할일 추가..."
+                value={todoDraft}
+                onFocus={() => setTodoFocused(true)}
+                onChange={(e) => setTodoDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTodo(); if (e.key === 'Escape') { setTodoDraft(''); setTodoDueDate(''); setTodoFocused(false); } }}
+                style={{ width: '100%', padding: '5px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+              />
+              {todoFocused && (
+                <div style={{ marginTop: '4px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={todoDueDate}
+                    onChange={(e) => setTodoDueDate(e.target.value)}
+                    style={{ flex: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    placeholder="마감일"
+                  />
+                  <button
+                    onClick={handleCreateTodo}
+                    disabled={!todoDraft.trim()}
+                    style={{ padding: '4px 10px', borderRadius: '5px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '11px', cursor: todoDraft.trim() ? 'pointer' : 'default', opacity: todoDraft.trim() ? 1 : 0.5 }}
+                  >
+                    추가
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1064,23 +1284,6 @@ export function CalendarView() {
             {title}
           </div>
 
-          {/* + new event */}
-          <button
-            onClick={() => openCreateModal(currentDate)}
-            style={{
-              padding: '5px 12px',
-              borderRadius: '5px',
-              border: 'none',
-              background: 'var(--color-accent)',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 500,
-            }}
-          >
-            + 새 일정
-          </button>
-
           {/* View toggle */}
           <div style={{ display: 'flex', borderRadius: '6px', border: '1px solid var(--color-border-default)', overflow: 'hidden' }}>
             {(['day', 'week', 'month'] as const).map((v) => {
@@ -1116,9 +1319,11 @@ export function CalendarView() {
           <MonthView
             currentDate={currentDate}
             events={events}
+            todos={todos}
             today={today}
             onDayClick={handleDayClick}
             onEventClick={handleEventClick}
+            onTodoToggle={handleToggleTodo}
           />
         ) : view === 'week' ? (
           <WeekView

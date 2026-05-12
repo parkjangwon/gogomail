@@ -781,6 +781,80 @@ export async function createCalendarEvent(calendarId: string, req: CreateCalenda
   });
 }
 
+// ── Calendar Todos (VTODO) ───────────────────────────────────────────────────
+
+export interface ParsedVTODOFields {
+  summary: string;
+  description: string;
+  due: string;
+  status: string;
+}
+
+export function parseVTODOICS(base64ICS: string): ParsedVTODOFields {
+  let text = '';
+  try { text = atob(base64ICS); } catch { text = base64ICS; }
+  text = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
+  const get = (prop: string): string => {
+    const m = text.match(new RegExp(`(?:^|\\n)${prop}(?:;[^\\n:]*)?:([^\\n]*)`, 'im'));
+    return m ? m[1].trim() : '';
+  };
+  return {
+    summary: get('SUMMARY'),
+    description: get('DESCRIPTION'),
+    due: get('DUE'),
+    status: get('STATUS') || 'NEEDS-ACTION',
+  };
+}
+
+export interface CreateTodoRequest {
+  title: string;
+  due?: Date;
+  calendarId: string;
+}
+
+export async function createCalendarTodo(req: CreateTodoRequest): Promise<void> {
+  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@gogomail`;
+  const objectName = `${uid}.ics`;
+  const lines: string[] = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GoGoMail//GoGoMail//EN',
+    'BEGIN:VTODO',
+    `UID:${uid}`,
+    `SUMMARY:${icsEscape(req.title)}`,
+    'STATUS:NEEDS-ACTION',
+  ];
+  if (req.due) lines.push(`DUE;VALUE=DATE:${toICSAllDay(req.due)}`);
+  lines.push('END:VTODO', 'END:VCALENDAR');
+  await request<unknown>(
+    `calendars/${encodeURIComponent(req.calendarId)}/objects/${encodeURIComponent(objectName)}`,
+    { method: 'PUT', headers: { 'Content-Type': 'text/calendar' }, body: lines.join('\r\n') },
+  );
+}
+
+export async function setTodoStatus(calendarId: string, obj: CalendarObject, completed: boolean): Promise<void> {
+  const f = parseVTODOICS(obj.ICS);
+  const lines: string[] = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GoGoMail//GoGoMail//EN',
+    'BEGIN:VTODO',
+    `UID:${obj.UID}`,
+    `SUMMARY:${icsEscape(f.summary)}`,
+    `STATUS:${completed ? 'COMPLETED' : 'NEEDS-ACTION'}`,
+  ];
+  if (f.due) lines.push(`DUE:${f.due}`);
+  if (f.description) lines.push(`DESCRIPTION:${icsEscape(f.description)}`);
+  lines.push('END:VTODO', 'END:VCALENDAR');
+  await request<unknown>(
+    `calendars/${encodeURIComponent(calendarId)}/objects/${encodeURIComponent(obj.ObjectName)}`,
+    { method: 'PUT', headers: { 'Content-Type': 'text/calendar' }, body: lines.join('\r\n') },
+  );
+}
+
+export async function deleteCalendarObject(calendarId: string, objectName: string): Promise<void> {
+  await request<unknown>(
+    `calendars/${encodeURIComponent(calendarId)}/objects/${encodeURIComponent(objectName)}`,
+    { method: 'DELETE' },
+  );
+}
+
 export interface DirectoryUser {
   id: string;
   display_name: string;
