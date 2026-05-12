@@ -127,6 +127,7 @@ function createDriveDragGhost(count: number, names: string[]): HTMLElement {
   wrap.style.maxWidth = '220px';
   wrap.style.whiteSpace = 'nowrap';
   wrap.style.overflow = 'hidden';
+  wrap.style.animation = 'driveMultiDragPulse 1s ease-in-out infinite';
 
   const title = document.createElement('div');
   title.textContent = `${count}개 항목 이동`;
@@ -602,6 +603,16 @@ export function DriveView() {
 
   return (
     <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', background: 'var(--color-bg-primary)', position: 'relative' }}>
+      <style jsx>{`
+        @keyframes driveMultiDragPulse {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.96; }
+          50% { transform: translate3d(0, -2px, 0) scale(1.01); opacity: 1; }
+        }
+        @keyframes driveDropPulse {
+          0%, 100% { box-shadow: inset 0 0 0 0 rgba(59, 130, 246, 0.28); }
+          50% { box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.28); }
+        }
+      `}</style>
 
       {/* ── Sidebar ── */}
       <div style={{ width: '200px', flexShrink: 0, borderRight: '1px solid var(--color-border-subtle)', display: 'flex', flexDirection: 'column', padding: '12px 0', overflowY: 'auto' }}>
@@ -868,6 +879,7 @@ export function DriveView() {
                   maxWidth: '240px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  animation: 'driveMultiDragPulse 1.1s ease-in-out infinite',
                 }}
                 title={draggingNodeNames.join(', ')}
               >
@@ -991,7 +1003,8 @@ export function DriveView() {
                         background: isDraggingSelf || isSelected ? 'var(--color-bg-secondary)' : isDropTarget ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
                         padding: '14px 12px 10px',
                         cursor: node.node_type === 'folder' ? 'pointer' : 'default',
-                        transition: 'background 100ms ease, border-color 100ms ease',
+                        transition: 'background 140ms ease, border-color 140ms ease, transform 140ms ease',
+                        animation: isDropTarget ? 'driveDropPulse 1.1s ease-in-out infinite' : 'none',
                       }}
                       onMouseEnter={(e) => {
                         (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
