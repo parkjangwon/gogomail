@@ -385,6 +385,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     setError(`${message} 전송은 시작되지 않았습니다. 내용을 확인한 뒤 다시 저장하거나 전송해 주세요.`);
   }, []);
 
+  const shouldSendSavedDraft = useCallback(() => pendingDraftSendRef.current && !!draftIdRef.current, []);
+
+  const sendPreparedMessage = useCallback((msg: SendMessageRequest, useDraftSend: boolean) => {
+    const draftId = draftIdRef.current;
+    return useDraftSend && draftId ? sendDraft(draftId) : sendMessage(msg);
+  }, []);
+
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
@@ -597,9 +604,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (sendCountdown === 0) {
       const msg = pendingMsgRef.current;
       if (!msg) return;
-      const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
+      const useDraftSend = shouldSendSavedDraft();
       setSending(true);
-      (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
+      sendPreparedMessage(msg, useDraftSend)
         .then(async (res) => {
           await handleSuccessfulSend(msg, res.message, useDraftSend);
         })
@@ -611,7 +618,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
     return () => clearTimeout(t);
-  }, [sendCountdown, handleSuccessfulSend, handleSendFailure]);
+  }, [sendCountdown, handleSuccessfulSend, handleSendFailure, sendPreparedMessage, shouldSendSavedDraft]);
 
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
@@ -743,9 +750,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     if (scheduledAt) {
       // Scheduled sends bypass the undo countdown and go immediately
-      const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
+      const useDraftSend = shouldSendSavedDraft();
       setSending(true);
-      (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
+      sendPreparedMessage(msg, useDraftSend)
         .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
         .catch((err: unknown) => {
           handleSendFailure(err);
@@ -756,9 +763,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       try { sendDelay = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { sendDelay?: number }).sendDelay ?? 5); } catch { /* */ }
       if (sendDelay === 0) {
         // No undo window — send immediately
-        const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
+        const useDraftSend = shouldSendSavedDraft();
         setSending(true);
-        (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
+        sendPreparedMessage(msg, useDraftSend)
           .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
           .catch((err: unknown) => {
             handleSendFailure(err);
