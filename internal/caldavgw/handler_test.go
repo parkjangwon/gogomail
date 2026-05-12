@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+func assertCacheControlContains(t *testing.T, rec *httptest.ResponseRecorder, values ...string) {
+	t.Helper()
+	got := rec.Header().Get("Cache-Control")
+	for _, value := range values {
+		if !strings.Contains(got, value) {
+			t.Fatalf("Cache-Control = %q, missing %q", got, value)
+		}
+	}
+}
+
 func TestHandlerOptionsAdvertisesDAVCapabilities(t *testing.T) {
 	t.Parallel()
 
@@ -2189,6 +2199,7 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
+	assertCacheControlContains(t, rec, "no-store", "no-cache")
 	if got := rec.Header().Get("Location"); got != "/caldav/calendars/user-1/"+calendarID+"/" {
 		t.Fatalf("Location = %q", got)
 	}
@@ -2227,6 +2238,7 @@ func TestHandlerMkcalendarRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
+	assertCacheControlContains(t, rec, "no-store", "no-cache")
 	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
 		t.Fatal("calendar was created despite unsupported MKCALENDAR property")
 	}

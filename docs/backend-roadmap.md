@@ -2188,7 +2188,9 @@ Target outcome:
       `409 Conflict`, and dependent properties return `424 Failed Dependency`.
       Non-empty `C:mkcalendar` XML bodies now require the RFC 4791 `DAV:set` /
       `DAV:prop` shape instead of silently accepting unknown structural
-      children or self-closing bodies.
+      children or self-closing bodies. Creation success and property-failure
+      responses now include `Cache-Control: no-store, no-cache`, preserving the
+      existing conservative cache block while satisfying RFC 4791 `no-cache`.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2545,7 +2547,8 @@ Target outcome:
       and OPTIONS discovery advertises `extended-mkcol`. Address-book creation
       now requires an extended MKCOL body with `DAV:resourcetype` including both
       `DAV:collection` and `CARDDAV:addressbook`, so empty or generic MKCOL
-      bodies cannot accidentally create address books.
+      bodies cannot accidentally create address books. Creation success and
+      property-failure responses now include `Cache-Control: no-store, no-cache`.
 1126. CardDAV current-user privilege discovery now advertises `DAV:bind` and
       `DAV:unbind` on address-book homes after child collection `MKCOL` and
       `DELETE` support.

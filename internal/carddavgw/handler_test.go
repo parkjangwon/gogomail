@@ -14,6 +14,16 @@ import (
 
 var errFakeCardDAVNotFound = errors.New("not found")
 
+func assertCacheControlContains(t *testing.T, rec *httptest.ResponseRecorder, values ...string) {
+	t.Helper()
+	got := rec.Header().Get("Cache-Control")
+	for _, value := range values {
+		if !strings.Contains(got, value) {
+			t.Fatalf("Cache-Control = %q, missing %q", got, value)
+		}
+	}
+}
+
 type readTrackingReader struct {
 	data  string
 	reads int
@@ -1461,6 +1471,7 @@ func TestHandlerMkcolCreatesAddressBookAtRequestURI(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
+	assertCacheControlContains(t, rec, "no-store", "no-cache")
 	if got := rec.Header().Get("Location"); got != "/carddav/addressbooks/user-1/"+bookID+"/" {
 		t.Fatalf("Location = %q", got)
 	}
@@ -1494,6 +1505,7 @@ func TestHandlerMkcolRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
+	assertCacheControlContains(t, rec, "no-store", "no-cache")
 	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
 		t.Fatal("address book was created despite unsupported MKCOL property")
 	}
