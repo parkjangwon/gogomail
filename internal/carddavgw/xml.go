@@ -75,6 +75,8 @@ type ProppatchRequest struct {
 	Name        *string
 	Description *string
 	Properties  []XMLName
+	Unsupported []XMLName
+	Protected   []XMLName
 }
 
 type MKAddressBookRequest struct {
@@ -264,8 +266,8 @@ func ParseProppatch(r io.Reader) (ProppatchRequest, error) {
 				if err := rejectTrailingXML(dec); err != nil {
 					return ProppatchRequest{}, err
 				}
-				if len(req.Properties) == 0 {
-					return ProppatchRequest{}, fmt.Errorf("PROPPATCH must include at least one supported property")
+				if len(req.Properties) == 0 && len(req.Unsupported) == 0 && len(req.Protected) == 0 {
+					return ProppatchRequest{}, fmt.Errorf("PROPPATCH must include at least one property")
 				}
 				return req, nil
 			}
@@ -508,7 +510,11 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
 				if !set {
-					return fmt.Errorf("displayname cannot be removed from a CardDAV address book collection")
+					if err := skipElement(dec, tok.Name); err != nil {
+						return err
+					}
+					req.Protected = append(req.Protected, PropDisplayName)
+					continue
 				}
 				text, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
@@ -534,6 +540,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err
 				}
+				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, propName) {

@@ -137,8 +137,6 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 		"empty":                  ``,
 		"wrong root":             `<D:propfind xmlns:D="DAV:"/>`,
 		"unsupported child":      `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
-		"no supported property":  `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:owner>me</D:owner></D:prop></D:set></D:propertyupdate>`,
-		"remove displayname":     `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`,
 		"nested supported value": `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
 	}
 	for name, body := range tests {
@@ -149,6 +147,28 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 				t.Fatal("ParseProppatch error = nil, want rejection")
 			}
 		})
+	}
+}
+
+func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set><D:prop><D:displayname>Team</D:displayname><C:unknown>value</C:unknown></D:prop></D:set>
+  <D:remove><D:prop><D:displayname/></D:prop></D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Name == nil || *req.Name != "Team" {
+		t.Fatalf("name = %#v", req.Name)
+	}
+	if len(req.Unsupported) != 1 || req.Unsupported[0] != (XMLName{Space: CardDAVNamespace, Local: "unknown"}) {
+		t.Fatalf("unsupported = %+v", req.Unsupported)
+	}
+	if len(req.Protected) != 1 || req.Protected[0] != PropDisplayName {
+		t.Fatalf("protected = %+v", req.Protected)
 	}
 }
 
