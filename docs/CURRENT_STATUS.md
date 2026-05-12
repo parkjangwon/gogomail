@@ -370,6 +370,12 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing runtime assertions are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail compose helper check output (TASK-145, 2026-05-12, complete)
+- Completed compose helper runtime check output cleanup for user webmail beta.
+- The runtime check now reports that datetime, send button, and close-save helper checks passed.
+- Existing assertions and package scripts are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
