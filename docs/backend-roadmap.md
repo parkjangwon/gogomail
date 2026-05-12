@@ -2205,7 +2205,9 @@ Target outcome:
       in the same request. `PROPPATCH` instructions also reject unknown
       structural children inside `DAV:set` and `DAV:remove` before property
       handling, preserving unsupported-property failure semantics only inside
-      `DAV:prop`.
+      `DAV:prop`. The `MaxWebDAVProperties` parser bound is now enforced
+      across the entire `propertyupdate` request, counting supported,
+      unsupported, and protected properties across split `DAV:prop` blocks.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2544,6 +2546,10 @@ Target outcome:
       Unknown structural children inside `DAV:set` and `DAV:remove` are now
       rejected as parse errors, while unsupported/protected property failure
       semantics remain scoped to property elements inside `DAV:prop`.
+      The `MaxWebDAVProperties` parser bound is enforced across the complete
+      `propertyupdate` body, counting supported, unsupported, and protected
+      properties even when clients split them across multiple `DAV:prop`
+      blocks.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

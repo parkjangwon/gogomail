@@ -1,6 +1,7 @@
 package carddavgw
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -172,6 +173,29 @@ func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
 	}
 	if len(req.Protected) != 1 || req.Protected[0] != PropDisplayName {
 		t.Fatalf("protected = %+v", req.Protected)
+	}
+}
+
+func TestParseProppatchRejectsTooManyPropertiesAcrossPropBlocks(t *testing.T) {
+	t.Parallel()
+
+	var body strings.Builder
+	body.WriteString(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:E="http://example.com/ns/">`)
+	body.WriteString(`<D:set><D:prop>`)
+	for i := 0; i < MaxWebDAVProperties/2; i++ {
+		fmt.Fprintf(&body, `<D:displayname>Team %d</D:displayname>`, i)
+	}
+	body.WriteString(`</D:prop></D:set>`)
+	body.WriteString(`<D:set><D:prop>`)
+	for i := 0; i < MaxWebDAVProperties/2; i++ {
+		fmt.Fprintf(&body, `<E:unknown-%d/>`, i)
+	}
+	body.WriteString(`</D:prop></D:set>`)
+	body.WriteString(`<D:remove><D:prop><D:displayname/></D:prop></D:remove>`)
+	body.WriteString(`</D:propertyupdate>`)
+
+	if _, err := ParseProppatch(strings.NewReader(body.String())); err == nil {
+		t.Fatal("ParseProppatch error = nil, want rejection")
 	}
 }
 

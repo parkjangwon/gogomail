@@ -243,6 +243,7 @@ func ParseProppatch(r io.Reader) (ProppatchRequest, error) {
 		return ProppatchRequest{}, fmt.Errorf("unsupported PROPPATCH root {%s}%s", root.Name.Space, root.Name.Local)
 	}
 	var req ProppatchRequest
+	properties := 0
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -255,11 +256,11 @@ func ParseProppatch(r io.Reader) (ProppatchRequest, error) {
 		case xml.StartElement:
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "set"):
-				if err := parseProppatchSet(dec, tok.Name, &req); err != nil {
+				if err := parseProppatchSet(dec, tok.Name, &req, &properties); err != nil {
 					return ProppatchRequest{}, err
 				}
 			case sameXMLName(tok.Name, DAVNamespace, "remove"):
-				if err := parseProppatchRemove(dec, tok.Name, &req); err != nil {
+				if err := parseProppatchRemove(dec, tok.Name, &req, &properties); err != nil {
 					return ProppatchRequest{}, err
 				}
 			default:
@@ -440,7 +441,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 	}
 }
 
-func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest) error {
+func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest, properties *int) error {
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -452,7 +453,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
-				if err := parseProppatchProp(dec, tok.Name, true, req); err != nil {
+				if err := parseProppatchProp(dec, tok.Name, true, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -466,7 +467,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 	}
 }
 
-func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchRequest) error {
+func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchRequest, properties *int) error {
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -478,7 +479,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
-				if err := parseProppatchProp(dec, tok.Name, false, req); err != nil {
+				if err := parseProppatchProp(dec, tok.Name, false, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -492,8 +493,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 	}
 }
 
-func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *ProppatchRequest) error {
-	properties := 0
+func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *ProppatchRequest, properties *int) error {
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -504,8 +504,8 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 		}
 		switch tok := tok.(type) {
 		case xml.StartElement:
-			properties++
-			if properties > MaxWebDAVProperties {
+			(*properties)++
+			if *properties > MaxWebDAVProperties {
 				return fmt.Errorf("too many PROPPATCH properties")
 			}
 			switch {
