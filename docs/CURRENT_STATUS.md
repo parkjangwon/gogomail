@@ -5169,3 +5169,9 @@ Next focus areas:
 ## webmail spam folder + system folder migration (2026-05-12)
 - Added Spam folder to createSystemFolders list for new users
 - ListFolders now calls createSystemFolders (idempotent, ON CONFLICT DO NOTHING) so existing users get missing system folders (e.g. Spam) on next folder fetch
+
+## Webmail dev seed bootstrap (TASK-163, 2026-05-12, complete)
+- Development smoke testing exposed that fresh PostgreSQL migrations only create the system domain, while `scripts/seed_dev_data.sql` assumed the beta company/domain/user/folder already existed.
+- The development seed now bootstraps `고구마컴퍼니`, `parkjw.org`, the beta login user `pjw@parkjw.org / pass1234`, the user's primary address, and the fixed Inbox/Sent/Drafts/Trash folders before loading rich webmail/admin data.
+- The seed now creates system folders for all 16 auxiliary beta users, not only the first six, so directory/admin testing has more complete mailbox fixtures.
+- Verification: `./scripts/seed_dev_beta.sh` now completes against the Docker PostgreSQL service with 17 users, 16 contacts, and 7 inbox messages. `go test ./...` and `pnpm type-check` in `apps/webmail` pass. Next target: backend and webmail frontend smoke tests.
