@@ -371,6 +371,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }, 1500);
   }, [clearSentDraft, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult]);
 
+  const handleSendFailure = useCallback((err: unknown, clearCountdown = false) => {
+    const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
+    setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
+    pendingDraftSendRef.current = false;
+    if (clearCountdown) setSendCountdown(null);
+  }, []);
+
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
@@ -590,17 +597,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           await handleSuccessfulSend(msg, res.message, useDraftSend);
         })
         .catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-          setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
-          setSendCountdown(null);
-          pendingDraftSendRef.current = false;
+          handleSendFailure(err, true);
         })
         .finally(() => setSending(false));
       return;
     }
     const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
     return () => clearTimeout(t);
-  }, [sendCountdown, handleSuccessfulSend]);
+  }, [sendCountdown, handleSuccessfulSend, handleSendFailure]);
 
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
@@ -737,9 +741,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
         .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
         .catch((err: unknown) => {
-          pendingDraftSendRef.current = false;
-          const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-          setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
+          handleSendFailure(err);
         })
         .finally(() => setSending(false));
     } else {
@@ -752,9 +754,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
           .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
           .catch((err: unknown) => {
-            pendingDraftSendRef.current = false;
-            const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-            setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
+            handleSendFailure(err);
           })
           .finally(() => setSending(false));
       } else {

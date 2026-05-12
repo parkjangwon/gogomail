@@ -202,6 +202,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing close timing and visual behavior are preserved.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send failure handler consolidation (TASK-123, 2026-05-12, complete)
+- Completed send failure handler consolidation for user webmail beta.
+- ComposeModal now routes send failure messaging and pending draft-send cleanup through `handleSendFailure`.
+- Undo-countdown failures clear the countdown through the same helper.
+- Immediate and scheduled send failures use the same draft-preserved retry message.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
