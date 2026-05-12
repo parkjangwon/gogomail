@@ -576,8 +576,10 @@ export function OrgPickerModal({
                   <div key={book.ID}
                     onClick={() => setSelectedBook(book)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '9px 12px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      paddingTop: '8px', paddingBottom: '8px',
+                      paddingLeft: '12px', paddingRight: '12px',
+                      cursor: 'pointer',
                       borderLeft: isSelected ? '3px solid var(--color-accent)' : '3px solid transparent',
                       background: isSelected ? 'var(--color-accent-subtle)' : 'transparent',
                     }}
@@ -620,7 +622,7 @@ export function OrgPickerModal({
             {/* Item rows */}
             {middleItems.map((item) => (
               <div key={item.id}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', cursor: 'default' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '8px', paddingBottom: '8px', paddingLeft: '12px', paddingRight: '12px', cursor: 'default' }}
                 {...rowHover}
               >
                 <div style={avatarStyle}>{(item.display_name || item.email)[0].toUpperCase()}</div>
@@ -636,7 +638,7 @@ export function OrgPickerModal({
                 </div>
                 <button type="button" onClick={() => addToActive(item)}
                   title={`${FIELD_LABELS[activeField]}에 추가`}
-                  style={{ padding: '3px 8px', fontSize: '12px', color: 'var(--color-accent)', border: '1px solid var(--color-accent)', borderRadius: '4px', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--color-accent)', border: '1px solid var(--color-accent)', borderRadius: '4px', background: 'transparent', cursor: 'pointer', flexShrink: 0, fontWeight: 500 }}>
                   &gt;
                 </button>
               </div>
