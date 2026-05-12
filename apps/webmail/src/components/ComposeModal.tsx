@@ -378,6 +378,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (clearCountdown) setSendCountdown(null);
   }, []);
 
+  const handleSendPreparationFailure = useCallback((err: unknown) => {
+    const message = err instanceof Error ? err.message : '초안 전송 준비에 실패했습니다.';
+    pendingMsgRef.current = null;
+    pendingDraftSendRef.current = false;
+    setError(`${message} 전송은 시작되지 않았습니다. 내용을 확인한 뒤 다시 저장하거나 전송해 주세요.`);
+  }, []);
+
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
@@ -729,7 +736,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       pendingDraftSendRef.current = true;
       markDraftSaved();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '초안 전송 준비에 실패했습니다.');
+      handleSendPreparationFailure(err);
       return;
     } finally {
       setSending(false);
