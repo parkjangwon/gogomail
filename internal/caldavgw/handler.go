@@ -15,6 +15,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type calendarObjectLookupKey struct {
+	calendarID string
+	objectName string
+}
+
 type DiscoveryStore interface {
 	LookupPrincipal(ctx context.Context, userID string) (Principal, error)
 	ListCalendarCollections(ctx context.Context, userID string) ([]Calendar, error)
@@ -26,6 +31,23 @@ type DiscoveryStore interface {
 
 type CalendarObjectLimiter interface {
 	ListCalendarObjectsLimit(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error)
+}
+
+type CalendarObjectMetadataStore interface {
+	LookupCalendarObjectMetadata(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error)
+	ListCalendarObjectMetadataLimit(ctx context.Context, userID string, calendarID string, status string, limit int) ([]CalendarObject, error)
+}
+
+type CalendarObjectBatchStore interface {
+	ListCalendarObjectsByNames(ctx context.Context, userID string, calendarID string, status string, objectNames []string, includeICS bool) ([]CalendarObject, error)
+}
+
+type CalendarObjectComponentStore interface {
+	ListCalendarObjectsByComponentLimit(ctx context.Context, userID string, calendarID string, status string, component string, limit int, includeICS bool) ([]CalendarObject, error)
+}
+
+type CalendarObjectCrossCalendarBatchStore interface {
+	ListCalendarObjectsByNameGroups(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) ([]CalendarObject, error)
 }
 
 type ObjectStore interface {
@@ -1328,6 +1350,10 @@ func parseDepthHeader(header http.Header, fallback Depth) (Depth, error) {
 }
 
 func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUserID string, resource ResourcePath, depth Depth, propfind PropfindRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+	objectPrincipalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	switch resource.Kind {
 	case ResourceRoot:
 		principal, err := h.Store.LookupPrincipal(ctx, userID)
@@ -1425,7 +1451,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		props = withCurrentUserPrivileges(props, ResourceCalendarCollection, currentUserPrivileges)
 		responses := []MultiStatusResponse{responseForProperties(href, propfind, props)}
 		if depth == DepthOne {
-			objects, err := h.listCalendarObjectsBounded(ctx, userID, calendar.ID, MaxWebDAVReportLimit+1)
+			objects, err := h.listCalendarObjectsBounded(ctx, userID, calendar.ID, MaxWebDAVReportLimit+1, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1437,7 +1463,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 				if err != nil {
 					return nil, err
 				}
-				props, err := CalendarObjectProperties(userID, object)
+				props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 				if err != nil {
 					return nil, err
 				}
@@ -1462,7 +1488,7 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		if err != nil {
 			return nil, err
 		}
-		props, err := CalendarObjectProperties(userID, object)
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {
 			return nil, err
 		}
@@ -1627,32 +1653,67 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 }
 
 func (h *Handler) calendarMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+	objectPrincipalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
+	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
+	type requestedKey struct {
+		calendarID string
+		objectName string
+	}
+	type requestedObject struct {
+		href       string
+		calendarID string
+		objectName string
+	}
+	requested := make([]requestedObject, 0, len(report.Hrefs))
+	requestedIndex := make(map[requestedKey]struct{}, len(report.Hrefs))
+
 	for _, href := range report.Hrefs {
 		resource, err := ParseResourceHref(href)
 		if err != nil || resource.Kind != ResourceCalendarObject || resource.UserID != userID || !multigetHrefInScope(requestResource, resource) {
 			responses = append(responses, notFoundResponse(href, report.Properties))
 			continue
 		}
-		object, err := h.Store.LookupCalendarObject(ctx, userID, resource.CalendarID, resource.ObjectName)
-		if err != nil {
-			responses = append(responses, notFoundResponse(href, report.Properties))
+		requested = append(requested, requestedObject{
+			href:       href,
+			calendarID: resource.CalendarID,
+			objectName: resource.ObjectName,
+		})
+		requestedIndex[requestedKey{calendarID: resource.CalendarID, objectName: resource.ObjectName}] = struct{}{}
+	}
+	requestedByCalendar := make(map[string][]string)
+	for key := range requestedIndex {
+		requestedByCalendar[key.calendarID] = append(requestedByCalendar[key.calendarID], key.objectName)
+	}
+	objectsByKey, err := h.lookupCalendarObjectsByNames(ctx, userID, requestedByCalendar, CalendarStatusActive, includeCalendarData)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ref := range requested {
+		object, ok := objectsByKey[calendarObjectLookupKey{calendarID: ref.calendarID, objectName: ref.objectName}]
+		if !ok {
+			responses = append(responses, notFoundResponse(ref.href, report.Properties))
 			continue
 		}
-		props, err := CalendarObjectProperties(userID, object)
+		object.CalendarID = ref.calendarID
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {
 			return nil, err
 		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
-		if containsXMLName(report.Properties, PropCalendarData) {
+		if includeCalendarData {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
 				return nil, err
 			}
 			props = append(props, prop)
 		}
-		objectHref, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
+		objectHref, err := CalendarObjectPath(userID, ref.calendarID, object.ObjectName)
 		if err != nil {
 			return nil, err
 		}
@@ -1673,6 +1734,10 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 }
 
 func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+	objectPrincipalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, err
+	}
 	limit := report.Limit
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
@@ -1688,7 +1753,19 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 			return nil, fmt.Errorf("invalid calendar timezone %q: %w", *calendar.Timezone, err)
 		}
 	}
-	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
+	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
+	component := strings.ToUpper(strings.TrimSpace(report.Component))
+	if component == unsupportedCalendarQueryComponent {
+		return []MultiStatusResponse{}, nil
+	}
+	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(
+		ctx,
+		userID,
+		resource.CalendarID,
+		limit+1,
+		component,
+		includeCalendarData || report.TimeRange != nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1698,22 +1775,24 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
-		if !calendarObjectMatchesComponent(object, report.Component) {
+		if !componentFilteredInStore && !calendarObjectMatchesComponent(object, component) {
 			continue
 		}
-		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.Component, report.TimeRange, tz)
-		if err != nil {
-			return nil, err
+		if report.TimeRange != nil {
+			matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.Component, report.TimeRange, tz)
+			if err != nil {
+				return nil, err
+			}
+			if !matches {
+				continue
+			}
 		}
-		if !matches {
-			continue
-		}
-		props, err := CalendarObjectProperties(userID, object)
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {
 			return nil, err
 		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
-		if containsXMLName(report.Properties, PropCalendarData) {
+		if includeCalendarData {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
 				return nil, err
@@ -1729,8 +1808,28 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	return responses, nil
 }
 
+func (h *Handler) listCalendarObjectsForQuery(ctx context.Context, userID string, calendarID string, limit int, component string, includeICS bool) ([]CalendarObject, bool, error) {
+	if component == "" {
+		objects, err := h.listCalendarObjectsBounded(ctx, userID, calendarID, limit, includeICS)
+		return objects, false, err
+	}
+	if componentLimiter, ok := h.Store.(CalendarObjectComponentStore); ok {
+		objects, err := componentLimiter.ListCalendarObjectsByComponentLimit(
+			ctx,
+			userID,
+			calendarID,
+			CalendarStatusActive,
+			component,
+			limit,
+			includeICS,
+		)
+		return objects, true, err
+	}
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, calendarID, limit, includeICS)
+	return objects, false, err
+}
+
 func calendarObjectMatchesComponent(object CalendarObject, component string) bool {
-	component = strings.ToUpper(strings.TrimSpace(component))
 	if component == "" {
 		return true
 	}
@@ -1762,7 +1861,7 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1781,6 +1880,10 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 }
 
 func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
+	objectPrincipalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, "", err
+	}
 	if resource.Kind != ResourceCalendarCollection {
 		return nil, "", fmt.Errorf("sync-collection requires a calendar collection resource")
 	}
@@ -1801,7 +1904,8 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1)
+	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
+	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1, includeCalendarData)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1811,12 +1915,12 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(objects))
 	for _, object := range objects {
-		props, err := CalendarObjectProperties(userID, object)
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {
 			return nil, "", err
 		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
-		if containsXMLName(report.Properties, PropCalendarData) {
+		if includeCalendarData {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
 				return nil, "", err
@@ -1832,14 +1936,37 @@ func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resou
 	return responses, calendar.SyncToken, nil
 }
 
-func (h *Handler) listCalendarObjectsBounded(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+func (h *Handler) listCalendarObjectsBounded(ctx context.Context, userID string, calendarID string, limit int, includeICS bool) ([]CalendarObject, error) {
+	if includeICS {
+		if limiter, ok := h.Store.(CalendarObjectLimiter); ok {
+			return limiter.ListCalendarObjectsLimit(ctx, userID, calendarID, limit)
+		}
+		return h.Store.ListCalendarObjects(ctx, userID, calendarID)
+	}
+	if metadataLimiter, ok := h.Store.(CalendarObjectMetadataStore); ok {
+		return metadataLimiter.ListCalendarObjectMetadataLimit(ctx, userID, calendarID, CalendarStatusActive, limit)
+	}
 	if limiter, ok := h.Store.(CalendarObjectLimiter); ok {
 		return limiter.ListCalendarObjectsLimit(ctx, userID, calendarID, limit)
 	}
 	return h.Store.ListCalendarObjects(ctx, userID, calendarID)
 }
 
+func (h *Handler) lookupCalendarObjectForReport(ctx context.Context, userID string, calendarID string, objectName string, includeCalendarData bool) (CalendarObject, error) {
+	if includeCalendarData {
+		return h.Store.LookupCalendarObject(ctx, userID, calendarID, objectName)
+	}
+	if metadataStore, ok := h.Store.(CalendarObjectMetadataStore); ok {
+		return metadataStore.LookupCalendarObjectMetadata(ctx, userID, calendarID, objectName)
+	}
+	return h.Store.LookupCalendarObject(ctx, userID, calendarID, objectName)
+}
+
 func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
+	objectPrincipalPath, err := PrincipalPath(userID)
+	if err != nil {
+		return nil, "", err
+	}
 	store, ok := h.Store.(SyncChangeStore)
 	if !ok {
 		return nil, "", InvalidSyncTokenError{Token: report.SyncToken}
@@ -1862,6 +1989,36 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
 	}
 	syncToken := report.SyncToken
+	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
+	requestedByCalendarNames := make(map[string]map[string]struct{}, len(changes))
+	for _, change := range changes {
+		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
+			continue
+		}
+		names, ok := requestedByCalendarNames[change.CalendarID]
+		if !ok {
+			names = make(map[string]struct{}, 4)
+			requestedByCalendarNames[change.CalendarID] = names
+		}
+		if _, ok := names[change.ObjectName]; ok {
+			continue
+		}
+		names[change.ObjectName] = struct{}{}
+	}
+
+	requestedByCalendar := make(map[string][]string, len(requestedByCalendarNames))
+	for calendarID, names := range requestedByCalendarNames {
+		objectNames := make([]string, 0, len(names))
+		for objectName := range names {
+			objectNames = append(objectNames, objectName)
+		}
+		requestedByCalendar[calendarID] = objectNames
+	}
+
+	objectsByKey, err := h.lookupCalendarObjectsByNames(ctx, userID, requestedByCalendar, CalendarStatusActive, includeCalendarData)
+	if err != nil {
+		return nil, "", err
+	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(changes))
 	for _, change := range changes {
@@ -1879,17 +2036,18 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
 			continue
 		}
-		object, err := h.Store.LookupCalendarObject(ctx, userID, change.CalendarID, change.ObjectName)
-		if err != nil {
+		object, ok := objectsByKey[calendarObjectLookupKey{calendarID: change.CalendarID, objectName: change.ObjectName}]
+		if !ok {
 			responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
 			continue
 		}
-		props, err := CalendarObjectProperties(userID, object)
+		object.CalendarID = change.CalendarID
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {
 			return nil, "", err
 		}
 		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
-		if containsXMLName(report.Properties, PropCalendarData) {
+		if includeCalendarData {
 			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
 			if err != nil {
 				return nil, "", err
@@ -1899,6 +2057,52 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		responses = append(responses, responseForProperties(href, propfind, props))
 	}
 	return responses, syncToken, nil
+}
+
+func (h *Handler) lookupCalendarObjectsByNames(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) (map[calendarObjectLookupKey]CalendarObject, error) {
+	if len(objectNamesByCalendar) == 0 {
+		return map[calendarObjectLookupKey]CalendarObject{}, nil
+	}
+	if len(objectNamesByCalendar) > 1 {
+		if crossBatchStore, ok := h.Store.(CalendarObjectCrossCalendarBatchStore); ok {
+			objects, err := crossBatchStore.ListCalendarObjectsByNameGroups(ctx, userID, objectNamesByCalendar, status, includeICS)
+			if err != nil {
+				return nil, err
+			}
+			objectsByKey := make(map[calendarObjectLookupKey]CalendarObject, len(objects))
+			for _, object := range objects {
+				objectsByKey[calendarObjectLookupKey{calendarID: object.CalendarID, objectName: object.ObjectName}] = object
+			}
+			return objectsByKey, nil
+		}
+	}
+	if batchStore, ok := h.Store.(CalendarObjectBatchStore); ok {
+		objectsByKey := make(map[calendarObjectLookupKey]CalendarObject)
+		for calendarID, objectNames := range objectNamesByCalendar {
+			if len(objectNames) == 0 {
+				continue
+			}
+			objects, err := batchStore.ListCalendarObjectsByNames(ctx, userID, calendarID, status, objectNames, includeICS)
+			if err != nil {
+				return nil, err
+			}
+			for _, object := range objects {
+				objectsByKey[calendarObjectLookupKey{calendarID: object.CalendarID, objectName: object.ObjectName}] = object
+			}
+		}
+		return objectsByKey, nil
+	}
+	objectsByKey := make(map[calendarObjectLookupKey]CalendarObject)
+	for calendarID, objectNames := range objectNamesByCalendar {
+		for _, objectName := range objectNames {
+			object, err := h.lookupCalendarObjectForReport(ctx, userID, calendarID, objectName, includeICS)
+			if err != nil {
+				continue
+			}
+			objectsByKey[calendarObjectLookupKey{calendarID: calendarID, objectName: objectName}] = object
+		}
+	}
+	return objectsByKey, nil
 }
 
 func notFoundResponse(href string, properties []XMLName) MultiStatusResponse {

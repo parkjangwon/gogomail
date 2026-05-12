@@ -5,6 +5,110 @@
 
 ---
 
+## ✅ TASK-173: CalDAV `calendar-query` 컴포넌트 필터 경로 고속화
+
+### 배경
+
+`calendar-query`는 클라이언트 동기화에서 반복 호출되는 핫 패스다. 기존에는 컴포넌트 필터(`VEVENT`, `VTODO`)가 주로 핸들러에서 후처리되었고,
+목록 정렬 후 필터링이 결합되어 있었기 때문에 컴포넌트가 많은 환경에서 쿼리/스캔 비용이 높았다.
+
+이번 라운드는 컴포넌트 필터를 가능하면 스토어에서 선적용하고, 정렬·제한 쿼리 계획을 강화해 RFC 4791 동작을 유지하면서 처리량을 끌어올리는 것을 목표로 한다.
+
+### 구현 대상
+
+- `internal/caldavgw/handler.go`
+- `internal/caldavgw/repository.go`
+- `migrations/0095_caldav_calendar_object_performance_index.sql`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `calendar-query`에서 컴포넌트가 지정된 경우 스토어 기반 컴포넌트 제한 경로가 동작한다.
+- [x] 컴포넌트 지정 시 핸들러 후처리 비교 비용이 줄어든다.
+- [x] `calendar-query` 관련 인덱스가 컴포넌트/정렬/제한 패턴을 타게 된다.
+- [x] RFC 4791 동작(404 규칙, truncation, 시간대/시간 구간 동작)을 변경 없이 유지한다.
+- [x] `docs/CURRENT_STATUS.md` 업데이트 완료.
+
+### 다음 태스크
+
+TASK-174: CalDAV sync-collection/대량 변경 경로의 추가 DB 스캔 고도화
+
+---
+
+## ✅ TASK-172: CalDAV 성능 급상승 라운드 — 배치 질의 분할 및 sync-change 커버링 경로 고도화
+
+**STATUS: COMPLETE**
+
+### 배경
+
+TASK-171에서 크로스 캘린더 배치 조회가 적용된 뒤에도 대규모 동기화에서 2차 병목은
+요청당 바운드 객체 목록 크기에 비례한 단일 쿼리 파라미터 폭주, 반복 쿼리 생성 오버헤드였다.
+또한 sync-change 조회에서는 동시성 높은 읽기에서 인덱스 커버리지 한계가 체감 성능 저하를 유발하고 있었다.
+
+이번 라운드는 배치 조회를 청크 분할해 안정적으로 처리하고, sync-change 조회 경로에 커버링 인덱스를 추가해
+DB 스캔 및 힙 접근을 줄였다. RFC 4791 동작은 변경하지 않는다.
+
+### 구현 대상
+
+- `internal/caldavgw/handler.go`
+- `internal/caldavgw/repository.go`
+- `migrations/0093_caldav_calendar_object_lookup_index_v2.sql`
+- `migrations/0094_caldav_calendar_sync_changes_covering_index.sql`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] 다중 캘린더 객체명 조회를 청크(최대 256개) 단위로 분할해 동적 SQL 크기 상한을 안정화한다.
+- [x] `ListCalendarObjectsByNameGroups`와 `ListCalendarObjectsByNames`를 공통 `VALUES` 기반 단일 경로로 수렴한다.
+- [x] `calendar-query` 컴포넌트 필터 정규화를 루프 외부로 이동해 반복 정규화 비용을 줄인다.
+- [x] sync-change 읽기 경로에 `INCLUDE` 절을 갖는 커버링 인덱스를 추가해 인덱스 스캔 효율을 높인다.
+- [x] 기존 WebDAV/CalDAV RFC 동작과 `object-deleted` 404 응답 규칙은 변경 없이 유지한다.
+- [x] `docs/CURRENT_STATUS.md` 업데이트 완료.
+- [x] `docs/ACTIVE_TASK.md` 현재 항목으로 정리 완료.
+
+### 다음 태스크
+
+TASK-173: CalDAV 동기화 경로 캐시-측정 고도화 및 반복 트랜잭션 최소화
+
+---
+
+## ✅ TASK-170: CalDAV 성능 고도화 — 배치 조회 기반 sync/calendar-multiget 최적화
+
+**STATUS: COMPLETE**
+
+### 배경
+
+대량 캘린더 변경 동기화에서 `calendar-multiget`와 `sync-collection`의 객체 조회가 현재는 변경된 객체 수만큼 N+1 조회 패턴으로 수행되어,
+동일 사용자의 동기화 변경량이 늘어날수록 DB 부하가 급격히 증가한다.
+
+표준 동작(객체 상태/권보장/삭제 응답, 에러 처리)을 그대로 유지하면서 다건 객체명을 한 번에 조회하도록 정합성을 보존한 고성능 경로로 교체했다.
+
+### 구현 대상
+
+- `internal/caldavgw/handler.go`
+- `internal/caldavgw/repository.go`
+- `migrations/0091_caldav_calendar_object_lookup_index.sql`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `calendar-multiget` 응답에서 요청 href 범위 내 객체를 배치 조회로 처리한다.
+- [x] `sync-collection` 변경 이벤트 객체 조회에서 동일 캘린더/객체명을 중복 제거해 배치로 조회한다.
+- [x] 삭제된 객체(`object-deleted`)는 `404` status 응답 규칙을 유지한다.
+- [x] 객체명 일괄 조회용 DB 인덱스를 추가해 동기화·멀티겟 경로의 실행 계획이 개선되었다.
+- [x] 기존 WebDAV/CalDAV RFC 동작은 변경되지 않는다.
+- [x] `go test ./...` 기준 회귀 위험이 낮은 범위에서 통과한다.
+- [x] 개발 문서가 최신 상태로 갱신된다.
+
+### 다음 태스크
+
+TASK-171: CalDAV 배치 조회 캐시/계측 성능 검증 및 튜닝
+
+---
+
 ## ✅ TASK-168: 사용자 웹메일 베타 안정화 — 드라이브 DnD 이동 및 폴더 업로드 보강
 
 **STATUS: COMPLETE**

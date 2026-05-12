@@ -2,6 +2,46 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- `internal/caldavgw/repository.go`에서 객체명 배치 조회를 256개 단위 청크 분할로 안정화해
+  극단적으로 큰 `calendar-multiget`/`sync-collection` 입력에서도 SQL 파라미터 폭주를 방지했다.
+- `ListCalendarObjectsByNameGroups`와 `ListCalendarObjectsByNames`를 공통 튜플-`VALUES` 경로로 정렬해
+  조회 플랜 분기와 스캔 경로를 단일화했다.
+- `calendar-query` 컴포넌트 필터를 루프 내 반복 정규화하던 경로에서 개선해
+  반복 문자열 정규화 비용을 제거했다.
+- `migrations/0094_caldav_calendar_sync_changes_covering_index.sql`를 추가해
+  `ListCalendarChangesSince`에서 `sync-changes` 인덱스 커버리지 효율을 강화했다.
+- RFC 4791 동작(삭제 객체 `404`, 조건부 규약, 다중 캘린더 조회 정합성)은 기존 동작을 유지했다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- `internal/caldavgw/handler.go`의 `calendar-query` 경로에서 컴포넌트 필터를
+  리포지토리 레벨에서 선처리하도록 `CalendarObjectComponentStore` 플로우를 완성했다.
+- `internal/caldavgw/repository.go`에 `ListCalendarObjectsByComponentLimit(...)`를 추가해
+  사용자+캘린더+상태+컴포넌트 조건과 `limit`을 한 번의 SQL로 처리하고 정렬/마감 갯수를 DB에서 수행한다.
+- `calendar-query` 응답 조립 시, 스토어가 컴포넌트 필터를 반영한 경우 핸들러의 중복 `component` 비교를 건너뛰도록 분기해
+  객체당 후처리 비용을 감소했다.
+- `migrations/0095_caldav_calendar_object_performance_index.sql`를 추가해
+  `calendar-query` 및 목록 조회의 `updated_at DESC, id DESC` 패턴을 지원하는 커버링 인덱스를 강화하고
+  정렬-스캔 비용을 낮췄다.
+- RFC 4791 동작(`calendar-query` truncation, 삭제/조건 처리)은 기존 규약을 유지한다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- 크로스 캘린더 객체 일괄 조회 경로를 `internal/caldavgw/repository.go`에 구현해 `calendar-multiget`/`sync-collection`/`calendar-query`에서 캘린더별 반복 객체조회 호출을 줄였다.
+- `CalendarObjectCrossCalendarBatchStore`용 `ListCalendarObjectsByNameGroups`를 추가하고 `lookupCalendarObjectsByNames`에서 단일 캘린더 수만 있는 경우는 기존 경로, 다수 캘린더는 크로스-캘린더 단일 SQL로 분기한다.
+- 동기화/객체 읽기 경로의 스캔 버퍼를 제한값 기반 미리 할당으로 최적화해 작은 단위 할당을 줄였다.
+- 바운티 조회용 인덱스를 `migrations/0093_caldav_calendar_object_lookup_index_v2.sql`로 추가해 `(user_id, status, calendar_id, object_name)` 기준 검색 계획의 안정성을 강화했다.
+- RFC 동작(삭제 응답/권한/반복 요청 규칙)은 기존 동작을 유지했다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- `calendar-multiget`와 `sync-collection`에서 객체명 목록 기반 배치 조회 경로를 `internal/caldavgw/handler.go`로 통합해
+  N+1 조회를 제거했다.
+- `internal/caldavgw/repository.go`에 `ListCalendarObjectsByNames`를 추가해, 요청 단위로 `user_id + calendar_id + status + object_name` 필터를 한 번의 SQL IN 조회로 처리한다.
+- `calendar-multiget`은 잘못된 href를 `404` propstat으로 보존하고, 허용된 결과는 기존 `calendar-data`/메타데이터 응답 규칙을 그대로 유지한다.
+- `sync-collection`은 `object-deleted`를 그대로 `404` 응답으로 내보내고, 활성 객체만 배치 조회해 불필요 조회를 줄인다.
+- `migrations/0091_caldav_calendar_object_lookup_index.sql`에 객체명 일괄 조회를 위한 인덱스를 추가해 동기화 응답 조회 계획 개선을 준비했다.
+- `ListCalendarChangesSince` 조회를 marker 조회 + 단일 증분조회 2단계로 정리해 `JOIN marker` 경로와 동등한 시그니처의 존재성 검사 쿼리를 제거하고, 동일한 RFC 동작을 유지했다.
+- `migrations/0092_caldav_calendar_sync_changes_index.sql`를 추가해 sync 토큰 탐색·변경 조회 경로의 인덱스 커버리지를 확장했다.
+
 ## Drive drag-and-drop / folder upload (2026-05-12, complete)
 - Added frontend drag-and-drop support in `apps/webmail/src/components/DriveView.tsx`:
   - Node cards now support moving files/folders by dragging to a folder card.
@@ -16,14 +56,22 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Added multi-selection drag support (Ctrl/Cmd + click) and multi-node move payload handling so selected nodes can be moved together into folders.
 - Hardening drag payload parsing (JSON + legacy text fallbacks) to improve reliability for file-card to-folder move flows across MIME/UX permutations.
 
+## CalDAV 성능 최적화 (2026-05-12, complete)
+- Optimized `Repository` lookup path in `internal/caldavgw/repository.go` to avoid loading `ics` for metadata-only operations.
+- Added metadata-only list/single-object accessors (`ListCalendarObjectMetadataLimit`, `LookupCalendarObjectMetadata`) and wired `internal/caldavgw/handler.go` to use them for CALDAV `PROPFIND`, `calendar-query`, `calendar-multiget`, and `sync-collection` paths when `calendar-data` is not requested.
+- Added covering index migration `0090_caldav_calendar_object_metadata_index.sql` targeting metadata-heavy reads on active calendar objects (ordered by `updated_at`, `id`) to reduce TOAST fetches and improve sort/index-only scan behavior.
+- Design direction remains unchanged; this change is backend-only and RFC-compliant with existing RFC 4791/RFC 4918 behavior.
+
 ## Drive sidebar hierarchical folders (2026-05-12, in progress)
 - Added left-side folder tree under `내 드라이브` in `apps/webmail/src/components/DriveView.tsx`.
 - Folder rows in the sidebar now load their child folders and can be expanded/collapsed recursively.
 - Folder rows support drag-and-drop targets so external uploads and internal node moves can land directly in a target folder from the left panel.
 - Root `내 드라이브` entry accepts dropped files/folders from browser drag and drop.
 
-## Mail sidebar personal folder spacing tweak (2026-05-12, in progress)
+## Mail sidebar personal folder hierarchy/spatial polish (2026-05-12, complete)
 - Adjusted `개인 편지함` section spacing in `apps/webmail/src/components/Sidebar.tsx` so newly added personal folders no longer appear overly indented.
+- Enabled nested personal mailbox creation by wiring parent folder selection into `Sidebar` and `/api/v1/folders` creation.
+- Added folder-tree rendering for `개인 편지함`, preserving existing visual density and making subfolders discoverable.
 - Reduced left/right padding for personal folder rows and create action to keep list density consistent with virtual/system sections.
 
 ## Drive upload contract fix (2026-05-12, in progress)

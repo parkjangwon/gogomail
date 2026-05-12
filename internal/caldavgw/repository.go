@@ -16,6 +16,13 @@ type Repository struct {
 	db *sql.DB
 }
 
+const caldavCalendarObjectLookupBatchSize = 256
+
+type calendarObjectNameTuple struct {
+	calendarID string
+	objectName string
+}
+
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
@@ -525,6 +532,223 @@ func (r *Repository) ListObjects(ctx context.Context, req ListObjectsRequest) ([
 	return r.listObjects(ctx, req)
 }
 
+func (r *Repository) ListCalendarObjectsByNames(ctx context.Context, userID string, calendarID string, status string, objectNames []string, includeICS bool) ([]CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID, err := validateCalDAVID("user_id", userID, true)
+	if err != nil {
+		return nil, err
+	}
+	calendarID, err = validateCalDAVID("calendar_id", calendarID, true)
+	if err != nil {
+		return nil, err
+	}
+	status, err = ValidateCalendarStatus(status)
+	if err != nil {
+		return nil, err
+	}
+	objectNames, err = validateCalendarObjectNames(objectNames)
+	if err != nil {
+		return nil, err
+	}
+	if len(objectNames) == 0 {
+		return []CalendarObject{}, nil
+	}
+	objects := make([]CalendarObject, 0, len(objectNames))
+	for i := 0; i < len(objectNames); i += caldavCalendarObjectLookupBatchSize {
+		end := i + caldavCalendarObjectLookupBatchSize
+		if end > len(objectNames) {
+			end = len(objectNames)
+		}
+		chunk := make([]calendarObjectNameTuple, 0, end-i)
+		for _, objectName := range objectNames[i:end] {
+			chunk = append(chunk, calendarObjectNameTuple{
+				calendarID: calendarID,
+				objectName: objectName,
+			})
+		}
+		more, err := r.listCalendarObjectsByNameTuples(ctx, userID, status, chunk, includeICS)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, more...)
+	}
+	return objects, nil
+}
+
+func (r *Repository) ListCalendarObjectsByNameGroups(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) ([]CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	userID, err := validateCalDAVID("user_id", userID, true)
+	if err != nil {
+		return nil, err
+	}
+	status, err = ValidateCalendarStatus(status)
+	if err != nil {
+		return nil, err
+	}
+	if len(objectNamesByCalendar) == 0 {
+		return []CalendarObject{}, nil
+	}
+
+	normalizedByCalendar := make(map[string][]string, len(objectNamesByCalendar))
+	calendarIDs := make([]string, 0, len(objectNamesByCalendar))
+	pairCount := 0
+	for calendarID, objectNames := range objectNamesByCalendar {
+		calendarID, err = validateCalDAVID("calendar_id", calendarID, true)
+		if err != nil {
+			return nil, err
+		}
+		objectNames, err = validateCalendarObjectNames(objectNames)
+		if err != nil {
+			return nil, err
+		}
+		if len(objectNames) == 0 {
+			continue
+		}
+		normalizedByCalendar[calendarID] = objectNames
+		calendarIDs = append(calendarIDs, calendarID)
+		pairCount += len(objectNames)
+	}
+	if len(normalizedByCalendar) == 0 || pairCount == 0 {
+		return []CalendarObject{}, nil
+	}
+
+	tuples := make([]calendarObjectNameTuple, 0, pairCount)
+	for _, calendarID := range calendarIDs {
+		for _, objectName := range normalizedByCalendar[calendarID] {
+			tuples = append(tuples, calendarObjectNameTuple{
+				calendarID: calendarID,
+				objectName: objectName,
+			})
+		}
+	}
+	objects := make([]CalendarObject, 0, pairCount)
+	for i := 0; i < len(tuples); i += caldavCalendarObjectLookupBatchSize {
+		end := i + caldavCalendarObjectLookupBatchSize
+		if end > len(tuples) {
+			end = len(tuples)
+		}
+		more, err := r.listCalendarObjectsByNameTuples(ctx, userID, status, tuples[i:end], includeICS)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, more...)
+	}
+	return objects, nil
+}
+
+func (r *Repository) ListCalendarObjectsByComponentLimit(ctx context.Context, userID string, calendarID string, status string, component string, limit int, includeICS bool) ([]CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListObjectsForSyncRequest(ListObjectsRequest{
+		UserID:     userID,
+		CalendarID: calendarID,
+		Status:     status,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	component = strings.ToUpper(strings.TrimSpace(component))
+	queryArgs := []interface{}{req.UserID, req.CalendarID, req.Status, component, req.Limit}
+	var query string
+	if includeICS {
+		query = `
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND status = $3
+  AND component_type = $4
+ORDER BY updated_at DESC, id DESC
+LIMIT $5`
+	} else {
+		query = `
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, NULL::text AS ics, created_at, updated_at
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND status = $3
+  AND component_type = $4
+ORDER BY updated_at DESC, id DESC
+LIMIT $5`
+	}
+	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("get CalDAV objects by component limit: %w", err)
+	}
+	defer rows.Close()
+	objects := make([]CalendarObject, 0, req.Limit)
+	for rows.Next() {
+		var object CalendarObject
+		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.Component, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan CalDAV object: %w", err)
+		}
+		objects = append(objects, object)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CalDAV objects by component limit: %w", err)
+	}
+	return objects, nil
+}
+
+func (r *Repository) listCalendarObjectsByNameTuples(ctx context.Context, userID string, status string, tuples []calendarObjectNameTuple, includeICS bool) ([]CalendarObject, error) {
+	if len(tuples) == 0 {
+		return []CalendarObject{}, nil
+	}
+	valueRows := make([]string, 0, len(tuples))
+	queryArgs := make([]interface{}, 0, 2+len(tuples)*2)
+	queryArgs = append(queryArgs, userID, status)
+	param := 3
+	for _, tuple := range tuples {
+		valueRows = append(valueRows, fmt.Sprintf("($%d::uuid, $%d)", param, param+1))
+		queryArgs = append(queryArgs, tuple.calendarID, tuple.objectName)
+		param += 2
+	}
+	queryValues := strings.Join(valueRows, ", ")
+	var query string
+	if includeICS {
+		query = `
+SELECT o.id::text, o.user_id::text, o.calendar_id::text, o.object_name, o.uid, o.component_type, o.etag, o.size, o.ics, o.created_at, o.updated_at
+FROM caldav_calendar_objects o
+JOIN (VALUES ` + queryValues + `) AS req(calendar_id, object_name)
+  ON req.calendar_id = o.calendar_id
+ AND req.object_name = o.object_name
+WHERE o.user_id = $1::uuid
+  AND o.status = $2`
+	} else {
+		query = `
+SELECT o.id::text, o.user_id::text, o.calendar_id::text, o.object_name, o.uid, o.component_type, o.etag, o.size, NULL::text AS ics, o.created_at, o.updated_at
+FROM caldav_calendar_objects o
+JOIN (VALUES ` + queryValues + `) AS req(calendar_id, object_name)
+  ON req.calendar_id = o.calendar_id
+ AND req.object_name = o.object_name
+WHERE o.user_id = $1::uuid
+  AND o.status = $2`
+	}
+	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("get CalDAV objects by grouped names: %w", err)
+	}
+	defer rows.Close()
+	objects := make([]CalendarObject, 0, len(tuples))
+	for rows.Next() {
+		var object CalendarObject
+		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.Component, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan CalDAV object: %w", err)
+		}
+		objects = append(objects, object)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CalDAV objects by grouped names: %w", err)
+	}
+	return objects, nil
+}
+
 func (r *Repository) listObjectsForSync(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
 	req, err := ValidateListObjectsForSyncRequest(req)
 	if err != nil {
@@ -534,10 +758,18 @@ func (r *Repository) listObjectsForSync(ctx context.Context, req ListObjectsRequ
 }
 
 func (r *Repository) listObjects(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
+	return r.listCalendarObjects(ctx, req, true)
+}
+
+func (r *Repository) listObjectsMetadata(ctx context.Context, req ListObjectsRequest) ([]CalendarObject, error) {
+	return r.listCalendarObjects(ctx, req, false)
+}
+
+func (r *Repository) listCalendarObjects(ctx context.Context, req ListObjectsRequest, includeICS bool) ([]CalendarObject, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
-	const query = `
+	query := `
 SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
 FROM caldav_calendar_objects
 WHERE user_id = $1::uuid
@@ -545,12 +777,22 @@ WHERE user_id = $1::uuid
   AND status = $3
 ORDER BY updated_at DESC, id DESC
 LIMIT $4`
+	if !includeICS {
+		query = `
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, NULL::text AS ics, created_at, updated_at
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND status = $3
+ORDER BY updated_at DESC, id DESC
+LIMIT $4`
+	}
 	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.CalendarID, req.Status, req.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("list CalDAV objects: %w", err)
 	}
 	defer rows.Close()
-	var objects []CalendarObject
+	objects := make([]CalendarObject, 0, req.Limit)
 	for rows.Next() {
 		var object CalendarObject
 		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.Component, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
@@ -562,6 +804,65 @@ LIMIT $4`
 		return nil, fmt.Errorf("iterate CalDAV objects: %w", err)
 	}
 	return objects, nil
+}
+
+func (r *Repository) ListCalendarObjectMetadataLimit(ctx context.Context, userID string, calendarID string, status string, limit int) ([]CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListObjectsForSyncRequest(ListObjectsRequest{
+		UserID:     userID,
+		CalendarID: calendarID,
+		Status:     status,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.listObjectsMetadata(ctx, req)
+}
+
+func (r *Repository) LookupCalendarObjectMetadata(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
+	if r == nil || r.db == nil {
+		return CalendarObject{}, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateGetObjectRequest(GetObjectRequest{
+		UserID:     userID,
+		CalendarID: calendarID,
+		ObjectName: objectName,
+		Status:     CalendarStatusActive,
+	})
+	if err != nil {
+		return CalendarObject{}, err
+	}
+	const query = `
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, NULL::text AS ics, created_at, updated_at
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND object_name = $3
+  AND status = $4`
+	var object CalendarObject
+	err = r.db.QueryRowContext(ctx, query, req.UserID, req.CalendarID, req.ObjectName, req.Status).Scan(
+		&object.ID,
+		&object.UserID,
+		&object.CalendarID,
+		&object.ObjectName,
+		&object.UID,
+		&object.Component,
+		&object.ETag,
+		&object.Size,
+		&object.ICS,
+		&object.CreatedAt,
+		&object.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return CalendarObject{}, fmt.Errorf("CalDAV object not found")
+		}
+		return CalendarObject{}, fmt.Errorf("get CalDAV object metadata: %w", err)
+	}
+	return object, nil
 }
 
 func (r *Repository) GetObject(ctx context.Context, req GetObjectRequest) (CalendarObject, error) {
@@ -824,27 +1125,33 @@ func (r *Repository) ListCalendarChangesSince(ctx context.Context, req ListChang
 	if err != nil {
 		return nil, err
 	}
+	const markerQuery = `
+SELECT id
+FROM caldav_calendar_sync_changes
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND sync_token = $3`
+	var markerID int64
+	if err := r.db.QueryRowContext(ctx, markerQuery, req.UserID, req.CalendarID, req.SyncToken).Scan(&markerID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, InvalidSyncTokenError{Token: req.SyncToken}
+		}
+		return nil, fmt.Errorf("get CalDAV sync marker: %w", err)
+	}
 	const query = `
-WITH marker AS (
-  SELECT id
-  FROM caldav_calendar_sync_changes
-  WHERE user_id = $1::uuid
-    AND calendar_id = $2::uuid
-    AND sync_token = $3
-)
 SELECT c.id, c.user_id::text, c.calendar_id::text, c.object_name, c.etag, c.action, c.sync_token, c.changed_at
 FROM caldav_calendar_sync_changes c
-JOIN marker m ON c.id > m.id
 WHERE c.user_id = $1::uuid
   AND c.calendar_id = $2::uuid
+  AND c.id > $3
 ORDER BY c.id ASC
 LIMIT $4`
-	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.CalendarID, req.SyncToken, req.Limit)
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.CalendarID, markerID, req.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("list CalDAV sync changes: %w", err)
 	}
 	defer rows.Close()
-	var changes []CalendarChange
+	changes := make([]CalendarChange, 0, req.Limit)
 	for rows.Next() {
 		var change CalendarChange
 		if err := rows.Scan(&change.ID, &change.UserID, &change.CalendarID, &change.ObjectName, &change.ETag, &change.Action, &change.SyncToken, &change.ChangedAt); err != nil {
@@ -854,23 +1161,6 @@ LIMIT $4`
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate CalDAV sync changes: %w", err)
-	}
-	if len(changes) == 0 {
-		var markerExists bool
-		err := r.db.QueryRowContext(ctx, `
-SELECT EXISTS (
-  SELECT 1
-  FROM caldav_calendar_sync_changes
-  WHERE user_id = $1::uuid
-    AND calendar_id = $2::uuid
-    AND sync_token = $3
-)`, req.UserID, req.CalendarID, req.SyncToken).Scan(&markerExists)
-		if err != nil {
-			return nil, fmt.Errorf("check CalDAV sync marker: %w", err)
-		}
-		if !markerExists {
-			return nil, InvalidSyncTokenError{Token: req.SyncToken}
-		}
 	}
 	return changes, nil
 }
@@ -1310,6 +1600,26 @@ func ValidateUpsertObjectRequest(req UpsertObjectRequest) (UpsertObjectRequest, 
 
 func ValidateListObjectsRequest(req ListObjectsRequest) (ListObjectsRequest, error) {
 	return validateListObjectsRequest(req, normalizeCalDAVLimit)
+}
+
+func validateCalendarObjectNames(objectNames []string) ([]string, error) {
+	if len(objectNames) == 0 {
+		return nil, nil
+	}
+	normalized := make([]string, 0, len(objectNames))
+	seen := make(map[string]struct{}, len(objectNames))
+	for _, objectName := range objectNames {
+		normalizedName, err := ValidateCalendarObjectName(objectName)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := seen[normalizedName]; ok {
+			continue
+		}
+		seen[normalizedName] = struct{}{}
+		normalized = append(normalized, normalizedName)
+	}
+	return normalized, nil
 }
 
 func ValidateListObjectsForSyncRequest(req ListObjectsRequest) (ListObjectsRequest, error) {
