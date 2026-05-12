@@ -1040,6 +1040,21 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   } catch { return null; }
 }
 
+export interface UserAddressEntry {
+  id: string;
+  address: string;
+  is_primary: boolean;
+}
+
+export async function listUserAddresses(): Promise<UserAddressEntry[]> {
+  try {
+    const res = await fetch('/api/mail/me/addresses');
+    if (!res.ok) return [];
+    const data = await res.json() as { addresses?: UserAddressEntry[] };
+    return data.addresses ?? [];
+  } catch { return []; }
+}
+
 export async function updateUserProfile(fields: { display_name?: string }): Promise<void> {
   const res = await fetch('/api/mail/me', {
     method: 'PATCH',

@@ -47,6 +47,37 @@ LIMIT 1`
 	return p, nil
 }
 
+type UserAddress struct {
+	ID        string `json:"id"`
+	Address   string `json:"address"`
+	IsPrimary bool   `json:"is_primary"`
+}
+
+// ListUserAddresses returns all email addresses for the authenticated user,
+// primary address first.
+func (r *Repository) ListUserAddresses(ctx context.Context, userID string) ([]UserAddress, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id::text, address, is_primary FROM user_addresses WHERE user_id = $1::uuid ORDER BY is_primary DESC, address ASC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list user addresses: %w", err)
+	}
+	defer rows.Close()
+	var addrs []UserAddress
+	for rows.Next() {
+		var a UserAddress
+		if err := rows.Scan(&a.ID, &a.Address, &a.IsPrimary); err != nil {
+			return nil, fmt.Errorf("scan user address: %w", err)
+		}
+		addrs = append(addrs, a)
+	}
+	return addrs, rows.Err()
+}
+
 // UpdateUserDisplayName sets the display_name for the authenticated user.
 func (r *Repository) UpdateUserDisplayName(ctx context.Context, userID, displayName string) error {
 	if r.db == nil {
