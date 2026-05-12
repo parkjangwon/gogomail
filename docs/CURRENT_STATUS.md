@@ -426,6 +426,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visible text, button behavior, and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close confirmation Escape cancel (TASK-153, 2026-05-12, complete)
+- Completed close confirmation keyboard cancel pass for user webmail beta.
+- Pressing `Escape` while the close confirmation has focus now dismisses the confirmation and keeps the composer open.
+- Escape handling stops propagation so it does not trigger higher-level compose shortcuts.
+- Save, discard, cancel button behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
