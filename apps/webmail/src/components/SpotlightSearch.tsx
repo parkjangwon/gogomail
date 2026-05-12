@@ -112,7 +112,7 @@ export function SpotlightSearch({
     }
     if (isMoveMode) return systemFolderItems;
     return [
-      { type: 'action', id: 'compose', title: '새 메일 작성', subtitle: 'C', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onCompose(); onClose(); } },
+      { type: 'action', id: 'compose', title: '새 메일 작성', subtitle: 'S', icon: <PencilSquareIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onCompose(); onClose(); } },
       { type: 'action', id: 'starred', title: '별표 메일', icon: <StarIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__starred__'); onClose(); } },
       { type: 'action', id: 'unread', title: '읽지 않은 메일', icon: <EnvelopeIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__unread__'); onClose(); } },
       { type: 'action', id: 'attach', title: '첨부파일 메일', icon: <PaperClipIcon style={{ width: 16, height: 16 }} />, onSelect: () => { onSelectFolder('__attachments__'); onClose(); } },

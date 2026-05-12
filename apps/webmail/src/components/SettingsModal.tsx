@@ -568,7 +568,7 @@ export function SettingsModal({ onClose, userEmail }: SettingsModalProps) {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {[
-              ['c', '새 메일 작성'],
+              ['s', '새 메일 작성'],
               ['r', '회신'],
               ['a', '전체 회신'],
               ['f', '전달'],
