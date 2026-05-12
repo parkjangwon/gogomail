@@ -209,6 +209,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Immediate and scheduled send failures use the same draft-preserved retry message.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send preparation failure messaging (TASK-124, 2026-05-12, complete)
+- Completed send preparation failure cleanup for user webmail beta.
+- ComposeModal now routes draft-save/send-preparation failures through `handleSendPreparationFailure`.
+- Preparation failures clear pending message and draft-send state because the send has not started.
+- Preparation failure copy now tells the user to verify and retry saving or sending, distinct from actual send failure copy.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
