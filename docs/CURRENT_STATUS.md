@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang Not WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` condition-list `Not`
+  semantics for CalDAV and CardDAV: `Not` around a stale ETag allows the
+  text-only update and preserves omitted language tags.
+- `Not` around the current collection ETag now rejects before body reads,
+  leaving attempted explicit `xml:lang` mutations unapplied.
+
 ## CalDAV/CardDAV xml:lang tagged WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover tagged WebDAV `If` header lists whose
   resource tag exactly matches the CalDAV/CardDAV collection path, preserving
