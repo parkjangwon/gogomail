@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV unsupported namespace failure responses (2026-05-13, complete)
+- CalDAV WebDAV response serialization now preserves unknown property namespaces with a scoped
+  fallback XML namespace declaration on the property element.
+- `MKCALENDAR` requests that include unsupported properties from arbitrary namespaces now return
+  RFC property-level `207 Multi-Status` failure responses instead of falling through to `500`.
+- Regression tests cover serializer output and handler responses for `urn:example:test`
+  unsupported properties.
+
 ## CardDAV unsupported namespace failure responses (2026-05-13, complete)
 - CardDAV WebDAV response serialization now preserves unknown property namespaces by adding
   a scoped fallback XML namespace declaration on the property element.

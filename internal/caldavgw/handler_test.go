@@ -2272,11 +2272,11 @@ func TestHandlerMkcalendarRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	store := newFakeDiscoveryStore()
 	handler := NewHandler(store, fixedUser("user-1"))
 	calendarID := "11111111-1111-4111-8111-111111111111"
-	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set>
     <D:prop>
       <D:displayname>Project Calendar</D:displayname>
-      <C:unknown>unsupported</C:unknown>
+      <E:unknown>unsupported</E:unknown>
     </D:prop>
   </D:set>
 </C:mkcalendar>`))
@@ -2293,7 +2293,8 @@ func TestHandlerMkcalendarRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		"<C:mkcalendar-response",
-		"<C:unknown></C:unknown>",
+		`xmlns:X="urn:example:test"`,
+		`<X:unknown xmlns:X="urn:example:test"></X:unknown>`,
 		"HTTP/1.1 403 Forbidden",
 		"<D:displayname></D:displayname>",
 		"HTTP/1.1 424 Failed Dependency",

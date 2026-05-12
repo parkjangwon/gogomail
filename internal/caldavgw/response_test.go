@@ -52,6 +52,34 @@ func TestBuildMultiStatusXMLRendersPropStatusEnvelope(t *testing.T) {
 	}
 }
 
+func TestBuildMultiStatusXMLRendersUnknownNamespaceProperty(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href: "/caldav/calendars/user-1/work/",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusForbidden,
+			Properties: []PropertyResult{
+				{Name: XMLName{Space: "urn:example:test", Local: "unsupported"}},
+			},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		`xmlns:X="urn:example:test"`,
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
+		"HTTP/1.1 403 Forbidden",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("body missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
 	t.Parallel()
 
@@ -498,12 +526,6 @@ func TestBuildMultiStatusXMLRejectsInvalidInput(t *testing.T) {
 
 	if _, err := BuildMultiStatusXML([]MultiStatusResponse{{PropStats: []PropStatus{{StatusCode: http.StatusOK}}}}); err == nil {
 		t.Fatal("BuildMultiStatusXML accepted empty href")
-	}
-	if _, err := BuildMultiStatusXML([]MultiStatusResponse{{
-		Href:      "/x",
-		PropStats: []PropStatus{{Properties: []PropertyResult{{Name: XMLName{Space: "urn:unknown", Local: "prop"}}}}},
-	}}); err == nil {
-		t.Fatal("BuildMultiStatusXML accepted unsupported namespace")
 	}
 }
 
