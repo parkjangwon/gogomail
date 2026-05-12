@@ -3389,6 +3389,81 @@ func TestHandlerProppatchRejectsStaleTaggedIfHeaderBeforeBodyRead(t *testing.T) 
 	}
 }
 
+func TestHandlerProppatchAcceptsAbsoluteTaggedIfHeaderPreservesLanguage(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].DescriptionLang = "fr"
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:set><D:prop><D:displayname>Product</D:displayname><C:calendar-description>Launch</C:calendar-description></D:prop></D:set></D:propertyupdate>`))
+	req.Header.Set("If", "<https://calendar.example.test/caldav/calendars/user-1/work/> (["+etag+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Product" || calendar.Description != "Launch" {
+		t.Fatalf("calendar text = name %q description %q", calendar.Name, calendar.Description)
+	}
+	if calendar.NameLang != "ko-KR" || calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar languages = name %q description %q", calendar.NameLang, calendar.DescriptionLang)
+	}
+	if store.lastCalendarUpdate.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastCalendarUpdate.ObservedETag, etag)
+	}
+	if store.lastCalendarUpdate.NameLang != nil || store.lastCalendarUpdate.DescriptionLang != nil {
+		t.Fatalf("update langs = name %#v description %#v, want nil omitted language", store.lastCalendarUpdate.NameLang, store.lastCalendarUpdate.DescriptionLang)
+	}
+}
+
+func TestHandlerProppatchRejectsAbsoluteTaggedIfHeaderPathMismatchBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].DescriptionLang = "fr"
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname><C:calendar-description>Launch</C:calendar-description></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+	req.Header.Set("If", "<https://calendar.example.test/caldav/calendars/user-1/other/> (["+etag+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" || calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name mutated despite failed precondition: %+v", calendar)
+	}
+	if calendar.Description != "Team calendar" || calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar description mutated despite failed precondition: %+v", calendar)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
+	}
+}
+
 func TestHandlerProppatchAcceptsNotIfHeaderPreservesLanguage(t *testing.T) {
 	t.Parallel()
 

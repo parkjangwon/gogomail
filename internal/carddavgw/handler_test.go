@@ -1857,6 +1857,83 @@ func TestHandlerProppatchRejectsStaleTaggedIfHeaderBeforeBodyRead(t *testing.T) 
 	}
 }
 
+func TestHandlerProppatchAcceptsAbsoluteTaggedIfHeaderPreservesLanguage(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:displayname>Team</D:displayname><C:addressbook-description>Launch contacts</C:addressbook-description></D:prop></D:set></D:propertyupdate>`))
+	req.Header.Set("If", "<https://contacts.example.test/carddav/addressbooks/user-1/personal/> (["+etag+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Team" || book.Description != "Launch contacts" {
+		t.Fatalf("address book text = name %q description %q", book.Name, book.Description)
+	}
+	if book.NameLang != "ko-KR" || book.DescriptionLang != "fr" {
+		t.Fatalf("address book languages = name %q description %q", book.NameLang, book.DescriptionLang)
+	}
+	if store.lastBookUpdate.ObservedETag != etag {
+		t.Fatalf("observed collection etag = %q, want %q", store.lastBookUpdate.ObservedETag, etag)
+	}
+	if store.lastBookUpdate.NameLang != nil || store.lastBookUpdate.DescriptionLang != nil {
+		t.Fatalf("update langs = name %#v description %#v, want nil omitted language", store.lastBookUpdate.NameLang, store.lastBookUpdate.DescriptionLang)
+	}
+}
+
+func TestHandlerProppatchRejectsAbsoluteTaggedIfHeaderPathMismatchBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
+	etag, err := AddressBookCollectionETag("user-1", store.books[0])
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname><C:addressbook-description>Launch contacts</C:addressbook-description></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
+	req.Header.Set("If", "<https://contacts.example.test/carddav/addressbooks/user-1/other/> (["+etag+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" || book.NameLang != "ko-KR" {
+		t.Fatalf("address book name mutated despite failed precondition: %+v", book)
+	}
+	if book.Description != "Old contacts" || book.DescriptionLang != "fr" {
+		t.Fatalf("address book description mutated despite failed precondition: %+v", book)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
+	}
+}
+
 func TestHandlerProppatchAcceptsNotIfHeaderPreservesLanguage(t *testing.T) {
 	t.Parallel()
 
