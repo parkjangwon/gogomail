@@ -278,6 +278,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visual design and click behavior are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send options keyboard close (TASK-133, 2026-05-12, complete)
+- Completed send-options keyboard close pass for user webmail beta.
+- The open send-options menu now closes on `Escape`.
+- Escape handling stops propagation so it does not accidentally trigger higher-level compose shortcuts.
+- Existing menu item click behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
