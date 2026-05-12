@@ -539,6 +539,20 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     return () => clearTimeout(t);
   }, [sendCountdown, onClose, recentRecipients]);
 
+  useEffect(() => {
+    if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
+
+    const hasUnreadyAttachment = uploadedAttachments.some((attachment) => attachment.uploading || attachment.error);
+    const currentAttachmentIds = readyAttachmentIds().slice().sort().join('\n');
+    const pendingAttachmentIds = [...(pendingMsgRef.current.attachment_ids ?? [])].sort().join('\n');
+
+    if (hasUnreadyAttachment || currentAttachmentIds !== pendingAttachmentIds) {
+      setSendCountdown(null);
+      pendingMsgRef.current = null;
+      setError('첨부파일 상태가 변경되어 전송 예약을 취소했습니다. 다시 확인 후 전송해 주세요.');
+    }
+  }, [sendCountdown, uploadedAttachments, readyAttachmentIds]);
+
   const handleManualSave = useCallback(async () => {
     const bodyText = editor?.getText() ?? '';
     if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
