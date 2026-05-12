@@ -1953,6 +1953,44 @@ TASK-149: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 comma
 
 ---
 
+## ✅ TASK-149: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 command 명명 일관성 점검
+
+**STATUS: COMPLETE**
+
+### 배경
+
+작성창 helper 런타임 검증에는 표준 명령과 호환 alias가 함께 존재한다.
+미래 작업자가 어떤 명령을 기준으로 삼아야 하는지 명확히 하기 위해 canonical command를 개발문서에 명시한다.
+
+### 구현 대상
+
+- `docs/WEBMAIL_ROADMAP.md`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `pnpm test:compose-helpers`가 canonical command임을 문서화한다.
+- [x] `pnpm test:datetime-local`은 compatibility alias임을 유지해서 설명한다.
+- [x] 기존 package script 동작은 변경하지 않는다.
+- [x] 코드 변경 없이 개발문서만 갱신한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 작성창 helper 런타임 검증 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+- `pnpm test:compose-helpers` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-150: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 범위 주석 추가
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**
