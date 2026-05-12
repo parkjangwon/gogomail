@@ -362,6 +362,12 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 		"wrong root":              `<D:propfind xmlns:D="DAV:"/>`,
 		"nested supported text":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
 		"unsupported child shape": `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+		"unsupported set child": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
+  <D:set><D:prop><D:displayname>Product</D:displayname></D:prop><E:unsupported/></D:set>
+</D:propertyupdate>`,
+		"unsupported remove child": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
+  <D:remove><D:prop><D:displayname/></D:prop><E:unsupported/></D:remove>
+</D:propertyupdate>`,
 	}
 	for name, body := range tests {
 		name, body := name, body

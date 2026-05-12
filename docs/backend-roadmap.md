@@ -2202,7 +2202,10 @@ Target outcome:
       the same atomic property failure model for unsupported properties and
       protected `DAV:displayname` removal attempts, returning `403 Forbidden`
       for failed properties and `424 Failed Dependency` for mutable properties
-      in the same request.
+      in the same request. `PROPPATCH` instructions also reject unknown
+      structural children inside `DAV:set` and `DAV:remove` before property
+      handling, preserving unsupported-property failure semantics only inside
+      `DAV:prop`.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2538,6 +2541,9 @@ Target outcome:
       `DAV:displayname` and RFC 6352 `addressbook-description`, updating the
       repository through a small collection-metadata boundary, refreshing the
       durable sync token, and appending an `addressbook-updated` change row.
+      Unknown structural children inside `DAV:set` and `DAV:remove` are now
+      rejected as parse errors, while unsupported/protected property failure
+      semantics remain scoped to property elements inside `DAV:prop`.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
