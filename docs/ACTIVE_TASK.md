@@ -5,9 +5,10 @@
 
 ---
 
-## 🔄 TASK-096: 웹메일 성능 최적화 + 번들 크기 감소
+## 🔄 TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
-**STATUS: IN_PROGRESS**
+**STATUS: BLOCKED**
+**Issue**: Hierarchical org chart data loaded in DB but not rendering in UI despite API path fix
 
 ### 목표
 
