@@ -1231,6 +1231,7 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 		return true, nil
 	}
 	anyRelevant := false
+	anyMatch := false
 	for pos := 0; pos < len(header); {
 		open := strings.IndexByte(header[pos:], '(')
 		if open < 0 {
@@ -1260,13 +1261,13 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 			return false, err
 		}
 		if matches {
-			return true, nil
+			anyMatch = true
 		}
 	}
 	if !anyRelevant {
 		return false, nil
 	}
-	return false, nil
+	return anyMatch, nil
 }
 
 func webDAVIfTagMatchesPath(tag string, currentPath string) bool {
