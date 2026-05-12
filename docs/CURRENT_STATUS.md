@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## Webmail address book recipient display stabilization (TASK-167, 2026-05-12, complete)
+- Compose recipient picker address-book tab now mirrors the organization picker flow: selecting an address book shows the address-book send token and its actual contacts together.
+- Fixed frontend vCard parsing for standard `FN:value` and `EMAIL:value` properties, including parameterized forms such as `EMAIL;TYPE=WORK:value`.
+- The contacts app and compose picker now use parsed contact names/emails instead of falling back to `.vcf` object filenames when seed contacts are valid.
+- Address-book empty state no longer hides the group-send row in the compose picker.
+- Design direction remains unchanged.
+
 ## Webmail beta stabilization (TASK-098, 2026-05-12, complete)
 - Goal: prepare user webmail for beta service while preserving the current visual design direction.
 - Completed first priority: API base-path stabilization between the Next.js webmail proxy and Go backend routes.

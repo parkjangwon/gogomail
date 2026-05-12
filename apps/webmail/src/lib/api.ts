@@ -545,9 +545,17 @@ export function parseVCard(base64VCard: string): {
 } {
   let text = '';
   try { text = atob(base64VCard); } catch { text = base64VCard; }
+  const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
   const get = (prop: string) => {
-    const m = text.match(new RegExp(`(?:^|\\n)${prop}[;:][^\\n]*:([^\\n]*)`, 'im'));
-    return m ? m[1].trim() : '';
+    const prefix = `${prop}`.toUpperCase();
+    for (const line of unfolded.split(/\r?\n/)) {
+      const normalized = line.toUpperCase();
+      if (normalized.startsWith(`${prefix}:`) || normalized.startsWith(`${prefix};`)) {
+        const valueIndex = line.indexOf(':');
+        if (valueIndex >= 0) return line.slice(valueIndex + 1).trim();
+      }
+    }
+    return '';
   };
   return {
     fn: get('FN'),
