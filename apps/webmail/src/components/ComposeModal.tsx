@@ -348,6 +348,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
   });
+  const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
     try {
@@ -467,12 +468,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (!showSendDropdown) return;
     function handleOutsideClick(e: MouseEvent) {
       if (sendDropdownRef.current && !sendDropdownRef.current.contains(e.target as Node)) {
-        setShowSendDropdown(false);
+        closeSendDropdown();
       }
     }
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [showSendDropdown]);
+  }, [closeSendDropdown, showSendDropdown]);
 
   // Close slash menu on outside click
   useEffect(() => {
@@ -1341,7 +1342,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') {
                       e.stopPropagation();
-                      setShowSendDropdown(false);
+                      closeSendDropdown();
                     }
                   }}
                   style={{
@@ -1363,7 +1364,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                       aria-label={`${opt.label}, ${opt.sub}`}
                       onClick={() => {
                         setScheduledAt(opt.date.toISOString().slice(0, 16));
-                        setShowSendDropdown(false);
+                        closeSendDropdown();
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
@@ -1384,7 +1385,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                       type="button"
                       role="menuitem"
                       aria-label="보내고 보관, 전송 후 원본 메일을 보관함으로 이동"
-                      onClick={() => { setShowSendDropdown(false); sendAndArchiveRef.current = true; handleSend({ preventDefault: () => {} }); }}
+                      onClick={() => { closeSendDropdown(); sendAndArchiveRef.current = true; handleSend({ preventDefault: () => {} }); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -1403,7 +1404,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     role="menuitem"
                     aria-label="사용자 지정 날짜로 예약 전송"
                     onClick={() => {
-                      setShowSendDropdown(false);
+                      closeSendDropdown();
                       setShowSchedule(true);
                       if (!scheduledAt) {
                         setScheduledAt(new Date(Date.now() + 10 * 60000).toISOString().slice(0, 16));
