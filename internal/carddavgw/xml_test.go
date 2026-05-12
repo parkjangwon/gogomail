@@ -279,10 +279,12 @@ func TestParseMKAddressBookRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"wrong root":            `<C:mkaddressbook xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
-		"nested displayname":    `<D:mkcol xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:mkcol>`,
-		"multiple roots":        `<D:mkcol xmlns:D="DAV:"/><D:mkcol xmlns:D="DAV:"/>`,
-		"unsupported directive": `<!DOCTYPE mkcol><D:mkcol xmlns:D="DAV:"/>`,
+		"wrong root":              `<C:mkaddressbook xmlns:C="urn:ietf:params:xml:ns:carddav"/>`,
+		"unknown top-level child": `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><C:unknown/></D:mkcol>`,
+		"unknown set child":       `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><C:unknown/></D:set></D:mkcol>`,
+		"nested displayname":      `<D:mkcol xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:mkcol>`,
+		"multiple roots":          `<D:mkcol xmlns:D="DAV:"/><D:mkcol xmlns:D="DAV:"/>`,
+		"unsupported directive":   `<!DOCTYPE mkcol><D:mkcol xmlns:D="DAV:"/>`,
 	}
 	for name, body := range tests {
 		name, body := name, body

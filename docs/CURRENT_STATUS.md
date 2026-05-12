@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV MKCOL structural body strictness (2026-05-13, complete)
+- CardDAV extended `MKCOL` now rejects unknown top-level children and unknown children inside
+  `DAV:set` as parse errors instead of skipping them into later semantic failure paths.
+- Handler regression coverage proves malformed structural children return `400` and do not create
+  address books, while supported and unsupported property-level failure semantics remain intact.
+
 ## DAV creation XML body presence semantics (2026-05-13, complete)
 - CalDAV `MKCALENDAR` now distinguishes truly absent bodies from non-empty whitespace-only
   bodies: absent body compatibility remains, while whitespace-only XML bodies return `400`

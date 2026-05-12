@@ -1685,6 +1685,26 @@ func TestHandlerMkcolRejectsSelfClosingExtendedBody(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcolRejectsUnknownStructuralChild(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set><C:unknown/></D:set>
+</D:mkcol>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created from MKCOL body with unknown structural child")
+	}
+}
+
 func TestHandlerMkcolRejectsExistingAddressBook(t *testing.T) {
 	t.Parallel()
 
