@@ -1136,6 +1136,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.stopPropagation();
+                if (closeSaveInProgress) return;
                 cancelCloseConfirmation();
               }
             }}
