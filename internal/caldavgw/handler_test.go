@@ -3823,6 +3823,48 @@ func TestHandlerProppatchRejectsRepeatedIfHeadersBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsRepeatedMalformedIfHeadersBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].DescriptionLang = "fr"
+	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname><C:calendar-description>Launch</C:calendar-description></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+	req.Header.Add("If", `([`+etag+`])`)
+	req.Header.Add("If", `()`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header contains an empty condition list") {
+		t.Fatalf("body = %s, want malformed If detail", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" || calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name mutated despite malformed precondition: %+v", calendar)
+	}
+	if calendar.Description != "Team calendar" || calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar description mutated despite malformed precondition: %+v", calendar)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite malformed precondition: %+v", store.lastCalendarUpdate)
+	}
+}
+
 func TestHandlerProppatchRejectsMalformedIfHeaderBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 

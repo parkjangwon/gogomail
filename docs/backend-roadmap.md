@@ -2266,7 +2266,9 @@ Target outcome:
       list are conjunctive for both omitted-language success and pre-body-read
       rejection. Repeated HTTP `If` header coverage now asserts joined header
       values preserve WebDAV condition-list semantics for omitted-language
-      success and pre-body-read failure.
+      success and pre-body-read failure. Repeated malformed WebDAV `If`
+      coverage now asserts later malformed relevant lists still return HTTP
+      400 before body reads even when an earlier list already matched.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2666,7 +2668,9 @@ Target outcome:
       list are conjunctive for both omitted-language success and pre-body-read
       rejection. Repeated HTTP `If` header coverage now asserts joined header
       values preserve WebDAV condition-list semantics for omitted-language
-      success and pre-body-read failure.
+      success and pre-body-read failure. Repeated malformed WebDAV `If`
+      coverage now asserts later malformed relevant lists still return HTTP
+      400 before body reads even when an earlier list already matched.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
