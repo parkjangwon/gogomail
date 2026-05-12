@@ -19,7 +19,6 @@ import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { AppIconBar, AppId } from '@/components/AppIconBar';
 import { CalendarView } from '@/components/CalendarView';
 import { ContactsView } from '@/components/ContactsView';
-import { OrgChartView } from '@/components/OrgChartView';
 import { SettingsView } from '@/components/SettingsView';
 import { DriveView } from '@/components/DriveView';
 import { loadFilterRules } from '@/components/SettingsModal';
@@ -689,7 +688,7 @@ export default function MailPage() {
           const folder = folders.find((f) => f.system_type === target);
           if (folder) { e.preventDefault(); handleSelectFolder(folder.id); return; }
         }
-        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', o: 'orgchart', v: 'drive', ',': 'settings' };
+        const appSwitchMap: Record<string, AppId> = { m: 'mail', c: 'calendar', k: 'contacts', v: 'drive', ',': 'settings' };
         const appTarget = appSwitchMap[key];
         if (appTarget) { e.preventDefault(); setActiveApp(appTarget); return; }
       }
@@ -1358,8 +1357,6 @@ export default function MailPage() {
         <CalendarView />
       ) : activeApp === 'contacts' ? (
         <ContactsView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
-      ) : activeApp === 'orgchart' ? (
-        <OrgChartView onCompose={(email) => openCompose({ intent: 'new', to: email })} />
       ) : activeApp === 'drive' ? (
         <DriveView />
       ) : activeApp === 'settings' ? (
