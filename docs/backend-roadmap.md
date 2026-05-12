@@ -4553,6 +4553,8 @@ Target outcome:
   compatibility tests. ADR 0015 timezone support (RFC 7809) is now partially
   implemented: calendar-timezone property storage, PROPFIND/PROPPATCH/MKCALENDAR
   support, timezone service endpoint, and time-range interpretation are complete.
+  `calendar-query` time-range response limits are applied after time-range
+  matching so non-matching recent objects do not hide older matching events.
 - Directory/Identity expansion for delegated relationships, effective
   resource booking policy beyond the initial principal tables, resolver, alias
   lookup, bounded membership expansion, company-scoped delegation relationship

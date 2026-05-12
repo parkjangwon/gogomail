@@ -711,6 +711,49 @@ func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryAppliesLimitAfterTimeRangeFilter(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	matching := store.objects[0]
+	nonMatchingICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:later@example.com\r\nDTSTAMP:20260508T000000Z\r\nDTSTART:20260508T010000Z\r\nDTEND:20260508T020000Z\r\nSUMMARY:Later\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	nonMatching := matching
+	nonMatching.ID = "object-later"
+	nonMatching.ObjectName = "later.ics"
+	nonMatching.UID = "later@example.com"
+	nonMatching.ETag = `"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`
+	nonMatching.ICS = nonMatchingICS
+	nonMatching.Size = int64(len(nonMatchingICS))
+	store.objects = []CalendarObject{nonMatching, matching}
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <D:prop><D:getetag/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<D:href>/caldav/calendars/user-1/work/event-1.ics</D:href>") {
+		t.Fatalf("calendar-query time-range limit missed matching object:\n%s", body)
+	}
+	if strings.Contains(body, "later.ics") {
+		t.Fatalf("calendar-query time-range limit returned non-matching object:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarQueryRejectsUnsupportedFilter(t *testing.T) {
 	t.Parallel()
 
