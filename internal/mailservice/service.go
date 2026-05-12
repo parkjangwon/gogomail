@@ -66,6 +66,11 @@ type DraftSendRepository interface {
 	MarkDraftSent(ctx context.Context, userID string, draftID string, sentMessageID string) error
 }
 
+type RecipientGroupRepository interface {
+	ExpandOrgRecipients(ctx context.Context, userID string, orgID string, includeChildren bool) ([]outbound.Address, error)
+	ExpandAddressBookRecipients(ctx context.Context, userID string, addressBookID string) ([]outbound.Address, error)
+}
+
 type AttachmentUploadRepository interface {
 	CreateAttachmentUpload(ctx context.Context, req maildb.CreateAttachmentUploadRequest) (maildb.Attachment, error)
 	CancelAttachmentUpload(ctx context.Context, userID string, attachmentID string) (maildb.Attachment, error)
@@ -2328,6 +2333,11 @@ func (s *Service) SendText(ctx context.Context, req SendTextRequest) (SendTextRe
 		return SendTextResult{}, fmt.Errorf("mail storage is required")
 	}
 	req = normalizeSendTextRequest(req)
+	expandedReq, err := s.expandRecipientGroups(ctx, req)
+	if err != nil {
+		return SendTextResult{}, err
+	}
+	req = expandedReq
 	if err := ValidateSendTextRequest(req); err != nil {
 		return SendTextResult{}, err
 	}
@@ -2504,6 +2514,98 @@ func normalizeComposeAddresses(addresses []outbound.Address) []outbound.Address 
 		addresses[i].Email = strings.TrimSpace(addresses[i].Email)
 	}
 	return addresses
+}
+
+func (s *Service) expandRecipientGroups(ctx context.Context, req SendTextRequest) (SendTextRequest, error) {
+	repo, ok := s.repository.(RecipientGroupRepository)
+	if !hasRecipientGroupTokens(req) {
+		return req, nil
+	}
+	if !ok {
+		return SendTextRequest{}, fmt.Errorf("recipient group repository is required")
+	}
+	seen := make(map[string]struct{})
+	var err error
+	req.To, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.To, seen)
+	if err != nil {
+		return SendTextRequest{}, err
+	}
+	req.Cc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Cc, seen)
+	if err != nil {
+		return SendTextRequest{}, err
+	}
+	req.Bcc, err = s.expandRecipientGroupField(ctx, repo, req.UserID, req.Bcc, seen)
+	if err != nil {
+		return SendTextRequest{}, err
+	}
+	return req, nil
+}
+
+func hasRecipientGroupTokens(req SendTextRequest) bool {
+	for _, field := range [][]outbound.Address{req.To, req.Cc, req.Bcc} {
+		for _, addr := range field {
+			if recipientGroupTokenKind(addr.Email) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *Service) expandRecipientGroupField(ctx context.Context, repo RecipientGroupRepository, userID string, addresses []outbound.Address, seen map[string]struct{}) ([]outbound.Address, error) {
+	expanded := make([]outbound.Address, 0, len(addresses))
+	appendAddress := func(addr outbound.Address) {
+		key := strings.ToLower(strings.TrimSpace(addr.Email))
+		if key == "" {
+			return
+		}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		expanded = append(expanded, addr)
+	}
+	for _, addr := range addresses {
+		switch recipientGroupTokenKind(addr.Email) {
+		case "org":
+			orgID, includeChildren := parseOrgRecipientToken(addr.Email)
+			members, err := repo.ExpandOrgRecipients(ctx, userID, orgID, includeChildren)
+			if err != nil {
+				return nil, err
+			}
+			for _, member := range members {
+				appendAddress(member)
+			}
+		case "addressbook":
+			bookID := strings.TrimPrefix(strings.TrimSpace(addr.Email), "addressbook:")
+			contacts, err := repo.ExpandAddressBookRecipients(ctx, userID, bookID)
+			if err != nil {
+				return nil, err
+			}
+			for _, contact := range contacts {
+				appendAddress(contact)
+			}
+		default:
+			appendAddress(addr)
+		}
+	}
+	return expanded, nil
+}
+
+func recipientGroupTokenKind(email string) string {
+	email = strings.TrimSpace(email)
+	if strings.HasPrefix(email, "org:") {
+		return "org"
+	}
+	if strings.HasPrefix(email, "addressbook:") {
+		return "addressbook"
+	}
+	return ""
+}
+
+func parseOrgRecipientToken(token string) (string, bool) {
+	token = strings.TrimSpace(strings.TrimPrefix(token, "org:"))
+	return strings.TrimSuffix(token, ":children"), strings.HasSuffix(token, ":children")
 }
 
 func normalizeStringList(values []string) []string {

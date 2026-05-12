@@ -100,6 +100,9 @@ func validateComposeAddresses(field string, addresses []outbound.Address) error 
 		if strings.TrimSpace(address.Email) == "" {
 			return fmt.Errorf("%s[%d].email is required", field, i)
 		}
+		if recipientGroupTokenKind(address.Email) != "" {
+			continue
+		}
 		if _, err := mail.NormalizeAddress(address.Email); err != nil {
 			return fmt.Errorf("%s[%d].email is invalid: %w", field, i, err)
 		}

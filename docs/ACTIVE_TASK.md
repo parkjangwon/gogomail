@@ -2654,3 +2654,49 @@ TASK-164: 사용자 웹메일 베타 검증 — 백엔드/프론트엔드 smoke 
 ### 다음 태스크
 
 TASK-165: 사용자 웹메일 베타 검증 — 작성/전송/주소록 연동 smoke test
+
+---
+
+## ✅ TASK-165: 사용자 웹메일 베타 — 조직/주소록 발송 토큰 확장
+
+**STATUS: COMPLETE**
+
+### 배경
+
+조직도/주소록 선택은 단순 사용자 선택 UI가 아니라 조직 발송 기능의 시작점이다.
+조직 또는 주소록을 To/Cc/Bcc에 넣으면 실제 발송 시 해당 조직/주소록 소속 사용자가 수신자로 확장되어야 하며, 조직은 하위 조직 포함 여부를 명시적으로 제어할 수 있어야 한다.
+
+### 구현 대상
+
+- `apps/webmail/src/components/OrgPickerModal.tsx`
+- `apps/webmail/src/components/ComposeModal.tsx`
+- `internal/mailservice/service.go`
+- `internal/mailservice/compose_contract.go`
+- `internal/maildb/recipient_groups.go`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] 조직도 선택 모달의 2번째 패널에 선택 조직, 하위 조직, 구성원을 함께 표시한다.
+- [x] 조직 선택 시 하위 조직 포함 여부를 체크박스로 제어한다.
+- [x] 조직 토큰을 To/Cc/Bcc에 추가할 수 있다.
+- [x] 주소록 탭에서 주소록 전체를 To/Cc/Bcc에 추가할 수 있다.
+- [x] 발송 직전 백엔드가 조직 토큰을 실제 사용자 이메일 목록으로 확장한다.
+- [x] 발송 직전 백엔드가 주소록 토큰을 실제 연락처 이메일 목록으로 확장한다.
+- [x] 초안 저장/초안 발송 경로에서도 토큰이 보존되고 발송 시 확장된다.
+- [x] 확장된 수신자는 To → Cc → Bcc 순서로 중복 제거된다.
+- [x] 개발 문서를 함께 갱신한다.
+
+### 검증
+
+- `go test ./...` 통과
+- 조직 토큰 smoke: 재귀 CTE 보강
+- 주소록 토큰 smoke: local mailstore root 자동 생성 보강
+- `pnpm --dir apps/webmail type-check` 통과
+- API smoke: 조직 토큰 발송 202 Accepted, 실제 To 9명 확장 확인
+- API smoke: 주소록 토큰 발송 202 Accepted, 실제 To 4명 확장 확인
+
+### 다음 태스크
+
+TASK-166: 사용자 웹메일 베타 — 조직/주소록 발송 UX polish 및 전송 결과 표시

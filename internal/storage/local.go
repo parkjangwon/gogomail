@@ -504,6 +504,9 @@ func (s *LocalStore) ensureObjectParentDir(objectPath string) error {
 	if err != nil {
 		return fmt.Errorf("unsafe storage path %q: %w", objectPath, err)
 	}
+	if err := s.ensureRootDir(); err != nil {
+		return err
+	}
 	segments := strings.Split(objectPath, "/")
 	current := s.root
 	for _, segment := range segments[:len(segments)-1] {
@@ -536,6 +539,36 @@ func (s *LocalStore) ensureObjectParentDir(objectPath string) error {
 		if !info.IsDir() {
 			return fmt.Errorf("storage path component is not a directory")
 		}
+	}
+	return nil
+}
+
+func (s *LocalStore) ensureRootDir() error {
+	info, err := os.Lstat(s.root)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("storage root is a symbolic link")
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("storage root is not a directory")
+		}
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(s.root, 0o755); err != nil {
+		return err
+	}
+	info, err = os.Lstat(s.root)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("storage root is a symbolic link")
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("storage root is not a directory")
 	}
 	return nil
 }
