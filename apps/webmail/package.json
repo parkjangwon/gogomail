@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
+    "test:datetime-local": "node --experimental-strip-types scripts/check-date-time-local.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

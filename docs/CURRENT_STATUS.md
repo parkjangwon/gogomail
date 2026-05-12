@@ -332,6 +332,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing scheduled-send UI behavior is unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail datetime-local runtime check (TASK-140, 2026-05-12, complete)
+- Completed datetime-local formatter runtime check pass for user webmail beta.
+- Added `apps/webmail/scripts/check-date-time-local.mjs` to assert formatter output at runtime.
+- Added `pnpm test:datetime-local` for the webmail app without introducing a new test runner.
+- Runtime checks cover one-digit padding and two-digit date/time values.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:datetime-local` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
