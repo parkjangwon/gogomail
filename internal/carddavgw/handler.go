@@ -93,6 +93,10 @@ type ObjectWalker interface {
 	WalkAddressBookObjects(ctx context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error
 }
 
+type AddressBookQueryCandidateWalker interface {
+	WalkAddressBookQueryCandidates(ctx context.Context, userID string, addressBookID string, containsText string, yield func(ContactObject) (bool, error)) error
+}
+
 type PrincipalSearchStore interface {
 	SearchAddressBookObjects(ctx context.Context, userID string, addressBookID string, property string, match string, test string) ([]ContactObject, error)
 }
@@ -1291,6 +1295,11 @@ func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath
 }
 
 func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
+	if candidateWalker, ok := h.Store.(AddressBookQueryCandidateWalker); ok {
+		if containsText, ok := addressBookQueryCandidateText(report.Filter); ok {
+			return h.walkAddressBookQueryCandidates(ctx, candidateWalker, userID, resource, report, currentUserPrivileges, containsText)
+		}
+	}
 	if walker, ok := h.Store.(ObjectWalker); ok {
 		return h.walkAddressBookQueryResponses(ctx, walker, userID, resource, report, currentUserPrivileges)
 	}
@@ -1332,6 +1341,45 @@ func (h *Handler) addressBookQueryResponses(ctx context.Context, userID string, 
 	return responses, nil
 }
 
+func (h *Handler) walkAddressBookQueryCandidates(ctx context.Context, walker AddressBookQueryCandidateWalker, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName, containsText string) ([]MultiStatusResponse, error) {
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	responses := make([]MultiStatusResponse, 0, limit)
+	err := walker.WalkAddressBookQueryCandidates(ctx, userID, resource.AddressBookID, containsText, func(object ContactObject) (bool, error) {
+		if len(responses) >= limit {
+			return false, nil
+		}
+		if !contactObjectMatchesFilter(object, report.Filter) {
+			return true, nil
+		}
+		props, err := ContactObjectProperties(userID, object)
+		if err != nil {
+			return false, err
+		}
+		props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
+		if containsXMLName(report.Properties, PropAddressData) {
+			dataProp, err := ContactObjectDataPropertyWithProperties(object.VCard, report.AddressDataProperties)
+			if err != nil {
+				return false, err
+			}
+			props = append(props, dataProp)
+		}
+		href, err := ContactObjectPath(userID, object.AddressBookID, object.ObjectName)
+		if err != nil {
+			return false, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
+		return len(responses) < limit, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return responses, nil
+}
+
 func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker ObjectWalker, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	limit := report.Limit
@@ -1369,6 +1417,60 @@ func (h *Handler) walkAddressBookQueryResponses(ctx context.Context, walker Obje
 		return nil, err
 	}
 	return responses, nil
+}
+
+func addressBookQueryCandidateText(filter AddressBookQueryFilter) (string, bool) {
+	if len(filter.PropFilters) == 0 {
+		return "", false
+	}
+	if filter.Test != FilterTestAllOf && len(filter.PropFilters) != 1 {
+		return "", false
+	}
+	for _, propFilter := range filter.PropFilters {
+		if text, ok := necessaryPropFilterCandidateText(propFilter); ok {
+			return text, true
+		}
+	}
+	return "", false
+}
+
+func necessaryPropFilterCandidateText(filter CardDAVPropFilter) (string, bool) {
+	if filter.IsNotDefined {
+		return "", false
+	}
+	conditionCount := len(filter.TextMatches) + len(filter.ParamFilters)
+	if conditionCount == 0 {
+		return "", false
+	}
+	if filter.Test != FilterTestAllOf && conditionCount != 1 {
+		return "", false
+	}
+	for _, match := range filter.TextMatches {
+		if textMatchCanSeedAddressBookQuery(match) {
+			return match.Text, true
+		}
+	}
+	for _, paramFilter := range filter.ParamFilters {
+		if paramFilter.IsNotDefined || !paramFilter.HasTextMatch {
+			continue
+		}
+		if textMatchCanSeedAddressBookQuery(paramFilter.TextMatch) {
+			return paramFilter.TextMatch.Text, true
+		}
+	}
+	return "", false
+}
+
+func textMatchCanSeedAddressBookQuery(match CardDAVTextMatch) bool {
+	if match.Negate || match.Text == "" {
+		return false
+	}
+	for _, r := range match.Text {
+		if r > 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *Handler) principalPropertySearchResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {

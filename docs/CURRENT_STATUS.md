@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV addressbook-query indexed candidate path (2026-05-12, complete)
+- `addressbook-query`가 안전한 positive ASCII `text-match` 필터를 발견하면 기존 broad object walker보다
+  indexed candidate walker를 우선 사용하도록 했다.
+- repository candidate walker는 `user_id`, `addressbook_id`, `status='active'` scope와
+  기존 `lower(vcard::text)` trigram index가 활용 가능한 `LIKE` 후보 검색을 결합한다.
+- SQL 후보는 최종 응답 전에 기존 `contactObjectMatchesFilter`로 다시 검증하므로
+  RFC 6352/vCard property-specific 필터 정합성은 유지하면서 불필요한 전체 vCard 파싱을 줄인다.
+
 ## CalDAV sync-collection delta truncation 정합성 (2026-05-12, complete)
 - CalDAV `sync-collection` 증분 변경(delta) 경로가 limit 초과 시 일반 `400` 텍스트 오류 대신
   snapshot truncation과 같은 RFC 6578/WebDAV XML precondition 응답으로 매핑되도록 정리했다.
