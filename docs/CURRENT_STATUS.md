@@ -45,6 +45,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Design direction remains unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail attachment retry stabilization (TASK-103, 2026-05-12, complete)
+- Completed local attachment upload retry pass for user webmail beta.
+- Failed local file attachments now retain the source `File` object for retry.
+- Failed attachment chips expose a compact retry action without changing the current compose visual direction.
+- Retry success replaces the temporary failed attachment with the backend attachment ID, so draft/send persistence continues using the standard `attachment_ids` contract.
+- Retry failure keeps the failed state visible and blocks send through the TASK-102 guard.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

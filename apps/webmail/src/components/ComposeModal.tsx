@@ -195,7 +195,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const draftIdRef = useRef<string>(draftMessage?.id ?? '');
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string }>>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean; error?: string; file?: File }>>([]);
   const [dragOver, setDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -248,7 +248,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     const newFiles = Array.from(files);
     for (const file of newFiles) {
       const tempId = `tmp-${Math.random().toString(36).slice(2)}`;
-      setUploadedAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true }]);
+      setUploadedAttachments((prev) => [...prev, { id: tempId, filename: file.name, size: file.size, uploading: true, file }]);
       try {
         const att = await uploadAttachment(file, draftIdRef.current || undefined);
         setUploadedAttachments((prev) => prev.map((a) => a.id === tempId ? { id: att.id, filename: att.filename, size: att.size } : a));
@@ -257,6 +257,26 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
     }
   }, []);
+
+  const retryAttachmentUpload = useCallback(async (attachmentId: string) => {
+    const failedAttachment = uploadedAttachments.find((attachment) => attachment.id === attachmentId && attachment.error && attachment.file);
+    if (!failedAttachment?.file) return;
+
+    setUploadedAttachments((prev) => prev.map((attachment) =>
+      attachment.id === attachmentId ? { ...attachment, uploading: true, error: undefined } : attachment,
+    ));
+
+    try {
+      const att = await uploadAttachment(failedAttachment.file, draftIdRef.current || undefined);
+      setUploadedAttachments((prev) => prev.map((attachment) =>
+        attachment.id === attachmentId ? { id: att.id, filename: att.filename, size: att.size } : attachment,
+      ));
+    } catch {
+      setUploadedAttachments((prev) => prev.map((attachment) =>
+        attachment.id === attachmentId ? { ...attachment, uploading: false, error: '업로드 실패' } : attachment,
+      ));
+    }
+  }, [uploadedAttachments]);
 
   const openDrivePicker = useCallback(async (parentId?: string, crumbs?: Array<{ id: string | undefined; name: string }>) => {
     setShowDrivePicker(true);
@@ -1108,6 +1128,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     <span style={{ display: 'inline-flex', alignItems: 'center' }}>{att.uploading ? <ArrowPathIcon style={{ width: '12px', height: '12px', animation: 'spin 1s linear infinite' }} /> : att.error ? <ExclamationTriangleIcon style={{ width: '12px', height: '12px' }} /> : <PaperClipIcon style={{ width: '12px', height: '12px' }} />}</span>
                     <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.filename}</span>
                     {!att.uploading && <span style={{ color: 'var(--color-text-tertiary)' }}>{kb}</span>}
+                    {att.error && att.file && (
+                      <button
+                        type="button"
+                        onClick={() => retryAttachmentUpload(att.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-accent)', lineHeight: 1, padding: '0 2px', fontSize: '11px', fontWeight: 600 }}
+                      >재시도</button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setUploadedAttachments((prev) => prev.filter((a) => a.id !== att.id))}
