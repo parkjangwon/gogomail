@@ -14,9 +14,9 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 
 ## Webmail drive file type icon refresh (2026-05-12, complete)
 - Added shared icon resolver for drive nodes: `apps/webmail/src/lib/driveNodeIcon.tsx`.
-- Icons now resolve by MIME + filename extension (image/video/audio/pdf/document/spreadsheet/presentation/code/archive/text/etc.) and keep a subtle color/pill style instead of generic emoji markers.
+- Icons now resolve by MIME + filename extension and use Untitled UI official file icons (`@untitledui/file-icons`) with consistent visual language.
 - `apps/webmail/src/components/DriveView.tsx` and `apps/webmail/src/components/ComposeModal.tsx` now render the shared `DriveNodeIcon` for file/folder entries, including drive picker rows.
-- Visual direction preserved (existing layout, spacing, and palette families remain unchanged).
+- Existing drive card/list layout and palette are unchanged; only icon glyphs were updated to UntitledUI style.
 
 ## Webmail address book recipient display stabilization (TASK-167, 2026-05-12, complete)
 - Compose recipient picker address-book tab now mirrors the organization picker flow: selecting an address book shows the address-book send token and its actual contacts together.
