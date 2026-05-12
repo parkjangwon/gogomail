@@ -462,6 +462,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - No code behavior changed in this task.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close-save duplicate guard (TASK-158, 2026-05-12, complete)
+- Completed close-confirm save duplicate-click guard for user webmail beta.
+- ComposeModal now tracks `closeSaveInProgress` while the close-save action is running.
+- `saveDraftAndClose` exits early if a close-save is already in progress.
+- The close confirmation exposes `aria-busy` during close-save.
+- Save, discard, and cancel actions are disabled while close-save is in progress, and the save button shows `저장 중...`.
+- Close-save remains best-effort and still closes after the save attempt.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
