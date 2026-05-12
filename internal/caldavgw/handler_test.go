@@ -2598,6 +2598,65 @@ func TestHandlerProppatchRemovesOptionalCalendarProperties(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchDuplicateCalendarDescriptionUsesFinalInstructionOnce(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "set remove set",
+			body: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set><D:prop><C:calendar-description>First</C:calendar-description></D:prop></D:set>
+  <D:remove><D:prop><C:calendar-description/></D:prop></D:remove>
+  <D:set><D:prop><C:calendar-description>Final launch calendar</C:calendar-description></D:prop></D:set>
+</D:propertyupdate>`,
+			want: "Final launch calendar",
+		},
+		{
+			name: "set set",
+			body: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set><D:prop><C:calendar-description>First</C:calendar-description></D:prop></D:set>
+  <D:set><D:prop><C:calendar-description>Final launch calendar</C:calendar-description></D:prop></D:set>
+</D:propertyupdate>`,
+			want: "Final launch calendar",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := newFakeDiscoveryStore()
+			handler := NewHandler(store, fixedUser("user-1"))
+			req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(tt.body))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusMultiStatus {
+				t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+			}
+			calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+			if err != nil {
+				t.Fatalf("calendar lookup failed: %v", err)
+			}
+			if calendar.Description != tt.want {
+				t.Fatalf("calendar description = %q, want %q", calendar.Description, tt.want)
+			}
+			body := rec.Body.String()
+			if count := strings.Count(body, "<C:calendar-description>"); count != 1 {
+				t.Fatalf("calendar-description response count = %d, want 1:\n%s", count, body)
+			}
+			if !strings.Contains(body, "<C:calendar-description>"+tt.want+"</C:calendar-description>") {
+				t.Fatalf("PROPPATCH response missing final description %q:\n%s", tt.want, body)
+			}
+		})
+	}
+}
+
 func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	t.Parallel()
 
@@ -2635,6 +2694,52 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerProppatchFailureDeduplicatesRepeatedDependencyProperty(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:E="urn:example:test">
+  <D:set>
+    <D:prop>
+      <E:unsupported>value</E:unsupported>
+      <C:calendar-description>First</C:calendar-description>
+    </D:prop>
+  </D:set>
+  <D:set>
+    <D:prop>
+      <C:calendar-description>Second</C:calendar-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Description != "Team calendar" {
+		t.Fatalf("calendar description = %q, want unchanged Team calendar", calendar.Description)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
+		"HTTP/1.1 403 Forbidden",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
+		}
+	}
+	if count := strings.Count(body, "<C:calendar-description>"); count != 1 {
+		t.Fatalf("failed dependency calendar-description count = %d, want 1:\n%s", count, body)
 	}
 }
 

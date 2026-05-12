@@ -1325,8 +1325,9 @@ func responseForProperties(href string, propfind PropfindRequest, props []Proper
 }
 
 func proppatchResponse(href string, book AddressBook, properties []XMLName) MultiStatusResponse {
-	results := make([]PropertyResult, 0, len(properties))
-	for _, prop := range properties {
+	uniqueProperties := uniqueXMLNames(properties)
+	results := make([]PropertyResult, 0, len(uniqueProperties))
+	for _, prop := range uniqueProperties {
 		switch prop {
 		case PropDisplayName:
 			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Name}, Found: true})
@@ -1350,13 +1351,30 @@ func proppatchFailureResponse(href string, patch ProppatchRequest) MultiStatusRe
 		propStats = append(propStats, PropStatus{StatusCode: http.StatusForbidden, Properties: forbidden})
 	}
 	if len(patch.Properties) > 0 {
-		failed := make([]PropertyResult, 0, len(patch.Properties))
-		for _, prop := range patch.Properties {
+		failedProperties := uniqueXMLNames(patch.Properties)
+		failed := make([]PropertyResult, 0, len(failedProperties))
+		for _, prop := range failedProperties {
 			failed = append(failed, PropertyResult{Name: prop})
 		}
 		propStats = append(propStats, PropStatus{StatusCode: http.StatusFailedDependency, Properties: failed})
 	}
 	return MultiStatusResponse{Href: href, PropStats: propStats}
+}
+
+func uniqueXMLNames(names []XMLName) []XMLName {
+	if len(names) < 2 {
+		return names
+	}
+	seen := make(map[XMLName]struct{}, len(names))
+	unique := make([]XMLName, 0, len(names))
+	for _, name := range names {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		unique = append(unique, name)
+	}
+	return unique
 }
 
 func depthHeaderValue(header http.Header) (string, error) {

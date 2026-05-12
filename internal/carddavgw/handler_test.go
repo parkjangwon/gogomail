@@ -1172,6 +1172,66 @@ func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchDuplicateAddressBookDescriptionUsesFinalInstruction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "set remove set",
+			body: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set><D:prop><C:addressbook-description>First</C:addressbook-description></D:prop></D:set>
+  <D:remove><D:prop><C:addressbook-description/></D:prop></D:remove>
+  <D:set><D:prop><C:addressbook-description>Final</C:addressbook-description></D:prop></D:set>
+</D:propertyupdate>`,
+			want: "Final",
+		},
+		{
+			name: "set set",
+			body: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set><D:prop><C:addressbook-description>First</C:addressbook-description></D:prop></D:set>
+  <D:set><D:prop><C:addressbook-description>Final</C:addressbook-description></D:prop></D:set>
+</D:propertyupdate>`,
+			want: "Final",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := testCardDAVDiscoveryStore(t)
+			store.books[0].Description = "Original"
+			handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+			req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(tc.body))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusMultiStatus {
+				t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+			}
+			book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+			if err != nil {
+				t.Fatalf("address book lookup failed: %v", err)
+			}
+			if book.Description != tc.want {
+				t.Fatalf("address book description = %q, want %q", book.Description, tc.want)
+			}
+			body := rec.Body.String()
+			if count := strings.Count(body, "<C:addressbook-description>"); count != 1 {
+				t.Fatalf("addressbook-description response property count = %d, want 1:\n%s", count, body)
+			}
+			if !strings.Contains(body, "<C:addressbook-description>"+tc.want+"</C:addressbook-description>") {
+				t.Fatalf("PROPPATCH response missing final description %q:\n%s", tc.want, body)
+			}
+		})
+	}
+}
+
 func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	t.Parallel()
 
@@ -1209,6 +1269,49 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerProppatchRejectsUnsupportedPropertyWithDuplicateDependencyOnce(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].Description = "Original"
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:E="urn:example:test">
+  <D:set>
+    <D:prop>
+      <C:addressbook-description>First</C:addressbook-description>
+      <E:unsupported>value</E:unsupported>
+      <C:addressbook-description>Final</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Description != "Original" {
+		t.Fatalf("address book description = %q, want unchanged Original", book.Description)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
+		"HTTP/1.1 403 Forbidden",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
+		}
+	}
+	if count := strings.Count(body, "<C:addressbook-description></C:addressbook-description>"); count != 1 {
+		t.Fatalf("failed dependency addressbook-description count = %d, want 1:\n%s", count, body)
 	}
 }
 
