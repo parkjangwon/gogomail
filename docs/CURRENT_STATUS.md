@@ -150,6 +150,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - The close-confirm draft path no longer includes the non-contract `html_body` field.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send HTTP contract tests (TASK-116, 2026-05-12, complete)
+- Completed HTTP boundary test pass for draft-save and draft-send beta contracts.
+- Draft save handler tests now verify `track_opens` reaches the service request.
+- Draft save handler tests now verify `scheduled_at` reaches the service request.
+- Draft-send handler tests now verify normalized send statuses in the HTTP response.
+- Draft-send handler tests now reject unexpected request bodies and unknown query keys before dispatch.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

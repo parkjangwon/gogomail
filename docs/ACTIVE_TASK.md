@@ -701,6 +701,43 @@ TASK-116: 사용자 웹메일 베타 안정화 — draft-send HTTP 계약 테스
 
 ---
 
+## ✅ TASK-116: 사용자 웹메일 베타 안정화 — draft-send HTTP 계약 테스트 보강
+
+**STATUS: COMPLETE**
+
+### 배경
+
+TASK-110~115에서 draft-send 중심 계약을 확장했다.
+프론트/서비스/DB 검증은 통과했지만 HTTP 경계에서 `track_opens`, `scheduled_at`, bodyless draft-send, unknown query rejection, 응답 정규화가 회귀하지 않도록 테스트가 필요하다.
+
+### 구현 대상
+
+- `internal/httpapi/mail_test.go`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] draft 저장 HTTP 테스트가 `track_opens`를 서비스 요청까지 검증한다.
+- [x] draft 저장 HTTP 테스트가 `scheduled_at`을 서비스 요청까지 검증한다.
+- [x] draft-send HTTP 테스트가 응답 상태 정규화를 검증한다.
+- [x] draft-send HTTP 테스트가 request body를 거부하는 계약을 검증한다.
+- [x] draft-send HTTP 테스트가 unknown query key를 거부하는 계약을 검증한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-117: 사용자 웹메일 베타 안정화 — draft-send OpenAPI 계약 문서 점검
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**

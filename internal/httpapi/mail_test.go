@@ -1898,7 +1898,9 @@ func TestSaveDraftHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts", strings.NewReader(`{
 		"user_id":"user-1",
 		"subject":"draft",
-		"text_body":"body"
+		"text_body":"body",
+		"track_opens":true,
+		"scheduled_at":"2100-01-02T03:04:05Z"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1907,7 +1909,10 @@ func TestSaveDraftHandler(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if service.lastDraft.UserID != "user-1" || service.lastDraft.Subject != "draft" {
+	if service.lastDraft.UserID != "user-1" || service.lastDraft.Subject != "draft" || !service.lastDraft.TrackOpens {
+		t.Fatalf("lastDraft = %+v", service.lastDraft)
+	}
+	if service.lastDraft.ScheduledAt.IsZero() || service.lastDraft.ScheduledAt.Format(time.RFC3339) != "2100-01-02T03:04:05Z" {
 		t.Fatalf("lastDraft = %+v", service.lastDraft)
 	}
 }
@@ -2074,6 +2079,54 @@ func TestSendDraftHandler(t *testing.T) {
 	}
 	if service.lastDeletedDraftID != "draft-1" || service.lastUserID != "user-1" {
 		t.Fatalf("send draft = user:%q draft:%q", service.lastUserID, service.lastDeletedDraftID)
+	}
+	var body struct {
+		Message mailservice.SendTextResult `json:"message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Message.SendStatus != "queued" || body.Message.DeliveryStatus != "pending" || body.Message.BounceStatus != "none" {
+		t.Fatalf("message statuses were not normalized: %+v", body.Message)
+	}
+}
+
+func TestSendDraftHandlerRejectsBody(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts/draft-1/send?user_id=user-1", strings.NewReader(`{"unexpected":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedDraftID != "" {
+		t.Fatalf("service dispatched unexpectedly: draft=%q", service.lastDeletedDraftID)
+	}
+}
+
+func TestSendDraftHandlerRejectsUnknownQuery(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeMessageService{}
+	mux := http.NewServeMux()
+	RegisterMailRoutes(mux, service, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/drafts/draft-1/send?user_id=user-1&debug=true", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastDeletedDraftID != "" {
+		t.Fatalf("service dispatched unexpectedly: draft=%q", service.lastDeletedDraftID)
 	}
 }
 
