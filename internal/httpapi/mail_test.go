@@ -3754,3 +3754,11 @@ func (f *fakeMessageService) MessageDeliveryStatus(_ context.Context, userID str
 	f.lastMessageID = messageID
 	return f.deliveryStatus, nil
 }
+
+func (f *fakeMessageService) GetWebmailPreferences(_ context.Context, _ string) (json.RawMessage, error) {
+	return json.RawMessage("{}"), nil
+}
+
+func (f *fakeMessageService) SetWebmailPreferences(_ context.Context, _ string, _ json.RawMessage) error {
+	return nil
+}

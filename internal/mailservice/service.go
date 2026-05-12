@@ -108,6 +108,11 @@ type SourceThreadRepository interface {
 	SourceThread(ctx context.Context, userID string, sourceMessageID string) (maildb.SourceThreadView, error)
 }
 
+type PreferencesRepository interface {
+	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
+	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
+}
+
 type Service struct {
 	repository         Repository
 	store              storage.Store
@@ -1175,6 +1180,24 @@ func (s *Service) MessageDeliveryStatus(ctx context.Context, userID string, mess
 		return maildb.MessageDeliveryStatusView{}, err
 	}
 	return repo.MessageDeliveryStatus(ctx, userID, messageID)
+}
+
+func (s *Service) GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error) {
+	repo, ok := s.repository.(PreferencesRepository)
+	if !ok {
+		return json.RawMessage("{}"), nil
+	}
+	userID = strings.TrimSpace(userID)
+	return repo.GetWebmailPreferences(ctx, userID)
+}
+
+func (s *Service) SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error {
+	repo, ok := s.repository.(PreferencesRepository)
+	if !ok {
+		return fmt.Errorf("preferences repository is required")
+	}
+	userID = strings.TrimSpace(userID)
+	return repo.SetWebmailPreferences(ctx, userID, prefs)
 }
 
 func messageFlagRead(flags json.RawMessage) bool {
