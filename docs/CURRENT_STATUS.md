@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang compound WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover compound WebDAV `If` condition lists,
+  asserting multiple conditions inside one list are evaluated conjunctively.
+- A matching ETag plus negated missing state token succeeds and preserves
+  omitted language tags; a matching ETag plus bare missing state token rejects
+  before body reads and leaves attempted language mutations unapplied.
+
 ## CalDAV/CardDAV xml:lang state-token WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover WebDAV `If` state-token conditions
   with the current no-lock-token-store semantics: bare state tokens fail and
