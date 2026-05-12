@@ -3532,6 +3532,87 @@ func TestHandlerProppatchRejectsMultiListIfHeaderBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsMalformedIfHeaderBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		ifHeader   string
+		wantDetail string
+	}{
+		{
+			name:       "line break",
+			ifHeader:   "(\n)",
+			wantDetail: "If header must not contain line breaks",
+		},
+		{
+			name:       "unterminated condition list",
+			ifHeader:   `(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]`,
+			wantDetail: "If header contains an unterminated condition list",
+		},
+		{
+			name:       "empty condition list",
+			ifHeader:   `()`,
+			wantDetail: "If header contains an empty condition list",
+		},
+		{
+			name:       "unsupported condition",
+			ifHeader:   `(bogus)`,
+			wantDetail: "If header contains an unsupported condition",
+		},
+		{
+			name:       "unterminated entity tag",
+			ifHeader:   `(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)`,
+			wantDetail: "If header contains an unterminated entity-tag",
+		},
+		{
+			name:       "unterminated state token",
+			ifHeader:   `(<opaquelocktoken:test)`,
+			wantDetail: "If header contains an unterminated state-token",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := newFakeDiscoveryStore()
+			store.calendars[0].NameLang = "ko-KR"
+			store.calendars[0].DescriptionLang = "fr"
+			body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname><C:calendar-description>Launch</C:calendar-description></D:prop></D:set></D:propertyupdate>`}
+			handler := NewHandler(store, fixedUser("user-1"))
+			req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+			req.Header.Set("If", tc.ifHeader)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+			}
+			if body.reads != 0 {
+				t.Fatalf("body reads = %d, want 0", body.reads)
+			}
+			if !strings.Contains(rec.Body.String(), tc.wantDetail) {
+				t.Fatalf("response missing %q: %s", tc.wantDetail, rec.Body.String())
+			}
+			calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+			if err != nil {
+				t.Fatalf("calendar lookup failed: %v", err)
+			}
+			if calendar.Name != "Work" || calendar.NameLang != "ko-KR" {
+				t.Fatalf("calendar name mutated despite malformed If header: %+v", calendar)
+			}
+			if calendar.Description != "Team calendar" || calendar.DescriptionLang != "fr" {
+				t.Fatalf("calendar description mutated despite malformed If header: %+v", calendar)
+			}
+			if store.lastCalendarUpdate.CalendarID != "" {
+				t.Fatalf("update request recorded despite malformed If header: %+v", store.lastCalendarUpdate)
+			}
+		})
+	}
+}
+
 func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) {
 	t.Parallel()
 

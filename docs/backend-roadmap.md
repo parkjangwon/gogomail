@@ -2253,7 +2253,10 @@ Target outcome:
       ETags reject before body reads. Multi-list WebDAV `If` coverage now
       asserts a later matching condition list can satisfy the precondition
       after an earlier stale list, while all-failed lists reject before body
-      reads.
+      reads. Malformed WebDAV `If` coverage now asserts parser errors return
+      HTTP 400 before body reads and before attempted language mutations,
+      including line breaks, unterminated lists/tokens, empty lists, and
+      unsupported conditions.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2640,7 +2643,10 @@ Target outcome:
       ETags reject before body reads. Multi-list WebDAV `If` coverage now
       asserts a later matching condition list can satisfy the precondition
       after an earlier stale list, while all-failed lists reject before body
-      reads.
+      reads. Malformed WebDAV `If` coverage now asserts parser errors return
+      HTTP 400 before body reads and before attempted language mutations,
+      including line breaks, unterminated lists/tokens, empty lists, and
+      unsupported conditions.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

@@ -1,14 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-220: CardDAV/CalDAV collection xml:lang multi-list If header audit
+## TASK-221: CardDAV/CalDAV collection xml:lang If header malformed syntax audit
 
 ### 배경
 
-TASK-219에서 WebDAV `If` condition-list 내부의 `Not` 부정 동작을 검증했다.
-RFC 4918 `If` 헤더는 여러 condition-list를 포함할 수 있고, relevant list
-중 하나라도 성공하면 전체 precondition이 성공한다. collection `PROPPATCH`
-경로에서 이 OR 동작이 `xml:lang` 보존과 body read 이전 실패 처리 모두에서
-유지되는지 확인한다.
+TASK-220에서 WebDAV `If` 헤더의 multi-list OR 동작을 검증했다. 이제
+collection `PROPPATCH`에서 malformed `If` 헤더가 HTTP 400으로 실패하고,
+XML body를 읽거나 `xml:lang` mutation을 적용하기 전에 차단되는지 확인한다.
 
 ### 구현 대상
 
@@ -20,14 +18,13 @@ RFC 4918 `If` 헤더는 여러 condition-list를 포함할 수 있고, relevant 
 
 ### 완료 조건
 
-- [x] CalDAV multi-list WebDAV `If` 헤더가 첫 list 실패 후 다음 list 성공 시 omitted `xml:lang`에서 기존 language tag를 보존한다.
-- [x] CardDAV multi-list WebDAV `If` 헤더가 첫 list 실패 후 다음 list 성공 시 omitted `xml:lang`에서 기존 language tag를 보존한다.
-- [x] CalDAV multi-list WebDAV `If` 헤더의 모든 relevant list가 실패하면 body 적용 전에 collection language mutation을 차단한다.
-- [x] CardDAV multi-list WebDAV `If` 헤더의 모든 relevant list가 실패하면 body 적용 전에 collection language mutation을 차단한다.
+- [x] CalDAV malformed WebDAV `If` 헤더 PROPPATCH가 400으로 실패하고 body 적용 전에 collection language mutation을 차단한다.
+- [x] CardDAV malformed WebDAV `If` 헤더 PROPPATCH가 400으로 실패하고 body 적용 전에 collection language mutation을 차단한다.
+- [x] CalDAV/CardDAV 테스트가 unsupported condition과 unterminated entity-tag 오류를 모두 포함한다.
 - [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-221: CardDAV/CalDAV collection xml:lang If header malformed syntax audit
+TASK-222: CardDAV/CalDAV collection xml:lang If header absolute URI tag audit
