@@ -188,6 +188,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - The compose footer now shows a compact initial send/delivery status after success while preserving the existing close timing and visual tone.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send success local-state cleanup (TASK-121, 2026-05-12, complete)
+- Completed send success local-state cleanup for user webmail beta.
+- Recent-recipient and follow-up local-state updates now live in `persistSuccessfulSendLocalState`.
+- Undo-countdown, immediate, and scheduled send success paths all call the same helper.
+- Send result preservation, draft cleanup, and close timing are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
