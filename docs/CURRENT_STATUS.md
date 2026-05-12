@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## DAV creation XML Content-Type validation (2026-05-13, complete)
+- CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now validate explicit
+  non-empty request-body `Content-Type` headers before XML parsing or collection creation.
+- Missing `Content-Type` remains accepted for client compatibility, while XML media types such as
+  `application/xml; charset=utf-8` continue through the existing success path.
+- Duplicate or malformed `Content-Type` headers return `400`; non-XML media types return `415`,
+  and regression tests verify no calendar/address book is created.
+
 ## DAV creation response cache-control (2026-05-13, complete)
 - CalDAV `MKCALENDAR` success responses and property-failure `C:mkcalendar-response`
   responses now include both `no-store` and RFC 4791-required `no-cache`.
