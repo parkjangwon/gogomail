@@ -331,26 +331,30 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
   }, []);
 
+  const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
+    const attachmentIds = readyAttachmentIds();
+    return {
+      intent: backendComposeIntent(intent),
+      ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
+      to: parseAddrs(toVal),
+      ...(ccVal.trim() && { cc: parseAddrs(ccVal) }),
+      ...(bccVal.trim() && { bcc: parseAddrs(bccVal) }),
+      subject: subjectVal,
+      text_body: bodyText,
+      ...(fromAddress && { from: fromAddress }),
+      ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+      ...(trackOpens && { track_opens: true }),
+      ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
+    };
+  }, [intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt]);
+
   const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       if (!toVal.trim() && !subjectVal.trim() && !bodyText.trim()) return;
       setSaveStatus('saving');
       try {
-        const attachmentIds = readyAttachmentIds();
-        const data = {
-          intent: backendComposeIntent(intent),
-          ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-          to: parseAddrs(toVal),
-          ...(ccVal.trim() && { cc: parseAddrs(ccVal) }),
-          ...(bccVal.trim() && { bcc: parseAddrs(bccVal) }),
-          subject: subjectVal,
-          text_body: bodyText,
-          ...(fromAddress && { from: fromAddress }),
-          ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
-          ...(trackOpens && { track_opens: true }),
-          ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
-        };
+        const data = buildDraftData(toVal, ccVal, bccVal, subjectVal, bodyText);
         if (draftIdRef.current) {
           await updateDraft(draftIdRef.current, data);
         } else {
@@ -364,7 +368,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         setSaveStatus('idle');
       }
     }, 3000);
-  }, [intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt]);
+  }, [buildDraftData]);
 
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -600,25 +604,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
     setSaveStatus('saving');
     try {
-      const attachmentIds = readyAttachmentIds();
-      const data = {
-        intent: backendComposeIntent(intent),
-        ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-        to: parseAddrs(to),
-        ...(cc.trim() && { cc: parseAddrs(cc) }),
-        ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
-        subject,
-        text_body: bodyText,
-        ...(fromAddress && { from: fromAddress }),
-        ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
-        ...(trackOpens && { track_opens: true }),
-        ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
-      };
+      const data = buildDraftData(to, cc, bcc, subject, bodyText);
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
       markDraftSaved();
     } catch { setSaveStatus('idle'); }
-  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt, markDraftSaved]);
+  }, [to, cc, bcc, subject, editor, buildDraftData, markDraftSaved]);
 
   const saveTemplate = () => {
     const name = templateSaveName.trim();
@@ -684,19 +675,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
     }
     const attachmentIds = readyAttachmentIds();
-    const draftData = {
-      intent: backendComposeIntent(intent),
-      ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-      to: parseAddrs(to),
-      ...(cc.trim() && { cc: parseAddrs(cc) }),
-      ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
-      subject: subject.trim(),
-      text_body: bodyText,
-      ...(fromAddress && { from: fromAddress }),
-      ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
-      ...(trackOpens && { track_opens: true }),
-      ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
-    };
+    const draftData = buildDraftData(to, cc, bcc, subject.trim(), bodyText);
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
       ...(cc.trim() && { cc: parseAddrs(cc) }),
@@ -1063,21 +1042,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               onClick={async () => {
                 const bodyText = editor?.getText() ?? '';
                 if (to.trim() || subject.trim() || bodyText.trim()) {
-                  const attachmentIds = readyAttachmentIds();
-                  const data = {
-                    intent: backendComposeIntent(intent),
-                    ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-                    to: parseAddrs(to),
-                    ...(cc.trim() && { cc: parseAddrs(cc) }),
-                    ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
-                    subject,
-                    text_body: bodyText,
-                    ...(editor && { html_body: editor.getHTML() }),
-                    ...(fromAddress && { from: fromAddress }),
-                    ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
-                    ...(trackOpens && { track_opens: true }),
-                    ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
-                  };
+                  const data = buildDraftData(to, cc, bcc, subject, bodyText);
                   try {
                     if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
                     else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
