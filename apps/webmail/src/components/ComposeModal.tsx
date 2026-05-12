@@ -1293,7 +1293,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   )}
                   <button
                     type="button"
-                    onClick={() => { setShowSendDropdown(false); setShowSchedule(true); }}
+                    onClick={() => {
+                      setShowSendDropdown(false);
+                      setShowSchedule(true);
+                      if (!scheduledAt) {
+                        setScheduledAt(new Date(Date.now() + 10 * 60000).toISOString().slice(0, 16));
+                      }
+                    }}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
@@ -1488,7 +1494,21 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               수신확인
             </label>
             {showSchedule && (
-              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+              <>
+                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                <button
+                  type="button"
+                  onClick={() => { setScheduledAt(''); setShowSchedule(false); }}
+                  style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+                >예약 해제</button>
+              </>
+            )}
+            {!showSchedule && scheduledAt && (
+              <button
+                type="button"
+                onClick={() => setScheduledAt('')}
+                style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+              >예약 해제</button>
             )}
           </div>
         </form>

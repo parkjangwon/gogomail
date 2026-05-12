@@ -84,6 +84,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Immediate and undo-countdown sends are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail scheduled-send UI stabilization (TASK-108, 2026-05-12, complete)
+- Completed scheduled-send UI state pass for user webmail beta.
+- Opening custom schedule now fills a default future time when no schedule exists.
+- Scheduled state can now be explicitly cleared from both custom and preset scheduled states.
+- Clearing schedule resets both `scheduledAt` and the custom input display state.
+- Existing preset scheduled-send behavior is preserved.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
