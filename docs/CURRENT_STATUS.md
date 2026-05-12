@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV auth and report stability hardening (2026-05-13, complete)
+- CalDAV/CardDAV Basic Auth now gates `X-Forwarded-Proto=https` on explicit
+  trusted proxy configuration, with env/YAML loading, validation, and runtime
+  resolver injection.
+- Unauthorized DAV responses now include the appropriate Basic challenge while
+  delegated authorization failures remain plain 403 responses.
+- CalDAV scheduling validation accepts `METHOD` only for scheduling payloads,
+  preserving stored calendar-object rejection of `METHOD`.
+- CardDAV address-book collections no longer advertise
+  `principal-property-search`; only addressbook query/multiget and configured
+  sync-collection reports are exposed there.
+
 ## CalDAV/CardDAV xml:lang resource-tag suffix WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover WebDAV `If` resource-tag prefixes
   with suffix text hidden before a final `>`.

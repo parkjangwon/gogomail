@@ -15,6 +15,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const maxConditionalIfHeaderBytes = 8192
+
 type calendarObjectLookupKey struct {
 	calendarID string
 	objectName string
@@ -154,6 +156,28 @@ func NewHandler(store DiscoveryStore, resolveUser UserResolver) *Handler {
 	return &Handler{Store: store, ResolveUser: resolveUser}
 }
 
+type caldavUnauthorizedChallenge interface {
+	WWWAuthenticate() string
+}
+
+func writeCalDAVUnauthorized(w http.ResponseWriter, err error) {
+	authorizeChallenge := calDAVWWWAuthenticate
+	if err != nil {
+		for e := err; e != nil; e = errors.Unwrap(e) {
+			if challenge, ok := e.(caldavUnauthorizedChallenge); ok {
+				if value := strings.TrimSpace(challenge.WWWAuthenticate()); value != "" {
+					authorizeChallenge = value
+				}
+				break
+			}
+		}
+		w.Header().Set("WWW-Authenticate", authorizeChallenge)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	http.Error(w, "unauthorized", http.StatusUnauthorized)
+}
+
 func QueryUserResolver(r *http.Request) (string, error) {
 	userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
 	if userID == "" {
@@ -178,7 +202,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/caldav/timezones/", http.StatusMovedPermanently)
 		return
 	}
-	if strings.HasPrefix(r.URL.Path, "/caldav/timezones/") && r.Method == MethodGet {
+	if strings.HasPrefix(r.URL.Path, "/caldav/timezones/") && (r.Method == MethodGet || r.Method == MethodHead) {
 		h.serveTimezone(w, r)
 		return
 	}
@@ -239,6 +263,9 @@ func (h *Handler) serveTimezone(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	w.WriteHeader(http.StatusOK)
+	if r.Method == MethodHead {
+		return
+	}
 	w.Write(vtimezone)
 }
 
@@ -389,7 +416,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return
 	}
 	actorUserID := userID
@@ -629,9 +656,16 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "caldav object not found", http.StatusNotFound)
 		return
 	}
-	if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
-		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
-		return
+	if ifMatch != "" {
+		ifMatchResult, err := ifMatchMatches(ifMatch, object.ETag)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !ifMatchResult {
+			http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+			return
+		}
 	}
 	if ifHeader != "" {
 		matches, err := webDAVIfHeaderMatches(ifHeader, object.ETag, r.URL.Path)
@@ -644,13 +678,20 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
-		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
-		return
+	if ifNoneMatch != "" {
+		ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, object.ETag, true)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if ifNoneMatchResult {
+			writeCalendarObjectNotModifiedHeaders(w, object)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 	}
-	if ifNoneMatchMatches(ifNoneMatch, object.ETag) {
-		writeCalendarObjectNotModifiedHeaders(w, object)
-		w.WriteHeader(http.StatusNotModified)
+	if ifUnmodifiedSince != "" && objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
+		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
 	if ifNoneMatch == "" && ifModifiedSince != "" && objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
@@ -713,9 +754,16 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		}
 		if ifMatch == "" && ifUnmodifiedSince == "" {
 			// If-None-Match-only exists. If object exists, ensure it is not rejected by matching etag.
-			if existed && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
-				http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
-				return
+			if existed && ifNoneMatch != "" {
+				ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, existing.ETag, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if ifNoneMatchResult {
+					http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
+					return
+				}
 			}
 			if ifHeader != "" {
 				matches, err := webDAVIfHeaderMatches(ifHeader, existing.ETag, r.URL.Path)
@@ -735,13 +783,27 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if existed {
-			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
-				http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
-				return
+			if ifNoneMatch != "" {
+				ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, existing.ETag, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if ifNoneMatchResult {
+					http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
+					return
+				}
 			}
-			if ifMatch != "" && !ifMatchMatches(ifMatch, existing.ETag) {
-				http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
-				return
+			if ifMatch != "" {
+				ifMatchResult, err := ifMatchMatches(ifMatch, existing.ETag)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if !ifMatchResult {
+					http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+					return
+				}
 			}
 			if ifHeader != "" {
 				matches, err := webDAVIfHeaderMatches(ifHeader, existing.ETag, r.URL.Path)
@@ -819,7 +881,7 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, "caldav user is not authenticated", http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return
 	}
 	actorUserID := userID
@@ -872,13 +934,27 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, object.ETag) {
-				http.Error(w, "caldav object if-none-match precondition failed", http.StatusPreconditionFailed)
-				return
+			if ifNoneMatch != "" {
+				ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, object.ETag, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if ifNoneMatchResult {
+					http.Error(w, "caldav object if-none-match precondition failed", http.StatusPreconditionFailed)
+					return
+				}
 			}
-			if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
-				http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
-				return
+			if ifMatch != "" {
+				ifMatchResult, err := ifMatchMatches(ifMatch, object.ETag)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if !ifMatchResult {
+					http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+					return
+				}
 			}
 			if ifHeader != "" {
 				matches, err := webDAVIfHeaderMatches(ifHeader, object.ETag, r.URL.Path)
@@ -994,13 +1070,27 @@ func (h *Handler) checkCalendarCollectionPreconditions(w http.ResponseWriter, r 
 			return "", false
 		}
 		if ifMatch != "" || ifNoneMatch != "" {
-			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
-				http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
-				return "", false
+			if ifNoneMatch != "" {
+				ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, etag, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return "", false
+				}
+				if ifNoneMatchResult {
+					http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
+					return "", false
+				}
 			}
-			if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
-				http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
-				return "", false
+			if ifMatch != "" {
+				ifMatchResult, err := ifMatchMatches(ifMatch, etag)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return "", false
+				}
+				if !ifMatchResult {
+					http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
+					return "", false
+				}
 			}
 		}
 		if ifHeader != "" {
@@ -1037,10 +1127,6 @@ func (h *Handler) checkCalendarCollectionCreatePreconditions(w http.ResponseWrit
 		return false
 	}
 	if !exists {
-		if ifMatch != "" || ifUnmodifiedSince != "" {
-			http.Error(w, "caldav calendar create precondition failed", http.StatusPreconditionFailed)
-			return false
-		}
 		if ifHeader != "" {
 			matches, err := webDAVIfHeaderMatches(ifHeader, "", r.URL.Path)
 			if err != nil {
@@ -1052,6 +1138,10 @@ func (h *Handler) checkCalendarCollectionCreatePreconditions(w http.ResponseWrit
 				return false
 			}
 		}
+		if ifMatch != "" || ifUnmodifiedSince != "" {
+			http.Error(w, "caldav calendar create precondition failed", http.StatusPreconditionFailed)
+			return false
+		}
 		return true
 	}
 	if ifMatch != "" || ifNoneMatch != "" || ifHeader != "" {
@@ -1060,13 +1150,27 @@ func (h *Handler) checkCalendarCollectionCreatePreconditions(w http.ResponseWrit
 			http.Error(w, "caldav calendar collection etag unavailable", http.StatusPreconditionFailed)
 			return false
 		}
-		if ifMatch != "" && !ifMatchMatches(ifMatch, etag) {
-			http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
-			return false
+		if ifMatch != "" {
+			ifMatchResult, err := ifMatchMatches(ifMatch, etag)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return false
+			}
+			if !ifMatchResult {
+				http.Error(w, "caldav calendar collection etag mismatch", http.StatusPreconditionFailed)
+				return false
+			}
 		}
-		if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
-			http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
-			return false
+		if ifNoneMatch != "" {
+			ifNoneMatchResult, err := ifNoneMatchMatches(ifNoneMatch, etag, false)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return false
+			}
+			if ifNoneMatchResult {
+				http.Error(w, "caldav calendar collection if-none-match precondition failed", http.StatusPreconditionFailed)
+				return false
+			}
 		}
 		if ifHeader != "" {
 			matches, err := webDAVIfHeaderMatches(ifHeader, etag, r.URL.Path)
@@ -1110,7 +1214,7 @@ func (h *Handler) resolveResourceRequest(w http.ResponseWriter, r *http.Request,
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return "", ResourcePath{}, "", AccessDecision{}, false
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
@@ -1183,10 +1287,23 @@ func conditionalIfHeaderValue(header http.Header) (string, error) {
 	if len(values) == 0 {
 		return "", nil
 	}
-	value := strings.TrimSpace(strings.Join(values, " "))
-	if strings.ContainsAny(value, "\r\n") {
-		return "", fmt.Errorf("If header must not contain line breaks")
+	totalLen := 0
+	trimmed := make([]string, len(values))
+	for i, value := range values {
+		value = strings.TrimSpace(value)
+		if strings.ContainsAny(value, "\r\n") {
+			return "", fmt.Errorf("If header must not contain line breaks")
+		}
+		if i > 0 {
+			totalLen++
+		}
+		totalLen += len(value)
+		if totalLen > maxConditionalIfHeaderBytes {
+			return "", fmt.Errorf("If header is too large")
+		}
+		trimmed[i] = value
 	}
+	value := strings.TrimSpace(strings.Join(trimmed, " "))
 	return value, nil
 }
 
@@ -1203,26 +1320,6 @@ func conditionalDateHeaderValue(header http.Header, name string) (string, error)
 		return "", fmt.Errorf("%s header must not contain line breaks", name)
 	}
 	return value, nil
-}
-
-func ifNoneMatchMatches(header string, etag string) bool {
-	header = strings.TrimSpace(header)
-	if header == "" || strings.ContainsAny(header, "\r\n") {
-		return false
-	}
-	if header == "*" {
-		return true
-	}
-	for _, candidate := range strings.Split(header, ",") {
-		candidate = strings.TrimSpace(candidate)
-		if strings.HasPrefix(candidate, "W/") {
-			candidate = strings.TrimSpace(strings.TrimPrefix(candidate, "W/"))
-		}
-		if candidate == etag {
-			return true
-		}
-	}
-	return false
 }
 
 func webDAVIfHeaderMatches(header string, currentETag string, currentPath string) (bool, error) {
@@ -1331,20 +1428,160 @@ func webDAVIfConditionListMatches(list string, currentETag string) (bool, error)
 	return true, nil
 }
 
-func ifMatchMatches(header string, etag string) bool {
-	header = strings.TrimSpace(header)
-	if header == "" || strings.ContainsAny(header, "\r\n") {
-		return false
+func ifNoneMatchMatches(header string, etag string, allowWeak bool) (bool, error) {
+	candidates, wildcard, err := parseHTTPEntityTagList(header, "If-None-Match")
+	if err != nil {
+		return false, err
 	}
-	if header == "*" {
-		return true
+	if wildcard {
+		return true, nil
 	}
-	for _, candidate := range strings.Split(header, ",") {
-		if strings.TrimSpace(candidate) == etag {
-			return true
+	current, err := parseEntityTag(etag)
+	if err != nil {
+		return false, nil
+	}
+	for _, candidate := range candidates {
+		if entityTagsMatch(current, candidate, allowWeak) {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
+}
+
+func ifMatchMatches(header string, etag string) (bool, error) {
+	candidates, wildcard, err := parseHTTPEntityTagList(header, "If-Match")
+	if err != nil {
+		return false, err
+	}
+	if wildcard {
+		return true, nil
+	}
+	current, err := parseEntityTag(etag)
+	if err != nil {
+		return false, nil
+	}
+	for _, candidate := range candidates {
+		if entityTagsMatch(current, candidate, false) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func entityTagsMatch(current entityTag, candidate entityTag, allowWeak bool) bool {
+	if !allowWeak && (current.weak || candidate.weak) {
+		return false
+	}
+	return current.value == candidate.value
+}
+
+type entityTag struct {
+	value string
+	weak  bool
+}
+
+func parseHTTPEntityTagList(header string, headerName string) ([]entityTag, bool, error) {
+	header = strings.TrimSpace(header)
+	if header == "" {
+		return nil, false, nil
+	}
+	if strings.ContainsAny(header, "\r\n") {
+		return nil, false, fmt.Errorf("%s header must not contain line breaks", headerName)
+	}
+	parts, err := splitHTTPList(header)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(parts) == 1 && strings.TrimSpace(parts[0]) == "*" {
+		return nil, true, nil
+	}
+	tags := make([]entityTag, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "*" {
+			return nil, false, fmt.Errorf("%s header contains an invalid entity-tag", headerName)
+		}
+		tag, err := parseEntityTag(part)
+		if err != nil {
+			return nil, false, fmt.Errorf("%s header contains an invalid entity-tag", headerName)
+		}
+		tags = append(tags, tag)
+	}
+	if len(tags) == 0 {
+		return nil, false, nil
+	}
+	return tags, false, nil
+}
+
+func parseEntityTag(value string) (entityTag, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return entityTag{}, fmt.Errorf("entity-tag is empty")
+	}
+	weak := false
+	if strings.HasPrefix(value, "W/") {
+		weak = true
+		value = strings.TrimSpace(value[2:])
+		if value == "" {
+			return entityTag{}, fmt.Errorf("entity-tag is weak with missing value")
+		}
+	}
+	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
+		return entityTag{}, fmt.Errorf("entity-tag must be quoted")
+	}
+	raw := value[1 : len(value)-1]
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '"' {
+			return entityTag{}, fmt.Errorf("entity-tag contains quote")
+		}
+		if raw[i] == '\r' || raw[i] == '\n' {
+			return entityTag{}, fmt.Errorf("entity-tag contains line break")
+		}
+		if raw[i] == '\\' {
+			i++
+			if i >= len(raw) {
+				return entityTag{}, fmt.Errorf("entity-tag contains invalid escaped character")
+			}
+			if raw[i] != '\\' && raw[i] != '"' {
+				return entityTag{}, fmt.Errorf("entity-tag contains invalid escaped character")
+			}
+		}
+	}
+	return entityTag{value: raw, weak: weak}, nil
+}
+
+func splitHTTPList(value string) ([]string, error) {
+	parts := make([]string, 0, 4)
+	start := 0
+	inQuote := false
+	escaped := false
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if c == '\\' {
+			escaped = true
+			continue
+		}
+		if c == '"' {
+			inQuote = !inQuote
+			continue
+		}
+		if c == ',' && !inQuote {
+			parts = append(parts, value[start:i])
+			start = i + 1
+		}
+	}
+	if escaped {
+		return nil, fmt.Errorf("entity-tag header is invalid")
+	}
+	if inQuote {
+		return nil, fmt.Errorf("entity-tag header is invalid")
+	}
+	parts = append(parts, value[start:])
+	return parts, nil
 }
 
 func objectNotModifiedSince(header string, updatedAt time.Time) bool {
@@ -1431,7 +1668,7 @@ func (h *Handler) serveReport(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
@@ -1549,7 +1786,7 @@ func (h *Handler) servePropfind(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
@@ -1634,7 +1871,7 @@ func (h *Handler) serveSchedulePost(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := resolve(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		writeCalDAVUnauthorized(w, err)
 		return
 	}
 	resource, err := ParseResourcePath(r.URL.Path)
@@ -1678,7 +1915,7 @@ func (h *Handler) serveScheduleDeliver(w http.ResponseWriter, r *http.Request, u
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
 		return
 	}
-	parsed, err := ParseICalendarObject(body)
+	parsed, err := ParseICalendarObjectForScheduling(body)
 	if err != nil {
 		http.Error(w, "invalid iCalendar object: "+err.Error(), http.StatusBadRequest)
 		return
@@ -1744,7 +1981,7 @@ func (h *Handler) serveScheduleSend(w http.ResponseWriter, r *http.Request, user
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
 		return
 	}
-	parsed, err := ParseICalendarObject(body)
+	parsed, err := ParseICalendarObjectForScheduling(body)
 	if err != nil {
 		http.Error(w, "invalid iCalendar object: "+err.Error(), http.StatusBadRequest)
 		return

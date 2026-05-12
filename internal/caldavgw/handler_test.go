@@ -118,6 +118,48 @@ func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 	}
 }
 
+func TestHandlerGetRejectsChallengeOnUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), func(*http.Request) (string, error) {
+		return "", newUnauthorizedChallengeError(fmt.Errorf("basic authentication is required"))
+	})
+	req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Basic realm="CalDAV"` {
+		t.Fatalf("WWW-Authenticate = %q, want %q", got, `Basic realm="CalDAV"`)
+	}
+	if !strings.Contains(rec.Body.String(), "basic authentication is required") {
+		t.Fatalf("response body missing challenge detail: %s", rec.Body.String())
+	}
+}
+
+func TestHandlerDeleteRejectsChallengeOnUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), func(*http.Request) (string, error) {
+		return "", newUnauthorizedChallengeError(fmt.Errorf("basic authentication is required"))
+	})
+	req := httptest.NewRequest(MethodDelete, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusUnauthorized, rec.Body.String())
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Basic realm="CalDAV"` {
+		t.Fatalf("WWW-Authenticate = %q, want %q", got, `Basic realm="CalDAV"`)
+	}
+	if !strings.Contains(rec.Body.String(), "basic authentication is required") {
+		t.Fatalf("response body missing challenge detail: %s", rec.Body.String())
+	}
+}
+
 func TestHandlerWellKnownCalDAVRedirectsToServiceRoot(t *testing.T) {
 	t.Parallel()
 
@@ -131,6 +173,41 @@ func TestHandlerWellKnownCalDAVRedirectsToServiceRoot(t *testing.T) {
 	}
 	if got := rec.Header().Get("Location"); got != "/caldav/?client=probe" {
 		t.Fatalf("Location = %q", got)
+	}
+}
+
+func TestHandlerTimezoneSupportsHeadWithoutBody(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	headReq := httptest.NewRequest(MethodHead, "/caldav/timezones/Asia/Seoul", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, headReq)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/calendar; charset=utf-8" {
+		t.Fatalf("HEAD content-type = %q, want text/calendar; charset=utf-8", got)
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=86400" {
+		t.Fatalf("HEAD cache-control = %q, want public, max-age=86400", got)
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("HEAD body length = %d, want 0", rec.Body.Len())
+	}
+
+	getReq := httptest.NewRequest(MethodGet, "/caldav/timezones/Asia/Seoul", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, getReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/calendar; charset=utf-8" {
+		t.Fatalf("GET content-type = %q, want text/calendar; charset=utf-8", got)
+	}
+	if !strings.Contains(rec.Body.String(), "BEGIN:VCALENDAR") {
+		t.Fatalf("GET timezone body missing VCALENDAR\n%s", rec.Body.String())
 	}
 }
 
@@ -1849,8 +1926,8 @@ func TestHandlerGetCalendarObjectHonorsIfUnmodifiedSince(t *testing.T) {
 			req.Header.Set("If-None-Match", store.objects[0].ETag)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
-			if rec.Code != http.StatusPreconditionFailed {
-				t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+			if rec.Code != http.StatusNotModified {
+				t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusNotModified, rec.Body.String())
 			}
 		})
 	}
@@ -2077,6 +2154,28 @@ func TestHandlerPutRejectsFailedWebDAVIfHeaderETag(t *testing.T) {
 
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
+func TestHandlerPutRejectsHugeIfHeaderBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	body := &readTrackingReader{data: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"}
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", body)
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If", "(["+strings.Repeat("a", maxConditionalIfHeaderBytes+10)+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header is too large") {
+		t.Fatalf("response did not explain oversized If rejection: %s", rec.Body.String())
 	}
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)
@@ -2519,6 +2618,33 @@ func TestHandlerMkcalendarRejectsMissingIfMatchStarBeforeBodyRead(t *testing.T) 
 	}
 	if _, err := handler.Store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
 		t.Fatal("calendar was created despite If-Match precondition")
+	}
+}
+
+func TestHandlerMkcalendarRejectsMalformedIfHeaderBeforeIfMatchPrecondition(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "33333333-3333-4333-8333-333333333333"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", body)
+	req.Header.Set("If-Match", "*")
+	req.Header.Set("If", "garbage ([\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header contains a malformed resource tag") {
+		t.Fatalf("body = %s, want malformed resource tag detail", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite malformed If header")
 	}
 }
 
@@ -4648,20 +4774,40 @@ func TestBuildVTIMEZONEKeepsCalendarPropertiesInsideCalendar(t *testing.T) {
 		t.Fatalf("buildVTIMEZONE returned error: %v", err)
 	}
 	text := string(body)
-	for _, want := range []string{
-		"BEGIN:VCALENDAR\r\n",
-		"BEGIN:VTIMEZONE\r\n",
-		"TZID:Asia/Seoul\r\n",
-		"END:VTIMEZONE\r\n",
-		"X-WR-CALDESC:Generated by gogomail CalDAV Timezone Service\r\n",
-		"END:VCALENDAR\r\n",
-	} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("VTIMEZONE body missing %q:\n%s", want, text)
+	checkpoints := []struct {
+		name   string
+		marker string
+	}{
+		{name: "calendar start", marker: "BEGIN:VCALENDAR\r\n"},
+		{name: "version", marker: "VERSION:2.0\r\n"},
+		{name: "calendar scale", marker: "CALSCALE:GREGORIAN\r\n"},
+		{name: "calendar method", marker: "METHOD:PUBLISH\r\n"},
+		{name: "vtimezone start", marker: "BEGIN:VTIMEZONE\r\n"},
+		{name: "timezone id", marker: "TZID:Asia/Seoul\r\n"},
+		{name: "vtimezone end", marker: "END:VTIMEZONE\r\n"},
+		{name: "calendar description", marker: "X-WR-CALDESC:Generated by gogomail CalDAV Timezone Service\r\n"},
+		{name: "calendar end", marker: "END:VCALENDAR\r\n"},
+	}
+	positions := make([]int, len(checkpoints))
+	for i, checkpoint := range checkpoints {
+		positions[i] = strings.Index(text, checkpoint.marker)
+		if positions[i] < 0 {
+			t.Fatalf("VTIMEZONE body missing %s (%q):\n%s", checkpoint.name, checkpoint.marker, text)
 		}
 	}
-	if strings.Index(text, "X-WR-CALDESC:") > strings.Index(text, "END:VCALENDAR") {
-		t.Fatalf("calendar property emitted after END:VCALENDAR:\n%s", text)
+	for i := 1; i < len(positions); i++ {
+		if positions[i] <= positions[i-1] {
+			t.Fatalf("VTIMEZONE markers are out of order: %s", text)
+		}
+	}
+	if positions[0] != 0 {
+		t.Fatalf("VTIMEZONE body does not start with BEGIN:VCALENDAR:\n%s", text)
+	}
+	if strings.Index(text, "X-LIC-LOCATION:") < 0 {
+		t.Fatalf("VTIMEZONE body missing X-LIC-LOCATION:\n%s", text)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(text), "END:VCALENDAR") {
+		t.Fatalf("VTIMEZONE body contains trailing bytes after END:VCALENDAR:\n%s", text)
 	}
 }
 
@@ -5138,6 +5284,13 @@ const minimalSchedulingICS = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogoma
 	"ORGANIZER:mailto:org@example.com\r\n" +
 	"ATTENDEE:mailto:user-1@example.com\r\n" +
 	"END:VEVENT\r\nEND:VCALENDAR\r\n"
+const minimalSchedulingICSRequestMethod = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//test//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\n" +
+	"UID:sched-test-uid-1234\r\n" +
+	"DTSTART:20260601T100000Z\r\nDTEND:20260601T110000Z\r\n" +
+	"SUMMARY:Test Meeting\r\n" +
+	"ORGANIZER:mailto:org@example.com\r\n" +
+	"ATTENDEE:mailto:user-1@example.com\r\n" +
+	"END:VEVENT\r\nEND:VCALENDAR\r\n"
 
 func TestHandlerSchedulingPostInboxDelivers(t *testing.T) {
 	t.Parallel()
@@ -5160,6 +5313,33 @@ func TestHandlerSchedulingPostInboxDelivers(t *testing.T) {
 	}
 	if store.delivered[0].UID != "sched-test-uid-1234" {
 		t.Errorf("UID = %q, want sched-test-uid-1234", store.delivered[0].UID)
+	}
+	if store.delivered[0].Method != ScheduleMethodRequest {
+		t.Fatalf("method = %q, want %q", store.delivered[0].Method, ScheduleMethodRequest)
+	}
+}
+
+func TestHandlerSchedulingPostInboxDeliversRequestMethod(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeSchedulingStore{}
+	handler := NewHandler(store, fixedUser("user-1"))
+	handler.IncludeScheduling = true
+
+	req := httptest.NewRequest(http.MethodPost, "/caldav/calendars/user-1/inbox/",
+		strings.NewReader(minimalSchedulingICSRequestMethod))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.delivered) != 1 {
+		t.Fatalf("delivered count = %d, want 1", len(store.delivered))
+	}
+	if store.delivered[0].Method != ScheduleMethodRequest {
+		t.Fatalf("method = %q, want %q", store.delivered[0].Method, ScheduleMethodRequest)
 	}
 }
 
@@ -5199,5 +5379,32 @@ func TestHandlerSchedulingPostOutboxSends(t *testing.T) {
 	}
 	if len(store.sent) != 1 {
 		t.Fatalf("sent count = %d, want 1", len(store.sent))
+	}
+	if store.sent[0].Method != ScheduleMethodRequest {
+		t.Fatalf("method = %q, want %q", store.sent[0].Method, ScheduleMethodRequest)
+	}
+}
+
+func TestHandlerSchedulingPostOutboxSendsRequestMethod(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeSchedulingStore{}
+	handler := NewHandler(store, fixedUser("user-1"))
+	handler.IncludeScheduling = true
+
+	req := httptest.NewRequest(http.MethodPost, "/caldav/calendars/user-1/outbox/",
+		strings.NewReader(minimalSchedulingICSRequestMethod))
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(store.sent))
+	}
+	if store.sent[0].Method != ScheduleMethodRequest {
+		t.Fatalf("method = %q, want %q", store.sent[0].Method, ScheduleMethodRequest)
 	}
 }

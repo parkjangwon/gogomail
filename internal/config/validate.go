@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/mail"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -44,6 +45,12 @@ func (c Config) Validate() error {
 	}
 	if c.CardDAVAllowInsecureAuth && strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 		return fmt.Errorf("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH must be false in production")
+	}
+	if err := validateTrustedProxies("GOGOMAIL_CALDAV_TRUSTED_PROXIES", c.CalDAVTrustedProxies); err != nil {
+		return err
+	}
+	if err := validateTrustedProxies("GOGOMAIL_CARDDAV_TRUSTED_PROXIES", c.CardDAVTrustedProxies); err != nil {
+		return err
 	}
 	if (c.SMTPTLSCertFile == "") != (c.SMTPTLSKeyFile == "") {
 		return fmt.Errorf("both SMTP TLS certificate and key files are required")
@@ -765,6 +772,23 @@ func validateRequiredBoundedNoCRLF(name string, value string, maxBytes int) erro
 		return fmt.Errorf("%s is required", name)
 	}
 	return validateBoundedNoCRLF(name, value, maxBytes)
+}
+
+func validateTrustedProxies(name string, values []string) error {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, err := netip.ParsePrefix(value); err == nil {
+			continue
+		}
+		if _, err := netip.ParseAddr(value); err == nil {
+			continue
+		}
+		return fmt.Errorf("%s contains invalid trusted proxy %q", name, value)
+	}
+	return nil
 }
 
 func validateS3CredentialNoWhitespace(name string, value string, maxBytes int, required bool) error {

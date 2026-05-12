@@ -86,6 +86,37 @@ func TestParseICalendarObjectRejectsInvalidObjects(t *testing.T) {
 	}
 }
 
+func TestParseICalendarObjectForSchedulingAllowsMethod(t *testing.T) {
+	t.Parallel()
+
+	for name, body := range map[string][]byte{
+		"method request": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"method reply":   []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nMETHOD:REPLY\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+		"method publish": []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			object, err := ParseICalendarObjectForScheduling(body)
+			if err != nil {
+				t.Fatalf("ParseICalendarObjectForScheduling returned error: %v", err)
+			}
+			if object.UID != "event-1@example.com" || object.Component != ComponentVEVENT {
+				t.Fatalf("object = %+v", object)
+			}
+		})
+	}
+}
+
+func TestParseICalendarObjectStillRejectsMethodInStoredObjectPaths(t *testing.T) {
+	t.Parallel()
+
+	body := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDTEND:20260506T020000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	if _, err := ParseICalendarObject(body); err == nil {
+		t.Fatal("ParseICalendarObject error = nil, want rejection")
+	}
+}
+
 func TestValidateUpsertObjectRequestCanDeriveMetadataFromICalendarBody(t *testing.T) {
 	t.Parallel()
 

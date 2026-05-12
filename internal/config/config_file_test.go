@@ -28,6 +28,14 @@ storage_s3_session_token: file-session
 storage_s3_force_path_style: true
 storage_s3_ca_cert_file: /etc/gogomail/s3-ca.pem
 storage_s3_insecure_skip_verify: true
+caldav_trust_forwarded_proto: false
+carddav_trust_forwarded_proto: false
+caldav_trusted_proxies:
+  - 127.0.0.1/8
+  - ::1
+carddav_trusted_proxies:
+  - 198.51.100.0/24
+  - 2001:db8::/32
 mailstore_root: /srv/gogomail
 local_recipients:
   - admin@example.com
@@ -54,6 +62,18 @@ submission_max_connections: 256
 	}
 	if !cfg.StorageS3ForcePathStyle || !cfg.StorageS3InsecureSkipVerify || cfg.StorageS3CACertFile != "/etc/gogomail/s3-ca.pem" {
 		t.Fatalf("S3 TLS/path overlay = force:%v insecure:%v ca:%q", cfg.StorageS3ForcePathStyle, cfg.StorageS3InsecureSkipVerify, cfg.StorageS3CACertFile)
+	}
+	if cfg.CalDAVTrustForwardedProto {
+		t.Fatal("CalDAVTrustForwardedProto = true, want false")
+	}
+	if cfg.CardDAVTrustForwardedProto {
+		t.Fatal("CardDAVTrustForwardedProto = true, want false")
+	}
+	if len(cfg.CalDAVTrustedProxies) != 2 || cfg.CalDAVTrustedProxies[0] != "127.0.0.1/8" || cfg.CalDAVTrustedProxies[1] != "::1" {
+		t.Fatalf("CalDAVTrustedProxies = %#v, want [127.0.0.1/8 ::1]", cfg.CalDAVTrustedProxies)
+	}
+	if len(cfg.CardDAVTrustedProxies) != 2 || cfg.CardDAVTrustedProxies[0] != "198.51.100.0/24" || cfg.CardDAVTrustedProxies[1] != "2001:db8::/32" {
+		t.Fatalf("CardDAVTrustedProxies = %#v, want [198.51.100.0/24 2001:db8::/32]", cfg.CardDAVTrustedProxies)
 	}
 	if len(cfg.StorageBackendCompatLabels) != 2 || cfg.StorageBackendCompatLabels[0] != "local" || cfg.StorageBackendCompatLabels[1] != "nfs" {
 		t.Fatalf("compat labels = %#v", cfg.StorageBackendCompatLabels)

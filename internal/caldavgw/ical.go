@@ -29,6 +29,14 @@ type BusyPeriod struct {
 }
 
 func ParseICalendarObject(body []byte) (ICalendarObject, error) {
+	return parseICalendarObject(body, false)
+}
+
+func ParseICalendarObjectForScheduling(body []byte) (ICalendarObject, error) {
+	return parseICalendarObject(body, true)
+}
+
+func parseICalendarObject(body []byte, allowMethod bool) (ICalendarObject, error) {
 	if _, err := StrongETag(body); err != nil {
 		return ICalendarObject{}, err
 	}
@@ -42,7 +50,7 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 	if err := validateICalendarBounds(cal.Component); err != nil {
 		return ICalendarObject{}, err
 	}
-	if err := validateICalendarRootSemantics(cal.Component); err != nil {
+	if err := validateICalendarRootSemantics(cal.Component, allowMethod); err != nil {
 		return ICalendarObject{}, err
 	}
 	var found []calendarComponentObject
@@ -80,7 +88,7 @@ func ParseICalendarObject(body []byte) (ICalendarObject, error) {
 	return found[0].ICalendarObject, nil
 }
 
-func validateICalendarRootSemantics(root *ical.Component) error {
+func validateICalendarRootSemantics(root *ical.Component, allowMethod bool) error {
 	if len(root.Props[ical.PropVersion]) != 1 {
 		return fmt.Errorf("VCALENDAR must contain exactly one VERSION property")
 	}
@@ -101,8 +109,11 @@ func validateICalendarRootSemantics(root *ical.Component) error {
 	if strings.TrimSpace(productID) == "" {
 		return fmt.Errorf("VCALENDAR PRODID must not be empty")
 	}
-	if len(root.Props[ical.PropMethod]) > 0 {
+	if !allowMethod && len(root.Props[ical.PropMethod]) > 0 {
 		return fmt.Errorf("VCALENDAR calendar object resource must not contain METHOD")
+	}
+	if allowMethod && len(root.Props[ical.PropMethod]) > 1 {
+		return fmt.Errorf("VCALENDAR must contain at most one METHOD property")
 	}
 	return nil
 }

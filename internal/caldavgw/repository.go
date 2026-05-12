@@ -2137,7 +2137,7 @@ func ValidateDeliverSchedulingMessageRequest(req DeliverSchedulingMessageRequest
 	if len(req.ICSPayload) > MaxCalendarObjectBytes {
 		return DeliverSchedulingMessageRequest{}, "", fmt.Errorf("ICS payload exceeds maximum size")
 	}
-	parsed, err := ParseICalendarObject(req.ICSPayload)
+	parsed, err := ParseICalendarObjectForScheduling(req.ICSPayload)
 	if err != nil {
 		return DeliverSchedulingMessageRequest{}, "", err
 	}
@@ -2176,7 +2176,7 @@ func ValidateSendSchedulingMessageRequest(req SendSchedulingMessageRequest) (Sen
 	if len(req.ICSPayload) > MaxCalendarObjectBytes {
 		return SendSchedulingMessageRequest{}, "", fmt.Errorf("ICS payload exceeds maximum size")
 	}
-	parsed, err := ParseICalendarObject(req.ICSPayload)
+	parsed, err := ParseICalendarObjectForScheduling(req.ICSPayload)
 	if err != nil {
 		return SendSchedulingMessageRequest{}, "", err
 	}
