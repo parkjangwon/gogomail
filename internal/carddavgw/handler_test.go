@@ -1162,6 +1162,80 @@ func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:displayname>Team</D:displayname>
+      <C:unsupported>value</C:unsupported>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" {
+		t.Fatalf("address book name = %q, want unchanged Personal", book.Name)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<C:unsupported></C:unsupported>",
+		"HTTP/1.1 403 Forbidden",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:remove><D:prop><D:displayname/></D:prop></D:remove>
+  <D:set><D:prop><C:addressbook-description>People</C:addressbook-description></D:prop></D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Description != "" {
+		t.Fatalf("address book description = %q, want unchanged empty", book.Description)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 403 Forbidden",
+		"<C:addressbook-description></C:addressbook-description>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH protected response missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
@@ -1348,7 +1422,6 @@ func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
 		{name: "cross user", userID: "user-2", target: "/carddav/addressbooks/user-1/personal/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
 		{name: "object target", userID: "user-1", target: "/carddav/addressbooks/user-1/personal/contact-1.vcf", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
 		{name: "home target", userID: "user-1", target: "/carddav/addressbooks/user-1/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Personal</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
-		{name: "invalid body", userID: "user-1", target: "/carddav/addressbooks/user-1/personal/", body: `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`, want: http.StatusBadRequest},
 	}
 	for _, tc := range tests {
 		tc := tc

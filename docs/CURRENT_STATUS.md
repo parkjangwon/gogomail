@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV PROPPATCH property failure multistatus (2026-05-13, complete)
+- CardDAV `PROPPATCH` parser가 unsupported property와 protected `displayname` remove 시도를
+  일반 parse error 또는 silent skip으로 처리하지 않고 request metadata로 보존하도록 했다.
+- unsupported/protected property가 포함되면 repository update를 호출하지 않아 atomicity를 유지하고,
+  `207 Multi-Status`에서 해당 property는 `403 Forbidden`, 의존 mutable property는
+  `424 Failed Dependency`로 반환한다.
+
 ## WebDAV If header conditional support (2026-05-13, complete)
 - CalDAV/CardDAV object read/write/delete 경로가 WebDAV `If` header의 ETag condition list를 평가하도록 보강했다.
 - CalDAV calendar collection 및 CardDAV address-book collection의 PROPPATCH/DELETE/create precondition 경로도

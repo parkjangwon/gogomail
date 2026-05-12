@@ -279,6 +279,24 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	href, err := AddressBookCollectionPath(userID, resource.AddressBookID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(patch.Unsupported) > 0 || len(patch.Protected) > 0 {
+		body, err := BuildMultiStatusXML([]MultiStatusResponse{proppatchFailureResponse(href, patch)})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusMultiStatus)
+		_, _ = w.Write(body)
+		return
+	}
 	book, err := store.UpdateAddressBookProperties(r.Context(), UpdateAddressBookRequest{
 		UserID:        userID,
 		ActorUserID:   actorUserID,
@@ -295,7 +313,7 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	href, err := AddressBookCollectionPath(userID, book.ID)
+	href, err = AddressBookCollectionPath(userID, book.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1229,6 +1247,28 @@ func proppatchResponse(href string, book AddressBook, properties []XMLName) Mult
 		}
 	}
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
+}
+
+func proppatchFailureResponse(href string, patch ProppatchRequest) MultiStatusResponse {
+	propStats := make([]PropStatus, 0, 2)
+	forbidden := make([]PropertyResult, 0, len(patch.Protected)+len(patch.Unsupported))
+	for _, prop := range patch.Protected {
+		forbidden = append(forbidden, PropertyResult{Name: prop})
+	}
+	for _, prop := range patch.Unsupported {
+		forbidden = append(forbidden, PropertyResult{Name: prop})
+	}
+	if len(forbidden) > 0 {
+		propStats = append(propStats, PropStatus{StatusCode: http.StatusForbidden, Properties: forbidden})
+	}
+	if len(patch.Properties) > 0 {
+		failed := make([]PropertyResult, 0, len(patch.Properties))
+		for _, prop := range patch.Properties {
+			failed = append(failed, PropertyResult{Name: prop})
+		}
+		propStats = append(propStats, PropStatus{StatusCode: http.StatusFailedDependency, Properties: failed})
+	}
+	return MultiStatusResponse{Href: href, PropStats: propStats}
 }
 
 func depthHeaderValue(header http.Header) (string, error) {
