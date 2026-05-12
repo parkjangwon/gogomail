@@ -1833,18 +1833,15 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	if component == unsupportedCalendarQueryComponent {
 		return []MultiStatusResponse{}, nil
 	}
-	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(
-		ctx,
-		userID,
-		resource.CalendarID,
-		limit+1,
-		component,
-		includeCalendarData || report.TimeRange != nil,
-	)
+	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(ctx, userID, resource.CalendarID, limit+1, component, includeCalendarData)
+	if report.TimeRange != nil {
+		objects, err = h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+		componentFilteredInStore = false
+	}
 	if err != nil {
 		return nil, err
 	}
-	if len(objects) > limit {
+	if report.TimeRange == nil && len(objects) > limit {
 		return nil, TruncatedResultsError{Operation: "calendar-query limit"}
 	}
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
@@ -1861,6 +1858,9 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 			if !matches {
 				continue
 			}
+		}
+		if len(responses) >= limit {
+			return nil, TruncatedResultsError{Operation: "calendar-query limit"}
 		}
 		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 		if err != nil {

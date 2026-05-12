@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV calendar-query time-range limit 정합성 (2026-05-12, complete)
+- `calendar-query` time-range 필터가 있을 때 객체 조회 limit을 필터 전에 적용해
+  matching 객체를 놓치거나 잘못된 truncation을 반환할 수 있던 경로를 수정했다.
+- time-range 쿼리는 iCalendar 본문 기반 필터를 먼저 통과한 최종 응답에 대해 limit 초과를 판단하므로
+  RFC 4791 결과 제한 의미에 더 가깝게 동작한다.
+- 선행 non-match 객체와 후행 match 객체, `nresults=1` 조합을 회귀 테스트로 고정했다.
+
 ## CardDAV sync-collection 고속화/RFC truncation 정합성 (2026-05-12, complete)
 - `internal/carddavgw`의 증분 `sync-collection` 경로에서 변경 목록을 읽은 뒤 변경 객체마다
   `LookupContactObject`를 반복하던 N+1 조회를 `ListAddressBookChangesWithObjectsSince` 조인 경로로 제거했다.
