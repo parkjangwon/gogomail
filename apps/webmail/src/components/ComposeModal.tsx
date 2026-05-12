@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
@@ -97,63 +98,6 @@ function invalidRecipientAddresses(...values: string[]): string[] {
 
 function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
   return intent === 'reply_all' ? 'reply' : intent;
-}
-
-function sendStatusLabel(status?: string): string {
-  switch (status) {
-    case 'sent':
-      return '발송 요청 완료';
-    case 'scheduled':
-      return '예약 등록';
-    case 'failed':
-      return '발송 실패';
-    case 'queued':
-    case undefined:
-      return '대기열 등록';
-    default:
-      return status;
-  }
-}
-
-function deliveryStatusLabel(status?: string): string {
-  switch (status) {
-    case 'delivered':
-      return '배송 완료';
-    case 'deferred':
-      return '재시도 중';
-    case 'failed':
-      return '배송 실패';
-    case 'pending':
-    case undefined:
-      return '배송 대기';
-    default:
-      return status;
-  }
-}
-
-function bounceStatusLabel(status?: string): string {
-  switch (status) {
-    case 'bounced':
-      return '반송됨';
-    case 'complained':
-      return '스팸 신고';
-    case 'none':
-    case '':
-    case undefined:
-      return '';
-    default:
-      return status;
-  }
-}
-
-function formatSendResultLabel(result: SendMessageResult | null): string {
-  if (!result) return '';
-  const bounce = bounceStatusLabel(result.bounce_status);
-  return [
-    `전송: ${sendStatusLabel(result.send_status)}`,
-    `배송: ${deliveryStatusLabel(result.delivery_status)}`,
-    bounce && `반송: ${bounce}`,
-  ].filter(Boolean).join(' · ');
 }
 
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
