@@ -411,7 +411,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Cache-Control", "no-store, no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusMultiStatus)
 		_, _ = w.Write(body)
@@ -449,7 +449,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Location", location)
-	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Cache-Control", "no-store, no-cache")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusCreated)
 }

@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## DAV creation response cache-control (2026-05-13, complete)
+- CalDAV `MKCALENDAR` success responses and property-failure `C:mkcalendar-response`
+  responses now include both `no-store` and RFC 4791-required `no-cache`.
+- CardDAV extended `MKCOL` success responses and RFC 5689-style property-failure
+  `D:mkcol-response` responses now include both `no-store` and `no-cache`.
+
 ## CalDAV/CardDAV creation body strictness (2026-05-13, complete)
 - CardDAV address-book `MKCOL` now requires an extended body containing
   `DAV:resourcetype` with both `DAV:collection` and `CARDDAV:addressbook`; empty,
