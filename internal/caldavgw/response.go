@@ -13,6 +13,7 @@ import (
 
 const (
 	CalendarServerNamespace = "http://calendarserver.org/ns/"
+	AppleICalendarNamespace = "http://apple.com/ns/icalendar/"
 )
 
 var (
@@ -35,8 +36,8 @@ var (
 	PropCalendarData                  = XMLName{Space: CalDAVNamespace, Local: "calendar-data"}
 	PropCalendarDescription           = XMLName{Space: CalDAVNamespace, Local: "calendar-description"}
 	PropCalendarColor                 = XMLName{Space: CalendarServerNamespace, Local: "calendar-color"}
-	PropCalendarSlug                 = XMLName{Space: "http://apple.com/ns/icalendar/", Local: "calendar-slug"}
-	PropCalendarTimezone             = XMLName{Space: CalDAVNamespace, Local: "calendar-timezone"}
+	PropCalendarSlug                  = XMLName{Space: AppleICalendarNamespace, Local: "calendar-slug"}
+	PropCalendarTimezone              = XMLName{Space: CalDAVNamespace, Local: "calendar-timezone"}
 	PropSupportedCalendarComponentSet = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-component-set"}
 	PropSupportedCalendarData         = XMLName{Space: CalDAVNamespace, Local: "supported-calendar-data"}
 	PropMaxResourceSize               = XMLName{Space: CalDAVNamespace, Local: "max-resource-size"}
@@ -373,6 +374,7 @@ func BuildSyncCollectionTruncatedXML() ([]byte, error) {
 			{Name: xml.Name{Local: "xmlns:D"}, Value: DAVNamespace},
 			{Name: xml.Name{Local: "xmlns:C"}, Value: CalDAVNamespace},
 			{Name: xml.Name{Local: "xmlns:CS"}, Value: CalendarServerNamespace},
+			{Name: xml.Name{Local: "xmlns:I"}, Value: AppleICalendarNamespace},
 		},
 	}
 	if err := enc.EncodeToken(root); err != nil {
@@ -400,6 +402,7 @@ func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]b
 			{Name: xml.Name{Local: "xmlns:D"}, Value: DAVNamespace},
 			{Name: xml.Name{Local: "xmlns:C"}, Value: CalDAVNamespace},
 			{Name: xml.Name{Local: "xmlns:CS"}, Value: CalendarServerNamespace},
+			{Name: xml.Name{Local: "xmlns:I"}, Value: AppleICalendarNamespace},
 		},
 	}
 	if err := enc.EncodeToken(root); err != nil {
@@ -663,6 +666,8 @@ func prefixedName(name XMLName) (string, error) {
 		return "C:" + name.Local, nil
 	case CalendarServerNamespace:
 		return "CS:" + name.Local, nil
+	case AppleICalendarNamespace:
+		return "I:" + name.Local, nil
 	default:
 		return "", fmt.Errorf("unsupported XML namespace %q for %s", name.Space, name.Local)
 	}

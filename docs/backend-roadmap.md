@@ -4555,6 +4555,8 @@ Target outcome:
   support, timezone service endpoint, and time-range interpretation are complete.
   `calendar-query` time-range response limits are applied after time-range
   matching so non-matching recent objects do not hide older matching events.
+  `MKCALENDAR`/`PROPPATCH` now pass parsed calendar timezone/slug properties
+  through to storage and return them in WebDAV multistatus responses.
 - Directory/Identity expansion for delegated relationships, effective
   resource booking policy beyond the initial principal tables, resolver, alias
   lookup, bounded membership expansion, company-scoped delegation relationship
