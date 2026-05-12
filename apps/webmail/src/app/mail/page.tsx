@@ -715,8 +715,8 @@ export default function MailPage() {
           }
           break;
         }
-        case 'c':
-          if (!composeContext) { e.preventDefault(); openCompose({ intent: 'new' }); }
+        case 's':
+          if (!composeContext && !selectedMessageId) { e.preventDefault(); openCompose({ intent: 'new' }); }
           break;
         case 'n': {
           // Next unread message
