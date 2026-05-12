@@ -304,6 +304,9 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if hasProp {
+					return fmt.Errorf("PROPPATCH set must contain exactly one DAV:prop")
+				}
 				hasProp = true
 				if err := parseProppatchProp(dec, tok.Name, true, req, properties); err != nil {
 					return err
@@ -335,6 +338,9 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				if hasProp {
+					return fmt.Errorf("PROPPATCH remove must contain exactly one DAV:prop")
+				}
 				hasProp = true
 				if err := parseProppatchProp(dec, tok.Name, false, req, properties); err != nil {
 					return err

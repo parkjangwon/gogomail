@@ -301,12 +301,14 @@ func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
 	}
 }
 
-func TestParseProppatchCollectsMultiplePropBlocksPerInstruction(t *testing.T) {
+func TestParseProppatchCollectsMultipleInstructions(t *testing.T) {
 	t.Parallel()
 
 	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
   <D:set>
     <D:prop><D:displayname>Product</D:displayname></D:prop>
+  </D:set>
+  <D:set>
     <D:prop><CS:calendar-color>#445566</CS:calendar-color></D:prop>
   </D:set>
   <D:remove>
@@ -328,6 +330,35 @@ func TestParseProppatchCollectsMultiplePropBlocksPerInstruction(t *testing.T) {
 	}
 	if len(req.Properties) != 3 {
 		t.Fatalf("properties = %+v", req.Properties)
+	}
+}
+
+func TestParseProppatchRejectsMultiplePropChildrenPerInstruction(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"set": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set>
+    <D:prop><D:displayname>Product</D:displayname></D:prop>
+    <D:prop><C:calendar-description>Launch dates</C:calendar-description></D:prop>
+  </D:set>
+</D:propertyupdate>`,
+		"remove": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:remove>
+    <D:prop><C:calendar-description/></D:prop>
+    <D:prop><C:calendar-timezone/></D:prop>
+  </D:remove>
+</D:propertyupdate>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseProppatch(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseProppatch error = nil, want duplicate DAV:prop rejection")
+			}
+		})
 	}
 }
 
@@ -418,7 +449,7 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
   <D:remove></D:remove>
   <D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set>
 </D:propertyupdate>`,
-		"unsupported child shape":          `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+		"unsupported child shape": `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
 		"unsupported set child": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set><D:prop><D:displayname>Product</D:displayname></D:prop><E:unsupported/></D:set>
 </D:propertyupdate>`,

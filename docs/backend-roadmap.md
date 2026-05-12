@@ -2214,7 +2214,9 @@ Target outcome:
       required to be empty name markers; text values or nested XML children are
       rejected as malformed requests before mutation or property-failure
       handling. Empty `DAV:set` and `DAV:remove` instructions are rejected even
-      when sibling instructions contain valid properties.
+      when sibling instructions contain valid properties, and each instruction
+      now accepts exactly one `DAV:prop` child per the RFC 4918 `set (prop)` /
+      `remove (prop)` grammar.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2562,7 +2564,9 @@ Target outcome:
       are required to be empty name markers; text values or nested XML children
       are rejected as malformed requests before mutation or property-failure
       handling. Empty `DAV:set` and `DAV:remove` instructions are rejected even
-      when sibling instructions contain valid properties.
+      when sibling instructions contain valid properties, and each instruction
+      now accepts exactly one `DAV:prop` child per the RFC 4918 `set (prop)` /
+      `remove (prop)` grammar.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
