@@ -397,6 +397,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - No code behavior changed.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:datetime-local` in `apps/webmail` passed.
 
+## Webmail compose helper command naming (TASK-149, 2026-05-12, complete)
+- Completed compose helper command naming documentation.
+- `docs/WEBMAIL_ROADMAP.md` now identifies `pnpm test:compose-helpers` as the canonical command for compose helper runtime checks.
+- `pnpm test:datetime-local` remains documented as a compatibility alias.
+- Existing package scripts and code behavior are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

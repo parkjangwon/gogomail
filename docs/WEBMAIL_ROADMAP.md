@@ -13,7 +13,8 @@ suite before committing:
 
 - `go test ./...` from the repository root.
 - `pnpm type-check` from `apps/webmail`.
-- `pnpm test:compose-helpers` from `apps/webmail` when compose helper copy,
+- Use `pnpm test:compose-helpers` as the canonical command from `apps/webmail`
+  when compose helper copy,
   scheduled-send datetime formatting, send button labels, or close-save prompts
   are touched.
 - `pnpm test:datetime-local` remains as a compatibility alias for the same
