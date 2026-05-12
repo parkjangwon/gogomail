@@ -182,6 +182,24 @@ pnpm dev       # http://localhost:3000
 pnpm build     # production build
 ```
 
+### Development seed data
+
+For local beta testing with Docker PostgreSQL:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up -d postgres
+./scripts/seed_dev_beta.sh
+```
+
+Default seeded webmail login:
+
+```text
+email: pjw@parkjw.org
+password: pass1234
+```
+
+The seed data includes Korean users, primary addresses, system folders, hierarchical organizations, CardDAV contacts, and mailbox messages for admin-console and user-webmail smoke testing.
+
 ---
 
 ## Development

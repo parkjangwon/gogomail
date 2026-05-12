@@ -3,6 +3,12 @@ import { cookies } from 'next/headers';
 
 const BACKEND = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhost:8080';
 const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
+const MAIL_BASE_PREFIXES = new Set(['addressbooks', 'contacts', 'directory']);
+
+function backendBaseFor(pathStr: string): '/api/mail' | '/api/v1' {
+  const [prefix] = pathStr.split('/');
+  return MAIL_BASE_PREFIXES.has(prefix) ? '/api/mail' : '/api/v1';
+}
 
 async function handler(
   req: NextRequest,
@@ -18,7 +24,7 @@ async function handler(
   }
 
   const search = reqUrl.search;
-  const url = `${BACKEND}/api/v1/${pathStr}${search}`;
+  const url = `${BACKEND}${backendBaseFor(pathStr)}/${pathStr}${search}`;
 
   const headers = new Headers();
   // Read token from httpOnly cookie — never from client-supplied Authorization header

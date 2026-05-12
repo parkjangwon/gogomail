@@ -1,6 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail org chart + API routing fixes, hierarchical org data loaded)
+Last updated: 2026-05-12 (Webmail beta stabilization started)
+
+## Webmail beta stabilization (TASK-098, 2026-05-12, complete)
+- Goal: prepare user webmail for beta service while preserving the current visual design direction.
+- Completed first priority: API base-path stabilization between the Next.js webmail proxy and Go backend routes.
+- The backend intentionally has both older `/api/v1/...` Mail API routes and newer `/api/mail/...` CardDAV/Directory routes.
+- Webmail proxy must route feature areas explicitly instead of assuming a single backend base path.
+- Address books, contacts, and directory/org-tree requests now reach backend `/api/mail/...`; existing message/folder/search Mail API requests continue reaching `/api/v1/...`.
+- OrgPickerModal now defaults to the user's actual organization and expands its parent chain, without changing visual design.
+- Developer beta seed data is available in `scripts/seed_dev_data.sql`, with a Docker-friendly runner in `scripts/seed_dev_beta.sh`.
+- The seed covers Korean users, primary addresses, system folders, hierarchical organizations, CardDAV contacts, and mailbox messages for webmail/admin console smoke testing.
+- Development database target: `gogomail-postgres-dev` container from `docker/docker-compose.dev.yml`.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL

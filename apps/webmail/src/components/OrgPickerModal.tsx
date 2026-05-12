@@ -213,7 +213,8 @@ export function OrgPickerModal({
         // Build parent chain from user's org to root
         const toExpand = new Set<string>();
         if (userOrgId) {
-          let current = units.find((u) => u.id === userOrgId);
+          const userOrg = units.find((u) => u.id === userOrgId) ?? null;
+          let current = userOrg;
           while (current && current.parent_id) {
             const parent = units.find((u) => u.id === current!.parent_id);
             if (parent) {
@@ -223,7 +224,13 @@ export function OrgPickerModal({
               break;
             }
           }
-          setSelectedOrg(current || null);
+          if (userOrg && units.some((u) => u.parent_id === userOrg.id)) {
+            toExpand.add(userOrg.id);
+          }
+          setSelectedOrg(userOrg);
+        } else {
+          units.filter((u) => !u.parent_id).forEach((u) => toExpand.add(u.id));
+          setSelectedOrg(units.find((u) => !u.parent_id) ?? null);
         }
 
         setExpandedIds(toExpand);
