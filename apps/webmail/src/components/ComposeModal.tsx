@@ -686,6 +686,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       text_body: bodyText,
       ...(fromAddress && { from: fromAddress }),
       ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+      ...(trackOpens && { track_opens: true }),
     };
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
@@ -715,7 +716,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } else {
       let sendDelay = 5;
       try { sendDelay = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { sendDelay?: number }).sendDelay ?? 5); } catch { /* */ }
-      const canUseDraftSend = !trackOpens;
+      const canUseDraftSend = true;
       if (canUseDraftSend) {
         setSending(true);
         try {

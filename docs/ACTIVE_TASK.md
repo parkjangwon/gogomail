@@ -503,6 +503,49 @@ TASK-111: 사용자 웹메일 베타 안정화 — 수신확인 draft-send parit
 
 ---
 
+## ✅ TASK-111: 사용자 웹메일 베타 안정화 — 수신확인 draft-send parity 검토
+
+**STATUS: COMPLETE**
+
+### 배경
+
+TASK-110에서 draft-send 계약은 안전한 조건에서만 사용하도록 연결했다.
+남은 gap은 수신확인(`track_opens`)이다. direct send는 `track_opens`를 지원하지만 draft 저장/전송 계약은 이를 보존하지 않아, 추적 전송은 direct send로 fallback해야 했다.
+
+### 구현 대상
+
+- `internal/mailservice/draft_contract.go`
+- `internal/mailservice/service.go`
+- `internal/mailservice/service_test.go`
+- `internal/maildb/drafts.go`
+- `apps/webmail/src/lib/api.ts`
+- `apps/webmail/src/components/ComposeModal.tsx`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] draft 저장 계약이 `track_opens`를 표현한다.
+- [x] draft DB 저장이 `track_opens`를 보존한다.
+- [x] draft-send가 저장된 `track_opens`를 `SendText`에 전달한다.
+- [x] 프론트 draft payload가 수신확인 상태를 저장한다.
+- [x] 수신확인 전송도 예약 전송이 아니면 draft-send 경로를 사용할 수 있다.
+- [x] 예약 전송은 기존 direct send를 유지한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-112: 사용자 웹메일 베타 안정화 — 예약 전송 draft 계약 확장 검토
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**

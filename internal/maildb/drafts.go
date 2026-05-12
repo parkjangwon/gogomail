@@ -23,6 +23,7 @@ type DraftForSend struct {
 	Subject         string
 	TextBody        string
 	AttachmentIDs   []string
+	TrackOpens      bool
 }
 
 func (r *Repository) GetDraftForSend(ctx context.Context, userID string, draftID string) (DraftForSend, error) {
@@ -41,7 +42,8 @@ SELECT
   cc_addrs,
   bcc_addrs,
   subject,
-  COALESCE(draft_text_body, '')
+  COALESCE(draft_text_body, ''),
+  COALESCE((flags->>'track_opens')::boolean, false)
 FROM messages
 WHERE user_id = $1
   AND id = $2
@@ -61,6 +63,7 @@ LIMIT 1`
 		&bccJSON,
 		&draft.Subject,
 		&draft.TextBody,
+		&draft.TrackOpens,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return DraftForSend{}, fmt.Errorf("draft %q not found", draftID)
@@ -194,7 +197,7 @@ INSERT INTO messages (
   NULLIF($5, '')::uuid, $6,
   $7, $8, $9,
   $10::jsonb, $11::jsonb, $12::jsonb,
-  $13, $14, '', '{"read":true}'::jsonb, 'draft'
+  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean), 'draft'
 ) RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body`
 
@@ -216,6 +219,7 @@ INSERT INTO messages (
 		string(bccJSON),
 		req.TextBody,
 		now,
+		req.TrackOpens,
 	).Scan(
 		&draft.ID,
 		&draft.MessageID,
@@ -281,7 +285,8 @@ SET source_message_id = NULLIF($3, '')::uuid,
     bcc_addrs = $10::jsonb,
     draft_text_body = $11,
     draft_updated_at = $12,
-    updated_at = $12
+    updated_at = $12,
+    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean)
 WHERE user_id = $1
   AND id = $2
   AND status = 'draft'
@@ -304,6 +309,7 @@ RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
 		string(bccJSON),
 		req.TextBody,
 		now,
+		req.TrackOpens,
 	).Scan(
 		&draft.ID,
 		&draft.MessageID,

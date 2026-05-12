@@ -269,6 +269,7 @@ export interface DraftData {
   bcc?: { address: string; name?: string }[];
   subject: string;
   text_body: string;
+  track_opens?: boolean;
 }
 
 export function saveDraft(data: DraftData): Promise<{ draft: { id: string } }> {

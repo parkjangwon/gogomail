@@ -14,6 +14,7 @@ type SaveDraftRequest struct {
 	Subject         string
 	TextBody        string
 	AttachmentIDs   []string
+	TrackOpens      bool
 }
 
 type CreateAttachmentUploadRequest struct {

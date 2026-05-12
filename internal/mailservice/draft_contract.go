@@ -19,6 +19,7 @@ type SaveDraftRequest struct {
 	Subject         string             `json:"subject"`
 	TextBody        string             `json:"text_body"`
 	AttachmentIDs   []string           `json:"attachment_ids,omitempty"`
+	TrackOpens      bool               `json:"track_opens,omitempty"`
 }
 
 func ValidateSaveDraftRequest(req SaveDraftRequest) error {
