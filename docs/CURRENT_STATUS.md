@@ -158,6 +158,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Draft-send handler tests now reject unexpected request bodies and unknown query keys before dispatch.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send OpenAPI contract (TASK-117, 2026-05-12, complete)
+- Completed OpenAPI contract pass for draft-save and draft-send beta contracts.
+- `ComposeRequest` now documents `track_opens` and explains draft-save preservation for draft-send.
+- `ComposeRequest` keeps `scheduled_at` documented as a preserved draft-send option.
+- OpenAPI contract tests now verify `DraftSave` reuses `ComposeRequest`.
+- OpenAPI contract tests now verify `POST /drafts/{id}/send` remains bodyless.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
