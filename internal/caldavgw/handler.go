@@ -403,6 +403,20 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	invalidProperties := invalidMKCalendarProperties(req)
+	if len(req.Unsupported) > 0 || len(invalidProperties) > 0 {
+		body, err := BuildMKCalendarResponseXML(mkcalendarFailurePropStats(req, invalidProperties))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusMultiStatus)
+		_, _ = w.Write(body)
+		return
+	}
 	var calendarID string
 	var slug *string
 	if _, err := ValidateCalendarPathID(resource.CalendarID); err != nil {
@@ -438,6 +452,82 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusCreated)
+}
+
+func invalidMKCalendarProperties(req MKCalendarRequest) []XMLName {
+	var invalid []XMLName
+	for _, property := range req.Properties {
+		switch property {
+		case PropDisplayName:
+			if strings.TrimSpace(req.DisplayName) != "" {
+				if _, err := ValidateCalendarName(req.DisplayName); err != nil {
+					invalid = append(invalid, PropDisplayName)
+				}
+			}
+		case PropCalendarDescription:
+			if _, err := ValidateCalendarDescription(req.Description); err != nil {
+				invalid = append(invalid, PropCalendarDescription)
+			}
+		case PropCalendarColor:
+			if _, err := ValidateCalendarColor(req.Color); err != nil {
+				invalid = append(invalid, PropCalendarColor)
+			}
+		case PropCalendarSlug:
+			if req.Slug != nil {
+				if _, err := NormalizeSlug(*req.Slug); err != nil {
+					invalid = append(invalid, PropCalendarSlug)
+				}
+			}
+		case PropCalendarTimezone:
+			if req.Timezone != nil {
+				if _, err := NormalizeTimezone(*req.Timezone); err != nil {
+					invalid = append(invalid, PropCalendarTimezone)
+				}
+			}
+		}
+	}
+	return invalid
+}
+
+func mkcalendarFailurePropStats(req MKCalendarRequest, invalidProperties []XMLName) []PropStatus {
+	stats := make([]PropStatus, 0, 3)
+	failed := make(map[XMLName]struct{}, len(req.Unsupported)+len(invalidProperties))
+	if len(req.Unsupported) > 0 {
+		unsupported := make([]PropertyResult, 0, len(req.Unsupported))
+		for _, name := range req.Unsupported {
+			unsupported = append(unsupported, PropertyResult{Name: name})
+			failed[name] = struct{}{}
+		}
+		sortPropertyResults(unsupported)
+		stats = append(stats, PropStatus{StatusCode: http.StatusForbidden, Properties: unsupported})
+	}
+	if len(invalidProperties) > 0 {
+		invalid := make([]PropertyResult, 0, len(invalidProperties))
+		status := PropStatus{StatusCode: http.StatusConflict}
+		for _, name := range invalidProperties {
+			invalid = append(invalid, PropertyResult{Name: name})
+			failed[name] = struct{}{}
+			if name == PropCalendarTimezone {
+				status.Error = XMLName{Space: CalDAVNamespace, Local: "valid-calendar-data"}
+				status.ResponseDescription = "calendar-timezone is not supported by this server"
+			}
+		}
+		sortPropertyResults(invalid)
+		status.Properties = invalid
+		stats = append(stats, status)
+	}
+	dependencies := make([]PropertyResult, 0, len(req.Properties))
+	for _, name := range req.Properties {
+		if _, ok := failed[name]; ok {
+			continue
+		}
+		dependencies = append(dependencies, PropertyResult{Name: name})
+	}
+	if len(dependencies) > 0 {
+		sortPropertyResults(dependencies)
+		stats = append(stats, PropStatus{StatusCode: http.StatusFailedDependency, Properties: dependencies})
+	}
+	return stats
 }
 
 func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {

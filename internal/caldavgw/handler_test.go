@@ -2207,6 +2207,81 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarRejectsUnsupportedPropertyAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set>
+    <D:prop>
+      <D:displayname>Project Calendar</D:displayname>
+      <C:unknown>unsupported</C:unknown>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite unsupported MKCALENDAR property")
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<C:mkcalendar-response",
+		"<C:unknown></C:unknown>",
+		"HTTP/1.1 403 Forbidden",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerMkcalendarRejectsInvalidPropertyAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set>
+    <D:prop>
+      <D:displayname>Project Calendar</D:displayname>
+      <C:calendar-timezone>No/Such_Zone</C:calendar-timezone>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite invalid MKCALENDAR property")
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<C:mkcalendar-response",
+		"<C:calendar-timezone></C:calendar-timezone>",
+		"HTTP/1.1 409 Conflict",
+		"<C:valid-calendar-data></C:valid-calendar-data>",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerMkcalendarRejectsExistingCalendar(t *testing.T) {
 	t.Parallel()
 
