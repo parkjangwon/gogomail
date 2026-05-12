@@ -7,8 +7,9 @@ import {
   renameDriveNode, trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
   downloadDriveNode, uploadDriveFile, createDriveShareLink, listDriveShareLinks, revokeDriveShareLink,
 } from '@/lib/api';
+import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import {
-  FolderIcon, DocumentIcon, ArrowUpTrayIcon, FolderPlusIcon,
+  FolderIcon, ArrowUpTrayIcon, FolderPlusIcon,
   EllipsisVerticalIcon, ArrowDownTrayIcon, LinkIcon, PencilIcon,
   TrashIcon, XMarkIcon, ArrowPathIcon, ChevronRightIcon, ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
@@ -23,17 +24,6 @@ function formatBytes(bytes: number): string {
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(iso));
-}
-
-function mimeIcon(node: DriveNode): React.ReactNode {
-  if (node.node_type === 'folder') return <FolderSolid style={{ width: '36px', height: '36px', color: '#f59e0b' }} />;
-  const m = node.mime_type ?? '';
-  if (m.startsWith('image/')) return <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: 'var(--color-accent-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🖼</div>;
-  if (m === 'application/pdf') return <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📄</div>;
-  if (m.includes('spreadsheet') || m.includes('excel') || m.includes('csv')) return <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📊</div>;
-  if (m.includes('word') || m.includes('document')) return <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📝</div>;
-  if (m.includes('zip') || m.includes('archive') || m.includes('compressed')) return <div style={{ width: '36px', height: '36px', borderRadius: '4px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📦</div>;
-  return <DocumentIcon style={{ width: '36px', height: '36px', color: 'var(--color-text-tertiary)' }} />;
 }
 
 interface BreadcrumbItem { id: string; name: string; }
@@ -380,7 +370,7 @@ export function DriveView() {
                     onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)'; }}
                   >
-                    <div style={{ flexShrink: 0 }}>{mimeIcon(node)}</div>
+                    <div style={{ flexShrink: 0 }}><DriveNodeIcon node={node} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
@@ -505,7 +495,7 @@ export function DriveView() {
                       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)'; }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                        {mimeIcon(node)}
+                        <DriveNodeIcon node={node} />
                         <div style={{ position: 'relative' }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); setMenuNodeId(menuNodeId === node.id ? null : node.id); }}
