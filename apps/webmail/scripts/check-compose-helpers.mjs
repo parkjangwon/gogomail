@@ -12,4 +12,4 @@ assert.equal(composeCloseSavePrompt(true), '예약 설정을 포함해 임시저
 assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }), '예약 전송');
 assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }), '예약됨 ✓');
 
-console.log('compose helper runtime checks passed');
+console.log('compose datetime, send button, and close-save helper checks passed');
