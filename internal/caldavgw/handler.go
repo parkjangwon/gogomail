@@ -2055,8 +2055,9 @@ func responseForProperties(href string, propfind PropfindRequest, props []Proper
 }
 
 func proppatchResponse(href string, calendar Calendar, properties []XMLName) MultiStatusResponse {
-	results := make([]PropertyResult, 0, len(properties))
-	for _, prop := range properties {
+	uniqueProperties := uniqueXMLNames(properties)
+	results := make([]PropertyResult, 0, len(uniqueProperties))
+	for _, prop := range uniqueProperties {
 		switch prop {
 		case PropDisplayName:
 			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Name}, Found: true})
@@ -2086,13 +2087,30 @@ func proppatchFailureResponse(href string, patch ProppatchRequest) MultiStatusRe
 		propStats = append(propStats, PropStatus{StatusCode: http.StatusForbidden, Properties: forbidden})
 	}
 	if len(patch.Properties) > 0 {
-		failed := make([]PropertyResult, 0, len(patch.Properties))
-		for _, prop := range patch.Properties {
+		uniqueProperties := uniqueXMLNames(patch.Properties)
+		failed := make([]PropertyResult, 0, len(uniqueProperties))
+		for _, prop := range uniqueProperties {
 			failed = append(failed, PropertyResult{Name: prop})
 		}
 		propStats = append(propStats, PropStatus{StatusCode: http.StatusFailedDependency, Properties: failed})
 	}
 	return MultiStatusResponse{Href: href, PropStats: propStats}
+}
+
+func uniqueXMLNames(properties []XMLName) []XMLName {
+	if len(properties) < 2 {
+		return properties
+	}
+	seen := make(map[XMLName]struct{}, len(properties))
+	unique := make([]XMLName, 0, len(properties))
+	for _, prop := range properties {
+		if _, ok := seen[prop]; ok {
+			continue
+		}
+		seen[prop] = struct{}{}
+		unique = append(unique, prop)
+	}
+	return unique
 }
 
 func (h *Handler) reportResponses(ctx context.Context, userID string, resource ResourcePath, depth Depth, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {

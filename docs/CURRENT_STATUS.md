@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH duplicate property response semantics (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` handlers preserve document-order final mutation
+  behavior for repeated mutable properties such as calendar and address-book
+  descriptions.
+- Success responses and failed-dependency `propstat` groups now report each
+  repeated mutable property name once, while parser limits still count every
+  occurrence.
+- Handler regressions cover duplicate set/remove/set and duplicate dependency
+  failure paths in both gateways.
+
 ## CalDAV/CardDAV PROPPATCH aggregate property limit (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` now count properties across the whole
   `propertyupdate` request instead of resetting the limit for each `DAV:prop`
