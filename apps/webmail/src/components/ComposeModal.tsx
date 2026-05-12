@@ -600,6 +600,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
   function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
+    if (sending || sent) return;
+    if (sendCountdown !== null) {
+      setError('이미 전송 대기 중입니다. 취소 후 다시 전송해 주세요.');
+      return;
+    }
     if (!to.trim()) {
       setError('받는 사람 주소를 입력하세요.');
       return;
