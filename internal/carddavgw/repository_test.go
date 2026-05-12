@@ -346,6 +346,25 @@ func TestValidateUpdateAddressBookRequest(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateAddressBookRequestPreservesNilLanguageWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	name := "Team"
+	description := "Launch contacts"
+	req, _, _, err := ValidateUpdateAddressBookRequest(UpdateAddressBookRequest{
+		UserID:        "user-1",
+		AddressBookID: "book-1",
+		Name:          &name,
+		Description:   &description,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateAddressBookRequest returned error: %v", err)
+	}
+	if req.NameLang != nil || req.DescriptionLang != nil {
+		t.Fatalf("langs = name %#v description %#v, want nil", req.NameLang, req.DescriptionLang)
+	}
+}
+
 func TestValidateUpdateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

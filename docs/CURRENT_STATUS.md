@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang repository nil-preservation (2026-05-13, complete)
+- PostgreSQL integration coverage now verifies omitted `xml:lang` values do not
+  erase existing collection language tags during repository updates.
+- CalDAV covers unrelated color updates plus displayname/description text-only
+  updates; CardDAV covers displayname/description text-only updates.
+- PROPPATCH parsing now distinguishes absent `xml:lang` from explicit
+  `xml:lang=""`, and repository update validation preserves nil language
+  pointers so text-only updates keep existing tags.
+
 ## CalDAV/CardDAV xml:lang postgres constraint coverage (2026-05-13, complete)
 - Optional PostgreSQL integration tests now bypass application validation with
   raw SQL and verify migration 0097 rejects invalid collection language tags.
