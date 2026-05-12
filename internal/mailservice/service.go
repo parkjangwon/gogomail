@@ -1548,6 +1548,7 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 		TextBody:        req.TextBody,
 		AttachmentIDs:   req.AttachmentIDs,
 		TrackOpens:      req.TrackOpens,
+		ScheduledAt:     req.ScheduledAt,
 	})
 }
 
@@ -2308,6 +2309,7 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		TextBody:        draft.TextBody,
 		AttachmentIDs:   draft.AttachmentIDs,
 		TrackOpens:      draft.TrackOpens,
+		ScheduledAt:     draft.ScheduledAt,
 	})
 	if err != nil {
 		return SendTextResult{}, err
