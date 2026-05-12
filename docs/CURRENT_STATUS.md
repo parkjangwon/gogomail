@@ -270,6 +270,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visual design and send behavior are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send options menu accessibility (TASK-132, 2026-05-12, complete)
+- Completed send-options menu item accessibility pass for user webmail beta.
+- The send-options trigger now references the opened menu through `aria-controls`.
+- The dropdown menu has a stable id and `role=menu`.
+- Scheduled-send choices, send-and-archive, and custom-date actions now expose `role=menuitem` and descriptive accessibility names.
+- Existing visual design and click behavior are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
