@@ -398,6 +398,9 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	if !h.checkCalendarCollectionCreatePreconditions(w, r, userID, Calendar{}, false) {
 		return
 	}
+	if ok := validateDAVXMLContentType(w, r, "MKCALENDAR"); !ok {
+		return
+	}
 	req, err := ParseMKCalendar(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -452,6 +455,40 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store, no-cache")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusCreated)
+}
+
+func validateDAVXMLContentType(w http.ResponseWriter, r *http.Request, method string) bool {
+	if r.ContentLength == 0 {
+		return true
+	}
+	values := r.Header.Values("Content-Type")
+	if len(values) == 0 {
+		return true
+	}
+	if len(values) > 1 {
+		http.Error(w, method+" Content-Type must be specified at most once", http.StatusBadRequest)
+		return false
+	}
+	value := strings.TrimSpace(values[0])
+	if strings.ContainsAny(value, "\r\n") {
+		http.Error(w, method+" Content-Type must not contain line breaks", http.StatusBadRequest)
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		http.Error(w, method+" Content-Type is invalid", http.StatusBadRequest)
+		return false
+	}
+	if !isXMLMediaType(mediaType) {
+		http.Error(w, method+" Content-Type must be application/xml or text/xml", http.StatusUnsupportedMediaType)
+		return false
+	}
+	return true
+}
+
+func isXMLMediaType(mediaType string) bool {
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	return mediaType == "application/xml" || mediaType == "text/xml" || strings.HasSuffix(mediaType, "+xml")
 }
 
 func invalidMKCalendarProperties(req MKCalendarRequest) []XMLName {

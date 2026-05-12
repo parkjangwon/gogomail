@@ -2193,6 +2193,7 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
     </D:prop>
   </D:set>
 </C:mkcalendar>`))
+	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -2215,6 +2216,53 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	}
 	if calendar.Slug == nil || *calendar.Slug != "project-calendar" {
 		t.Fatalf("calendar = %+v", calendar)
+	}
+}
+
+func TestHandlerMkcalendarRejectsNonXMLContentTypeBeforeCreate(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop><D:displayname>Calendar</D:displayname></D:prop></D:set></C:mkcalendar>`}
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite non-XML MKCALENDAR Content-Type")
+	}
+}
+
+func TestHandlerMkcalendarRejectsDuplicateContentTypeBeforeCreate(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop><D:displayname>Calendar</D:displayname></D:prop></D:set></C:mkcalendar>`}
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", body)
+	req.Header.Add("Content-Type", "application/xml")
+	req.Header.Add("Content-Type", "application/xml")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created despite duplicate MKCALENDAR Content-Type")
 	}
 }
 
