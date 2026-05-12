@@ -5175,3 +5175,12 @@ Next focus areas:
 - The development seed now bootstraps `고구마컴퍼니`, `parkjw.org`, the beta login user `pjw@parkjw.org / pass1234`, the user's primary address, and the fixed Inbox/Sent/Drafts/Trash folders before loading rich webmail/admin data.
 - The seed now creates system folders for all 16 auxiliary beta users, not only the first six, so directory/admin testing has more complete mailbox fixtures.
 - Verification: `./scripts/seed_dev_beta.sh` now completes against the Docker PostgreSQL service with 17 users, 16 contacts, and 7 inbox messages. `go test ./...` and `pnpm type-check` in `apps/webmail` pass. Next target: backend and webmail frontend smoke tests.
+
+## Webmail beta smoke hardening (TASK-164, 2026-05-12, complete)
+- Smoke testing found three beta-readiness issues: stale folder IDs could keep the UI pointed at deleted seed folders, message flag PATCH failed due to a PostgreSQL placeholder/type issue, and org/addressbook fixtures needed to cover the beta flows more completely.
+- The development seed now uses the backend-created canonical system folders first, migrates old fixed-folder message references, and removes obsolete fixed seed folders when safe.
+- Organization fixtures now include all 21 internal beta users in both the hierarchical `organizations`/`users.org_id` path and the legacy `organization_members` path used by older admin views.
+- Address book fixtures now include the full internal user directory (20 internal contacts) plus an additional `외부 협력사` address book with 4 partner contacts containing phone, organization, title, and notes.
+- Webmail now recovers from stale active folder IDs by selecting a valid Inbox once folders load. The `directory/users` backend handler now supports the same dev `user_id` fallback as org-tree while still using JWT claims in authenticated mode.
+- Mail flag updates now use correctly numbered PostgreSQL parameters and `COALESCE(flags, '{}'::jsonb)` for single-message, bulk-message, and bulk-thread flag mutations.
+- Verification so far: `go test ./...` passes after the flag-update SQL fix. Seed message fixtures now upsert back to the canonical Inbox so repeated smoke tests restore the expected 7-message inbox.

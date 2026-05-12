@@ -467,20 +467,36 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
-		if !rejectUnknownQueryKeys(w, r, "q", "limit") {
-			return
-		}
-		if tokenManager == nil {
-			writeError(w, http.StatusServiceUnavailable, "directory not available")
-			return
-		}
-		claims, ok := claimsFromRequest(w, r, tokenManager)
-		if !ok {
+		if !rejectUnknownQueryKeys(w, r, "q", "limit", "user_id") {
 			return
 		}
 		if handler.directoryRepo == nil {
 			writeError(w, http.StatusServiceUnavailable, "directory not available")
 			return
+		}
+		var companyID, domainID string
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			companyID = claims.CompanyID
+			domainID = claims.DomainID
+		} else {
+			userID, ok := userIDFromRequest(w, r, nil)
+			if !ok {
+				return
+			}
+			principal, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
+				ID:   userID,
+				Kind: directory.PrincipalKindUser,
+			})
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "directory lookup failed")
+				return
+			}
+			companyID = principal.CompanyID
+			domainID = principal.DomainID
 		}
 		q := r.URL.Query().Get("q")
 		limit := 50
@@ -493,7 +509,8 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			limit = 200
 		}
 		principals, err := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
-			DomainID:   claims.DomainID,
+			CompanyID:  companyID,
+			DomainID:   domainID,
 			Kinds:      []string{directory.PrincipalKindUser},
 			Query:      q,
 			ActiveOnly: true,

@@ -140,11 +140,13 @@ export default function MailPage() {
   const { folders, messages, setMessages, foldersLoading, messagesLoading, hasMore, loadingMore, loadMore, adjustUnread, refresh, refreshing } =
     useMailList(activeFolderId);
 
-  // Set default folder to inbox UUID once folders are loaded
+  // Set default folder to inbox UUID once folders are loaded, and recover from stale saved IDs.
   useEffect(() => {
-    if (activeFolderId || folders.length === 0) return;
+    if (folders.length === 0 || activeFolderId.startsWith('__')) return;
     const inbox = folders.find((f) => f.system_type === 'inbox') ?? folders[0];
-    if (inbox) setActiveFolderId(inbox.id);
+    if (!activeFolderId || !folders.some((f) => f.id === activeFolderId)) {
+      if (inbox) setActiveFolderId(inbox.id);
+    }
   }, [folders, activeFolderId]);
 
   // Virtual folder message loading
