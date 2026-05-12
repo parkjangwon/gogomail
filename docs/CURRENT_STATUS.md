@@ -479,6 +479,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing close-save behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail close-save button aria label helper (TASK-160, 2026-05-12, complete)
+- Completed close-save button accessibility label helper extraction for user webmail beta.
+- Added `composeCloseSaveButtonAriaLabel` for idle and saving close-save states.
+- ComposeModal now uses the helper for the close-save button accessibility name.
+- Added `tsc` contract fixtures and runtime assertions for idle/saving accessibility labels.
+- Existing close-save behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

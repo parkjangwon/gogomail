@@ -9,6 +9,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
+import { composeCloseSaveButtonAriaLabel } from '@/lib/composeCloseSaveButtonAriaLabel';
 import { composeCloseSaveButtonLabel } from '@/lib/composeCloseSaveButtonLabel';
 import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
@@ -355,6 +356,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     uploading: sendButtonUploading,
   });
   const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt);
+  const closeSaveButtonAriaLabel = composeCloseSaveButtonAriaLabel(closeSaveInProgress);
   const closeSaveButtonLabel = composeCloseSaveButtonLabel(closeSaveInProgress);
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
@@ -1142,7 +1144,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <span id="compose-close-save-title" style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{closeSavePrompt}</span>
             <button
               type="button"
-              aria-label="임시저장 후 작성창 닫기"
+              aria-label={closeSaveButtonAriaLabel}
               disabled={closeSaveInProgress}
               onClick={() => { void saveDraftAndClose(); }}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
