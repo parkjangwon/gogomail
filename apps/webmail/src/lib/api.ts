@@ -418,6 +418,7 @@ export function sendMessage(data: SendMessageRequest): Promise<void> {
 }
 
 export interface ContactSuggestion {
+  type?: string;
   display_name: string;
   email: string;
 }
