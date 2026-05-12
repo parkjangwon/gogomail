@@ -2262,6 +2262,9 @@ Target outcome:
       body reads. State-token `If` coverage now documents the no-lock-store
       semantics: bare state tokens reject before body reads, while negated
       state tokens allow text-only updates and preserve omitted language tags.
+      Compound WebDAV `If` coverage now asserts multiple conditions inside one
+      list are conjunctive for both omitted-language success and pre-body-read
+      rejection.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2657,6 +2660,9 @@ Target outcome:
       body reads. State-token `If` coverage now documents the no-lock-store
       semantics: bare state tokens reject before body reads, while negated
       state tokens allow text-only updates and preserve omitted language tags.
+      Compound WebDAV `If` coverage now asserts multiple conditions inside one
+      list are conjunctive for both omitted-language success and pre-body-read
+      rejection.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
