@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## Drive drag-and-drop / folder upload (2026-05-12, complete)
+- Added frontend drag-and-drop support in `apps/webmail/src/components/DriveView.tsx`:
+  - Node cards now support moving files/folders by dragging to a folder card.
+  - Folder cards expose drag target highlighting during internal move operations.
+  - Browser-drop uploads now parse `DataTransferItem` entries and handle recursive directory traversal.
+  - Relative paths from dropped folders are kept to create intermediate folders before file upload.
+- Added `moveDriveNode` helper in `apps/webmail/src/lib/api.ts` to call backend move endpoint.
+- Folder path resolution now checks existing folders from backend before creating intermediates, preventing duplicate
+  folders during recursive directory uploads.
+- Existing design language and toolbar flow is preserved (no visual theme rework).
+- Drag-over upload/drop target behavior and folder move/upload paths are now aligned for in-place DnD usage.
+
 ## Drive upload contract fix (2026-05-12, in progress)
 - Fixed Drive upload session contract mismatch in webmail frontend (`apps/webmail/src/lib/api.ts`):
   - `size` -> `declared_size`

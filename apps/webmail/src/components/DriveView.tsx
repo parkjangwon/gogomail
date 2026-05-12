@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DriveNode, DriveUsage, DriveShareLink,
   listDriveNodes, listTrashedDriveNodes, getDriveUsage, createDriveFolder,
-  renameDriveNode, trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
+  renameDriveNode, moveDriveNode, trashDriveNode, restoreDriveNode, deleteDriveNodePermanently,
   downloadDriveNode, uploadDriveFile, createDriveShareLink, listDriveShareLinks, revokeDriveShareLink,
 } from '@/lib/api';
 import { DriveNodeIcon } from '@/lib/driveNodeIcon';
@@ -27,6 +27,124 @@ function formatDate(iso: string): string {
 }
 
 interface BreadcrumbItem { id: string; name: string; }
+
+const DRIVE_NODE_DRAG_MIME = 'application/x-gogomail-drive-node';
+
+interface DroppedFileEntry {
+  file: File;
+  relativePath: string;
+}
+
+type FileSystemEntryLike = {
+  isFile: boolean;
+  isDirectory: boolean;
+  name: string;
+  fullPath?: string;
+  file: (cb: (file: File) => void, errCb?: (err: DOMException) => void) => void;
+  createReader: () => {
+    readEntries: (
+      cb: (entries: FileSystemEntryLike[]) => void,
+      errCb?: (err: DOMException) => void,
+    ) => void;
+  };
+};
+
+type DirectoryReaderLike = {
+  readEntries: (
+    cb: (entries: FileSystemEntryLike[]) => void,
+    errCb?: (err: DOMException) => void,
+  ) => void;
+};
+
+function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
+  const raw = dataTransfer.getData(DRIVE_NODE_DRAG_MIME);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { nodeId?: string };
+    return parsed.nodeId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isDriveNodeDrag(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_MIME);
+}
+
+function normalizeDroppedPath(path: string): string {
+  return path.replace(/[\\/]+/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
+async function readAllEntries(reader: DirectoryReaderLike): Promise<FileSystemEntryLike[]> {
+  const entries: FileSystemEntryLike[] = [];
+  while (true) {
+    const chunk = await new Promise<FileSystemEntryLike[]>((resolve, reject) => {
+      try {
+        reader.readEntries(resolve, (err) => reject(err));
+      } catch (err) {
+        reject(err as DOMException);
+      }
+    });
+    if (!chunk.length) break;
+    entries.push(...chunk);
+  }
+  return entries;
+}
+
+function readFileFromEntry(entry: FileSystemEntryLike): Promise<File> {
+  return new Promise((resolve, reject) => {
+    entry.file((file) => resolve(file), (err) => reject(err));
+  });
+}
+
+async function collectDroppedFilesFromEntry(entry: FileSystemEntryLike, basePath: string, out: DroppedFileEntry[]) {
+  if (entry.isFile) {
+    const file = await readFileFromEntry(entry);
+    const relativePath = normalizeDroppedPath(basePath ? `${basePath}/${entry.name}` : entry.name);
+    out.push({ file, relativePath });
+    return;
+  }
+
+  if (!entry.isDirectory) return;
+  const nextBasePath = normalizeDroppedPath(basePath ? `${basePath}/${entry.name}` : entry.name);
+  const children = await readAllEntries(entry.createReader());
+  for (const child of children) {
+    await collectDroppedFilesFromEntry(child, nextBasePath, out);
+  }
+}
+
+async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<DroppedFileEntry[]> {
+  const entries: DroppedFileEntry[] = [];
+  const dataTransferItemItems = Array.from(dataTransfer.items || []);
+
+  if (!dataTransferItemItems.length) {
+    const files = Array.from(dataTransfer.files || []);
+    return files.map((file) => ({ file, relativePath: file.name }));
+  }
+
+  for (const item of dataTransferItemItems) {
+    if (item.kind !== 'file') continue;
+
+    const webkitLikeItem = item as DataTransferItem & {
+      webkitGetAsEntry?: () => FileSystemEntryLike | null;
+    };
+    const entry = webkitLikeItem.webkitGetAsEntry?.() as FileSystemEntryLike | null;
+    if (entry) {
+      await collectDroppedFilesFromEntry(entry, '', entries);
+      continue;
+    }
+
+    const file = item.getAsFile();
+    if (file) entries.push({ file, relativePath: file.name });
+  }
+
+  if (entries.length === 0) {
+    const files = Array.from(dataTransfer.files || []);
+    return files.map((file) => ({ file, relativePath: file.name }));
+  }
+
+  return entries;
+}
 
 interface NodeMenuProps {
   node: DriveNode;
@@ -171,6 +289,8 @@ export function DriveView() {
   const [newFolderName, setNewFolderName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const newFolderRef = useRef<HTMLInputElement>(null);
   const renameRef = useRef<HTMLInputElement>(null);
@@ -261,14 +381,115 @@ export function DriveView() {
     getDriveUsage().then(setUsage);
   }
 
-  async function handleUpload(files: FileList) {
-    setUploading(true);
-    for (const file of Array.from(files)) {
-      const node = await uploadDriveFile(file, currentParentId || undefined);
-      if (node) setNodes((prev) => [...prev, node]);
+  function getFolderCache(): Map<string, string> {
+    const cache = new Map<string, string>();
+    for (const node of nodes) {
+      if (node.node_type !== 'folder') continue;
+      cache.set(`${node.parent_id || ''}|${node.name}`, node.id);
     }
-    setUploading(false);
-    getDriveUsage().then(setUsage);
+    return cache;
+  }
+
+  async function resolveFolderInParent(
+    parentId: string | undefined,
+    name: string,
+    cache: Map<string, string>,
+  ): Promise<string | undefined> {
+    const key = `${parentId || ''}|${name}`;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    const children = await listDriveNodes(parentId || undefined);
+    const found = children.find((node) => node.node_type === 'folder' && node.parent_id === (parentId || '') && node.name === name);
+    if (!found) return undefined;
+
+    cache.set(key, found.id);
+    return found.id;
+  }
+
+  async function ensureFolderPath(
+    parentParts: string[],
+    startParentId: string | undefined,
+    cache: Map<string, string>,
+  ): Promise<string | undefined> {
+    let current = startParentId || '';
+    for (const part of parentParts) {
+      const name = part.trim();
+      if (!name) continue;
+
+      const existingId = await resolveFolderInParent(current || undefined, name, cache);
+      if (existingId) {
+        current = existingId;
+        continue;
+      }
+
+      const key = `${current}|${name}`;
+      const created = await createDriveFolder(name, current || undefined);
+      if (!created) return undefined;
+      cache.set(key, created.id);
+      current = created.id;
+    }
+    return current || undefined;
+  }
+
+  async function handleUploadEntries(files: DroppedFileEntry[], targetParentId?: string) {
+    setUploading(true);
+    const folderCache = getFolderCache();
+    try {
+      for (const item of files) {
+        const relPath = normalizeDroppedPath(item.relativePath);
+        const segments = relPath.split('/').filter(Boolean);
+        const fileName = segments.pop();
+        if (!fileName) continue;
+
+        const parts = [...segments];
+        const uploadParentId = await ensureFolderPath(parts, targetParentId, folderCache);
+        await uploadDriveFile(item.file, uploadParentId || undefined);
+      }
+
+      await loadNodes(currentParentId);
+      getDriveUsage().then(setUsage);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleUploadFromList(files: FileList, targetParentId?: string) {
+    const entries = Array.from(files).map((file) => ({ file, relativePath: file.name }));
+    handleUploadEntries(entries, targetParentId).catch(() => {});
+  }
+
+  async function handleMoveNode(nodeId: string, targetParentId: string) {
+    if (draggingNodeId === nodeId) {
+      setDraggingNodeId(null);
+      setDropTargetFolderId(null);
+      return;
+    }
+    const source = nodes.find((n) => n.id === nodeId);
+    if (!source) {
+      setDraggingNodeId(null);
+      setDropTargetFolderId(null);
+      return;
+    }
+    if (source.node_type === 'folder' && source.id === targetParentId) {
+      setDraggingNodeId(null);
+      setDropTargetFolderId(null);
+      return;
+    }
+    if ((source.parent_id || '') === targetParentId) {
+      setDraggingNodeId(null);
+      setDropTargetFolderId(null);
+      return;
+    }
+
+    const ok = await moveDriveNode(nodeId, targetParentId);
+    if (ok) {
+      setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+      loadNodes(currentParentId);
+      getDriveUsage().then(setUsage);
+    }
+    setDraggingNodeId(null);
+    setDropTargetFolderId(null);
   }
 
   const usedPct = usage && usage.quota_limit > 0 ? Math.min(100, (usage.quota_used / usage.quota_limit) * 100) : 0;
@@ -403,9 +624,22 @@ export function DriveView() {
         /* Drive view */
         <div
           style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={(e) => {
+            const isInternalDrive = isDriveNodeDrag(e.dataTransfer);
+            if (!isInternalDrive) {
+              e.preventDefault();
+              setDragOver(true);
+            }
+          }}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false); }}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files); }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const payloadNodeId = getDriveNodeDragPayload(e.dataTransfer);
+            if (payloadNodeId) return;
+            const files = await collectDroppedFiles(e.dataTransfer);
+            if (files.length) await handleUploadEntries(files, currentParentId || undefined);
+          }}
         >
           {dragOver && (
             <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--color-accent-subtle)', border: '2px dashed var(--color-accent)', borderRadius: '4px', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 600, color: 'var(--color-accent)', pointerEvents: 'none' }}>
@@ -448,7 +682,7 @@ export function DriveView() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: uploading ? 'wait' : 'pointer' }}>
               <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {uploading ? '업로드 중...' : '업로드'}
             </button>
-            <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUpload(e.target.files); e.target.value = ''; } }} />
+            <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined); e.target.value = ''; } }} />
           </div>
 
           {/* File grid */}
@@ -486,11 +720,54 @@ export function DriveView() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
                 {nodes.map((node) => {
                   const isRenaming = renameNodeId === node.id;
+                  const isDropTarget = dropTargetFolderId === node.id;
+                  const isDraggingSelf = draggingNodeId === node.id;
                   return (
                     <div
                       key={node.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, JSON.stringify({ nodeId: node.id }));
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDraggingNodeId(node.id);
+                      }}
+                      onDragEnd={() => {
+                        setDraggingNodeId(null);
+                        setDropTargetFolderId(null);
+                      }}
+                      onDragOver={(e) => {
+                        if (node.node_type !== 'folder') return;
+                        if (node.id === draggingNodeId) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDropTargetFolderId(node.id);
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        if (isDropTarget) setDropTargetFolderId(null);
+                      }}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (node.node_type !== 'folder') return;
+                        const payloadNodeId = getDriveNodeDragPayload(e.dataTransfer);
+                        if (payloadNodeId) {
+                          if (payloadNodeId !== node.id) await handleMoveNode(payloadNodeId, node.id);
+                          return;
+                        }
+                        const files = await collectDroppedFiles(e.dataTransfer);
+                        if (files.length) await handleUploadEntries(files, node.id);
+                      }}
                       onDoubleClick={() => openFolder(node)}
-                      style={{ position: 'relative', borderRadius: '8px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', padding: '14px 12px 10px', cursor: node.node_type === 'folder' ? 'pointer' : 'default', transition: 'background 100ms ease, border-color 100ms ease' }}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '8px',
+                        border: `1px solid ${isDropTarget ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
+                        background: isDraggingSelf ? 'var(--color-bg-secondary)' : isDropTarget ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+                        padding: '14px 12px 10px',
+                        cursor: node.node_type === 'folder' ? 'pointer' : 'default',
+                        transition: 'background 100ms ease, border-color 100ms ease',
+                      }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border-default)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)'; }}
                     >
