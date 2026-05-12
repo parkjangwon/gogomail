@@ -90,6 +90,8 @@ type MessageService interface {
 	StatAttachment(ctx context.Context, userID string, messageID string, attachmentID string) (mailservice.AttachmentMetadata, error)
 	SendText(ctx context.Context, req mailservice.SendTextRequest) (mailservice.SendTextResult, error)
 	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
+	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
+	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 }
 
 type webmailCapabilitiesEnvelope struct {
@@ -1911,6 +1913,46 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 		result = mailservice.NormalizeSendTextResult(result)
 
 		writeJSON(w, http.StatusAccepted, map[string]any{"message": result})
+	})
+
+	mux.HandleFunc("GET /api/v1/preferences", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		prefs, err := service.GetWebmailPreferences(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load preferences")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"preferences": prefs})
+	})
+
+	mux.HandleFunc("PUT /api/v1/preferences", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var prefs json.RawMessage
+		if err := decodeJSONBody(r, &prefs); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := service.SetWebmailPreferences(r.Context(), userID, prefs); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to save preferences")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"preferences": prefs})
 	})
 }
 

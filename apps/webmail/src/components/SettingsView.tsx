@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, type FolderStats } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, type FolderStats, type WebmailPreferences } from '@/lib/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -372,6 +372,82 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [backupStates, setBackupStates] = useState<Record<string, BackupState>>({});
   const [restoreFolder, setRestoreFolder] = useState('');
   const [restoreState, setRestoreState] = useState<{ status: 'idle' | 'running' | 'done' | 'error'; imported?: number; error?: string }>({ status: 'idle' });
+
+  // Server-side preferences sync
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  // ── Load server preferences (overlay over localStorage on mount) ──────────────
+  useEffect(() => {
+    getPreferences().then((prefs: WebmailPreferences) => {
+      try {
+        if (prefs.settings) {
+          const s = prefs.settings;
+          if (s.readMark) setReadMark(s.readMark as ReadMark);
+          if (s.externalImages) setExternalImages(s.externalImages as ExternalImages);
+          if (s.sendDelay !== undefined) setSendDelay(s.sendDelay as SendDelay);
+          if (s.showPreview !== undefined) setShowPreview(s.showPreview as boolean);
+          if (s.compact !== undefined) setCompact(s.compact as boolean);
+          if (s.convMode !== undefined) setConvMode(s.convMode as boolean);
+          if (s.quoteOnReply !== undefined) setQuoteOnReply(s.quoteOnReply as boolean);
+          if (s.fontSize) setFontSize(s.fontSize as FontSize);
+          if (s.inlineImagePreview !== undefined) setInlineImagePreview(s.inlineImagePreview as boolean);
+          if (s.blockTrackingPixels !== undefined) setBlockTrackingPixels(s.blockTrackingPixels as boolean);
+          if (s.requestReadReceipt !== undefined) setRequestReadReceipt(s.requestReadReceipt as boolean);
+          if (s.linkPreview !== undefined) setLinkPreview(s.linkPreview as boolean);
+          if (s.focusMode !== undefined) setFocusMode(s.focusMode as boolean);
+          if (s.swipeLeft) setSwipeLeft(s.swipeLeft as typeof swipeLeft);
+          if (s.swipeRight) setSwipeRight(s.swipeRight as typeof swipeRight);
+          if (s.refreshInterval) setRefreshInterval(s.refreshInterval as 30 | 60 | 300);
+          if (s.notifSound !== undefined) setNotifSound(s.notifSound as boolean);
+          if (s.notifDetail) setNotifDetail(s.notifDetail as typeof notifDetail);
+          if (s.dndEnabled !== undefined) setDndEnabled(s.dndEnabled as boolean);
+          if (s.dndStart) setDndStart(s.dndStart as string);
+          if (s.dndEnd) setDndEnd(s.dndEnd as string);
+        }
+        if (prefs.filter_rules) setFilterRules((prefs.filter_rules as Record<string, unknown>[]).map(migrateFilterRule));
+        if (prefs.blocked_senders) setBlockedSenders(prefs.blocked_senders);
+        if (prefs.vacation) {
+          const v = prefs.vacation;
+          if (v.enabled !== undefined) setVacEnabled(v.enabled as boolean);
+          if (v.startDate !== undefined) setVacStartDate(v.startDate as string);
+          if (v.endDate !== undefined) setVacEndDate(v.endDate as string);
+          if (v.subject) setVacSubject(v.subject as string);
+          if (v.body !== undefined) setVacBody(v.body as string);
+        }
+      } catch { /* ignore */ }
+      setPrefsLoaded(true);
+    }).catch(() => setPrefsLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Debounced server save (2s after any setting change) ───────────────────────
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    const timer = setTimeout(() => {
+      const prefs: WebmailPreferences = {
+        settings: {
+          readMark, externalImages, sendDelay, showPreview, compact, convMode,
+          quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
+          requestReadReceipt, linkPreview, followUpDays, focusMode,
+          swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
+          notifSound, notifDetail, dndEnabled, dndStart, dndEnd,
+        },
+        filter_rules: filterRules as unknown[],
+        blocked_senders: blockedSenders,
+        vacation: { enabled: vacEnabled, startDate: vacStartDate, endDate: vacEndDate, subject: vacSubject, body: vacBody },
+      };
+      setPreferences(prefs).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [
+    prefsLoaded,
+    readMark, externalImages, sendDelay, showPreview, compact, convMode,
+    quoteOnReply, fontSize, inlineImagePreview, blockTrackingPixels,
+    requestReadReceipt, linkPreview, followUpDays, focusMode,
+    swipeLeft, swipeRight, refreshInterval, importanceMarkers, groupByDate,
+    notifSound, notifDetail, dndEnabled, dndStart, dndEnd,
+    filterRules, blockedSenders,
+    vacEnabled, vacStartDate, vacEndDate, vacSubject, vacBody,
+  ]);
 
   // ── Load from storage ─────────────────────────────────────────────────────────
   useEffect(() => {

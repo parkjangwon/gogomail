@@ -1020,3 +1020,35 @@ export async function revokeDriveShareLink(linkId: string): Promise<boolean> {
     return res.ok;
   } catch { return false; }
 }
+
+// ─── Server-side user preferences ────────────────────────────────────────────
+
+export interface WebmailPreferences {
+  settings?: Record<string, unknown>;
+  filter_rules?: unknown[];
+  blocked_senders?: string[];
+  vacation?: Record<string, unknown>;
+  signatures?: Record<string, string>;
+}
+
+export async function getPreferences(): Promise<WebmailPreferences> {
+  try {
+    const res = await fetch('/api/mail/preferences');
+    if (!res.ok) return {};
+    const data = await res.json() as { preferences?: WebmailPreferences };
+    return data.preferences ?? {};
+  } catch { return {}; }
+}
+
+export async function setPreferences(prefs: WebmailPreferences): Promise<WebmailPreferences> {
+  try {
+    const res = await fetch('/api/mail/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prefs),
+    });
+    if (!res.ok) return prefs;
+    const data = await res.json() as { preferences?: WebmailPreferences };
+    return data.preferences ?? prefs;
+  } catch { return prefs; }
+}

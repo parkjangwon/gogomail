@@ -1781,6 +1781,56 @@ paths:
           $ref: "#/components/responses/Attachment"
         default:
           $ref: "#/components/responses/Error"
+  /preferences:
+    get:
+      operationId: getWebmailPreferences
+      summary: Get user webmail preferences
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: User webmail preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preferences:
+                    type: object
+                    additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setWebmailPreferences
+      summary: Replace user webmail preferences
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated user webmail preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preferences:
+                    type: object
+                    additionalProperties: true
+        default:
+          $ref: "#/components/responses/Error"
   /push-devices:
     get:
       operationId: listPushDevices
