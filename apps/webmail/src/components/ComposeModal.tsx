@@ -348,6 +348,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
   });
+  const scheduleInputHelp = '예약 전송은 현재 시각 이후만 선택할 수 있습니다.';
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
@@ -1606,7 +1607,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             </label>
             {showSchedule && (
               <>
-                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} aria-label="예약 전송 시간" aria-describedby="compose-schedule-help" style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                <span id="compose-schedule-help" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{scheduleInputHelp}</span>
                 <button
                   type="button"
                   onClick={() => { setScheduledAt(''); setShowSchedule(false); }}

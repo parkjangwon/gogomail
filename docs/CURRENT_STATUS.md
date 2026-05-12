@@ -301,6 +301,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - The existing send-options toggle behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail custom schedule guidance (TASK-136, 2026-05-12, complete)
+- Completed custom scheduled-send guidance pass for user webmail beta.
+- The custom datetime input now exposes an accessibility label for the scheduled send time.
+- The input is connected to helper copy through `aria-describedby`.
+- The UI now explicitly tells users that scheduled sends must be set after the current time.
+- Existing input `min` behavior, send-time validation, and visual design tone are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
