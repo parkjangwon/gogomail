@@ -339,6 +339,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Runtime checks cover one-digit padding and two-digit date/time values.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:datetime-local` in `apps/webmail` passed.
 
+## Webmail close-save scheduled guidance (TASK-141, 2026-05-12, complete)
+- Completed close-confirm scheduled draft guidance pass for user webmail beta.
+- When a scheduled send time is set, the close confirmation now says the draft will be saved with the schedule setting.
+- The unscheduled close confirmation copy remains unchanged.
+- The close-save action still uses `buildDraftData`, preserving the existing draft save contract including scheduled settings.
+- Existing visual design is unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

@@ -351,6 +351,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
   });
+  const closeSavePrompt = scheduledAt
+    ? '예약 설정을 포함해 임시저장 후 닫으시겠습니까?'
+    : '임시저장 후 닫으시겠습니까?';
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
 
@@ -1099,7 +1102,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         {/* Close confirmation panel */}
         {confirmClose && (
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>임시저장 후 닫으시겠습니까?</span>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{closeSavePrompt}</span>
             <button
               type="button"
               onClick={async () => {
