@@ -1248,7 +1248,7 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 				return false, fmt.Errorf("If header contains a malformed resource tag")
 			}
 			tag = strings.TrimSpace(prefix[1 : len(prefix)-1])
-			if tag == "" {
+			if tag == "" || strings.ContainsAny(tag, "<>") {
 				return false, fmt.Errorf("If header contains a malformed resource tag")
 			}
 		}
