@@ -348,6 +348,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           text_body: bodyText,
           ...(fromAddress && { from: fromAddress }),
           ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+          ...(trackOpens && { track_opens: true }),
+          ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
         };
         if (draftIdRef.current) {
           await updateDraft(draftIdRef.current, data);
@@ -362,7 +364,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         setSaveStatus('idle');
       }
     }, 3000);
-  }, [intent, sourceMessage, fromAddress, readyAttachmentIds]);
+  }, [intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt]);
 
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -609,12 +611,14 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         text_body: bodyText,
         ...(fromAddress && { from: fromAddress }),
         ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+        ...(trackOpens && { track_opens: true }),
+        ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
       };
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
       markDraftSaved();
     } catch { setSaveStatus('idle'); }
-  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds, markDraftSaved]);
+  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds, trackOpens, scheduledAt, markDraftSaved]);
 
   const saveTemplate = () => {
     const name = templateSaveName.trim();
@@ -1071,6 +1075,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     ...(editor && { html_body: editor.getHTML() }),
                     ...(fromAddress && { from: fromAddress }),
                     ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+                    ...(trackOpens && { track_opens: true }),
+                    ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
                   };
                   try {
                     if (draftIdRef.current) await updateDraft(draftIdRef.current, data);

@@ -134,6 +134,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Successful send cleanup behavior is unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft settings persistence (TASK-114, 2026-05-12, complete)
+- Completed draft settings persistence pass for user webmail beta.
+- Autosave now includes `track_opens` and `scheduled_at` in draft payloads.
+- Manual save now includes `track_opens` and `scheduled_at` in draft payloads.
+- Close-confirm save now includes `track_opens` and `scheduled_at` in draft payloads.
+- Final send-preparation draft save behavior is preserved.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
