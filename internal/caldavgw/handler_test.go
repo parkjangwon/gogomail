@@ -2868,10 +2868,11 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set>
-    <D:prop>
+    <D:prop xml:lang="ja-JP">
       <D:displayname>Product</D:displayname>
       <E:unsupported>value</E:unsupported>
     </D:prop>
@@ -2889,6 +2890,12 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	}
 	if calendar.Name != "Work" {
 		t.Fatalf("calendar name = %q, want unchanged Work", calendar.Name)
+	}
+	if calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name lang = %q, want unchanged ko-KR", calendar.NameLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastCalendarUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -2908,16 +2915,17 @@ func TestHandlerProppatchFailureDeduplicatesRepeatedDependencyProperty(t *testin
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].DescriptionLang = "fr"
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:E="urn:example:test">
   <D:set>
-    <D:prop>
+    <D:prop xml:lang="ja-JP">
       <E:unsupported>value</E:unsupported>
       <C:calendar-description>First</C:calendar-description>
     </D:prop>
   </D:set>
   <D:set>
-    <D:prop>
+    <D:prop xml:lang="">
       <C:calendar-description>Second</C:calendar-description>
     </D:prop>
   </D:set>
@@ -2934,6 +2942,12 @@ func TestHandlerProppatchFailureDeduplicatesRepeatedDependencyProperty(t *testin
 	}
 	if calendar.Description != "Team calendar" {
 		t.Fatalf("calendar description = %q, want unchanged Team calendar", calendar.Description)
+	}
+	if calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar description lang = %q, want unchanged fr", calendar.DescriptionLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastCalendarUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -2954,10 +2968,11 @@ func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].DescriptionLang = "fr"
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
   <D:remove><D:prop><D:displayname/></D:prop></D:remove>
-  <D:set><D:prop><C:calendar-description>Launch</C:calendar-description></D:prop></D:set>
+  <D:set><D:prop xml:lang=""><C:calendar-description>Launch</C:calendar-description></D:prop></D:set>
 </D:propertyupdate>`))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -2971,6 +2986,12 @@ func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
 	}
 	if calendar.Description != "Team calendar" {
 		t.Fatalf("calendar description = %q, want unchanged Team calendar", calendar.Description)
+	}
+	if calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar description lang = %q, want unchanged fr", calendar.DescriptionLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastCalendarUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{

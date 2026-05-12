@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-212: CardDAV/CalDAV collection xml:lang empty-value clearing audit
+## TASK-213: CardDAV/CalDAV collection xml:lang unsupported-property rollback audit
 
 ### 배경
 
-TASK-211에서 PROPPATCH의 absent `xml:lang`은 기존 language tag를 보존하도록
-수정되었다. 이제 explicit empty `xml:lang=""`가 language tag를 의도적으로
-clear하는 경로를 CalDAV/CardDAV handler와 PostgreSQL repository integration에서
-검증한다.
+TASK-211과 TASK-212에서 omitted `xml:lang` 보존과 explicit empty clearing은
+검증되었다. 이제 RFC 4918 PROPPATCH atomicity에 따라 unsupported/protected
+property가 섞인 실패 요청에서 text mutation뿐 아니라 language tag mutation도
+함께 롤백되는지 검증한다.
 
 ### 구현 대상
 
@@ -21,16 +21,15 @@ clear하는 경로를 CalDAV/CardDAV handler와 PostgreSQL repository integratio
 
 ### 완료 조건
 
-- [x] CalDAV handler test가 explicit `xml:lang=""` displayname/description update에서 기존 language tags를 clear한다.
-- [x] CardDAV handler test가 explicit `xml:lang=""` displayname/description update에서 기존 language tags를 clear한다.
-- [x] CalDAV PostgreSQL integration test가 explicit empty language update를 raw language columns까지 clear한다.
-- [x] CardDAV PostgreSQL integration test가 explicit empty language update를 raw language columns까지 clear한다.
-- [x] CalDAV/CardDAV parser와 repository validation이 explicit empty language pointer를 보존한다.
-- [x] empty stored language response가 `xml:lang` attribute를 생략한다.
+- [x] CalDAV unsupported-property PROPPATCH 실패가 displayname language mutation을 롤백한다.
+- [x] CalDAV duplicate dependency/protected remove 실패가 description language mutation을 롤백한다.
+- [x] CardDAV unsupported-property PROPPATCH 실패가 displayname language mutation을 롤백한다.
+- [x] CardDAV duplicate dependency/protected remove 실패가 description language mutation을 롤백한다.
+- [x] 실패 응답에서 CalDAV/CardDAV repository update가 호출되지 않음을 검증한다.
 - [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-213: CardDAV/CalDAV collection xml:lang unsupported-property rollback audit
+TASK-214: CardDAV/CalDAV collection xml:lang conditional failure rollback audit

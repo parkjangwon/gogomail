@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang PROPPATCH rollback coverage (2026-05-13, complete)
+- Unsupported/protected collection `PROPPATCH` handler tests now include
+  attempted `xml:lang` mutations and assert existing language tags remain
+  unchanged.
+- The tests also assert failure responses are produced before repository update
+  calls, strengthening RFC 4918 atomicity coverage for text and language state.
+
 ## CalDAV/CardDAV xml:lang explicit empty clearing (2026-05-13, complete)
 - Handler and PostgreSQL integration coverage now verifies explicit
   `xml:lang=""` clears existing collection language tags for CalDAV calendars
