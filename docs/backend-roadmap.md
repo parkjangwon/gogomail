@@ -2188,7 +2188,9 @@ Target outcome:
       `409 Conflict`, and dependent properties return `424 Failed Dependency`.
       Non-empty `C:mkcalendar` XML bodies now require the RFC 4791 `DAV:set` /
       `DAV:prop` shape instead of silently accepting unknown structural
-      children or self-closing bodies. Creation success and property-failure
+      children or self-closing bodies, and whitespace-only non-empty bodies are
+      rejected as malformed while truly absent bodies retain compatibility.
+      Creation success and property-failure
       responses now include `Cache-Control: no-store, no-cache`, preserving the
       existing conservative cache block while satisfying RFC 4791 `no-cache`.
       Explicit non-empty request-body `Content-Type` headers are validated
@@ -2553,7 +2555,9 @@ Target outcome:
       and OPTIONS discovery advertises `extended-mkcol`. Address-book creation
       now requires an extended MKCOL body with `DAV:resourcetype` including both
       `DAV:collection` and `CARDDAV:addressbook`, so empty or generic MKCOL
-      bodies cannot accidentally create address books. Creation success and
+      bodies cannot accidentally create address books. Whitespace-only
+      non-empty bodies are rejected as malformed XML before the resource-type
+      path. Creation success and
       property-failure responses now include `Cache-Control: no-store, no-cache`.
       Explicit non-empty request-body `Content-Type` headers are validated
       before XML parsing: malformed or duplicate values return `400`, non-XML

@@ -284,8 +284,11 @@ func ParseMKAddressBook(r io.Reader) (MKAddressBookRequest, error) {
 	if err != nil {
 		return MKAddressBookRequest{}, err
 	}
-	if len(bytes.TrimSpace(body)) == 0 {
+	if len(body) == 0 {
 		return MKAddressBookRequest{}, nil
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return MKAddressBookRequest{}, fmt.Errorf("MKCOL body must contain XML")
 	}
 	dec := newWebDAVXMLDecoder(body)
 	root, err := nextStart(dec)

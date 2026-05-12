@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## DAV creation XML body presence semantics (2026-05-13, complete)
+- CalDAV `MKCALENDAR` now distinguishes truly absent bodies from non-empty whitespace-only
+  bodies: absent body compatibility remains, while whitespace-only XML bodies return `400`
+  and do not create calendars.
+- CardDAV extended `MKCOL` now rejects whitespace-only bodies as malformed XML with `400`
+  instead of flowing into the missing-resource-type path.
+- Parser and handler regressions cover absent, whitespace-only, and no-create behavior.
+
 ## CalDAV unsupported namespace failure responses (2026-05-13, complete)
 - CalDAV WebDAV response serialization now preserves unknown property namespaces with a scoped
   fallback XML namespace declaration on the property element.
