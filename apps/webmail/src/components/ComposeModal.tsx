@@ -225,6 +225,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [templateSaveName, setTemplateSaveName] = useState('');
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
+  const sendDropdownRef = useRef<HTMLDivElement>(null);
   // Slash command menu state
   const [slashMenu, setSlashMenu] = useState<{ query: string; top: number; cursorTop: number; left: number } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -461,6 +462,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (showTemplates) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showTemplates]);
+
+  useEffect(() => {
+    if (!showSendDropdown) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (sendDropdownRef.current && !sendDropdownRef.current.contains(e.target as Node)) {
+        setShowSendDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showSendDropdown]);
 
   // Close slash menu on outside click
   useEffect(() => {
@@ -1282,7 +1294,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             flexShrink: 0,
           }}>
             {/* Split send button — left */}
-            <div style={{ position: 'relative', display: 'flex', borderRadius: '20px', overflow: 'visible', flexShrink: 0 }}>
+            <div ref={sendDropdownRef} style={{ position: 'relative', display: 'flex', borderRadius: '20px', overflow: 'visible', flexShrink: 0 }}>
               <button
                 type="submit"
                 disabled={sendButtonDisabled}

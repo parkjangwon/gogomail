@@ -285,6 +285,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing menu item click behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send options outside-click close (TASK-134, 2026-05-12, complete)
+- Completed send-options outside-click close pass for user webmail beta.
+- The send-options wrapper now has a stable ref used for outside-click detection.
+- While the menu is open, document `mousedown` outside the send-options wrapper closes it.
+- Inside-menu clicks keep their existing selection behavior.
+- The outside-click listener is installed only while the menu is open and removed on cleanup.
+- Existing visual design is unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
