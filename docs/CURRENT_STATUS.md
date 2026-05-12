@@ -76,6 +76,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Draft save flexibility is preserved; validation is send-only.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail scheduled-send validation stabilization (TASK-107, 2026-05-12, complete)
+- Completed scheduled-send time validation pass for user webmail beta.
+- `handleSend` now blocks invalid scheduled-send dates before payload creation.
+- `handleSend` now blocks scheduled-send times that are not in the future.
+- Valid scheduled sends continue to serialize `scheduled_at` as ISO timestamps.
+- Immediate and undo-countdown sends are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

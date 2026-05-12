@@ -646,6 +646,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setError('업로드에 실패한 첨부파일을 제거하거나 다시 업로드해 주세요.');
       return;
     }
+    if (scheduledAt) {
+      const scheduledTime = new Date(scheduledAt).getTime();
+      if (!Number.isFinite(scheduledTime)) {
+        setError('예약 전송 시간을 확인해 주세요.');
+        return;
+      }
+      if (scheduledTime <= Date.now()) {
+        setError('예약 전송 시간은 현재 시각 이후여야 합니다.');
+        return;
+      }
+    }
     const attachmentIds = readyAttachmentIds();
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
