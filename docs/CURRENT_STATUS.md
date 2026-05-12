@@ -29,6 +29,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Design direction remains unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail attachment draft contract stabilization (TASK-101, 2026-05-12, complete)
+- Completed attachment/Drive attachment contract pass for user webmail beta.
+- Draft payload typing now exposes `attachment_ids`, matching the backend draft contract.
+- Compose autosave, manual save, and close-save paths now include only upload-complete, non-failed attachment IDs in draft payloads.
+- Send payload attachment behavior is preserved.
+- Design direction remains unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

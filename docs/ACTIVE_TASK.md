@@ -127,6 +127,44 @@ TASK-101: 사용자 웹메일 베타 안정화 — 첨부파일/드라이브 첨
 
 ---
 
+## ✅ TASK-101: 사용자 웹메일 베타 안정화 — 첨부파일/드라이브 첨부 계약 점검
+
+**STATUS: COMPLETE**
+
+### 배경
+
+사용자 웹메일 베타에서 첨부파일은 작성/초안/전송 흐름의 핵심 기능이다.
+백엔드 초안 계약은 `attachment_ids`를 지원하므로, 프론트엔드 초안 저장 경로도 전송 경로와 동일하게 준비된 첨부 ID를 보존해야 한다.
+
+### 구현 대상
+
+- `apps/webmail/src/lib/api.ts`
+- `apps/webmail/src/components/ComposeModal.tsx`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] 초안 저장 payload 타입이 `attachment_ids`를 지원한다.
+- [x] 자동저장/수동저장/닫기 전 저장에서 업로드 완료된 첨부 ID가 초안에 포함된다.
+- [x] 업로드 중이거나 실패한 첨부는 초안 `attachment_ids`에 포함하지 않는다.
+- [x] 전송 경로의 기존 첨부 동작을 유지한다.
+- [x] 디자인 톤은 유지한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-102: 사용자 웹메일 베타 안정화 — 첨부파일 업로드/전송 실패 상태 UX 점검
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**

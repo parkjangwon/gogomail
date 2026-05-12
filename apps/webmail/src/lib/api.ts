@@ -262,6 +262,7 @@ export interface DraftData {
   draft_id?: string;
   intent: ComposeIntent;
   source_message_id?: string;
+  attachment_ids?: string[];
   to: { address: string; name?: string }[];
   cc?: { address: string; name?: string }[];
   bcc?: { address: string; name?: string }[];
