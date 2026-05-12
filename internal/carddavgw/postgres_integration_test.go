@@ -3,6 +3,7 @@ package carddavgw
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/database"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -77,6 +79,38 @@ WHERE id = $1::uuid
 	if storedNameLang != "ja-JP" || storedDescriptionLang != "fr" {
 		t.Fatalf("raw address book language columns = name %q description %q", storedNameLang, storedDescriptionLang)
 	}
+}
+
+func TestPostgresAddressBookPropertyLanguageConstraintsRejectInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCardDAVPostgresTestDB(t)
+	userID := seedCardDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	book, err := repo.CreateAddressBook(ctx, CreateAddressBookRequest{
+		UserID:      userID,
+		ActorUserID: userID,
+		Name:        "Constraints",
+	})
+	if err != nil {
+		t.Fatalf("CreateAddressBook returned error: %v", err)
+	}
+
+	_, err = db.ExecContext(ctx, `
+UPDATE carddav_addressbooks
+SET displayname_lang = $2
+WHERE id = $1::uuid
+`, book.ID, "en US")
+	assertCardDAVPostgresCheckViolation(t, err, "carddav_addressbooks_displayname_lang_check")
+
+	_, err = db.ExecContext(ctx, `
+UPDATE carddav_addressbooks
+SET description_lang = $2
+WHERE id = $1::uuid
+`, book.ID, strings.Repeat("a", 65))
+	assertCardDAVPostgresCheckViolation(t, err, "carddav_addressbooks_description_lang_check")
 }
 
 func seedCardDAVPostgresUser(t *testing.T, ctx context.Context, db *sql.DB) string {
@@ -158,4 +192,18 @@ func cardDAVPostgresURLWithSearchPath(t *testing.T, rawURL string, schema string
 	query.Set("options", options)
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
+}
+
+func assertCardDAVPostgresCheckViolation(t *testing.T, err error, constraint string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected PostgreSQL check violation for %s", constraint)
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		t.Fatalf("error = %T %v, want PostgreSQL error", err, err)
+	}
+	if pgErr.Code != "23514" || pgErr.ConstraintName != constraint {
+		t.Fatalf("PostgreSQL error code=%s constraint=%s, want 23514 %s", pgErr.Code, pgErr.ConstraintName, constraint)
+	}
 }

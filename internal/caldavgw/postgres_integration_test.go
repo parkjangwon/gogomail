@@ -3,6 +3,7 @@ package caldavgw
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gogomail/gogomail/internal/database"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -79,6 +81,38 @@ WHERE id = $1::uuid
 	if storedNameLang != "ja-JP" || storedDescriptionLang != "fr" {
 		t.Fatalf("raw calendar language columns = name %q description %q", storedNameLang, storedDescriptionLang)
 	}
+}
+
+func TestPostgresCalendarPropertyLanguageConstraintsRejectInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCalDAVPostgresTestDB(t)
+	userID := seedCalDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	calendar, err := repo.CreateCalendar(ctx, CreateCalendarRequest{
+		UserID:      userID,
+		ActorUserID: userID,
+		Name:        "Constraints",
+	})
+	if err != nil {
+		t.Fatalf("CreateCalendar returned error: %v", err)
+	}
+
+	_, err = db.ExecContext(ctx, `
+UPDATE caldav_calendars
+SET displayname_lang = $2
+WHERE id = $1::uuid
+`, calendar.ID, "en US")
+	assertCalDAVPostgresCheckViolation(t, err, "caldav_calendars_displayname_lang_check")
+
+	_, err = db.ExecContext(ctx, `
+UPDATE caldav_calendars
+SET description_lang = $2
+WHERE id = $1::uuid
+`, calendar.ID, strings.Repeat("a", 65))
+	assertCalDAVPostgresCheckViolation(t, err, "caldav_calendars_description_lang_check")
 }
 
 func seedCalDAVPostgresUser(t *testing.T, ctx context.Context, db *sql.DB) string {
@@ -160,4 +194,18 @@ func calDAVPostgresURLWithSearchPath(t *testing.T, rawURL string, schema string)
 	query.Set("options", options)
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
+}
+
+func assertCalDAVPostgresCheckViolation(t *testing.T, err error, constraint string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected PostgreSQL check violation for %s", constraint)
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		t.Fatalf("error = %T %v, want PostgreSQL error", err, err)
+	}
+	if pgErr.Code != "23514" || pgErr.ConstraintName != constraint {
+		t.Fatalf("PostgreSQL error code=%s constraint=%s, want 23514 %s", pgErr.Code, pgErr.ConstraintName, constraint)
+	}
 }
