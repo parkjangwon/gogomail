@@ -5,6 +5,23 @@
 
 ---
 
+## ✅ TASK-092: 수신확인 (이메일 오픈 트래킹)
+
+**STATUS: COMPLETE**
+
+### 완료 (2026-05-12)
+
+- `migrations/0089_message_tracking.sql`: `message_tracking_pixels` + `message_tracking_events` 테이블
+- `internal/maildb/tracking.go`: `CreateTrackingPixels`, `RecordTrackingOpen`, `ListTrackingEvents`
+- `internal/outbound/compose.go`: `HTMLBody` 필드 추가, multipart/alternative MIME 지원
+- `internal/mailservice/service.go`: `TrackOpens bool` 추가, 발송 시 수신자별 픽셀 주입
+- `internal/httpapi/tracking.go`: `GET /t/{pixel_id}` (1×1 GIF 반환 + 이벤트 기록), `GET /api/v1/messages/{id}/tracking`
+- `internal/config/config.go`: `PublicBaseURL` 설정 (`GOGOMAIL_PUBLIC_BASE_URL`)
+- `internal/app/run.go`: 트래킹 라우트 등록, trackingRepo 연결
+- 프론트엔드: ComposeModal "수신확인" 체크박스, ReadingPane 수신확인 섹션
+
+---
+
 ## ✅ TASK-091: 캘린더 라우트 등록 + 구독 캘린더 기능
 
 **STATUS: COMPLETE**

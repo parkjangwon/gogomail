@@ -68,6 +68,20 @@ export interface SendMessageRequest {
   source_message_id?: string;
   attachment_ids?: string[];
   scheduled_at?: string;
+  track_opens?: boolean;
+}
+
+export interface TrackingEvent {
+  recipient_email: string;
+  opened_at: string | null;
+  open_count: number;
+}
+
+export async function getMessageTracking(messageId: string): Promise<TrackingEvent[]> {
+  try {
+    const data = await request<{ events?: TrackingEvent[] }>(`messages/${encodeURIComponent(messageId)}/tracking`);
+    return data.events ?? [];
+  } catch { return []; }
 }
 
 function clearTokenAndRedirect(): void {

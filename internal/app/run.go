@@ -2573,10 +2573,13 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			driveRouteOptions.PublicShareLimiter = ratelimit.NewRedisFixedWindowLimiter(redisClient, "drive_share_public", int64(cfg.DriveShareRateLimitPerMinute), time.Minute)
 			logger.Info("drive public share rate limiting enabled", "backend", "redis", "per_minute", cfg.DriveShareRateLimitPerMinute)
 		}
+		trackingRepo := maildb.NewRepository(db)
+		service.WithTrackingRepo(trackingRepo, cfg.PublicBaseURL)
 		httpapi.RegisterMailRoutesWithOptions(mux, service, tokenManager, httpapi.MailRouteOptions{
 			SessionRevoker: repository,
 			Authenticator:  repository,
 		})
+		httpapi.RegisterTrackingRoutes(mux, trackingRepo, tokenManager)
 		httpapi.RegisterDriveRoutesWithOptions(mux, driveServiceForConfig(db, cfg, store), tokenManager, driveRouteOptions)
 		httpapi.RegisterContactRoutes(mux, httpapi.NewContactHandler(
 			carddavgw.NewRepository(db),

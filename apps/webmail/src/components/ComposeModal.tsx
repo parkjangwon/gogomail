@@ -154,6 +154,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
   const [sendCountdown, setSendCountdown] = useState<number | null>(null);
+  const [trackOpens, setTrackOpens] = useState(false);
   const pendingMsgRef = useRef<SendMessageRequest | null>(null);
   const sendAndArchiveRef = useRef(false);
   const [scheduledAt, setScheduledAt] = useState('');
@@ -567,6 +568,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
       ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
       ...(fromAddress && { from: fromAddress }),
+      ...(trackOpens && { track_opens: true }),
     };
     pendingMsgRef.current = msg;
     if (scheduledAt) {
@@ -1350,6 +1352,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 </div>
               )}
             </div>
+            {/* 수신확인 checkbox */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-secondary)', userSelect: 'none', whiteSpace: 'nowrap' }}>
+              <input
+                type="checkbox"
+                checked={trackOpens}
+                onChange={(e) => setTrackOpens(e.target.checked)}
+                style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+              />
+              수신확인
+            </label>
             {showSchedule && (
               <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
             )}
