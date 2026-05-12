@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## ✅ TASK-200: CardDAV/CalDAV PROPPATCH XML structural strictness audit
+## ✅ TASK-201: CardDAV/CalDAV PROPPATCH property count aggregation audit
 
 ### 배경
 
-`PROPPATCH` body의 top-level 구조는 이미 `DAV:set`/`DAV:remove`만 허용하지만,
-각 instruction 내부에서 `DAV:prop` 외 structural child를 skip하면 malformed 요청이
-조용히 무시될 수 있다. RFC 4918 propertyupdate grammar에 맞춰 instruction 내부 구조도
-엄격히 검사한다.
+`PROPPATCH` parser는 각 `DAV:prop` 블록 안에서만 property 개수를 제한한다.
+여러 `DAV:set`/`DAV:remove` instruction 또는 여러 `DAV:prop` 블록으로 나뉜 요청이
+전체 `MaxWebDAVProperties` 한도를 우회하지 못하도록 요청 전체 기준의 property count를
+집계한다.
 
 ### 구현 대상
 
@@ -21,13 +21,13 @@
 
 ### 완료 조건
 
-- [x] CalDAV `PROPPATCH`의 `DAV:set`/`DAV:remove` 내부가 `DAV:prop` 외 child를 parse error로 거부한다.
-- [x] CardDAV `PROPPATCH`의 `DAV:set`/`DAV:remove` 내부가 `DAV:prop` 외 child를 parse error로 거부한다.
-- [x] property-level unsupported property failure semantics는 `DAV:prop` 내부에서만 유지된다.
+- [x] CalDAV `PROPPATCH`가 여러 `DAV:prop` 블록에 걸친 전체 property 수를 집계해 `MaxWebDAVProperties` 초과를 거부한다.
+- [x] CardDAV `PROPPATCH`가 여러 `DAV:prop` 블록에 걸친 전체 property 수를 집계해 `MaxWebDAVProperties` 초과를 거부한다.
+- [x] supported, unsupported, protected property 모두 전체 한도에 포함된다.
 - [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-201: CardDAV/CalDAV PROPPATCH property count aggregation audit
+TASK-202: CardDAV/CalDAV PROPPATCH duplicate property semantics audit

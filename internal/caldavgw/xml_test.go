@@ -331,6 +331,25 @@ func TestParseProppatchCollectsMultiplePropBlocksPerInstruction(t *testing.T) {
 	}
 }
 
+func TestParseProppatchRejectsTooManyPropertiesAcrossPropBlocks(t *testing.T) {
+	t.Parallel()
+
+	var body strings.Builder
+	body.WriteString(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:E="urn:example:test">`)
+	body.WriteString(`<D:set><D:prop>`)
+	for i := 0; i < MaxWebDAVProperties-2; i++ {
+		body.WriteString(`<E:unsupported/>`)
+	}
+	body.WriteString(`</D:prop></D:set>`)
+	body.WriteString(`<D:set><D:prop><D:displayname>Product</D:displayname><C:calendar-description>Launch dates</C:calendar-description></D:prop></D:set>`)
+	body.WriteString(`<D:remove><D:prop><D:displayname/></D:prop></D:remove>`)
+	body.WriteString(`</D:propertyupdate>`)
+
+	if _, err := ParseProppatch(strings.NewReader(body.String())); err == nil {
+		t.Fatal("ParseProppatch error = nil, want rejection for aggregate property count")
+	}
+}
+
 func TestParseProppatchRemovesOptionalCalendarProperties(t *testing.T) {
 	t.Parallel()
 

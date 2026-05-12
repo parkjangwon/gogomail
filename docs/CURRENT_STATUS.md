@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH aggregate property limit (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` now count properties across the whole
+  `propertyupdate` request instead of resetting the limit for each `DAV:prop`
+  block.
+- Supported, unsupported, and protected properties all contribute to the
+  aggregate `MaxWebDAVProperties` limit, so split `DAV:set`/`DAV:remove`
+  requests cannot bypass parser bounds.
+- Regression tests cover over-limit requests split across multiple
+  instruction and property blocks in both gateways.
+
 ## CalDAV/CardDAV PROPPATCH structural body strictness (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` now reject unknown structural children inside
   `DAV:set` and `DAV:remove` as parse errors instead of silently skipping them.
