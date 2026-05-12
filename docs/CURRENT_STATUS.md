@@ -471,6 +471,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Close-save remains best-effort and still closes after the save attempt.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close-save button label helper (TASK-159, 2026-05-12, complete)
+- Completed close-save button label helper extraction for user webmail beta.
+- Added `composeCloseSaveButtonLabel` for idle and saving close-save states.
+- ComposeModal now imports the helper for the close-save button text.
+- Added `tsc` contract fixtures and runtime assertions for the idle/saving labels.
+- Existing close-save behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
