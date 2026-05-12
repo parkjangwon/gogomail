@@ -5244,6 +5244,9 @@ Next focus areas:
 ## Webmail drive multi-select drag feedback (in progress, 2026-05-12)
 - Added drag feedback for multi-selection in Drive move UX: starting drag with multiple selected items now shows a custom stack-style drag ghost preview and toolbar badge (`N개 항목 이동`).
 - Data transfer still uses the existing node-list payload, while users get stronger visual confirmation that selected files are moving together as one batch.
+- Added subtle motion polish to multi-select drag feedback:
+  - drag badge and drag ghost now pulse softly while dragging,
+  - active drop targets pulse their border to make destination intent more obvious.
 
 ## Webmail drive breadcrumb move target support (Drive UX polish, 2026-05-12, in progress)
 - Drive breadcrumb(상단 경로) 항목을 드래그 드롭 대상에서 제외하지 않고, 내부 노드 드래그 시 해당 경로(현재 폴더의 상위 경로 포함)로 직접 이동할 수 있게 동작을 보강했다.
