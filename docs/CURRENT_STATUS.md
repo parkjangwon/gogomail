@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang repeated WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover repeated HTTP `If` header fields,
+  asserting the gateway joins them into WebDAV condition-list sequences.
+- Repeated-header success preserves omitted language tags when a later list
+  matches, while all-failed repeated headers reject before body reads and leave
+  attempted explicit `xml:lang` mutations unapplied.
+
 ## CalDAV/CardDAV xml:lang compound WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover compound WebDAV `If` condition lists,
   asserting multiple conditions inside one list are evaluated conjunctively.
