@@ -5,6 +5,14 @@ const BACKEND = process.env.NEXT_PUBLIC_GOGOMAIL_BACKEND_URL || 'http://localhos
 const DEV_USER_ID = process.env.GOGOMAIL_DEV_USER_ID || '';
 const MAIL_BASE_PREFIXES = new Set(['addressbooks', 'contacts', 'directory']);
 
+function isDrivePublicShareLinkRoute(method: string, segments: string[]): boolean {
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  if (segments.length < 2 || segments[0] !== 'drive' || segments[1] !== 'share-links') return false;
+
+  if (segments.length === 3) return true;
+  return segments.length === 4 && segments[3] === 'download';
+}
+
 function backendBaseFor(pathStr: string): '/api/mail' | '/api/v1' {
   const [prefix] = pathStr.split('/');
   return MAIL_BASE_PREFIXES.has(prefix) ? '/api/mail' : '/api/v1';
@@ -16,10 +24,14 @@ async function handler(
 ) {
   const { path } = await params;
   const pathStr = path.join('/');
+  const isPublicShareLinkRoute = isDrivePublicShareLinkRoute(req.method, path);
   const reqUrl = new URL(req.url);
+  if (isPublicShareLinkRoute) {
+    reqUrl.searchParams.delete('user_id');
+  }
 
   // In dev mode (no JWT configured), inject user_id query param
-  if (DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
+  if (!isPublicShareLinkRoute && DEV_USER_ID && !reqUrl.searchParams.has('user_id')) {
     reqUrl.searchParams.set('user_id', DEV_USER_ID);
   }
 
