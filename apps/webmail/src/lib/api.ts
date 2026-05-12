@@ -278,6 +278,10 @@ export function updateDraft(draftId: string, data: DraftData): Promise<{ draft: 
   return apiPatch<{ draft: { id: string } }>(`drafts/${draftId}`, data);
 }
 
+export function deleteDraft(draftId: string): Promise<void> {
+  return apiDelete<void>(`drafts/${draftId}`);
+}
+
 export function deleteMessage(id: string): Promise<void> {
   return apiDelete<void>(`messages/${id}`);
 }

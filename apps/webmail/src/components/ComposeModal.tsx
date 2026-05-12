@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
@@ -318,6 +318,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     setAttachingDriveId(null);
   }, [drivePickerCrumbs, openDrivePicker]);
 
+  const clearSentDraft = useCallback(async () => {
+    const draftId = draftIdRef.current;
+    if (!draftId) return;
+    draftIdRef.current = '';
+    try {
+      await deleteDraft(draftId);
+    } catch {
+      // Sending succeeded; draft cleanup is best-effort and must not fail the send.
+    }
+  }, []);
+
   const triggerAutoSave = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
@@ -526,7 +537,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       if (!msg) return;
       setSending(true);
       sendMessage(msg)
-        .then(() => {
+        .then(async () => {
+          await clearSentDraft();
           try {
             const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
               .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
@@ -553,7 +565,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
     return () => clearTimeout(t);
-  }, [sendCountdown, onClose, recentRecipients]);
+  }, [sendCountdown, onClose, recentRecipients, clearSentDraft]);
 
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
@@ -676,7 +688,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       // Scheduled sends bypass the undo countdown and go immediately
       setSending(true);
       sendMessage(msg)
-        .then(() => { setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+        .then(async () => { await clearSentDraft(); setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
           setError(message);
@@ -689,7 +701,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         // No undo window — send immediately
         setSending(true);
         sendMessage(msg)
-          .then(() => { setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+          .then(async () => { await clearSentDraft(); setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
           .catch((err: unknown) => { setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
           .finally(() => setSending(false));
       } else {
