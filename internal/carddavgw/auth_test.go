@@ -39,6 +39,109 @@ func TestBasicAuthResolverAllowsHTTPSForwardedProto(t *testing.T) {
 	}
 }
 
+func TestBasicAuthResolverRejectsUntrustedForwardedProtoFromRemoteProxy(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	trusted, err := resolver.WithTrustedProxies([]string{"127.0.0.1/8"})
+	if err != nil {
+		t.Fatalf("WithTrustedProxies returned error: %v", err)
+	}
+	resolver = trusted
+	req := httptest.NewRequest("PROPFIND", "/carddav/principals/user-1/", nil)
+	req.RemoteAddr = "203.0.113.1:1234"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {
+		t.Fatalf("Resolve error = %v, want requires TLS", err)
+	}
+}
+
+func TestBasicAuthResolverAllowsTrustedProxyForwardedProto(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	trusted, err := resolver.WithTrustedProxies([]string{"127.0.0.1/8"})
+	if err != nil {
+		t.Fatalf("WithTrustedProxies returned error: %v", err)
+	}
+	resolver = trusted
+	req := httptest.NewRequest("PROPFIND", "/carddav/principals/user-1/", nil)
+	req.RemoteAddr = "127.0.0.1:1234"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err != nil {
+		t.Fatalf("Resolve returned error behind trusted HTTPS proxy: %v", err)
+	}
+}
+
+func TestBasicAuthResolverRejectsInvalidTrustedProxies(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	if _, err := resolver.WithTrustedProxies([]string{"bad-proxy"}); err == nil {
+		t.Fatal("WithTrustedProxies error = nil, want invalid proxy rejection")
+	}
+}
+
+func TestBasicAuthResolverRejectsMalformedForwardedProto(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	req := httptest.NewRequest("PROPFIND", "/carddav/principals/user-1/", nil)
+	req.Header.Set("X-Forwarded-Proto", "https, http")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {
+		t.Fatalf("Resolve error = %v, want requires TLS", err)
+	}
+}
+
+func TestBasicAuthResolverAllowsUppercaseForwardedProtoWithWhitespace(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	req := httptest.NewRequest("PROPFIND", "/carddav/principals/user-1/", nil)
+	req.Header.Set("X-Forwarded-Proto", " HTTPS ")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err != nil {
+		t.Fatalf("Resolve returned error behind uppercase HTTPS proxy: %v", err)
+	}
+}
+
+func TestBasicAuthResolverRejectsUntrustedForwardedProto(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	resolver.TrustForwardedProto = false
+	req := httptest.NewRequest("PROPFIND", "/carddav/principals/user-1/", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {
+		t.Fatalf("Resolve error = %v, want requires TLS", err)
+	}
+}
+
+func TestBasicAuthResolverReturnsUnauthorizedChallenge(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCardDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	req := newNoAuthTLSRequest()
+	_, err := resolver.Resolve(req)
+	if err == nil {
+		t.Fatal("Resolve should fail when auth is missing")
+	}
+	type unauthorizedChallenge interface {
+		WWWAuthenticate() string
+	}
+	challenge, ok := err.(unauthorizedChallenge)
+	if !ok {
+		t.Fatalf("Resolve error missing challenge interface: %T", err)
+	}
+	if challenge.WWWAuthenticate() != cardDAVWWWAuthenticate {
+		t.Fatalf("challenge = %q, want %q", challenge.WWWAuthenticate(), cardDAVWWWAuthenticate)
+	}
+}
+
 func TestBasicAuthResolverRejectsUnsafeRequests(t *testing.T) {
 	t.Parallel()
 

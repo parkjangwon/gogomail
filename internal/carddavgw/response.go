@@ -249,7 +249,6 @@ func SupportedAddressBookReports(includeSyncCollection bool) []XMLName {
 	reports := []XMLName{
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookQuery)},
 		{Space: CardDAVNamespace, Local: string(ReportAddressBookMulti)},
-		{Space: CardDAVNamespace, Local: string(ReportPrincipalPropertySearch)},
 	}
 	if includeSyncCollection {
 		reports = append(reports, XMLName{Space: DAVNamespace, Local: string(ReportSyncCollection)})

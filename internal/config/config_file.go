@@ -65,10 +65,18 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.CalDAVAddr, key)
 	case "caldav_allow_insecure_auth":
 		return setYAMLBool(value, &cfg.CalDAVAllowInsecureAuth, key)
+	case "caldav_trust_forwarded_proto":
+		return setYAMLBool(value, &cfg.CalDAVTrustForwardedProto, key)
+	case "caldav_trusted_proxies":
+		return setYAMLStringSlice(value, &cfg.CalDAVTrustedProxies, key)
 	case "carddav_addr":
 		return setYAMLString(value, &cfg.CardDAVAddr, key)
 	case "carddav_allow_insecure_auth":
 		return setYAMLBool(value, &cfg.CardDAVAllowInsecureAuth, key)
+	case "carddav_trust_forwarded_proto":
+		return setYAMLBool(value, &cfg.CardDAVTrustForwardedProto, key)
+	case "carddav_trusted_proxies":
+		return setYAMLStringSlice(value, &cfg.CardDAVTrustedProxies, key)
 	case "webdav_addr":
 		return setYAMLString(value, &cfg.WebDAVAddr, key)
 	case "webdav_depth_infinity_enabled":

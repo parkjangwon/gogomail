@@ -537,6 +537,108 @@ func TestHandlerUnsupportedMethodReturnsImplementedAllow(t *testing.T) {
 	}
 }
 
+func TestHandlerUnauthorizedIncludesBasicChallenge(t *testing.T) {
+	t.Parallel()
+
+	unauthorized := func(*http.Request) (string, error) {
+		return "", fmt.Errorf("test auth failure")
+	}
+	cases := []struct {
+		name   string
+		newReq func() *http.Request
+	}{
+		{name: "PROPFIND", newReq: func() *http.Request {
+			return httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>`))
+		}},
+		{name: "REPORT", newReq: func() *http.Request {
+			req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:"><D:sync-token/><D:sync-level>1</D:sync-level><D:prop><D:getetag/></D:prop></D:sync-collection>`))
+			req.Header.Set("Depth", string(DepthZero))
+			return req
+		}},
+		{name: "MKCOL", newReq: func() *http.Request {
+			return httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:mkcol xmlns:D="DAV:"><D:set><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:set></D:mkcol>`))
+		}},
+		{name: "DELETE", newReq: func() *http.Request {
+			return httptest.NewRequest(MethodDelete, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil)
+		}},
+		{name: "GET", newReq: func() *http.Request {
+			return httptest.NewRequest(MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil)
+		}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			store := testCardDAVDiscoveryStore(t)
+			handler := NewHandler(&store, unauthorized)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, tc.newReq())
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+			}
+			if got := rec.Header().Get("WWW-Authenticate"); got != `Basic realm="CardDAV"` {
+				t.Fatalf("WWW-Authenticate = %q, want Basic realm=\"CardDAV\"", got)
+			}
+		})
+	}
+}
+
+type wrappedCardDAVChallenge struct {
+	err error
+}
+
+func (w wrappedCardDAVChallenge) Error() string {
+	return w.err.Error()
+}
+
+func (w wrappedCardDAVChallenge) Unwrap() error {
+	return w.err
+}
+
+func (w wrappedCardDAVChallenge) WWWAuthenticate() string {
+	return `Basic realm="CardDAV-Alt"`
+}
+
+func TestHandlerUnauthorizedUsesWrappedChallenge(t *testing.T) {
+	t.Parallel()
+
+	unauthorized := func(*http.Request) (string, error) {
+		return "", wrappedCardDAVChallenge{err: fmt.Errorf("test wrapped auth failure")}
+	}
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, unauthorized)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", nil))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Basic realm="CardDAV-Alt"` {
+		t.Fatalf("WWW-Authenticate = %q, want Basic realm=\"CardDAV-Alt\"", got)
+	}
+	if got := rec.Body.String(); !strings.Contains(got, "test wrapped auth failure") {
+		t.Fatalf("body = %q, want wrapped auth failure detail", got)
+	}
+}
+
+func TestHandlerForbiddenDoesNotIncludeBasicChallenge(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "delegate-1", nil })
+	handler.AccessAuthorizer = &fakeCardDAVAccessAuthorizer{}
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); got != "" {
+		t.Fatalf("WWW-Authenticate should not be included for 403, got %q", got)
+	}
+}
+
 func TestHandlerGetAndHeadContactObject(t *testing.T) {
 	t.Parallel()
 
@@ -738,6 +840,73 @@ func TestHandlerPutContactObjectRejectsFailedWebDAVIfHeaderETag(t *testing.T) {
 
 	if rec.Code != http.StatusPreconditionFailed {
 		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsIfMatchStarForMissingObjectBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	body := &readTrackingReader{data: "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:new-contact\r\nFN:New Contact\r\nEND:VCARD\r\n"}
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/new-contact.vcf", body)
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If-Match", "*")
+	rec := httptest.NewRecorder()
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if store.lastUpsert.ObjectName != "" {
+		t.Fatalf("unexpected upsert for missing-object precondition: %+v", store.lastUpsert)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsMalformedIfHeaderBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"}
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body)
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If", "garbage ([\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"])")
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header contains a malformed resource tag") {
+		t.Fatalf("body = %s, want malformed resource tag detail", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsHugeIfHeaderBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact One\r\nEND:VCARD\r\n"}
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body)
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If", "(["+strings.Repeat("a", maxConditionalIfHeaderBytes+10)+"])")
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header is too large") {
+		t.Fatalf("response did not explain oversized If rejection: %s", rec.Body.String())
 	}
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)
@@ -3183,6 +3352,60 @@ func TestHandlerMkcolRejectsMissingIfMatchStarBeforeBodyRead(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcolRejectsMalformedIfHeaderBeforeIfMatchPrecondition(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`}
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "22222222-2222-4222-8222-222222222222"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", body)
+	req.Header.Set("If-Match", "*")
+	req.Header.Set("If", "garbage ([\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header contains a malformed resource tag") {
+		t.Fatalf("body = %s, want malformed resource tag detail", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created despite malformed If header")
+	}
+}
+
+func TestHandlerMkcolRejectsHugeIfHeaderBeforeIfMatchPrecondition(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`}
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "33333333-3333-4333-8333-333333333333"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", body)
+	req.Header.Set("If-Match", "*")
+	req.Header.Set("If", "(["+strings.Repeat("a", maxConditionalIfHeaderBytes+10)+"])")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "If header is too large") {
+		t.Fatalf("response did not explain oversized If rejection: %s", rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created despite oversized If header")
+	}
+}
+
 func TestHandlerMkcolAllowsMissingIfNoneMatchStar(t *testing.T) {
 	t.Parallel()
 
@@ -4211,6 +4434,9 @@ func TestHandlerPropfindAddressBookCollectionOmitsSyncReportWithoutSyncStore(t *
 	}
 	if strings.Contains(text, "<D:sync-collection>") {
 		t.Fatalf("supported reports advertised sync-collection without SyncChangeStore:\n%s", text)
+	}
+	if strings.Contains(text, "<C:principal-property-search>") {
+		t.Fatalf("supported reports advertised principal-property-search:\n%s", text)
 	}
 }
 

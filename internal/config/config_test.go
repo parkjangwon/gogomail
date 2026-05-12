@@ -30,6 +30,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_DEAD_LETTER_STREAM", "")
 	t.Setenv("GOGOMAIL_CALDAV_ADDR", "")
 	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "")
+	t.Setenv("GOGOMAIL_CALDAV_TRUST_FORWARDED_PROTO", "")
+	t.Setenv("GOGOMAIL_CALDAV_TRUSTED_PROXIES", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_SMTPS_ADDR", "")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", "")
@@ -134,6 +136,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_ADMIN_TOKEN", "")
 	t.Setenv("GOGOMAIL_AUTH_JWT_SECRET", "")
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "")
+	t.Setenv("GOGOMAIL_CARDDAV_TRUST_FORWARDED_PROTO", "")
+	t.Setenv("GOGOMAIL_CARDDAV_TRUSTED_PROXIES", "")
 
 	cfg := Load()
 
@@ -209,11 +213,23 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if !cfg.CalDAVAllowInsecureAuth {
 		t.Fatal("CalDAVAllowInsecureAuth = false, want true in development defaults")
 	}
+	if !cfg.CalDAVTrustForwardedProto {
+		t.Fatal("CalDAVTrustForwardedProto = false, want true in development defaults")
+	}
+	if len(cfg.CalDAVTrustedProxies) != 0 {
+		t.Fatalf("CalDAVTrustedProxies = %#v, want empty", cfg.CalDAVTrustedProxies)
+	}
 	if cfg.CardDAVAddr != ":8082" {
 		t.Fatalf("CardDAVAddr = %q, want :8082", cfg.CardDAVAddr)
 	}
 	if !cfg.CardDAVAllowInsecureAuth {
 		t.Fatal("CardDAVAllowInsecureAuth = false, want true in development defaults")
+	}
+	if !cfg.CardDAVTrustForwardedProto {
+		t.Fatal("CardDAVTrustForwardedProto = false, want true in development defaults")
+	}
+	if len(cfg.CardDAVTrustedProxies) != 0 {
+		t.Fatalf("CardDAVTrustedProxies = %#v, want empty", cfg.CardDAVTrustedProxies)
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
@@ -608,8 +624,12 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "25")
 	t.Setenv("GOGOMAIL_CALDAV_ADDR", ":18081")
 	t.Setenv("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", "false")
+	t.Setenv("GOGOMAIL_CALDAV_TRUST_FORWARDED_PROTO", "false")
+	t.Setenv("GOGOMAIL_CALDAV_TRUSTED_PROXIES", "127.0.0.0/8, ::1/128")
 	t.Setenv("GOGOMAIL_CARDDAV_ADDR", ":18082")
 	t.Setenv("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", "false")
+	t.Setenv("GOGOMAIL_CARDDAV_TRUST_FORWARDED_PROTO", "false")
+	t.Setenv("GOGOMAIL_CARDDAV_TRUSTED_PROXIES", "198.51.100.0/24,2001:db8::/32")
 
 	cfg := Load()
 
@@ -640,11 +660,23 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	if cfg.CalDAVAllowInsecureAuth {
 		t.Fatal("CalDAVAllowInsecureAuth = true, want false")
 	}
+	if cfg.CalDAVTrustForwardedProto {
+		t.Fatal("CalDAVTrustForwardedProto = true, want false")
+	}
+	if len(cfg.CalDAVTrustedProxies) != 2 || cfg.CalDAVTrustedProxies[0] != "127.0.0.0/8" || cfg.CalDAVTrustedProxies[1] != "::1/128" {
+		t.Fatalf("CalDAVTrustedProxies = %#v, want [127.0.0.0/8 ::1/128]", cfg.CalDAVTrustedProxies)
+	}
 	if cfg.CardDAVAddr != ":18082" {
 		t.Fatalf("CardDAVAddr = %q, want :18082", cfg.CardDAVAddr)
 	}
 	if cfg.CardDAVAllowInsecureAuth {
 		t.Fatal("CardDAVAllowInsecureAuth = true, want false")
+	}
+	if cfg.CardDAVTrustForwardedProto {
+		t.Fatal("CardDAVTrustForwardedProto = true, want false")
+	}
+	if len(cfg.CardDAVTrustedProxies) != 2 || cfg.CardDAVTrustedProxies[0] != "198.51.100.0/24" || cfg.CardDAVTrustedProxies[1] != "2001:db8::/32" {
+		t.Fatalf("CardDAVTrustedProxies = %#v, want [198.51.100.0/24 2001:db8::/32]", cfg.CardDAVTrustedProxies)
 	}
 	if cfg.SMTPAddr != ":10025" {
 		t.Fatalf("SMTPAddr = %q, want :10025", cfg.SMTPAddr)

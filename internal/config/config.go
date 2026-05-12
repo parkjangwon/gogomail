@@ -39,9 +39,13 @@ type Config struct {
 	POP3IdleTimeout                     time.Duration
 	CalDAVAddr                          string
 	CalDAVAllowInsecureAuth             bool
+	CalDAVTrustForwardedProto           bool
+	CalDAVTrustedProxies                []string
 	CalDAVScheduling                    bool
 	CardDAVAddr                         string
 	CardDAVAllowInsecureAuth            bool
+	CardDAVTrustForwardedProto          bool
+	CardDAVTrustedProxies               []string
 	WebDAVAddr                          string
 	WebDAVDepthInfinityEnabled          bool
 	LDAPAddr                            string
@@ -192,9 +196,9 @@ type Config struct {
 	SearchIndexOpenSearchPassword       string
 	SearchIndexOpenSearchBootstrap      bool
 	SearchIndexOpenSearchTimeout        time.Duration
-	MailFlowOpenSearchIndex            string
-	MailFlowOpenSearchBootstrap        bool
-	MailFlowStatsBackend              string
+	MailFlowOpenSearchIndex             string
+	MailFlowOpenSearchBootstrap         bool
+	MailFlowStatsBackend                string
 	DeliveryStream                      string
 	DeliveryConsumerGroup               string
 	DeliveryConsumerName                string
@@ -261,9 +265,13 @@ func Load() Config {
 		POP3IdleTimeout:                     durationEnvOrDefault("GOGOMAIL_POP3_IDLE_TIMEOUT", 10*time.Minute),
 		CalDAVAddr:                          envOrDefault("GOGOMAIL_CALDAV_ADDR", ":8081"),
 		CalDAVAllowInsecureAuth:             boolEnvOrDefault("GOGOMAIL_CALDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		CalDAVTrustForwardedProto:           boolEnvOrDefault("GOGOMAIL_CALDAV_TRUST_FORWARDED_PROTO", true),
+		CalDAVTrustedProxies:                splitCSV(os.Getenv("GOGOMAIL_CALDAV_TRUSTED_PROXIES")),
 		CalDAVScheduling:                    boolEnvOrDefault("GOGOMAIL_CALDAV_SCHEDULING", false),
 		CardDAVAddr:                         envOrDefault("GOGOMAIL_CARDDAV_ADDR", ":8082"),
 		CardDAVAllowInsecureAuth:            boolEnvOrDefault("GOGOMAIL_CARDDAV_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
+		CardDAVTrustForwardedProto:          boolEnvOrDefault("GOGOMAIL_CARDDAV_TRUST_FORWARDED_PROTO", true),
+		CardDAVTrustedProxies:               splitCSV(os.Getenv("GOGOMAIL_CARDDAV_TRUSTED_PROXIES")),
 		WebDAVAddr:                          envOrDefault("GOGOMAIL_WEBDAV_ADDR", ":8083"),
 		WebDAVDepthInfinityEnabled:          boolEnvOrDefault("GOGOMAIL_WEBDAV_DEPTH_INFINITY_ENABLED", false),
 		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
@@ -414,9 +422,9 @@ func Load() Config {
 		SearchIndexOpenSearchPassword:       os.Getenv("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_PASSWORD"),
 		SearchIndexOpenSearchBootstrap:      boolEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_BOOTSTRAP", false),
 		SearchIndexOpenSearchTimeout:        durationEnvOrDefault("GOGOMAIL_SEARCH_INDEX_OPENSEARCH_TIMEOUT", 10*time.Second),
-		MailFlowOpenSearchIndex:            envOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX", "mail_flow"),
-		MailFlowOpenSearchBootstrap:        boolEnvOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP", false),
-		MailFlowStatsBackend:             envOrDefault("GOGOMAIL_MAIL_FLOW_STATS_BACKEND", "auto"),
+		MailFlowOpenSearchIndex:             envOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_INDEX", "mail_flow"),
+		MailFlowOpenSearchBootstrap:         boolEnvOrDefault("GOGOMAIL_MAIL_FLOW_OPENSEARCH_BOOTSTRAP", false),
+		MailFlowStatsBackend:                envOrDefault("GOGOMAIL_MAIL_FLOW_STATS_BACKEND", "auto"),
 		DeliveryStream:                      envOrDefault("GOGOMAIL_DELIVERY_STREAM", "mail.outbound.general"),
 		DeliveryConsumerGroup:               envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_GROUP", "gogomail.delivery-worker"),
 		DeliveryConsumerName:                envOrDefault("GOGOMAIL_DELIVERY_CONSUMER_NAME", "delivery-worker-1"),

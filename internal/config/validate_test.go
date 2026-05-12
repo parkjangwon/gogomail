@@ -55,6 +55,22 @@ func TestValidateRejectsProductionInsecureCardDAVAuth(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidCalDAVTrustedProxies(t *testing.T) {
+	cfg := Load()
+	cfg.CalDAVTrustedProxies = []string{"bad-proxy"}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_CALDAV_TRUSTED_PROXIES") {
+		t.Fatalf("Validate() error = %v, want trusted proxy rejection", err)
+	}
+}
+
+func TestValidateRejectsInvalidCardDAVTrustedProxies(t *testing.T) {
+	cfg := Load()
+	cfg.CardDAVTrustedProxies = []string{"bad/proxy"}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "GOGOMAIL_CARDDAV_TRUSTED_PROXIES") {
+		t.Fatalf("Validate() error = %v, want trusted proxy rejection", err)
+	}
+}
+
 func TestValidateRejectsUnknownEnvironment(t *testing.T) {
 	for _, env := range []string{"prod", "staging", ""} {
 		env := env

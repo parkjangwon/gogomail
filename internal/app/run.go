@@ -26,8 +26,6 @@ import (
 	"github.com/gogomail/gogomail/internal/admin"
 	"github.com/gogomail/gogomail/internal/apimeter"
 	"github.com/gogomail/gogomail/internal/attachmentscan"
-	"github.com/gogomail/gogomail/internal/dnsbl"
-	"github.com/gogomail/gogomail/internal/milterhook"
 	"github.com/gogomail/gogomail/internal/audit"
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/backpressure"
@@ -38,11 +36,12 @@ import (
 	"github.com/gogomail/gogomail/internal/configstore"
 	"github.com/gogomail/gogomail/internal/database"
 	"github.com/gogomail/gogomail/internal/davsyncretention"
-	"github.com/gogomail/gogomail/internal/deltasync"
 	"github.com/gogomail/gogomail/internal/dedup"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/deltasync"
 	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/dkim"
+	"github.com/gogomail/gogomail/internal/dnsbl"
 	"github.com/gogomail/gogomail/internal/drive"
 	dsnpkg "github.com/gogomail/gogomail/internal/dsn"
 	"github.com/gogomail/gogomail/internal/eventstream"
@@ -52,20 +51,21 @@ import (
 	"github.com/gogomail/gogomail/internal/inboundfilter"
 	"github.com/gogomail/gogomail/internal/ldapgw"
 	"github.com/gogomail/gogomail/internal/mailauth"
-	"github.com/gogomail/gogomail/internal/orgchart"
-	"github.com/gogomail/gogomail/internal/scim"
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/mailflow"
 	"github.com/gogomail/gogomail/internal/mailservice"
+	"github.com/gogomail/gogomail/internal/milterhook"
 	"github.com/gogomail/gogomail/internal/observability"
+	"github.com/gogomail/gogomail/internal/orgchart"
 	"github.com/gogomail/gogomail/internal/outbound"
-	"github.com/gogomail/gogomail/internal/pop3d"
 	"github.com/gogomail/gogomail/internal/outbox"
+	"github.com/gogomail/gogomail/internal/pop3d"
 	"github.com/gogomail/gogomail/internal/pushnotify"
 	"github.com/gogomail/gogomail/internal/ratelimit"
+	"github.com/gogomail/gogomail/internal/scheduling"
+	"github.com/gogomail/gogomail/internal/scim"
 	"github.com/gogomail/gogomail/internal/searchindex"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
-	"github.com/gogomail/gogomail/internal/scheduling"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -590,6 +590,11 @@ func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 	accountRepository := maildb.NewRepository(db)
 	directoryRepository := directory.NewRepository(db)
 	resolver := caldavgw.NewBasicAuthResolver(accountRepository, cfg.CalDAVAllowInsecureAuth)
+	resolver.TrustForwardedProto = cfg.CalDAVTrustForwardedProto
+	resolver, err = resolver.WithTrustedProxies(cfg.CalDAVTrustedProxies)
+	if err != nil {
+		return fmt.Errorf("invalid caldav trusted proxies: %w", err)
+	}
 	handler := caldavgw.NewHandler(calendarRepository, resolver.Resolve)
 	handler.IncludeScheduling = cfg.CalDAVScheduling
 	handler.AccessAuthorizer = caldavgw.DelegatedAccessPolicy{
@@ -646,6 +651,11 @@ func runCardDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logg
 	accountRepository := maildb.NewRepository(db)
 	directoryRepository := directory.NewRepository(db)
 	resolver := carddavgw.NewBasicAuthResolver(accountRepository, cfg.CardDAVAllowInsecureAuth)
+	resolver.TrustForwardedProto = cfg.CardDAVTrustForwardedProto
+	resolver, err = resolver.WithTrustedProxies(cfg.CardDAVTrustedProxies)
+	if err != nil {
+		return fmt.Errorf("invalid carddav trusted proxies: %w", err)
+	}
 	handler := carddavgw.NewHandler(addressBookRepository, resolver.Resolve)
 	handler.AccessAuthorizer = carddavgw.DelegatedAccessPolicy{
 		Directory: directoryRepository,
@@ -1480,8 +1490,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			if err := redisClient.Close(); err != nil {
-			logger.Warn("close redis client", "error", err)
-		}
+				logger.Warn("close redis client", "error", err)
+			}
 			return err
 		}
 
@@ -1493,8 +1503,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
-			logger.Warn("close redis client", "error", err)
-		}
+					logger.Warn("close redis client", "error", err)
+				}
 				return err
 			}
 		}
@@ -1506,8 +1516,8 @@ func runReceiveMTA(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
-			logger.Warn("close redis client", "error", err)
-		}
+					logger.Warn("close redis client", "error", err)
+				}
 				return err
 			}
 		}
@@ -2564,8 +2574,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
-			logger.Warn("close redis client", "error", err)
-		}
+					logger.Warn("close redis client", "error", err)
+				}
 				return err
 			}
 			defer redisClient.Close()
@@ -2604,8 +2614,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			redisClient = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				if err := redisClient.Close(); err != nil {
-			logger.Warn("close redis client", "error", err)
-		}
+					logger.Warn("close redis client", "error", err)
+				}
 				return err
 			}
 			defer redisClient.Close()
@@ -2641,8 +2651,8 @@ func runHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, mode M
 			calDAVSyncRetention:         caldavgw.NewRepository(db),
 			cardDAVSyncRetention:        carddavgw.NewRepository(db),
 			attachmentCleanup:           mailservice.New(repository, store),
-			mailFlowStats:              mailFlowStatsProvider,
-			configStore:                configStore,
+			mailFlowStats:               mailFlowStatsProvider,
+			configStore:                 configStore,
 		}, cfg.AdminToken, httpapi.WithStorageCapabilities(storageCapabilitiesForConfig(cfg)), httpapi.WithConfigNotifier(configStore), httpapi.WithTokenManager(tokenManager))
 		logger.Info("admin api routes registered")
 		if cfg.SCIMToken != "" {
