@@ -29,6 +29,7 @@ function formatDate(iso: string): string {
 interface BreadcrumbItem { id: string; name: string; }
 
 const DRIVE_NODE_DRAG_MIME = 'application/x-gogomail-drive-node';
+const DRIVE_NODE_DRAG_TEXT = 'application/x-gogomail-drive-node-id';
 
 interface DroppedFileEntry {
   file: File;
@@ -58,17 +59,36 @@ type DirectoryReaderLike = {
 
 function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
   const raw = dataTransfer.getData(DRIVE_NODE_DRAG_MIME);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as { nodeId?: string };
-    return parsed.nodeId ?? null;
-  } catch {
-    return null;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as { nodeId?: string };
+      return parsed.nodeId ?? null;
+    } catch {
+      return null;
+    }
   }
+
+  const fallback = dataTransfer.getData(DRIVE_NODE_DRAG_TEXT);
+  if (fallback.startsWith('node:')) {
+    const nodeId = fallback.slice('node:'.length).trim();
+    return nodeId || null;
+  }
+
+  const plain = dataTransfer.getData('text/plain');
+  if (plain.startsWith(`${DRIVE_NODE_DRAG_TEXT}:`)) {
+    const nodeId = plain.slice(`${DRIVE_NODE_DRAG_TEXT}:`.length).trim();
+    return nodeId || null;
+  }
+
+  return null;
 }
 
 function isDriveNodeDrag(dataTransfer: DataTransfer): boolean {
-  return Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_MIME);
+  return (
+    Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_MIME) ||
+    Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_TEXT) ||
+    dataTransfer.types.includes('text/plain')
+  );
 }
 
 function normalizeDroppedPath(path: string): string {
@@ -760,6 +780,8 @@ export function DriveView() {
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, JSON.stringify({ nodeId: node.id }));
+                        e.dataTransfer.setData(DRIVE_NODE_DRAG_TEXT, `node:${node.id}`);
+                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${node.id}`);
                         e.dataTransfer.effectAllowed = 'move';
                         setDraggingNodeId(node.id);
                       }}
