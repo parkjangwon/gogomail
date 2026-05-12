@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## Drive upload contract fix (2026-05-12, in progress)
+- Fixed Drive upload session contract mismatch in webmail frontend (`apps/webmail/src/lib/api.ts`):
+  - `size` -> `declared_size`
+  - `storage_backend` now provided (fallback attempts: `local`, `s3`, `minio`)
+  - `X-Content-SHA256` checksum header now included for body upload
+  - session response key corrected to `drive_upload_session`
+  - finalize request switched to `/api/mail/drive/upload-sessions/{id}/finalize` without extra body
+- Fixed backend `insertDriveFileNode` argument mismatch in `internal/drive/repository.go` (removed extra argument in file insert), which was returning `expected 9 arguments, got 10`.
+- Verification: real file from `/Users/Downloads` upload succeeded through `POST /api/v1/drive/upload-sessions`, `PUT /body`, `POST /finalize`; result node appears in `GET /api/v1/drive/nodes`.
+
 ## Webmail address book recipient display stabilization (TASK-167, 2026-05-12, complete)
 - Compose recipient picker address-book tab now mirrors the organization picker flow: selecting an address book shows the address-book send token and its actual contacts together.
 - Fixed frontend vCard parsing for standard `FN:value` and `EMAIL:value` properties, including parameterized forms such as `EMAIL;TYPE=WORK:value`.

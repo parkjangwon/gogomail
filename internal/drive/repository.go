@@ -1458,7 +1458,6 @@ RETURNING
 		req.StorageBackend,
 		req.StoragePath,
 		req.ChecksumSHA256,
-		req.NodeID,
 	).Scan(
 		&node.ID,
 		&node.CompanyID,
