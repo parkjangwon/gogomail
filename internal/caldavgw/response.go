@@ -291,7 +291,22 @@ func calendarTimezoneValue(tz *string) string {
 	if tz == nil {
 		return ""
 	}
-	return *tz
+	tzid := strings.TrimSpace(*tz)
+	if tzid == "" {
+		return ""
+	}
+	if strings.Contains(strings.ToUpper(tzid), "BEGIN:VTIMEZONE") {
+		return tzid
+	}
+	loc, err := time.LoadLocation(tzid)
+	if err != nil {
+		return tzid
+	}
+	value, err := buildVTIMEZONE(tzid, loc)
+	if err != nil {
+		return tzid
+	}
+	return string(value)
 }
 
 func webDAVTimeProperty(name XMLName, value time.Time, format func(time.Time) string) PropertyResult {

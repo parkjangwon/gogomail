@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV calendar-timezone VTIMEZONE 응답 정합성 (2026-05-12, complete)
+- `calendar-timezone` property 응답이 저장된 Olson TZID를 클라이언트용 `VCALENDAR`/`VTIMEZONE`
+  payload로 직렬화하도록 보강했다.
+- timezone service의 `X-WR-CALDESC` 및 `X-PUBLISHED-LL` calendar properties가
+  `END:VCALENDAR` 뒤가 아니라 iCalendar body 내부에 위치하도록 수정했다.
+- 저장소 canonical 값은 기존 TZID 형식을 유지해 `time.LoadLocation` 기반 query/freebusy 동작과 write path를 보존한다.
+
 ## CalDAV sync-collection delta duplicate coalescing (2026-05-12, complete)
 - CalDAV `sync-collection` delta 경로가 같은 object href의 반복 변경을 최신 변경 하나로 coalescing한 뒤
   `nresults` limit을 판단하도록 정리했다.
