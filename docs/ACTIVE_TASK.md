@@ -1879,6 +1879,44 @@ TASK-147: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 alias
 
 ---
 
+## ✅ TASK-147: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 alias 문서화
+
+**STATUS: COMPLETE**
+
+### 배경
+
+`pnpm test:compose-helpers`가 작성창 helper 런타임 검증의 표준 명령이 됐다.
+다만 기존 `pnpm test:datetime-local`도 호환 alias로 유지되므로, 왜 alias가 남아 있는지 문서에 남긴다.
+
+### 구현 대상
+
+- `docs/WEBMAIL_ROADMAP.md`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `test:datetime-local`이 호환 alias임을 문서화한다.
+- [x] alias가 같은 compose-helper 런타임 검증을 실행함을 문서화한다.
+- [x] alias 유지 이유가 datetime-local formatter 최초 검증에서 출발했기 때문임을 문서화한다.
+- [x] 코드 변경 없이 개발문서만 갱신한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 작성창 helper 런타임 검증 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+- `pnpm test:compose-helpers` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-148: 사용자 웹메일 베타 안정화 — 작성창 helper 검증 alias 실행 확인
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**
