@@ -79,6 +79,10 @@ function parseAddrs(raw: string): { address: string; name?: string }[] {
   return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
 }
 
+function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
+  return intent === 'reply_all' ? 'reply' : intent;
+}
+
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
   const from = source.from_name
     ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
@@ -279,11 +283,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSaveStatus('saving');
       try {
         const data = {
-          intent,
+          intent: backendComposeIntent(intent),
           ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-          to: toVal.trim() ? [{ address: toVal.trim() }] : [],
-          ...(ccVal.trim() && { cc: ccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
-          ...(bccVal.trim() && { bcc: bccVal.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+          to: parseAddrs(toVal),
+          ...(ccVal.trim() && { cc: parseAddrs(ccVal) }),
+          ...(bccVal.trim() && { bcc: parseAddrs(bccVal) }),
           subject: subjectVal,
           text_body: bodyText,
           ...(fromAddress && { from: fromAddress }),
@@ -513,11 +517,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     setSaveStatus('saving');
     try {
       const data = {
-        intent,
+        intent: backendComposeIntent(intent),
         ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
-        to: to.trim() ? [{ address: to.trim() }] : [],
-        ...(cc.trim() && { cc: cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
-        ...(bcc.trim() && { bcc: bcc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) }),
+        to: parseAddrs(to),
+        ...(cc.trim() && { cc: parseAddrs(cc) }),
+        ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
         subject,
         text_body: bodyText,
         ...(fromAddress && { from: fromAddress }),
@@ -570,7 +574,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       subject: subject.trim(),
       text_body: bodyText,
       ...(editor && { html_body: editor.getHTML() }),
-      ...(intent !== 'new' && sourceMessage && { intent, source_message_id: sourceMessage.id }),
+      ...(intent !== 'new' && sourceMessage && { intent: backendComposeIntent(intent), source_message_id: sourceMessage.id }),
       ...(readyAttachmentIds.length > 0 && { attachment_ids: readyAttachmentIds }),
       ...(scheduledAt && { scheduled_at: new Date(scheduledAt).toISOString() }),
       ...(fromAddress && { from: fromAddress }),
@@ -907,8 +911,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 const bodyText = editor?.getText() ?? '';
                 if (to.trim() || subject.trim() || bodyText.trim()) {
                   const data = {
-                    intent,
-                    to: to.trim() ? [{ address: to.trim() }] : [],
+                    intent: backendComposeIntent(intent),
+                    ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
+                    to: parseAddrs(to),
+                    ...(cc.trim() && { cc: parseAddrs(cc) }),
+                    ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
                     subject,
                     text_body: bodyText,
                     ...(editor && { html_body: editor.getHTML() }),
