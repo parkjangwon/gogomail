@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang tagged WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover tagged WebDAV `If` header lists whose
+  resource tag exactly matches the CalDAV/CardDAV collection path, preserving
+  omitted displayname and description language tags.
+- Non-matching tagged `If` lists now reject before request-body reads, leaving
+  attempted explicit `xml:lang` mutations unapplied and avoiding repository
+  update calls.
+- Matching tagged `If` lists with stale ETags are covered by the same
+  pre-body-read rollback assertions.
+
 ## CalDAV/CardDAV xml:lang observed ETag PostgreSQL coverage (2026-05-13, complete)
 - Optional PostgreSQL integration tests now verify observed collection ETag
   updates preserve existing CalDAV/CardDAV displayname and description
