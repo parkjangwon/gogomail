@@ -410,6 +410,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing assertions and package scripts are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail close confirmation accessibility (TASK-151, 2026-05-12, complete)
+- Completed close confirmation accessibility state pass for user webmail beta.
+- The inline close confirmation now exposes `role=alertdialog`.
+- The confirmation is labelled by its visible prompt through `aria-labelledby`.
+- `aria-modal=false` makes the inline, non-modal behavior explicit.
+- Existing save/discard/cancel actions and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
