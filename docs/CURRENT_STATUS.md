@@ -390,6 +390,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - No code behavior changed.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail compose helper alias verification (TASK-148, 2026-05-12, complete)
+- Completed compose helper alias execution verification.
+- `pnpm test:datetime-local` in `apps/webmail` was run and invoked `pnpm test:compose-helpers`.
+- The alias path completed the same compose helper runtime checks successfully.
+- No code behavior changed.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:datetime-local` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
