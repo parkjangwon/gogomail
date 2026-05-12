@@ -50,14 +50,17 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 	db := openMigratedPostgresTestDB(t)
 	seed := seedPostgresMailUser(t, db)
 	repo := NewRepository(db)
+	scheduledAt := time.Date(2100, 1, 2, 3, 4, 5, 0, time.UTC)
 
 	draft, err := repo.SaveDraft(ctx, SaveDraftRequest{
-		UserID:   seed.userID,
-		Intent:   "new",
-		From:     "alice@example.com",
-		To:       []outbound.Address{{Email: "bob@example.net", Name: "Bob"}},
-		Subject:  "release postgres draft",
-		TextBody: "hello from postgres",
+		UserID:      seed.userID,
+		Intent:      "new",
+		From:        "alice@example.com",
+		To:          []outbound.Address{{Email: "bob@example.net", Name: "Bob"}},
+		Subject:     "release postgres draft",
+		TextBody:    "hello from postgres",
+		TrackOpens:  true,
+		ScheduledAt: scheduledAt,
 	})
 	if err != nil {
 		t.Fatalf("SaveDraft returned error: %v", err)
@@ -81,6 +84,12 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 	if len(draftForSend.AttachmentIDs) != 1 || draftForSend.AttachmentIDs[0] != attachment.ID {
 		t.Fatalf("draft attachment IDs = %+v, want [%s]", draftForSend.AttachmentIDs, attachment.ID)
 	}
+	if !draftForSend.TrackOpens {
+		t.Fatal("draft track_opens = false, want true")
+	}
+	if !draftForSend.ScheduledAt.Equal(scheduledAt) {
+		t.Fatalf("draft scheduled_at = %s, want %s", draftForSend.ScheduledAt.Format(time.RFC3339), scheduledAt.Format(time.RFC3339))
+	}
 
 	sentID, err := repo.RecordOutgoing(ctx, OutgoingMessage{
 		CompanyID:       seed.companyID,
@@ -93,6 +102,7 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 		From:            outbound.Address{Email: "alice@example.com", Name: "Alice"},
 		To:              draftForSend.To,
 		SentAt:          time.Now().UTC(),
+		ScheduledAt:     draftForSend.ScheduledAt,
 		Size:            128,
 		StoragePath:     "sent/release-postgres.eml",
 		Farm:            outbound.FarmGeneral,
