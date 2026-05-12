@@ -6,6 +6,17 @@
 
 **Current MVP**: Login + 3-pane layout (Sidebar / MessageList / ReadingPane) + TipTap compose modal.
 
+## Development verification loop
+
+For webmail beta work, run the frontend checks alongside the repository Go test
+suite before committing:
+
+- `go test ./...` from the repository root.
+- `pnpm type-check` from `apps/webmail`.
+- `pnpm test:compose-helpers` from `apps/webmail` when compose helper copy,
+  scheduled-send datetime formatting, send button labels, or close-save prompts
+  are touched.
+
 ---
 
 ## Phase 1: Core Mail (MVP+)
