@@ -195,6 +195,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Send result preservation, draft cleanup, and close timing are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send success handler consolidation (TASK-122, 2026-05-12, complete)
+- Completed send success handler consolidation for user webmail beta.
+- ComposeModal now routes send-result storage, local-state updates, draft cleanup, sent state, archive-after-send, and close timing through `handleSuccessfulSend`.
+- Undo-countdown, immediate, and scheduled send success paths all use the same helper.
+- Existing close timing and visual behavior are preserved.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
