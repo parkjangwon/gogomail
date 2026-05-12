@@ -855,6 +855,42 @@ export async function deleteCalendarObject(calendarId: string, objectName: strin
   );
 }
 
+// ── Calendar Subscriptions ────────────────────────────────────────────────────
+
+export interface CalendarSubscription {
+  id: string;
+  name: string;
+  url: string;
+  color: string;
+}
+
+export async function listCalendarSubscriptions(): Promise<CalendarSubscription[]> {
+  try {
+    const data = await request<{ subscriptions?: CalendarSubscription[] }>('calendar-subscriptions');
+    return data.subscriptions ?? [];
+  } catch { return []; }
+}
+
+export async function addCalendarSubscription(
+  url: string, name: string, color: string,
+): Promise<CalendarSubscription> {
+  const data = await request<{ subscription: CalendarSubscription }>('calendar-subscriptions', {
+    method: 'POST',
+    body: JSON.stringify({ url, name, color }),
+  });
+  return data.subscription;
+}
+
+export async function deleteCalendarSubscription(id: string): Promise<void> {
+  await request<unknown>(`calendar-subscriptions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function fetchSubscriptionICS(id: string): Promise<string> {
+  const res = await fetch(`/api/mail/calendar-subscriptions/${encodeURIComponent(id)}/events`);
+  if (!res.ok) throw new Error(`Failed to fetch subscription events: ${res.status}`);
+  return res.text();
+}
+
 export interface DirectoryUser {
   id: string;
   display_name: string;

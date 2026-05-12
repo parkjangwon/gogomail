@@ -6,6 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/caldavgw"
@@ -23,12 +28,65 @@ type CalendarRepo interface {
 	DeleteObject(ctx context.Context, req caldavgw.DeleteObjectRequest) (caldavgw.CalendarObject, error)
 }
 
-type CalendarHandler struct {
-	repo CalendarRepo
+type CalendarPrefsRepo interface {
+	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
+	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 }
 
-func NewCalendarHandler(repo CalendarRepo) *CalendarHandler {
-	return &CalendarHandler{repo: repo}
+// CalendarSubscription is a subscribed external iCal/ICS feed.
+type CalendarSubscription struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	URL   string `json:"url"`
+	Color string `json:"color"`
+}
+
+type calendarPrefsEnvelope struct {
+	Subscriptions []CalendarSubscription `json:"calendar_subscriptions,omitempty"`
+}
+
+type CalendarHandler struct {
+	repo  CalendarRepo
+	prefs CalendarPrefsRepo
+}
+
+func NewCalendarHandler(repo CalendarRepo, prefs CalendarPrefsRepo) *CalendarHandler {
+	return &CalendarHandler{repo: repo, prefs: prefs}
+}
+
+func (h *CalendarHandler) listSubscriptions(ctx context.Context, userID string) ([]CalendarSubscription, error) {
+	raw, err := h.prefs.GetWebmailPreferences(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var env calendarPrefsEnvelope
+	_ = json.Unmarshal(raw, &env)
+	if env.Subscriptions == nil {
+		env.Subscriptions = []CalendarSubscription{}
+	}
+	return env.Subscriptions, nil
+}
+
+func (h *CalendarHandler) saveSubscriptions(ctx context.Context, userID string, subs []CalendarSubscription) error {
+	raw, err := h.prefs.GetWebmailPreferences(ctx, userID)
+	if err != nil {
+		return err
+	}
+	// Merge: preserve other prefs keys, update only calendar_subscriptions.
+	var merged map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &merged); err != nil {
+		merged = make(map[string]json.RawMessage)
+	}
+	subsJSON, err := json.Marshal(subs)
+	if err != nil {
+		return err
+	}
+	merged["calendar_subscriptions"] = subsJSON
+	updated, err := json.Marshal(merged)
+	if err != nil {
+		return err
+	}
+	return h.prefs.SetWebmailPreferences(ctx, userID, updated)
 }
 
 type CalendarEnvelope struct {
@@ -306,6 +364,164 @@ func RegisterCalendarRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenM
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+func RegisterCalendarSubscriptionRoutes(mux *http.ServeMux, handler *CalendarHandler, tokenManager *auth.TokenManager) {
+	allows := []string{}
+	if tokenManager == nil {
+		allows = []string{"user_id"}
+	}
+
+	mux.HandleFunc("GET /api/v1/calendar-subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, allows...) {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		subs, err := handler.listSubscriptions(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "subscription list failed")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"subscriptions": subs})
+	})
+
+	mux.HandleFunc("POST /api/v1/calendar-subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectUnknownQueryKeys(w, r, allows...) {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		if r.ContentLength > maxJSONBodyBytes {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		var req struct {
+			Name  string `json:"name"`
+			URL   string `json:"url"`
+			Color string `json:"color"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		req.URL = strings.TrimSpace(req.URL)
+		if req.URL == "" {
+			writeError(w, http.StatusBadRequest, "url is required")
+			return
+		}
+		u, err := url.Parse(req.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			writeError(w, http.StatusBadRequest, "url must be an http or https URL")
+			return
+		}
+		if req.Name == "" {
+			req.Name = u.Host
+		}
+		if req.Color == "" {
+			req.Color = "#4285f4"
+		}
+		subs, err := handler.listSubscriptions(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "load subscriptions failed")
+			return
+		}
+		sub := CalendarSubscription{
+			ID:    uuid.NewString(),
+			Name:  req.Name,
+			URL:   req.URL,
+			Color: req.Color,
+		}
+		subs = append(subs, sub)
+		if err := handler.saveSubscriptions(r.Context(), userID, subs); err != nil {
+			writeError(w, http.StatusInternalServerError, "save subscription failed")
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"subscription": sub})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/calendar-subscriptions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, allows...) {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		subID := r.PathValue("id")
+		subs, err := handler.listSubscriptions(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "load subscriptions failed")
+			return
+		}
+		filtered := subs[:0]
+		for _, s := range subs {
+			if s.ID != subID {
+				filtered = append(filtered, s)
+			}
+		}
+		if err := handler.saveSubscriptions(r.Context(), userID, filtered); err != nil {
+			writeError(w, http.StatusInternalServerError, "save subscription failed")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("GET /api/v1/calendar-subscriptions/{id}/events", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, allows...) {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		subID := r.PathValue("id")
+		subs, err := handler.listSubscriptions(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "load subscriptions failed")
+			return
+		}
+		var target *CalendarSubscription
+		for i := range subs {
+			if subs[i].ID == subID {
+				target = &subs[i]
+				break
+			}
+		}
+		if target == nil {
+			writeError(w, http.StatusNotFound, "subscription not found")
+			return
+		}
+		client := &http.Client{Timeout: 15 * time.Second}
+		resp, err := client.Get(target.URL)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "failed to fetch subscription URL")
+			return
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20)) // 5 MB limit
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "failed to read subscription response")
+			return
+		}
+		w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+		w.Header().Set("Cache-Control", "max-age=3600")
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
 	})
 }
 

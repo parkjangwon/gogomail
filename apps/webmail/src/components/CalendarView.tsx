@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, parseVTODOICS, createCalendarTodo, setTodoStatus, deleteCalendarObject } from '@/lib/api';
+import { Calendar, CalendarObject, listCalendars, listCalendarObjects, parseICS, icalDateToDate, createCalendarEvent, createCalendar, updateCalendar, deleteCalendar, parseVTODOICS, createCalendarTodo, setTodoStatus, deleteCalendarObject, CalendarSubscription, listCalendarSubscriptions, addCalendarSubscription, deleteCalendarSubscription, fetchSubscriptionICS } from '@/lib/api';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,6 +91,37 @@ function parseEvents(objects: CalendarObject[], calendars: Calendar[]): ParsedEv
       allDay: ics.allDay,
       calendarId: obj.CalendarID,
       color: cal?.Color || 'var(--color-accent)',
+    });
+  }
+  return events;
+}
+
+// ── Subscription event parser ─────────────────────────────────────────────────
+
+function parseSubscriptionEvents(rawICS: string, sub: CalendarSubscription): ParsedEvent[] {
+  const events: ParsedEvent[] = [];
+  // Split into VEVENT blocks
+  const blocks = rawICS.split(/BEGIN:VEVENT/i).slice(1);
+  for (const block of blocks) {
+    const endIdx = block.search(/END:VEVENT/i);
+    const eventBlock = 'BEGIN:VEVENT\n' + (endIdx >= 0 ? block.slice(0, endIdx) : block);
+    const ics = parseICS(eventBlock); // parseICS handles raw text via its try/catch
+    const start = icalDateToDate(ics.dtstart);
+    if (!start) continue;
+    const endRaw = icalDateToDate(ics.dtend);
+    const end = endRaw
+      ? ics.allDay ? new Date(endRaw.getTime() - 1) : endRaw
+      : new Date(start.getTime() + 60 * 60 * 1000);
+    events.push({
+      obj: { ID: sub.id + '_' + (ics.summary || start.toISOString()), UserID: '', CalendarID: sub.id, ObjectName: '', UID: '', Component: 'VEVENT', ETag: '', Size: 0, ICS: '', CreatedAt: '', UpdatedAt: '' } as unknown as CalendarObject,
+      summary: ics.summary || '(제목 없음)',
+      description: ics.description,
+      location: ics.location,
+      start,
+      end,
+      allDay: ics.allDay,
+      calendarId: sub.id,
+      color: sub.color,
     });
   }
   return events;
@@ -863,6 +894,18 @@ export function CalendarView() {
   const [todoHoverId, setTodoHoverId] = useState<string | null>(null);
   const [quickCreate, setQuickCreate] = useState<{ day: Date; rect: DOMRect } | null>(null);
 
+  // Subscription state
+  const [subscriptions, setSubscriptions] = useState<CalendarSubscription[]>([]);
+  const [selectedSubIds, setSelectedSubIds] = useState<Set<string>>(new Set());
+  const [subICSCache, setSubICSCache] = useState<Map<string, string>>(new Map());
+  const [subHoverId, setSubHoverId] = useState<string | null>(null);
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [subUrl, setSubUrl] = useState('');
+  const [subName, setSubName] = useState('');
+  const [subColor, setSubColor] = useState('#4285f4');
+  const [subSaving, setSubSaving] = useState(false);
+  const [subError, setSubError] = useState('');
+
   // Load calendars on mount
   useEffect(() => {
     let cancelled = false;
@@ -889,9 +932,38 @@ export function CalendarView() {
     return () => { cancelled = true; };
   }, [calendars]);
 
+  // Load subscriptions on mount
+  useEffect(() => {
+    let cancelled = false;
+    listCalendarSubscriptions().then((subs) => {
+      if (cancelled) return;
+      setSubscriptions(subs);
+      setSelectedSubIds(new Set(subs.map((s) => s.id)));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch ICS for active subscriptions
+  useEffect(() => {
+    let cancelled = false;
+    for (const sub of subscriptions) {
+      if (!selectedSubIds.has(sub.id)) continue;
+      if (subICSCache.has(sub.id)) continue;
+      fetchSubscriptionICS(sub.id).then((ics) => {
+        if (cancelled) return;
+        setSubICSCache((prev) => new Map(prev).set(sub.id, ics));
+      }).catch(() => {});
+    }
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscriptions, selectedSubIds]);
+
   // Derived: parse + filter events and todos
   const allEvents = parseEvents(objects, calendars);
-  const events = allEvents.filter((ev) => selectedCalIds.has(ev.calendarId));
+  const subEvents = subscriptions
+    .filter((s) => selectedSubIds.has(s.id) && subICSCache.has(s.id))
+    .flatMap((s) => parseSubscriptionEvents(subICSCache.get(s.id)!, s));
+  const events = [...allEvents.filter((ev) => selectedCalIds.has(ev.calendarId)), ...subEvents];
   const allTodos = parseTodos(objects, calendars);
   const todos = allTodos.filter((t) => selectedCalIds.has(t.calendarId));
 
@@ -1120,6 +1192,43 @@ export function CalendarView() {
     });
   };
 
+  const toggleSubscription = (id: string) => {
+    setSelectedSubIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAddSubscription = async () => {
+    const trimmed = subUrl.trim();
+    if (!trimmed) return;
+    setSubSaving(true);
+    setSubError('');
+    try {
+      const sub = await addCalendarSubscription(trimmed, subName.trim() || trimmed, subColor);
+      setSubscriptions((prev) => [...prev, sub]);
+      setSelectedSubIds((prev) => new Set(prev).add(sub.id));
+      setShowSubModal(false);
+      setSubUrl('');
+      setSubName('');
+      setSubColor('#4285f4');
+    } catch {
+      setSubError('구독 추가에 실패했습니다.');
+    } finally {
+      setSubSaving(false);
+    }
+  };
+
+  const handleDeleteSubscription = async (id: string) => {
+    try {
+      await deleteCalendarSubscription(id);
+      setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+      setSubICSCache((prev) => { const m = new Map(prev); m.delete(id); return m; });
+      setSelectedSubIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    } catch { /* ignore */ }
+  };
+
   const handleEventClick = (ev: ParsedEvent, rect: DOMRect) => {
     setPopover({ event: ev, rect });
   };
@@ -1323,8 +1432,96 @@ export function CalendarView() {
               </button>
             )}
           </div>
+
+          {/* 다른 캘린더 (Subscriptions) */}
+          <div style={{ marginTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px 2px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                다른 캘린더
+              </div>
+              <button
+                onClick={() => { setShowSubModal(true); setSubError(''); }}
+                title="캘린더 구독 추가"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', lineHeight: 1, padding: '1px 4px', borderRadius: '4px' }}
+              >+</button>
+            </div>
+
+            {subscriptions.map((sub) => {
+              const checked = selectedSubIds.has(sub.id);
+              const hovered = subHoverId === sub.id;
+              return (
+                <div
+                  key={sub.id}
+                  onMouseEnter={() => setSubHoverId(sub.id)}
+                  onMouseLeave={() => setSubHoverId(null)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', background: hovered ? 'var(--color-bg-tertiary)' : 'transparent' }}
+                >
+                  <span
+                    onClick={() => toggleSubscription(sub.id)}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${sub.color}`, background: checked ? sub.color : 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    {checked && <span style={{ color: '#fff', fontSize: '9px', lineHeight: 1, fontWeight: 700 }}>✓</span>}
+                  </span>
+                  <span onClick={() => toggleSubscription(sub.id)} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '13px', color: 'var(--color-text-primary)' }} title={sub.name}>
+                    {sub.name}
+                  </span>
+                  {hovered && (
+                    <button onClick={() => handleDeleteSubscription(sub.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '14px', padding: '0 2px', flexShrink: 0, lineHeight: 1 }} title="구독 취소">×</button>
+                  )}
+                </div>
+              );
+            })}
+
+            {subscriptions.length === 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '4px 6px' }}>구독 캘린더 없음</div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Subscription modal */}
+      {showSubModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }} onClick={() => setShowSubModal(false)}>
+          <div style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px', width: '360px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '16px', color: 'var(--color-text-primary)' }}>캘린더 구독 추가</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>ICS/iCal URL *</label>
+                <input
+                  autoFocus
+                  type="url"
+                  placeholder="https://calendar.google.com/calendar/ical/..."
+                  value={subUrl}
+                  onChange={(e) => setSubUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddSubscription()}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>이름 (선택)</label>
+                <input
+                  type="text"
+                  placeholder="캘린더 이름"
+                  value={subName}
+                  onChange={(e) => setSubName(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>색상</label>
+                <input type="color" value={subColor} onChange={(e) => setSubColor(e.target.value)} style={{ width: '32px', height: '32px', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 0, background: 'none' }} />
+              </div>
+              {subError && <div style={{ fontSize: '12px', color: 'var(--color-error, #e53e3e)' }}>{subError}</div>}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button onClick={() => setShowSubModal(false)} style={{ padding: '7px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
+              <button onClick={handleAddSubscription} disabled={subSaving || !subUrl.trim()} style={{ padding: '7px 16px', borderRadius: '6px', border: 'none', background: subUrl.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: subUrl.trim() ? '#fff' : 'var(--color-text-tertiary)', fontSize: '13px', cursor: subUrl.trim() ? 'pointer' : 'default', fontWeight: 500 }}>
+                {subSaving ? '추가 중...' : '구독 추가'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main calendar area */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>

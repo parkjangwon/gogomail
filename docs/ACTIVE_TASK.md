@@ -5,6 +5,21 @@
 
 ---
 
+## ✅ TASK-091: 캘린더 라우트 등록 + 구독 캘린더 기능
+
+**STATUS: COMPLETE**
+
+### 완료 (2026-05-12)
+
+- `internal/app/run.go`: `RegisterCalendarRoutes` + `RegisterCalendarSubscriptionRoutes` 등록 (캘린더 404 수정)
+- `internal/httpapi/calendar.go`: 구독 CRUD 엔드포인트 (`GET/POST /api/v1/calendar-subscriptions`, `DELETE /{id}`, `GET /{id}/events`)
+  - 구독 메타데이터는 webmail preferences JSONB에 저장 (DB 마이그레이션 불필요)
+  - 이벤트 프록시: 외부 ICS URL fetch → 클라이언트에 text/calendar 반환
+- `apps/webmail/src/lib/api.ts`: `CalendarSubscription` 타입 + 구독 API 함수 추가
+- `apps/webmail/src/components/CalendarView.tsx`: 사이드바 "다른 캘린더" 섹션 + 구독 추가 모달
+
+---
+
 ## 🔄 TASK-090: 수신 차단 + 부재중 자동 응답 백엔드 강제 적용
 
 **STATUS: COMPLETE**
