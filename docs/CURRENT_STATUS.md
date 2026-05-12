@@ -92,6 +92,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing preset scheduled-send behavior is preserved.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail sent-draft cleanup stabilization (TASK-109, 2026-05-12, complete)
+- Completed sent-draft cleanup pass for user webmail beta.
+- Webmail API helpers now expose `deleteDraft` for the backend `DELETE /drafts/{id}` contract.
+- Successful immediate, scheduled, and undo-countdown sends now attempt to delete the current autosaved draft.
+- Draft cleanup is best-effort; cleanup failure does not turn a successful send into a failed send.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
