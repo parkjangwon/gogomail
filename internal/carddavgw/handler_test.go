@@ -55,6 +55,12 @@ type joinedSyncCardDAVDiscoveryStore struct {
 	joinedCount int
 }
 
+type batchCardDAVDiscoveryStore struct {
+	fakeCardDAVDiscoveryStore
+	lookupCount int
+	batchCount  int
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
 	if userID != s.principal.UserID {
 		return Principal{}, errFakeCardDAVNotFound
@@ -177,6 +183,31 @@ func (s *joinedSyncCardDAVDiscoveryStore) ListAddressBookChangesWithObjectsSince
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (s *batchCardDAVDiscoveryStore) LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error) {
+	s.lookupCount++
+	return s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, userID, addressBookID, objectName)
+}
+
+func (s *batchCardDAVDiscoveryStore) ListContactObjectsByNameGroups(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string, _ string) ([]ContactObject, error) {
+	s.batchCount++
+	var objects []ContactObject
+	seen := make(map[string]struct{})
+	for addressBookID, objectNames := range objectNamesByAddressBook {
+		for _, objectName := range objectNames {
+			key := addressBookID + "\x00" + objectName
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			object, err := s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, userID, addressBookID, objectName)
+			if err == nil {
+				objects = append(objects, object)
+			}
+		}
+	}
+	return objects, nil
 }
 
 func (s noSyncCardDAVDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
@@ -1421,6 +1452,47 @@ func TestHandlerReportAddressBookMultigetReturnsAddressData(t *testing.T) {
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("multiget REPORT missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestHandlerReportAddressBookMultigetUsesBatchLookup(t *testing.T) {
+	t.Parallel()
+
+	store := &batchCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := `<C:addressbook-multiget xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
+  <D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>
+  <D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>
+  <D:href>/carddav/addressbooks/user-1/personal/missing.vcf</D:href>
+  <D:prop><D:getetag/></D:prop>
+</C:addressbook-multiget>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.batchCount != 1 {
+		t.Fatalf("batch lookup calls = %d, want 1", store.batchCount)
+	}
+	if store.lookupCount != 0 {
+		t.Fatalf("LookupContactObject calls = %d, want 0", store.lookupCount)
+	}
+	text := rec.Body.String()
+	if strings.Count(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>") != 2 {
+		t.Fatalf("duplicate href order/count was not preserved:\n%s", text)
+	}
+	for _, want := range []string{
+		"<D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>",
+		"<D:href>/carddav/addressbooks/user-1/personal/missing.vcf</D:href>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("batch multiget REPORT missing %q:\n%s", want, text)
 		}
 	}
 }

@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type contactObjectLookupKey struct {
+	addressBookID string
+	objectName    string
+}
+
 type DiscoveryStore interface {
 	LookupPrincipal(ctx context.Context, userID string) (Principal, error)
 	ListAddressBookCollections(ctx context.Context, userID string) ([]AddressBook, error)
@@ -22,6 +27,10 @@ type DiscoveryStore interface {
 
 type AddressBookObjectLimiter interface {
 	ListAddressBookObjectsLimit(ctx context.Context, userID string, addressBookID string, limit int) ([]ContactObject, error)
+}
+
+type AddressBookObjectBatchStore interface {
+	ListContactObjectsByNameGroups(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string, status string) ([]ContactObject, error)
 }
 
 type AddressBookCreator interface {
@@ -1182,15 +1191,44 @@ func (h *Handler) reportResponses(ctx context.Context, userID string, resource R
 func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID string, requestResource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, error) {
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 	responses := make([]MultiStatusResponse, 0, len(report.Hrefs))
+	type requestedContactObject struct {
+		href          string
+		addressBookID string
+		objectName    string
+		valid         bool
+	}
+	requested := make([]requestedContactObject, 0, len(report.Hrefs))
+	requestedIndex := make(map[contactObjectLookupKey]struct{}, len(report.Hrefs))
 	for _, href := range report.Hrefs {
 		resource, err := ParseResourceHref(href)
 		if err != nil || resource.Kind != ResourceContactObject || resource.UserID != userID || !multigetHrefInScope(requestResource, resource) {
-			responses = append(responses, notFoundResponse(href, report.Properties))
+			requested = append(requested, requestedContactObject{href: href})
 			continue
 		}
-		object, err := h.Store.LookupContactObject(ctx, userID, resource.AddressBookID, resource.ObjectName)
-		if err != nil {
-			responses = append(responses, notFoundResponse(href, report.Properties))
+		requested = append(requested, requestedContactObject{
+			href:          href,
+			addressBookID: resource.AddressBookID,
+			objectName:    resource.ObjectName,
+			valid:         true,
+		})
+		requestedIndex[contactObjectLookupKey{addressBookID: resource.AddressBookID, objectName: resource.ObjectName}] = struct{}{}
+	}
+	requestedByAddressBook := make(map[string][]string)
+	for key := range requestedIndex {
+		requestedByAddressBook[key.addressBookID] = append(requestedByAddressBook[key.addressBookID], key.objectName)
+	}
+	objectsByKey, err := h.lookupContactObjectsByNames(ctx, userID, requestedByAddressBook)
+	if err != nil {
+		return nil, err
+	}
+	for _, ref := range requested {
+		if !ref.valid {
+			responses = append(responses, notFoundResponse(ref.href, report.Properties))
+			continue
+		}
+		object, ok := objectsByKey[contactObjectLookupKey{addressBookID: ref.addressBookID, objectName: ref.objectName}]
+		if !ok {
+			responses = append(responses, notFoundResponse(ref.href, report.Properties))
 			continue
 		}
 		props, err := ContactObjectProperties(userID, object)
@@ -1212,6 +1250,33 @@ func (h *Handler) addressBookMultigetResponses(ctx context.Context, userID strin
 		responses = append(responses, responseForProperties(objectHref, propfind, props))
 	}
 	return responses, nil
+}
+
+func (h *Handler) lookupContactObjectsByNames(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string) (map[contactObjectLookupKey]ContactObject, error) {
+	objectsByKey := make(map[contactObjectLookupKey]ContactObject)
+	if len(objectNamesByAddressBook) == 0 {
+		return objectsByKey, nil
+	}
+	if batchStore, ok := h.Store.(AddressBookObjectBatchStore); ok {
+		objects, err := batchStore.ListContactObjectsByNameGroups(ctx, userID, objectNamesByAddressBook, AddressBookStatusActive)
+		if err != nil {
+			return nil, err
+		}
+		for _, object := range objects {
+			objectsByKey[contactObjectLookupKey{addressBookID: object.AddressBookID, objectName: object.ObjectName}] = object
+		}
+		return objectsByKey, nil
+	}
+	for addressBookID, objectNames := range objectNamesByAddressBook {
+		for _, objectName := range objectNames {
+			object, err := h.Store.LookupContactObject(ctx, userID, addressBookID, objectName)
+			if err != nil {
+				continue
+			}
+			objectsByKey[contactObjectLookupKey{addressBookID: object.AddressBookID, objectName: object.ObjectName}] = object
+		}
+	}
+	return objectsByKey, nil
 }
 
 func multigetHrefInScope(requestResource ResourcePath, hrefResource ResourcePath) bool {

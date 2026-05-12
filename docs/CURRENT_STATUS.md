@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV addressbook-multiget 배치 조회 고도화 (2026-05-12, complete)
+- `addressbook-multiget`에서 href마다 `LookupContactObject`를 반복하던 경로를
+  주소록+객체명 그룹 기반 배치 조회로 정리했다.
+- repository에 `ListContactObjectsByNameGroups`를 추가해 `VALUES` 기반 단일 조회와 256개 청크 분할을 적용했다.
+- WebDAV multistatus 응답의 원 요청 순서, duplicate href 응답, missing href `404` 규칙은 유지한다.
+
 ## CalDAV calendar-query time-range limit 정합성 (2026-05-12, complete)
 - `calendar-query` time-range 필터가 있을 때 객체 조회 limit을 필터 전에 적용해
   matching 객체를 놓치거나 잘못된 truncation을 반환할 수 있던 경로를 수정했다.
