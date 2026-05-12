@@ -2260,10 +2260,13 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 		open += pos
 		prefix := strings.TrimSpace(header[pos:open])
 		tag := ""
-		if strings.HasSuffix(prefix, ">") {
-			start := strings.LastIndex(prefix, "<")
-			if start >= 0 {
-				tag = strings.TrimSpace(prefix[start+1 : len(prefix)-1])
+		if prefix != "" {
+			if !strings.HasPrefix(prefix, "<") || !strings.HasSuffix(prefix, ">") {
+				return false, fmt.Errorf("If header contains a malformed resource tag")
+			}
+			tag = strings.TrimSpace(prefix[1 : len(prefix)-1])
+			if tag == "" {
+				return false, fmt.Errorf("If header contains a malformed resource tag")
 			}
 		}
 		close := strings.IndexByte(header[open+1:], ')')
