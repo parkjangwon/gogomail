@@ -252,6 +252,7 @@ func ParseMKCalendar(r io.Reader) (MKCalendarRequest, error) {
 		return MKCalendarRequest{}, fmt.Errorf("unsupported MKCALENDAR root {%s}%s", root.Name.Space, root.Name.Local)
 	}
 	var req MKCalendarRequest
+	hasSet := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -263,18 +264,20 @@ func ParseMKCalendar(r io.Reader) (MKCalendarRequest, error) {
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "set") {
+				hasSet = true
 				if err := parseMKCalendarSet(dec, tok.Name, &req); err != nil {
 					return MKCalendarRequest{}, err
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return MKCalendarRequest{}, err
-			}
+			return MKCalendarRequest{}, fmt.Errorf("unsupported MKCALENDAR element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, root.Name) {
 				if err := rejectTrailingXML(dec); err != nil {
 					return MKCalendarRequest{}, err
+				}
+				if !hasSet {
+					return MKCalendarRequest{}, fmt.Errorf("MKCALENDAR body requires DAV:set")
 				}
 				return req, nil
 			}
@@ -433,6 +436,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 }
 
 func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarRequest) error {
+	hasProp := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -444,16 +448,18 @@ func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarReque
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				hasProp = true
 				if err := parseMKCalendarProp(dec, tok.Name, req); err != nil {
 					return err
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return err
-			}
+			return fmt.Errorf("unsupported MKCALENDAR set element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, setName) {
+				if !hasProp {
+					return fmt.Errorf("MKCALENDAR set must include DAV:prop")
+				}
 				return nil
 			}
 		}

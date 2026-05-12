@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV creation body strictness (2026-05-13, complete)
+- CardDAV address-book `MKCOL` now requires an extended body containing
+  `DAV:resourcetype` with both `DAV:collection` and `CARDDAV:addressbook`; empty,
+  self-closing, or displayname-only generic collection requests no longer create address books.
+- CalDAV `MKCALENDAR` keeps truly absent bodies compatible, but non-empty
+  `C:mkcalendar` XML must include the RFC 4791 `DAV:set`/`DAV:prop` shape and rejects
+  unknown structural children instead of silently creating a calendar.
+- Regression tests cover rejected creation-body shapes and verify no collection is created.
+
 ## CalDAV MKCALENDAR property failure multistatus (2026-05-13, complete)
 - CalDAV `MKCALENDAR` parser now preserves requested creation properties and unsupported
   property names instead of skipping them during request-body parsing.

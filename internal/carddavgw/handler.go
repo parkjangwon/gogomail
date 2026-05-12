@@ -247,6 +247,10 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(body)
 		return
 	}
+	if !req.HasResourceType {
+		http.Error(w, "MKCOL requires DAV:resourcetype with DAV:collection and CARDDAV:addressbook", http.StatusForbidden)
+		return
+	}
 	book, err = store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
 		UserID:        userID,
 		ActorUserID:   actorUserID,

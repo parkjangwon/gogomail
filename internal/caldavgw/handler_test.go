@@ -2282,6 +2282,24 @@ func TestHandlerMkcalendarRejectsInvalidPropertyAtomically(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarRejectsNonEmptyBodyWithoutSet(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created from MKCALENDAR body without DAV:set")
+	}
+}
+
 func TestHandlerMkcalendarRejectsExistingCalendar(t *testing.T) {
 	t.Parallel()
 
@@ -2341,7 +2359,7 @@ func TestHandlerMkcalendarAllowsMissingIfNoneMatchStar(t *testing.T) {
 	store := newFakeDiscoveryStore()
 	handler := NewHandler(store, fixedUser("user-1"))
 	calendarID := "11111111-1111-4111-8111-111111111111"
-	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop><D:displayname>Calendar</D:displayname></D:prop></D:set></C:mkcalendar>`))
 	req.Header.Set("If-None-Match", "*")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -2358,7 +2376,7 @@ func TestHandlerMkcalendarAcceptsSlugPath(t *testing.T) {
 	t.Parallel()
 
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
-	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`))
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop><D:displayname>Calendar</D:displayname></D:prop></D:set></C:mkcalendar>`))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -2370,7 +2388,7 @@ func TestHandlerMkcalendarAcceptsSlugPath(t *testing.T) {
 func TestHandlerMkcalendarAcceptsSlugPathAndReadsBody(t *testing.T) {
 	t.Parallel()
 
-	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`}
+	body := &readTrackingReader{data: `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:"><D:set><D:prop><D:displayname>Calendar</D:displayname></D:prop></D:set></C:mkcalendar>`}
 	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
 	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/not-a-uuid/", body)
 	rec := httptest.NewRecorder()
