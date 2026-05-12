@@ -896,6 +896,7 @@ export function CalendarView() {
   const [quickCreate, setQuickCreate] = useState<{ day: Date; rect: DOMRect } | null>(null);
 
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showTodoModal, setShowTodoModal] = useState(false);
 
   // Subscription state
   const [subscriptions, setSubscriptions] = useState<CalendarSubscription[]>([]);
@@ -1241,6 +1242,23 @@ export function CalendarView() {
     setView('day');
   };
 
+  const M = {
+    overlay: { position: 'fixed' as const, inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' },
+    card: (w: string) => ({ background: 'var(--color-bg-primary)', borderRadius: '14px', width: w, maxWidth: 'calc(100vw - 32px)', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', display: 'flex', flexDirection: 'column' as const, overflow: 'hidden' }),
+    header: { padding: '20px 24px 16px', borderBottom: '1px solid var(--color-border-subtle)' },
+    title: { fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' },
+    body: { padding: '20px 24px', display: 'flex', flexDirection: 'column' as const, gap: '14px' },
+    footer: { padding: '16px 24px 20px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '8px' },
+    footerSplit: { padding: '16px 24px 20px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    label: { fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block' as const, marginBottom: '4px' },
+    input: { width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '7px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' as const },
+    select: { width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '7px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer' },
+    error: { fontSize: '12px', color: '#e53e3e' },
+    cancelBtn: { padding: '8px 16px', borderRadius: '7px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 },
+    primaryBtn: (disabled: boolean) => ({ padding: '8px 20px', borderRadius: '7px', border: 'none', background: disabled ? 'var(--color-bg-tertiary)' : 'var(--color-accent)', color: disabled ? 'var(--color-text-tertiary)' : '#fff', fontSize: '13px', fontWeight: 600 as const, cursor: disabled ? 'default' as const : 'pointer' as const }),
+    dangerBtn: { padding: '8px 14px', borderRadius: '7px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 },
+  };
+
   return (
     <div style={{ display: 'flex', flex: 1, overflow: 'hidden', background: 'var(--color-bg-primary)' }}>
       {/* Left sidebar */}
@@ -1298,7 +1316,7 @@ export function CalendarView() {
               }}>
                 {[
                   { Icon: CalendarDaysIcon, label: '일정', action: () => { setShowAddMenu(false); openCreateModal(currentDate); } },
-                  { Icon: CheckIcon, label: '할 일', action: () => { setShowAddMenu(false); setTodoFocused(true); } },
+                  { Icon: CheckIcon, label: '할 일', action: () => { setShowAddMenu(false); setShowTodoModal(true); } },
                   { Icon: FolderPlusIcon, label: '새 캘린더', action: () => { setShowAddMenu(false); openCalModal(null); } },
                   { Icon: LinkIcon, label: '캘린더 구독', action: () => { setShowAddMenu(false); setShowSubModal(true); setSubError(''); } },
                 ].map(({ Icon, label, action }) => (
@@ -1502,41 +1520,30 @@ export function CalendarView() {
 
       {/* Subscription modal */}
       {showSubModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }} onClick={() => setShowSubModal(false)}>
-          <div style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px', width: '360px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '16px', color: 'var(--color-text-primary)' }}>캘린더 구독 추가</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={M.overlay} onClick={() => setShowSubModal(false)}>
+          <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
+            <div style={M.header}><span style={M.title}>캘린더 구독 추가</span></div>
+            <div style={M.body}>
               <div>
-                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>ICS/iCal URL *</label>
-                <input
-                  autoFocus
-                  type="url"
-                  placeholder="https://calendar.google.com/calendar/ical/..."
-                  value={subUrl}
-                  onChange={(e) => setSubUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddSubscription()}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
-                />
+                <label style={M.label}>ICS/iCal URL *</label>
+                <input autoFocus type="url" placeholder="https://calendar.google.com/calendar/ical/..." value={subUrl}
+                  onChange={(e) => setSubUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubscription()}
+                  style={M.input} />
               </div>
               <div>
-                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '4px' }}>이름 (선택)</label>
-                <input
-                  type="text"
-                  placeholder="캘린더 이름"
-                  value={subName}
-                  onChange={(e) => setSubName(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
-                />
+                <label style={M.label}>이름 (선택)</label>
+                <input type="text" placeholder="캘린더 이름" value={subName} onChange={(e) => setSubName(e.target.value)} style={M.input} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>색상</label>
-                <input type="color" value={subColor} onChange={(e) => setSubColor(e.target.value)} style={{ width: '32px', height: '32px', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 0, background: 'none' }} />
+                <label style={M.label}>색상</label>
+                <input type="color" value={subColor} onChange={(e) => setSubColor(e.target.value)}
+                  style={{ width: '32px', height: '32px', border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 0, background: 'none' }} />
               </div>
-              {subError && <div style={{ fontSize: '12px', color: 'var(--color-error, #e53e3e)' }}>{subError}</div>}
+              {subError && <div style={M.error}>{subError}</div>}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-              <button onClick={() => setShowSubModal(false)} style={{ padding: '7px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
-              <button onClick={handleAddSubscription} disabled={subSaving || !subUrl.trim()} style={{ padding: '7px 16px', borderRadius: '6px', border: 'none', background: subUrl.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: subUrl.trim() ? '#fff' : 'var(--color-text-tertiary)', fontSize: '13px', cursor: subUrl.trim() ? 'pointer' : 'default', fontWeight: 500 }}>
+            <div style={M.footer}>
+              <button onClick={() => setShowSubModal(false)} style={M.cancelBtn}>취소</button>
+              <button onClick={handleAddSubscription} disabled={subSaving || !subUrl.trim()} style={M.primaryBtn(!subUrl.trim() || subSaving)}>
                 {subSaving ? '추가 중...' : '구독 추가'}
               </button>
             </div>
@@ -1699,31 +1706,36 @@ export function CalendarView() {
 
       {/* Calendar management modal */}
       {showCalModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}
-          onClick={() => !calSaving && setShowCalModal(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px 28px', width: '360px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{editingCal ? '캘린더 편집' : '새 캘린더'}</div>
-            <input autoFocus placeholder="캘린더 이름 (필수)" value={calName} onChange={(e) => setCalName(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '14px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
-            <input placeholder="설명 (선택)" value={calDesc} onChange={(e) => setCalDesc(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
-            <div>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>캘린더 색상</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {CAL_COLORS.map((c) => (
-                  <button key={c} type="button" onClick={() => setCalColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, border: calColor === c ? '3px solid var(--color-text-primary)' : '2.5px solid transparent', cursor: 'pointer', padding: 0, boxShadow: calColor === c ? `0 0 0 1.5px ${c}` : 'none', transition: 'border 100ms' }} />
-                ))}
-                <input type="color" value={calColor} onChange={(e) => setCalColor(e.target.value)} title="직접 선택" style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--color-border-default)', cursor: 'pointer', padding: 0, background: 'none' }} />
+        <div style={M.overlay} onClick={() => !calSaving && setShowCalModal(false)}>
+          <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
+            <div style={M.header}><span style={M.title}>{editingCal ? '캘린더 편집' : '새 캘린더'}</span></div>
+            <div style={M.body}>
+              <div>
+                <label style={M.label}>캘린더 이름 *</label>
+                <input autoFocus placeholder="내 캘린더" value={calName} onChange={(e) => setCalName(e.target.value)} style={M.input} />
               </div>
+              <div>
+                <label style={M.label}>설명 (선택)</label>
+                <input placeholder="설명 추가" value={calDesc} onChange={(e) => setCalDesc(e.target.value)} style={M.input} />
+              </div>
+              <div>
+                <label style={M.label}>색상</label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {CAL_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => setCalColor(c)} style={{ width: '24px', height: '24px', borderRadius: '50%', background: c, border: calColor === c ? '3px solid var(--color-text-primary)' : '2.5px solid transparent', cursor: 'pointer', padding: 0, boxShadow: calColor === c ? `0 0 0 1.5px ${c}` : 'none', transition: 'border 100ms' }} />
+                  ))}
+                  <input type="color" value={calColor} onChange={(e) => setCalColor(e.target.value)} title="직접 선택" style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--color-border-default)', cursor: 'pointer', padding: 0, background: 'none' }} />
+                </div>
+              </div>
+              {calError && <div style={M.error}>{calError}</div>}
             </div>
-            {calError && <div style={{ fontSize: '12px', color: '#e53e3e' }}>{calError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+            <div style={M.footerSplit}>
               {editingCal
-                ? <button onClick={handleCalDelete} disabled={calSaving} style={{ padding: '7px 14px', borderRadius: '6px', border: '1px solid var(--color-destructive)', background: 'transparent', color: 'var(--color-destructive)', fontSize: '13px', cursor: 'pointer' }}>삭제</button>
+                ? <button onClick={handleCalDelete} disabled={calSaving} style={M.dangerBtn}>삭제</button>
                 : <span />}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setShowCalModal(false)} disabled={calSaving} style={{ padding: '7px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>취소</button>
-                <button onClick={handleCalSave} disabled={calSaving} style={{ padding: '7px 20px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: calSaving ? 'wait' : 'pointer', opacity: calSaving ? 0.7 : 1 }}>{calSaving ? '저장 중...' : '저장'}</button>
+                <button onClick={() => setShowCalModal(false)} disabled={calSaving} style={M.cancelBtn}>취소</button>
+                <button onClick={handleCalSave} disabled={calSaving || !calName.trim()} style={M.primaryBtn(calSaving || !calName.trim())}>{calSaving ? '저장 중...' : '저장'}</button>
               </div>
             </div>
           </div>
@@ -1732,123 +1744,140 @@ export function CalendarView() {
 
       {/* Event creation modal */}
       {showCreateModal && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)' }}
-          onClick={() => !createSaving && setShowCreateModal(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '12px', padding: '24px 28px', width: '440px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>새 일정</div>
-
-            {/* Title */}
-            <input autoFocus type="text" placeholder="제목 (필수)" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubmit(); }}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '14px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
-
-            {/* Calendar */}
-            {calendars.length > 1 && (
-              <select value={createCalId} onChange={(e) => setCreateCalId(e.target.value)}
-                style={{ padding: '7px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
-              </select>
-            )}
-
-            {/* All day */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={createAllDay} onChange={(e) => {
-                const allDay = e.target.checked;
-                setCreateAllDay(allDay);
-                if (allDay) {
-                  setCreateStart(createStart.split('T')[0] || toLocalDate(new Date()));
-                  setCreateEnd(createEnd.split('T')[0] || toLocalDate(new Date()));
-                } else {
-                  setCreateStart((createStart.includes('T') ? createStart : createStart + 'T09:00'));
-                  setCreateEnd((createEnd.includes('T') ? createEnd : createEnd + 'T10:00'));
-                }
-              }} />
-              하루 종일
-            </label>
-
-            {/* Start / End */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>시작</div>
-                <input type={createAllDay ? 'date' : 'datetime-local'} value={createStart} onChange={(e) => setCreateStart(e.target.value)}
-                  style={{ width: '100%', padding: '7px 8px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }} />
+        <div style={M.overlay} onClick={() => !createSaving && setShowCreateModal(false)}>
+          <div style={M.card('460px')} onClick={(e) => e.stopPropagation()}>
+            <div style={M.header}><span style={M.title}>새 일정</span></div>
+            <div style={M.body}>
+              <div>
+                <label style={M.label}>제목 *</label>
+                <input autoFocus type="text" placeholder="일정 제목" value={createTitle} onChange={(e) => setCreateTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubmit(); }} style={M.input} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: '4px' }}>종료</div>
-                <input type={createAllDay ? 'date' : 'datetime-local'} value={createEnd} onChange={(e) => setCreateEnd(e.target.value)}
-                  style={{ width: '100%', padding: '7px 8px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }} />
+
+              {calendars.length > 1 && (
+                <div>
+                  <label style={M.label}>캘린더</label>
+                  <select value={createCalId} onChange={(e) => setCreateCalId(e.target.value)} style={M.select}>
+                    {calendars.map((c) => <option key={c.ID} value={c.ID ?? ''}>{c.Name ?? '(캘린더)'}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={createAllDay} onChange={(e) => {
+                  const allDay = e.target.checked;
+                  setCreateAllDay(allDay);
+                  if (allDay) {
+                    setCreateStart(createStart.split('T')[0] || toLocalDate(new Date()));
+                    setCreateEnd(createEnd.split('T')[0] || toLocalDate(new Date()));
+                  } else {
+                    setCreateStart((createStart.includes('T') ? createStart : createStart + 'T09:00'));
+                    setCreateEnd((createEnd.includes('T') ? createEnd : createEnd + 'T10:00'));
+                  }
+                }} />
+                하루 종일
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={M.label}>시작</label>
+                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createStart} onChange={(e) => setCreateStart(e.target.value)} style={M.input} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={M.label}>종료</label>
+                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createEnd} onChange={(e) => setCreateEnd(e.target.value)} style={M.input} />
+                </div>
               </div>
-            </div>
 
-            {/* Location */}
-            <input type="text" placeholder="장소 (선택)" value={createLocation} onChange={(e) => setCreateLocation(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+              <div>
+                <label style={M.label}>장소 (선택)</label>
+                <input type="text" placeholder="장소 추가" value={createLocation} onChange={(e) => setCreateLocation(e.target.value)} style={M.input} />
+              </div>
 
-            {/* Description */}
-            <textarea placeholder="메모 (선택)" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '6px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+              <div>
+                <label style={M.label}>메모 (선택)</label>
+                <textarea placeholder="메모 추가" value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2}
+                  style={{ ...M.input, resize: 'none', fontFamily: 'inherit' }} />
+              </div>
 
-            {/* Recurrence */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
-                <select value={createRrule} onChange={(e) => { setCreateRrule(e.target.value as typeof createRrule); setCreateRruleDays([]); }} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                  <option value="NONE">없음</option>
-                  <option value="DAILY">매일</option>
-                  <option value="WEEKLY">매주</option>
-                  <option value="MONTHLY">매월</option>
-                  <option value="YEARLY">매년</option>
-                </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', borderRadius: '8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', width: '36px', flexShrink: 0 }}>반복</span>
+                  <select value={createRrule} onChange={(e) => { setCreateRrule(e.target.value as typeof createRrule); setCreateRruleDays([]); }} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                    <option value="NONE">없음</option>
+                    <option value="DAILY">매일</option>
+                    <option value="WEEKLY">매주</option>
+                    <option value="MONTHLY">매월</option>
+                    <option value="YEARLY">매년</option>
+                  </select>
+                  {createRrule !== 'NONE' && (
+                    <>
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
+                      <input type="number" min={1} max={99} value={createRruleInterval} onChange={(e) => setCreateRruleInterval(Math.max(1, Number(e.target.value)))} style={{ width: '44px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[createRrule]}</span>
+                    </>
+                  )}
+                </div>
+                {createRrule === 'WEEKLY' && (
+                  <div style={{ display: 'flex', gap: '4px', paddingLeft: '44px' }}>
+                    {['일','월','화','수','목','금','토'].map((d, i) => (
+                      <button key={i} type="button" onClick={() => setCreateRruleDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i])}
+                        style={{ width: '26px', height: '26px', borderRadius: '50%', border: '1px solid var(--color-border-default)', background: createRruleDays.includes(i) ? 'var(--color-accent)' : 'transparent', color: createRruleDays.includes(i) ? '#fff' : 'var(--color-text-secondary)', fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 500 }}
+                      >{d}</button>
+                    ))}
+                  </div>
+                )}
                 {createRrule !== 'NONE' && (
-                  <>
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>마다</span>
-                    <input type="number" min={1} max={99} value={createRruleInterval} onChange={(e) => setCreateRruleInterval(Math.max(1, Number(e.target.value)))} style={{ width: '44px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} />
-                    <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{{ DAILY: '일', WEEKLY: '주', MONTHLY: '개월', YEARLY: '년', NONE: '' }[createRrule]}</span>
-                  </>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
+                    <select value={createRruleEnd} onChange={(e) => setCreateRruleEnd(e.target.value as typeof createRruleEnd)} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                      <option value="never">계속 반복</option>
+                      <option value="count">횟수 지정</option>
+                      <option value="until">날짜 지정</option>
+                    </select>
+                    {createRruleEnd === 'count' && (
+                      <><input type="number" min={1} max={999} value={createRruleCount} onChange={(e) => setCreateRruleCount(Math.max(1, Number(e.target.value)))} style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} /><span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span></>
+                    )}
+                    {createRruleEnd === 'until' && (
+                      <input type="date" value={createRruleUntil} onChange={(e) => setCreateRruleUntil(e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }} />
+                    )}
+                  </div>
                 )}
               </div>
-              {createRrule === 'WEEKLY' && (
-                <div style={{ display: 'flex', gap: '4px', paddingLeft: '44px' }}>
-                  {['일','월','화','수','목','금','토'].map((d, i) => (
-                    <button key={i} type="button" onClick={() => setCreateRruleDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i])}
-                      style={{ width: '26px', height: '26px', borderRadius: '50%', border: '1px solid var(--color-border-default)', background: createRruleDays.includes(i) ? 'var(--color-accent)' : 'transparent', color: createRruleDays.includes(i) ? '#fff' : 'var(--color-text-secondary)', fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 500 }}
-                    >{d}</button>
-                  ))}
-                </div>
-              )}
-              {createRrule !== 'NONE' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingLeft: '44px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>종료</span>
-                  <select value={createRruleEnd} onChange={(e) => setCreateRruleEnd(e.target.value as typeof createRruleEnd)} style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
-                    <option value="never">계속 반복</option>
-                    <option value="count">횟수 지정</option>
-                    <option value="until">날짜 지정</option>
-                  </select>
-                  {createRruleEnd === 'count' && (
-                    <><input type="number" min={1} max={999} value={createRruleCount} onChange={(e) => setCreateRruleCount(Math.max(1, Number(e.target.value)))} style={{ width: '52px', padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }} /><span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>회</span></>
-                  )}
-                  {createRruleEnd === 'until' && (
-                    <input type="date" value={createRruleUntil} onChange={(e) => setCreateRruleUntil(e.target.value)} style={{ padding: '4px 6px', fontSize: '12px', border: '1px solid var(--color-border-default)', borderRadius: '5px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }} />
-                  )}
-                </div>
-              )}
+
+              {createError && <div style={M.error}>{createError}</div>}
             </div>
-
-            {/* Error */}
-            {createError && <div style={{ fontSize: '12px', color: '#e53e3e' }}>{createError}</div>}
-
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-              <button onClick={() => setShowCreateModal(false)} disabled={createSaving}
-                style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
-                취소
-              </button>
-              <button onClick={handleCreateSubmit} disabled={createSaving}
-                style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: createSaving ? 'wait' : 'pointer', opacity: createSaving ? 0.7 : 1 }}>
+            <div style={M.footer}>
+              <button onClick={() => setShowCreateModal(false)} disabled={createSaving} style={M.cancelBtn}>취소</button>
+              <button onClick={handleCreateSubmit} disabled={createSaving || !createTitle.trim()} style={M.primaryBtn(createSaving || !createTitle.trim())}>
                 {createSaving ? '저장 중...' : '저장'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Todo modal */}
+      {showTodoModal && (
+        <div style={M.overlay} onClick={() => setShowTodoModal(false)}>
+          <div style={M.card('400px')} onClick={(e) => e.stopPropagation()}>
+            <div style={M.header}><span style={M.title}>할 일 추가</span></div>
+            <div style={M.body}>
+              <div>
+                <label style={M.label}>제목 *</label>
+                <input autoFocus type="text" placeholder="할 일 제목" value={todoDraft}
+                  onChange={(e) => setTodoDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && todoDraft.trim()) { handleCreateTodo(); setShowTodoModal(false); } if (e.key === 'Escape') setShowTodoModal(false); }}
+                  style={M.input} />
+              </div>
+              <div>
+                <label style={M.label}>마감일 (선택)</label>
+                <input type="date" value={todoDueDate} onChange={(e) => setTodoDueDate(e.target.value)} style={M.input} />
+              </div>
+            </div>
+            <div style={M.footer}>
+              <button onClick={() => { setTodoDraft(''); setTodoDueDate(''); setShowTodoModal(false); }} style={M.cancelBtn}>취소</button>
+              <button onClick={() => { handleCreateTodo(); setShowTodoModal(false); }} disabled={!todoDraft.trim()} style={M.primaryBtn(!todoDraft.trim())}>추가</button>
             </div>
           </div>
         </div>
