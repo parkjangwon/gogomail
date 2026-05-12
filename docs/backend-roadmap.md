@@ -4561,7 +4561,9 @@ Target outcome:
   compatibility, and native-client compatibility beyond the experimental
   runtime, internal discovery/REPORT/object I/O, path/href, storage metadata,
   repository, bounded vCard 3.0/4.0 validation, REPORT parsing, and multistatus
-  response boundaries
+  response boundaries. CardDAV `sync-collection` now uses a joined
+  change+object read path for incremental responses and returns RFC-shaped
+  truncation preconditions for over-limit deltas.
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters

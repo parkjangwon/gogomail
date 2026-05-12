@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV sync-collection 고속화/RFC truncation 정합성 (2026-05-12, complete)
+- `internal/carddavgw`의 증분 `sync-collection` 경로에서 변경 목록을 읽은 뒤 변경 객체마다
+  `LookupContactObject`를 반복하던 N+1 조회를 `ListAddressBookChangesWithObjectsSince` 조인 경로로 제거했다.
+- 증분 변경 응답이 제한을 초과할 때 일반 `400` 텍스트 오류 대신 기존 snapshot truncation과 같은
+  RFC 6578/WebDAV `number-of-matches-within-limits` XML precondition 응답(`403`)으로 매핑되도록 정리했다.
+- `migrations/0096_carddav_sync_changes_covering_index.sql`를 추가해 sync marker 조회와
+  사용자+주소록+증분 id 조회가 커버링 인덱스를 타도록 했다.
+
 ## CalDAV 커밋 경계 복구 (2026-05-12, complete)
 - 최신 CalDAV 성능 커밋에서 워킹트리에 남아 있던 `CalendarChangeWithObject` 타입과
   `CalendarObjectPropertiesWithPrincipalPath` 응답 헬퍼를 함께 정리해 clean checkout 컴파일 경계를 복구했다.
