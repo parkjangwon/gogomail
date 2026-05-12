@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang resource-tag suffix WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` resource-tag prefixes
+  with suffix text hidden before a final `>`.
+- WebDAV `If` evaluation now rejects resource-tag content containing raw `<`
+  or `>` characters with HTTP 400 before body reads and before attempted
+  explicit `xml:lang` mutations can reach repository updates.
+
 ## CalDAV/CardDAV xml:lang empty resource-tag WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover WebDAV `If` headers with empty
   resource-tag prefixes before a condition list.
