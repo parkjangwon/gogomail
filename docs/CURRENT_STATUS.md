@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` header success for
+  CalDAV and CardDAV, asserting omitted `xml:lang` preserves existing
+  displayname and description language tags.
+- Failing WebDAV `If` header tests use unread bodies with attempted explicit
+  `xml:lang` mutations, asserting HTTP 412 responses happen before body reads
+  and before repository update calls.
+
 ## CalDAV/CardDAV xml:lang conditional success coverage (2026-05-13, complete)
 - Matching collection `If-Match` PROPPATCH tests now assert omitted
   `xml:lang` preserves existing displayname and description language tags.
