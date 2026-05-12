@@ -340,6 +340,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     ? `전송 상태: ${sendResult.send_status || 'queued'} · 배송: ${sendResult.delivery_status || 'pending'}`
     : '';
 
+  const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
+    try {
+      const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
+        .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
+      const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
+      localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
+      const followUpDays = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>).followUpDays ?? 0);
+      if (followUpDays > 0 && msg.to?.length) {
+        const remindAt = new Date(Date.now() + followUpDays * 86400000).toISOString();
+        const followups: Record<string, unknown>[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
+        followups.push({ remindAt, subject: msg.subject ?? '', to: msg.to[0].address, createdAt: new Date().toISOString() });
+        localStorage.setItem('webmail_followups', JSON.stringify(followups));
+      }
+    } catch { /* keep send success independent from local storage */ }
+  }, [recentRecipients]);
+
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
@@ -559,19 +575,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           rememberSendResult(res.message);
           await clearSentDraft(!useDraftSend);
           pendingDraftSendRef.current = false;
-          try {
-            const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
-              .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
-            const merged = [...new Set([...newAddrs, ...recentRecipients])].slice(0, 30);
-            localStorage.setItem('webmail_recent_recipients', JSON.stringify(merged));
-            const followUpDays = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as Record<string, unknown>).followUpDays ?? 0);
-            if (followUpDays > 0 && msg.to?.length) {
-              const remindAt = new Date(Date.now() + followUpDays * 86400000).toISOString();
-              const followups: Record<string, unknown>[] = JSON.parse(localStorage.getItem('webmail_followups') ?? '[]');
-              followups.push({ remindAt, subject: msg.subject ?? '', to: msg.to[0].address, createdAt: new Date().toISOString() });
-              localStorage.setItem('webmail_followups', JSON.stringify(followups));
-            }
-          } catch { /* */ }
+          persistSuccessfulSendLocalState(msg);
           setSent(true);
           setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500);
         })
@@ -586,7 +590,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
     return () => clearTimeout(t);
-  }, [sendCountdown, onClose, recentRecipients, clearSentDraft, rememberSendResult]);
+  }, [sendCountdown, onClose, clearSentDraft, rememberSendResult, persistSuccessfulSendLocalState]);
 
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
@@ -721,7 +725,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
       setSending(true);
       (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
-        .then(async (res) => { rememberSendResult(res.message); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+        .then(async (res) => { rememberSendResult(res.message); persistSuccessfulSendLocalState(msg); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
         .catch((err: unknown) => {
           pendingDraftSendRef.current = false;
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
@@ -736,7 +740,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
         setSending(true);
         (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
-          .then(async (res) => { rememberSendResult(res.message); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+          .then(async (res) => { rememberSendResult(res.message); persistSuccessfulSendLocalState(msg); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
           .catch((err: unknown) => {
             pendingDraftSendRef.current = false;
             const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
