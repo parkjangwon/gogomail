@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail Phase 3+: org chart recipient picker, group autocomplete)
+Last updated: 2026-05-12 (Webmail E2E testing infrastructure — Playwright setup, auth + mail list tests)
+
+## Webmail E2E testing infrastructure (TASK-095, 2026-05-12, in progress)
+- Added Playwright E2E testing framework (@playwright/test ^1.48.0)
+- Created playwright.config.ts with baseURL=http://localhost:3003, chromium browser, HTML reporting
+- Added test:e2e and test:e2e:ui npm scripts for running/debugging tests
+- Created e2e/ directory with initial test suites:
+  - auth.spec.ts: login page loads, redirect flows, homepage navigation
+  - mail-list.spec.ts: mail list display, sidebar navigation, page structure
+- Test structure ready for expansion with compose, search, calendar, org picker, drive tests
 
 ## Org chart recipient picker + group autocomplete (TASK-094, 2026-05-12)
 - Extracted OrgPickerModal.tsx: standalone 3-pane modal (org tree / address books, members/contacts, recipients)
