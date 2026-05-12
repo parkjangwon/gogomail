@@ -5194,3 +5194,8 @@ Next focus areas:
 - `mailservice.SendText` expands organization and address-book recipient tokens immediately before send validation, so both direct send and draft-send paths resolve to concrete recipient emails at the backend boundary.
 - Organization expansion is scoped to the sender's company/domain and can include descendants recursively; address-book expansion is scoped to the sender's own address book.
 - Expanded recipients are deduplicated across To, Cc, and Bcc in precedence order. Verification: `go test ./...` and `pnpm --dir apps/webmail type-check` pass; API smoke sends returned 202 for an organization token and an address-book token, storing 9 and 4 concrete To recipients respectively. Smoke testing also hardened recursive organization expansion and local mailstore root creation for Docker dev sends.
+
+## Webmail recipient token display cleanup (TASK-166, 2026-05-12, complete)
+- Organization and address-book recipient tokens now display natural names in the picker and compose fields.
+- Removed visible `[조직]`, `[하위 조직]`, `+ 하위 조직`, and `[주소록]` wording from token display names while preserving the internal token values used for backend expansion.
+- The child-organization inclusion checkbox remains visible because it controls actual send expansion behavior.

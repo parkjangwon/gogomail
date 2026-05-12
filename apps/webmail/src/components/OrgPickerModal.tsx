@@ -335,10 +335,9 @@ export function OrgPickerModal({
 
   const orgToken = (unit: OrgUnit): PickerItem => {
     const token = `org:${unit.id}${includeChildOrgs ? ':children' : ''}`;
-    const suffix = includeChildOrgs ? ' + 하위 조직' : '';
     return {
       id: token,
-      display_name: `[조직] ${unit.display_name}${suffix}`,
+      display_name: unit.display_name,
       email: token,
       kind: 'org',
       include_children: includeChildOrgs,
@@ -348,7 +347,7 @@ export function OrgPickerModal({
 
   const addressBookToken = (book: AddressBook): PickerItem => ({
     id: `addressbook:${book.ID}`,
-    display_name: `[주소록] ${book.Name}`,
+    display_name: book.Name,
     email: `addressbook:${book.ID}`,
     kind: 'addressbook',
     count: bookContacts.length,
@@ -416,7 +415,7 @@ export function OrgPickerModal({
       for (const child of getChildrenOf(selectedOrg.id)) {
         rows.push({
           id: `org:${child.id}${includeChildOrgs ? ':children' : ''}`,
-          display_name: `[하위 조직] ${child.display_name}${includeChildOrgs ? ' + 하위 조직' : ''}`,
+          display_name: child.display_name,
           email: `org:${child.id}${includeChildOrgs ? ':children' : ''}`,
           kind: 'org',
           include_children: includeChildOrgs,
