@@ -162,6 +162,100 @@ WHERE id = $1::uuid
 	}
 }
 
+func TestPostgresAddressBookObservedETagPreservesLanguagesWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCardDAVPostgresTestDB(t)
+	userID := seedCardDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	book, err := repo.CreateAddressBook(ctx, CreateAddressBookRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Observed",
+		NameLang:        "ko-KR",
+		Description:     "Initial contacts",
+		DescriptionLang: "en-US",
+	})
+	if err != nil {
+		t.Fatalf("CreateAddressBook returned error: %v", err)
+	}
+	observedETag, err := AddressBookCollectionETag(userID, book)
+	if err != nil {
+		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
+	}
+
+	newName := "Observed Team"
+	newDescription := "Observed contacts"
+	updated, err := repo.UpdateAddressBookProperties(ctx, UpdateAddressBookRequest{
+		UserID:        userID,
+		ActorUserID:   userID,
+		AddressBookID: book.ID,
+		Name:          &newName,
+		Description:   &newDescription,
+		ObservedETag:  observedETag,
+	})
+	if err != nil {
+		t.Fatalf("UpdateAddressBookProperties returned error: %v", err)
+	}
+	if updated.Name != "Observed Team" || updated.Description != "Observed contacts" {
+		t.Fatalf("updated address book text = name %q description %q", updated.Name, updated.Description)
+	}
+	if updated.NameLang != "ko-KR" || updated.DescriptionLang != "en-US" {
+		t.Fatalf("observed-etag update languages = name %q description %q", updated.NameLang, updated.DescriptionLang)
+	}
+}
+
+func TestPostgresAddressBookStaleObservedETagRejectsLanguageMutation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCardDAVPostgresTestDB(t)
+	userID := seedCardDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	book, err := repo.CreateAddressBook(ctx, CreateAddressBookRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Stale",
+		NameLang:        "ko-KR",
+		Description:     "Initial contacts",
+		DescriptionLang: "en-US",
+	})
+	if err != nil {
+		t.Fatalf("CreateAddressBook returned error: %v", err)
+	}
+
+	newName := "Should Not Persist"
+	newDescription := "Should not persist"
+	newLang := "ja-JP"
+	_, err = repo.UpdateAddressBookProperties(ctx, UpdateAddressBookRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		AddressBookID:   book.ID,
+		Name:            &newName,
+		NameLang:        &newLang,
+		Description:     &newDescription,
+		DescriptionLang: &newLang,
+		ObservedETag:    `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
+	})
+	if err == nil || !strings.Contains(err.Error(), "CardDAV address book collection etag mismatch") {
+		t.Fatalf("UpdateAddressBookProperties error = %v, want collection etag mismatch", err)
+	}
+
+	got, err := repo.GetAddressBook(ctx, GetAddressBookRequest{UserID: userID, AddressBookID: book.ID, Status: "active"})
+	if err != nil {
+		t.Fatalf("GetAddressBook returned error: %v", err)
+	}
+	if got.Name != "Stale" || got.Description != "Initial contacts" {
+		t.Fatalf("address book text mutated despite stale observed etag: %+v", got)
+	}
+	if got.NameLang != "ko-KR" || got.DescriptionLang != "en-US" {
+		t.Fatalf("address book languages mutated despite stale observed etag: %+v", got)
+	}
+}
+
 func TestPostgresAddressBookPropertyLanguagesClearWhenExplicitlyEmpty(t *testing.T) {
 	t.Parallel()
 

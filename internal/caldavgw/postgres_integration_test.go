@@ -180,6 +180,104 @@ WHERE id = $1::uuid
 	}
 }
 
+func TestPostgresCalendarObservedETagPreservesLanguagesWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCalDAVPostgresTestDB(t)
+	userID := seedCalDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	nameLang := "ko-KR"
+	descriptionLang := "en-US"
+	calendar, err := repo.CreateCalendar(ctx, CreateCalendarRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Observed",
+		NameLang:        &nameLang,
+		Description:     "Initial description",
+		DescriptionLang: &descriptionLang,
+	})
+	if err != nil {
+		t.Fatalf("CreateCalendar returned error: %v", err)
+	}
+	observedETag, err := CalendarCollectionETag(userID, calendar)
+	if err != nil {
+		t.Fatalf("CalendarCollectionETag returned error: %v", err)
+	}
+
+	newName := "Observed Renamed"
+	newDescription := "Observed update"
+	updated, err := repo.UpdateCalendarProperties(ctx, UpdateCalendarRequest{
+		UserID:       userID,
+		ActorUserID:  userID,
+		CalendarID:   calendar.ID,
+		Name:         &newName,
+		Description:  &newDescription,
+		ObservedETag: observedETag,
+	})
+	if err != nil {
+		t.Fatalf("UpdateCalendarProperties returned error: %v", err)
+	}
+	if updated.Name != "Observed Renamed" || updated.Description != "Observed update" {
+		t.Fatalf("updated calendar text = name %q description %q", updated.Name, updated.Description)
+	}
+	if updated.NameLang != "ko-KR" || updated.DescriptionLang != "en-US" {
+		t.Fatalf("observed-etag update languages = name %q description %q", updated.NameLang, updated.DescriptionLang)
+	}
+}
+
+func TestPostgresCalendarStaleObservedETagRejectsLanguageMutation(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedCalDAVPostgresTestDB(t)
+	userID := seedCalDAVPostgresUser(t, ctx, db)
+	repo := NewRepository(db)
+
+	nameLang := "ko-KR"
+	descriptionLang := "en-US"
+	calendar, err := repo.CreateCalendar(ctx, CreateCalendarRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		Name:            "Stale",
+		NameLang:        &nameLang,
+		Description:     "Initial description",
+		DescriptionLang: &descriptionLang,
+	})
+	if err != nil {
+		t.Fatalf("CreateCalendar returned error: %v", err)
+	}
+
+	newName := "Should Not Persist"
+	newDescription := "Should not persist"
+	newLang := "ja-JP"
+	_, err = repo.UpdateCalendarProperties(ctx, UpdateCalendarRequest{
+		UserID:          userID,
+		ActorUserID:     userID,
+		CalendarID:      calendar.ID,
+		Name:            &newName,
+		NameLang:        &newLang,
+		Description:     &newDescription,
+		DescriptionLang: &newLang,
+		ObservedETag:    `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"`,
+	})
+	if err == nil || !strings.Contains(err.Error(), "CalDAV calendar collection etag mismatch") {
+		t.Fatalf("UpdateCalendarProperties error = %v, want collection etag mismatch", err)
+	}
+
+	got, err := repo.GetCalendar(ctx, GetCalendarRequest{UserID: userID, CalendarID: calendar.ID, Status: "active"})
+	if err != nil {
+		t.Fatalf("GetCalendar returned error: %v", err)
+	}
+	if got.Name != "Stale" || got.Description != "Initial description" {
+		t.Fatalf("calendar text mutated despite stale observed etag: %+v", got)
+	}
+	if got.NameLang != "ko-KR" || got.DescriptionLang != "en-US" {
+		t.Fatalf("calendar languages mutated despite stale observed etag: %+v", got)
+	}
+}
+
 func TestPostgresCalendarPropertyLanguagesClearWhenExplicitlyEmpty(t *testing.T) {
 	t.Parallel()
 
