@@ -576,6 +576,16 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return;
     }
     setError('');
+    const hasUploadingAttachments = uploadedAttachments.some((attachment) => attachment.uploading);
+    if (hasUploadingAttachments) {
+      setError('첨부파일 업로드가 완료될 때까지 기다려 주세요.');
+      return;
+    }
+    const hasFailedAttachments = uploadedAttachments.some((attachment) => attachment.error);
+    if (hasFailedAttachments) {
+      setError('업로드에 실패한 첨부파일을 제거하거나 다시 업로드해 주세요.');
+      return;
+    }
     const attachmentIds = readyAttachmentIds();
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
