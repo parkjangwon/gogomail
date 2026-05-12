@@ -292,10 +292,24 @@ export function DriveView() {
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const newFolderRef = useRef<HTMLInputElement>(null);
   const renameRef = useRef<HTMLInputElement>(null);
 
   const currentParentId = breadcrumb[breadcrumb.length - 1]?.id ?? '';
+
+  function getUploadRelativePath(file: File): string {
+    const withPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+    if (withPath && withPath.trim()) return normalizeDroppedPath(withPath);
+    return file.name;
+  }
+
+  useEffect(() => {
+    const folderInput = folderInputRef.current;
+    if (!folderInput) return;
+    folderInput.setAttribute('webkitdirectory', '');
+    folderInput.setAttribute('directory', '');
+  }, []);
 
   const loadNodes = useCallback(async (parentId: string) => {
     setLoading(true);
@@ -455,7 +469,7 @@ export function DriveView() {
   }
 
   function handleUploadFromList(files: FileList, targetParentId?: string) {
-    const entries = Array.from(files).map((file) => ({ file, relativePath: file.name }));
+    const entries = Array.from(files).map((file) => ({ file, relativePath: getUploadRelativePath(file) }));
     handleUploadEntries(entries, targetParentId).catch(() => {});
   }
 
@@ -678,11 +692,29 @@ export function DriveView() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
               <FolderPlusIcon style={{ width: '15px', height: '15px' }} /> 새 폴더
             </button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            <button
+              onClick={(e) => {
+                if (e.shiftKey) folderInputRef.current?.click();
+                else fileInputRef.current?.click();
+              }}
+              title="클릭: 파일 업로드, Shift+클릭: 폴더 업로드"
+              disabled={uploading}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: uploading ? 'wait' : 'pointer' }}>
               <ArrowUpTrayIcon style={{ width: '15px', height: '15px' }} /> {uploading ? '업로드 중...' : '업로드'}
             </button>
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files) { handleUploadFromList(e.target.files, currentParentId || undefined); e.target.value = ''; } }} />
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files) {
+                  handleUploadFromList(e.target.files, currentParentId || undefined);
+                  e.target.value = '';
+                }
+              }}
+            />
           </div>
 
           {/* File grid */}
