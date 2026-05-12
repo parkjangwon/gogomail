@@ -232,11 +232,15 @@ func SupportedCalendarReports(includeSyncCollection bool) []XMLName {
 }
 
 func CalendarObjectProperties(userID string, object CalendarObject) ([]PropertyResult, error) {
-	if _, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName); err != nil {
-		return nil, err
-	}
 	principalPath, err := PrincipalPath(userID)
 	if err != nil {
+		return nil, err
+	}
+	return CalendarObjectPropertiesWithPrincipalPath(userID, object, principalPath)
+}
+
+func CalendarObjectPropertiesWithPrincipalPath(userID string, object CalendarObject, principalPath string) ([]PropertyResult, error) {
+	if _, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName); err != nil {
 		return nil, err
 	}
 	return []PropertyResult{
