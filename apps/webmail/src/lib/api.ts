@@ -544,7 +544,16 @@ export function parseVCard(base64VCard: string): {
   fn: string; email: string; tel: string; org: string; note: string; title: string;
 } {
   let text = '';
-  try { text = atob(base64VCard); } catch { text = base64VCard; }
+  try {
+    const binary = atob(base64VCard);
+    if (typeof TextDecoder !== 'undefined') {
+      text = new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+    } else {
+      text = decodeURIComponent(escape(binary));
+    }
+  } catch {
+    text = base64VCard;
+  }
   const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
   const get = (prop: string) => {
     const prefix = `${prop}`.toUpperCase();
