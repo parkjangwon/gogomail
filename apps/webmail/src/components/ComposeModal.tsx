@@ -10,6 +10,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, SendMessageResult, UserAddressEntry } from '@/lib/api';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
+import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
@@ -99,14 +100,6 @@ function invalidRecipientAddresses(...values: string[]): string[] {
 
 function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
   return intent === 'reply_all' ? 'reply' : intent;
-}
-
-function toDateTimeLocalValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return [
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
-  ].join('T');
 }
 
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
