@@ -75,7 +75,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		allows = []string{"user_id"}
 	}
 
-	mux.HandleFunc("GET /api/v1/addressbooks", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/addressbooks", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -94,7 +94,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, AddressBookListEnvelope{AddressBooks: addressBooks})
 	})
 
-	mux.HandleFunc("POST /api/v1/addressbooks", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/mail/addressbooks", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, allows...) {
 			return
 		}
@@ -117,11 +117,11 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			writeError(w, http.StatusBadRequest, fmt.Errorf("create address book: %w", err).Error())
 			return
 		}
-		w.Header().Set("Location", fmt.Sprintf("/api/v1/addressbooks/%s", addressBook.ID))
+		w.Header().Set("Location", fmt.Sprintf("/api/mail/addressbooks/%s", addressBook.ID))
 		writeJSON(w, http.StatusCreated, AddressBookEnvelope{AddressBook: addressBook})
 	})
 
-	mux.HandleFunc("GET /api/v1/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -145,7 +145,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, AddressBookEnvelope{AddressBook: addressBook})
 	})
 
-	mux.HandleFunc("PATCH /api/v1/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PATCH /api/mail/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, allows...) {
 			return
 		}
@@ -177,7 +177,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, AddressBookEnvelope{AddressBook: addressBook})
 	})
 
-	mux.HandleFunc("DELETE /api/v1/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /api/mail/addressbooks/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -202,7 +202,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	mux.HandleFunc("GET /api/v1/addressbooks/{id}/contacts", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/addressbooks/{id}/contacts", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -226,7 +226,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, ContactObjectListEnvelope{Contacts: objects})
 	})
 
-	mux.HandleFunc("GET /api/v1/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -259,7 +259,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		w.Write(object.VCard)
 	})
 
-	mux.HandleFunc("PUT /api/v1/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /api/mail/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, allows...) {
 			return
 		}
@@ -300,7 +300,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, ContactObjectEnvelope{Contact: object})
 	})
 
-	mux.HandleFunc("DELETE /api/v1/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("DELETE /api/mail/addressbooks/{id}/contacts/{name}", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -331,7 +331,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	mux.HandleFunc("GET /api/v1/contacts/autocomplete", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/contacts/autocomplete", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -463,7 +463,7 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, AutocompleteResponse{Results: results})
 	})
 
-	mux.HandleFunc("GET /api/v1/directory/users", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/mail/directory/users", func(w http.ResponseWriter, r *http.Request) {
 		if !rejectBodylessRequestPayload(w, r) {
 			return
 		}
@@ -519,8 +519,8 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 		writeJSON(w, http.StatusOK, map[string]any{"users": users})
 	})
 
-	// GET /api/v1/directory/org-tree — org units with their members
-	mux.HandleFunc("GET /api/v1/directory/org-tree", func(w http.ResponseWriter, r *http.Request) {
+	// GET /api/mail/directory/org-tree — org units with their members
+	mux.HandleFunc("GET /api/mail/directory/org-tree", func(w http.ResponseWriter, r *http.Request) {
 		if handler.directoryRepo == nil {
 			writeError(w, http.StatusServiceUnavailable, "directory not available")
 			return

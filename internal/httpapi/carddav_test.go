@@ -111,12 +111,12 @@ func TestContactListAddressBooks(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/addressbooks?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/addressbooks?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /api/v1/addressbooks: got status %d, want 200", rec.Code)
+		t.Fatalf("GET /api/mail/addressbooks: got status %d, want 200", rec.Code)
 	}
 }
 
@@ -128,13 +128,13 @@ func TestContactCreateRequestValidation(t *testing.T) {
 	RegisterContactRoutes(mux, handler, nil)
 
 	body := `{"name":""}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/addressbooks?user_id=user-1", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/mail/addressbooks?user_id=user-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("POST /api/v1/addressbooks with empty name: got status %d, want 400", rec.Code)
+		t.Fatalf("POST /api/mail/addressbooks with empty name: got status %d, want 400", rec.Code)
 	}
 }
 
@@ -145,12 +145,12 @@ func TestContactGetNotFound(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/addressbooks/nonexistent?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/addressbooks/nonexistent?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
-		t.Fatalf("GET /api/v1/addressbooks/nonexistent: got status %d, want 404", rec.Code)
+		t.Fatalf("GET /api/mail/addressbooks/nonexistent: got status %d, want 404", rec.Code)
 	}
 }
 
@@ -162,13 +162,13 @@ func TestContactUpdateSuccess(t *testing.T) {
 	RegisterContactRoutes(mux, handler, nil)
 
 	body := `{"name":"Updated"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/addressbooks/addr-1?user_id=user-1", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/mail/addressbooks/addr-1?user_id=user-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("PATCH /api/v1/addressbooks/addr-1: got status %d, want 200", rec.Code)
+		t.Fatalf("PATCH /api/mail/addressbooks/addr-1: got status %d, want 200", rec.Code)
 	}
 }
 
@@ -179,12 +179,12 @@ func TestAddressBookDeleteSuccess(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/addressbooks/addr-1?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/mail/addressbooks/addr-1?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
-		t.Fatalf("DELETE /api/v1/addressbooks/addr-1: got status %d, want 204", rec.Code)
+		t.Fatalf("DELETE /api/mail/addressbooks/addr-1: got status %d, want 204", rec.Code)
 	}
 }
 
@@ -195,12 +195,12 @@ func TestContactListSuccess(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/addressbooks/addr-1/contacts?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/addressbooks/addr-1/contacts?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /api/v1/addressbooks/addr-1/contacts: got status %d, want 200", rec.Code)
+		t.Fatalf("GET /api/mail/addressbooks/addr-1/contacts: got status %d, want 200", rec.Code)
 	}
 }
 
@@ -216,12 +216,12 @@ func TestContactGetSuccess(t *testing.T) {
 	handler := &ContactHandler{repo: repo}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /api/v1/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 200", rec.Code)
+		t.Fatalf("GET /api/mail/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 200", rec.Code)
 	}
 }
 
@@ -233,13 +233,13 @@ func TestContactPutSuccess(t *testing.T) {
 	RegisterContactRoutes(mux, handler, nil)
 
 	body := `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:John Doe\r\nEND:VCARD`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/mail/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/vcard")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT /api/v1/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 200", rec.Code)
+		t.Fatalf("PUT /api/mail/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 200", rec.Code)
 	}
 }
 
@@ -251,7 +251,7 @@ func TestContactPutInvalidContentType(t *testing.T) {
 	RegisterContactRoutes(mux, handler, nil)
 
 	body := `not vcard`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/mail/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/plain")
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -268,12 +268,12 @@ func TestContactDeleteSuccess(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/mail/addressbooks/addr-1/contacts/contact.vcf?user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
-		t.Fatalf("DELETE /api/v1/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 204", rec.Code)
+		t.Fatalf("DELETE /api/mail/addressbooks/addr-1/contacts/contact.vcf: got status %d, want 204", rec.Code)
 	}
 }
 
@@ -284,12 +284,12 @@ func TestContactListMissingUserID(t *testing.T) {
 	handler := &ContactHandler{}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/addressbooks", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/addressbooks", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("GET /api/v1/addressbooks without user_id: got status %d, want 400", rec.Code)
+		t.Fatalf("GET /api/mail/addressbooks without user_id: got status %d, want 400", rec.Code)
 	}
 }
 
@@ -382,12 +382,12 @@ func TestContactAutocompleteRequiresQuery(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{}, directoryRepo: nil}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/autocomplete", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/contacts/autocomplete", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("GET /api/v1/contacts/autocomplete without q: got status %d, want 400", rec.Code)
+		t.Fatalf("GET /api/mail/contacts/autocomplete without q: got status %d, want 400", rec.Code)
 	}
 }
 
@@ -398,12 +398,12 @@ func TestContactAutocompleteWithNoResults(t *testing.T) {
 	handler := &ContactHandler{repo: &fakeContactRepo{contacts: nil}, directoryRepo: nil}
 	RegisterContactRoutes(mux, handler, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/autocomplete?q=test&user_id=user-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/mail/contacts/autocomplete?q=test&user_id=user-1", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /api/v1/contacts/autocomplete: got status %d, want 200", rec.Code)
+		t.Fatalf("GET /api/mail/contacts/autocomplete: got status %d, want 200", rec.Code)
 	}
 
 	var out AutocompleteResponse
