@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -19,6 +20,9 @@ const (
 	MaxWebDAVProperties   = 256
 	MaxWebDAVHrefs        = 2048
 	MaxWebDAVReportLimit  = 1000
+	MaxXMLLangLength      = 64
+
+	xmlNamespace = "http://www.w3.org/XML/1998/namespace"
 )
 
 type XMLName struct {
@@ -72,11 +76,13 @@ type PropfindRequest struct {
 }
 
 type ProppatchRequest struct {
-	Name        *string
-	Description *string
-	Properties  []XMLName
-	Unsupported []XMLName
-	Protected   []XMLName
+	Name            *string
+	NameLang        *string
+	Description     *string
+	DescriptionLang *string
+	Properties      []XMLName
+	Unsupported     []XMLName
+	Protected       []XMLName
 }
 
 type MKAddressBookRequest struct {
@@ -458,7 +464,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 					return fmt.Errorf("PROPPATCH set must include exactly one prop element")
 				}
 				hasProp = true
-				if err := parseProppatchProp(dec, tok.Name, true, req, properties); err != nil {
+				if err := parseProppatchProp(dec, tok, true, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -492,7 +498,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 					return fmt.Errorf("PROPPATCH remove must include exactly one prop element")
 				}
 				hasProp = true
-				if err := parseProppatchProp(dec, tok.Name, false, req, properties); err != nil {
+				if err := parseProppatchProp(dec, tok, false, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -509,7 +515,11 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 	}
 }
 
-func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *ProppatchRequest, properties *int) error {
+func parseProppatchProp(dec *xml.Decoder, prop xml.StartElement, set bool, req *ProppatchRequest, properties *int) error {
+	propLang, err := proppatchPropXMLLang(prop)
+	if err != nil {
+		return err
+	}
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -539,6 +549,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				}
 				value := strings.TrimSpace(text)
 				req.Name = &value
+				req.NameLang = &propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
 				value := ""
@@ -552,6 +563,12 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 					return err
 				}
 				req.Description = &value
+				if set {
+					req.DescriptionLang = &propLang
+				} else {
+					emptyLang := ""
+					req.DescriptionLang = &emptyLang
+				}
 				req.Properties = append(req.Properties, PropAddressBookDescription)
 			default:
 				if set {
@@ -564,11 +581,32 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, propName) {
+			if sameName(tok.Name, prop.Name) {
 				return nil
 			}
 		}
 	}
+}
+
+func proppatchPropXMLLang(prop xml.StartElement) (string, error) {
+	for _, attr := range prop.Attr {
+		if attr.Name.Space == xmlNamespace && attr.Name.Local == "lang" {
+			return validateXMLLang(attr.Value)
+		}
+	}
+	return "", nil
+}
+
+func validateXMLLang(value string) (string, error) {
+	if len([]rune(value)) > MaxXMLLangLength {
+		return "", fmt.Errorf("xml:lang is too long")
+	}
+	for _, r := range value {
+		if unicode.IsControl(r) || unicode.IsSpace(r) {
+			return "", fmt.Errorf("xml:lang must not contain control or whitespace characters")
+		}
+	}
+	return value, nil
 }
 
 func parseMKAddressBookSet(dec *xml.Decoder, setName xml.Name, req *MKAddressBookRequest) error {

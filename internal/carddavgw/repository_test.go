@@ -307,13 +307,17 @@ func TestValidateUpdateAddressBookRequest(t *testing.T) {
 	t.Parallel()
 
 	name := " Team "
+	nameLang := "ko-KR"
 	description := " Launch contacts "
+	descriptionLang := "fr"
 	req, normalizedName, syncToken, err := ValidateUpdateAddressBookRequest(UpdateAddressBookRequest{
-		UserID:        " user-1 ",
-		AddressBookID: " book-1 ",
-		Name:          &name,
-		Description:   &description,
-		ObservedETag:  ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
+		UserID:          " user-1 ",
+		AddressBookID:   " book-1 ",
+		Name:            &name,
+		NameLang:        &nameLang,
+		Description:     &description,
+		DescriptionLang: &descriptionLang,
+		ObservedETag:    ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateUpdateAddressBookRequest returned error: %v", err)
@@ -326,6 +330,9 @@ func TestValidateUpdateAddressBookRequest(t *testing.T) {
 	}
 	if req.Name == nil || *req.Name != "Team" || req.Description == nil || *req.Description != "Launch contacts" {
 		t.Fatalf("properties = %+v", req)
+	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" || req.DescriptionLang == nil || *req.DescriptionLang != "fr" {
+		t.Fatalf("property langs = %+v", req)
 	}
 	if normalizedName != "team" {
 		t.Fatalf("normalized name = %q", normalizedName)
@@ -340,12 +347,15 @@ func TestValidateUpdateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
 
 	badName := "bad\nname"
 	badDescription := "bad\nline"
+	badLang := "en US"
 	tests := []UpdateAddressBookRequest{
 		{UserID: "user-1", AddressBookID: "book-1"},
 		{UserID: "", AddressBookID: "book-1", Name: stringPtr("Team")},
 		{UserID: "user-1", AddressBookID: "", Name: stringPtr("Team")},
 		{UserID: "user-1", AddressBookID: "book-1", Name: &badName},
 		{UserID: "user-1", AddressBookID: "book-1", Description: &badDescription},
+		{UserID: "user-1", AddressBookID: "book-1", Name: stringPtr("Team"), NameLang: &badLang},
+		{UserID: "user-1", AddressBookID: "book-1", Description: stringPtr("Contacts"), DescriptionLang: &badLang},
 	}
 	for _, req := range tests {
 		req := req

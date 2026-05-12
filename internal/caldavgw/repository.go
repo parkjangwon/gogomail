@@ -102,15 +102,17 @@ type DeleteCalendarRequest struct {
 }
 
 type UpdateCalendarRequest struct {
-	UserID       string
-	ActorUserID  string
-	CalendarID   string
-	Name         *string
-	Slug         *string
-	Timezone     *string
-	Color        *string
-	Description  *string
-	ObservedETag string
+	UserID          string
+	ActorUserID     string
+	CalendarID      string
+	Name            *string
+	NameLang        *string
+	Slug            *string
+	Timezone        *string
+	Color           *string
+	Description     *string
+	DescriptionLang *string
+	ObservedETag    string
 }
 
 type ListChangesSinceRequest struct {
@@ -167,7 +169,7 @@ INSERT INTO caldav_calendars (
 )
 SELECT company_id, domain_id, user_id, $2, $3, $4, $5, $6
 FROM active_user
-RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, color, description, description_lang, sync_token, created_at, updated_at`
 	var calendar Calendar
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
@@ -180,8 +182,10 @@ RETURNING id::text, user_id::text, name, color, description, sync_token, created
 		&calendar.ID,
 		&calendar.UserID,
 		&calendar.Name,
+		&calendar.NameLang,
 		&calendar.Color,
 		&calendar.Description,
+		&calendar.DescriptionLang,
 		&calendar.SyncToken,
 		&calendar.CreatedAt,
 		&calendar.UpdatedAt,
@@ -232,7 +236,7 @@ INSERT INTO caldav_calendars (
 )
 SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8, $9
 FROM active_user
-RETURNING id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, slug, timezone, color, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.CalendarID,
@@ -247,10 +251,12 @@ RETURNING id::text, user_id::text, name, slug, timezone, color, description, syn
 			&calendar.ID,
 			&calendar.UserID,
 			&calendar.Name,
+			&calendar.NameLang,
 			&calendar.Slug,
 			&calendar.Timezone,
 			&calendar.Color,
 			&calendar.Description,
+			&calendar.DescriptionLang,
 			&calendar.SyncToken,
 			&calendar.CreatedAt,
 			&calendar.UpdatedAt,
@@ -281,7 +287,7 @@ INSERT INTO caldav_calendars (
 )
 SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
 FROM active_user
-RETURNING id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, timezone, color, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.CalendarID,
@@ -295,9 +301,11 @@ RETURNING id::text, user_id::text, name, timezone, color, description, sync_toke
 			&calendar.ID,
 			&calendar.UserID,
 			&calendar.Name,
+			&calendar.NameLang,
 			&calendar.Timezone,
 			&calendar.Color,
 			&calendar.Description,
+			&calendar.DescriptionLang,
 			&calendar.SyncToken,
 			&calendar.CreatedAt,
 			&calendar.UpdatedAt,
@@ -327,7 +335,7 @@ func (r *Repository) ListCalendars(ctx context.Context, req ListCalendarsRequest
 		return nil, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, timezone, color, description, description_lang, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND status = $2
@@ -341,7 +349,7 @@ LIMIT $3`
 	var calendars []Calendar
 	for rows.Next() {
 		var calendar Calendar
-		if err := rows.Scan(&calendar.ID, &calendar.UserID, &calendar.Name, &calendar.Timezone, &calendar.Color, &calendar.Description, &calendar.SyncToken, &calendar.CreatedAt, &calendar.UpdatedAt); err != nil {
+		if err := rows.Scan(&calendar.ID, &calendar.UserID, &calendar.Name, &calendar.NameLang, &calendar.Timezone, &calendar.Color, &calendar.Description, &calendar.DescriptionLang, &calendar.SyncToken, &calendar.CreatedAt, &calendar.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CalDAV calendar: %w", err)
 		}
 		calendars = append(calendars, calendar)
@@ -361,7 +369,7 @@ func (r *Repository) GetCalendar(ctx context.Context, req GetCalendarRequest) (C
 		return Calendar{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, timezone, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, timezone, color, description, description_lang, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND id = $2::uuid
@@ -371,9 +379,11 @@ WHERE user_id = $1::uuid
 		&calendar.ID,
 		&calendar.UserID,
 		&calendar.Name,
+		&calendar.NameLang,
 		&calendar.Timezone,
 		&calendar.Color,
 		&calendar.Description,
+		&calendar.DescriptionLang,
 		&calendar.SyncToken,
 		&calendar.CreatedAt,
 		&calendar.UpdatedAt,
@@ -402,7 +412,7 @@ func (r *Repository) GetCalendarBySlug(ctx context.Context, req GetCalendarBySlu
 		return Calendar{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, slug, timezone, color, description, description_lang, sync_token, created_at, updated_at
 FROM caldav_calendars
 WHERE user_id = $1::uuid
   AND lower(slug) = lower($2)
@@ -412,10 +422,12 @@ WHERE user_id = $1::uuid
 		&calendar.ID,
 		&calendar.UserID,
 		&calendar.Name,
+		&calendar.NameLang,
 		&calendar.Slug,
 		&calendar.Timezone,
 		&calendar.Color,
 		&calendar.Description,
+		&calendar.DescriptionLang,
 		&calendar.SyncToken,
 		&calendar.CreatedAt,
 		&calendar.UpdatedAt,
@@ -1055,13 +1067,15 @@ SET status = 'deleted', deleted_at = now(), updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
-RETURNING id::text, user_id::text, name, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, color, description, description_lang, sync_token, created_at, updated_at`
 		if err := tx.QueryRowContext(ctx, query, req.UserID, req.CalendarID).Scan(
 			&calendar.ID,
 			&calendar.UserID,
 			&calendar.Name,
+			&calendar.NameLang,
 			&calendar.Color,
 			&calendar.Description,
+			&calendar.DescriptionLang,
 			&calendar.SyncToken,
 			&calendar.CreatedAt,
 			&calendar.UpdatedAt,
@@ -1118,27 +1132,33 @@ func (r *Repository) UpdateCalendarProperties(ctx context.Context, req UpdateCal
 		timezoneValue, timezoneSet := optionalStringArg(normalizedTimezone)
 		colorValue, colorSet := optionalStringArg(req.Color)
 		descriptionValue, descriptionSet := optionalStringArg(req.Description)
+		nameLangValue, nameLangSet := optionalStringArg(req.NameLang)
+		descriptionLangValue, descriptionLangSet := optionalStringArg(req.DescriptionLang)
 		const query = `
 UPDATE caldav_calendars
 SET
   name = CASE WHEN $3 THEN $4 ELSE name END,
   normalized_name = CASE WHEN $3 THEN $5 ELSE normalized_name END,
-  slug = CASE WHEN $6 THEN $7 ELSE slug END,
-  timezone = CASE WHEN $8 THEN $9 ELSE timezone END,
-  color = CASE WHEN $10 THEN $11 ELSE color END,
-  description = CASE WHEN $12 THEN $13 ELSE description END,
-  sync_token = $14,
+  displayname_lang = CASE WHEN $6 THEN $7 ELSE displayname_lang END,
+  slug = CASE WHEN $8 THEN $9 ELSE slug END,
+  timezone = CASE WHEN $10 THEN $11 ELSE timezone END,
+  color = CASE WHEN $12 THEN $13 ELSE color END,
+  description = CASE WHEN $14 THEN $15 ELSE description END,
+  description_lang = CASE WHEN $16 THEN $17 ELSE description_lang END,
+  sync_token = $18,
   updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
-RETURNING id::text, user_id::text, name, slug, timezone, color, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, slug, timezone, color, description, description_lang, sync_token, created_at, updated_at`
 		if err := tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.CalendarID,
 			nameSet,
 			nameValue,
 			normalizedName,
+			nameLangSet,
+			nameLangValue,
 			slugSet,
 			slugValue,
 			timezoneSet,
@@ -1147,15 +1167,19 @@ RETURNING id::text, user_id::text, name, slug, timezone, color, description, syn
 			colorValue,
 			descriptionSet,
 			descriptionValue,
+			descriptionLangSet,
+			descriptionLangValue,
 			syncToken,
 		).Scan(
 			&calendar.ID,
 			&calendar.UserID,
 			&calendar.Name,
+			&calendar.NameLang,
 			&calendar.Slug,
 			&calendar.Timezone,
 			&calendar.Color,
 			&calendar.Description,
+			&calendar.DescriptionLang,
 			&calendar.SyncToken,
 			&calendar.CreatedAt,
 			&calendar.UpdatedAt,
@@ -1934,6 +1958,7 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 	}
 	var normalizedName string
 	var name *string
+	var nameLang *string
 	if req.Name != nil {
 		value, err := ValidateCalendarName(*req.Name)
 		if err != nil {
@@ -1944,6 +1969,11 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		name = &value
+		valueLang, err := validateDAVPropertyLanguagePointer("displayname xml:lang", req.NameLang)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
+		}
+		nameLang = valueLang
 	}
 	var normalizedSlug *string
 	var slug *string
@@ -1982,15 +2012,33 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 		color = &value
 	}
 	var description *string
+	var descriptionLang *string
 	if req.Description != nil {
 		value, err := ValidateCalendarDescription(*req.Description)
 		if err != nil {
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		description = &value
+		valueLang, err := validateDAVPropertyLanguagePointer("calendar-description xml:lang", req.DescriptionLang)
+		if err != nil {
+			return UpdateCalendarRequest{}, "", "", nil, nil, err
+		}
+		descriptionLang = valueLang
 	}
 	syncToken := CalendarSyncToken(userID, calendarID, "collection-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, Slug: slug, Timezone: timezone, Color: color, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, normalizedSlug, normalizedTimezone, nil
+	return UpdateCalendarRequest{UserID: userID, ActorUserID: actorUserID, CalendarID: calendarID, Name: name, NameLang: nameLang, Slug: slug, Timezone: timezone, Color: color, Description: description, DescriptionLang: descriptionLang, ObservedETag: observedETag}, normalizedName, syncToken, normalizedSlug, normalizedTimezone, nil
+}
+
+func validateDAVPropertyLanguagePointer(field string, value *string) (*string, error) {
+	if value == nil {
+		empty := ""
+		return &empty, nil
+	}
+	lang, err := ValidateDAVPropertyLanguage(*value)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", field, err)
+	}
+	return &lang, nil
 }
 
 func ValidateListChangesSinceRequest(req ListChangesSinceRequest) (ListChangesSinceRequest, error) {

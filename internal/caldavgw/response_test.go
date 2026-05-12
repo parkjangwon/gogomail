@@ -192,14 +192,16 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 	createdAt := time.Date(2026, 5, 6, 1, 2, 3, 0, time.UTC)
 	updatedAt := time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
 	props, err := CalendarCollectionProperties("user-1", Calendar{
-		ID:          "work",
-		UserID:      "user-1",
-		Name:        "Work",
-		Color:       "#AABBCC",
-		Description: "Team calendar",
-		SyncToken:   "sync-123",
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
+		ID:              "work",
+		UserID:          "user-1",
+		Name:            "Work",
+		NameLang:        "en-US",
+		Color:           "#AABBCC",
+		Description:     "Team calendar",
+		DescriptionLang: "ko-KR",
+		SyncToken:       "sync-123",
+		CreatedAt:       createdAt,
+		UpdatedAt:       updatedAt,
 	}, true)
 	if err != nil {
 		t.Fatalf("CalendarCollectionProperties returned error: %v", err)
@@ -228,6 +230,8 @@ func TestCalendarCollectionPropertiesExposeCalDAVDiscovery(t *testing.T) {
 		"<D:creationdate>2026-05-06T01:02:03Z</D:creationdate>",
 		"<D:getlastmodified>Wed, 06 May 2026 04:05:06 GMT</D:getlastmodified>",
 		"<D:getetag>&#34;" + strings.Trim(etag, `"`) + "&#34;</D:getetag>",
+		"<D:displayname xml:lang=\"en-US\">Work</D:displayname>",
+		"<C:calendar-description xml:lang=\"ko-KR\">Team calendar</C:calendar-description>",
 		"<D:supported-report-set>",
 		"<C:calendar-query></C:calendar-query>",
 		"<C:calendar-multiget></C:calendar-multiget>",

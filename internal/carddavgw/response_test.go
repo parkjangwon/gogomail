@@ -80,6 +80,34 @@ func TestBuildMultiStatusXMLRendersUnknownNamespaceProperty(t *testing.T) {
 	}
 }
 
+func TestBuildMultiStatusXMLRendersPropertyXMLLang(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href: "/carddav/addressbooks/user-1/personal/",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusOK,
+			Properties: []PropertyResult{
+				{Name: PropDisplayName, Value: PropertyValue{Text: "Personal", Lang: "ko-KR"}, Found: true},
+				{Name: PropAddressBookDescription, Value: PropertyValue{Text: "People", Lang: "fr"}, Found: true},
+			},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		`<D:displayname xml:lang="ko-KR">Personal</D:displayname>`,
+		`<C:addressbook-description xml:lang="fr">People</C:addressbook-description>`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("body missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
 	t.Parallel()
 

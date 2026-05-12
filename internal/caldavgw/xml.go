@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -19,6 +20,8 @@ const (
 	MaxWebDAVProperties   = 256
 	MaxWebDAVHrefs        = 2048
 	MaxWebDAVReportLimit  = 1000
+
+	MaxDAVPropertyLanguageLength = 64
 )
 
 type Depth string
@@ -86,14 +89,16 @@ type MKCalendarRequest struct {
 }
 
 type ProppatchRequest struct {
-	Name        *string
-	Description *string
-	Color       *string
-	Slug        *string
-	Timezone    *string
-	Properties  []XMLName
-	Unsupported []XMLName
-	Protected   []XMLName
+	Name            *string
+	NameLang        *string
+	Description     *string
+	DescriptionLang *string
+	Color           *string
+	Slug            *string
+	Timezone        *string
+	Properties      []XMLName
+	Unsupported     []XMLName
+	Protected       []XMLName
 }
 
 func ParsePropfind(r io.Reader) (PropfindRequest, error) {
@@ -308,7 +313,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 					return fmt.Errorf("PROPPATCH set must contain exactly one DAV:prop")
 				}
 				hasProp = true
-				if err := parseProppatchProp(dec, tok.Name, true, req, properties); err != nil {
+				if err := parseProppatchProp(dec, tok, true, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -342,7 +347,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 					return fmt.Errorf("PROPPATCH remove must contain exactly one DAV:prop")
 				}
 				hasProp = true
-				if err := parseProppatchProp(dec, tok.Name, false, req, properties); err != nil {
+				if err := parseProppatchProp(dec, tok, false, req, properties); err != nil {
 					return err
 				}
 				continue
@@ -359,7 +364,11 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 	}
 }
 
-func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *ProppatchRequest, properties *int) error {
+func parseProppatchProp(dec *xml.Decoder, propStart xml.StartElement, set bool, req *ProppatchRequest, properties *int) error {
+	propLang, err := propLanguage(propStart)
+	if err != nil {
+		return err
+	}
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -389,6 +398,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				}
 				value := strings.TrimSpace(text)
 				req.Name = &value
+				req.NameLang = &propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-description"):
 				value := ""
@@ -402,6 +412,12 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 					return err
 				}
 				req.Description = &value
+				if set {
+					req.DescriptionLang = &propLang
+				} else {
+					emptyLang := ""
+					req.DescriptionLang = &emptyLang
+				}
 				req.Properties = append(req.Properties, PropCalendarDescription)
 			case sameXMLName(tok.Name, CalendarServerNamespace, "calendar-color") ||
 				sameXMLName(tok.Name, "http://apple.com/ns/ical/", "calendar-color"):
@@ -456,11 +472,32 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, propName) {
+			if sameName(tok.Name, propStart.Name) {
 				return nil
 			}
 		}
 	}
+}
+
+func propLanguage(start xml.StartElement) (string, error) {
+	for _, attr := range start.Attr {
+		if attr.Name.Space == "http://www.w3.org/XML/1998/namespace" && attr.Name.Local == "lang" {
+			return ValidateDAVPropertyLanguage(attr.Value)
+		}
+	}
+	return "", nil
+}
+
+func ValidateDAVPropertyLanguage(value string) (string, error) {
+	if len(value) > MaxDAVPropertyLanguageLength {
+		return "", fmt.Errorf("xml:lang is too long")
+	}
+	if strings.ContainsFunc(value, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.IsSpace(r)
+	}) {
+		return "", fmt.Errorf("xml:lang must not contain control or whitespace characters")
+	}
+	return value, nil
 }
 
 func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarRequest) error {

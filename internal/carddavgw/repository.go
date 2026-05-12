@@ -97,12 +97,14 @@ type DeleteAddressBookRequest struct {
 }
 
 type UpdateAddressBookRequest struct {
-	UserID        string
-	ActorUserID   string
-	AddressBookID string
-	Name          *string
-	Description   *string
-	ObservedETag  string
+	UserID          string
+	ActorUserID     string
+	AddressBookID   string
+	Name            *string
+	NameLang        *string
+	Description     *string
+	DescriptionLang *string
+	ObservedETag    string
 }
 
 type ListAddressBookChangesSinceRequest struct {
@@ -159,7 +161,7 @@ INSERT INTO carddav_addressbooks (
 )
 SELECT company_id, domain_id, user_id, $2, $3, $4, $5
 FROM active_user
-RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 	var book AddressBook
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
@@ -171,7 +173,9 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 		&book.ID,
 		&book.UserID,
 		&book.Name,
+		&book.NameLang,
 		&book.Description,
+		&book.DescriptionLang,
 		&book.SyncToken,
 		&book.CreatedAt,
 		&book.UpdatedAt,
@@ -220,7 +224,7 @@ INSERT INTO carddav_addressbooks (
 )
 SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6
 FROM active_user
-RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 	var book AddressBook
 	err = tx.QueryRowContext(ctx, query,
 		req.UserID,
@@ -233,7 +237,9 @@ RETURNING id::text, user_id::text, name, description, sync_token, created_at, up
 		&book.ID,
 		&book.UserID,
 		&book.Name,
+		&book.NameLang,
 		&book.Description,
+		&book.DescriptionLang,
 		&book.SyncToken,
 		&book.CreatedAt,
 		&book.UpdatedAt,
@@ -262,7 +268,7 @@ func (r *Repository) ListAddressBooks(ctx context.Context, req ListAddressBooksR
 		return nil, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at
 FROM carddav_addressbooks
 WHERE user_id = $1::uuid
   AND status = $2
@@ -276,7 +282,7 @@ LIMIT $3`
 	var books []AddressBook
 	for rows.Next() {
 		var book AddressBook
-		if err := rows.Scan(&book.ID, &book.UserID, &book.Name, &book.Description, &book.SyncToken, &book.CreatedAt, &book.UpdatedAt); err != nil {
+		if err := rows.Scan(&book.ID, &book.UserID, &book.Name, &book.NameLang, &book.Description, &book.DescriptionLang, &book.SyncToken, &book.CreatedAt, &book.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CardDAV address book: %w", err)
 		}
 		books = append(books, book)
@@ -296,13 +302,13 @@ func (r *Repository) GetAddressBook(ctx context.Context, req GetAddressBookReque
 		return AddressBook{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, name, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at
 FROM carddav_addressbooks
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = $3`
 	var book AddressBook
-	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.Status).Scan(&book.ID, &book.UserID, &book.Name, &book.Description, &book.SyncToken, &book.CreatedAt, &book.UpdatedAt); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.Status).Scan(&book.ID, &book.UserID, &book.Name, &book.NameLang, &book.Description, &book.DescriptionLang, &book.SyncToken, &book.CreatedAt, &book.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
 		}
@@ -332,33 +338,43 @@ func (r *Repository) UpdateAddressBookProperties(ctx context.Context, req Update
 			}
 		}
 		nameValue, nameSet := optionalStringArg(req.Name)
+		nameLangValue, nameLangSet := optionalStringArg(req.NameLang)
 		descriptionValue, descriptionSet := optionalStringArg(req.Description)
+		descriptionLangValue, descriptionLangSet := optionalStringArg(req.DescriptionLang)
 		const query = `
 UPDATE carddav_addressbooks
 SET
   name = CASE WHEN $3 THEN $4 ELSE name END,
   normalized_name = CASE WHEN $3 THEN $5 ELSE normalized_name END,
-  description = CASE WHEN $6 THEN $7 ELSE description END,
-  sync_token = $8,
+  displayname_lang = CASE WHEN $6 THEN $7 ELSE displayname_lang END,
+  description = CASE WHEN $8 THEN $9 ELSE description END,
+  description_lang = CASE WHEN $10 THEN $11 ELSE description_lang END,
+  sync_token = $12,
   updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
-RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.AddressBookID,
 			nameSet,
 			nameValue,
 			normalizedName,
+			nameLangSet,
+			nameLangValue,
 			descriptionSet,
 			descriptionValue,
+			descriptionLangSet,
+			descriptionLangValue,
 			syncToken,
 		).Scan(
 			&book.ID,
 			&book.UserID,
 			&book.Name,
+			&book.NameLang,
 			&book.Description,
+			&book.DescriptionLang,
 			&book.SyncToken,
 			&book.CreatedAt,
 			&book.UpdatedAt,
@@ -408,12 +424,14 @@ SET status = 'deleted', deleted_at = now(), updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
-RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
+RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID).Scan(
 			&book.ID,
 			&book.UserID,
 			&book.Name,
+			&book.NameLang,
 			&book.Description,
+			&book.DescriptionLang,
 			&book.SyncToken,
 			&book.CreatedAt,
 			&book.UpdatedAt,
@@ -1255,6 +1273,7 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 	}
 	var normalizedName string
 	var name *string
+	var nameLang *string
 	if req.Name != nil {
 		value, err := ValidateAddressBookName(*req.Name)
 		if err != nil {
@@ -1265,17 +1284,40 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 			return UpdateAddressBookRequest{}, "", "", err
 		}
 		name = &value
+		valueLang, err := validateXMLLangPointer("displayname xml:lang", req.NameLang)
+		if err != nil {
+			return UpdateAddressBookRequest{}, "", "", err
+		}
+		nameLang = valueLang
 	}
 	var description *string
+	var descriptionLang *string
 	if req.Description != nil {
 		value, err := ValidateAddressBookDescription(*req.Description)
 		if err != nil {
 			return UpdateAddressBookRequest{}, "", "", err
 		}
 		description = &value
+		valueLang, err := validateXMLLangPointer("addressbook-description xml:lang", req.DescriptionLang)
+		if err != nil {
+			return UpdateAddressBookRequest{}, "", "", err
+		}
+		descriptionLang = valueLang
 	}
 	syncToken := AddressBookSyncToken(userID, bookID, "addressbook-update", time.Now().UTC().Format(time.RFC3339Nano))
-	return UpdateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, Name: name, Description: description, ObservedETag: observedETag}, normalizedName, syncToken, nil
+	return UpdateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, AddressBookID: bookID, Name: name, NameLang: nameLang, Description: description, DescriptionLang: descriptionLang, ObservedETag: observedETag}, normalizedName, syncToken, nil
+}
+
+func validateXMLLangPointer(field string, value *string) (*string, error) {
+	if value == nil {
+		empty := ""
+		return &empty, nil
+	}
+	lang, err := validateXMLLang(*value)
+	if err != nil {
+		return nil, fmt.Errorf("%s is invalid: %w", field, err)
+	}
+	return &lang, nil
 }
 
 func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddressBookRequest, error) {
@@ -1607,7 +1649,7 @@ WHERE user_id = $1::uuid
 func ensureAddressBookCollectionETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, etag string) error {
 	var book AddressBook
 	err := tx.QueryRowContext(ctx, `
-SELECT id::text, user_id::text, name, description, sync_token, created_at, updated_at
+SELECT id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at
 FROM carddav_addressbooks
 WHERE user_id = $1::uuid
   AND id = $2::uuid
@@ -1615,7 +1657,9 @@ WHERE user_id = $1::uuid
 		&book.ID,
 		&book.UserID,
 		&book.Name,
+		&book.NameLang,
 		&book.Description,
+		&book.DescriptionLang,
 		&book.SyncToken,
 		&book.CreatedAt,
 		&book.UpdatedAt,
