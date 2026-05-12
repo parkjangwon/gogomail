@@ -225,6 +225,26 @@ func TestParseMKAddressBookCollectsUnsupportedPropertyFailure(t *testing.T) {
 	}
 }
 
+func TestParseMKAddressBookAllowsEmptyBody(t *testing.T) {
+	t.Parallel()
+
+	req, err := ParseMKAddressBook(strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("ParseMKAddressBook returned error: %v", err)
+	}
+	if !reflect.DeepEqual(req, MKAddressBookRequest{}) {
+		t.Fatalf("request = %+v, want empty", req)
+	}
+}
+
+func TestParseMKAddressBookRejectsWhitespaceOnlyBody(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ParseMKAddressBook(strings.NewReader(" \r\n\t ")); err == nil {
+		t.Fatal("ParseMKAddressBook error = nil, want rejection")
+	}
+}
+
 func TestParseMKAddressBookMarksInvalidResourceTypes(t *testing.T) {
 	t.Parallel()
 

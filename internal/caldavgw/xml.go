@@ -240,8 +240,11 @@ func ParseMKCalendar(r io.Reader) (MKCalendarRequest, error) {
 	if err != nil {
 		return MKCalendarRequest{}, err
 	}
-	if len(bytes.TrimSpace(body)) == 0 {
+	if len(body) == 0 {
 		return MKCalendarRequest{}, nil
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return MKCalendarRequest{}, fmt.Errorf("MKCALENDAR body must contain XML")
 	}
 	dec := newWebDAVXMLDecoder(body)
 	root, err := nextStart(dec)

@@ -212,6 +212,14 @@ func TestParseMKCalendarAllowsEmptyBody(t *testing.T) {
 	}
 }
 
+func TestParseMKCalendarRejectsWhitespaceOnlyBody(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ParseMKCalendar(strings.NewReader(" \r\n\t ")); err == nil {
+		t.Fatal("ParseMKCalendar error = nil, want rejection")
+	}
+}
+
 func TestParseMKCalendarRejectsNonEmptyBodyWithoutSet(t *testing.T) {
 	t.Parallel()
 

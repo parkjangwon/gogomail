@@ -2343,6 +2343,24 @@ func TestHandlerMkcalendarRejectsInvalidPropertyAtomically(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcalendarAllowsAbsentBody(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err != nil {
+		t.Fatalf("created calendar lookup failed: %v", err)
+	}
+}
+
 func TestHandlerMkcalendarRejectsNonEmptyBodyWithoutSet(t *testing.T) {
 	t.Parallel()
 
@@ -2358,6 +2376,24 @@ func TestHandlerMkcalendarRejectsNonEmptyBodyWithoutSet(t *testing.T) {
 	}
 	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
 		t.Fatal("calendar was created from MKCALENDAR body without DAV:set")
+	}
+}
+
+func TestHandlerMkcalendarRejectsWhitespaceOnlyBody(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	calendarID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(" \r\n\t "))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupCalendar(t.Context(), "user-1", calendarID); err == nil {
+		t.Fatal("calendar was created from whitespace-only MKCALENDAR body")
 	}
 }
 

@@ -1629,6 +1629,24 @@ func TestHandlerMkcolRejectsEmptyBodyWithoutCreatingAddressBook(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcolRejectsWhitespaceOnlyBody(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(" \r\n\t "))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created from whitespace-only MKCOL body")
+	}
+}
+
 func TestHandlerMkcolRejectsBodyWithoutResourceType(t *testing.T) {
 	t.Parallel()
 
