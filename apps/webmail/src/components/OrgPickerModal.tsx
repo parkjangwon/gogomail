@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { listOrgTree, listAddressBooks, listContacts, parseVCard, OrgUnit, AddressBook } from '@/lib/api';
+import { listOrgTree, listAddressBooks, listContacts, parseVCard, OrgUnit, AddressBook, getUserProfile } from '@/lib/api';
 
 export interface PickerItem {
   id: string;
@@ -101,7 +101,7 @@ function RenderOrgTree({
               style={{
                 display: 'flex', alignItems: 'center', gap: '4px',
                 paddingTop: '8px', paddingBottom: '8px',
-                paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px',
+                paddingLeft: `${12 + depth * 24}px`, paddingRight: '12px',
                 cursor: 'pointer',
                 borderLeft: isSelected ? '3px solid var(--color-accent)' : '3px solid transparent',
                 background: bgColor,
@@ -194,15 +194,39 @@ export function OrgPickerModal({
   // Load org tree on mount
   useEffect(() => {
     setTreeLoading(true);
-    listOrgTree()
-      .then((units) => {
+    Promise.all([getUserProfile(), listOrgTree()])
+      .then(([userProfile, units]) => {
         setOrgTree(units);
-        // Select the first leaf node (depth > 0) or first unit
-        const first = units.find((u) => u.depth > 0) ?? units[0] ?? null;
-        setSelectedOrg(first);
-        // Expand all root orgs by default to show hierarchy
-        const roots = units.filter((u) => !u.parent_id);
-        setExpandedIds(new Set(roots.map((r) => r.id)));
+
+        // Find user's organization
+        let userOrgId: string | null = null;
+        if (userProfile) {
+          for (const unit of units) {
+            const member = unit.members.find((m) => m.id === userProfile.user_id);
+            if (member) {
+              userOrgId = unit.id;
+              break;
+            }
+          }
+        }
+
+        // Build parent chain from user's org to root
+        const toExpand = new Set<string>();
+        if (userOrgId) {
+          let current = units.find((u) => u.id === userOrgId);
+          while (current && current.parent_id) {
+            const parent = units.find((u) => u.id === current!.parent_id);
+            if (parent) {
+              toExpand.add(parent.id);
+              current = parent;
+            } else {
+              break;
+            }
+          }
+          setSelectedOrg(current || null);
+        }
+
+        setExpandedIds(toExpand);
         setTreeLoading(false);
       })
       .catch(() => setTreeLoading(false));
