@@ -216,6 +216,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Preparation failure copy now tells the user to verify and retry saving or sending, distinct from actual send failure copy.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send dispatch helper cleanup (TASK-125, 2026-05-12, complete)
+- Completed compose send dispatch readability cleanup for user webmail beta.
+- ComposeModal now names the saved-draft eligibility check through `shouldSendSavedDraft`.
+- ComposeModal now dispatches prepared sends through `sendPreparedMessage`, keeping draft-send/direct-send selection in one place.
+- Undo-countdown, scheduled, and immediate send paths now share the same dispatch helper while preserving existing success, failure, and draft cleanup behavior.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
