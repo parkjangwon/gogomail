@@ -24,6 +24,14 @@ export function useMailList(folderId: string) {
   }, []);
 
   useEffect(() => {
+    if (!folderId) {
+      setMessages([]);
+      setHasMore(false);
+      setNextCursor('');
+      nextCursorRef.current = '';
+      setMessagesLoading(false);
+      return;
+    }
     if (folderId.startsWith('__')) {
       // Virtual folders are loaded externally via searchMessages
       setMessages([]);
@@ -53,6 +61,7 @@ export function useMailList(folderId: string) {
   }, [folderId]);
 
   const loadMore = useCallback(async () => {
+    if (!folderId || folderId.startsWith('__')) return;
     const cursor = nextCursorRef.current;
     if (!cursor) return;
     setLoadingMore(true);
@@ -77,7 +86,7 @@ export function useMailList(folderId: string) {
 
   // Poll for new messages every 30s
   useEffect(() => {
-    if (!folderId) return;
+    if (!folderId || folderId.startsWith('__')) return;
     const id = setInterval(async () => {
       try {
         const data = await getMessages(folderId);
@@ -118,7 +127,7 @@ export function useMailList(folderId: string) {
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!folderId || refreshing) return;
+    if (!folderId || folderId.startsWith('__') || refreshing) return;
     setRefreshing(true);
     try {
       const [fData, mData] = await Promise.all([getFolders(), getMessages(folderId)]);
