@@ -2557,7 +2557,9 @@ Target outcome:
       `DAV:collection` and `CARDDAV:addressbook`, so empty or generic MKCOL
       bodies cannot accidentally create address books. Whitespace-only
       non-empty bodies are rejected as malformed XML before the resource-type
-      path. Creation success and
+      path, and unknown structural children outside `DAV:prop` now return
+      parse errors instead of being skipped into semantic failure handling.
+      Creation success and
       property-failure responses now include `Cache-Control: no-store, no-cache`.
       Explicit non-empty request-body `Content-Type` headers are validated
       before XML parsing: malformed or duplicate values return `400`, non-XML

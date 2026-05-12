@@ -315,9 +315,7 @@ func ParseMKAddressBook(r io.Reader) (MKAddressBookRequest, error) {
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return MKAddressBookRequest{}, err
-			}
+			return MKAddressBookRequest{}, fmt.Errorf("unsupported MKCOL element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, root.Name) {
 				if err := rejectTrailingXML(dec); err != nil {
@@ -574,9 +572,7 @@ func parseMKAddressBookSet(dec *xml.Decoder, setName xml.Name, req *MKAddressBoo
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return err
-			}
+			return fmt.Errorf("unsupported MKCOL set element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, setName) {
 				return nil
