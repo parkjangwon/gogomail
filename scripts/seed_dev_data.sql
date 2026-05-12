@@ -5,6 +5,74 @@
 
 BEGIN;
 
+-- ── 0. Tenant/domain + beta login bootstrap ───────────────────────────────────
+
+INSERT INTO companies (id, name, status)
+VALUES ('6106af4e-fc44-4a65-890d-55bb35741d6c', '고구마컴퍼니', 'active')
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    status = EXCLUDED.status;
+
+INSERT INTO domains (id, company_id, name, name_ace, status)
+VALUES (
+  '6049fa6e-d649-44d3-83d2-b548c7e787d5',
+  '6106af4e-fc44-4a65-890d-55bb35741d6c',
+  'parkjw.org',
+  'parkjw.org',
+  'active'
+)
+ON CONFLICT (id) DO UPDATE
+SET company_id = EXCLUDED.company_id,
+    name = EXCLUDED.name,
+    name_ace = EXCLUDED.name_ace,
+    status = EXCLUDED.status;
+
+INSERT INTO users (id, domain_id, username, display_name, password_hash, auth_source, role, status)
+VALUES (
+  'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
+  '6049fa6e-d649-44d3-83d2-b548c7e787d5',
+  'pjw',
+  'Jangwon Park',
+  'plain:pass1234',
+  'local',
+  'user',
+  'active'
+)
+ON CONFLICT (domain_id, username) DO UPDATE
+SET display_name = EXCLUDED.display_name,
+    password_hash = EXCLUDED.password_hash,
+    auth_source = EXCLUDED.auth_source,
+    role = EXCLUDED.role,
+    status = EXCLUDED.status;
+
+INSERT INTO user_addresses (id, user_id, domain_id, local_part, local_part_ace, domain_ace, address, address_ace, is_primary)
+VALUES (
+  'b0000000-0000-0000-0000-000000000001',
+  'f4b5a283-d1e6-47a9-a69a-e71e90f5343c',
+  '6049fa6e-d649-44d3-83d2-b548c7e787d5',
+  'pjw',
+  'pjw',
+  'parkjw.org',
+  'pjw@parkjw.org',
+  'pjw@parkjw.org',
+  true
+)
+ON CONFLICT (address) DO UPDATE
+SET user_id = EXCLUDED.user_id,
+    domain_id = EXCLUDED.domain_id,
+    is_primary = true;
+
+INSERT INTO folders (id, user_id, name, full_path, type, system_type, order_index)
+VALUES
+  ('124979e1-0e59-4577-8ec6-72d5b89b9834', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Inbox',  'Inbox',  'system', 'inbox',  1),
+  ('124979e1-0e59-4577-8ec6-72d5b89b9835', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Sent',   'Sent',   'system', 'sent',   2),
+  ('124979e1-0e59-4577-8ec6-72d5b89b9836', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Drafts', 'Drafts', 'system', 'drafts', 3),
+  ('124979e1-0e59-4577-8ec6-72d5b89b9837', 'f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'Trash',  'Trash',  'system', 'trash',  4)
+ON CONFLICT (user_id, full_path) DO UPDATE
+SET type = EXCLUDED.type,
+    system_type = EXCLUDED.system_type,
+    order_index = EXCLUDED.order_index;
+
 -- ── 1. Users ──────────────────────────────────────────────────────────────────
 
 INSERT INTO users (id, domain_id, username, display_name, password_hash, auth_source, role, status)
@@ -60,7 +128,17 @@ FROM (VALUES
   ('a1000000-0000-0000-0000-000000000003'),
   ('a1000000-0000-0000-0000-000000000004'),
   ('a1000000-0000-0000-0000-000000000005'),
-  ('a1000000-0000-0000-0000-000000000006')
+  ('a1000000-0000-0000-0000-000000000006'),
+  ('a1000000-0000-0000-0000-000000000007'),
+  ('a1000000-0000-0000-0000-000000000008'),
+  ('a1000000-0000-0000-0000-000000000009'),
+  ('a1000000-0000-0000-0000-000000000010'),
+  ('a1000000-0000-0000-0000-000000000011'),
+  ('a1000000-0000-0000-0000-000000000012'),
+  ('a1000000-0000-0000-0000-000000000013'),
+  ('a1000000-0000-0000-0000-000000000014'),
+  ('a1000000-0000-0000-0000-000000000015'),
+  ('a1000000-0000-0000-0000-000000000016')
 ) AS u(id)
 CROSS JOIN (VALUES
   ('Inbox',  'inbox',  1),
