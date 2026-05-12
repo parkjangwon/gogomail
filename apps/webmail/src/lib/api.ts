@@ -445,6 +445,7 @@ export interface ContactSuggestion {
   type?: string;
   display_name: string;
   email: string;
+  organization?: string;
 }
 
 export async function autocompleteContacts(q: string, limit = 8): Promise<ContactSuggestion[]> {
@@ -1155,25 +1156,82 @@ export async function downloadDriveNode(nodeId: string, filename: string): Promi
 
 export async function uploadDriveFile(file: File, parentId?: string): Promise<DriveNode | null> {
   try {
-    const sessionRes = await fetch('/api/mail/drive/upload-sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: file.name, mime_type: file.type || 'application/octet-stream', size: file.size, parent_id: parentId ?? '' }),
-    });
-    if (!sessionRes.ok) return null;
-    const { upload_session } = await sessionRes.json() as { upload_session: { id: string } };
-    const bodyRes = await fetch(`/api/mail/drive/upload-sessions/${upload_session.id}/body`, {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hash = Array.from(new Uint8Array(hashBuffer))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+
+    const storageBackends = ['local', 's3', 'minio'];
+    let session: { id: string } | null = null;
+
+    for (const storageBackend of storageBackends) {
+      const sessionRes = await fetch('/api/mail/drive/upload-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parent_id: parentId ?? '',
+          name: file.name,
+          declared_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+          storage_backend: storageBackend,
+        }),
+      });
+
+      if (sessionRes.ok) {
+        const body = await sessionRes.json() as { drive_upload_session: { id: string } };
+        session = body.drive_upload_session;
+        break;
+      }
+
+      const shouldRetryBackend = storageBackend !== storageBackends[storageBackends.length - 1];
+      if (!shouldRetryBackend) {
+        let message = `Create upload session failed: ${sessionRes.status}`;
+        try {
+          const errorBody = (await sessionRes.json()) as { error?: string; message?: string };
+          message = errorBody.error ?? errorBody.message ?? message;
+        } catch {
+          // ignore parse error
+        }
+        throw new Error(message);
+      }
+    }
+
+    if (!session) {
+      throw new Error('Create upload session failed.');
+    }
+
+    const bodyRes = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(session.id)}/body`, {
       method: 'PUT',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-Content-SHA256': hash,
+      },
       body: file,
     });
-    if (!bodyRes.ok) return null;
-    const finalRes = await fetch('/api/mail/drive/files/finalize', {
+    if (!bodyRes.ok) {
+      let msg = `Upload body failed: ${bodyRes.status}`;
+      try {
+        const err = (await bodyRes.json()) as { error?: string; message?: string };
+        msg = err.error ?? err.message ?? msg;
+      } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+
+    const finalRes = await fetch(`/api/mail/drive/upload-sessions/${encodeURIComponent(session.id)}/finalize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ upload_session_id: upload_session.id }),
     });
-    if (!finalRes.ok) return null;
+    if (!finalRes.ok) {
+      let msg = `Finalize upload session failed: ${finalRes.status}`;
+      try {
+        const err = (await finalRes.json()) as { error?: string; message?: string };
+        msg = err.error ?? err.message ?? msg;
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+
     const data = await finalRes.json() as { drive_node?: DriveNode };
     return data.drive_node ?? null;
   } catch { return null; }
