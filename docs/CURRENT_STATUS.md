@@ -13,6 +13,8 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
   folders during recursive directory uploads.
 - Existing design language and toolbar flow is preserved (no visual theme rework).
 - Drag-over upload/drop target behavior and folder move/upload paths are now aligned for in-place DnD usage.
+- Added multi-selection drag support (Ctrl/Cmd + click) and multi-node move payload handling so selected nodes can be moved together into folders.
+- Hardening drag payload parsing (JSON + legacy text fallbacks) to improve reliability for file-card to-folder move flows across MIME/UX permutations.
 
 ## Drive upload contract fix (2026-05-12, in progress)
 - Fixed Drive upload session contract mismatch in webmail frontend (`apps/webmail/src/lib/api.ts`):
