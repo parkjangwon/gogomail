@@ -4567,7 +4567,10 @@ Target outcome:
   change+object read path for incremental responses and returns RFC-shaped
   truncation preconditions for over-limit deltas. `addressbook-multiget` now
   batches href object lookup while preserving WebDAV per-href response
-  ordering and 404 semantics.
+  ordering and 404 semantics. CardDAV contact/address-book writes now reduce
+  unnecessary `FOR UPDATE` contention, rely on active object unique indexes for
+  UID/name conflicts, and retry bounded serialization/deadlock/lock-contention
+  failures.
 - Notification & Sync boundary for domain events, reminders, devices, quiet
   hours, per-device policy, and delta fan-out
 - Vendor push notification delivery adapters
