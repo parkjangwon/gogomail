@@ -1810,6 +1810,19 @@ func TestHandlerGetCalendarObjectHonorsIfMatch(t *testing.T) {
 	}
 }
 
+func TestHandlerGetCalendarObjectHonorsWebDAVIfHeader(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	req := httptest.NewRequest(MethodGet, "/caldav/calendars/user-1/work/event-1.ics", nil)
+	req.Header.Set("If", `(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandlerGetCalendarObjectHonorsIfUnmodifiedSince(t *testing.T) {
 	t.Parallel()
 
@@ -2018,6 +2031,45 @@ func TestHandlerPutIfMatchStarCarriesObservedETag(t *testing.T) {
 	}
 	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
 		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
+func TestHandlerPutHonorsWebDAVIfHeaderETag(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If", `(["0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"])`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
+func TestHandlerPutRejectsFailedWebDAVIfHeaderETag(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	body := &readTrackingReader{data: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"}
+	req := httptest.NewRequest(MethodPut, "/caldav/calendars/user-1/work/event-1.ics", body)
+	req.Header.Set("Content-Type", "text/calendar")
+	req.Header.Set("If", `(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
 	}
 }
 

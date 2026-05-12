@@ -581,6 +581,16 @@ func TestHandlerGetContactObjectHonorsCachePreconditions(t *testing.T) {
 	}
 }
 
+func TestHandlerGetContactObjectHonorsWebDAVIfHeader(t *testing.T) {
+	t.Parallel()
+
+	headers := http.Header{"If": []string{`(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])`}}
+	rec := runCardDAVObjectRequest(t, MethodGet, "/carddav/addressbooks/user-1/personal/contact-1.vcf", "", headers)
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusPreconditionFailed, rec.Body.String())
+	}
+}
+
 func TestHandlerGetContactObjectRejectsRepeatedDateConditionals(t *testing.T) {
 	t.Parallel()
 
@@ -674,6 +684,45 @@ func TestHandlerPutContactObjectIfMatchStarCarriesObservedETag(t *testing.T) {
 	}
 	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
 		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
+func TestHandlerPutContactObjectHonorsWebDAVIfHeaderETag(t *testing.T) {
+	t.Parallel()
+
+	store := &trackingCardDAVObjectStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1@example.com\r\nFN:Updated Contact\r\nEND:VCARD\r\n"
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If", `(["0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"])`)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.lastUpsert.ObservedETag != `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"` {
+		t.Fatalf("put observed etag = %q", store.lastUpsert.ObservedETag)
+	}
+}
+
+func TestHandlerPutContactObjectRejectsFailedWebDAVIfHeaderETag(t *testing.T) {
+	t.Parallel()
+
+	body := &readTrackingReader{data: "BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1@example.com\r\nFN:Updated Contact\r\nEND:VCARD\r\n"}
+	req := httptest.NewRequest(MethodPut, "/carddav/addressbooks/user-1/personal/contact-1.vcf", body)
+	req.Header.Set("Content-Type", "text/vcard")
+	req.Header.Set("If", `(["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])`)
+	rec := httptest.NewRecorder()
+	handler := NewHandler(testCardDAVDiscoveryStore(t), func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d, want 412, body = %s", rec.Code, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
 	}
 }
 

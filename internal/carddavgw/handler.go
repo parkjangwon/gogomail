@@ -343,6 +343,22 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
 		return
 	}
+	ifHeader, err := conditionalIfHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if ifHeader != "" {
+		matches, err := webDAVIfHeaderMatches(ifHeader, object.ETag, r.URL.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !matches {
+			http.Error(w, "carddav contact object If header precondition failed", http.StatusPreconditionFailed)
+			return
+		}
+	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -393,6 +409,11 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifHeader, err := conditionalIfHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	existed := false
 	var existing ContactObject
 	if object, err := h.Store.LookupContactObject(r.Context(), userID, resource.AddressBookID, resource.ObjectName); err == nil {
@@ -418,6 +439,24 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if observedETag != "" {
 		observedETag = existing.ETag
+	}
+	if ifHeader != "" {
+		currentETag := ""
+		if existed {
+			currentETag = existing.ETag
+		}
+		matches, err := webDAVIfHeaderMatches(ifHeader, currentETag, r.URL.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !matches {
+			http.Error(w, "carddav contact object If header precondition failed", http.StatusPreconditionFailed)
+			return
+		}
+		if existed {
+			observedETag = existing.ETag
+		}
 	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
@@ -513,16 +552,21 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifHeader, err := conditionalIfHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	observedETag := ""
-	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifHeader != "" || ifUnmodifiedSince != "" {
 		object, err := h.Store.LookupContactObject(r.Context(), userID, resource.AddressBookID, resource.ObjectName)
 		if err != nil {
-			if ifMatch != "" || ifUnmodifiedSince != "" {
+			if ifMatch != "" || ifHeader != "" || ifUnmodifiedSince != "" {
 				http.Error(w, "carddav contact object not found", http.StatusPreconditionFailed)
 				return
 			}
@@ -535,7 +579,18 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "carddav contact object etag mismatch", http.StatusPreconditionFailed)
 				return
 			}
-			if ifMatch != "" {
+			if ifHeader != "" {
+				matches, err := webDAVIfHeaderMatches(ifHeader, object.ETag, r.URL.Path)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				if !matches {
+					http.Error(w, "carddav contact object If header precondition failed", http.StatusPreconditionFailed)
+					return
+				}
+			}
+			if ifMatch != "" || ifHeader != "" {
 				observedETag = object.ETag
 			}
 			if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
@@ -923,15 +978,20 @@ func withCurrentUserPrincipal(props []PropertyResult, actorUserID string) ([]Pro
 func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter, r *http.Request, userID string, addressBookID string) (string, bool) {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifHeader, err := conditionalIfHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return "", false
+	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return "", false
 	}
-	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifHeader != "" || ifUnmodifiedSince != "" {
 		book, err := h.Store.LookupAddressBook(r.Context(), userID, addressBookID)
 		if err != nil {
-			if ifMatch != "" || ifUnmodifiedSince != "" {
+			if ifMatch != "" || ifHeader != "" || ifUnmodifiedSince != "" {
 				http.Error(w, "carddav address book not found", http.StatusPreconditionFailed)
 				return "", false
 			}
@@ -952,6 +1012,17 @@ func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter,
 				return "", false
 			}
 		}
+		if ifHeader != "" {
+			matches, err := webDAVIfHeaderMatches(ifHeader, etag, r.URL.Path)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return "", false
+			}
+			if !matches {
+				http.Error(w, "carddav address book collection If header precondition failed", http.StatusPreconditionFailed)
+				return "", false
+			}
+		}
 		if objectModifiedSince(ifUnmodifiedSince, book.UpdatedAt) {
 			http.Error(w, "carddav address book modified since precondition", http.StatusPreconditionFailed)
 			return "", false
@@ -964,6 +1035,11 @@ func (h *Handler) checkAddressBookCollectionPreconditions(w http.ResponseWriter,
 func (h *Handler) checkAddressBookCollectionCreatePreconditions(w http.ResponseWriter, r *http.Request, userID string, book AddressBook, exists bool) bool {
 	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifHeader, err := conditionalIfHeaderValue(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return false
+	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -974,9 +1050,20 @@ func (h *Handler) checkAddressBookCollectionCreatePreconditions(w http.ResponseW
 			http.Error(w, "carddav address book create precondition failed", http.StatusPreconditionFailed)
 			return false
 		}
+		if ifHeader != "" {
+			matches, err := webDAVIfHeaderMatches(ifHeader, "", r.URL.Path)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return false
+			}
+			if !matches {
+				http.Error(w, "carddav address book collection If header precondition failed", http.StatusPreconditionFailed)
+				return false
+			}
+		}
 		return true
 	}
-	if ifMatch != "" || ifNoneMatch != "" {
+	if ifMatch != "" || ifNoneMatch != "" || ifHeader != "" {
 		etag, err := AddressBookCollectionETag(userID, book)
 		if err != nil {
 			http.Error(w, "carddav address book collection etag unavailable", http.StatusPreconditionFailed)
@@ -989,6 +1076,17 @@ func (h *Handler) checkAddressBookCollectionCreatePreconditions(w http.ResponseW
 		if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, etag) {
 			http.Error(w, "carddav address book collection if-none-match precondition failed", http.StatusPreconditionFailed)
 			return false
+		}
+		if ifHeader != "" {
+			matches, err := webDAVIfHeaderMatches(ifHeader, etag, r.URL.Path)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return false
+			}
+			if !matches {
+				http.Error(w, "carddav address book collection If header precondition failed", http.StatusPreconditionFailed)
+				return false
+			}
 		}
 	}
 	if objectModifiedSince(ifUnmodifiedSince, book.UpdatedAt) {
@@ -1947,6 +2045,18 @@ func conditionalHeaderValue(header http.Header, name string) string {
 	return strings.TrimSpace(strings.Join(header.Values(name), ","))
 }
 
+func conditionalIfHeaderValue(header http.Header) (string, error) {
+	values := header.Values("If")
+	if len(values) == 0 {
+		return "", nil
+	}
+	value := strings.TrimSpace(strings.Join(values, " "))
+	if strings.ContainsAny(value, "\r\n") {
+		return "", fmt.Errorf("If header must not contain line breaks")
+	}
+	return value, nil
+}
+
 func conditionalDateHeaderValue(header http.Header, name string) (string, error) {
 	values := header.Values(name)
 	if len(values) > 1 {
@@ -1980,6 +2090,105 @@ func ifNoneMatchMatches(header string, etag string) bool {
 		}
 	}
 	return false
+}
+
+func webDAVIfHeaderMatches(header string, currentETag string, currentPath string) (bool, error) {
+	header = strings.TrimSpace(header)
+	if header == "" {
+		return true, nil
+	}
+	anyRelevant := false
+	for pos := 0; pos < len(header); {
+		open := strings.IndexByte(header[pos:], '(')
+		if open < 0 {
+			break
+		}
+		open += pos
+		prefix := strings.TrimSpace(header[pos:open])
+		tag := ""
+		if strings.HasSuffix(prefix, ">") {
+			start := strings.LastIndex(prefix, "<")
+			if start >= 0 {
+				tag = strings.TrimSpace(prefix[start+1 : len(prefix)-1])
+			}
+		}
+		close := strings.IndexByte(header[open+1:], ')')
+		if close < 0 {
+			return false, fmt.Errorf("If header contains an unterminated condition list")
+		}
+		close += open + 1
+		pos = close + 1
+		if tag != "" && !webDAVIfTagMatchesPath(tag, currentPath) {
+			continue
+		}
+		anyRelevant = true
+		matches, err := webDAVIfConditionListMatches(header[open+1:close], currentETag)
+		if err != nil {
+			return false, err
+		}
+		if matches {
+			return true, nil
+		}
+	}
+	if !anyRelevant {
+		return false, nil
+	}
+	return false, nil
+}
+
+func webDAVIfTagMatchesPath(tag string, currentPath string) bool {
+	tag = strings.TrimSpace(tag)
+	currentPath = strings.TrimSpace(currentPath)
+	if tag == currentPath {
+		return true
+	}
+	if strings.HasPrefix(tag, "http://") || strings.HasPrefix(tag, "https://") {
+		if idx := strings.Index(tag[strings.Index(tag, "://")+3:], "/"); idx >= 0 {
+			path := tag[strings.Index(tag, "://")+3+idx:]
+			return path == currentPath
+		}
+	}
+	return false
+}
+
+func webDAVIfConditionListMatches(list string, currentETag string) (bool, error) {
+	list = strings.TrimSpace(list)
+	if list == "" {
+		return false, fmt.Errorf("If header contains an empty condition list")
+	}
+	for list != "" {
+		negated := false
+		if strings.HasPrefix(list, "Not") && (len(list) == 3 || list[3] == ' ' || list[3] == '\t') {
+			negated = true
+			list = strings.TrimSpace(list[3:])
+		}
+		var matched bool
+		switch {
+		case strings.HasPrefix(list, "["):
+			end := strings.IndexByte(list, ']')
+			if end < 0 {
+				return false, fmt.Errorf("If header contains an unterminated entity-tag")
+			}
+			matched = strings.TrimSpace(list[1:end]) == currentETag
+			list = strings.TrimSpace(list[end+1:])
+		case strings.HasPrefix(list, "<"):
+			end := strings.IndexByte(list, '>')
+			if end < 0 {
+				return false, fmt.Errorf("If header contains an unterminated state-token")
+			}
+			matched = false
+			list = strings.TrimSpace(list[end+1:])
+		default:
+			return false, fmt.Errorf("If header contains an unsupported condition")
+		}
+		if negated {
+			matched = !matched
+		}
+		if !matched {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func ifMatchMatches(header string, etag string) bool {
