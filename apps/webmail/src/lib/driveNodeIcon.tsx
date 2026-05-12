@@ -48,6 +48,62 @@ const EXTENSION_ALIASES = new Map<string, string>([
   ['xlsm', 'xls'],
   ['xlsx', 'xlsx'],
   ['docm', 'docx'],
+  ['md', 'txt'],
+  ['markdown', 'txt'],
+]);
+
+const FILE_ICON_TYPES = new Set([
+  'aep',
+  'ai',
+  'audio',
+  'avi',
+  'code',
+  'css',
+  'csv',
+  'doc',
+  'docx',
+  'dmg',
+  'document',
+  'eps',
+  'exe',
+  'fig',
+  'folder',
+  'gif',
+  'html',
+  'image',
+  'img',
+  'indd',
+  'java',
+  'jpeg',
+  'jpg',
+  'js',
+  'json',
+  'mkv',
+  'mp3',
+  'mp4',
+  'mpeg',
+  'pdf',
+  'pdf-simple',
+  'png',
+  'ppt',
+  'pptx',
+  'psd',
+  'rar',
+  'rss',
+  'sql',
+  'spreadsheets',
+  'svg',
+  'tiff',
+  'txt',
+  'video',
+  'video-01',
+  'video-02',
+  'wav',
+  'webp',
+  'xls',
+  'xlsx',
+  'xml',
+  'zip',
 ]);
 
 function getNameExtension(name: string): string {
@@ -62,7 +118,8 @@ function resolveDriveFileType(node: DriveNode): string {
   const ext = getNameExtension(node.name);
 
   if (ext) {
-    return EXTENSION_ALIASES.get(ext) ?? ext;
+    const alias = EXTENSION_ALIASES.get(ext) ?? ext;
+    if (FILE_ICON_TYPES.has(alias)) return alias;
   }
 
   if (mime && MIME_FALLBACK_TYPES.has(mime)) return MIME_FALLBACK_TYPES.get(mime)!;
@@ -75,6 +132,60 @@ function resolveDriveFileType(node: DriveNode): string {
   if (mime?.startsWith('audio/')) return 'audio';
 
   return 'empty';
+}
+
+function DefaultFolderIcon({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M4.5 8.8c0-1.6 1.3-2.8 2.8-2.8h7.7c.9 0 1.7.5 2.1 1.3l2 3.8h15.9c1.5 0 2.7 1.2 2.7 2.7V29c0 1.5-1.2 2.7-2.7 2.7H7.2c-1.5 0-2.8-1.2-2.8-2.7V8.8Z"
+        stroke="#D5D7DA"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.3 6.5h13.5c.8 0 1.4.4 1.8.9l1.4 2.2h6.8c1.4 0 2.5 1.1 2.5 2.5V28.1c0 1.4-1.1 2.5-2.5 2.5H7.5c-1.4 0-2.5-1.1-2.5-2.5V10.3c0-1.4 1.1-2.5 2.5-2.5h3.8"
+        stroke="#155EEF"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UnknownFileIcon({ size }: { size: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      fill="none"
+      viewBox="0 0 40 40"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        stroke="#D5D7DA"
+        strokeWidth={1.5}
+        d="M4.75 4A3.25 3.25 0 0 1 8 .75h16c.121 0 .238.048.323.134l10.793 10.793a.46.46 0 0 1 .134.323v24A3.25 3.25 0 0 1 32 39.25H8A3.25 3.25 0 0 1 4.75 36z"
+      />
+      <path stroke="#D5D7DA" strokeWidth={1.5} d="M24 .5V8a4 4 0 0 0 4 4h7.5" />
+      <path
+        stroke="#155EEF"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M11.9 19.5h16.2m-16.2 3.6h16.2m-16.2 3.6h16.2m-16.2 3.6h12.6"
+      />
+    </svg>
+  );
 }
 
 export function DriveNodeIcon({ node, size = 36 }: { node: DriveNode; size?: number }) {
@@ -90,12 +201,13 @@ export function DriveNodeIcon({ node, size = 36 }: { node: DriveNode; size?: num
         flexShrink: 0,
       }}
     >
-      <FileIcon
-        type={type}
-        size={size}
-        variant={size >= 24 ? 'solid' : 'default'}
-        theme="light"
-      />
+      {type === 'folder' ? (
+        <DefaultFolderIcon size={size} />
+      ) : type === 'empty' ? (
+        <UnknownFileIcon size={size} />
+      ) : (
+        <FileIcon type={type} size={size} variant="default" theme="light" />
+      )}
     </span>
   );
 }
