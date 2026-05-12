@@ -61,7 +61,8 @@ function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
   const raw = dataTransfer.getData(DRIVE_NODE_DRAG_MIME);
   if (raw) {
     try {
-      const parsed = JSON.parse(raw) as { nodeId?: string };
+      const parsed = JSON.parse(raw) as { nodeId?: string; nodeIds?: string[] };
+      if (parsed.nodeIds && parsed.nodeIds.length > 0) return JSON.stringify(parsed);
       return parsed.nodeId ?? null;
     } catch {
       return null;
@@ -73,6 +74,10 @@ function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
     const nodeId = fallback.slice('node:'.length).trim();
     return nodeId || null;
   }
+  if (fallback.startsWith('nodes:')) {
+    const payload = fallback.slice('nodes:'.length).trim();
+    return payload || null;
+  }
 
   const plain = dataTransfer.getData('text/plain');
   if (plain.startsWith(`${DRIVE_NODE_DRAG_TEXT}:`)) {
@@ -83,11 +88,25 @@ function getDriveNodeDragPayload(dataTransfer: DataTransfer): string | null {
   return null;
 }
 
+function parseDriveNodeIds(payload: string | null): string[] | null {
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(payload) as { nodeIds?: string[] };
+    if (Array.isArray(parsed.nodeIds) && parsed.nodeIds.length > 0) return [...new Set(parsed.nodeIds)];
+  } catch {
+    if (payload.includes(',')) {
+      const ids = payload.split(',').map((v) => v.trim()).filter(Boolean);
+      if (ids.length > 0) return ids;
+    }
+    return [payload];
+  }
+  return [payload];
+}
+
 function isDriveNodeDrag(dataTransfer: DataTransfer): boolean {
   return (
     Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_MIME) ||
-    Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_TEXT) ||
-    dataTransfer.types.includes('text/plain')
+    Array.from(dataTransfer.types).includes(DRIVE_NODE_DRAG_TEXT)
   );
 }
 
@@ -309,7 +328,8 @@ export function DriveView() {
   const [newFolderName, setNewFolderName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [draggingNodeIds, setDraggingNodeIds] = useState<string[]>([]);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -493,37 +513,49 @@ export function DriveView() {
     handleUploadEntries(entries, targetParentId).catch(() => {});
   }
 
-  async function handleMoveNode(nodeId: string, targetParentId: string) {
-    if (draggingNodeId === nodeId) {
-      setDraggingNodeId(null);
-      setDropTargetFolderId(null);
-      return;
-    }
-    const source = nodes.find((n) => n.id === nodeId);
-    if (!source) {
-      setDraggingNodeId(null);
-      setDropTargetFolderId(null);
-      return;
-    }
-    if (source.node_type === 'folder' && source.id === targetParentId) {
-      setDraggingNodeId(null);
-      setDropTargetFolderId(null);
-      return;
-    }
-    if ((source.parent_id || '') === targetParentId) {
-      setDraggingNodeId(null);
+  async function handleMoveNodes(nodeIds: string[], targetParentId: string) {
+    if (!nodeIds.length) {
+      setDraggingNodeIds([]);
       setDropTargetFolderId(null);
       return;
     }
 
-    const ok = await moveDriveNode(nodeId, targetParentId);
-    if (ok) {
-      setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+    const movingById = new Set(nodeIds);
+    let movedAny = false;
+    const movedNodeIds: string[] = [];
+
+    for (const nodeId of movingById) {
+      const source = nodes.find((n) => n.id === nodeId);
+      if (!source) continue;
+      if (source.node_type === 'folder' && source.id === targetParentId) continue;
+      if ((source.parent_id || '') === targetParentId) continue;
+
+      const ok = await moveDriveNode(nodeId, targetParentId);
+      if (ok) {
+        movedAny = true;
+        movedNodeIds.push(nodeId);
+        setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+      }
+    }
+
+    if (movedAny) {
       loadNodes(currentParentId);
       getDriveUsage().then(setUsage);
     }
-    setDraggingNodeId(null);
+    setSelectedNodeIds((prev) => prev.filter((id) => !movedNodeIds.includes(id)));
+    setDraggingNodeIds([]);
     setDropTargetFolderId(null);
+  }
+
+  function applySelection(nodeId: string, multi: boolean) {
+    setSelectedNodeIds((prev) => {
+      if (!multi) return [nodeId];
+      const next = [...prev];
+      const idx = next.indexOf(nodeId);
+      if (idx === -1) next.push(nodeId);
+      else next.splice(idx, 1);
+      return next;
+    });
   }
 
   const usedPct = usage && usage.quota_limit > 0 ? Math.min(100, (usage.quota_used / usage.quota_limit) * 100) : 0;
@@ -773,25 +805,32 @@ export function DriveView() {
                 {nodes.map((node) => {
                   const isRenaming = renameNodeId === node.id;
                   const isDropTarget = dropTargetFolderId === node.id;
-                  const isDraggingSelf = draggingNodeId === node.id;
+                  const isDraggingSelf = draggingNodeIds.includes(node.id);
+                  const isSelected = selectedNodeIds.includes(node.id);
                   return (
                     <div
                       key={node.id}
                       draggable
+                      onClick={(e) => {
+                        applySelection(node.id, e.ctrlKey || e.metaKey);
+                        e.stopPropagation();
+                      }}
                       onDragStart={(e) => {
-                        e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, JSON.stringify({ nodeId: node.id }));
-                        e.dataTransfer.setData(DRIVE_NODE_DRAG_TEXT, `node:${node.id}`);
-                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${node.id}`);
+                        const idsToDrag = (selectedNodeIds.includes(node.id) ? selectedNodeIds : [node.id]);
+                        const payload = JSON.stringify({ nodeIds: [...new Set(idsToDrag)] });
+                        e.dataTransfer.setData(DRIVE_NODE_DRAG_MIME, payload);
+                        e.dataTransfer.setData(DRIVE_NODE_DRAG_TEXT, `nodes:${idsToDrag.join(',')}`);
+                        e.dataTransfer.setData('text/plain', `${DRIVE_NODE_DRAG_TEXT}:${idsToDrag.join(',')}`);
                         e.dataTransfer.effectAllowed = 'move';
-                        setDraggingNodeId(node.id);
+                        setDraggingNodeIds(idsToDrag);
                       }}
                       onDragEnd={() => {
-                        setDraggingNodeId(null);
+                        setDraggingNodeIds([]);
                         setDropTargetFolderId(null);
                       }}
                       onDragOver={(e) => {
                         if (node.node_type !== 'folder') return;
-                        if (node.id === draggingNodeId) return;
+                        if (draggingNodeIds.includes(node.id)) return;
                         e.preventDefault();
                         e.stopPropagation();
                         setDropTargetFolderId(node.id);
@@ -804,9 +843,10 @@ export function DriveView() {
                         e.preventDefault();
                         e.stopPropagation();
                         if (node.node_type !== 'folder') return;
-                        const payloadNodeId = getDriveNodeDragPayload(e.dataTransfer);
-                        if (payloadNodeId) {
-                          if (payloadNodeId !== node.id) await handleMoveNode(payloadNodeId, node.id);
+                        const payload = getDriveNodeDragPayload(e.dataTransfer);
+                        const payloadNodeIds = parseDriveNodeIds(payload);
+                        if (payloadNodeIds && payloadNodeIds.length > 0) {
+                          await handleMoveNodes(payloadNodeIds.filter((id) => id !== node.id), node.id);
                           return;
                         }
                         const files = await collectDroppedFiles(e.dataTransfer);
@@ -817,13 +857,25 @@ export function DriveView() {
                         position: 'relative',
                         borderRadius: '8px',
                         border: `1px solid ${isDropTarget ? 'var(--color-accent)' : 'var(--color-border-default)'}`,
-                        background: isDraggingSelf ? 'var(--color-bg-secondary)' : isDropTarget ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
+                        background: isDraggingSelf || isSelected ? 'var(--color-bg-secondary)' : isDropTarget ? 'var(--color-accent-subtle)' : 'var(--color-bg-primary)',
                         padding: '14px 12px 10px',
                         cursor: node.node_type === 'folder' ? 'pointer' : 'default',
                         transition: 'background 100ms ease, border-color 100ms ease',
                       }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)'; (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border-default)'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-primary)'; }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.background = 'var(--color-bg-secondary)';
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--color-border-default)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.currentTarget as HTMLDivElement;
+                        const selectedOrDragging = isDraggingSelf || isSelected;
+                        target.style.background = selectedOrDragging
+                          ? 'var(--color-bg-secondary)'
+                          : isDropTarget
+                            ? 'var(--color-accent-subtle)'
+                            : 'var(--color-bg-primary)';
+                        target.style.borderColor = isDropTarget ? 'var(--color-accent)' : 'var(--color-border-default)';
+                      }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                         <DriveNodeIcon node={node} />
