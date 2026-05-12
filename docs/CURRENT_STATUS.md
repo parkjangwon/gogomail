@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH remove property emptiness (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` remove instructions now require property elements
+  inside `DAV:prop` to be empty name markers.
+- Remove properties containing non-whitespace text or nested XML children are
+  rejected as malformed XML request bodies instead of being skipped into normal
+  remove or property-failure handling.
+- Empty supported, unsupported, and protected remove property semantics remain
+  intact, with regression coverage in both gateways.
+
 ## CalDAV/CardDAV PROPPATCH duplicate property response semantics (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` handlers preserve document-order final mutation
   behavior for repeated mutable properties such as calendar and address-book
