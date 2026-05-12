@@ -720,17 +720,74 @@ export function DriveView() {
               {breadcrumb.map((item, i) => (
                 <span key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
                   {i > 0 && <ChevronRightIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />}
-                  <button
-                    onClick={() => navigateTo(item)}
-                    style={{
-                      background: 'none', border: 'none', cursor: i === breadcrumb.length - 1 ? 'default' : 'pointer',
-                      fontSize: '14px', fontWeight: i === breadcrumb.length - 1 ? 600 : 400,
-                      color: i === breadcrumb.length - 1 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      padding: '2px 4px', borderRadius: '4px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={(e) => { if (i < breadcrumb.length - 1) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-                  >{item.name}</button>
+                  {(() => {
+                    const isBreadcrumbDropTarget = dropTargetFolderId === item.id;
+                    const isCurrentFolder = item.id === currentParentId;
+                    return (
+                      <button
+                        onClick={() => navigateTo(item)}
+                        onDragOver={(e) => {
+                          const isInternalDrive = isDriveNodeDrag(e.dataTransfer);
+                          if (!isInternalDrive) {
+                            return;
+                          }
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!isCurrentFolder) setDropTargetFolderId(item.id);
+                        }}
+                        onDragLeave={(e) => {
+                          if (isBreadcrumbDropTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
+                            setDropTargetFolderId(null);
+                          }
+                        }}
+                        onDrop={async (e) => {
+                          const isInternalDrive = isDriveNodeDrag(e.dataTransfer);
+                          if (!isInternalDrive) {
+                            const files = await collectDroppedFiles(e.dataTransfer);
+                            if (files.length) {
+                              await handleUploadEntries(files, item.id || undefined);
+                            }
+                            return;
+                          }
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDropTargetFolderId(null);
+                          const payload = getDriveNodeDragPayload(e.dataTransfer);
+                          const payloadNodeIds = parseDriveNodeIds(payload);
+                          if (payloadNodeIds && payloadNodeIds.length > 0) {
+                            await handleMoveNodes(payloadNodeIds.filter((id) => id !== item.id), item.id || '');
+                            return;
+                          }
+                        }}
+                        style={{
+                          background: isBreadcrumbDropTarget ? 'var(--color-accent-subtle)' : 'none',
+                          border: 'none',
+                          cursor: i === breadcrumb.length - 1 ? 'default' : 'pointer',
+                          fontSize: '14px',
+                          fontWeight: i === breadcrumb.length - 1 ? 600 : 400,
+                          color: i === breadcrumb.length - 1 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                          padding: '2px 4px',
+                          borderRadius: '4px',
+                          maxWidth: '180px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (i < breadcrumb.length - 1) {
+                            (e.currentTarget as HTMLButtonElement).style.background = isBreadcrumbDropTarget
+                              ? 'var(--color-accent-subtle)'
+                              : 'var(--color-bg-secondary)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.background = isBreadcrumbDropTarget
+                            ? 'var(--color-accent-subtle)'
+                            : 'none';
+                        }}
+                      >{item.name}</button>
+                    );
+                  })()}
                 </span>
               ))}
             </div>
