@@ -113,6 +113,11 @@ type PreferencesRepository interface {
 	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 }
 
+type MeRepository interface {
+	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
+}
+
 type Service struct {
 	repository         Repository
 	store              storage.Store
@@ -1198,6 +1203,22 @@ func (s *Service) SetWebmailPreferences(ctx context.Context, userID string, pref
 	}
 	userID = strings.TrimSpace(userID)
 	return repo.SetWebmailPreferences(ctx, userID, prefs)
+}
+
+func (s *Service) GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error) {
+	repo, ok := s.repository.(MeRepository)
+	if !ok {
+		return maildb.UserProfile{}, fmt.Errorf("me repository is required")
+	}
+	return repo.GetUserProfile(ctx, strings.TrimSpace(userID))
+}
+
+func (s *Service) ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	repo, ok := s.repository.(MeRepository)
+	if !ok {
+		return fmt.Errorf("me repository is required")
+	}
+	return repo.ChangeUserPassword(ctx, strings.TrimSpace(userID), currentPassword, newPassword)
 }
 
 func messageFlagRead(flags json.RawMessage) bool {

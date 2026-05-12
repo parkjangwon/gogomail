@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, type FolderStats, type WebmailPreferences } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, getUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -373,11 +373,21 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [restoreFolder, setRestoreFolder] = useState('');
   const [restoreState, setRestoreState] = useState<{ status: 'idle' | 'running' | 'done' | 'error'; imported?: number; error?: string }>({ status: 'idle' });
 
+  // User profile
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSaved, setPwSaved] = useState(false);
+
   // Server-side preferences sync
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // ── Load server preferences (overlay over localStorage on mount) ──────────────
   useEffect(() => {
+    getUserProfile().then((p) => { if (p) setProfile(p); }).catch(() => {});
     getPreferences().then((prefs: WebmailPreferences) => {
       try {
         if (prefs.settings) {
@@ -531,6 +541,24 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
     setTimeout(() => setSigSaved(false), 2000);
   }
 
+  async function handleChangePassword() {
+    setPwError('');
+    if (!pwCurrent || !pwNew || !pwConfirm) { setPwError('모든 항목을 입력하세요.'); return; }
+    if (pwNew.length < 8) { setPwError('새 비밀번호는 8자 이상이어야 합니다.'); return; }
+    if (pwNew !== pwConfirm) { setPwError('새 비밀번호가 일치하지 않습니다.'); return; }
+    setPwSaving(true);
+    try {
+      await changePassword(pwCurrent, pwNew);
+      setPwCurrent(''); setPwNew(''); setPwConfirm('');
+      setPwSaved(true);
+      setTimeout(() => setPwSaved(false), 3000);
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.');
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
   async function handleRevokeAll() {
     if (!window.confirm('모든 기기에서 로그아웃하시겠습니까? 현재 세션도 종료됩니다.')) return;
     setRevokingAll(true);
@@ -593,6 +621,55 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                   <button onClick={saveSignature} style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     {sigSaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '서명 저장'}
+                  </button>
+                </div>
+              </div>
+            </SectionCard>
+            {profile && (
+              <SectionCard>
+                <SectionHeader>용량</SectionHeader>
+                <div style={{ padding: '16px 20px' }}>
+                  {(() => {
+                    const used = profile.quota_used;
+                    const limit = profile.quota_limit;
+                    const pct = limit && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null;
+                    const fmt = (b: number) => b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`;
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
+                          <span>{fmt(used)} 사용 중{limit ? ` / ${fmt(limit)}` : ''}</span>
+                          {pct !== null && <span>{pct}%</span>}
+                        </div>
+                        {pct !== null && (
+                          <div style={{ height: '6px', borderRadius: '3px', background: 'var(--color-bg-tertiary)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: pct > 90 ? 'var(--color-destructive)' : pct > 75 ? '#f59e0b' : 'var(--color-accent)', borderRadius: '3px', transition: 'width 400ms ease' }} />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </SectionCard>
+            )}
+            <SectionCard>
+              <SectionHeader>비밀번호 변경</SectionHeader>
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(['현재 비밀번호', '새 비밀번호', '새 비밀번호 확인'] as const).map((label, i) => (
+                  <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <label style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{label}</label>
+                    <input
+                      type="password"
+                      value={[pwCurrent, pwNew, pwConfirm][i]}
+                      onChange={(e) => [setPwCurrent, setPwNew, setPwConfirm][i](e.target.value)}
+                      style={{ padding: '7px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
+                    />
+                  </div>
+                ))}
+                {pwError && <div style={{ fontSize: '12px', color: 'var(--color-destructive)', padding: '6px 10px', background: 'rgba(217,79,61,0.08)', borderRadius: '5px' }}>{pwError}</div>}
+                {pwSaved && <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: '5px' }}>비밀번호가 변경되었습니다. 다시 로그인해 주세요.</div>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={handleChangePassword} disabled={pwSaving} style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: pwSaving ? 'var(--color-bg-tertiary)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: pwSaving ? 'not-allowed' : 'pointer' }}>
+                    {pwSaving ? '변경 중...' : '비밀번호 변경'}
                   </button>
                 </div>
               </div>
