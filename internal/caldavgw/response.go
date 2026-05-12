@@ -547,11 +547,7 @@ func encodePropStatus(enc *xml.Encoder, propstat PropStatus) error {
 }
 
 func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
-	name, err := prefixedName(prop.Name)
-	if err != nil {
-		return err
-	}
-	start := xml.StartElement{Name: xml.Name{Local: name}}
+	start := propertyStartElement(prop.Name)
 	if err := enc.EncodeToken(start); err != nil {
 		return err
 	}
@@ -602,6 +598,20 @@ func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 		}
 	}
 	return enc.EncodeToken(start.End())
+}
+
+func propertyStartElement(name XMLName) xml.StartElement {
+	prefixed, err := prefixedName(name)
+	if err == nil {
+		return xml.StartElement{Name: xml.Name{Local: prefixed}}
+	}
+	if strings.TrimSpace(name.Space) == "" {
+		return xml.StartElement{Name: xml.Name{Local: name.Local}}
+	}
+	return xml.StartElement{
+		Name: xml.Name{Local: "X:" + name.Local},
+		Attr: []xml.Attr{{Name: xml.Name{Local: "xmlns:X"}, Value: name.Space}},
+	}
 }
 
 func encodeSupportedReport(enc *xml.Encoder, report XMLName) error {
