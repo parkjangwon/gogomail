@@ -1,5 +1,5 @@
 import { DriveNode } from './api';
-import { categorizeMimeType, FileIcon } from '@untitledui/file-icons';
+import { FileIcon } from '@untitledui/file-icons';
 
 const MIME_FALLBACK_TYPES = new Map<string, string>([
   ['application/pdf', 'pdf'],
@@ -124,12 +124,18 @@ function resolveDriveFileType(node: DriveNode): string {
 
   if (mime && MIME_FALLBACK_TYPES.has(mime)) return MIME_FALLBACK_TYPES.get(mime)!;
 
-  const mimeCategory = categorizeMimeType(mime);
-  if (mimeCategory && mimeCategory !== 'unknown') return mimeCategory;
-
   if (mime?.startsWith('image/')) return 'image';
   if (mime?.startsWith('video/')) return 'video';
   if (mime?.startsWith('audio/')) return 'audio';
+  if (mime.includes('pdf')) return 'pdf';
+  if (mime.includes('word') || mime.includes('officedocument.wordprocessingml')) return 'doc';
+  if (mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('csv')) return 'xls';
+  if (mime.includes('powerpoint') || mime.includes('presentation')) return 'ppt';
+  if (mime.includes('json') || mime.includes('javascript') || mime.includes('text/')) return 'js';
+  if (mime.includes('xml') || mime.includes('yaml') || mime.includes('toml')) return 'xml';
+  if (mime.includes('zip') || mime.includes('archive') || mime.includes('compressed')) return 'zip';
+  if (mime.includes('text')) return 'txt';
+  if (mime.includes('binary') || mime.includes('octet-stream')) return 'exe';
 
   return 'empty';
 }
