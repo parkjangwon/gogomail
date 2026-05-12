@@ -2598,6 +2598,81 @@ func TestHandlerProppatchRemovesOptionalCalendarProperties(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
+  <D:set>
+    <D:prop>
+      <D:displayname>Product</D:displayname>
+      <E:unsupported>value</E:unsupported>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" {
+		t.Fatalf("calendar name = %q, want unchanged Work", calendar.Name)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`xmlns:X="urn:example:test"`,
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
+		"HTTP/1.1 403 Forbidden",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH unsupported response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:remove><D:prop><D:displayname/></D:prop></D:remove>
+  <D:set><D:prop><C:calendar-description>Launch</C:calendar-description></D:prop></D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Description != "Team calendar" {
+		t.Fatalf("calendar description = %q, want unchanged Team calendar", calendar.Description)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 403 Forbidden",
+		"<C:calendar-description></C:calendar-description>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH protected response missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
@@ -2760,7 +2835,6 @@ func TestHandlerProppatchRejectsUnsafeTargets(t *testing.T) {
 	}{
 		{name: "cross user", userID: "user-2", target: "/caldav/calendars/user-1/work/", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Work</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
 		{name: "object target", userID: "user-1", target: "/caldav/calendars/user-1/work/event-1.ics", body: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Work</D:displayname></D:prop></D:set></D:propertyupdate>`, want: http.StatusForbidden},
-		{name: "invalid body", userID: "user-1", target: "/caldav/calendars/user-1/work/", body: `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`, want: http.StatusBadRequest},
 	}
 	for _, tc := range tests {
 		tc := tc

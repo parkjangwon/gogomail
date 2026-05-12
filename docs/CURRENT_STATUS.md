@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV PROPPATCH unsupported/protected property failure responses (2026-05-13, complete)
+- CalDAV `PROPPATCH` now preserves unsupported properties and protected `DAV:displayname`
+  remove attempts as request metadata instead of silently skipping or parse-rejecting them.
+- Mixed supported + unsupported/protected requests fail atomically before repository update,
+  returning `207 Multi-Status` with `403 Forbidden` for the failing property and
+  `424 Failed Dependency` for otherwise mutable properties.
+- Regression tests cover arbitrary namespace unsupported properties, protected remove attempts,
+  and unchanged calendar metadata after failed requests.
+
 ## CardDAV MKCOL structural body strictness (2026-05-13, complete)
 - CardDAV extended `MKCOL` now rejects unknown top-level children and unknown children inside
   `DAV:set` as parse errors instead of skipping them into later semantic failure paths.
