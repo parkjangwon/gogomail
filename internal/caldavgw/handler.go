@@ -1252,14 +1252,14 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 		}
 		close += open + 1
 		pos = close + 1
-		if tag != "" && !webDAVIfTagMatchesPath(tag, currentPath) {
-			continue
-		}
-		anyRelevant = true
 		matches, err := webDAVIfConditionListMatches(header[open+1:close], currentETag)
 		if err != nil {
 			return false, err
 		}
+		if tag != "" && !webDAVIfTagMatchesPath(tag, currentPath) {
+			continue
+		}
+		anyRelevant = true
 		if matches {
 			anyMatch = true
 		}
