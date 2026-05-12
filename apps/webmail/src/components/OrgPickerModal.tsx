@@ -363,24 +363,40 @@ export function OrgPickerModal({
               )}
               {tab === 'org' && filteredOrgs.map((unit) => {
                 const isSelected = !q && selectedOrg?.id === unit.id;
+                const depthIndicator = unit.depth === 0 ? '▸' : unit.depth === 1 ? '└' : '  └';
+                const fontSize = unit.depth === 0 ? 13 : unit.depth === 1 ? 12 : 11;
+                const fontWeight = unit.depth === 0 ? 600 : unit.depth === 1 ? 500 : 400;
+                const textColor = unit.depth === 0 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)';
+                const bgColor = !isSelected ? (
+                  unit.depth === 0 ? 'transparent' :
+                  unit.depth === 1 ? 'var(--color-bg-secondary)' :
+                  'var(--color-bg-tertiary)'
+                ) : 'var(--color-accent-subtle)';
+
+                const borderLeftColor = isSelected ? 'var(--color-accent)' : (
+                  unit.depth === 0 ? '3px solid transparent' :
+                  unit.depth === 1 ? '2px solid var(--color-border-subtle)' :
+                  '1px solid var(--color-border-subtle)'
+                );
+
                 return (
                   <div key={unit.id}
                     onClick={() => { setOrgSearch(''); setSelectedOrg(unit); }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '4px',
                       paddingTop: '8px', paddingBottom: '8px',
-                      paddingLeft: `${10 + unit.depth * 14}px`, paddingRight: '10px',
+                      paddingLeft: `${12 + unit.depth * 16}px`, paddingRight: '12px',
                       cursor: 'pointer',
-                      borderLeft: isSelected ? '3px solid var(--color-accent)' : '3px solid transparent',
-                      background: isSelected ? 'var(--color-accent-subtle)' : 'transparent',
-                      fontWeight: unit.depth === 0 ? 600 : 400,
+                      borderLeft: isSelected ? '3px solid var(--color-accent)' : borderLeftColor,
+                      background: bgColor,
+                      fontWeight,
                     }}
                     {...(!isSelected ? rowHover : {})}
                   >
-                    {unit.depth === 0 && (
-                      <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px' }}>▸</span>
-                    )}
-                    <span style={{ fontSize: '13px', color: isSelected ? 'var(--color-accent)' : 'var(--color-text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px', width: '12px', textAlign: 'center' }}>
+                      {depthIndicator}
+                    </span>
+                    <span style={{ fontSize, color: isSelected ? 'var(--color-accent)' : textColor, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {unit.display_name}
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{unit.members.length}</span>
