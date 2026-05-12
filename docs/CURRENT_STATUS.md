@@ -21,6 +21,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Design direction remains unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail compose contract stabilization (TASK-100, 2026-05-12, complete)
+- Completed compose/send/draft contract pass for user webmail beta.
+- The UI still supports reply-all as a user action, but outbound and draft payloads now normalize `reply_all` to backend compose intent `reply`, preserving the existing backend contract (`new`, `reply`, `forward`).
+- Draft autosave, manual save, close-save, and send payloads now share the same backend intent normalization path.
+- Draft autosave/manual save now parse comma-separated recipient fields with the same address parser used for send payloads, instead of sending the whole field as one invalid address.
+- Design direction remains unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
