@@ -3,6 +3,47 @@
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
 ## CalDAV 성능 고도화 (2026-05-12, complete)
+- `internal/caldavgw/repository.go`의 `UpsertObject`에서 `If-Match` 조건부 경합 창을 줄이기 위해
+  선행 존재/ETag 검증 없이 `INSERT ... SELECT ... ON CONFLICT ... DO UPDATE` 단일 문장으로
+  조건부 쓰기를 수행하도록 정리했다.
+- `servePutObject`는 레이스 조건에서 `upsert`가 0행 반환되는 경우에도
+  조건부 요청이면 `412 Precondition Failed`로 일관되게 매핑한다.
+- 업서트 실패 매핑에 `CalDAV object not found` 분기를 추가해 경합에서의 예외 처리 판정을 명확화했다.
+- 기존 메타데이터 우선 조회/재시도(backoff), RFC 4791/4918 조건부 규칙은 유지되며
+  업서트 경합 구간만 추가 최적화해 동시 처리량을 한 단계 끌어올렸다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- TASK-176: `internal/caldavgw/handler.go`에서 객체 PUT/DELETE의 조건부 판정을
+  `LookupCalendarObjectMetadata` 기반으로 우선 변경해 ICS 본문 로딩을 줄였다.
+- `repository.go`의 `UpsertObject`, `DeleteObject`에 적응형 재시도 래퍼를 추가해
+  동시성 경합 에러(Serialization/Deadlock/Lock wait) 발생 시 지수 백오프로 복구하도록 했다.
+- 재시도 시에는 변경/동기화 marker 보장과 sync-token 갱신을 동일 트랜잭션 안에서 유지해
+  RFC 4918/4791 조건부 동작(412/404 규약, etag/if-* 헤더 처리)을 보존했다.
+- `repository.go`의 `DeleteCalendar`, `UpdateCalendarProperties`도 동일한
+  `runCalDAVWriteWithRetry` 재시도 래퍼를 적용해 캘린더 컬렉션 쓰기 경로의 동시성 회복력을 강화했다.
+- `serveGetObject`는 `HEAD`/조건부 요청에서 메타데이터 우선 조회로 304/412 판정을 먼저 처리하고,
+  본문은 200 응답이 필요한 경우에만 최종 한 번 읽도록 조정했다.
+- `propfind`에서 객체 리소스 응답이 `calendar-data`를 요청하지 않는 경우 `calendar-data`를 건너뛰고
+  메타데이터 조회만 수행해 객체 조회 I/O를 추가로 절감했다.
+- 문서(`docs/ACTIVE_TASK.md`, `docs/CURRENT_STATUS.md`)를 최신 상태로 정리했다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- `internal/caldavgw/repository.go`에서 CalDAV 쓰기 경로의 불필요한 직렬화 잠금 경합을 제거해 동시 처리량 개선을 진행했다.
+  - `UpsertObject`/`DeleteObject`/`UpdateCalendarProperties`에서 `lockActiveCalendar` 호출을 제거했다.
+  - `ensureCalendarObjectUIDAvailable` 선체크 쿼리를 제거해 UID 중복은 업서트 제약 위반 단일 경로로 처리한다.
+  - `ensureCalendarSyncMarker`를 `WITH active_calendar ... INSERT` CTE 단일 쿼리로 정리해 marker 존재성 + 삽입을 한 번에 처리한다.
+  - `ensureCalendarCollectionETag`가 필요 없는 캘린더 컬럼을 더 이상 읽지 않도록 최적화해 동시 etag 검증 경로의 I/O를 줄였다.
+- 변경은 RFC 4791 동기화/검증 동작, 404/412 규칙, 기존 에러 메시지 의미를 유지한다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
+- `internal/caldavgw/types.go`와 `internal/caldavgw/handler.go`에서 `sync-collection` 증분 처리용
+  `ListCalendarChangesWithObjectsSince` 경로를 추가해 변경 레코드 조회와 객체 조회를 단일 쿼리로 결합했다.
+- `internal/caldavgw/repository.go`가 `sync_changes` 마커를 검증한 뒤 변경 집합을
+  객체 조인(`object_name` + `status='active'`)과 함께 한 번에 조회하도록 최적화했다.
+- `calendar-data` 포함 여부에 따라 ICS를 동적 선택해 필요 없는 본문 로드를 줄여 메모리/IO 비용을 낮췄다.
+- `sync-collection`에서 객체 삭제/갱신 토큰 갱신 규칙과 `sync-collection` truncation, invalid token 동작은 유지했다.
+
+## CalDAV 성능 고도화 (2026-05-12, complete)
 - `internal/caldavgw/repository.go`에서 객체명 배치 조회를 256개 단위 청크 분할로 안정화해
   극단적으로 큰 `calendar-multiget`/`sync-collection` 입력에서도 SQL 파라미터 폭주를 방지했다.
 - `ListCalendarObjectsByNameGroups`와 `ListCalendarObjectsByNames`를 공통 튜플-`VALUES` 경로로 정렬해
