@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang postgres constraint coverage (2026-05-13, complete)
+- Optional PostgreSQL integration tests now bypass application validation with
+  raw SQL and verify migration 0097 rejects invalid collection language tags.
+- CalDAV/CardDAV coverage checks whitespace/control `displayname_lang`, overly
+  long `description_lang`, PostgreSQL error code `23514`, and exact constraint
+  names.
+
 ## CalDAV/CardDAV xml:lang postgres repository integration (2026-05-13, complete)
 - Optional PostgreSQL integration tests now create migrated temp schemas and
   verify CalDAV calendar plus CardDAV address-book `xml:lang` persistence.
