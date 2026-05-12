@@ -1,5 +1,5 @@
 import { DriveNode } from './api';
-import { categorizeMimeType, FileIcon, SUPPORTED_FILE_TYPES } from '@untitledui/file-icons';
+import { categorizeMimeType, FileIcon } from '@untitledui/file-icons';
 
 const MIME_FALLBACK_TYPES = new Map<string, string>([
   ['application/pdf', 'pdf'],
@@ -62,18 +62,17 @@ function resolveDriveFileType(node: DriveNode): string {
   const ext = getNameExtension(node.name);
 
   if (ext) {
-    const alias = EXTENSION_ALIASES.get(ext) ?? ext;
-    if (SUPPORTED_FILE_TYPES.includes(alias)) return alias;
+    return EXTENSION_ALIASES.get(ext) ?? ext;
   }
 
   if (mime && MIME_FALLBACK_TYPES.has(mime)) return MIME_FALLBACK_TYPES.get(mime)!;
 
   const mimeCategory = categorizeMimeType(mime);
-  if (SUPPORTED_FILE_TYPES.includes(mimeCategory)) return mimeCategory;
+  if (mimeCategory && mimeCategory !== 'unknown') return mimeCategory;
 
-  if (mime?.startsWith('image/') && SUPPORTED_FILE_TYPES.includes('image')) return 'image';
-  if (mime?.startsWith('video/') && SUPPORTED_FILE_TYPES.includes('video')) return 'video';
-  if (mime?.startsWith('audio/') && SUPPORTED_FILE_TYPES.includes('audio')) return 'audio';
+  if (mime?.startsWith('image/')) return 'image';
+  if (mime?.startsWith('video/')) return 'video';
+  if (mime?.startsWith('audio/')) return 'audio';
 
   return 'empty';
 }
