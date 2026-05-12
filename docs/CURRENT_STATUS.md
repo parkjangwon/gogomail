@@ -142,6 +142,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Final send-preparation draft save behavior is preserved.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft payload helper cleanup (TASK-115, 2026-05-12, complete)
+- Completed draft payload helper cleanup for user webmail beta.
+- ComposeModal now builds draft payloads through a single `buildDraftData` helper.
+- Autosave, manual save, close-confirm save, and send-preparation save all use the same draft contract path.
+- `attachment_ids`, `track_opens`, `scheduled_at`, and `from` are preserved consistently across draft saves.
+- The close-confirm draft path no longer includes the non-contract `html_body` field.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
