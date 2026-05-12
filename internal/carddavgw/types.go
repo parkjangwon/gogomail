@@ -105,6 +105,12 @@ type AddressBookChange struct {
 	ChangedAt     time.Time
 }
 
+type AddressBookChangeWithObject struct {
+	Change    AddressBookChange
+	Object    ContactObject
+	HasObject bool
+}
+
 func Standards() []string {
 	return []string{
 		RFCWebDAV,

@@ -67,6 +67,10 @@ type SyncChangeStore interface {
 	ListAddressBookChangesSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChange, error)
 }
 
+type AddressBookChangeWithObjectStore interface {
+	ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChangeWithObject, error)
+}
+
 type AddressBookUpdater interface {
 	UpdateAddressBookProperties(ctx context.Context, req UpdateAddressBookRequest) (AddressBook, error)
 }
@@ -1597,6 +1601,54 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		limit = MaxWebDAVReportLimit
 	}
 	fetchLimit := limit + 1
+	if changeWithObjectStore, ok := store.(AddressBookChangeWithObjectStore); ok {
+		changesWithObject, err := changeWithObjectStore.ListAddressBookChangesWithObjectsSince(ctx, ListAddressBookChangesSinceRequest{
+			UserID:        userID,
+			AddressBookID: resource.AddressBookID,
+			SyncToken:     report.SyncToken,
+			Limit:         fetchLimit,
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		if len(changesWithObject) > limit {
+			return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
+		}
+		syncToken := report.SyncToken
+		propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+		responses := make([]MultiStatusResponse, 0, len(changesWithObject))
+		for _, item := range changesWithObject {
+			change := item.Change
+			if strings.TrimSpace(change.SyncToken) != "" {
+				syncToken = strings.TrimSpace(change.SyncToken)
+			}
+			if change.Action == "addressbook-created" || change.Action == "addressbook-updated" || change.Action == "addressbook-deleted" || change.ObjectName == "" {
+				continue
+			}
+			href, err := ContactObjectPath(userID, change.AddressBookID, change.ObjectName)
+			if err != nil {
+				return nil, "", err
+			}
+			if change.Action == "contact-deleted" || !item.HasObject {
+				responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
+				continue
+			}
+			props, err := ContactObjectProperties(userID, item.Object)
+			if err != nil {
+				return nil, "", err
+			}
+			props = withCurrentUserPrivileges(props, ResourceContactObject, currentUserPrivileges)
+			if containsXMLName(report.Properties, PropAddressData) {
+				dataProp, err := ContactObjectDataPropertyWithProperties(item.Object.VCard, report.AddressDataProperties)
+				if err != nil {
+					return nil, "", err
+				}
+				props = append(props, dataProp)
+			}
+			responses = append(responses, responseForProperties(href, propfind, props))
+		}
+		return responses, syncToken, nil
+	}
 	changes, err := store.ListAddressBookChangesSince(ctx, ListAddressBookChangesSinceRequest{
 		UserID:        userID,
 		AddressBookID: resource.AddressBookID,
@@ -1607,7 +1659,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		return nil, "", err
 	}
 	if len(changes) > limit {
-		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
+		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 	}
 	syncToken := report.SyncToken
 	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}

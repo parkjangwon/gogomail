@@ -842,6 +842,125 @@ SELECT EXISTS (
 	return changes, nil
 }
 
+func (r *Repository) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChangeWithObject, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	req, err := ValidateListAddressBookChangesSinceRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	const markerQuery = `
+SELECT id
+FROM carddav_addressbook_changes
+WHERE user_id = $1::uuid
+  AND addressbook_id = $2::uuid
+  AND sync_token = $3`
+	var markerID int64
+	if err := r.db.QueryRowContext(ctx, markerQuery, req.UserID, req.AddressBookID, req.SyncToken).Scan(&markerID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, InvalidSyncTokenError{Token: req.SyncToken}
+		}
+		return nil, fmt.Errorf("get CardDAV sync marker: %w", err)
+	}
+
+	const query = `
+SELECT
+  c.id,
+  c.user_id::text,
+  c.addressbook_id::text,
+  c.object_name,
+  c.etag,
+  c.action,
+  c.sync_token,
+  c.changed_at,
+  o.id::text AS object_id,
+  o.user_id::text AS object_user_id,
+  o.addressbook_id::text AS object_addressbook_id,
+  o.object_name AS object_object_name,
+  o.uid AS object_uid,
+  o.etag AS object_etag,
+  o.size AS object_size,
+  o.vcard AS object_vcard,
+  o.created_at AS object_created_at,
+  o.updated_at AS object_updated_at
+FROM carddav_addressbook_changes c
+LEFT JOIN carddav_contact_objects o
+  ON o.user_id = c.user_id
+ AND o.addressbook_id = c.addressbook_id
+ AND o.object_name = c.object_name
+ AND o.status = 'active'
+WHERE c.user_id = $1::uuid
+  AND c.addressbook_id = $2::uuid
+  AND c.id > $3
+ORDER BY c.id ASC
+LIMIT $4`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.AddressBookID, markerID, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("list CardDAV sync changes with objects: %w", err)
+	}
+	defer rows.Close()
+
+	changes := make([]AddressBookChangeWithObject, 0, req.Limit)
+	for rows.Next() {
+		var item AddressBookChangeWithObject
+		var (
+			objectID            sql.NullString
+			objectUserID        sql.NullString
+			objectAddressBookID sql.NullString
+			objectObjectName    sql.NullString
+			objectUID           sql.NullString
+			objectETag          sql.NullString
+			objectSize          sql.NullInt64
+			objectVCard         sql.NullString
+			objectCreatedAt     sql.NullTime
+			objectUpdatedAt     sql.NullTime
+		)
+		if err := rows.Scan(
+			&item.Change.ID,
+			&item.Change.UserID,
+			&item.Change.AddressBookID,
+			&item.Change.ObjectName,
+			&item.Change.ETag,
+			&item.Change.Action,
+			&item.Change.SyncToken,
+			&item.Change.ChangedAt,
+			&objectID,
+			&objectUserID,
+			&objectAddressBookID,
+			&objectObjectName,
+			&objectUID,
+			&objectETag,
+			&objectSize,
+			&objectVCard,
+			&objectCreatedAt,
+			&objectUpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan CardDAV sync change with object: %w", err)
+		}
+		if objectID.Valid {
+			item.HasObject = true
+			item.Object = ContactObject{
+				ID:            objectID.String,
+				UserID:        objectUserID.String,
+				AddressBookID: objectAddressBookID.String,
+				ObjectName:    objectObjectName.String,
+				UID:           objectUID.String,
+				ETag:          objectETag.String,
+				Size:          objectSize.Int64,
+				VCard:         []byte(objectVCard.String),
+				CreatedAt:     objectCreatedAt.Time,
+				UpdatedAt:     objectUpdatedAt.Time,
+			}
+		}
+		changes = append(changes, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CardDAV sync changes with objects: %w", err)
+	}
+	return changes, nil
+}
+
 func (r *Repository) PruneAddressBookChanges(ctx context.Context, req PruneAddressBookChangesRequest) (AddressBookChangePruneResult, error) {
 	if r == nil || r.db == nil {
 		return AddressBookChangePruneResult{}, fmt.Errorf("database handle is required")

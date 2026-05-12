@@ -49,6 +49,12 @@ type noSyncCardDAVDiscoveryStore struct {
 	store fakeCardDAVDiscoveryStore
 }
 
+type joinedSyncCardDAVDiscoveryStore struct {
+	fakeCardDAVDiscoveryStore
+	lookupCount int
+	joinedCount int
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
 	if userID != s.principal.UserID {
 		return Principal{}, errFakeCardDAVNotFound
@@ -147,6 +153,30 @@ func (s fakeCardDAVDiscoveryStore) ListAddressBookChangesSince(_ context.Context
 		changes = changes[:req.Limit]
 	}
 	return changes, nil
+}
+
+func (s *joinedSyncCardDAVDiscoveryStore) LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error) {
+	s.lookupCount++
+	return s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, userID, addressBookID, objectName)
+}
+
+func (s *joinedSyncCardDAVDiscoveryStore) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChangeWithObject, error) {
+	s.joinedCount++
+	changes, err := s.fakeCardDAVDiscoveryStore.ListAddressBookChangesSince(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]AddressBookChangeWithObject, 0, len(changes))
+	for _, change := range changes {
+		item := AddressBookChangeWithObject{Change: change}
+		object, err := s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, change.UserID, change.AddressBookID, change.ObjectName)
+		if err == nil {
+			item.Object = object
+			item.HasObject = true
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func (s noSyncCardDAVDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
@@ -1921,6 +1951,44 @@ func TestHandlerReportSyncCollectionReturnsChangesSinceToken(t *testing.T) {
 	}
 }
 
+func TestHandlerReportSyncCollectionUsesJoinedChangeObjectStore(t *testing.T) {
+	t.Parallel()
+
+	store := &joinedSyncCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := `<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:sync-token>sync-old</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</D:sync-collection>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthZero))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.joinedCount != 1 {
+		t.Fatalf("joined sync calls = %d, want 1", store.joinedCount)
+	}
+	if store.lookupCount != 0 {
+		t.Fatalf("LookupContactObject calls = %d, want 0", store.lookupCount)
+	}
+	text := rec.Body.String()
+	for _, want := range []string{
+		"<D:href>/carddav/addressbooks/user-1/personal/contact-1.vcf</D:href>",
+		"BEGIN:VCARD",
+		"<D:href>/carddav/addressbooks/user-1/personal/removed.vcf</D:href>",
+		"<D:status>HTTP/1.1 404 Not Found</D:status>",
+		"<D:sync-token>sync-123</D:sync-token>",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("joined sync REPORT missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestHandlerReportSyncCollectionAllowsExactChangeLimit(t *testing.T) {
 	t.Parallel()
 
@@ -1958,11 +2026,11 @@ func TestHandlerReportSyncCollectionRejectsTruncatingChangeLimit(t *testing.T) {
 </D:sync-collection>`
 	rec := runCardDAVReport(t, "/carddav/addressbooks/user-1/personal/", DepthZero, body)
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "limit may truncate") {
-		t.Fatalf("truncating change-limit response lacks context: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "<D:number-of-matches>0</D:number-of-matches>") {
+		t.Fatalf("truncating change-limit response lacks RFC 6578 body: %s", rec.Body.String())
 	}
 }
 
