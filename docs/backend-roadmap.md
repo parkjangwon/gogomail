@@ -2259,7 +2259,9 @@ Target outcome:
       unsupported conditions. Absolute URI tagged `If` coverage now asserts
       HTTP(S) resource tags match by collection path, preserving omitted
       language tags on matching paths and rejecting non-matching paths before
-      body reads.
+      body reads. State-token `If` coverage now documents the no-lock-store
+      semantics: bare state tokens reject before body reads, while negated
+      state tokens allow text-only updates and preserve omitted language tags.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2652,7 +2654,9 @@ Target outcome:
       unsupported conditions. Absolute URI tagged `If` coverage now asserts
       HTTP(S) resource tags match by collection path, preserving omitted
       language tags on matching paths and rejecting non-matching paths before
-      body reads.
+      body reads. State-token `If` coverage now documents the no-lock-store
+      semantics: bare state tokens reject before body reads, while negated
+      state tokens allow text-only updates and preserve omitted language tags.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
