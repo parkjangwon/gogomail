@@ -5184,3 +5184,13 @@ Next focus areas:
 - Webmail now recovers from stale active folder IDs by selecting a valid Inbox once folders load. The `directory/users` backend handler now supports the same dev `user_id` fallback as org-tree while still using JWT claims in authenticated mode.
 - Mail flag updates now use correctly numbered PostgreSQL parameters and `COALESCE(flags, '{}'::jsonb)` for single-message, bulk-message, and bulk-thread flag mutations.
 - Verification so far: `go test ./...` passes after the flag-update SQL fix. Seed message fixtures now upsert back to the canonical Inbox so repeated smoke tests restore the expected 7-message inbox.
+
+## Webmail organization/address-book recipient expansion (TASK-165, 2026-05-12, complete)
+- Organization and address-book selection now represents true group-send intent instead of eagerly flattening only visible users in the picker.
+- The org picker middle pane now shows the selected organization, direct child organizations, and direct members; organization rows can be added to To/Cc/Bcc.
+- Organization recipient tokens preserve whether child organizations should be included.
+- Address-book rows can be added as recipient tokens, so an entire address book can be sent to the same way as an organization.
+- Compose validation accepts internal recipient tokens while retaining normal email validation for ordinary recipients.
+- `mailservice.SendText` expands organization and address-book recipient tokens immediately before send validation, so both direct send and draft-send paths resolve to concrete recipient emails at the backend boundary.
+- Organization expansion is scoped to the sender's company/domain and can include descendants recursively; address-book expansion is scoped to the sender's own address book.
+- Expanded recipients are deduplicated across To, Cc, and Bcc in precedence order. Verification: `go test ./...` and `pnpm --dir apps/webmail type-check` pass; API smoke sends returned 202 for an organization token and an address-book token, storing 9 and 4 concrete To recipients respectively. Smoke testing also hardened recursive organization expansion and local mailstore root creation for Docker dev sends.

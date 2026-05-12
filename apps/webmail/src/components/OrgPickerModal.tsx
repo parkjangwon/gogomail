@@ -7,6 +7,9 @@ export interface PickerItem {
   id: string;
   display_name: string;
   email: string;
+  kind?: 'user' | 'org' | 'addressbook';
+  include_children?: boolean;
+  count?: number;
 }
 
 interface OrgPickerModalProps {
@@ -40,9 +43,11 @@ export function parseToPickerItems(str: string): PickerItem[] {
       if (m) {
         const name = m[1].trim();
         const email = m[2].trim();
-        return { id: email, display_name: name || email, email };
+        const kind = email.startsWith('org:') ? 'org' : email.startsWith('addressbook:') ? 'addressbook' : 'user';
+        return { id: email, display_name: name || email, email, kind };
       }
-      return { id: p, display_name: p, email: p };
+      const kind = p.startsWith('org:') ? 'org' : p.startsWith('addressbook:') ? 'addressbook' : 'user';
+      return { id: p, display_name: p, email: p, kind };
     });
 }
 
@@ -176,6 +181,7 @@ export function OrgPickerModal({
   const [booksLoading, setBooksLoading] = useState(false);
   const [bookLoading, setBookLoading] = useState(false);
   const [contactsSearch, setContactsSearch] = useState('');
+  const [includeChildOrgs, setIncludeChildOrgs] = useState(true);
 
   // Recipients
   const [toList, setToList] = useState<Map<string, PickerItem>>(
@@ -317,6 +323,37 @@ export function OrgPickerModal({
     return orgTree.filter((u) => !u.parent_id);
   };
 
+  const descendantOrgs = (orgId: string): OrgUnit[] => {
+    const children = getChildrenOf(orgId);
+    return children.flatMap((child) => [child, ...descendantOrgs(child.id)]);
+  };
+
+  const orgMemberCount = (unit: OrgUnit, includeChildren: boolean): number => {
+    if (!includeChildren) return unit.members.length;
+    return unit.members.length + descendantOrgs(unit.id).reduce((sum, child) => sum + child.members.length, 0);
+  };
+
+  const orgToken = (unit: OrgUnit): PickerItem => {
+    const token = `org:${unit.id}${includeChildOrgs ? ':children' : ''}`;
+    const suffix = includeChildOrgs ? ' + 하위 조직' : '';
+    return {
+      id: token,
+      display_name: `[조직] ${unit.display_name}${suffix}`,
+      email: token,
+      kind: 'org',
+      include_children: includeChildOrgs,
+      count: orgMemberCount(unit, includeChildOrgs),
+    };
+  };
+
+  const addressBookToken = (book: AddressBook): PickerItem => ({
+    id: `addressbook:${book.ID}`,
+    display_name: `[주소록] ${book.Name}`,
+    email: `addressbook:${book.ID}`,
+    kind: 'addressbook',
+    count: bookContacts.length,
+  });
+
   const toggleExpanded = (id: string) => {
     const next = new Set(expandedIds);
     if (next.has(id)) next.delete(id);
@@ -353,11 +390,15 @@ export function OrgPickerModal({
 
   // Middle pane items
   const middleItems: PickerItem[] = (() => {
-    if (tab === 'contacts') return filteredContacts;
+    if (tab === 'contacts') {
+      const rows = selectedBook && !contactsSearch.trim() ? [addressBookToken(selectedBook)] : [];
+      return [...rows, ...filteredContacts.map((item) => ({ ...item, kind: 'user' as const }))];
+    }
     if (q) {
       // All matching members across all orgs (deduped by id)
       const seen = new Set<string>();
-      return orgTree
+      const matchedOrgs = orgTree.filter(matchesSearch).map((unit) => orgToken(unit));
+      const matchedMembers = orgTree
         .flatMap((u) => u.members)
         .filter((m) => {
           if (seen.has(m.id)) return false;
@@ -366,13 +407,32 @@ export function OrgPickerModal({
           if (match) seen.add(m.id);
           return match;
         })
-        .map((m) => ({ id: m.id, display_name: m.display_name || m.email, email: m.email }));
+        .map((m) => ({ id: m.id, display_name: m.display_name || m.email, email: m.email, kind: 'user' as const }));
+      return [...matchedOrgs, ...matchedMembers];
     }
-    return (selectedOrg?.members ?? []).map((m) => ({
-      id: m.id,
-      display_name: m.display_name || m.email,
-      email: m.email,
-    }));
+    const rows: PickerItem[] = [];
+    if (selectedOrg) {
+      rows.push(orgToken(selectedOrg));
+      for (const child of getChildrenOf(selectedOrg.id)) {
+        rows.push({
+          id: `org:${child.id}${includeChildOrgs ? ':children' : ''}`,
+          display_name: `[하위 조직] ${child.display_name}${includeChildOrgs ? ' + 하위 조직' : ''}`,
+          email: `org:${child.id}${includeChildOrgs ? ':children' : ''}`,
+          kind: 'org',
+          include_children: includeChildOrgs,
+          count: orgMemberCount(child, includeChildOrgs),
+        });
+      }
+    }
+    return [
+      ...rows,
+      ...(selectedOrg?.members ?? []).map((m) => ({
+        id: m.id,
+        display_name: m.display_name || m.email,
+        email: m.email,
+        kind: 'user' as const,
+      })),
+    ];
   })();
 
   // ── Styles ────────────────────────────────────────────────────────────────────
@@ -607,7 +667,7 @@ export function OrgPickerModal({
             {tab === 'org' && !treeLoading && !q && !selectedOrg && (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>왼쪽에서 조직을 선택하세요</div>
             )}
-            {tab === 'org' && !treeLoading && !q && selectedOrg && selectedOrg.members.length === 0 && (
+            {tab === 'org' && !treeLoading && !q && selectedOrg && middleItems.length === 0 && (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>구성원 없음</div>
             )}
             {tab === 'org' && q && middleItems.length === 0 && (
@@ -626,18 +686,37 @@ export function OrgPickerModal({
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
             )}
 
+            {tab === 'org' && selectedOrg && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderBottom: '1px solid var(--color-border-subtle)', fontSize: '12px', color: 'var(--color-text-secondary)', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={includeChildOrgs}
+                  onChange={(e) => setIncludeChildOrgs(e.target.checked)}
+                />
+                조직 선택 시 하위 조직 포함
+              </label>
+            )}
+
             {/* Item rows */}
             {middleItems.map((item) => (
               <div key={item.id}
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '8px', paddingBottom: '8px', paddingLeft: '12px', paddingRight: '12px', cursor: 'default' }}
                 {...rowHover}
               >
-                <div style={avatarStyle}>{(item.display_name || item.email)[0].toUpperCase()}</div>
+                <div style={{
+                  ...avatarStyle,
+                  borderRadius: item.kind === 'user' || !item.kind ? '50%' : '8px',
+                  background: item.kind === 'org' ? 'var(--color-accent-subtle)' : item.kind === 'addressbook' ? 'var(--color-bg-tertiary)' : avatarStyle.background,
+                }}>{item.kind === 'org' ? '조' : item.kind === 'addressbook' ? '록' : (item.display_name || item.email)[0].toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.display_name}
                   </div>
-                  {item.display_name !== item.email && (
+                  {item.kind === 'org' || item.kind === 'addressbook' ? (
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.count ?? 0}명으로 발송 시 확장
+                    </div>
+                  ) : item.display_name !== item.email && (
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.email}
                     </div>

@@ -86,12 +86,17 @@ function parseAddrs(raw: string): { address: string; name?: string }[] {
 }
 
 function isValidEmailAddress(address: string): boolean {
+  if (isRecipientGroupToken(address)) return true;
   if (!address || /\s|<|>/.test(address)) return false;
   const at = address.indexOf('@');
   if (at <= 0 || at !== address.lastIndexOf('@') || at === address.length - 1) return false;
   const domain = address.slice(at + 1);
   if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return false;
   return true;
+}
+
+function isRecipientGroupToken(address: string): boolean {
+  return /^org:[0-9a-fA-F-]{36}(?::children)?$/.test(address) || /^addressbook:[0-9a-fA-F-]{36}$/.test(address);
 }
 
 function invalidRecipientAddresses(...values: string[]): string[] {
