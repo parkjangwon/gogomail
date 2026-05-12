@@ -448,6 +448,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - The save button now calls the helper while keeping existing visible text, accessibility label, and visual design.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close-discard helper extraction (TASK-156, 2026-05-12, complete)
+- Completed close-confirm discard helper extraction for user webmail beta.
+- ComposeModal now names the discard-and-close intent through `discardDraftAndClose`.
+- The discard button now calls the helper while preserving the existing `onClose` behavior.
+- Existing visible text, accessibility label, and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
