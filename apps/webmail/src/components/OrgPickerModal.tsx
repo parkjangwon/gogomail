@@ -678,7 +678,7 @@ export function OrgPickerModal({
             {tab === 'contacts' && !bookLoading && !selectedBook && (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>왼쪽에서 주소록을 선택하세요</div>
             )}
-            {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length === 0 && (
+            {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length === 0 && contactsSearch.trim() && filteredContacts.length === 0 && (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>연락처 없음</div>
             )}
             {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length > 0 && filteredContacts.length === 0 && (

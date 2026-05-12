@@ -5,6 +5,44 @@
 
 ---
 
+## ✅ TASK-167: 사용자 웹메일 베타 안정화 — 주소록 선택기 연락처 표시 정합성
+
+**STATUS: COMPLETE**
+
+### 배경
+
+메일쓰기 수신자 선택기에서 주소록 탭은 주소록 그룹 발송 토큰만 보이고 실제 연락처가 보이지 않았다.
+연락처 앱에서도 시드 연락처가 이름 대신 `.vcf` 객체명으로 보였기 때문에, 사용자 입장에서는 시드 데이터가 깨진 것처럼 보였다.
+
+실제 원인은 프론트엔드 vCard 파서가 표준 `FN:value`, `EMAIL:value` 속성 형태를 제대로 파싱하지 못하는 데 있었다.
+
+### 구현 대상
+
+- `apps/webmail/src/lib/api.ts`
+- `apps/webmail/src/components/OrgPickerModal.tsx`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] base64 인코딩된 vCard 본문에서 표준 `FN:value`, `EMAIL:value` 속성을 읽는다.
+- [x] `EMAIL;TYPE=WORK:value`처럼 파라미터가 있는 vCard 속성도 유지 지원한다.
+- [x] 메일쓰기 주소록 탭이 주소록 그룹 발송 행과 실제 연락처 행을 함께 표시한다.
+- [x] 주소록 그룹 발송 행이 있는 상태에서 잘못된 `연락처 없음` 빈 상태가 먼저 보이지 않는다.
+- [x] 기존 디자인 톤은 변경하지 않는다.
+- [x] 개발 문서를 함께 갱신한다.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-168: 사용자 웹메일 베타 안정화 — 주소록/조직도 수신자 선택 브라우저 회귀 점검
+
+---
+
 ## ✅ TASK-098: 사용자 웹메일 베타 안정화 — API base-path 정합성 + 베타 시드 데이터
 
 **STATUS: COMPLETE**
