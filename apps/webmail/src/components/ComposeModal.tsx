@@ -15,6 +15,7 @@ import { composeCloseSavePrompt } from '@/lib/composeCloseSavePrompt';
 import { composeSendButtonLabel } from '@/lib/composeSendButtonLabel';
 import { toDateTimeLocalValue } from '@/lib/dateTimeLocal';
 import { formatSendResultLabel } from '@/lib/sendResultLabel';
+import { DriveNodeIcon } from '@/lib/driveNodeIcon';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
@@ -30,7 +31,6 @@ import {
   NumberedListIcon,
   XMarkIcon,
   CloudIcon,
-  FolderIcon,
   ChevronRightIcon,
   FaceSmileIcon,
   ArchiveBoxIcon,
@@ -1562,10 +1562,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                         onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-secondary)'; }}
                         onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
                       >
-                        {node.node_type === 'folder'
-                          ? <FolderIcon style={{ width: '14px', height: '14px', color: 'var(--color-accent)', flexShrink: 0 }} />
-                          : <PaperClipIcon style={{ width: '14px', height: '14px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-                        }
+                        <DriveNodeIcon node={node} size={14} />
                         <span style={{ fontSize: '13px', color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{node.name}</span>
                         {node.node_type === 'folder' && <ChevronRightIcon style={{ width: '12px', height: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }} />}
                         {attachingDriveId === node.id && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>첨부 중...</span>}
