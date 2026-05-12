@@ -1,18 +1,29 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (API route alignment + Webmail org chart UI fixes)
+Last updated: 2026-05-12 (Webmail org chart + API routing fixes, hierarchical org data loaded)
+
+## Webmail org chart hierarchical data (2026-05-12)
+- ✅ Hierarchical organization data loaded in PostgreSQL
+- 9 organizations across 3 depth levels:
+  - Level 0 (3 본부): 개발본부, 마케팅본부, 경영지원부
+  - Level 1 (3 팀): 백엔드팀, 프론트엔드팀, 인프라팀
+  - Level 2 (3 그룹): 인프라그룹, 웹개발그룹, DB그룹
+- parent_id relationships properly established for hierarchy traversal
+- Database status: Verified with `SELECT depth FROM organizations ORDER BY depth`
 
 ## API route alignment fix (2026-05-12)
-- Fixed endpoint path mismatch: backend `/api/v1/` → `/api/mail/`
+- ✅ Fixed endpoint path mismatch: backend `/api/v1/` → `/api/mail/`
 - Changed all carddav endpoints (addressbooks, contacts, directory) to use `/api/mail/` prefix
-- Updated tests to match new routing (carddav_test.go)
+- Updated tests to match new routing (carddav_test.go) — 971 tests passing
 - Resolved missing org tree data in webmail UI by fixing API path
 - Enables proper hierarchical organization display in OrgPickerModal
 
 ## Webmail UI improvements (2026-05-12)
-- OrgPickerModal: Address book and contact list styling aligned with org chart UI
+- ✅ OrgPickerModal: Address book and contact list styling aligned with org chart UI
 - Consistent padding, spacing, and visual hierarchy across all three panes
-- Ready for hierarchical data visualization once API returns correctly
+- Active field management (to/cc/bcc) with visual feedback
+- Hierarchical tree rendering with expand/collapse (▼/▶) indicators
+- Database has hierarchical data ready for visualization
 
 ## Webmail E2E testing infrastructure (TASK-095, 2026-05-12, complete)
 - Added Playwright E2E testing framework (@playwright/test ^1.48.0)
