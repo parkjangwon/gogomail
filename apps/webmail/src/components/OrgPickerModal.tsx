@@ -52,6 +52,103 @@ export function pickerItemsToString(items: PickerItem[]): string {
     .join(', ');
 }
 
+// ── Hierarchical tree renderer ─────────────────────────────────────────────────
+
+interface RenderOrgTreeProps {
+  units: OrgUnit[];
+  getChildren: (parentId: string) => OrgUnit[];
+  selectedOrg: OrgUnit | null;
+  expandedIds: Set<string>;
+  onToggleExpanded: (id: string) => void;
+  onSelectOrg: (unit: OrgUnit) => void;
+  rowHover: Record<string, (e: React.MouseEvent<HTMLElement>) => void>;
+  depth?: number;
+}
+
+function RenderOrgTree({
+  units,
+  getChildren,
+  selectedOrg,
+  expandedIds,
+  onToggleExpanded,
+  onSelectOrg,
+  rowHover,
+  depth = 0,
+}: RenderOrgTreeProps) {
+  return (
+    <>
+      {units.map((unit) => {
+        const children = getChildren(unit.id);
+        const isExpanded = expandedIds.has(unit.id);
+        const isSelected = selectedOrg?.id === unit.id;
+
+        const fontSize = depth === 0 ? 13 : depth === 1 ? 12 : 11;
+        const fontWeight = depth === 0 ? 600 : depth === 1 ? 500 : 400;
+        const textColor = depth === 0 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)';
+        const bgColor = !isSelected ? (
+          depth === 0 ? 'transparent' :
+          depth === 1 ? 'var(--color-bg-secondary)' :
+          'var(--color-bg-tertiary)'
+        ) : 'var(--color-accent-subtle)';
+
+        return (
+          <div key={unit.id}>
+            <div
+              onClick={() => {
+                if (children.length > 0) onToggleExpanded(unit.id);
+                onSelectOrg(unit);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                paddingTop: '8px', paddingBottom: '8px',
+                paddingLeft: `${12 + depth * 16}px`, paddingRight: '12px',
+                cursor: 'pointer',
+                borderLeft: isSelected ? '3px solid var(--color-accent)' : '3px solid transparent',
+                background: bgColor,
+                fontWeight,
+              }}
+              {...(!isSelected ? rowHover : {})}
+            >
+              {children.length > 0 ? (
+                <span
+                  onClick={(e) => { e.stopPropagation(); onToggleExpanded(unit.id); }}
+                  style={{
+                    fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px',
+                    width: '12px', textAlign: 'center', cursor: 'pointer',
+                  }}>
+                  {isExpanded ? '▼' : '▶'}
+                </span>
+              ) : (
+                <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px', width: '12px', textAlign: 'center' }}>
+                  {depth === 0 ? '▸' : '└'}
+                </span>
+              )}
+              <span style={{ fontSize, color: isSelected ? 'var(--color-accent)' : textColor, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {unit.display_name}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{unit.members.length}</span>
+            </div>
+
+            {/* Children */}
+            {isExpanded && children.length > 0 && (
+              <RenderOrgTree
+                units={children}
+                getChildren={getChildren}
+                selectedOrg={selectedOrg}
+                expandedIds={expandedIds}
+                onToggleExpanded={onToggleExpanded}
+                onSelectOrg={onSelectOrg}
+                rowHover={rowHover}
+                depth={depth + 1}
+              />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const FIELD_LABELS = { to: '받는 사람', cc: '참조', bcc: '숨은 참조' } as const;
@@ -70,6 +167,7 @@ export function OrgPickerModal({
   const [selectedOrg, setSelectedOrg] = useState<OrgUnit | null>(null);
   const [treeLoading, setTreeLoading] = useState(false);
   const [orgSearch, setOrgSearch] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // Address book
   const [addressBooks, setAddressBooks] = useState<AddressBook[]>([]);
@@ -102,6 +200,9 @@ export function OrgPickerModal({
         // Select the first leaf node (depth > 0) or first unit
         const first = units.find((u) => u.depth > 0) ?? units[0] ?? null;
         setSelectedOrg(first);
+        // Expand all root orgs by default to show hierarchy
+        const roots = units.filter((u) => !u.parent_id);
+        setExpandedIds(new Set(roots.map((r) => r.id)));
         setTreeLoading(false);
       })
       .catch(() => setTreeLoading(false));
@@ -175,21 +276,38 @@ export function OrgPickerModal({
     else setBccList(new Map());
   }
 
+  // ── Org tree helpers ──────────────────────────────────────────────────────
+
+  const getChildrenOf = (parentId: string | undefined): OrgUnit[] => {
+    return orgTree.filter((u) => u.parent_id === parentId);
+  };
+
+  const getRootOrgs = (): OrgUnit[] => {
+    return orgTree.filter((u) => !u.parent_id);
+  };
+
+  const toggleExpanded = (id: string) => {
+    const next = new Set(expandedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpandedIds(next);
+  };
+
   // ── Org search filtering ──────────────────────────────────────────────────────
 
   const q = orgSearch.trim().toLowerCase();
 
-  const filteredOrgs: OrgUnit[] = q
-    ? orgTree.filter(
-        (u) =>
-          u.display_name.toLowerCase().includes(q) ||
-          u.members.some(
-            (m) =>
-              (m.display_name || '').toLowerCase().includes(q) ||
-              m.email.toLowerCase().includes(q)
-          )
+  const matchesSearch = (unit: OrgUnit): boolean => {
+    if (!q) return true;
+    return (
+      unit.display_name.toLowerCase().includes(q) ||
+      unit.members.some(
+        (m) =>
+          (m.display_name || '').toLowerCase().includes(q) ||
+          m.email.toLowerCase().includes(q)
       )
-    : orgTree;
+    );
+  };
 
   // ── Contacts search filtering ──────────────────────────────────────────────
 
@@ -358,51 +476,68 @@ export function OrgPickerModal({
               {tab === 'org' && treeLoading && (
                 <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>불러오는 중...</div>
               )}
-              {tab === 'org' && !treeLoading && filteredOrgs.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>{q ? '결과 없음' : '조직 정보 없음'}</div>
+              {tab === 'org' && !treeLoading && orgTree.length === 0 && (
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>조직 정보 없음</div>
               )}
-              {tab === 'org' && filteredOrgs.map((unit) => {
-                const isSelected = !q && selectedOrg?.id === unit.id;
-                const depthIndicator = unit.depth === 0 ? '▸' : unit.depth === 1 ? '└' : '  └';
-                const fontSize = unit.depth === 0 ? 13 : unit.depth === 1 ? 12 : 11;
-                const fontWeight = unit.depth === 0 ? 600 : unit.depth === 1 ? 500 : 400;
-                const textColor = unit.depth === 0 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)';
-                const bgColor = !isSelected ? (
-                  unit.depth === 0 ? 'transparent' :
-                  unit.depth === 1 ? 'var(--color-bg-secondary)' :
-                  'var(--color-bg-tertiary)'
-                ) : 'var(--color-accent-subtle)';
+              {tab === 'org' && !treeLoading && (q ? orgTree.filter(matchesSearch).length === 0 : getRootOrgs().length === 0) && q && (
+                <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
+              )}
 
-                const borderLeftColor = isSelected ? 'var(--color-accent)' : (
-                  unit.depth === 0 ? '3px solid transparent' :
-                  unit.depth === 1 ? '2px solid var(--color-border-subtle)' :
-                  '1px solid var(--color-border-subtle)'
-                );
+              {/* Recursive tree renderer */}
+              {tab === 'org' && !treeLoading && (
+                <div>
+                  {q ? (
+                    // Search mode: flat list
+                    orgTree.filter(matchesSearch).map((unit) => {
+                      const isSelected = selectedOrg?.id === unit.id;
+                      const depthIndicator = unit.depth === 0 ? '▸' : unit.depth === 1 ? '└' : '  └';
+                      const fontSize = unit.depth === 0 ? 13 : unit.depth === 1 ? 12 : 11;
+                      const fontWeight = unit.depth === 0 ? 600 : unit.depth === 1 ? 500 : 400;
+                      const textColor = unit.depth === 0 ? 'var(--color-text-primary)' : 'var(--color-text-secondary)';
+                      const bgColor = !isSelected ? (
+                        unit.depth === 0 ? 'transparent' :
+                        unit.depth === 1 ? 'var(--color-bg-secondary)' :
+                        'var(--color-bg-tertiary)'
+                      ) : 'var(--color-accent-subtle)';
 
-                return (
-                  <div key={unit.id}
-                    onClick={() => { setOrgSearch(''); setSelectedOrg(unit); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                      paddingTop: '8px', paddingBottom: '8px',
-                      paddingLeft: `${12 + unit.depth * 16}px`, paddingRight: '12px',
-                      cursor: 'pointer',
-                      borderLeft: isSelected ? '3px solid var(--color-accent)' : borderLeftColor,
-                      background: bgColor,
-                      fontWeight,
-                    }}
-                    {...(!isSelected ? rowHover : {})}
-                  >
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px', width: '12px', textAlign: 'center' }}>
-                      {depthIndicator}
-                    </span>
-                    <span style={{ fontSize, color: isSelected ? 'var(--color-accent)' : textColor, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {unit.display_name}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{unit.members.length}</span>
-                  </div>
-                );
-              })}
+                      return (
+                        <div key={unit.id}
+                          onClick={() => { setOrgSearch(''); setSelectedOrg(unit); }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            paddingTop: '8px', paddingBottom: '8px',
+                            paddingLeft: `${12 + unit.depth * 16}px`, paddingRight: '12px',
+                            cursor: 'pointer',
+                            borderLeft: isSelected ? '3px solid var(--color-accent)' : '3px solid transparent',
+                            background: bgColor,
+                            fontWeight,
+                          }}
+                          {...(!isSelected ? rowHover : {})}
+                        >
+                          <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginRight: '2px', width: '12px', textAlign: 'center' }}>
+                            {depthIndicator}
+                          </span>
+                          <span style={{ fontSize, color: isSelected ? 'var(--color-accent)' : textColor, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {unit.display_name}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{unit.members.length}</span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    // Normal mode: hierarchical tree
+                    <RenderOrgTree
+                      units={getRootOrgs()}
+                      getChildren={getChildrenOf}
+                      selectedOrg={selectedOrg}
+                      expandedIds={expandedIds}
+                      onToggleExpanded={toggleExpanded}
+                      onSelectOrg={(unit) => { setOrgSearch(''); setSelectedOrg(unit); }}
+                      rowHover={rowHover}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Contacts tab address books */}
               {tab === 'contacts' && booksLoading && (
