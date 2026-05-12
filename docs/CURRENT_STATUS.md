@@ -404,6 +404,12 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing package scripts and code behavior are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail compose helper check scope comment (TASK-150, 2026-05-12, complete)
+- Completed compose helper runtime check scope comment cleanup.
+- `apps/webmail/scripts/check-compose-helpers.mjs` now states that the assertions cover pure compose helpers vulnerable to copy or datetime formatting regressions.
+- Existing assertions and package scripts are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
