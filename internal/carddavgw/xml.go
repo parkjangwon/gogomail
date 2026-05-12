@@ -442,6 +442,7 @@ func ParseReport(r io.Reader) (ReportRequest, error) {
 }
 
 func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest, properties *int) error {
+	hasProp := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -453,6 +454,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				hasProp = true
 				if err := parseProppatchProp(dec, tok.Name, true, req, properties); err != nil {
 					return err
 				}
@@ -461,6 +463,9 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 			return fmt.Errorf("unsupported PROPPATCH set element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, setName) {
+				if !hasProp {
+					return fmt.Errorf("PROPPATCH set must include at least one prop element")
+				}
 				return nil
 			}
 		}
@@ -468,6 +473,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 }
 
 func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchRequest, properties *int) error {
+	hasProp := false
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -479,6 +485,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
+				hasProp = true
 				if err := parseProppatchProp(dec, tok.Name, false, req, properties); err != nil {
 					return err
 				}
@@ -487,6 +494,9 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 			return fmt.Errorf("unsupported PROPPATCH remove element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, removeName) {
+				if !hasProp {
+					return fmt.Errorf("PROPPATCH remove must include at least one prop element")
+				}
 				return nil
 			}
 		}

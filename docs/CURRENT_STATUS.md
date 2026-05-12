@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH instruction emptiness (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` now reject empty `DAV:set` and `DAV:remove`
+  instructions, including self-closing and explicitly empty forms.
+- The check is per instruction, so malformed empty instructions are rejected
+  even when a sibling instruction contains valid properties.
+- Existing supported, unsupported, and protected property semantics remain
+  unchanged whenever the instruction contains a `DAV:prop` child.
+
 ## CalDAV/CardDAV PROPPATCH remove property emptiness (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` remove instructions now require property elements
   inside `DAV:prop` to be empty name markers.
