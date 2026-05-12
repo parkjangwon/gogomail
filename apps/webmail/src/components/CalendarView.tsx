@@ -1779,13 +1779,13 @@ export function CalendarView() {
               </label>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={M.label}>시작</label>
-                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createStart} onChange={(e) => setCreateStart(e.target.value)} style={M.input} />
+                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createStart} onChange={(e) => setCreateStart(e.target.value)} style={{ ...M.input, minWidth: 0 }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={M.label}>종료</label>
-                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createEnd} onChange={(e) => setCreateEnd(e.target.value)} style={M.input} />
+                  <input type={createAllDay ? 'date' : 'datetime-local'} value={createEnd} onChange={(e) => setCreateEnd(e.target.value)} style={{ ...M.input, minWidth: 0 }} />
                 </div>
               </div>
 
