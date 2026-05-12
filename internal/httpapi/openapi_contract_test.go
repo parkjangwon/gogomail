@@ -845,6 +845,37 @@ func TestOpenAPIDraftDocumentsCleanupSessionCounts(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDraftSaveDocumentsSendOptions(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("../../docs/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read OpenAPI draft: %v", err)
+	}
+	draft := string(raw)
+	compose := extractOpenAPIComponentBlock(t, draft, "schemas", "ComposeRequest")
+	for _, want := range []string{
+		"track_opens:",
+		"scheduled_at:",
+		"Draft saves preserve this option for draft-send.",
+	} {
+		if !strings.Contains(compose, want) {
+			t.Fatalf("ComposeRequest must document draft-send option %q", want)
+		}
+	}
+
+	draftSave := extractOpenAPIComponentBlock(t, draft, "requestBodies", "DraftSave")
+	if !strings.Contains(draftSave, "#/components/schemas/ComposeRequest") {
+		t.Fatalf("DraftSave must reuse ComposeRequest so draft-save options stay aligned")
+	}
+
+	operations := extractOpenAPIOperationBlocks(t, "../../docs/openapi.yaml")
+	sendDraft := operations["POST /drafts/{id}/send"]
+	if strings.Contains(sendDraft, "requestBody:") {
+		t.Fatalf("POST /drafts/{id}/send must remain bodyless")
+	}
+}
+
 func TestOpenAPIDraftDocumentsNonJSONDownloadResponses(t *testing.T) {
 	t.Parallel()
 

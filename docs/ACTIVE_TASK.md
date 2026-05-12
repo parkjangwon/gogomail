@@ -738,6 +738,43 @@ TASK-117: 사용자 웹메일 베타 안정화 — draft-send OpenAPI 계약 문
 
 ---
 
+## ✅ TASK-117: 사용자 웹메일 베타 안정화 — draft-send OpenAPI 계약 문서 점검
+
+**STATUS: COMPLETE**
+
+### 배경
+
+TASK-111/TASK-112에서 draft 저장 계약은 `track_opens`와 `scheduled_at`을 표현하고 draft-send로 전달한다.
+HTTP 구현과 테스트는 보강됐지만, 공개 OpenAPI 계약이 이 옵션을 명확히 문서화하지 않으면 클라이언트 생성/외부 연동에서 drift가 생긴다.
+
+### 구현 대상
+
+- `docs/openapi.yaml`
+- `internal/httpapi/openapi_contract_test.go`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] OpenAPI `ComposeRequest`가 `track_opens`를 문서화한다.
+- [x] OpenAPI `ComposeRequest`가 `scheduled_at`을 draft 저장에도 적용되는 공용 계약으로 유지한다.
+- [x] OpenAPI draft save request body가 `ComposeRequest`를 사용한다는 계약 테스트가 있다.
+- [x] OpenAPI draft send operation이 bodyless로 문서화된다는 계약 테스트가 있다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-118: 사용자 웹메일 베타 안정화 — draft scheduled/tracking DB 통합 테스트 보강
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**

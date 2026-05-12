@@ -14998,9 +14998,13 @@ components:
             type: string
         transactional:
           type: boolean
+        track_opens:
+          type: boolean
+          description: Request open-tracking for the sent message. Draft saves preserve this option for draft-send.
         scheduled_at:
           type: string
           format: date-time
+          description: Future send time. Draft saves preserve this option for draft-send.
     AttachmentReserveRequest:
       type: object
       required: [filename, size, mime_type]
