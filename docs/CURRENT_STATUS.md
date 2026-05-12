@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV sync-collection delta truncation 정합성 (2026-05-12, complete)
+- CalDAV `sync-collection` 증분 변경(delta) 경로가 limit 초과 시 일반 `400` 텍스트 오류 대신
+  snapshot truncation과 같은 RFC 6578/WebDAV XML precondition 응답으로 매핑되도록 정리했다.
+- joined change+object fast path와 fallback change-list path 모두 `TruncatedResultsError`를 사용한다.
+
 ## CalDAV calendar slug/timezone write-through (2026-05-12, complete)
 - `MKCALENDAR`가 parsed `calendar-timezone` 값을 repository 생성 요청으로 전달하도록 보강했다.
 - `PROPPATCH`가 parsed `calendar-slug` 및 `calendar-timezone` 값을 repository 업데이트 요청으로 전달하고,

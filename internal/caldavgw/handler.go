@@ -2070,7 +2070,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			return nil, "", err
 		}
 		if len(changesWithObject) > limit {
-			return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
+			return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 		}
 		syncToken := report.SyncToken
 		propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
@@ -2120,7 +2120,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		return nil, "", err
 	}
 	if len(changes) > limit {
-		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
+		return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 	}
 	syncToken := report.SyncToken
 	requestedByCalendarNames := make(map[string]map[string]struct{}, len(changes))
