@@ -1288,7 +1288,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   cursor: sending || sent || uploadedAttachments.some((a) => a.uploading) ? 'not-allowed' : 'pointer',
                 }}
               >
-                {sending ? '전송 중...' : sent ? '전송됨 ✓' : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
+                {sending ? '전송 중...' : sent ? (scheduledAt ? '예약됨 ✓' : '전송됨 ✓') : uploadedAttachments.some((a) => a.uploading) ? '업로드 중...' : scheduledAt ? '예약 전송' : '전송'}
               </button>
               <button
                 type="button"

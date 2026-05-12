@@ -246,6 +246,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - No new frontend test runner was introduced; the existing `pnpm type-check` loop now covers the formatter contract fixture.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail scheduled-send success copy (TASK-129, 2026-05-12, complete)
+- Completed scheduled-send success button copy cleanup for user webmail beta.
+- ComposeModal now shows `예약됨` after a scheduled send succeeds, instead of implying immediate delivery with the generic `전송됨` label.
+- Immediate send success still shows the existing `전송됨` label.
+- Existing send APIs, success timing, and visual design direction are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
