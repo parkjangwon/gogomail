@@ -80,8 +80,11 @@ type ProppatchRequest struct {
 }
 
 type MKAddressBookRequest struct {
-	DisplayName string
-	Description string
+	DisplayName         string
+	Description         string
+	Properties          []XMLName
+	Unsupported         []XMLName
+	InvalidResourceType bool
 }
 
 type ReportKind string
@@ -596,8 +599,13 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 			}
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "resourcetype"):
-				if err := parseAddressBookResourceType(dec, tok.Name); err != nil {
+				valid, err := parseAddressBookResourceType(dec, tok.Name)
+				if err != nil {
 					return err
+				}
+				req.Properties = append(req.Properties, PropResourceType)
+				if !valid {
+					req.InvalidResourceType = true
 				}
 			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
 				text, err := readSimpleElementText(dec, tok.Name)
@@ -605,16 +613,19 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 					return err
 				}
 				req.DisplayName = strings.TrimSpace(text)
+				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
 				text, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
 					return err
 				}
 				req.Description = strings.TrimSpace(text)
+				req.Properties = append(req.Properties, PropAddressBookDescription)
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err
 				}
+				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, propName) {
@@ -624,15 +635,16 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 	}
 }
 
-func parseAddressBookResourceType(dec *xml.Decoder, typeName xml.Name) error {
+func parseAddressBookResourceType(dec *xml.Decoder, typeName xml.Name) (bool, error) {
 	var hasCollection, hasAddressBook bool
+	var hasUnsupported bool
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
-			return fmt.Errorf("unterminated MKCOL resourcetype element")
+			return false, fmt.Errorf("unterminated MKCOL resourcetype element")
 		}
 		if err != nil {
-			return fmt.Errorf("decode MKCOL resourcetype: %w", err)
+			return false, fmt.Errorf("decode MKCOL resourcetype: %w", err)
 		}
 		switch tok := tok.(type) {
 		case xml.StartElement:
@@ -641,16 +653,15 @@ func parseAddressBookResourceType(dec *xml.Decoder, typeName xml.Name) error {
 				hasCollection = true
 			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook"):
 				hasAddressBook = true
+			default:
+				hasUnsupported = true
 			}
 			if err := skipElement(dec, tok.Name); err != nil {
-				return err
+				return false, err
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, typeName) {
-				if !hasCollection || !hasAddressBook {
-					return fmt.Errorf("MKCOL resourcetype must include DAV:collection and CARDDAV:addressbook")
-				}
-				return nil
+				return hasCollection && hasAddressBook && !hasUnsupported, nil
 			}
 		}
 	}

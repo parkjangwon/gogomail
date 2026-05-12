@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV extended MKCOL property failure response (2026-05-13, complete)
+- CardDAV extended `MKCOL` parser now preserves requested creation properties, unsupported
+  properties, and invalid `DAV:resourcetype` state instead of silently skipping them.
+- Unsupported creation properties or unsupported resource type values now fail before repository
+  creation, returning RFC 5689-shaped `DAV:mkcol-response` XML with `403 Forbidden` for the
+  failing property and `424 Failed Dependency` for otherwise valid properties in the same request.
+- CardDAV OPTIONS discovery now advertises the RFC 5689 `extended-mkcol` DAV token.
+
 ## CardDAV PROPPATCH property failure multistatus (2026-05-13, complete)
 - CardDAV `PROPPATCH` parser가 unsupported property와 protected `displayname` remove 시도를
   일반 parse error 또는 silent skip으로 처리하지 않고 request metadata로 보존하도록 했다.

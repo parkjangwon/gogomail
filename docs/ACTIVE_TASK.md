@@ -1,33 +1,37 @@
 # ACTIVE_TASK
 
-## ✅ TASK-189: CardDAV PROPPATCH unsupported/protected property multistatus
+## ✅ TASK-190: CardDAV MKCOL request body property semantics audit
 
 ### 배경
 
-CardDAV `PROPPATCH`가 unsupported property를 조용히 무시하거나 protected property 제거를
-일반 `400` parse error로 반환했다.
-WebDAV RFC 4918의 PROPPATCH semantics에 맞춰 property별 multistatus 실패를 반환하고,
-요청 전체를 atomic하게 실패시켜 부분 업데이트처럼 보이지 않도록 한다.
+CardDAV extended `MKCOL`이 request body의 unsupported property와 지원하지 않는
+`DAV:resourcetype` 값을 조용히 무시한 뒤 `201 Created`를 반환할 수 있었다.
+RFC 5689 extended MKCOL semantics에 맞춰 property 설정 실패를 `DAV:mkcol-response`
+property status로 반환하고, 실패 시 address book을 생성하지 않도록 atomicity를 보장한다.
 
 ### 구현 대상
 
 - `internal/carddavgw/handler.go`
 - `internal/carddavgw/handler_test.go`
+- `internal/carddavgw/response.go`
+- `internal/carddavgw/types.go`
 - `internal/carddavgw/xml.go`
 - `internal/carddavgw/xml_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
+- `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] PROPPATCH parser가 unsupported property와 protected property remove 시도를 request metadata로 보존한다.
-- [x] unsupported/protected property가 포함되면 repository update를 호출하지 않고 atomic하게 실패한다.
-- [x] 실패 응답은 `207 Multi-Status`이며 unsupported/protected property는 `403 Forbidden` propstat로 반환한다.
-- [x] 같은 요청의 otherwise mutable property는 `424 Failed Dependency` propstat로 반환한다.
-- [x] 회귀 테스트가 unsupported/protected 혼합 요청에서 address book property가 변경되지 않음을 검증한다.
+- [x] MKCOL parser가 supported, unsupported, invalid `resourcetype` metadata를 보존한다.
+- [x] unsupported property가 포함되면 repository create를 호출하지 않고 atomic하게 실패한다.
+- [x] 지원하지 않는 `resourcetype` 값이 포함되면 `DAV:valid-resourcetype` 실패로 반환한다.
+- [x] 실패 응답은 `DAV:mkcol-response` XML이며 실패 property는 `403 Forbidden`, 의존 property는 `424 Failed Dependency` propstat로 반환한다.
+- [x] OPTIONS `DAV` discovery가 RFC 5689 `extended-mkcol` 토큰을 광고한다.
+- [x] 회귀 테스트가 unsupported/invalid resourcetype 요청에서 address book이 생성되지 않음을 검증한다.
 - [x] `go test ./internal/carddavgw` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-190: CardDAV MKCOL request body property semantics audit
+TASK-191: CalDAV MKCALENDAR property failure multistatus

@@ -27,6 +27,7 @@ const (
 	DAVClass1         = "1"
 	DAVClass3         = "3"
 	DAVAddressBook    = "addressbook"
+	DAVExtendedMKCOL  = "extended-mkcol"
 	DAVSyncCollection = "sync-collection"
 )
 
@@ -121,7 +122,7 @@ func Standards() []string {
 }
 
 func AdvertisedDAVTokens(includeSync bool) []string {
-	tokens := []string{DAVClass1, DAVClass3, DAVAddressBook}
+	tokens := []string{DAVClass1, DAVClass3, DAVAddressBook, DAVExtendedMKCOL}
 	if includeSync {
 		tokens = append(tokens, DAVSyncCollection)
 	}

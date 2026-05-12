@@ -78,8 +78,10 @@ type MultiStatusResponse struct {
 }
 
 type PropStatus struct {
-	StatusCode int
-	Properties []PropertyResult
+	StatusCode          int
+	Properties          []PropertyResult
+	Error               XMLName
+	ResponseDescription string
 }
 
 func ContactObjectDataProperty(body []byte) PropertyResult {
@@ -377,6 +379,35 @@ func BuildSyncCollectionTruncatedXML() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func BuildMKCOLResponseXML(propStats []PropStatus) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	root := xml.StartElement{
+		Name: xml.Name{Local: "D:mkcol-response"},
+		Attr: []xml.Attr{
+			{Name: xml.Name{Local: "xmlns:D"}, Value: DAVNamespace},
+			{Name: xml.Name{Local: "xmlns:C"}, Value: CardDAVNamespace},
+			{Name: xml.Name{Local: "xmlns:CS"}, Value: CalendarServerNamespace},
+		},
+	}
+	if err := enc.EncodeToken(root); err != nil {
+		return nil, err
+	}
+	for _, propstat := range propStats {
+		if err := encodePropStatus(enc, propstat); err != nil {
+			return nil, err
+		}
+	}
+	if err := enc.EncodeToken(root.End()); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func buildMultiStatusXML(responses []MultiStatusResponse, syncToken string) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
@@ -493,6 +524,27 @@ func encodePropStatus(enc *xml.Encoder, propstat PropStatus) error {
 	}
 	if err := encodeTextElement(enc, "D:status", "HTTP/1.1 "+strconv.Itoa(propstat.StatusCode)+" "+http.StatusText(propstat.StatusCode)); err != nil {
 		return err
+	}
+	if strings.TrimSpace(propstat.Error.Local) != "" {
+		errorStart := xml.StartElement{Name: xml.Name{Local: "D:error"}}
+		if err := enc.EncodeToken(errorStart); err != nil {
+			return err
+		}
+		errorName, err := prefixedName(propstat.Error)
+		if err != nil {
+			return err
+		}
+		if err := encodeEmptyElement(enc, errorName); err != nil {
+			return err
+		}
+		if err := enc.EncodeToken(errorStart.End()); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(propstat.ResponseDescription) != "" {
+		if err := encodeTextElement(enc, "D:responsedescription", propstat.ResponseDescription); err != nil {
+			return err
+		}
 	}
 	return enc.EncodeToken(start.End())
 }

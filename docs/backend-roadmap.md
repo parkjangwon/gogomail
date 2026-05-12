@@ -2531,7 +2531,11 @@ Target outcome:
       bounded WebDAV creation XML for `DAV:resourcetype`,
       `DAV:displayname`, and `CARDDAV:addressbook-description`, then creates
       the collection through the repository with durable sync/change state and
-      returns `201 Created` with `Location`.
+      returns `201 Created` with `Location`. Unsupported creation properties
+      and unsupported resource type values now fail atomically before creation
+      with an RFC 5689 `DAV:mkcol-response`; failing properties return
+      `403 Forbidden`, dependent properties return `424 Failed Dependency`,
+      and OPTIONS discovery advertises `extended-mkcol`.
 1126. CardDAV current-user privilege discovery now advertises `DAV:bind` and
       `DAV:unbind` on address-book homes after child collection `MKCOL` and
       `DELETE` support.
