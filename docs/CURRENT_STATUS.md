@@ -315,6 +315,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing displayed copy, accessibility linkage, and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail local schedule datetime formatting (TASK-138, 2026-05-12, complete)
+- Completed scheduled-send datetime-local formatting cleanup for user webmail beta.
+- ComposeModal now formats preset, default custom, and minimum scheduled-send times through `toDateTimeLocalValue`.
+- The helper uses local date/time fields instead of UTC `toISOString().slice(0, 16)`, matching HTML `datetime-local` semantics.
+- The custom schedule input now receives a named `scheduleMinDateTime` value.
+- Send payload ISO serialization remains unchanged at the API boundary.
+- Existing visual design is unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
