@@ -361,7 +361,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 			switch {
 			case sameXMLName(tok.Name, DAVNamespace, "displayname"):
 				if !set {
-					if err := skipElement(dec, tok.Name); err != nil {
+					if err := readEmptyElement(dec, tok.Name); err != nil {
 						return err
 					}
 					req.Protected = append(req.Protected, PropDisplayName)
@@ -382,7 +382,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 						return err
 					}
 					value = strings.TrimSpace(text)
-				} else if err := skipElement(dec, tok.Name); err != nil {
+				} else if err := readEmptyElement(dec, tok.Name); err != nil {
 					return err
 				}
 				req.Description = &value
@@ -396,7 +396,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 						return err
 					}
 					value = strings.TrimSpace(text)
-				} else if err := skipElement(dec, tok.Name); err != nil {
+				} else if err := readEmptyElement(dec, tok.Name); err != nil {
 					return err
 				}
 				req.Color = &value
@@ -409,7 +409,7 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 						return err
 					}
 					value = strings.TrimSpace(text)
-				} else if err := skipElement(dec, tok.Name); err != nil {
+				} else if err := readEmptyElement(dec, tok.Name); err != nil {
 					return err
 				}
 				req.Slug = &value
@@ -422,13 +422,19 @@ func parseProppatchProp(dec *xml.Decoder, propName xml.Name, set bool, req *Prop
 						return err
 					}
 					value = strings.TrimSpace(text)
-				} else if err := skipElement(dec, tok.Name); err != nil {
+				} else if err := readEmptyElement(dec, tok.Name); err != nil {
 					return err
 				}
 				req.Timezone = &value
 				req.Properties = append(req.Properties, PropCalendarTimezone)
 			default:
-				if err := skipElement(dec, tok.Name); err != nil {
+				var err error
+				if set {
+					err = skipElement(dec, tok.Name)
+				} else {
+					err = readEmptyElement(dec, tok.Name)
+				}
+				if err != nil {
 					return err
 				}
 				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
@@ -1243,6 +1249,30 @@ func readSimpleElementText(dec *xml.Decoder, name xml.Name) (string, error) {
 		case xml.EndElement:
 			if sameName(tok.Name, name) {
 				return b.String(), nil
+			}
+		}
+	}
+}
+
+func readEmptyElement(dec *xml.Decoder, name xml.Name) error {
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unterminated {%s}%s element", name.Space, name.Local)
+		}
+		if err != nil {
+			return err
+		}
+		switch tok := tok.(type) {
+		case xml.CharData:
+			if len(bytes.TrimSpace(tok)) != 0 {
+				return fmt.Errorf("{%s}%s must be empty", name.Space, name.Local)
+			}
+		case xml.StartElement:
+			return fmt.Errorf("{%s}%s must not contain nested elements", name.Space, name.Local)
+		case xml.EndElement:
+			if sameName(tok.Name, name) {
+				return nil
 			}
 		}
 	}

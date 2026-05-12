@@ -373,14 +373,36 @@ func TestParseProppatchRemovesOptionalCalendarProperties(t *testing.T) {
 	}
 }
 
+func TestParseProppatchAllowsEmptyUnsupportedRemoveProperty(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
+  <D:remove>
+    <D:prop>
+      <E:unsupported/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if len(req.Unsupported) != 1 || req.Unsupported[0] != (XMLName{Space: "urn:example:test", Local: "unsupported"}) {
+		t.Fatalf("unsupported = %+v", req.Unsupported)
+	}
+}
+
 func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"empty body":              ``,
-		"wrong root":              `<D:propfind xmlns:D="DAV:"/>`,
-		"nested supported text":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
-		"unsupported child shape": `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+		"empty body":                       ``,
+		"wrong root":                       `<D:propfind xmlns:D="DAV:"/>`,
+		"nested supported text":            `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
+		"remove supported property text":   `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:remove><D:prop><C:calendar-description>Launch dates</C:calendar-description></D:prop></D:remove></D:propertyupdate>`,
+		"remove supported property child":  `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:remove><D:prop><C:calendar-description><C:x/></C:calendar-description></D:prop></D:remove></D:propertyupdate>`,
+		"remove unsupported property text": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test"><D:remove><D:prop><E:unsupported>value</E:unsupported></D:prop></D:remove></D:propertyupdate>`,
+		"unsupported child shape":          `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
 		"unsupported set child": `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set><D:prop><D:displayname>Product</D:displayname></D:prop><E:unsupported/></D:set>
 </D:propertyupdate>`,
