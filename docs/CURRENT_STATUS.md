@@ -22,6 +22,10 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Folder rows support drag-and-drop targets so external uploads and internal node moves can land directly in a target folder from the left panel.
 - Root `내 드라이브` entry accepts dropped files/folders from browser drag and drop.
 
+## Mail sidebar personal folder spacing tweak (2026-05-12, in progress)
+- Adjusted `개인 편지함` section spacing in `apps/webmail/src/components/Sidebar.tsx` so newly added personal folders no longer appear overly indented.
+- Reduced left/right padding for personal folder rows and create action to keep list density consistent with virtual/system sections.
+
 ## Drive upload contract fix (2026-05-12, in progress)
 - Fixed Drive upload session contract mismatch in webmail frontend (`apps/webmail/src/lib/api.ts`):
   - `size` -> `declared_size`

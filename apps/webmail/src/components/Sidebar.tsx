@@ -547,7 +547,7 @@ export function Sidebar({
 
         {/* 개인 편지함 section */}
         {folders.filter((f) => !systemFolderIds.has(f.id)).length > 0 || onCreateFolder ? (
-          <div style={{ padding: '12px 16px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '12px 10px 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>개인 편지함</span>
           </div>
         ) : null}
@@ -563,7 +563,7 @@ export function Sidebar({
             return (
               <div
                 key={f.id}
-                style={{ position: 'relative', marginInline: '4px' }}
+                style={{ position: 'relative', marginInline: '4px 2px' }}
                 onMouseEnter={() => setHoveredFolderId(f.id)}
                 onMouseLeave={() => setHoveredFolderId(null)}
               >
@@ -591,7 +591,7 @@ export function Sidebar({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '7px 16px',
+                      padding: '7px 12px',
                       border: dragOverFolderId === f.id ? '1px solid var(--color-accent)' : '1px solid transparent',
                       background: dragOverFolderId === f.id ? 'var(--color-accent-subtle)' : isActive ? 'var(--color-bg-tertiary)' : 'transparent',
                       color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
@@ -642,7 +642,7 @@ export function Sidebar({
             ) : (
               <button
                 onClick={() => setShowNewFolder(true)}
-                style={{ width: '100%', textAlign: 'left', padding: '5px 16px', border: '1px solid transparent', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ width: '100%', textAlign: 'left', padding: '5px 12px', border: '1px solid transparent', background: 'transparent', color: 'var(--color-text-tertiary)', fontSize: '13px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)'; }}
               >
