@@ -49,6 +49,7 @@ import (
 	"github.com/gogomail/gogomail/internal/httpapi"
 	"github.com/gogomail/gogomail/internal/imapgw"
 	"github.com/gogomail/gogomail/internal/imapnotify"
+	"github.com/gogomail/gogomail/internal/inboundfilter"
 	"github.com/gogomail/gogomail/internal/ldapgw"
 	"github.com/gogomail/gogomail/internal/mailauth"
 	"github.com/gogomail/gogomail/internal/orgchart"
@@ -1843,10 +1844,15 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		}
 		mailFlowHandler = mailflow.NewHandlerWithIndexer(db, &indexer)
 	}
+	store, err := objectStoreForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	if err := router.Register("mail.stored", eventstream.MultiHandler{
 		imapnotify.NewMailStoredHandler(maildb.NewRepository(db)),
 		audit.NewMailStoredHandler(auditRepository),
 		mailFlowHandler,
+		inboundfilter.NewHandler(mailservice.New(maildb.NewRepository(db), store)),
 	}); err != nil {
 		return err
 	}
@@ -1854,10 +1860,6 @@ func runEventWorker(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		audit.NewDeliveryStatusHandler(auditRepository),
 		mailFlowHandler,
 	}); err != nil {
-		return err
-	}
-	store, err := objectStoreForConfig(cfg)
-	if err != nil {
 		return err
 	}
 	if err := router.Register("mail.bounced", eventstream.MultiHandler{

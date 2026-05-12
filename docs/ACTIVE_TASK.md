@@ -5,9 +5,38 @@
 
 ---
 
-## 🔄 TASK-089: 웹메일 클라이언트 UI (Webmail Client Frontend — Phase 3: Power Features)
+## 🔄 TASK-090: 수신 차단 + 부재중 자동 응답 백엔드 강제 적용
 
-**STATUS: IN PROGRESS**
+**STATUS: COMPLETE**
+
+### 목표
+
+웹메일 프론트엔드에서 설정할 수 있는 수신 차단(blocked senders)과 부재중 자동 응답(vacation auto-reply)을 백엔드 mail.stored 이벤트 핸들러로 실제 강제 적용한다.
+
+### 구현 대상
+
+1. `internal/inboundfilter/handler.go` — mail.stored 이벤트 핸들러
+   - 수신 차단: envelope_from이 blocked_senders에 있으면 trash 폴더로 이동
+   - 부재중 자동 응답: vacation.enabled + 날짜 범위 확인 → SendText로 자동 응답
+   - 자동 응답 루프 방지: mailer-daemon, noreply, postmaster 필터링
+   - 인메모리 rate limiter: 사용자당 발신자별 7일 1회
+2. `internal/inboundfilter/handler_test.go` — 단위 테스트
+3. `internal/app/run.go` — mail.stored 핸들러에 등록
+
+### 완료 조건
+
+- [ ] `go test ./internal/inboundfilter/...` 통과
+- [ ] `go test ./...` 통과
+- [ ] blocked sender → trash 이동 테스트
+- [ ] vacation 활성 + 날짜 범위 내 → 자동 응답 전송 테스트
+- [ ] vacation 비활성 → 자동 응답 없음 테스트
+- [ ] 루프 방지 (mailer-daemon) 테스트
+
+---
+
+## ✅ TASK-089: 웹메일 클라이언트 UI (Webmail Client Frontend — Phase 3: Power Features)
+
+**STATUS: COMPLETE**
 
 ### 구현 완료 (2026-05-12) — Phase 3 진행 중
 
@@ -35,12 +64,15 @@
 - ✅ 아카이브/스팸: 낙관적 UI + 실행취소 토스트
 - ✅ 이메일 인쇄: 새 창 팝업, 서식 있는 HTML 출력
 
-**다음 구현 대상 (Phase 3 잔여):**
-1. 별표받은/안읽음 필터 탭 (Sidebar 빠른 필터)
-2. 임시저장 자동저장 (ComposeModal — debounce + localStorage)
-3. 폴더 이동 (Move to Folder — more menu 또는 드래그)
-4. 메시지 선택 + 일괄 작업 (체크박스, 읽음/삭제/이동 bulk)
-5. 반응형 레이아웃 (768px 이하 모바일 슬라이드 패널)
+**Phase 3 완료 항목 (2026-05-12, 세션 2):**
+- ✅ 별표받은/안읽음 필터 탭 (Sidebar VIRTUAL_STARRED + MessageList filterMode)
+- ✅ 임시저장 자동저장 (ComposeModal triggerAutoSave debounce 3s)
+- ✅ 폴더 이동 (ReadingPane more menu + MessageList bulk move)
+- ✅ 메시지 선택 + 일괄 작업 (bulkSelected, bulk read/star/move/delete)
+- ✅ 반응형 레이아웃 (useIsMobile, mobile slide panel, swipe-back gesture)
+- ✅ 이메일 별칭 선택 (ComposeModal From: 드롭다운, listUserAddresses API)
+- ✅ 서버 사이드 환경설정 (GET/PUT /api/v1/preferences, users.settings jsonb)
+- ✅ 사용자 프로필/비밀번호 API (GET/PATCH /api/v1/me, POST /api/v1/me/password)
 
 ### 진행 로그 (2026-05-12)
 
