@@ -354,6 +354,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing copy and close-save behavior are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail compose helper runtime checks (TASK-143, 2026-05-12, complete)
+- Completed compose helper runtime check expansion for user webmail beta.
+- The existing runtime script now verifies close-save prompt output for scheduled and unscheduled drafts.
+- The script now verifies scheduled-send button copy for ready and successful scheduled-send states.
+- Existing datetime-local formatter runtime checks remain covered.
+- Added `pnpm test:compose-helpers`; `pnpm test:datetime-local` remains as a compatibility alias.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

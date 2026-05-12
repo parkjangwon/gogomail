@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
+import { composeCloseSavePrompt } from '../src/lib/composeCloseSavePrompt.ts';
+import { composeSendButtonLabel } from '../src/lib/composeSendButtonLabel.ts';
 import { toDateTimeLocalValue } from '../src/lib/dateTimeLocal.ts';
 
 assert.equal(toDateTimeLocalValue(new Date(2026, 0, 2, 3, 4)), '2026-01-02T03:04');
 assert.equal(toDateTimeLocalValue(new Date(2026, 10, 12, 13, 45)), '2026-11-12T13:45');
 
-console.log('dateTimeLocal formatter checks passed');
+assert.equal(composeCloseSavePrompt(false), '임시저장 후 닫으시겠습니까?');
+assert.equal(composeCloseSavePrompt(true), '예약 설정을 포함해 임시저장 후 닫으시겠습니까?');
+
+assert.equal(composeSendButtonLabel({ sending: false, sent: false, scheduled: true, uploading: false }), '예약 전송');
+assert.equal(composeSendButtonLabel({ sending: false, sent: true, scheduled: true, uploading: false }), '예약됨 ✓');
+
+console.log('compose helper runtime checks passed');
