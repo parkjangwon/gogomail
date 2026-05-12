@@ -212,6 +212,27 @@ func TestParseMKCalendarAllowsEmptyBody(t *testing.T) {
 	}
 }
 
+func TestParseMKCalendarRejectsNonEmptyBodyWithoutSet(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"empty mkcalendar": `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"/>`,
+		"unknown child":    `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav"><C:unknown/></C:mkcalendar>`,
+		"unknown set child": `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set><C:unknown/></D:set>
+</C:mkcalendar>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParseMKCalendar(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseMKCalendar error = nil, want rejection")
+			}
+		})
+	}
+}
+
 func TestParseMKCalendarRejectsWrongRoot(t *testing.T) {
 	t.Parallel()
 

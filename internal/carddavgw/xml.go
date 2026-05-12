@@ -85,6 +85,7 @@ type MKAddressBookRequest struct {
 	Properties          []XMLName
 	Unsupported         []XMLName
 	InvalidResourceType bool
+	HasResourceType     bool
 }
 
 type ReportKind string
@@ -603,6 +604,7 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 				if err != nil {
 					return err
 				}
+				req.HasResourceType = true
 				req.Properties = append(req.Properties, PropResourceType)
 				if !valid {
 					req.InvalidResourceType = true

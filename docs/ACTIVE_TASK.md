@@ -1,19 +1,23 @@
 # ACTIVE_TASK
 
-## ✅ TASK-191: CalDAV MKCALENDAR property failure multistatus
+## ✅ TASK-192: CardDAV/CalDAV creation body strictness audit
 
 ### 배경
 
-CalDAV `MKCALENDAR` request body의 unsupported/protected creation property나
-지원하지 않는 property 값이 일반 `400` 또는 silent skip으로 처리될 수 있다.
-RFC 4791 `MKCALENDAR` semantics에 맞춰 property별 실패를 `mkcalendar-response`
-multistatus body로 반환하고, 실패 시 calendar collection을 생성하지 않도록 한다.
+CardDAV extended `MKCOL`과 CalDAV `MKCALENDAR`의 기본 생성 구현이
+빈 body 또는 body 안의 필수 `DAV:set`/resource-type 신호가 없는 요청을
+너무 관대하게 생성 성공으로 처리할 수 있다.
+RFC 5689/RFC 6352/RFC 4791의 creation body semantics에 맞춰 지원하는 생성 형태와
+지원하지 않는 일반 collection 생성 형태를 명확히 분리한다.
 
 ### 구현 대상
 
+- `internal/carddavgw/handler.go`
+- `internal/carddavgw/handler_test.go`
+- `internal/carddavgw/xml.go`
+- `internal/carddavgw/xml_test.go`
 - `internal/caldavgw/handler.go`
 - `internal/caldavgw/handler_test.go`
-- `internal/caldavgw/response.go`
 - `internal/caldavgw/xml.go`
 - `internal/caldavgw/xml_test.go`
 - `docs/ACTIVE_TASK.md`
@@ -22,14 +26,15 @@ multistatus body로 반환하고, 실패 시 calendar collection을 생성하지
 
 ### 완료 조건
 
-- [x] MKCALENDAR parser가 supported, unsupported, invalid/protected property metadata를 보존한다.
-- [x] unsupported/protected/invalid creation property가 포함되면 repository create를 호출하지 않고 atomic하게 실패한다.
-- [x] 실패 응답은 `mkcalendar-response` XML이며 실패 property는 적절한 `403`/`409`, 의존 property는 `424 Failed Dependency` propstat로 반환한다.
-- [x] 회귀 테스트가 실패 요청에서 calendar collection이 생성되지 않음을 검증한다.
+- [x] CardDAV address-book creation requires an extended MKCOL body with `DAV:resourcetype` including `DAV:collection` and `CARDDAV:addressbook`.
+- [x] CardDAV empty-body/generic MKCOL requests do not create address books accidentally.
+- [x] CalDAV `MKCALENDAR` with a non-empty body requires the RFC 4791 `DAV:set` shape instead of ignoring unknown children.
+- [x] Regression tests prove rejected creation-body shapes do not create collections.
+- [x] `go test ./internal/carddavgw` 통과.
 - [x] `go test ./internal/caldavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-192: CardDAV/CalDAV creation body strictness audit
+TASK-193: CalDAV/CardDAV creation response cache-control audit

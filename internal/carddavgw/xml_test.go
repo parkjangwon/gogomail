@@ -199,6 +199,9 @@ func TestParseMKAddressBookCollectsProperties(t *testing.T) {
 	if req.InvalidResourceType {
 		t.Fatal("InvalidResourceType = true, want false")
 	}
+	if !req.HasResourceType {
+		t.Fatal("HasResourceType = false, want true")
+	}
 }
 
 func TestParseMKAddressBookCollectsUnsupportedPropertyFailure(t *testing.T) {

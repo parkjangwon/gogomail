@@ -1550,6 +1550,62 @@ func TestHandlerMkcolRejectsUnsupportedResourceTypeAtomically(t *testing.T) {
 	}
 }
 
+func TestHandlerMkcolRejectsEmptyBodyWithoutCreatingAddressBook(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created from empty MKCOL body")
+	}
+}
+
+func TestHandlerMkcolRejectsBodyWithoutResourceType(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:">
+  <D:set><D:prop><D:displayname>Generic Collection</D:displayname></D:prop></D:set>
+</D:mkcol>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created without addressbook resourcetype")
+	}
+}
+
+func TestHandlerMkcolRejectsSelfClosingExtendedBody(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:"/>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created from MKCOL body without DAV:set")
+	}
+}
+
 func TestHandlerMkcolRejectsExistingAddressBook(t *testing.T) {
 	t.Parallel()
 
@@ -1612,7 +1668,7 @@ func TestHandlerMkcolAllowsMissingIfNoneMatchStar(t *testing.T) {
 	store := testCardDAVDiscoveryStore(t)
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	bookID := "11111111-1111-4111-8111-111111111111"
-	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"/>`))
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:resourcetype><D:collection/><C:addressbook/></D:resourcetype></D:prop></D:set></D:mkcol>`))
 	req.Header.Set("If-None-Match", "*")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

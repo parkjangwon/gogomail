@@ -2186,6 +2186,9 @@ Target outcome:
       before creation with RFC 4791 `207 Multi-Status` and a
       `C:mkcalendar-response` body; failed properties return `403 Forbidden` or
       `409 Conflict`, and dependent properties return `424 Failed Dependency`.
+      Non-empty `C:mkcalendar` XML bodies now require the RFC 4791 `DAV:set` /
+      `DAV:prop` shape instead of silently accepting unknown structural
+      children or self-closing bodies.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2539,7 +2542,10 @@ Target outcome:
       and unsupported resource type values now fail atomically before creation
       with an RFC 5689 `DAV:mkcol-response`; failing properties return
       `403 Forbidden`, dependent properties return `424 Failed Dependency`,
-      and OPTIONS discovery advertises `extended-mkcol`.
+      and OPTIONS discovery advertises `extended-mkcol`. Address-book creation
+      now requires an extended MKCOL body with `DAV:resourcetype` including both
+      `DAV:collection` and `CARDDAV:addressbook`, so empty or generic MKCOL
+      bodies cannot accidentally create address books.
 1126. CardDAV current-user privilege discovery now advertises `DAV:bind` and
       `DAV:unbind` on address-book homes after child collection `MKCOL` and
       `DELETE` support.
