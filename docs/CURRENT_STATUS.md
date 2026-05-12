@@ -376,6 +376,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing assertions and package scripts are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail compose helper verification docs (TASK-146, 2026-05-12, complete)
+- Completed webmail verification-loop documentation for compose helpers.
+- `docs/WEBMAIL_ROADMAP.md` now lists the webmail beta verification loop:
+  `go test ./...`, `pnpm type-check`, and `pnpm test:compose-helpers` when compose helper copy, scheduled datetime formatting, send button labels, or close-save prompts are touched.
+- No code behavior changed.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
