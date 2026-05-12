@@ -53,6 +53,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Retry failure keeps the failed state visible and blocks send through the TASK-102 guard.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail attachment pending-send stabilization (TASK-104, 2026-05-12, complete)
+- Completed pending-send attachment state pass for user webmail beta.
+- Undo-countdown sends now cancel if attachment upload/failure/removal state changes after the pending payload is created.
+- Cancellation clears the pending payload and tells the user to re-check attachments before sending again.
+- Immediate and scheduled sends keep the existing attachment readiness guard.
+- Design direction remains unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
