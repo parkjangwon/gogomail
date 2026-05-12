@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## WebDAV If header conditional support (2026-05-13, complete)
+- CalDAV/CardDAV object read/write/delete 경로가 WebDAV `If` header의 ETag condition list를 평가하도록 보강했다.
+- CalDAV calendar collection 및 CardDAV address-book collection의 PROPPATCH/DELETE/create precondition 경로도
+  `If` header를 기존 ETag/date conditional 처리와 함께 평가한다.
+- 현재 lock token 저장소가 없으므로 positive state-token 조건은 실패하고, `Not` 조건과 ETag 조건은
+  RFC 4918 condition list semantics에 맞춰 request body read 전에 `412 Precondition Failed`로 처리한다.
+
 ## CalDAV calendar-timezone VTIMEZONE 응답 정합성 (2026-05-12, complete)
 - `calendar-timezone` property 응답이 저장된 Olson TZID를 클라이언트용 `VCALENDAR`/`VTIMEZONE`
   payload로 직렬화하도록 보강했다.
