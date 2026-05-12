@@ -256,7 +256,10 @@ func TestThunderbirdProppatchCalendarColor(t *testing.T) {
 func TestAppleICalCalendarTimezonePropfind(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(newFakeDiscoveryStore(), fixedUser("user-1"))
+	store := newFakeDiscoveryStore()
+	tz := "Asia/Seoul"
+	store.calendars[0].Timezone = &tz
+	handler := NewHandler(store, fixedUser("user-1"))
 	body := `<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
   <D:prop>
     <D:displayname/>
@@ -271,6 +274,12 @@ func TestAppleICalCalendarTimezonePropfind(t *testing.T) {
 
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("Apple iCal timezone propfind status = %d, want %d: %s", rec.Code, http.StatusMultiStatus, rec.Body.String())
+	}
+	bodyText := rec.Body.String()
+	for _, want := range []string{"<C:calendar-timezone>", "BEGIN:VCALENDAR", "BEGIN:VTIMEZONE", "TZID:Asia/Seoul", "END:VCALENDAR"} {
+		if !strings.Contains(bodyText, want) {
+			t.Fatalf("Apple iCal timezone propfind missing %q:\n%s", want, bodyText)
+		}
 	}
 }
 
