@@ -37,6 +37,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Design direction remains unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail attachment send-state stabilization (TASK-102, 2026-05-12, complete)
+- Completed stricter attachment send-state pass for user webmail beta.
+- Webmail now prevents sending while any attachment is still uploading, with a clear user-facing error.
+- Webmail now prevents sending while any attachment has failed upload, requiring remove/retry instead of silently omitting the file.
+- Completed attachments remain the only attachment IDs included in the send payload.
+- Design direction remains unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
