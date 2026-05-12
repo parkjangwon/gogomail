@@ -1235,6 +1235,9 @@ func webDAVIfHeaderMatches(header string, currentETag string, currentPath string
 	for pos := 0; pos < len(header); {
 		open := strings.IndexByte(header[pos:], '(')
 		if open < 0 {
+			if strings.TrimSpace(header[pos:]) != "" {
+				return false, fmt.Errorf("If header contains trailing data")
+			}
 			break
 		}
 		open += pos

@@ -2271,7 +2271,9 @@ Target outcome:
       400 before body reads even when an earlier list already matched.
       Irrelevant tagged malformed `If` coverage now asserts condition-list
       syntax is validated before resource-tag relevance, returning HTTP 400
-      before body reads for non-matching tagged malformed lists.
+      before body reads for non-matching tagged malformed lists. Trailing
+      WebDAV `If` coverage now rejects tokens left after a valid condition
+      list with HTTP 400 before body reads.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2676,7 +2678,9 @@ Target outcome:
       400 before body reads even when an earlier list already matched.
       Irrelevant tagged malformed `If` coverage now asserts condition-list
       syntax is validated before resource-tag relevance, returning HTTP 400
-      before body reads for non-matching tagged malformed lists.
+      before body reads for non-matching tagged malformed lists. Trailing
+      WebDAV `If` coverage now rejects tokens left after a valid condition
+      list with HTTP 400 before body reads.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
