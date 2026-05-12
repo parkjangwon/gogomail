@@ -1991,7 +1991,7 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		name = &value
-		valueLang, err := validateDAVPropertyLanguagePointer("displayname xml:lang", req.NameLang)
+		valueLang, err := validateOptionalDAVPropertyLanguagePointer("displayname xml:lang", req.NameLang)
 		if err != nil {
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
@@ -2041,7 +2041,7 @@ func ValidateUpdateCalendarRequest(req UpdateCalendarRequest) (UpdateCalendarReq
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
 		description = &value
-		valueLang, err := validateDAVPropertyLanguagePointer("calendar-description xml:lang", req.DescriptionLang)
+		valueLang, err := validateOptionalDAVPropertyLanguagePointer("calendar-description xml:lang", req.DescriptionLang)
 		if err != nil {
 			return UpdateCalendarRequest{}, "", "", nil, nil, err
 		}
@@ -2055,6 +2055,17 @@ func validateDAVPropertyLanguagePointer(field string, value *string) (*string, e
 	if value == nil {
 		empty := ""
 		return &empty, nil
+	}
+	lang, err := ValidateDAVPropertyLanguage(*value)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", field, err)
+	}
+	return &lang, nil
+}
+
+func validateOptionalDAVPropertyLanguagePointer(field string, value *string) (*string, error) {
+	if value == nil {
+		return nil, nil
 	}
 	lang, err := ValidateDAVPropertyLanguage(*value)
 	if err != nil {

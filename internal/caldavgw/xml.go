@@ -367,7 +367,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 }
 
 func parseProppatchProp(dec *xml.Decoder, propStart xml.StartElement, set bool, req *ProppatchRequest, properties *int) error {
-	propLang, err := propLanguage(propStart)
+	propLang, err := propLanguagePointer(propStart)
 	if err != nil {
 		return err
 	}
@@ -400,7 +400,7 @@ func parseProppatchProp(dec *xml.Decoder, propStart xml.StartElement, set bool, 
 				}
 				value := strings.TrimSpace(text)
 				req.Name = &value
-				req.NameLang = &propLang
+				req.NameLang = propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-description"):
 				value := ""
@@ -415,7 +415,7 @@ func parseProppatchProp(dec *xml.Decoder, propStart xml.StartElement, set bool, 
 				}
 				req.Description = &value
 				if set {
-					req.DescriptionLang = &propLang
+					req.DescriptionLang = propLang
 				} else {
 					emptyLang := ""
 					req.DescriptionLang = &emptyLang
@@ -488,6 +488,19 @@ func propLanguage(start xml.StartElement) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func propLanguagePointer(start xml.StartElement) (*string, error) {
+	for _, attr := range start.Attr {
+		if attr.Name.Space == "http://www.w3.org/XML/1998/namespace" && attr.Name.Local == "lang" {
+			lang, err := ValidateDAVPropertyLanguage(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			return &lang, nil
+		}
+	}
+	return nil, nil
 }
 
 func ValidateDAVPropertyLanguage(value string) (string, error) {

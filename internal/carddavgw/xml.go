@@ -518,7 +518,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 }
 
 func parseProppatchProp(dec *xml.Decoder, prop xml.StartElement, set bool, req *ProppatchRequest, properties *int) error {
-	propLang, err := proppatchPropXMLLang(prop)
+	propLang, err := proppatchPropXMLLangPointer(prop)
 	if err != nil {
 		return err
 	}
@@ -551,7 +551,7 @@ func parseProppatchProp(dec *xml.Decoder, prop xml.StartElement, set bool, req *
 				}
 				value := strings.TrimSpace(text)
 				req.Name = &value
-				req.NameLang = &propLang
+				req.NameLang = propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
 				value := ""
@@ -566,7 +566,7 @@ func parseProppatchProp(dec *xml.Decoder, prop xml.StartElement, set bool, req *
 				}
 				req.Description = &value
 				if set {
-					req.DescriptionLang = &propLang
+					req.DescriptionLang = propLang
 				} else {
 					emptyLang := ""
 					req.DescriptionLang = &emptyLang
@@ -597,6 +597,19 @@ func proppatchPropXMLLang(prop xml.StartElement) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func proppatchPropXMLLangPointer(prop xml.StartElement) (*string, error) {
+	for _, attr := range prop.Attr {
+		if attr.Name.Space == xmlNamespace && attr.Name.Local == "lang" {
+			lang, err := validateXMLLang(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			return &lang, nil
+		}
+	}
+	return nil, nil
 }
 
 func validateXMLLang(value string) (string, error) {

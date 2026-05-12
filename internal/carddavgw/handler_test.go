@@ -293,11 +293,15 @@ func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Contex
 			}
 			if req.Name != nil {
 				book.Name = *req.Name
-				book.NameLang = *req.NameLang
+				if req.NameLang != nil {
+					book.NameLang = *req.NameLang
+				}
 			}
 			if req.Description != nil {
 				book.Description = *req.Description
-				book.DescriptionLang = *req.DescriptionLang
+				if req.DescriptionLang != nil {
+					book.DescriptionLang = *req.DescriptionLang
+				}
 			}
 			book.SyncToken = syncToken
 			book.UpdatedAt = time.Date(2026, 5, 6, 8, 9, 10, 0, time.UTC)
@@ -1192,6 +1196,43 @@ func TestHandlerProppatchStoresAndReturnsAddressBookPropertyLang(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("PROPPATCH response missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestHandlerProppatchPreservesAddressBookPropertyLanguageWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:displayname>Team Contacts</D:displayname>
+      <C:addressbook-description>People for launch work</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Team Contacts" || book.Description != "People for launch work" {
+		t.Fatalf("address book text = name %q description %q", book.Name, book.Description)
+	}
+	if book.NameLang != "ko-KR" || book.DescriptionLang != "fr" {
+		t.Fatalf("address book languages = name %q description %q", book.NameLang, book.DescriptionLang)
+	}
+	if store.lastBookUpdate.NameLang != nil || store.lastBookUpdate.DescriptionLang != nil {
+		t.Fatalf("update langs = name %#v description %#v, want nil", store.lastBookUpdate.NameLang, store.lastBookUpdate.DescriptionLang)
 	}
 }
 

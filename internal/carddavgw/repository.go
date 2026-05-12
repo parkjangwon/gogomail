@@ -1304,7 +1304,7 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 			return UpdateAddressBookRequest{}, "", "", err
 		}
 		name = &value
-		valueLang, err := validateXMLLangPointer("displayname xml:lang", req.NameLang)
+		valueLang, err := validateOptionalXMLLangPointer("displayname xml:lang", req.NameLang)
 		if err != nil {
 			return UpdateAddressBookRequest{}, "", "", err
 		}
@@ -1318,7 +1318,7 @@ func ValidateUpdateAddressBookRequest(req UpdateAddressBookRequest) (UpdateAddre
 			return UpdateAddressBookRequest{}, "", "", err
 		}
 		description = &value
-		valueLang, err := validateXMLLangPointer("addressbook-description xml:lang", req.DescriptionLang)
+		valueLang, err := validateOptionalXMLLangPointer("addressbook-description xml:lang", req.DescriptionLang)
 		if err != nil {
 			return UpdateAddressBookRequest{}, "", "", err
 		}
@@ -1332,6 +1332,17 @@ func validateXMLLangPointer(field string, value *string) (*string, error) {
 	if value == nil {
 		empty := ""
 		return &empty, nil
+	}
+	lang, err := validateXMLLangString(field, *value)
+	if err != nil {
+		return nil, err
+	}
+	return &lang, nil
+}
+
+func validateOptionalXMLLangPointer(field string, value *string) (*string, error) {
+	if value == nil {
+		return nil, nil
 	}
 	lang, err := validateXMLLangString(field, *value)
 	if err != nil {

@@ -140,6 +140,41 @@ func TestParseProppatchCollectsPropXMLLang(t *testing.T) {
 	}
 }
 
+func TestParseProppatchPreservesNilXMLLangWhenAbsent(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:displayname>Team</D:displayname>
+      <C:addressbook-description>Contacts</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.NameLang != nil || req.DescriptionLang != nil {
+		t.Fatalf("langs = name %#v description %#v, want nil", req.NameLang, req.DescriptionLang)
+	}
+}
+
+func TestParseProppatchDistinguishesEmptyXMLLangFromAbsent(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:">
+  <D:set><D:prop xml:lang=""><D:displayname>Team</D:displayname></D:prop></D:set>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.NameLang == nil || *req.NameLang != "" {
+		t.Fatalf("name lang = %#v, want explicit empty", req.NameLang)
+	}
+}
+
 func TestParseProppatchRemovesAddressBookDescription(t *testing.T) {
 	t.Parallel()
 

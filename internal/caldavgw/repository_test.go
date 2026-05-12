@@ -289,6 +289,25 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	}
 }
 
+func TestValidateUpdateCalendarRequestPreservesNilLanguageWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	name := "Product"
+	description := "Launch dates"
+	req, _, _, _, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
+		UserID:      "user-1",
+		CalendarID:  "calendar-1",
+		Name:        &name,
+		Description: &description,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateCalendarRequest returned error: %v", err)
+	}
+	if req.NameLang != nil || req.DescriptionLang != nil {
+		t.Fatalf("langs = name %#v description %#v, want nil", req.NameLang, req.DescriptionLang)
+	}
+}
+
 func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
