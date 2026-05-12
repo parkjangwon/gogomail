@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang malformed prefix WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` headers with malformed
+  non-empty prefixes before a condition list.
+- WebDAV `If` evaluation now requires each condition-list prefix to be empty
+  or a `<resource-tag>`, returning HTTP 400 before body reads and before
+  attempted explicit `xml:lang` mutations can reach repository updates.
+
 ## CalDAV/CardDAV xml:lang trailing WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover WebDAV `If` headers with trailing
   tokens after a syntactically valid, matching condition list.
