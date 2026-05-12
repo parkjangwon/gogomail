@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-213: CardDAV/CalDAV collection xml:lang unsupported-property rollback audit
+## TASK-214: CardDAV/CalDAV collection xml:lang conditional failure rollback audit
 
 ### 배경
 
-TASK-211과 TASK-212에서 omitted `xml:lang` 보존과 explicit empty clearing은
-검증되었다. 이제 RFC 4918 PROPPATCH atomicity에 따라 unsupported/protected
-property가 섞인 실패 요청에서 text mutation뿐 아니라 language tag mutation도
-함께 롤백되는지 검증한다.
+TASK-213에서 unsupported/protected property 실패 시 language mutation이
+롤백됨을 검증했다. 이제 collection precondition 실패(`If-Match`,
+`If-None-Match`, `If-Unmodified-Since`)가 PROPPATCH body를 읽기 전에 차단되며,
+그 안의 `xml:lang` mutation도 적용되지 않는지 검증한다.
 
 ### 구현 대상
 
@@ -21,15 +21,14 @@ property가 섞인 실패 요청에서 text mutation뿐 아니라 language tag m
 
 ### 완료 조건
 
-- [x] CalDAV unsupported-property PROPPATCH 실패가 displayname language mutation을 롤백한다.
-- [x] CalDAV duplicate dependency/protected remove 실패가 description language mutation을 롤백한다.
-- [x] CardDAV unsupported-property PROPPATCH 실패가 displayname language mutation을 롤백한다.
-- [x] CardDAV duplicate dependency/protected remove 실패가 description language mutation을 롤백한다.
-- [x] 실패 응답에서 CalDAV/CardDAV repository update가 호출되지 않음을 검증한다.
+- [x] CalDAV conditional failure PROPPATCH가 body의 displayname language mutation을 적용하지 않는다.
+- [x] CardDAV conditional failure PROPPATCH가 body의 displayname language mutation을 적용하지 않는다.
+- [x] CalDAV/CardDAV conditional failure가 body read와 repository update 전에 차단됨을 검증한다.
+- [x] CalDAV/CardDAV repeated `If-Unmodified-Since` 실패도 body read 전에 차단됨을 검증한다.
 - [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-214: CardDAV/CalDAV collection xml:lang conditional failure rollback audit
+TASK-215: CardDAV/CalDAV collection xml:lang conditional success preservation audit

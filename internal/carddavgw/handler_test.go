@@ -1569,8 +1569,9 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
 	store.books[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
 	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
@@ -1590,13 +1591,20 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	if book.Name != "Personal" {
 		t.Fatalf("address book name = %q, want Personal", book.Name)
 	}
+	if book.NameLang != "ko-KR" {
+		t.Fatalf("address book name lang = %q, want ko-KR", book.NameLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsRepeatedIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	store.books[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
 	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
@@ -1612,6 +1620,16 @@ func TestHandlerProppatchRejectsRepeatedIfUnmodifiedSinceBeforeBodyRead(t *testi
 	}
 	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
 		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" || book.NameLang != "ko-KR" {
+		t.Fatalf("address book mutated despite failed precondition: %+v", book)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
 	}
 }
 
@@ -1667,7 +1685,8 @@ func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	store.books[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
 	req.Header.Set("If-Match", `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`)
@@ -1680,17 +1699,28 @@ func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)
 	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" || book.NameLang != "ko-KR" {
+		t.Fatalf("address book mutated despite failed precondition: %+v", book)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
 	etag, err := AddressBookCollectionETag("user-1", store.books[0])
 	if err != nil {
 		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
 	}
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
 	req.Header.Set("If-None-Match", etag)
@@ -1710,13 +1740,20 @@ func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) 
 	if book.Name != "Personal" {
 		t.Fatalf("address book name = %q, want Personal", book.Name)
 	}
+	if book.NameLang != "ko-KR" {
+		t.Fatalf("address book name lang = %q, want ko-KR", book.NameLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	store.books[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", body)
 	req.Header.Set("If-None-Match", "*")
@@ -1735,6 +1772,12 @@ func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
 	}
 	if book.Name != "Personal" {
 		t.Fatalf("address book name = %q, want Personal", book.Name)
+	}
+	if book.NameLang != "ko-KR" {
+		t.Fatalf("address book name lang = %q, want ko-KR", book.NameLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastBookUpdate)
 	}
 }
 

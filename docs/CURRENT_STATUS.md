@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang conditional rollback coverage (2026-05-13, complete)
+- Collection `PROPPATCH` conditional failure tests now use unread bodies with
+  attempted `xml:lang` mutations and assert existing language tags remain
+  unchanged.
+- CalDAV/CardDAV coverage includes stale `If-Unmodified-Since`, repeated
+  `If-Unmodified-Since`, mismatched `If-Match`, matching `If-None-Match`, and
+  `If-None-Match: *`, with zero body reads and no repository update calls.
+
 ## CalDAV/CardDAV xml:lang PROPPATCH rollback coverage (2026-05-13, complete)
 - Unsupported/protected collection `PROPPATCH` handler tests now include
   attempted `xml:lang` mutations and assert existing language tags remain
