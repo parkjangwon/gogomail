@@ -336,8 +336,57 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (result) setSendResult(result);
   }, []);
 
+  const sendStatusText = (() => {
+    switch (sendResult?.send_status) {
+      case 'sent':
+        return '발송 요청 완료';
+      case 'scheduled':
+        return '예약 등록';
+      case 'failed':
+        return '발송 실패';
+      case 'queued':
+      case undefined:
+        return '대기열 등록';
+      default:
+        return sendResult?.send_status ?? '';
+    }
+  })();
+
+  const deliveryStatusText = (() => {
+    switch (sendResult?.delivery_status) {
+      case 'delivered':
+        return '배송 완료';
+      case 'deferred':
+        return '재시도 중';
+      case 'failed':
+        return '배송 실패';
+      case 'pending':
+      case undefined:
+        return '배송 대기';
+      default:
+        return sendResult?.delivery_status ?? '';
+    }
+  })();
+
+  const bounceStatusText = (() => {
+    switch (sendResult?.bounce_status) {
+      case 'bounced':
+        return '반송됨';
+      case 'complained':
+        return '스팸 신고';
+      case 'none':
+      case '':
+      case undefined:
+        return '';
+      default:
+        return sendResult?.bounce_status ?? '';
+    }
+  })();
+
   const sendResultLabel = sendResult
-    ? `전송 상태: ${sendResult.send_status || 'queued'} · 배송: ${sendResult.delivery_status || 'pending'}`
+    ? ['전송: ' + sendStatusText, '배송: ' + deliveryStatusText, bounceStatusText && '반송: ' + bounceStatusText]
+        .filter(Boolean)
+        .join(' · ')
     : '';
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {

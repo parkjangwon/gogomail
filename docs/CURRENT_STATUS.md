@@ -223,6 +223,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Undo-countdown, scheduled, and immediate send paths now share the same dispatch helper while preserving existing success, failure, and draft cleanup behavior.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send result user guidance (TASK-126, 2026-05-12, complete)
+- Completed send-result status copy improvement for user webmail beta.
+- ComposeModal now translates send status values such as `queued`, `scheduled`, `sent`, and `failed` into user-facing Korean guidance.
+- Delivery status values such as `pending`, `deferred`, `delivered`, and `failed` are also shown as user-facing Korean guidance.
+- Bounce or complaint state is appended only when the backend reports a meaningful non-empty bounce status.
+- Existing backend response contracts, success timing, and visual design direction are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
