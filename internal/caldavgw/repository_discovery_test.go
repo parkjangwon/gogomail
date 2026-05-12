@@ -12,6 +12,7 @@ func TestRepositorySatisfiesDiscoveryStore(t *testing.T) {
 	t.Parallel()
 
 	var _ DiscoveryStore = NewRepository(nil)
+	var _ CalendarQueryCandidateWalker = NewRepository(nil)
 }
 
 func TestRepositoryDiscoveryMethodsRequireDatabase(t *testing.T) {
@@ -27,6 +28,9 @@ func TestRepositoryDiscoveryMethodsRequireDatabase(t *testing.T) {
 		{name: "calendars", run: func() error { _, err := repo.ListCalendarCollections(ctx, "user-1"); return err }},
 		{name: "calendar", run: func() error { _, err := repo.LookupCalendar(ctx, "user-1", "calendar-1"); return err }},
 		{name: "objects", run: func() error { _, err := repo.ListCalendarObjects(ctx, "user-1", "calendar-1"); return err }},
+		{name: "query candidates", run: func() error {
+			return repo.WalkCalendarQueryCandidates(ctx, "user-1", "calendar-1", CalendarStatusActive, ComponentVEVENT, func(CalendarObject) (bool, error) { return false, nil })
+		}},
 		{name: "object", run: func() error {
 			_, err := repo.LookupCalendarObject(ctx, "user-1", "calendar-1", "event.ics")
 			return err
