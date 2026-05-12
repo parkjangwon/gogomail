@@ -3,6 +3,8 @@ import { composeCloseSavePrompt } from '../src/lib/composeCloseSavePrompt.ts';
 import { composeSendButtonLabel } from '../src/lib/composeSendButtonLabel.ts';
 import { toDateTimeLocalValue } from '../src/lib/dateTimeLocal.ts';
 
+// Keep these assertions focused on pure compose helpers that are easy to
+// regress through copy or datetime formatting changes.
 assert.equal(toDateTimeLocalValue(new Date(2026, 0, 2, 3, 4)), '2026-01-02T03:04');
 assert.equal(toDateTimeLocalValue(new Date(2026, 10, 12, 13, 45)), '2026-11-12T13:45');
 
