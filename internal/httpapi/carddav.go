@@ -28,6 +28,8 @@ type ContactRepo interface {
 
 type DirectoryRepo interface {
 	SearchPrincipals(ctx context.Context, req directory.SearchPrincipalsRequest) ([]directory.Principal, error)
+	ResolvePrincipal(ctx context.Context, req directory.ResolvePrincipalRequest) (directory.Principal, error)
+	ListOrgTree(ctx context.Context, companyID, domainID string) ([]directory.OrgTreeItem, error)
 }
 
 type ContactHandler struct {
@@ -515,6 +517,76 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	})
+
+	// GET /api/v1/directory/org-tree — org units with their members
+	mux.HandleFunc("GET /api/v1/directory/org-tree", func(w http.ResponseWriter, r *http.Request) {
+		if handler.directoryRepo == nil {
+			writeError(w, http.StatusServiceUnavailable, "directory not available")
+			return
+		}
+		var companyID, domainID string
+		if tokenManager != nil {
+			claims, ok := claimsFromRequest(w, r, tokenManager)
+			if !ok {
+				return
+			}
+			companyID = claims.CompanyID
+			domainID = claims.DomainID
+		} else {
+			userID, ok := userIDFromRequest(w, r, nil)
+			if !ok {
+				return
+			}
+			p, err := handler.directoryRepo.ResolvePrincipal(r.Context(), directory.ResolvePrincipalRequest{
+				ID:   userID,
+				Kind: directory.PrincipalKindUser,
+			})
+			if err != nil {
+				writeJSON(w, http.StatusOK, map[string]any{"units": []any{}})
+				return
+			}
+			companyID = p.CompanyID
+			domainID = p.DomainID
+		}
+		orgs, err := handler.directoryRepo.ListOrgTree(r.Context(), companyID, domainID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "org search failed")
+			return
+		}
+		type OrgMember struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"display_name"`
+			Email       string `json:"email"`
+		}
+		type OrgUnit struct {
+			ID          string      `json:"id"`
+			DisplayName string      `json:"display_name"`
+			ParentID    string      `json:"parent_id,omitempty"`
+			Depth       int         `json:"depth"`
+			Members     []OrgMember `json:"members"`
+		}
+		units := make([]OrgUnit, 0, len(orgs))
+		for _, org := range orgs {
+			members, _ := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
+				CompanyID:      companyID,
+				DomainID:       domainID,
+				OrganizationID: org.ID,
+				Kinds:          []string{directory.PrincipalKindUser},
+				ActiveOnly:     true,
+				Limit:          100,
+			})
+			mList := make([]OrgMember, 0, len(members))
+			for _, m := range members {
+				mList = append(mList, OrgMember{ID: m.ID, DisplayName: m.DisplayName, Email: m.PrimaryEmail})
+			}
+			units = append(units, OrgUnit{
+				ID: org.ID, DisplayName: org.DisplayName,
+				ParentID: org.ParentID, Depth: org.Depth,
+				Members: mList,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"units": units})
 	})
 }
 

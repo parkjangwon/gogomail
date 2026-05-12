@@ -1,6 +1,17 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail Phase 3: star/read toggles, Drive attach, emoji picker, ICS calendar, unread badge, undo toasts, print)
+Last updated: 2026-05-12 (Webmail Phase 3+: org chart recipient picker, group autocomplete)
+
+## Org chart recipient picker + group autocomplete (TASK-094, 2026-05-12)
+- Extracted OrgPickerModal.tsx: standalone 3-pane modal (org tree / address books, members/contacts, recipients)
+- Tab switching between org units and address books with search/filter across members
+- Multi-field support (to/cc/bcc) with active field management and deduplication
+- ParseToPickerItems / pickerItemsToString helpers for string↔picker item conversion
+- Updated ComposeModal: integrated OrgPickerModal, removed inline org picker state
+- Backend: ListOrgTree repository method + GET /api/v1/directory/org-tree endpoint
+- OrgUnit struct with hierarchical depth, ParentID, and member resolution (100 users per org)
+- ReadingPane: org picker support for inline compose replies
+- RecipientChips: group badge type support ("그룹" label for contact suggestions)
 
 ## Webmail Phase 3 power features (2026-05-12)
 - ReadingPane: star toggle button in toolbar (`onStar` / `isStarred` props wired from page.tsx via `messages.find`)

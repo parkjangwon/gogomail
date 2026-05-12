@@ -15,7 +15,21 @@ interface RecipientChipsProps {
 }
 
 function parseEmails(raw: string): string[] {
-  return raw.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+  // Split on commas/semicolons outside angle brackets so "Name <email>" stays together
+  const parts: string[] = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === '<') depth++;
+    else if (raw[i] === '>') depth--;
+    else if ((raw[i] === ',' || raw[i] === ';') && depth === 0) {
+      const part = raw.slice(start, i).trim();
+      if (part) parts.push(part);
+      start = i + 1;
+    }
+  }
+  const last = raw.slice(start).trim();
+  if (last) parts.push(last);
+  return parts;
 }
 
 /** Format a ContactSuggestion as a chip string. */
@@ -31,6 +45,16 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
   const [apiResults, setApiResults] = useState<ContactSuggestion[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastExternalValue = useRef(value);
+
+  // Sync chips when value is changed externally (e.g. org picker confirm)
+  useEffect(() => {
+    if (value !== lastExternalValue.current) {
+      lastExternalValue.current = value;
+      setChips(value ? parseEmails(value) : []);
+      setInput('');
+    }
+  }, [value]);
 
   // Debounced API autocomplete
   useEffect(() => {

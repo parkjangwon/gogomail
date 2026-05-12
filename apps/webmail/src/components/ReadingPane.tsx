@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
 import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, TrackingEvent, listAttachments, downloadAttachment, getMessageDeliveryStatus, getMessageTracking, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
+import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -28,8 +29,27 @@ import {
   ListBulletIcon,
   NumberedListIcon,
   XMarkIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { RecipientChips } from './RecipientChips';
+
+function parseAddr(raw: string): { address: string; name?: string } {
+  const m = raw.match(/^(.+?)\s*<([^>]+)>$/);
+  if (m) return { name: m[1].trim() || undefined, address: m[2].trim() };
+  return { address: raw.trim() };
+}
+function parseAddrs(raw: string): { address: string; name?: string }[] {
+  const parts: string[] = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === '<') depth++;
+    else if (raw[i] === '>') depth--;
+    else if (raw[i] === ',' && depth === 0) { parts.push(raw.slice(start, i)); start = i + 1; }
+  }
+  parts.push(raw.slice(start));
+  return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
+}
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 function linkify(text: string): ReactNode[] {
@@ -277,14 +297,21 @@ interface InlineComposeProps {
   userEmail?: string;
 }
 
-function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, onOpenFullModal }: InlineComposeProps) {
+function InlineCompose({ intent, to: initTo, subject: initSubject, messageId, sourceText, onClose, onOpenFullModal, userEmail }: InlineComposeProps) {
+  const [to, setTo] = useState(initTo);
+  const [subject, setSubject] = useState(initSubject);
+  const [cc, setCc] = useState('');
+  const [bcc, setBcc] = useState('');
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [cc, setCc] = useState('');
-  const [showCc, setShowCc] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ id: string; filename: string; size: number; uploading?: boolean }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Org picker
+  const [orgPickerOpen, setOrgPickerOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -301,9 +328,7 @@ function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, on
 
   function handleLinkInsert() {
     const url = window.prompt('링크 URL을 입력하세요:');
-    if (url && editor) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
+    if (url && editor) editor.chain().focus().setLink({ href: url }).run();
   }
 
   async function handleImageFile(file: File) {
@@ -317,11 +342,10 @@ function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, on
         reader.readAsDataURL(file);
       });
     } else {
-      const objectUrl = URL.createObjectURL(file);
+      src = URL.createObjectURL(file);
       uploadAttachment(file).then((att) => {
         setAttachments((prev) => [...prev, { id: att.id, filename: att.filename, size: att.size }]);
       }).catch(() => {});
-      src = objectUrl;
     }
     editor.chain().focus().setImage({ src, alt: file.name }).run();
   }
@@ -341,28 +365,27 @@ function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, on
 
   function doSend() {
     if (sending || !editor) return;
-    const html = editor.getHTML();
-    const toAddrs = to ? to.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) : [];
-    const ccAddrs = cc ? cc.split(',').map((a) => ({ address: a.trim() })).filter((a) => a.address) : [];
+    const toAddrs = parseAddrs(to);
+    const ccAddrs = parseAddrs(cc);
+    const bccAddrs = parseAddrs(bcc);
     setSending(true);
     sendMessage({
       to: toAddrs,
       cc: ccAddrs.length ? ccAddrs : undefined,
+      bcc: bccAddrs.length ? bccAddrs : undefined,
       subject,
       text_body: '',
-      html_body: html,
+      html_body: editor.getHTML(),
       source_message_id: messageId,
       attachment_ids: attachments.filter((a) => !a.uploading).map((a) => a.id),
     })
-      .then(() => {
-        setSent(true);
-        setTimeout(() => { onClose(); }, 1500);
-      })
+      .then(() => { setSent(true); setTimeout(() => { onClose(); }, 1500); })
       .catch(() => {})
       .finally(() => setSending(false));
   }
 
   const intentLabel = intent === 'reply' ? '답장' : intent === 'reply_all' ? '전체 답장' : '전달';
+  const T = toolbarBtnStyleInline;
 
   function fmtSize(bytes: number): string {
     if (bytes < 1024) return `${bytes}B`;
@@ -371,70 +394,109 @@ function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, on
   }
 
   return (
-    <div style={{ marginTop: '24px', maxWidth: '680px', borderRadius: '8px 8px 0 0', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', flex: 1 }}>
-          {intentLabel}: {to}
-        </span>
-        <button
-          type="button"
-          aria-label="새창으로 열기"
-          title="새창으로 열기"
-          onClick={onOpenFullModal}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
-          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-        >
-          <ArrowTopRightOnSquareIcon style={{ width: '15px', height: '15px' }} />
-        </button>
-        <button
-          type="button"
-          aria-label="닫기"
-          onClick={onClose}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '4px' }}
-          onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
-          onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}
-        >
-          <XMarkIcon style={{ width: '15px', height: '15px' }} />
-        </button>
-      </div>
-
-      {/* CC row */}
-      <div style={{ padding: '0 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>참조:</span>
-          {showCc ? (
-            <input
-              type="text"
-              value={cc}
-              onChange={(e) => setCc(e.target.value)}
-              placeholder="참조 주소..."
-              style={{ flex: 1, border: 'none', outline: 'none', fontSize: '12px', background: 'transparent', color: 'var(--color-text-primary)' }}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowCc(true)}
-              style={{ fontSize: '12px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              참조 추가
-            </button>
-          )}
+    <div style={{ marginTop: '24px', borderRadius: '8px 8px 0 0', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
+      {/* Header — matches ComposeModal */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)' }}>
+        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', flex: 1 }}>{intentLabel}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button type="button" aria-label="새창으로 열기" title="새창으로 열기" onClick={onOpenFullModal}
+            style={{ width: '24px', height: '24px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>
+            <ArrowTopRightOnSquareIcon style={{ width: '14px', height: '14px' }} />
+          </button>
+          <button type="button" aria-label="닫기" onClick={onClose}
+            style={{ width: '24px', height: '24px', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}>×</button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '4px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexWrap: 'wrap' }}>
-        <button type="button" aria-label="굵게" title="굵게" style={toolbarBtnStyleInline(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
-        <button type="button" aria-label="기울임" title="기울임" style={toolbarBtnStyleInline(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
-        <button type="button" aria-label="밑줄" title="밑줄" style={toolbarBtnStyleInline(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
-        <button type="button" aria-label="글머리 목록" title="글머리 목록" style={toolbarBtnStyleInline(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
-        <button type="button" aria-label="번호 목록" title="번호 목록" style={toolbarBtnStyleInline(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
-        <button type="button" aria-label="링크" title="링크" style={toolbarBtnStyleInline(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
-        <button type="button" aria-label="이미지 삽입" title="이미지 삽입" style={toolbarBtnStyleInline()} onClick={() => imageInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
-        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)', margin: '0 2px' }} />
-        <button type="button" aria-label="파일 첨부" title="파일 첨부" style={toolbarBtnStyleInline()} onClick={() => fileInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
+      {/* From row */}
+      {userEmail && (
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '6px 16px', gap: '8px', background: 'var(--color-bg-secondary)' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>보내는 사람</span>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{userEmail}</span>
+        </div>
+      )}
+
+      {/* To row */}
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
+        <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>받는 사람</label>
+        <RecipientChips value={to} onChange={setTo} placeholder="example@domain.com" autoFocus />
+        <div style={{ display: 'flex', gap: '2px', flexShrink: 0, alignItems: 'center' }}>
+          <button type="button" onClick={() => setOrgPickerOpen(true)} title="조직도에서 선택"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
+            <UsersIcon style={{ width: '15px', height: '15px' }} />
+          </button>
+          <button type="button"
+            onClick={() => { setShowCc((v) => !v); if (showCc) setCc(''); }}
+            style={{ fontSize: '12px', color: showCc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500, flexShrink: 0 }}
+            onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.color = showCc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'; }}>Cc</button>
+          <button type="button"
+            onClick={() => { setShowBcc((v) => !v); if (showBcc) setBcc(''); }}
+            style={{ fontSize: '12px', color: showBcc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', fontWeight: 500, flexShrink: 0 }}
+            onMouseEnter={(e) => { (e.currentTarget).style.color = 'var(--color-text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget).style.color = showBcc ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)'; }}>Bcc</button>
+        </div>
+      </div>
+
+      {/* Cc row */}
+      {showCc && (
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
+          <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>Cc</label>
+          <RecipientChips value={cc} onChange={setCc} placeholder="example@domain.com, ..." />
+          <button type="button" onClick={() => setOrgPickerOpen(true)} title="조직도에서 선택"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
+            <UsersIcon style={{ width: '15px', height: '15px' }} />
+          </button>
+          <button type="button" onClick={() => { setShowCc(false); setCc(''); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
+            <XMarkIcon style={{ width: '13px', height: '13px' }} />
+          </button>
+        </div>
+      )}
+
+      {/* Bcc row */}
+      {showBcc && (
+        <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
+          <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', flexShrink: 0, paddingRight: '8px' }}>Bcc</label>
+          <RecipientChips value={bcc} onChange={setBcc} placeholder="example@domain.com, ..." />
+          <button type="button" onClick={() => setOrgPickerOpen(true)} title="조직도에서 선택"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
+            <UsersIcon style={{ width: '15px', height: '15px' }} />
+          </button>
+          <button type="button" onClick={() => { setShowBcc(false); setBcc(''); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
+            <XMarkIcon style={{ width: '13px', height: '13px' }} />
+          </button>
+        </div>
+      )}
+
+      {/* Org picker */}
+      {orgPickerOpen && (
+        <OrgPickerModal
+          initialTo={parseToPickerItems(to)}
+          initialCc={parseToPickerItems(cc)}
+          initialBcc={parseToPickerItems(bcc)}
+          onClose={() => setOrgPickerOpen(false)}
+          onConfirm={({ to: t, cc: c, bcc: b }) => {
+            const newTo = pickerItemsToString(t);
+            const newCc = pickerItemsToString(c);
+            const newBcc = pickerItemsToString(b);
+            setTo(newTo);
+            if (newCc) { setShowCc(true); setCc(newCc); }
+            if (newBcc) { setShowBcc(true); setBcc(newBcc); }
+            setOrgPickerOpen(false);
+          }}
+        />
+      )}
+
+      {/* Subject row */}
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 16px' }}>
+        <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="제목"
+          style={{ flex: 1, padding: '10px 0', border: 'none', outline: 'none', fontSize: '14px', background: 'transparent', color: 'var(--color-text-primary)', fontWeight: 500 }} />
       </div>
 
       {/* Hidden file inputs */}
@@ -442,41 +504,43 @@ function InlineCompose({ intent, to, subject, messageId, sourceText, onClose, on
       <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.[0]) { void handleImageFile(e.target.files[0]); e.target.value = ''; } }} />
 
       {/* Editor body */}
-      <div
-        style={{ minHeight: '120px', padding: '12px 14px', cursor: 'text' }}
-        onClick={() => editor?.commands.focus()}
-      >
-        <EditorContent
-          editor={editor}
-          style={{ outline: 'none', fontSize: '14px', lineHeight: 1.6, color: 'var(--color-text-primary)' }}
-        />
+      <div style={{ minHeight: '140px', padding: '12px 16px', cursor: 'text' }} onClick={() => editor?.commands.focus()}>
+        <EditorContent editor={editor} style={{ outline: 'none', fontSize: '14px', lineHeight: 1.6, color: 'var(--color-text-primary)' }} />
       </div>
 
       {/* Attachment chips */}
       {attachments.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '0 14px 8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '0 16px 8px' }}>
           {attachments.map((att) => (
-            <span key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '4px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+            <span key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-subtle)', borderRadius: '12px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
               <PaperClipIcon style={{ width: '12px', height: '12px' }} />
               {att.filename} {att.uploading ? '(업로드 중...)' : `(${fmtSize(att.size)})`}
               {!att.uploading && (
-                <button type="button" onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'var(--color-text-tertiary)' }}>×</button>
+                <button type="button" onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'var(--color-text-tertiary)', display: 'inline-flex' }}>
+                  <XMarkIcon style={{ width: '12px', height: '12px' }} />
+                </button>
               )}
             </span>
           ))}
         </div>
       )}
 
-      {/* Footer / send */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '8px 14px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--color-border-subtle)' }}>
-        <button
-          type="button"
-          disabled={sending}
-          onClick={doSend}
-          style={{ padding: '6px 20px', borderRadius: '5px', border: 'none', background: sending ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: sending ? 'not-allowed' : 'pointer' }}
-        >
+      {/* Footer — send button left, toolbar icons right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderTop: '1px solid var(--color-border-subtle)' }}>
+        <button type="button" disabled={sending || sent} onClick={doSend}
+          style={{ padding: '7px 16px', borderRadius: '20px', border: 'none', background: (sending || sent) ? 'var(--color-border-default)' : 'var(--color-accent)', color: '#fff', fontSize: '13px', fontWeight: 500, cursor: (sending || sent) ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
           {sent ? '전송됨 ✓' : sending ? '전송 중...' : '전송'}
         </button>
+        <div style={{ flex: 1 }} />
+        <button type="button" title="굵게" style={T(editor?.isActive('bold'))} onClick={() => editor?.chain().focus().toggleBold().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bold') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><b>B</b></button>
+        <button type="button" title="기울임" style={T(editor?.isActive('italic'))} onClick={() => editor?.chain().focus().toggleItalic().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('italic') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><i>I</i></button>
+        <button type="button" title="밑줄" style={T(editor?.isActive('underline'))} onClick={() => editor?.chain().focus().toggleUnderline().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('underline') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><u>U</u></button>
+        <button type="button" title="글머리 목록" style={T(editor?.isActive('bulletList'))} onClick={() => editor?.chain().focus().toggleBulletList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('bulletList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><ListBulletIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" title="번호 목록" style={T(editor?.isActive('orderedList'))} onClick={() => editor?.chain().focus().toggleOrderedList().run()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('orderedList') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><NumberedListIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" title="링크" style={T(editor?.isActive('link'))} onClick={handleLinkInsert} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = editor?.isActive('link') ? 'var(--color-bg-tertiary)' : 'transparent'; }}><LinkIcon style={{ width: '14px', height: '14px' }} /></button>
+        <button type="button" title="이미지 삽입" style={T()} onClick={() => imageInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PhotoIcon style={{ width: '14px', height: '14px' }} /></button>
+        <div style={{ width: '1px', height: '16px', background: 'var(--color-border-subtle)' }} />
+        <button type="button" title="파일 첨부" style={T()} onClick={() => fileInputRef.current?.click()} onMouseEnter={(e) => { (e.currentTarget).style.background = 'var(--color-bg-tertiary)'; }} onMouseLeave={(e) => { (e.currentTarget).style.background = 'transparent'; }}><PaperClipIcon style={{ width: '14px', height: '14px' }} /></button>
       </div>
     </div>
   );

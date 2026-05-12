@@ -8,8 +8,9 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, listDirectoryUsers, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry, DirectoryUser } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
+import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
   PaperClipIcon,
   LinkIcon,
@@ -218,18 +219,15 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [attachingDriveId, setAttachingDriveId] = useState<string | null>(null);
 
   const [showOrgPicker, setShowOrgPicker] = useState(false);
-  const [orgPickerField, setOrgPickerField] = useState<'to' | 'cc' | 'bcc'>('to');
-  const [orgPickerQuery, setOrgPickerQuery] = useState('');
-  const [orgPickerUsers, setOrgPickerUsers] = useState<DirectoryUser[]>([]);
-  const [orgPickerSelected, setOrgPickerSelected] = useState<Set<string>>(new Set());
-  const [orgPickerLoading, setOrgPickerLoading] = useState(false);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>(() => {
     try {
       const s = localStorage.getItem('webmail_compose_size');
-      return s ? JSON.parse(s) : { w: 560, h: 620 };
+      const parsed = s ? JSON.parse(s) : { w: 560, h: 520 };
+      const maxH = typeof window !== 'undefined' ? window.innerHeight - 60 : 800;
+      return { w: parsed.w, h: Math.min(parsed.h, maxH) };
     } catch { return { w: 560, h: 520 }; }
   });
   const [showSendDropdown, setShowSendDropdown] = useState(false);
@@ -316,16 +314,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       if (primary && !fromAddress) setFromAddress(primary.address);
     }).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!showOrgPicker) return;
-    let cancelled = false;
-    setOrgPickerLoading(true);
-    listDirectoryUsers(orgPickerQuery || undefined, 50).then((users) => {
-      if (!cancelled) { setOrgPickerUsers(users); setOrgPickerLoading(false); }
-    }).catch(() => { if (!cancelled) setOrgPickerLoading(false); });
-    return () => { cancelled = true; };
-  }, [showOrgPicker, orgPickerQuery]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -561,33 +549,6 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       return next;
     });
   }, []);
-
-  function openOrgPicker(field: 'to' | 'cc' | 'bcc') {
-    setOrgPickerField(field);
-    setOrgPickerQuery('');
-    setOrgPickerSelected(new Set());
-    setShowOrgPicker(true);
-  }
-
-  function confirmOrgPick() {
-    const selected = orgPickerUsers.filter((u) => orgPickerSelected.has(u.id));
-    if (selected.length === 0) { setShowOrgPicker(false); return; }
-    const formatted = selected.map((u) => u.display_name ? `${u.display_name} <${u.email}>` : u.email).join(', ');
-    const addTo = (current: string) => current.trim() ? `${current.trim()}, ${formatted}` : formatted;
-    if (orgPickerField === 'to') {
-      const next = addTo(to);
-      setTo(next); toRef.current = next;
-    } else if (orgPickerField === 'cc') {
-      setShowCc(true);
-      const next = addTo(cc);
-      setCc(next); ccRef.current = next;
-    } else {
-      setShowBcc(true);
-      const next = addTo(bcc);
-      setBcc(next); bccRef.current = next;
-    }
-    setShowOrgPicker(false);
-  }
 
   function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
@@ -1018,7 +979,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               suggestions={recentRecipients}
             />
             <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '4px' }}>
-              <button type="button" onClick={() => openOrgPicker('to')} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1048,7 +1009,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
-              <button type="button" onClick={() => openOrgPicker('cc')} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1067,7 +1028,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 placeholder="example@domain.com, ..."
                 suggestions={recentRecipients}
               />
-              <button type="button" onClick={() => openOrgPicker('bcc')} title="조직도에서 선택"
+              <button type="button" onClick={() => setShowOrgPicker(true)} title="조직도에서 선택"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: '2px 4px', display: 'inline-flex', flexShrink: 0 }}>
                 <UsersIcon style={{ width: '15px', height: '15px' }} />
               </button>
@@ -1479,61 +1440,23 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         </div>
       )}
 
-      {/* Org picker panel */}
+      {/* Org picker */}
       {showOrgPicker && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}
-          onClick={() => setShowOrgPicker(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-primary)', borderRadius: '14px', width: '420px', maxWidth: 'calc(100vw - 32px)', maxHeight: '520px', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.22)', overflow: 'hidden' }}>
-            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--color-border-subtle)' }}>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '12px' }}>
-                조직도 — {orgPickerField === 'to' ? '받는 사람' : orgPickerField === 'cc' ? 'Cc' : 'Bcc'} 추가
-              </div>
-              <input
-                autoFocus
-                type="text"
-                value={orgPickerQuery}
-                onChange={(e) => setOrgPickerQuery(e.target.value)}
-                placeholder="이름 또는 이메일로 검색..."
-                style={{ width: '100%', padding: '8px 10px', fontSize: '13px', border: '1px solid var(--color-border-default)', borderRadius: '7px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-              {orgPickerLoading ? (
-                <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>검색 중...</div>
-              ) : orgPickerUsers.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>검색 결과가 없습니다</div>
-              ) : (
-                orgPickerUsers.map((user) => {
-                  const checked = orgPickerSelected.has(user.id);
-                  const initials = (user.display_name || user.email).slice(0, 2).toUpperCase();
-                  const hue = user.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-                  return (
-                    <label key={user.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 18px', cursor: 'pointer', background: checked ? 'var(--color-bg-secondary)' : 'transparent' }}>
-                      <input type="checkbox" checked={checked} onChange={() => setOrgPickerSelected((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(user.id)) next.delete(user.id); else next.add(user.id);
-                        return next;
-                      })} style={{ flexShrink: 0, accentColor: 'var(--color-accent)' }} />
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `hsl(${hue},55%,52%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0, userSelect: 'none' }}>{initials}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.display_name || user.email}</div>
-                        {user.display_name && <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>}
-                      </div>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-            <div style={{ padding: '14px 18px', borderTop: '1px solid var(--color-border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button type="button" onClick={() => setShowOrgPicker(false)}
-                style={{ padding: '8px 16px', borderRadius: '7px', border: '1px solid var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>취소</button>
-              <button type="button" onClick={confirmOrgPick} disabled={orgPickerSelected.size === 0}
-                style={{ padding: '8px 20px', borderRadius: '7px', border: 'none', background: orgPickerSelected.size > 0 ? 'var(--color-accent)' : 'var(--color-bg-tertiary)', color: orgPickerSelected.size > 0 ? '#fff' : 'var(--color-text-tertiary)', fontSize: '13px', fontWeight: 600, cursor: orgPickerSelected.size > 0 ? 'pointer' : 'default' }}>
-                {orgPickerSelected.size > 0 ? `추가 (${orgPickerSelected.size}명)` : '추가'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <OrgPickerModal
+          initialTo={parseToPickerItems(to)}
+          initialCc={parseToPickerItems(cc)}
+          initialBcc={parseToPickerItems(bcc)}
+          onClose={() => setShowOrgPicker(false)}
+          onConfirm={({ to: t, cc: c, bcc: b }) => {
+            const newTo = pickerItemsToString(t);
+            const newCc = pickerItemsToString(c);
+            const newBcc = pickerItemsToString(b);
+            setTo(newTo); toRef.current = newTo;
+            if (newCc) { setShowCc(true); setCc(newCc); ccRef.current = newCc; }
+            if (newBcc) { setShowBcc(true); setBcc(newBcc); bccRef.current = newBcc; }
+            setShowOrgPicker(false);
+          }}
+        />
       )}
 
       {/* Floating image resize toolbar */}

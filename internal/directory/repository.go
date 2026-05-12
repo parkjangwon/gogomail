@@ -491,6 +491,35 @@ func mapDirectoryAliasInsertError(err error) error {
 	return fmt.Errorf("create directory alias: %w", err)
 }
 
+func (r *Repository) ListOrgTree(ctx context.Context, companyID, domainID string) ([]OrgTreeItem, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	const q = `
+SELECT o.id::text, o.name, COALESCE(o.parent_id::text, ''), o.depth, o.order_index
+FROM organizations o
+JOIN domains d ON d.id = o.domain_id
+JOIN companies c ON c.id = d.company_id
+WHERE c.id = $1::uuid
+  AND ($2 = '' OR d.id = NULLIF($2, '')::uuid)
+  AND o.status = 'active'
+ORDER BY o.depth, o.order_index, lower(o.name)`
+	rows, err := r.db.QueryContext(ctx, q, companyID, domainID)
+	if err != nil {
+		return nil, fmt.Errorf("list org tree: %w", err)
+	}
+	defer rows.Close()
+	var result []OrgTreeItem
+	for rows.Next() {
+		var item OrgTreeItem
+		if err := rows.Scan(&item.ID, &item.DisplayName, &item.ParentID, &item.Depth, &item.OrderIndex); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
 func (r *Repository) SearchPrincipals(ctx context.Context, req SearchPrincipalsRequest) ([]Principal, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
