@@ -457,9 +457,7 @@ func parseProppatchSet(dec *xml.Decoder, setName xml.Name, req *ProppatchRequest
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return err
-			}
+			return fmt.Errorf("unsupported PROPPATCH set element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, setName) {
 				return nil
@@ -485,9 +483,7 @@ func parseProppatchRemove(dec *xml.Decoder, removeName xml.Name, req *ProppatchR
 				}
 				continue
 			}
-			if err := skipElement(dec, tok.Name); err != nil {
-				return err
-			}
+			return fmt.Errorf("unsupported PROPPATCH remove element {%s}%s", tok.Name.Space, tok.Name.Local)
 		case xml.EndElement:
 			if sameName(tok.Name, removeName) {
 				return nil

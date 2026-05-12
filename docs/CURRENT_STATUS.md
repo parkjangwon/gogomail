@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH structural body strictness (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` now reject unknown structural children inside
+  `DAV:set` and `DAV:remove` as parse errors instead of silently skipping them.
+- Unsupported and protected property failure semantics remain scoped to
+  property elements inside `DAV:prop`, preserving atomic property-level
+  `207 Multi-Status` handling for valid instruction shapes.
+- Regression tests cover malformed set/remove instruction structure in both
+  gateways.
+
 ## CalDAV PROPPATCH unsupported/protected property failure responses (2026-05-13, complete)
 - CalDAV `PROPPATCH` now preserves unsupported properties and protected `DAV:displayname`
   remove attempts as request metadata instead of silently skipping or parse-rejecting them.
