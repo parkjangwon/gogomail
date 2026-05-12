@@ -433,7 +433,7 @@ func TestHandlerOptionsAdvertisesCardDAVDiscovery(t *testing.T) {
 			t.Fatalf("Allow = %q, missing %q", rec.Header().Get("Allow"), want)
 		}
 	}
-	for _, want := range []string{DAVClass1, DAVClass3, DAVAddressBook, DAVSyncCollection} {
+	for _, want := range []string{DAVClass1, DAVClass3, DAVAddressBook, DAVExtendedMKCOL, DAVSyncCollection} {
 		if !strings.Contains(rec.Header().Get("DAV"), want) {
 			t.Fatalf("DAV = %q, missing %q", rec.Header().Get("DAV"), want)
 		}
@@ -1470,6 +1470,83 @@ func TestHandlerMkcolCreatesAddressBookAtRequestURI(t *testing.T) {
 	}
 	if book.Name != "Team Contacts" || book.Description != "People for launch work" {
 		t.Fatalf("address book = %+v", book)
+	}
+}
+
+func TestHandlerMkcolRejectsUnsupportedPropertyAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop>
+      <D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>
+      <D:displayname>Team Contacts</D:displayname>
+      <C:unknown>unsupported</C:unknown>
+    </D:prop>
+  </D:set>
+</D:mkcol>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created despite unsupported MKCOL property")
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:mkcol-response",
+		"<C:unknown></C:unknown>",
+		"HTTP/1.1 403 Forbidden",
+		"<D:resourcetype></D:resourcetype>",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerMkcolRejectsUnsupportedResourceTypeAtomically(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	bookID := "11111111-1111-4111-8111-111111111111"
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:E="http://example.com/ns/">
+  <D:set>
+    <D:prop>
+      <D:resourcetype><D:collection/><C:addressbook/><E:special-resource/></D:resourcetype>
+      <D:displayname>Team Contacts</D:displayname>
+    </D:prop>
+  </D:set>
+</D:mkcol>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if _, err := store.LookupAddressBook(t.Context(), "user-1", bookID); err == nil {
+		t.Fatal("address book was created despite unsupported MKCOL resourcetype")
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"<D:mkcol-response",
+		"<D:resourcetype></D:resourcetype>",
+		"HTTP/1.1 403 Forbidden",
+		"<D:valid-resourcetype></D:valid-resourcetype>",
+		"<D:displayname></D:displayname>",
+		"HTTP/1.1 424 Failed Dependency",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q:\n%s", want, body)
+		}
 	}
 }
 

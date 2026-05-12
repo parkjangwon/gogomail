@@ -234,6 +234,19 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if req.InvalidResourceType || len(req.Unsupported) > 0 {
+		body, err := BuildMKCOLResponseXML(mkcolFailurePropStats(req))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write(body)
+		return
+	}
 	book, err = store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
 		UserID:        userID,
 		ActorUserID:   actorUserID,
@@ -254,6 +267,40 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusCreated)
+}
+
+func mkcolFailurePropStats(req MKAddressBookRequest) []PropStatus {
+	failed := make([]PropertyResult, 0, 1+len(req.Unsupported))
+	if req.InvalidResourceType {
+		failed = append(failed, PropertyResult{Name: PropResourceType})
+	}
+	for _, name := range req.Unsupported {
+		failed = append(failed, PropertyResult{Name: name})
+	}
+
+	dependencies := make([]PropertyResult, 0, len(req.Properties))
+	for _, name := range req.Properties {
+		if req.InvalidResourceType && name == PropResourceType {
+			continue
+		}
+		dependencies = append(dependencies, PropertyResult{Name: name})
+	}
+
+	stats := make([]PropStatus, 0, 2)
+	if len(failed) > 0 {
+		sortPropertyResults(failed)
+		status := PropStatus{StatusCode: http.StatusForbidden, Properties: failed}
+		if req.InvalidResourceType {
+			status.Error = XMLName{Space: DAVNamespace, Local: "valid-resourcetype"}
+			status.ResponseDescription = "Resource type is not supported by this server"
+		}
+		stats = append(stats, status)
+	}
+	if len(dependencies) > 0 {
+		sortPropertyResults(dependencies)
+		stats = append(stats, PropStatus{StatusCode: http.StatusFailedDependency, Properties: dependencies})
+	}
+	return stats
 }
 
 func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
