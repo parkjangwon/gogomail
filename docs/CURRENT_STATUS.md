@@ -440,6 +440,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Save, discard, cancel behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close-save helper extraction (TASK-155, 2026-05-12, complete)
+- Completed close-confirm save helper extraction for user webmail beta.
+- ComposeModal now names the save-and-close intent through `saveDraftAndClose`.
+- The helper still uses `buildDraftData`, preserving scheduled settings, tracking settings, attachment ids, and sender state in the draft payload.
+- Close-save remains best-effort: save failure does not block closing, matching the previous behavior.
+- The save button now calls the helper while keeping existing visible text, accessibility label, and visual design.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

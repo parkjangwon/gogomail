@@ -681,6 +681,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } catch { setSaveStatus('idle'); }
   }, [to, cc, bcc, subject, editor, buildDraftData, markDraftSaved]);
 
+  const saveDraftAndClose = useCallback(async () => {
+    const bodyText = editor?.getText() ?? '';
+    if (to.trim() || subject.trim() || bodyText.trim()) {
+      const data = buildDraftData(to, cc, bcc, subject, bodyText);
+      try {
+        if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
+        else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
+      } catch { /* close-save remains best-effort */ }
+    }
+    onClose();
+  }, [to, cc, bcc, subject, editor, buildDraftData, onClose]);
+
   const saveTemplate = () => {
     const name = templateSaveName.trim();
     if (!name) return;
@@ -1117,17 +1129,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button
               type="button"
               aria-label="임시저장 후 작성창 닫기"
-              onClick={async () => {
-                const bodyText = editor?.getText() ?? '';
-                if (to.trim() || subject.trim() || bodyText.trim()) {
-                  const data = buildDraftData(to, cc, bcc, subject, bodyText);
-                  try {
-                    if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
-                    else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
-                  } catch { /* ignore */ }
-                }
-                onClose();
-              }}
+              onClick={() => { void saveDraftAndClose(); }}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}
             >임시저장</button>
             <button
