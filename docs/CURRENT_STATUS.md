@@ -1,8 +1,20 @@
 # gogomail current status
 
-Last updated: 2026-05-12 (Webmail E2E testing infrastructure — Playwright setup, auth + mail list tests)
+Last updated: 2026-05-12 (API route alignment + Webmail org chart UI fixes)
 
-## Webmail E2E testing infrastructure (TASK-095, 2026-05-12, in progress)
+## API route alignment fix (2026-05-12)
+- Fixed endpoint path mismatch: backend `/api/v1/` → `/api/mail/`
+- Changed all carddav endpoints (addressbooks, contacts, directory) to use `/api/mail/` prefix
+- Updated tests to match new routing (carddav_test.go)
+- Resolved missing org tree data in webmail UI by fixing API path
+- Enables proper hierarchical organization display in OrgPickerModal
+
+## Webmail UI improvements (2026-05-12)
+- OrgPickerModal: Address book and contact list styling aligned with org chart UI
+- Consistent padding, spacing, and visual hierarchy across all three panes
+- Ready for hierarchical data visualization once API returns correctly
+
+## Webmail E2E testing infrastructure (TASK-095, 2026-05-12, complete)
 - Added Playwright E2E testing framework (@playwright/test ^1.48.0)
 - Created playwright.config.ts with baseURL=http://localhost:3003, chromium browser, HTML reporting
 - Added test:e2e and test:e2e:ui npm scripts for running/debugging tests
