@@ -493,6 +493,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - No code behavior changed.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail close-save Escape guard (TASK-162, 2026-05-12, complete)
+- Completed close-confirm Escape handling guard for user webmail beta.
+- While close-save is in progress, Escape no longer dismisses the close confirmation.
+- Escape still stops propagation during close-save so higher-level compose shortcuts do not fire.
+- When close-save is not in progress, Escape continues to cancel the close confirmation.
+- Existing button behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
