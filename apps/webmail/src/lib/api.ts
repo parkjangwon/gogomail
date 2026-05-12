@@ -1126,6 +1126,17 @@ export async function renameDriveNode(nodeId: string, name: string): Promise<boo
   } catch { return false; }
 }
 
+export async function moveDriveNode(nodeId: string, parentId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/parent`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parent_id: parentId }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function trashDriveNode(nodeId: string): Promise<boolean> {
   try {
     const res = await fetch(`/api/mail/drive/nodes/${encodeURIComponent(nodeId)}/trash`, {
