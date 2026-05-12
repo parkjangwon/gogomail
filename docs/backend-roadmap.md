@@ -2275,7 +2275,8 @@ Target outcome:
       WebDAV `If` coverage now rejects tokens left after a valid condition
       list with HTTP 400 before body reads. Malformed prefix `If` coverage now
       rejects non-empty condition-list prefixes unless they are valid
-      `<resource-tag>` forms.
+      `<resource-tag>` forms. Empty resource-tag `If` coverage now asserts
+      `<>` prefixes return HTTP 400 before body reads.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2684,7 +2685,8 @@ Target outcome:
       WebDAV `If` coverage now rejects tokens left after a valid condition
       list with HTTP 400 before body reads. Malformed prefix `If` coverage now
       rejects non-empty condition-list prefixes unless they are valid
-      `<resource-tag>` forms.
+      `<resource-tag>` forms. Empty resource-tag `If` coverage now asserts
+      `<>` prefixes return HTTP 400 before body reads.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
