@@ -1286,6 +1286,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               <button
                 type="submit"
                 disabled={sendButtonDisabled}
+                aria-busy={sending || sendButtonUploading}
+                aria-label={sendButtonLabel}
+                aria-describedby={sent && sendResultLabel ? 'compose-send-status' : undefined}
                 style={{
                   padding: '7px 16px',
                   borderRadius: '20px 0 0 20px',
@@ -1302,6 +1305,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
               <button
                 type="button"
                 onClick={() => setShowSendDropdown((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={showSendDropdown}
+                aria-label="전송 옵션 열기"
                 style={{
                   padding: '7px 10px',
                   borderRadius: '0 20px 20px 0',
@@ -1316,7 +1322,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 <ChevronUpIcon style={{ width: '14px', height: '14px' }} />
               </button>
               {showSendDropdown && (
-                <div style={{
+                <div role="menu" style={{
                   position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
                   background: 'var(--color-bg-primary)',
                   border: '1px solid var(--color-border-default)',
@@ -1390,9 +1396,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
             {/* Status messages */}
             {error && <span role="alert" style={{ fontSize: '12px', color: 'var(--color-destructive)', flex: 1 }}>{error}</span>}
-            {!error && sent && sendResultLabel && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{sendResultLabel}</span>}
-            {!error && !sent && saveStatus === 'saving' && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
-            {!error && !sent && saveStatus === 'saved' && <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>임시저장 {savedAt}</span>}
+            {!error && sent && sendResultLabel && <span id="compose-send-status" role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{sendResultLabel}</span>}
+            {!error && !sent && saveStatus === 'saving' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>저장 중...</span>}
+            {!error && !sent && saveStatus === 'saved' && <span role="status" aria-live="polite" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>임시저장 {savedAt}</span>}
             <div style={{ flex: 1 }} />
 
             {/* Right-side icon actions */}
