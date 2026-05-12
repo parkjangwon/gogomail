@@ -181,6 +181,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing compose call sites continue to ignore the result, preserving behavior while keeping the API contract available for future UI.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send result UI preparation (TASK-120, 2026-05-12, complete)
+- Completed compose send-result UI preparation for user webmail beta.
+- ComposeModal now stores the backend send result after successful direct or draft sends.
+- Immediate, scheduled, and undo-countdown send success paths all preserve the result through the same helper.
+- The compose footer now shows a compact initial send/delivery status after success while preserving the existing close timing and visual tone.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
