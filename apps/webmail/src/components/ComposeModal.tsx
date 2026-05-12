@@ -8,7 +8,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
-import { sendMessage, saveDraft, updateDraft, deleteDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
+import { sendMessage, saveDraft, updateDraft, deleteDraft, sendDraft, uploadAttachment, attachDriveFileToEmail, listDriveNodes, listUserAddresses, DriveNode, ComposeIntent, MessageDetail, SendMessageRequest, UserAddressEntry } from '@/lib/api';
 import { RecipientChips } from './RecipientChips';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import {
@@ -178,6 +178,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [sendCountdown, setSendCountdown] = useState<number | null>(null);
   const [trackOpens, setTrackOpens] = useState(false);
   const pendingMsgRef = useRef<SendMessageRequest | null>(null);
+  const pendingDraftSendRef = useRef(false);
   const sendAndArchiveRef = useRef(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
@@ -318,10 +319,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     setAttachingDriveId(null);
   }, [drivePickerCrumbs, openDrivePicker]);
 
-  const clearSentDraft = useCallback(async () => {
+  const clearSentDraft = useCallback(async (deleteRemote = true) => {
     const draftId = draftIdRef.current;
     if (!draftId) return;
     draftIdRef.current = '';
+    if (!deleteRemote) return;
     try {
       await deleteDraft(draftId);
     } catch {
@@ -535,10 +537,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (sendCountdown === 0) {
       const msg = pendingMsgRef.current;
       if (!msg) return;
+      const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
       setSending(true);
-      sendMessage(msg)
+      (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
         .then(async () => {
-          await clearSentDraft();
+          await clearSentDraft(!useDraftSend);
+          pendingDraftSendRef.current = false;
           try {
             const newAddrs = [...(msg.to ?? []), ...(msg.cc ?? []), ...(msg.bcc ?? [])]
               .map((a) => a.name ? `${a.name} <${a.address}>` : a.address).filter(Boolean);
@@ -559,6 +563,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
           setError(message);
           setSendCountdown(null);
+          pendingDraftSendRef.current = false;
         })
         .finally(() => setSending(false));
       return;
@@ -577,6 +582,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     if (hasUnreadyAttachment || currentAttachmentIds !== pendingAttachmentIds) {
       setSendCountdown(null);
       pendingMsgRef.current = null;
+      pendingDraftSendRef.current = false;
       setError('첨부파일 상태가 변경되어 전송 예약을 취소했습니다. 다시 확인 후 전송해 주세요.');
     }
   }, [sendCountdown, uploadedAttachments, readyAttachmentIds]);
@@ -626,7 +632,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     });
   }, []);
 
-  function handleSend(e: { preventDefault(): void }) {
+  async function handleSend(e: { preventDefault(): void }) {
     e.preventDefault();
     if (sending || sent) return;
     if (sendCountdown !== null) {
@@ -670,6 +676,17 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       }
     }
     const attachmentIds = readyAttachmentIds();
+    const draftData = {
+      intent: backendComposeIntent(intent),
+      ...(intent !== 'new' && sourceMessage && { source_message_id: sourceMessage.id }),
+      to: parseAddrs(to),
+      ...(cc.trim() && { cc: parseAddrs(cc) }),
+      ...(bcc.trim() && { bcc: parseAddrs(bcc) }),
+      subject: subject.trim(),
+      text_body: bodyText,
+      ...(fromAddress && { from: fromAddress }),
+      ...(attachmentIds.length > 0 && { attachment_ids: attachmentIds }),
+    };
     const msg: SendMessageRequest = {
       to: parseAddrs(to),
       ...(cc.trim() && { cc: parseAddrs(cc) }),
@@ -684,6 +701,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       ...(trackOpens && { track_opens: true }),
     };
     pendingMsgRef.current = msg;
+    pendingDraftSendRef.current = false;
     if (scheduledAt) {
       // Scheduled sends bypass the undo countdown and go immediately
       setSending(true);
@@ -697,12 +715,30 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } else {
       let sendDelay = 5;
       try { sendDelay = Number((JSON.parse(localStorage.getItem('webmail_settings') ?? '{}') as { sendDelay?: number }).sendDelay ?? 5); } catch { /* */ }
+      const canUseDraftSend = !trackOpens;
+      if (canUseDraftSend) {
+        setSending(true);
+        try {
+          if (draftIdRef.current) await updateDraft(draftIdRef.current, draftData);
+          else {
+            const saved = await saveDraft(draftData);
+            draftIdRef.current = saved.draft.id;
+          }
+          pendingDraftSendRef.current = true;
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : '초안 전송 준비에 실패했습니다.');
+          return;
+        } finally {
+          setSending(false);
+        }
+      }
       if (sendDelay === 0) {
         // No undo window — send immediately
+        const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
         setSending(true);
-        sendMessage(msg)
-          .then(async () => { await clearSentDraft(); setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
-          .catch((err: unknown) => { setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
+        (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
+          .then(async () => { await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+          .catch((err: unknown) => { pendingDraftSendRef.current = false; setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
           .finally(() => setSending(false));
       } else {
         setSendCountdown(sendDelay);
@@ -1533,7 +1569,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
           }}>
             <span>{sendCountdown}초 후 전송됩니다...</span>
             <button
-              onClick={() => { setSendCountdown(null); pendingMsgRef.current = null; }}
+              onClick={() => { setSendCountdown(null); pendingMsgRef.current = null; pendingDraftSendRef.current = false; }}
               style={{ padding: '4px 12px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: 'var(--color-text-primary)' }}
             >취소</button>
           </div>

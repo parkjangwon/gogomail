@@ -263,6 +263,7 @@ export interface DraftData {
   intent: ComposeIntent;
   source_message_id?: string;
   attachment_ids?: string[];
+  from?: string;
   to: { address: string; name?: string }[];
   cc?: { address: string; name?: string }[];
   bcc?: { address: string; name?: string }[];
@@ -280,6 +281,10 @@ export function updateDraft(draftId: string, data: DraftData): Promise<{ draft: 
 
 export function deleteDraft(draftId: string): Promise<void> {
   return apiDelete<void>(`drafts/${draftId}`);
+}
+
+export function sendDraft(draftId: string): Promise<{ message: { id: string } }> {
+  return apiPost<{ message: { id: string } }>(`drafts/${draftId}/send`);
 }
 
 export function deleteMessage(id: string): Promise<void> {
