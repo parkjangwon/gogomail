@@ -279,6 +279,28 @@ func TestParseProppatchCollectsCalendarCollectionProperties(t *testing.T) {
 	}
 }
 
+func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
+  <D:set><D:prop><D:displayname>Product</D:displayname><E:unsupported>value</E:unsupported></D:prop></D:set>
+  <D:remove><D:prop><D:displayname/></D:prop></D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Name == nil || *req.Name != "Product" {
+		t.Fatalf("name = %v", req.Name)
+	}
+	if len(req.Unsupported) != 1 || req.Unsupported[0] != (XMLName{Space: "urn:example:test", Local: "unsupported"}) {
+		t.Fatalf("unsupported = %+v", req.Unsupported)
+	}
+	if len(req.Protected) != 1 || req.Protected[0] != PropDisplayName {
+		t.Fatalf("protected = %+v", req.Protected)
+	}
+}
+
 func TestParseProppatchCollectsMultiplePropBlocksPerInstruction(t *testing.T) {
 	t.Parallel()
 
@@ -338,8 +360,6 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 	tests := map[string]string{
 		"empty body":              ``,
 		"wrong root":              `<D:propfind xmlns:D="DAV:"/>`,
-		"remove displayname":      `<D:propertyupdate xmlns:D="DAV:"><D:remove><D:prop><D:displayname/></D:prop></D:remove></D:propertyupdate>`,
-		"unsupported only":        `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:owner>me</D:owner></D:prop></D:set></D:propertyupdate>`,
 		"nested supported text":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
 		"unsupported child shape": `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
 	}

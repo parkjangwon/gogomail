@@ -2198,7 +2198,11 @@ Target outcome:
       media types return `415`, and absent headers remain accepted for client
       compatibility. Unsupported properties from arbitrary XML namespaces are
       preserved in `MKCALENDAR` failure responses with a scoped fallback
-      namespace declaration instead of surfacing as `500`.
+      namespace declaration instead of surfacing as `500`. `PROPPATCH` now uses
+      the same atomic property failure model for unsupported properties and
+      protected `DAV:displayname` removal attempts, returning `403 Forbidden`
+      for failed properties and `424 Failed Dependency` for mutable properties
+      in the same request.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
