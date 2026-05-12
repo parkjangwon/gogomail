@@ -5237,6 +5237,10 @@ Next focus areas:
 - Removed visible `[조직]`, `[하위 조직]`, `+ 하위 조직`, and `[주소록]` wording from token display names while preserving the internal token values used for backend expansion.
 - The child-organization inclusion checkbox remains visible because it controls actual send expansion behavior.
 
+## Webmail drive share link hotfix (2026-05-12)
+- Fixed `/api/mail/` proxy behavior for public drive share link routes (`/api/mail/drive/share-links/...`) so `user_id` is stripped and not injected for GET/HEAD shared-download/resolve calls.
+- This prevents 400 `"user_id is not supported"` responses when opening shared links directly in the browser.
+
 ## Webmail drive breadcrumb move target support (Drive UX polish, 2026-05-12, in progress)
 - Drive breadcrumb(상단 경로) 항목을 드래그 드롭 대상에서 제외하지 않고, 내부 노드 드래그 시 해당 경로(현재 폴더의 상위 경로 포함)로 직접 이동할 수 있게 동작을 보강했다.
 - 브레드크럼의 각 경로 항목이 폴더 이동 목표가 되면 이동 대상 하이라이트가 표시되도록 했고, 폴더 카드 기준 이동 동작과 동일하게 다중 선택 노드 이동도 처리한다.
