@@ -5241,6 +5241,10 @@ Next focus areas:
 - Fixed `/api/mail/` proxy behavior for public drive share link routes (`/api/mail/drive/share-links/...`) so `user_id` is stripped and not injected for GET/HEAD shared-download/resolve calls.
 - This prevents 400 `"user_id is not supported"` responses when opening shared links directly in the browser.
 
+## Webmail drive multi-select drag feedback (in progress, 2026-05-12)
+- Added drag feedback for multi-selection in Drive move UX: starting drag with multiple selected items now shows a custom stack-style drag ghost preview and toolbar badge (`N개 항목 이동`).
+- Data transfer still uses the existing node-list payload, while users get stronger visual confirmation that selected files are moving together as one batch.
+
 ## Webmail drive breadcrumb move target support (Drive UX polish, 2026-05-12, in progress)
 - Drive breadcrumb(상단 경로) 항목을 드래그 드롭 대상에서 제외하지 않고, 내부 노드 드래그 시 해당 경로(현재 폴더의 상위 경로 포함)로 직접 이동할 수 있게 동작을 보강했다.
 - 브레드크럼의 각 경로 항목이 폴더 이동 목표가 되면 이동 대상 하이라이트가 표시되도록 했고, 폴더 카드 기준 이동 동작과 동일하게 다중 선택 노드 이동도 처리한다.
