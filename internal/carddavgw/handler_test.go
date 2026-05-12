@@ -1236,6 +1236,46 @@ func TestHandlerProppatchPreservesAddressBookPropertyLanguageWhenOmitted(t *test
 	}
 }
 
+func TestHandlerProppatchClearsAddressBookPropertyLanguageWhenExplicitlyEmpty(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop xml:lang="">
+      <D:displayname>Team Contacts</D:displayname>
+      <C:addressbook-description>People for launch work</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.NameLang != "" || book.DescriptionLang != "" {
+		t.Fatalf("address book languages = name %q description %q, want cleared", book.NameLang, book.DescriptionLang)
+	}
+	if store.lastBookUpdate.NameLang == nil || *store.lastBookUpdate.NameLang != "" || store.lastBookUpdate.DescriptionLang == nil || *store.lastBookUpdate.DescriptionLang != "" {
+		t.Fatalf("update langs = name %#v description %#v, want explicit empty", store.lastBookUpdate.NameLang, store.lastBookUpdate.DescriptionLang)
+	}
+	if !strings.Contains(rec.Body.String(), "<D:displayname>Team Contacts</D:displayname>") {
+		t.Fatalf("response should omit empty xml:lang attribute:\n%s", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `addressbook-description xml:lang`) {
+		t.Fatalf("response should omit empty description xml:lang attribute:\n%s", rec.Body.String())
+	}
+}
+
 func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
 	t.Parallel()
 

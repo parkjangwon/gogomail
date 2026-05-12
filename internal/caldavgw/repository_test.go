@@ -308,6 +308,28 @@ func TestValidateUpdateCalendarRequestPreservesNilLanguageWhenOmitted(t *testing
 	}
 }
 
+func TestValidateUpdateCalendarRequestPreservesExplicitEmptyLanguage(t *testing.T) {
+	t.Parallel()
+
+	name := "Product"
+	description := "Launch dates"
+	emptyLang := ""
+	req, _, _, _, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
+		UserID:          "user-1",
+		CalendarID:      "calendar-1",
+		Name:            &name,
+		NameLang:        &emptyLang,
+		Description:     &description,
+		DescriptionLang: &emptyLang,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateCalendarRequest returned error: %v", err)
+	}
+	if req.NameLang == nil || *req.NameLang != "" || req.DescriptionLang == nil || *req.DescriptionLang != "" {
+		t.Fatalf("langs = name %#v description %#v, want explicit empty", req.NameLang, req.DescriptionLang)
+	}
+}
+
 func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

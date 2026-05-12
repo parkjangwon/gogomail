@@ -365,6 +365,28 @@ func TestValidateUpdateAddressBookRequestPreservesNilLanguageWhenOmitted(t *test
 	}
 }
 
+func TestValidateUpdateAddressBookRequestPreservesExplicitEmptyLanguage(t *testing.T) {
+	t.Parallel()
+
+	name := "Team"
+	description := "Launch contacts"
+	emptyLang := ""
+	req, _, _, err := ValidateUpdateAddressBookRequest(UpdateAddressBookRequest{
+		UserID:          "user-1",
+		AddressBookID:   "book-1",
+		Name:            &name,
+		NameLang:        &emptyLang,
+		Description:     &description,
+		DescriptionLang: &emptyLang,
+	})
+	if err != nil {
+		t.Fatalf("ValidateUpdateAddressBookRequest returned error: %v", err)
+	}
+	if req.NameLang == nil || *req.NameLang != "" || req.DescriptionLang == nil || *req.DescriptionLang != "" {
+		t.Fatalf("langs = name %#v description %#v, want explicit empty", req.NameLang, req.DescriptionLang)
+	}
+}
+
 func TestValidateUpdateAddressBookRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 

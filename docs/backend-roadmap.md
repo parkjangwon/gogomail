@@ -2229,7 +2229,9 @@ Target outcome:
       0097 rejects invalid language values with the expected check constraints.
       PROPPATCH parsing now distinguishes absent `xml:lang` from explicit empty
       `xml:lang=""`, preserving existing CalDAV language tags on text-only
-      updates unless clients explicitly clear them.
+      updates unless clients explicitly clear them. Explicit empty language
+      clearing is covered through handler and PostgreSQL repository tests, and
+      empty stored language values are emitted without `xml:lang` attributes.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2592,7 +2594,9 @@ Target outcome:
       0097 rejects invalid language values with the expected check constraints.
       PROPPATCH parsing now distinguishes absent `xml:lang` from explicit empty
       `xml:lang=""`, preserving existing CardDAV language tags on text-only
-      updates unless clients explicitly clear them.
+      updates unless clients explicitly clear them. Explicit empty language
+      clearing is covered through handler and PostgreSQL repository tests, and
+      empty stored language values are emitted without `xml:lang` attributes.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang explicit empty clearing (2026-05-13, complete)
+- Handler and PostgreSQL integration coverage now verifies explicit
+  `xml:lang=""` clears existing collection language tags for CalDAV calendars
+  and CardDAV address books.
+- Parser and repository tests assert explicit empty language remains a non-nil
+  empty pointer, while responses omit `xml:lang` when the stored language is
+  empty.
+
 ## CalDAV/CardDAV xml:lang repository nil-preservation (2026-05-13, complete)
 - PostgreSQL integration coverage now verifies omitted `xml:lang` values do not
   erase existing collection language tags during repository updates.

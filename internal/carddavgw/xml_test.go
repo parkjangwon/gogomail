@@ -163,8 +163,13 @@ func TestParseProppatchPreservesNilXMLLangWhenAbsent(t *testing.T) {
 func TestParseProppatchDistinguishesEmptyXMLLangFromAbsent(t *testing.T) {
 	t.Parallel()
 
-	const body = `<D:propertyupdate xmlns:D="DAV:">
-  <D:set><D:prop xml:lang=""><D:displayname>Team</D:displayname></D:prop></D:set>
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop xml:lang="">
+      <D:displayname>Team</D:displayname>
+      <C:addressbook-description>Contacts</C:addressbook-description>
+    </D:prop>
+  </D:set>
 </D:propertyupdate>`
 	req, err := ParseProppatch(strings.NewReader(body))
 	if err != nil {
@@ -172,6 +177,9 @@ func TestParseProppatchDistinguishesEmptyXMLLangFromAbsent(t *testing.T) {
 	}
 	if req.NameLang == nil || *req.NameLang != "" {
 		t.Fatalf("name lang = %#v, want explicit empty", req.NameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "" {
+		t.Fatalf("description lang = %#v, want explicit empty", req.DescriptionLang)
 	}
 }
 
