@@ -14,6 +14,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Development database target: `gogomail-postgres-dev` container from `docker/docker-compose.dev.yml`.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail core flow stabilization (TASK-099, 2026-05-12, complete)
+- Completed first beta stabilization pass for the core user mail screen.
+- The mail-list hook now avoids calling message-list APIs before a real folder is selected.
+- Virtual folders are guarded from regular folder pagination, polling, and refresh calls; their data remains loaded through the search/virtual-folder path.
+- Design direction remains unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
