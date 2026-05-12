@@ -16,6 +16,12 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Added multi-selection drag support (Ctrl/Cmd + click) and multi-node move payload handling so selected nodes can be moved together into folders.
 - Hardening drag payload parsing (JSON + legacy text fallbacks) to improve reliability for file-card to-folder move flows across MIME/UX permutations.
 
+## Drive sidebar hierarchical folders (2026-05-12, in progress)
+- Added left-side folder tree under `내 드라이브` in `apps/webmail/src/components/DriveView.tsx`.
+- Folder rows in the sidebar now load their child folders and can be expanded/collapsed recursively.
+- Folder rows support drag-and-drop targets so external uploads and internal node moves can land directly in a target folder from the left panel.
+- Root `내 드라이브` entry accepts dropped files/folders from browser drag and drop.
+
 ## Drive upload contract fix (2026-05-12, in progress)
 - Fixed Drive upload session contract mismatch in webmail frontend (`apps/webmail/src/lib/api.ts`):
   - `size` -> `declared_size`
