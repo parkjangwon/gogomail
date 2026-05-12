@@ -1307,6 +1307,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 onClick={() => setShowSendDropdown((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={showSendDropdown}
+                aria-controls={showSendDropdown ? 'compose-send-options-menu' : undefined}
                 aria-label="전송 옵션 열기"
                 style={{
                   padding: '7px 10px',
@@ -1322,7 +1323,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                 <ChevronUpIcon style={{ width: '14px', height: '14px' }} />
               </button>
               {showSendDropdown && (
-                <div role="menu" style={{
+                <div id="compose-send-options-menu" role="menu" style={{
                   position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
                   background: 'var(--color-bg-primary)',
                   border: '1px solid var(--color-border-default)',
@@ -1337,6 +1338,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                     <button
                       key={opt.label}
                       type="button"
+                      role="menuitem"
+                      aria-label={`${opt.label}, ${opt.sub}`}
                       onClick={() => {
                         setScheduledAt(opt.date.toISOString().slice(0, 16));
                         setShowSendDropdown(false);
@@ -1358,6 +1361,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   {onArchiveSource && (
                     <button
                       type="button"
+                      role="menuitem"
+                      aria-label="보내고 보관, 전송 후 원본 메일을 보관함으로 이동"
                       onClick={() => { setShowSendDropdown(false); sendAndArchiveRef.current = true; handleSend({ preventDefault: () => {} }); }}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
@@ -1374,6 +1379,8 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                   )}
                   <button
                     type="button"
+                    role="menuitem"
+                    aria-label="사용자 지정 날짜로 예약 전송"
                     onClick={() => {
                       setShowSendDropdown(false);
                       setShowSchedule(true);
