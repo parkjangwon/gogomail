@@ -1,5 +1,6 @@
 import { DriveNode } from './api';
 import { FileIcon } from '@untitledui/file-icons';
+import { FolderIcon as FolderSolid } from '@heroicons/react/24/outline';
 
 const MIME_FALLBACK_TYPES = new Map<string, string>([
   ['application/pdf', 'pdf'],
@@ -181,7 +182,7 @@ export function DriveNodeIcon({ node, size = 36 }: { node: DriveNode; size?: num
       }}
     >
       {type === 'folder' ? (
-        <FileIcon type="folder" size={size} variant="default" theme="light" />
+        <FolderSolid style={{ width: `${size}px`, height: `${size}px`, color: '#f59e0b' }} />
       ) : type === 'empty' ? (
         <UnknownFileIcon size={size} />
       ) : (
