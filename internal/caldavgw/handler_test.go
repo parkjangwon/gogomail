@@ -3109,6 +3109,7 @@ func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) 
 
 	store := newFakeDiscoveryStore()
 	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].DescriptionLang = "fr"
 	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
 	if err != nil {
 		t.Fatalf("CalendarCollectionETag returned error: %v", err)
@@ -3178,12 +3179,14 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	store.calendars[0].DescriptionLang = "fr"
 	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
 	if err != nil {
 		t.Fatalf("CalendarCollectionETag returned error: %v", err)
 	}
 	handler := NewHandler(store, fixedUser("user-1"))
-	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><D:set><D:prop><D:displayname>Product</D:displayname><C:calendar-description>Launch</C:calendar-description></D:prop></D:set></D:propertyupdate>`))
 	req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `+etag)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -3195,8 +3198,14 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("calendar lookup failed: %v", err)
 	}
-	if calendar.Name != "Product" {
-		t.Fatalf("calendar name = %q, want Product", calendar.Name)
+	if calendar.Name != "Product" || calendar.Description != "Launch" {
+		t.Fatalf("calendar text = name %q description %q", calendar.Name, calendar.Description)
+	}
+	if calendar.NameLang != "ko-KR" || calendar.DescriptionLang != "fr" {
+		t.Fatalf("calendar languages = name %q description %q", calendar.NameLang, calendar.DescriptionLang)
+	}
+	if store.lastCalendarUpdate.NameLang != nil || store.lastCalendarUpdate.DescriptionLang != nil {
+		t.Fatalf("update langs = name %#v description %#v, want nil omitted language", store.lastCalendarUpdate.NameLang, store.lastCalendarUpdate.DescriptionLang)
 	}
 }
 
@@ -3209,7 +3218,7 @@ func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) 
 		t.Fatalf("CalendarCollectionETag returned error: %v", err)
 	}
 	handler := NewHandler(store, fixedUser("user-1"))
-	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`))
 	req.Header.Set("If-Match", "*")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -3219,6 +3228,9 @@ func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) 
 	}
 	if store.lastCalendarUpdate.ObservedETag != etag {
 		t.Fatalf("observed collection etag = %q, want %q", store.lastCalendarUpdate.ObservedETag, etag)
+	}
+	if store.lastCalendarUpdate.NameLang == nil || *store.lastCalendarUpdate.NameLang != "ja-JP" {
+		t.Fatalf("update name lang = %#v, want ja-JP", store.lastCalendarUpdate.NameLang)
 	}
 }
 

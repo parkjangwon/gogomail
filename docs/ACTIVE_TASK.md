@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-214: CardDAV/CalDAV collection xml:lang conditional failure rollback audit
+## TASK-215: CardDAV/CalDAV collection xml:lang conditional success preservation audit
 
 ### 배경
 
-TASK-213에서 unsupported/protected property 실패 시 language mutation이
-롤백됨을 검증했다. 이제 collection precondition 실패(`If-Match`,
-`If-None-Match`, `If-Unmodified-Since`)가 PROPPATCH body를 읽기 전에 차단되며,
-그 안의 `xml:lang` mutation도 적용되지 않는지 검증한다.
+TASK-214에서 collection precondition 실패가 body read 전에 차단되며 language
+mutation을 적용하지 않음을 검증했다. 이제 collection precondition이 성공하는
+`PROPPATCH` 경로에서도 omitted `xml:lang` 보존과 explicit `xml:lang` 전달이
+정상 동작하는지 검증한다.
 
 ### 구현 대상
 
@@ -21,14 +21,14 @@ TASK-213에서 unsupported/protected property 실패 시 language mutation이
 
 ### 완료 조건
 
-- [x] CalDAV conditional failure PROPPATCH가 body의 displayname language mutation을 적용하지 않는다.
-- [x] CardDAV conditional failure PROPPATCH가 body의 displayname language mutation을 적용하지 않는다.
-- [x] CalDAV/CardDAV conditional failure가 body read와 repository update 전에 차단됨을 검증한다.
-- [x] CalDAV/CardDAV repeated `If-Unmodified-Since` 실패도 body read 전에 차단됨을 검증한다.
+- [x] CalDAV matching `If-Match` 성공 PROPPATCH가 omitted `xml:lang`에서 기존 language tag를 보존한다.
+- [x] CardDAV matching `If-Match` 성공 PROPPATCH가 omitted `xml:lang`에서 기존 language tag를 보존한다.
+- [x] CalDAV `If-Match: *` 성공 PROPPATCH가 explicit `xml:lang`과 observed collection ETag를 함께 전달한다.
+- [x] CardDAV `If-Match: *` 성공 PROPPATCH가 explicit `xml:lang`과 observed collection ETag를 함께 전달한다.
 - [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-215: CardDAV/CalDAV collection xml:lang conditional success preservation audit
+TASK-216: CardDAV/CalDAV collection xml:lang If header conditional audit

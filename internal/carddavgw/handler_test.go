@@ -1033,6 +1033,7 @@ func TestHandlerDeleteAddressBookCollectionRejectsMatchingIfNoneMatch(t *testing
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
 	etag, err := AddressBookCollectionETag("user-1", store.books[0])
 	if err != nil {
 		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
@@ -1079,6 +1080,9 @@ func TestHandlerDeleteAddressBookCollectionAcceptsMatchingIfMatch(t *testing.T) 
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
 	etag, err := AddressBookCollectionETag("user-1", store.books[0])
 	if err != nil {
 		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
@@ -1637,12 +1641,15 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "Old contacts"
+	store.books[0].DescriptionLang = "fr"
 	etag, err := AddressBookCollectionETag("user-1", store.books[0])
 	if err != nil {
 		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
 	}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
-	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:set><D:prop><D:displayname>Team</D:displayname><C:addressbook-description>Launch contacts</C:addressbook-description></D:prop></D:set></D:propertyupdate>`))
 	req.Header.Set("If-Match", `"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `+etag)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -1654,8 +1661,14 @@ func TestHandlerProppatchAcceptsMatchingCollectionIfMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("address book lookup failed: %v", err)
 	}
-	if book.Name != "Team" {
-		t.Fatalf("address book name = %q, want Team", book.Name)
+	if book.Name != "Team" || book.Description != "Launch contacts" {
+		t.Fatalf("address book text = name %q description %q", book.Name, book.Description)
+	}
+	if book.NameLang != "ko-KR" || book.DescriptionLang != "fr" {
+		t.Fatalf("address book languages = name %q description %q", book.NameLang, book.DescriptionLang)
+	}
+	if store.lastBookUpdate.NameLang != nil || store.lastBookUpdate.DescriptionLang != nil {
+		t.Fatalf("update langs = name %#v description %#v, want nil omitted language", store.lastBookUpdate.NameLang, store.lastBookUpdate.DescriptionLang)
 	}
 }
 
@@ -1668,7 +1681,7 @@ func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) 
 		t.Fatalf("AddressBookCollectionETag returned error: %v", err)
 	}
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
-	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`))
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`))
 	req.Header.Set("If-Match", "*")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -1678,6 +1691,9 @@ func TestHandlerProppatchIfMatchStarCarriesObservedCollectionETag(t *testing.T) 
 	}
 	if store.lastBookUpdate.ObservedETag != etag {
 		t.Fatalf("observed collection etag = %q, want %q", store.lastBookUpdate.ObservedETag, etag)
+	}
+	if store.lastBookUpdate.NameLang == nil || *store.lastBookUpdate.NameLang != "ja-JP" {
+		t.Fatalf("update name lang = %#v, want ja-JP", store.lastBookUpdate.NameLang)
 	}
 }
 

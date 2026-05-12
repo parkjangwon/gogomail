@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang conditional success coverage (2026-05-13, complete)
+- Matching collection `If-Match` PROPPATCH tests now assert omitted
+  `xml:lang` preserves existing displayname and description language tags.
+- `If-Match: *` success tests now assert observed collection ETags are carried
+  alongside explicit `xml:lang` updates.
+
 ## CalDAV/CardDAV xml:lang conditional rollback coverage (2026-05-13, complete)
 - Collection `PROPPATCH` conditional failure tests now use unread bodies with
   attempted `xml:lang` mutations and assert existing language tags remain

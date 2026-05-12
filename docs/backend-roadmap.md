@@ -2237,7 +2237,9 @@ Target outcome:
       on RFC 4918 atomic failure responses. Conditional failure coverage now
       asserts `If-Match`, `If-None-Match`, and `If-Unmodified-Since`
       preconditions reject before body reads, leaving attempted language
-      mutations unapplied.
+      mutations unapplied. Conditional success coverage now asserts matching
+      collection `If-Match` preserves omitted language tags and `If-Match: *`
+      carries observed collection ETags alongside explicit language updates.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2608,7 +2610,9 @@ Target outcome:
       on RFC 4918 atomic failure responses. Conditional failure coverage now
       asserts `If-Match`, `If-None-Match`, and `If-Unmodified-Since`
       preconditions reject before body reads, leaving attempted language
-      mutations unapplied.
+      mutations unapplied. Conditional success coverage now asserts matching
+      collection `If-Match` preserves omitted language tags and `If-Match: *`
+      carries observed collection ETags alongside explicit language updates.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
