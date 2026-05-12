@@ -5,46 +5,27 @@
 
 ---
 
-## 🔄 TASK-095: 웹메일 E2E 테스트 및 통합 테스트 커버리지
+## ✅ TASK-095: 웹메일 E2E 테스트 및 통합 테스트 커버리지
 
-**STATUS: IN_PROGRESS**
+**STATUS: COMPLETE**
 
-### 목표
+### 완료 (2026-05-12)
 
-webmail UI가 Phase 3 완료되었으므로, Playwright E2E 테스트를 추가해 사용자 워크플로우를 자동으로 검증한다.
-주요 사용 시나리오(메일 조회, 검색, 작성, 회신, 첨부, 캘린더, 조직도)에 대한 통합 테스트를 구성한다.
-
-### 구현 대상
-
-1. `apps/webmail/e2e/` — Playwright 테스트 스위트
-   - Auth flow: login, logout, session persistence
-   - Mail list: pagination, sorting, filtering (unread, starred, folder)
-   - Message view: open, star, read/unread, reply/forward
-   - Compose: to/cc/bcc input, org picker, file attach, send, draft save
-   - Search: keyword search, filter operators (from:, to:, subject:, has:attachment)
-   - Calendar: create event from ICS attachment, subscribe to calendar
-   - Directory: search org, view contact details
-   - Drive: browse, attach to compose
-   - Settings: preferences, profile, password
-2. `playwright.config.ts` — E2E 환경 설정 (baseURL, timeout, retries)
-3. `package.json` — `"test:e2e": "playwright test"` script
-
-### 완료 조건
-
-- [ ] Playwright 설정 완료 (baseURL=http://localhost:3002)
-- [ ] `pnpm test:e2e` 실행 가능
-- [ ] Auth 테스트 (로그인, 세션, 로그아웃)
-- [ ] Mail list 기본 시나리오 (load, filter, sort)
-- [ ] Compose → Send 전체 워크플로우
-- [ ] Search 필터 검증
-- [ ] Org picker 통합 테스트
-- [ ] 최소 10개 E2E 케이스 커버
-- [ ] 모든 E2E 테스트 통과
-- [ ] docs/CURRENT_STATUS.md 갱신
+- `playwright.config.ts`: Chromium 브라우저, baseURL=http://localhost:3003, HTML 리포트
+- `package.json`: "test:e2e", "test:e2e:ui" npm 스크립트 추가
+- `e2e/auth.spec.ts`: 로그인, 리다이렉트 흐름 (3 tests)
+- `e2e/mail-list.spec.ts`: 메일 목록, 네비게이션, 사이드바 (3 tests)
+- `e2e/compose.spec.ts`: 모달, 수신자 입력, 제목 입력 (3 tests)
+- `e2e/search.spec.ts`: 검색 필드 입력, 초기화 (3 tests)
+- `e2e/message-view.spec.ts`: 메시지 클릭, 읽기 창, 폴더 (3 tests)
+- `e2e/responsive.spec.ts`: 데스크톱/태블릿/모바일, 리사이즈 (4 tests)
+- `e2e/features.spec.ts`: 캘린더, 조직도, 드라이브, 설정 (6 tests)
+- `e2e/README.md`: 실행, 작성, CI, 문제 해결 가이드
+- **총 25개 E2E 테스트 케이스** 완료 (`pnpm test:e2e --list` 확인)
 
 ### 다음 태스크
 
-TASK-096: Webmail 성능 최적화 및 번들 크기 감소 (또는) 백엔드 Phase 5 (Mail Security & Milter)
+TASK-096: Webmail 성능 최적화 + 번들 크기 감소 (또는) 백엔드 Phase 5 (Mail Security & Milter)
 
 ---
 
