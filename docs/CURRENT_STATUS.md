@@ -173,6 +173,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing draft attachment handoff and outbox queue assertions remain intact.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send result API typing (TASK-119, 2026-05-12, complete)
+- Completed frontend API typing pass for send and draft-send responses.
+- Added shared `SendMessageResult` and `SendMessageEnvelope` types.
+- `sendDraft` now exposes `message_id`, `send_status`, `delivery_status`, and `bounce_status`.
+- `sendMessage` now returns the same typed envelope.
+- Existing compose call sites continue to ignore the result, preserving behavior while keeping the API contract available for future UI.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

@@ -71,6 +71,18 @@ export interface SendMessageRequest {
   track_opens?: boolean;
 }
 
+export interface SendMessageResult {
+  id: string;
+  message_id: string;
+  send_status: string;
+  delivery_status: string;
+  bounce_status: string;
+}
+
+export interface SendMessageEnvelope {
+  message: SendMessageResult;
+}
+
 export interface TrackingEvent {
   recipient_email: string;
   opened_at: string | null;
@@ -285,8 +297,8 @@ export function deleteDraft(draftId: string): Promise<void> {
   return apiDelete<void>(`drafts/${draftId}`);
 }
 
-export function sendDraft(draftId: string): Promise<{ message: { id: string } }> {
-  return apiPost<{ message: { id: string } }>(`drafts/${draftId}/send`);
+export function sendDraft(draftId: string): Promise<SendMessageEnvelope> {
+  return apiPost<SendMessageEnvelope>(`drafts/${draftId}/send`);
 }
 
 export function deleteMessage(id: string): Promise<void> {
@@ -425,8 +437,8 @@ export async function restoreMailbox(folderId: string, file: File): Promise<{ im
   return res.json() as Promise<{ imported: number }>;
 }
 
-export function sendMessage(data: SendMessageRequest): Promise<void> {
-  return apiPost<void>('messages/send', data);
+export function sendMessage(data: SendMessageRequest): Promise<SendMessageEnvelope> {
+  return apiPost<SendMessageEnvelope>('messages/send', data);
 }
 
 export interface ContactSuggestion {
