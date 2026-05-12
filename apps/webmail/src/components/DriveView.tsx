@@ -802,7 +802,10 @@ export function DriveView() {
         {/* Nav items */}
         <div style={{ padding: '0 8px', marginBottom: '4px' }}>
           <button
-            onClick={() => setActiveSection('drive')}
+            onClick={() => {
+              setActiveSection('drive');
+              setBreadcrumb([{ id: '', name: '내 드라이브' }]);
+            }}
             onDragOver={(e) => {
               e.preventDefault();
               setDropTargetFolderId('');
