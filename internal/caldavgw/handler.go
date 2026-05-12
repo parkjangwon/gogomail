@@ -453,14 +453,16 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		slug = req.Slug
 	}
 	calendar, err = store.CreateCalendarAtPath(r.Context(), CreateCalendarAtPathRequest{
-		UserID:      userID,
-		ActorUserID: actorUserID,
-		CalendarID:  calendarID,
-		Name:        req.DisplayName,
-		Slug:        slug,
-		Timezone:    req.Timezone,
-		Color:       req.Color,
-		Description: req.Description,
+		UserID:          userID,
+		ActorUserID:     actorUserID,
+		CalendarID:      calendarID,
+		Name:            req.DisplayName,
+		NameLang:        req.DisplayNameLang,
+		Slug:            slug,
+		Timezone:        req.Timezone,
+		Color:           req.Color,
+		Description:     req.Description,
+		DescriptionLang: req.DescriptionLang,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

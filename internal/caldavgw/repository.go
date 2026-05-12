@@ -31,22 +31,26 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 type CreateCalendarRequest struct {
-	UserID      string
-	ActorUserID string
-	Name        string
-	Color       string
-	Description string
+	UserID          string
+	ActorUserID     string
+	Name            string
+	NameLang        *string
+	Color           string
+	Description     string
+	DescriptionLang *string
 }
 
 type CreateCalendarAtPathRequest struct {
-	UserID      string
-	ActorUserID string
-	CalendarID  string
-	Name        string
-	Slug        *string
-	Timezone    *string
-	Color       string
-	Description string
+	UserID          string
+	ActorUserID     string
+	CalendarID      string
+	Name            string
+	NameLang        *string
+	Slug            *string
+	Timezone        *string
+	Color           string
+	Description     string
+	DescriptionLang *string
 }
 
 type ListCalendarsRequest struct {
@@ -165,9 +169,9 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO caldav_calendars (
-  company_id, domain_id, user_id, name, normalized_name, color, description, sync_token
+  company_id, domain_id, user_id, name, normalized_name, displayname_lang, color, description, description_lang, sync_token
 )
-SELECT company_id, domain_id, user_id, $2, $3, $4, $5, $6
+SELECT company_id, domain_id, user_id, $2, $3, $4, $5, $6, $7, $8
 FROM active_user
 RETURNING id::text, user_id::text, name, displayname_lang, color, description, description_lang, sync_token, created_at, updated_at`
 	var calendar Calendar
@@ -175,8 +179,10 @@ RETURNING id::text, user_id::text, name, displayname_lang, color, description, d
 		req.UserID,
 		req.Name,
 		normalizedName,
+		req.NameLang,
 		req.Color,
 		req.Description,
+		req.DescriptionLang,
 		syncToken,
 	).Scan(
 		&calendar.ID,
@@ -232,9 +238,9 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO caldav_calendars (
-  id, company_id, domain_id, user_id, name, normalized_name, slug, timezone, color, description, sync_token
+  id, company_id, domain_id, user_id, name, normalized_name, displayname_lang, slug, timezone, color, description, description_lang, sync_token
 )
-SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8, $9
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8, $9, $10, $11
 FROM active_user
 RETURNING id::text, user_id::text, name, displayname_lang, slug, timezone, color, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
@@ -242,10 +248,12 @@ RETURNING id::text, user_id::text, name, displayname_lang, slug, timezone, color
 			req.CalendarID,
 			req.Name,
 			normalizedName,
+			req.NameLang,
 			normalizedSlug,
 			normalizedTimezone,
 			req.Color,
 			req.Description,
+			req.DescriptionLang,
 			syncToken,
 		).Scan(
 			&calendar.ID,
@@ -283,9 +291,9 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO caldav_calendars (
-  id, company_id, domain_id, user_id, name, normalized_name, timezone, color, description, sync_token
+  id, company_id, domain_id, user_id, name, normalized_name, displayname_lang, timezone, color, description, description_lang, sync_token
 )
-SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8, $9, $10
 FROM active_user
 RETURNING id::text, user_id::text, name, displayname_lang, timezone, color, description, description_lang, sync_token, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
@@ -293,9 +301,11 @@ RETURNING id::text, user_id::text, name, displayname_lang, timezone, color, desc
 			req.CalendarID,
 			req.Name,
 			normalizedName,
+			req.NameLang,
 			normalizedTimezone,
 			req.Color,
 			req.Description,
+			req.DescriptionLang,
 			syncToken,
 		).Scan(
 			&calendar.ID,
@@ -1693,8 +1703,16 @@ func ValidateCreateCalendarRequest(req CreateCalendarRequest) (CreateCalendarReq
 	if err != nil {
 		return CreateCalendarRequest{}, "", "", err
 	}
+	nameLang, err := validateDAVPropertyLanguagePointer("displayname xml:lang", req.NameLang)
+	if err != nil {
+		return CreateCalendarRequest{}, "", "", err
+	}
+	descriptionLang, err := validateDAVPropertyLanguagePointer("calendar-description xml:lang", req.DescriptionLang)
+	if err != nil {
+		return CreateCalendarRequest{}, "", "", err
+	}
 	syncToken := CalendarSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
-	return CreateCalendarRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Color: color, Description: description}, normalizedName, syncToken, nil
+	return CreateCalendarRequest{UserID: userID, ActorUserID: actorUserID, Name: name, NameLang: nameLang, Color: color, Description: description, DescriptionLang: descriptionLang}, normalizedName, syncToken, nil
 }
 
 func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (CreateCalendarAtPathRequest, string, string, *string, *string, error) {
@@ -1727,24 +1745,28 @@ func ValidateCreateCalendarAtPathRequest(req CreateCalendarAtPathRequest) (Creat
 		timezone = &tz
 	}
 	create, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
-		UserID:      userID,
-		ActorUserID: req.ActorUserID,
-		Name:        name,
-		Color:       req.Color,
-		Description: req.Description,
+		UserID:          userID,
+		ActorUserID:     req.ActorUserID,
+		Name:            name,
+		NameLang:        req.NameLang,
+		Color:           req.Color,
+		Description:     req.Description,
+		DescriptionLang: req.DescriptionLang,
 	})
 	if err != nil {
 		return CreateCalendarAtPathRequest{}, "", "", nil, nil, err
 	}
 	return CreateCalendarAtPathRequest{
-		UserID:      create.UserID,
-		ActorUserID: create.ActorUserID,
-		CalendarID:  calendarID,
-		Name:        create.Name,
-		Slug:        normalizedSlug,
-		Timezone:    timezone,
-		Color:       create.Color,
-		Description: create.Description,
+		UserID:          create.UserID,
+		ActorUserID:     create.ActorUserID,
+		CalendarID:      calendarID,
+		Name:            create.Name,
+		NameLang:        create.NameLang,
+		Slug:            normalizedSlug,
+		Timezone:        timezone,
+		Color:           create.Color,
+		Description:     create.Description,
+		DescriptionLang: create.DescriptionLang,
 	}, normalizedName, syncToken, normalizedSlug, timezone, nil
 }
 

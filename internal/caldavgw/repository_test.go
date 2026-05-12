@@ -15,17 +15,27 @@ import (
 func TestValidateCreateCalendarRequest(t *testing.T) {
 	t.Parallel()
 
+	nameLang := "ko-KR"
+	descriptionLang := "en-US"
 	req, normalizedName, syncToken, err := ValidateCreateCalendarRequest(CreateCalendarRequest{
-		UserID:      " user-1 ",
-		Name:        " Work ",
-		Color:       " #aabbcc ",
-		Description: " Team calendar ",
+		UserID:          " user-1 ",
+		Name:            " Work ",
+		NameLang:        &nameLang,
+		Color:           " #aabbcc ",
+		Description:     " Team calendar ",
+		DescriptionLang: &descriptionLang,
 	})
 	if err != nil {
 		t.Fatalf("ValidateCreateCalendarRequest returned error: %v", err)
 	}
 	if req.UserID != "user-1" || req.Name != "Work" || req.Color != "#AABBCC" || req.Description != "Team calendar" {
 		t.Fatalf("request = %+v", req)
+	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" {
+		t.Fatalf("name lang = %v", req.NameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "en-US" {
+		t.Fatalf("description lang = %v", req.DescriptionLang)
 	}
 	if normalizedName != "work" {
 		t.Fatalf("normalized name = %q", normalizedName)
@@ -38,18 +48,28 @@ func TestValidateCreateCalendarRequest(t *testing.T) {
 func TestValidateCreateCalendarAtPathRequest(t *testing.T) {
 	t.Parallel()
 
+	nameLang := "ko-KR"
+	descriptionLang := "en-US"
 	req, normalizedName, syncToken, _, _, err := ValidateCreateCalendarAtPathRequest(CreateCalendarAtPathRequest{
-		UserID:      " user-1 ",
-		CalendarID:  "11111111-1111-4111-8111-111111111111",
-		Name:        " Project ",
-		Color:       " #aabbcc ",
-		Description: " Milestones ",
+		UserID:          " user-1 ",
+		CalendarID:      "11111111-1111-4111-8111-111111111111",
+		Name:            " Project ",
+		NameLang:        &nameLang,
+		Color:           " #aabbcc ",
+		Description:     " Milestones ",
+		DescriptionLang: &descriptionLang,
 	})
 	if err != nil {
 		t.Fatalf("ValidateCreateCalendarAtPathRequest returned error: %v", err)
 	}
 	if req.UserID != "user-1" || req.CalendarID != "11111111-1111-4111-8111-111111111111" || req.Name != "Project" {
 		t.Fatalf("request = %+v", req)
+	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" {
+		t.Fatalf("name lang = %v", req.NameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "en-US" {
+		t.Fatalf("description lang = %v", req.DescriptionLang)
 	}
 	if normalizedName != "project" {
 		t.Fatalf("normalized name = %q", normalizedName)
@@ -62,12 +82,20 @@ func TestValidateCreateCalendarAtPathRequest(t *testing.T) {
 func TestValidateCreateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
+	validName := "Work"
+	validDescription := "Launch dates"
+	badLang := "en US"
+	goodLang := "ko-KR"
 	tests := []CreateCalendarRequest{
 		{Name: "Work"},
 		{UserID: "user\n1", Name: "Work"},
 		{UserID: "user-1", Name: "bad\nname"},
 		{UserID: "user-1", Name: "Work", Color: "blue"},
 		{UserID: "user-1", Name: "Work", Description: "bad\nline"},
+		{UserID: "user-1", Name: validName, NameLang: &badLang},
+		{UserID: "user-1", Name: validName, Description: validDescription, DescriptionLang: &badLang},
+		{UserID: "user-1", NameLang: &goodLang},
+		{UserID: "user-1", DescriptionLang: &goodLang},
 	}
 	for _, req := range tests {
 		req := req

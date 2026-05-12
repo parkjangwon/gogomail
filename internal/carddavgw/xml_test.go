@@ -321,6 +321,30 @@ func TestParseMKAddressBookCollectsProperties(t *testing.T) {
 	}
 }
 
+func TestParseMKAddressBookCollectsPropXMLLang(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>
+      <D:displayname> Team </D:displayname>
+      <C:addressbook-description> Launch contacts </C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:mkcol>`
+	req, err := ParseMKAddressBook(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseMKAddressBook returned error: %v", err)
+	}
+	if req.DisplayNameLang != "ko-KR" {
+		t.Fatalf("displayname lang = %q, want ko-KR", req.DisplayNameLang)
+	}
+	if req.DescriptionLang != "ko-KR" {
+		t.Fatalf("description lang = %q, want ko-KR", req.DescriptionLang)
+	}
+}
+
 func TestParseMKAddressBookCollectsUnsupportedPropertyFailure(t *testing.T) {
 	t.Parallel()
 
@@ -359,6 +383,25 @@ func TestParseMKAddressBookRejectsWhitespaceOnlyBody(t *testing.T) {
 
 	if _, err := ParseMKAddressBook(strings.NewReader(" \r\n\t ")); err == nil {
 		t.Fatal("ParseMKAddressBook error = nil, want rejection")
+	}
+}
+
+func TestParseMKAddressBookRejectsMalformedPropXMLLang(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"control":    `<D:mkcol xmlns:D="DAV:"><D:set><D:prop xml:lang="en&#x7f;US"><D:displayname>Team</D:displayname></D:prop></D:set></D:mkcol>`,
+		"whitespace": `<D:mkcol xmlns:D="DAV:"><D:set><D:prop xml:lang="en US"><D:displayname>Team</D:displayname></D:prop></D:set></D:mkcol>`,
+		"too long":   `<D:mkcol xmlns:D="DAV:"><D:set><D:prop xml:lang="abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm"><D:displayname>Team</D:displayname></D:prop></D:set></D:mkcol>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParseMKAddressBook(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseMKAddressBook error = nil, want rejection")
+			}
+		})
 	}
 }
 

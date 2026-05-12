@@ -87,7 +87,9 @@ type ProppatchRequest struct {
 
 type MKAddressBookRequest struct {
 	DisplayName         string
+	DisplayNameLang     string
 	Description         string
+	DescriptionLang     string
 	Properties          []XMLName
 	Unsupported         []XMLName
 	InvalidResourceType bool
@@ -621,7 +623,7 @@ func parseMKAddressBookSet(dec *xml.Decoder, setName xml.Name, req *MKAddressBoo
 		switch tok := tok.(type) {
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
-				if err := parseMKAddressBookProp(dec, tok.Name, req); err != nil {
+				if err := parseMKAddressBookProp(dec, tok, req); err != nil {
 					return err
 				}
 				continue
@@ -635,7 +637,11 @@ func parseMKAddressBookSet(dec *xml.Decoder, setName xml.Name, req *MKAddressBoo
 	}
 }
 
-func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressBookRequest) error {
+func parseMKAddressBookProp(dec *xml.Decoder, prop xml.StartElement, req *MKAddressBookRequest) error {
+	propLang, err := proppatchPropXMLLang(prop)
+	if err != nil {
+		return err
+	}
 	properties := 0
 	for {
 		tok, err := dec.Token()
@@ -668,6 +674,7 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 					return err
 				}
 				req.DisplayName = strings.TrimSpace(text)
+				req.DisplayNameLang = propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CardDAVNamespace, "addressbook-description"):
 				text, err := readSimpleElementText(dec, tok.Name)
@@ -675,6 +682,7 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 					return err
 				}
 				req.Description = strings.TrimSpace(text)
+				req.DescriptionLang = propLang
 				req.Properties = append(req.Properties, PropAddressBookDescription)
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
@@ -683,7 +691,7 @@ func parseMKAddressBookProp(dec *xml.Decoder, propName xml.Name, req *MKAddressB
 				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, propName) {
+			if sameName(tok.Name, prop.Name) {
 				return nil
 			}
 		}

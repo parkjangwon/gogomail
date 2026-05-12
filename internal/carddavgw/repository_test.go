@@ -20,14 +20,16 @@ func TestValidateCreateAddressBookRequest(t *testing.T) {
 	t.Parallel()
 
 	req, normalizedName, syncToken, err := ValidateCreateAddressBookRequest(CreateAddressBookRequest{
-		UserID:      " user-1 ",
-		Name:        " Personal ",
-		Description: " People I know ",
+		UserID:          " user-1 ",
+		Name:            " Personal ",
+		NameLang:        "ko-KR",
+		Description:     " People I know ",
+		DescriptionLang: "fr",
 	})
 	if err != nil {
 		t.Fatalf("ValidateCreateAddressBookRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.Name != "Personal" || req.Description != "People I know" {
+	if req.UserID != "user-1" || req.Name != "Personal" || req.NameLang != "ko-KR" || req.Description != "People I know" || req.DescriptionLang != "fr" {
 		t.Fatalf("request = %+v", req)
 	}
 	if normalizedName != "personal" {
@@ -42,15 +44,17 @@ func TestValidateCreateAddressBookAtPathRequest(t *testing.T) {
 	t.Parallel()
 
 	req, normalizedName, syncToken, err := ValidateCreateAddressBookAtPathRequest(CreateAddressBookAtPathRequest{
-		UserID:        " user-1 ",
-		AddressBookID: "11111111-1111-4111-8111-111111111111",
-		Name:          " Team ",
-		Description:   " Launch contacts ",
+		UserID:          " user-1 ",
+		AddressBookID:   "11111111-1111-4111-8111-111111111111",
+		Name:            " Team ",
+		NameLang:        "ko-KR",
+		Description:     " Launch contacts ",
+		DescriptionLang: "fr",
 	})
 	if err != nil {
 		t.Fatalf("ValidateCreateAddressBookAtPathRequest returned error: %v", err)
 	}
-	if req.UserID != "user-1" || req.AddressBookID != "11111111-1111-4111-8111-111111111111" || req.Name != "Team" {
+	if req.UserID != "user-1" || req.AddressBookID != "11111111-1111-4111-8111-111111111111" || req.Name != "Team" || req.NameLang != "ko-KR" || req.DescriptionLang != "fr" {
 		t.Fatalf("request = %+v", req)
 	}
 	if normalizedName != "team" {

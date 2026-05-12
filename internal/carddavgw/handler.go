@@ -255,11 +255,13 @@ func (h *Handler) serveMkcol(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	book, err = store.CreateAddressBookAtPath(r.Context(), CreateAddressBookAtPathRequest{
-		UserID:        userID,
-		ActorUserID:   actorUserID,
-		AddressBookID: resource.AddressBookID,
-		Name:          req.DisplayName,
-		Description:   req.Description,
+		UserID:          userID,
+		ActorUserID:     actorUserID,
+		AddressBookID:   resource.AddressBookID,
+		Name:            req.DisplayName,
+		NameLang:        req.DisplayNameLang,
+		Description:     req.Description,
+		DescriptionLang: req.DescriptionLang,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -31,18 +31,22 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 type CreateAddressBookRequest struct {
-	UserID      string
-	ActorUserID string
-	Name        string
-	Description string
+	UserID          string
+	ActorUserID     string
+	Name            string
+	NameLang        string
+	Description     string
+	DescriptionLang string
 }
 
 type CreateAddressBookAtPathRequest struct {
-	UserID        string
-	ActorUserID   string
-	AddressBookID string
-	Name          string
-	Description   string
+	UserID          string
+	ActorUserID     string
+	AddressBookID   string
+	Name            string
+	NameLang        string
+	Description     string
+	DescriptionLang string
 }
 
 type ListAddressBooksRequest struct {
@@ -157,9 +161,9 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO carddav_addressbooks (
-  company_id, domain_id, user_id, name, normalized_name, description, sync_token
+  company_id, domain_id, user_id, name, normalized_name, displayname_lang, description, description_lang, sync_token
 )
-SELECT company_id, domain_id, user_id, $2, $3, $4, $5
+SELECT company_id, domain_id, user_id, $2, $3, $4, $5, $6, $7
 FROM active_user
 RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 	var book AddressBook
@@ -167,7 +171,9 @@ RETURNING id::text, user_id::text, name, displayname_lang, description, descript
 		req.UserID,
 		req.Name,
 		normalizedName,
+		req.NameLang,
 		req.Description,
+		req.DescriptionLang,
 		syncToken,
 	).Scan(
 		&book.ID,
@@ -220,9 +226,9 @@ WITH active_user AS (
     AND c.status = 'active'
 )
 INSERT INTO carddav_addressbooks (
-  id, company_id, domain_id, user_id, name, normalized_name, description, sync_token
+  id, company_id, domain_id, user_id, name, normalized_name, displayname_lang, description, description_lang, sync_token
 )
-SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6
+SELECT $2::uuid, company_id, domain_id, user_id, $3, $4, $5, $6, $7, $8
 FROM active_user
 RETURNING id::text, user_id::text, name, displayname_lang, description, description_lang, sync_token, created_at, updated_at`
 	var book AddressBook
@@ -231,7 +237,9 @@ RETURNING id::text, user_id::text, name, displayname_lang, description, descript
 		req.AddressBookID,
 		req.Name,
 		normalizedName,
+		req.NameLang,
 		req.Description,
+		req.DescriptionLang,
 		syncToken,
 	).Scan(
 		&book.ID,
@@ -1188,8 +1196,16 @@ func ValidateCreateAddressBookRequest(req CreateAddressBookRequest) (CreateAddre
 	if err != nil {
 		return CreateAddressBookRequest{}, "", "", err
 	}
+	nameLang, err := validateXMLLangString("displayname xml:lang", req.NameLang)
+	if err != nil {
+		return CreateAddressBookRequest{}, "", "", err
+	}
+	descriptionLang, err := validateXMLLangString("addressbook-description xml:lang", req.DescriptionLang)
+	if err != nil {
+		return CreateAddressBookRequest{}, "", "", err
+	}
 	syncToken := AddressBookSyncToken(userID, normalizedName, time.Now().UTC().Format(time.RFC3339Nano))
-	return CreateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, Name: name, Description: description}, normalizedName, syncToken, nil
+	return CreateAddressBookRequest{UserID: userID, ActorUserID: actorUserID, Name: name, NameLang: nameLang, Description: description, DescriptionLang: descriptionLang}, normalizedName, syncToken, nil
 }
 
 func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) (CreateAddressBookAtPathRequest, string, string, error) {
@@ -1206,20 +1222,24 @@ func ValidateCreateAddressBookAtPathRequest(req CreateAddressBookAtPathRequest) 
 		name = bookID
 	}
 	create, normalizedName, syncToken, err := ValidateCreateAddressBookRequest(CreateAddressBookRequest{
-		UserID:      userID,
-		ActorUserID: req.ActorUserID,
-		Name:        name,
-		Description: req.Description,
+		UserID:          userID,
+		ActorUserID:     req.ActorUserID,
+		Name:            name,
+		NameLang:        req.NameLang,
+		Description:     req.Description,
+		DescriptionLang: req.DescriptionLang,
 	})
 	if err != nil {
 		return CreateAddressBookAtPathRequest{}, "", "", err
 	}
 	return CreateAddressBookAtPathRequest{
-		UserID:        create.UserID,
-		ActorUserID:   create.ActorUserID,
-		AddressBookID: bookID,
-		Name:          create.Name,
-		Description:   create.Description,
+		UserID:          create.UserID,
+		ActorUserID:     create.ActorUserID,
+		AddressBookID:   bookID,
+		Name:            create.Name,
+		NameLang:        create.NameLang,
+		Description:     create.Description,
+		DescriptionLang: create.DescriptionLang,
 	}, normalizedName, syncToken, nil
 }
 
@@ -1313,11 +1333,19 @@ func validateXMLLangPointer(field string, value *string) (*string, error) {
 		empty := ""
 		return &empty, nil
 	}
-	lang, err := validateXMLLang(*value)
+	lang, err := validateXMLLangString(field, *value)
 	if err != nil {
-		return nil, fmt.Errorf("%s is invalid: %w", field, err)
+		return nil, err
 	}
 	return &lang, nil
+}
+
+func validateXMLLangString(field string, value string) (string, error) {
+	lang, err := validateXMLLang(value)
+	if err != nil {
+		return "", fmt.Errorf("%s is invalid: %w", field, err)
+	}
+	return lang, nil
 }
 
 func ValidateDeleteAddressBookRequest(req DeleteAddressBookRequest) (DeleteAddressBookRequest, error) {

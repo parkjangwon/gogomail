@@ -79,13 +79,15 @@ type PropfindRequest struct {
 }
 
 type MKCalendarRequest struct {
-	DisplayName string
-	Description string
-	Color       string
-	Slug        *string
-	Timezone    *string
-	Properties  []XMLName
-	Unsupported []XMLName
+	DisplayName     string
+	DisplayNameLang *string
+	Description     string
+	DescriptionLang *string
+	Color           string
+	Slug            *string
+	Timezone        *string
+	Properties      []XMLName
+	Unsupported     []XMLName
 }
 
 type ProppatchRequest struct {
@@ -514,7 +516,7 @@ func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarReque
 		case xml.StartElement:
 			if sameXMLName(tok.Name, DAVNamespace, "prop") {
 				hasProp = true
-				if err := parseMKCalendarProp(dec, tok.Name, req); err != nil {
+				if err := parseMKCalendarProp(dec, tok, req); err != nil {
 					return err
 				}
 				continue
@@ -531,7 +533,11 @@ func parseMKCalendarSet(dec *xml.Decoder, setName xml.Name, req *MKCalendarReque
 	}
 }
 
-func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarRequest) error {
+func parseMKCalendarProp(dec *xml.Decoder, propStart xml.StartElement, req *MKCalendarRequest) error {
+	propLang, err := propLanguage(propStart)
+	if err != nil {
+		return err
+	}
 	properties := 0
 	for {
 		tok, err := dec.Token()
@@ -554,6 +560,7 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 					return err
 				}
 				req.DisplayName = strings.TrimSpace(text)
+				req.DisplayNameLang = &propLang
 				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-description"):
 				text, err := readSimpleElementText(dec, tok.Name)
@@ -561,6 +568,7 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 					return err
 				}
 				req.Description = strings.TrimSpace(text)
+				req.DescriptionLang = &propLang
 				req.Properties = append(req.Properties, PropCalendarDescription)
 			case sameXMLName(tok.Name, CalendarServerNamespace, "calendar-color") ||
 				sameXMLName(tok.Name, "http://apple.com/ns/ical/", "calendar-color"):
@@ -597,7 +605,7 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
-			if sameName(tok.Name, propName) {
+			if sameName(tok.Name, propStart.Name) {
 				return nil
 			}
 		}
