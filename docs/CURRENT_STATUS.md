@@ -108,6 +108,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Draft-send success clears local draft state without a redundant best-effort delete call because the backend marks the draft sent.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send tracking parity (TASK-111, 2026-05-12, complete)
+- Completed draft-send tracking parity pass for user webmail beta.
+- Draft save contracts now carry `track_opens`.
+- Draft persistence stores `track_opens` in message flags and `GetDraftForSend` restores it.
+- `SendDraft` now forwards saved `TrackOpens` into `SendText`.
+- Webmail draft payloads now include `track_opens`, and non-scheduled tracked sends can use the backend draft-send contract.
+- Scheduled sends still keep direct send until the draft contract can represent `scheduled_at`.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:

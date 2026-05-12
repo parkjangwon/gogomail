@@ -3151,6 +3151,7 @@ func (f *fakeRepository) GetDraftForSend(context.Context, string, string) (maild
 		Subject:       "draft subject",
 		TextBody:      "draft body",
 		AttachmentIDs: []string{"att-1"},
+		TrackOpens:    true,
 	}, nil
 }
 
@@ -3787,6 +3788,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		From:            " sender@example.com ",
 		To:              []outbound.Address{{Name: " User ", Email: " user@example.net "}},
 		AttachmentIDs:   []string{" att-1 "},
+		TrackOpens:      true,
 		Subject:         "draft",
 	})
 	if err != nil {
@@ -3801,6 +3803,7 @@ func TestSaveDraftDelegatesToDraftRepository(t *testing.T) {
 		repo.lastDraft.To[0].Name != "User" ||
 		repo.lastDraft.To[0].Email != "user@example.net" ||
 		repo.lastDraft.AttachmentIDs[0] != "att-1" ||
+		!repo.lastDraft.TrackOpens ||
 		repo.lastDraft.Subject != "draft" {
 		t.Fatalf("draft = %+v last = %+v", draft, repo.lastDraft)
 	}

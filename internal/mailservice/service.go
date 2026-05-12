@@ -126,13 +126,13 @@ type TrackingRepository interface {
 }
 
 type Service struct {
-	repository         Repository
-	store              storage.Store
-	searchIDSource     SearchIDSource
-	imapEvents         IMAPMailboxEventPublisher
-	quotaAlertEmitter  maildb.QuotaWarningEmitterInterface
-	trackingRepo       TrackingRepository
-	publicBaseURL      string
+	repository        Repository
+	store             storage.Store
+	searchIDSource    SearchIDSource
+	imapEvents        IMAPMailboxEventPublisher
+	quotaAlertEmitter maildb.QuotaWarningEmitterInterface
+	trackingRepo      TrackingRepository
+	publicBaseURL     string
 }
 
 func New(repository Repository, store storage.Store) *Service {
@@ -1547,6 +1547,7 @@ func (s *Service) SaveDraft(ctx context.Context, req SaveDraftRequest) (maildb.M
 		Subject:         req.Subject,
 		TextBody:        req.TextBody,
 		AttachmentIDs:   req.AttachmentIDs,
+		TrackOpens:      req.TrackOpens,
 	})
 }
 
@@ -1869,8 +1870,8 @@ func (s *Service) storeChunk(ctx context.Context, repo AttachmentUploadSessionRe
 		return maildb.AttachmentUploadSession{}, fmt.Errorf("chunk body size %d does not match Content-Range size %d", counter.n, chunkSize)
 	}
 	stored, err := repo.StoreAttachmentUploadSessionChunk(ctx, maildb.StoreAttachmentUploadSessionChunkRequest{
-		UserID:       req.UserID,
-		SessionID:    req.SessionID,
+		UserID:    req.UserID,
+		SessionID: req.SessionID,
 		ContentRange: maildb.ContentRange{
 			FirstByte: cr.FirstByte,
 			LastByte:  cr.LastByte,
@@ -2306,6 +2307,7 @@ func (s *Service) SendDraft(ctx context.Context, userID string, draftID string) 
 		Subject:         draft.Subject,
 		TextBody:        draft.TextBody,
 		AttachmentIDs:   draft.AttachmentIDs,
+		TrackOpens:      draft.TrackOpens,
 	})
 	if err != nil {
 		return SendTextResult{}, err
