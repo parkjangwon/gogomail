@@ -2234,7 +2234,10 @@ Target outcome:
       empty stored language values are emitted without `xml:lang` attributes.
       Unsupported/protected-property rollback tests now assert attempted
       language changes are not persisted and repository updates are not called
-      on RFC 4918 atomic failure responses.
+      on RFC 4918 atomic failure responses. Conditional failure coverage now
+      asserts `If-Match`, `If-None-Match`, and `If-Unmodified-Since`
+      preconditions reject before body reads, leaving attempted language
+      mutations unapplied.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2602,7 +2605,10 @@ Target outcome:
       empty stored language values are emitted without `xml:lang` attributes.
       Unsupported/protected-property rollback tests now assert attempted
       language changes are not persisted and repository updates are not called
-      on RFC 4918 atomic failure responses.
+      on RFC 4918 atomic failure responses. Conditional failure coverage now
+      asserts `If-Match`, `If-None-Match`, and `If-Unmodified-Since`
+      preconditions reject before body reads, leaving attempted language
+      mutations unapplied.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection

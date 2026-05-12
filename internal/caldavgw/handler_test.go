@@ -3010,8 +3010,9 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
 	store.calendars[0].UpdatedAt = time.Date(2026, 5, 6, 4, 5, 6, 0, time.UTC)
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
 	req.Header.Set("If-Unmodified-Since", "Wed, 06 May 2026 04:05:05 GMT")
@@ -3031,13 +3032,54 @@ func TestHandlerProppatchHonorsIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
 	if calendar.Name != "Work" {
 		t.Fatalf("calendar name = %q, want Work", calendar.Name)
 	}
+	if calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name lang = %q, want ko-KR", calendar.NameLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
+	}
+}
+
+func TestHandlerProppatchRejectsRepeatedIfUnmodifiedSinceBeforeBodyRead(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:06 GMT")
+	req.Header.Add("If-Unmodified-Since", "Wed, 06 May 2026 04:05:07 GMT")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if body.reads != 0 {
+		t.Fatalf("body reads = %d, want 0", body.reads)
+	}
+	if !strings.Contains(rec.Body.String(), "If-Unmodified-Since header must not be repeated") {
+		t.Fatalf("response did not explain repeated If-Unmodified-Since rejection: %s", rec.Body.String())
+	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" || calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar mutated despite failed precondition: %+v", calendar)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
 	req.Header.Set("If-Match", `"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"`)
@@ -3050,17 +3092,28 @@ func TestHandlerProppatchRejectsMismatchedIfMatchBeforeBodyRead(t *testing.T) {
 	if body.reads != 0 {
 		t.Fatalf("body reads = %d, want 0", body.reads)
 	}
+	calendar, err := store.LookupCalendar(t.Context(), "user-1", "work")
+	if err != nil {
+		t.Fatalf("calendar lookup failed: %v", err)
+	}
+	if calendar.Name != "Work" || calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar mutated despite failed precondition: %+v", calendar)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
+	store.calendars[0].NameLang = "ko-KR"
 	etag, err := CalendarCollectionETag("user-1", store.calendars[0])
 	if err != nil {
 		t.Fatalf("CalendarCollectionETag returned error: %v", err)
 	}
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
 	req.Header.Set("If-None-Match", etag)
@@ -3080,13 +3133,20 @@ func TestHandlerProppatchRejectsMatchingIfNoneMatchBeforeBodyRead(t *testing.T) 
 	if calendar.Name != "Work" {
 		t.Fatalf("calendar name = %q, want Work", calendar.Name)
 	}
+	if calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name lang = %q, want ko-KR", calendar.NameLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
+	}
 }
 
 func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeDiscoveryStore()
-	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
+	store.calendars[0].NameLang = "ko-KR"
+	body := &readTrackingReader{data: `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="ja-JP"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`}
 	handler := NewHandler(store, fixedUser("user-1"))
 	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", body)
 	req.Header.Set("If-None-Match", "*")
@@ -3105,6 +3165,12 @@ func TestHandlerProppatchRejectsIfNoneMatchStarBeforeBodyRead(t *testing.T) {
 	}
 	if calendar.Name != "Work" {
 		t.Fatalf("calendar name = %q, want Work", calendar.Name)
+	}
+	if calendar.NameLang != "ko-KR" {
+		t.Fatalf("calendar name lang = %q, want ko-KR", calendar.NameLang)
+	}
+	if store.lastCalendarUpdate.CalendarID != "" {
+		t.Fatalf("update request recorded despite failed precondition: %+v", store.lastCalendarUpdate)
 	}
 }
 
