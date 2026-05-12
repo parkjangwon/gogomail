@@ -1100,7 +1100,18 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
 
         {/* Close confirmation panel */}
         {confirmClose && (
-          <div role="alertdialog" aria-modal="false" aria-labelledby="compose-close-save-title" style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div
+            role="alertdialog"
+            aria-modal="false"
+            aria-labelledby="compose-close-save-title"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                setConfirmClose(false);
+              }
+            }}
+            style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
+          >
             <span id="compose-close-save-title" style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{closeSavePrompt}</span>
             <button
               type="button"

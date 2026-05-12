@@ -2100,6 +2100,42 @@ TASK-153: 사용자 웹메일 베타 안정화 — 작성창 닫기 확인 Escap
 
 ---
 
+## ✅ TASK-153: 사용자 웹메일 베타 안정화 — 작성창 닫기 확인 Escape 취소 지원
+
+**STATUS: COMPLETE**
+
+### 배경
+
+닫기 확인 패널은 안전한 취소 경로가 명확해야 한다.
+키보드 사용자가 `Escape`로 패널을 닫으면 작성창 자체를 닫거나 버리지 않고, 취소 버튼과 같은 “작성 계속” 상태로 돌아가야 한다.
+
+### 구현 대상
+
+- `apps/webmail/src/components/ComposeModal.tsx`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] 닫기 확인 패널에서 `Escape` 입력 시 확인 패널이 닫힌다.
+- [x] `Escape`는 작성창 닫기/버리기/저장을 실행하지 않는다.
+- [x] `Escape` 처리는 상위 작성창 이벤트로 전파되지 않는다.
+- [x] 기존 버튼 동작과 디자인은 유지한다.
+- [x] `go test ./...` 통과.
+- [x] 웹메일 타입 체크 통과.
+- [x] 기능 단위 커밋 후 push.
+
+### 검증
+
+- `go test ./...` 통과
+- `pnpm type-check` in `apps/webmail` 통과
+
+### 다음 태스크
+
+TASK-154: 사용자 웹메일 베타 안정화 — 작성창 닫기 확인 취소 헬퍼 통합
+
+---
+
 ## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**
