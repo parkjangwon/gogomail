@@ -136,11 +136,23 @@ func TestParseProppatchRejectsInvalidShapes(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"empty":                     ``,
-		"wrong root":                `<D:propfind xmlns:D="DAV:"/>`,
-		"unsupported child":         `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
-		"unsupported set child":     `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop><D:href>/addressbooks/team/</D:href></D:set></D:propertyupdate>`,
-		"unsupported remove child":  `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description/></D:prop><D:href>/addressbooks/team/</D:href></D:remove></D:propertyupdate>`,
+		"empty":                    ``,
+		"wrong root":               `<D:propfind xmlns:D="DAV:"/>`,
+		"unsupported child":        `<D:propertyupdate xmlns:D="DAV:"><D:patch/></D:propertyupdate>`,
+		"unsupported set child":    `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname>Team</D:displayname></D:prop><D:href>/addressbooks/team/</D:href></D:set></D:propertyupdate>`,
+		"unsupported remove child": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description/></D:prop><D:href>/addressbooks/team/</D:href></D:remove></D:propertyupdate>`,
+		"set with two prop children": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop><D:displayname>Team</D:displayname></D:prop>
+    <D:prop><C:addressbook-description>Contacts</C:addressbook-description></D:prop>
+  </D:set>
+</D:propertyupdate>`,
+		"remove with two prop children": `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:remove>
+    <D:prop><C:addressbook-description/></D:prop>
+    <D:prop><C:unknown/></D:prop>
+  </D:remove>
+</D:propertyupdate>`,
 		"nested supported value":    `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop><D:displayname><D:x/></D:displayname></D:prop></D:set></D:propertyupdate>`,
 		"remove supported text":     `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description>old</C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
 		"remove supported child":    `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:remove><D:prop><C:addressbook-description><C:x/></C:addressbook-description></D:prop></D:remove></D:propertyupdate>`,
@@ -180,6 +192,33 @@ func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
 	}
 	if len(req.Protected) != 1 || req.Protected[0] != PropDisplayName {
 		t.Fatalf("protected = %+v", req.Protected)
+	}
+}
+
+func TestParseProppatchAllowsMultipleInstructionsWithOnePropEach(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set><D:prop><D:displayname>Team</D:displayname></D:prop></D:set>
+  <D:set><D:prop><C:addressbook-description>Contacts</C:addressbook-description></D:prop></D:set>
+  <D:remove><D:prop><C:unknown/></D:prop></D:remove>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.Name == nil || *req.Name != "Team" {
+		t.Fatalf("name = %#v", req.Name)
+	}
+	if req.Description == nil || *req.Description != "Contacts" {
+		t.Fatalf("description = %#v", req.Description)
+	}
+	wantProperties := []XMLName{PropDisplayName, PropAddressBookDescription}
+	if !reflect.DeepEqual(req.Properties, wantProperties) {
+		t.Fatalf("properties = %+v, want %+v", req.Properties, wantProperties)
+	}
+	if len(req.Unsupported) != 1 || req.Unsupported[0] != (XMLName{Space: CardDAVNamespace, Local: "unknown"}) {
+		t.Fatalf("unsupported = %+v", req.Unsupported)
 	}
 }
 

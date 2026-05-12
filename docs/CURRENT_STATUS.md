@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH instruction prop cardinality (2026-05-13, complete)
+- CalDAV/CardDAV `PROPPATCH` now enforce the RFC 4918 `set (prop)` and
+  `remove (prop)` grammar by rejecting a second `DAV:prop` child inside the
+  same instruction.
+- Requests may still use multiple `DAV:set`/`DAV:remove` instructions, each
+  with exactly one `DAV:prop`, preserving document-order processing.
+- Parser regressions cover duplicate `DAV:prop` rejection and valid
+  multi-instruction requests in both gateways.
+
 ## CalDAV/CardDAV PROPPATCH instruction emptiness (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` now reject empty `DAV:set` and `DAV:remove`
   instructions, including self-closing and explicitly empty forms.
