@@ -61,6 +61,13 @@ type batchCardDAVDiscoveryStore struct {
 	batchCount  int
 }
 
+type queryCandidateCardDAVDiscoveryStore struct {
+	fakeCardDAVDiscoveryStore
+	candidateCount int
+	walkCount      int
+	candidateTexts []string
+}
+
 func (s fakeCardDAVDiscoveryStore) LookupPrincipal(_ context.Context, userID string) (Principal, error) {
 	if userID != s.principal.UserID {
 		return Principal{}, errFakeCardDAVNotFound
@@ -208,6 +215,33 @@ func (s *batchCardDAVDiscoveryStore) ListContactObjectsByNameGroups(ctx context.
 		}
 	}
 	return objects, nil
+}
+
+func (s *queryCandidateCardDAVDiscoveryStore) WalkAddressBookQueryCandidates(_ context.Context, userID string, addressBookID string, containsText string, yield func(ContactObject) (bool, error)) error {
+	s.candidateCount++
+	s.candidateTexts = append(s.candidateTexts, containsText)
+	needle := strings.ToLower(containsText)
+	for _, object := range s.objects {
+		if object.UserID != userID || object.AddressBookID != addressBookID {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(string(object.VCard)), needle) {
+			continue
+		}
+		keepGoing, err := yield(object)
+		if err != nil {
+			return err
+		}
+		if !keepGoing {
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *queryCandidateCardDAVDiscoveryStore) WalkAddressBookObjects(ctx context.Context, userID string, addressBookID string, yield func(ContactObject) (bool, error)) error {
+	s.walkCount++
+	return s.fakeCardDAVDiscoveryStore.WalkAddressBookObjects(ctx, userID, addressBookID, yield)
 }
 
 func (s noSyncCardDAVDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
@@ -1665,6 +1699,88 @@ func TestHandlerReportAddressBookQueryFiltersTextMatch(t *testing.T) {
 	}
 	if strings.Contains(text, "contact-2.vcf") {
 		t.Fatalf("query REPORT included non-matching contact:\n%s", text)
+	}
+}
+
+func TestHandlerReportAddressBookQueryUsesIndexedCandidateWalker(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match>Other</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.candidateCount != 1 || store.walkCount != 0 {
+		t.Fatalf("candidateCount = %d, walkCount = %d; want indexed candidate path only", store.candidateCount, store.walkCount)
+	}
+	if len(store.candidateTexts) != 1 || store.candidateTexts[0] != "Other" {
+		t.Fatalf("candidate texts = %v, want [Other]", store.candidateTexts)
+	}
+	text := rec.Body.String()
+	if !strings.Contains(text, "<D:href>/carddav/addressbooks/user-1/personal/contact-2.vcf</D:href>") {
+		t.Fatalf("query REPORT missing candidate match:\n%s", text)
+	}
+	if strings.Contains(text, "contact-1.vcf") {
+		t.Fatalf("query REPORT included non-matching candidate:\n%s", text)
+	}
+}
+
+func TestHandlerReportAddressBookQueryCandidateWalkerKeepsExactFilter(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match>example.com</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.candidateCount != 1 || store.walkCount != 0 {
+		t.Fatalf("candidateCount = %d, walkCount = %d; want indexed candidate path only", store.candidateCount, store.walkCount)
+	}
+	if strings.Contains(rec.Body.String(), "<D:response>") {
+		t.Fatalf("candidate false positives escaped exact vCard filter:\n%s", rec.Body.String())
+	}
+}
+
+func TestHandlerReportAddressBookQueryFallsBackForUnsafeCandidateFilter(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="EMAIL"><C:text-match negate-condition="yes">contact-one@example.com</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.candidateCount != 0 || store.walkCount != 1 {
+		t.Fatalf("candidateCount = %d, walkCount = %d; want broad walker fallback", store.candidateCount, store.walkCount)
+	}
+	if !strings.Contains(rec.Body.String(), "contact-2.vcf") {
+		t.Fatalf("fallback query REPORT missing negated match:\n%s", rec.Body.String())
 	}
 }
 

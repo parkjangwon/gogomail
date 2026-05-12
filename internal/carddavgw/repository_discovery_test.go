@@ -12,6 +12,7 @@ func TestRepositorySatisfiesDiscoveryStore(t *testing.T) {
 	t.Parallel()
 
 	var _ DiscoveryStore = (*Repository)(nil)
+	var _ AddressBookQueryCandidateWalker = (*Repository)(nil)
 }
 
 func TestRepositoryDiscoveryMethodsRequireDatabase(t *testing.T) {
@@ -32,6 +33,9 @@ func TestRepositoryDiscoveryMethodsRequireDatabase(t *testing.T) {
 	}
 	if err := repo.WalkAddressBookObjects(context.Background(), "user-1", "book-1", func(ContactObject) (bool, error) { return false, nil }); err == nil {
 		t.Fatal("WalkAddressBookObjects error = nil, want database requirement")
+	}
+	if err := repo.WalkAddressBookQueryCandidates(context.Background(), "user-1", "book-1", "alice", func(ContactObject) (bool, error) { return false, nil }); err == nil {
+		t.Fatal("WalkAddressBookQueryCandidates error = nil, want database requirement")
 	}
 	if _, err := repo.LookupContactObject(context.Background(), "user-1", "book-1", "contact-1.vcf"); err == nil {
 		t.Fatal("LookupContactObject error = nil, want database requirement")
