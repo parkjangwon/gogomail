@@ -5,10 +5,37 @@
 
 ---
 
-## 🔄 TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
+## ⏸️ TASK-097: Phase 4 완성 — 방향 선택 대기 (Direction Decision Awaited)
+
+**STATUS: BLOCKED**
+**Issue**: TASK-096 blocked on unresolved UI rendering issue. Choose direction for TASK-097:
+
+### 선택 옵션
+
+**Option 1: 백엔드 Phase 5 — Mail Security & Milter Protocol**
+- RFC 5764 (Milter 프로토콜) 클라이언트 구현
+- SMTP 파이프라인에 Milter 통합
+- 스팸 필터링 하드닝
+- DNSBL/RBL 체크 (RFC 5782)
+
+**Option 2: 웹메일 모바일 반응형 강화**
+- 태블릿/모바일 UI 개선
+- 터치 제스처 지원
+- 반응형 레이아웃 최적화
+- 모바일 성능 최적화
+
+### 다음 단계
+
+사용자가 Option 1 또는 Option 2 중 하나를 선택하면 해당 태스크가 ACTIVE_TASK.md로 이동됩니다.
+
+---
+
+## ⏹️ TASK-096: 웹메일 성능 최적화 + 번들 크기 감소 (Blocked on UI rendering issue)
 
 **STATUS: BLOCKED**
 **Issue**: Hierarchical org chart data loaded in DB but not rendering in UI despite API path fix
+
+**자세한 내용 (완료되지 않음)**
 
 ### 목표
 
