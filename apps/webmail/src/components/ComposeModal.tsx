@@ -101,6 +101,14 @@ function backendComposeIntent(intent: ComposeIntent): ComposeIntent {
   return intent === 'reply_all' ? 'reply' : intent;
 }
 
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  ].join('T');
+}
+
 function buildQuoteHTML(intent: string, source: MessageDetail): string {
   const from = source.from_name
     ? `${escapeHtml(source.from_name)} &lt;${escapeHtml(source.from_addr)}&gt;`
@@ -350,6 +358,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     scheduled: !!scheduledAt,
     uploading: sendButtonUploading,
   });
+  const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
@@ -1365,7 +1374,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                       role="menuitem"
                       aria-label={`${opt.label}, ${opt.sub}`}
                       onClick={() => {
-                        setScheduledAt(opt.date.toISOString().slice(0, 16));
+                        setScheduledAt(toDateTimeLocalValue(opt.date));
                         closeSendDropdown();
                       }}
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', borderBottom: '1px solid var(--color-border-subtle)', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
@@ -1409,7 +1418,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
                       closeSendDropdown();
                       setShowSchedule(true);
                       if (!scheduledAt) {
-                        setScheduledAt(new Date(Date.now() + 10 * 60000).toISOString().slice(0, 16));
+                        setScheduledAt(toDateTimeLocalValue(new Date(Date.now() + 10 * 60000)));
                       }
                     }}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '6px 14px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
@@ -1608,7 +1617,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             </label>
             {showSchedule && (
               <>
-                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} aria-label="예약 전송 시간" aria-describedby="compose-schedule-help" style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
+                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={scheduleMinDateTime} aria-label="예약 전송 시간" aria-describedby="compose-schedule-help" style={{ fontSize: '12px', padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', outline: 'none' }} />
                 <span id="compose-schedule-help" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', whiteSpace: 'nowrap' }}>{SCHEDULE_INPUT_HELP}</span>
                 <button
                   type="button"
