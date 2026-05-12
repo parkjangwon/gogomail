@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV write/delete 락 경합 축소 (2026-05-12, complete)
+- CardDAV contact upsert/delete와 address-book delete/proppatch 경로에 bounded retry/backoff를 추가해
+  serialization failure, deadlock, lock contention 상황에서 동일 작업의 성공률을 높였다.
+- contact upsert/delete에서 주소록 row `FOR UPDATE` 선잠금과 UID 중복 선조회를 제거하고,
+  active UID/name unique index 오류 매핑으로 수렴했다.
+- contact/object 및 address-book 조건부 ETag 검증에서 불필요한 `FOR UPDATE`를 제거하고,
+  sync marker 보장을 CTE 단일 쿼리로 정리했다.
+
 ## CardDAV addressbook-multiget 배치 조회 고도화 (2026-05-12, complete)
 - `addressbook-multiget`에서 href마다 `LookupContactObject`를 반복하던 경로를
   주소록+객체명 그룹 기반 배치 조회로 정리했다.

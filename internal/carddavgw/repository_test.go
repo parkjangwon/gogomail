@@ -116,6 +116,61 @@ func TestMapContactObjectUpsertErrorPreservesUnknownErrors(t *testing.T) {
 	}
 }
 
+func TestIsRetryableCardDAVWriteError(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []string{"40001", "40P01", "40P02", "55P03"} {
+		code := code
+		t.Run(code, func(t *testing.T) {
+			t.Parallel()
+			if !isRetryableCardDAVWriteError(&pgconn.PgError{Code: code}) {
+				t.Fatalf("code %s was not retryable", code)
+			}
+		})
+	}
+	if isRetryableCardDAVWriteError(&pgconn.PgError{Code: "23505"}) {
+		t.Fatal("unique violation should not be retryable")
+	}
+	if isRetryableCardDAVWriteError(errors.New("plain")) {
+		t.Fatal("plain error should not be retryable")
+	}
+}
+
+func TestRunCardDAVWriteWithRetryStopsAfterRetryableSuccess(t *testing.T) {
+	t.Parallel()
+
+	attempts := 0
+	err := runCardDAVWriteWithRetry(context.Background(), func() error {
+		attempts++
+		if attempts == 1 {
+			return &pgconn.PgError{Code: "40001"}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("runCardDAVWriteWithRetry returned error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestRunCardDAVWriteWithRetryDoesNotRetryUniqueViolation(t *testing.T) {
+	t.Parallel()
+
+	attempts := 0
+	err := runCardDAVWriteWithRetry(context.Background(), func() error {
+		attempts++
+		return &pgconn.PgError{Code: "23505"}
+	})
+	if err == nil {
+		t.Fatal("runCardDAVWriteWithRetry returned nil, want error")
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+}
+
 func TestInsertAddressBookChangeQueuesDomainEvent(t *testing.T) {
 	t.Parallel()
 

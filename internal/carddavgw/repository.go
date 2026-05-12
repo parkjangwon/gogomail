@@ -17,6 +17,9 @@ type Repository struct {
 }
 
 const carddavContactObjectLookupBatchSize = 256
+const carddavWriteMaxAttempts = 4
+const carddavWriteBaseDelay = 5 * time.Millisecond
+const carddavWriteMaxDelay = 80 * time.Millisecond
 
 type contactObjectNameLookup struct {
 	addressBookID string
@@ -316,22 +319,21 @@ func (r *Repository) UpdateAddressBookProperties(ctx context.Context, req Update
 	if err != nil {
 		return AddressBook{}, err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return AddressBook{}, fmt.Errorf("begin CardDAV address book update: %w", err)
-	}
-	defer tx.Rollback()
-	if err := lockActiveAddressBook(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-		return AddressBook{}, err
-	}
-	if req.ObservedETag != "" {
-		if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
-			return AddressBook{}, err
+	var book AddressBook
+	if err := runCardDAVWriteWithRetry(ctx, func() error {
+		tx, err := r.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin CardDAV address book update: %w", err)
 		}
-	}
-	nameValue, nameSet := optionalStringArg(req.Name)
-	descriptionValue, descriptionSet := optionalStringArg(req.Description)
-	const query = `
+		defer tx.Rollback()
+		if req.ObservedETag != "" {
+			if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
+				return err
+			}
+		}
+		nameValue, nameSet := optionalStringArg(req.Name)
+		descriptionValue, descriptionSet := optionalStringArg(req.Description)
+		const query = `
 UPDATE carddav_addressbooks
 SET
   name = CASE WHEN $3 THEN $4 ELSE name END,
@@ -343,36 +345,39 @@ WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
 RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
-	var book AddressBook
-	err = tx.QueryRowContext(ctx, query,
-		req.UserID,
-		req.AddressBookID,
-		nameSet,
-		nameValue,
-		normalizedName,
-		descriptionSet,
-		descriptionValue,
-		syncToken,
-	).Scan(
-		&book.ID,
-		&book.UserID,
-		&book.Name,
-		&book.Description,
-		&book.SyncToken,
-		&book.CreatedAt,
-		&book.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
+		err = tx.QueryRowContext(ctx, query,
+			req.UserID,
+			req.AddressBookID,
+			nameSet,
+			nameValue,
+			normalizedName,
+			descriptionSet,
+			descriptionValue,
+			syncToken,
+		).Scan(
+			&book.ID,
+			&book.UserID,
+			&book.Name,
+			&book.Description,
+			&book.SyncToken,
+			&book.CreatedAt,
+			&book.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("CardDAV address book not found")
+			}
+			return fmt.Errorf("update CardDAV address book properties: %w", err)
 		}
-		return AddressBook{}, fmt.Errorf("update CardDAV address book properties: %w", err)
-	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-updated", "", ""); err != nil {
+		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-updated", "", ""); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit CardDAV address book update: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return AddressBook{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return AddressBook{}, fmt.Errorf("commit CardDAV address book update: %w", err)
 	}
 	return book, nil
 }
@@ -385,53 +390,58 @@ func (r *Repository) DeleteAddressBook(ctx context.Context, req DeleteAddressBoo
 	if err != nil {
 		return AddressBook{}, err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return AddressBook{}, fmt.Errorf("begin CardDAV address book delete: %w", err)
-	}
-	defer tx.Rollback()
-	if req.ObservedETag != "" {
-		if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
-			return AddressBook{}, err
+	var book AddressBook
+	if err := runCardDAVWriteWithRetry(ctx, func() error {
+		tx, err := r.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin CardDAV address book delete: %w", err)
 		}
-	}
-	const query = `
+		defer tx.Rollback()
+		if req.ObservedETag != "" {
+			if err := ensureAddressBookCollectionETag(ctx, tx, req.UserID, req.AddressBookID, req.ObservedETag); err != nil {
+				return err
+			}
+		}
+		const query = `
 UPDATE carddav_addressbooks
 SET status = 'deleted', deleted_at = now(), updated_at = now()
 WHERE user_id = $1::uuid
   AND id = $2::uuid
   AND status = 'active'
 RETURNING id::text, user_id::text, name, description, sync_token, created_at, updated_at`
-	var book AddressBook
-	err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID).Scan(
-		&book.ID,
-		&book.UserID,
-		&book.Name,
-		&book.Description,
-		&book.SyncToken,
-		&book.CreatedAt,
-		&book.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return AddressBook{}, fmt.Errorf("CardDAV address book not found")
+		err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID).Scan(
+			&book.ID,
+			&book.UserID,
+			&book.Name,
+			&book.Description,
+			&book.SyncToken,
+			&book.CreatedAt,
+			&book.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("CardDAV address book not found")
+			}
+			return fmt.Errorf("delete CardDAV address book: %w", err)
 		}
-		return AddressBook{}, fmt.Errorf("delete CardDAV address book: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `
+		if _, err := tx.ExecContext(ctx, `
 UPDATE carddav_contact_objects
 SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
   AND status = 'active'`, req.UserID, req.AddressBookID); err != nil {
-		return AddressBook{}, fmt.Errorf("delete CardDAV contact objects: %w", err)
-	}
-	syncToken := AddressBookSyncToken(req.UserID, req.AddressBookID, "addressbook-delete", time.Now().UTC().Format(time.RFC3339Nano))
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-deleted", "", ""); err != nil {
+			return fmt.Errorf("delete CardDAV contact objects: %w", err)
+		}
+		syncToken := AddressBookSyncToken(req.UserID, req.AddressBookID, "addressbook-delete", time.Now().UTC().Format(time.RFC3339Nano))
+		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "addressbook-deleted", "", ""); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit CardDAV address book delete: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return AddressBook{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return AddressBook{}, fmt.Errorf("commit CardDAV address book delete: %w", err)
 	}
 	return book, nil
 }
@@ -444,26 +454,22 @@ func (r *Repository) UpsertContactObject(ctx context.Context, req UpsertContactO
 	if err != nil {
 		return ContactObject{}, err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ContactObject{}, fmt.Errorf("begin CardDAV contact upsert: %w", err)
-	}
-	defer tx.Rollback()
-	if err := lockActiveAddressBook(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-		return ContactObject{}, err
-	}
-	if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-		return ContactObject{}, err
-	}
-	if req.ObservedETag != "" {
-		if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
-			return ContactObject{}, err
+	var object ContactObject
+	if err := runCardDAVWriteWithRetry(ctx, func() error {
+		tx, err := r.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin CardDAV contact upsert: %w", err)
 		}
-	}
-	if err := ensureContactObjectUIDAvailable(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.UID); err != nil {
-		return ContactObject{}, err
-	}
-	const query = `
+		defer tx.Rollback()
+		if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
+			return err
+		}
+		if req.ObservedETag != "" {
+			if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
+				return err
+			}
+		}
+		const query = `
 INSERT INTO carddav_contact_objects (
   user_id, addressbook_id, object_name, uid, etag, size, vcard
 ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
@@ -475,38 +481,41 @@ DO UPDATE SET
   vcard = EXCLUDED.vcard,
   updated_at = now()
 RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at`
-	var object ContactObject
-	err = tx.QueryRowContext(ctx, query,
-		req.UserID,
-		req.AddressBookID,
-		req.ObjectName,
-		req.UID,
-		etag,
-		len(req.VCard),
-		string(req.VCard),
-	).Scan(
-		&object.ID,
-		&object.UserID,
-		&object.AddressBookID,
-		&object.ObjectName,
-		&object.UID,
-		&object.ETag,
-		&object.Size,
-		&object.VCard,
-		&object.CreatedAt,
-		&object.UpdatedAt,
-	)
-	if err != nil {
-		return ContactObject{}, mapContactObjectUpsertError(err)
-	}
-	if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
+		err = tx.QueryRowContext(ctx, query,
+			req.UserID,
+			req.AddressBookID,
+			req.ObjectName,
+			req.UID,
+			etag,
+			len(req.VCard),
+			string(req.VCard),
+		).Scan(
+			&object.ID,
+			&object.UserID,
+			&object.AddressBookID,
+			&object.ObjectName,
+			&object.UID,
+			&object.ETag,
+			&object.Size,
+			&object.VCard,
+			&object.CreatedAt,
+			&object.UpdatedAt,
+		)
+		if err != nil {
+			return mapContactObjectUpsertError(err)
+		}
+		if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
+			return err
+		}
+		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-upserted", req.ObjectName, etag); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit CardDAV contact upsert: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return ContactObject{}, err
-	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-upserted", req.ObjectName, etag); err != nil {
-		return ContactObject{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return ContactObject{}, fmt.Errorf("commit CardDAV contact upsert: %w", err)
 	}
 	return object, nil
 }
@@ -838,23 +847,22 @@ func (r *Repository) DeleteContactObject(ctx context.Context, req DeleteContactO
 	if err != nil {
 		return ContactObject{}, err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ContactObject{}, fmt.Errorf("begin CardDAV contact delete: %w", err)
-	}
-	defer tx.Rollback()
-	if err := lockActiveAddressBook(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-		return ContactObject{}, err
-	}
-	if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
-		return ContactObject{}, err
-	}
-	if req.ObservedETag != "" {
-		if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
-			return ContactObject{}, err
+	var object ContactObject
+	if err := runCardDAVWriteWithRetry(ctx, func() error {
+		tx, err := r.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin CardDAV contact delete: %w", err)
 		}
-	}
-	const query = `
+		defer tx.Rollback()
+		if err := ensureAddressBookSyncMarker(ctx, tx, req.UserID, req.AddressBookID); err != nil {
+			return err
+		}
+		if req.ObservedETag != "" {
+			if err := ensureContactObjectETag(ctx, tx, req.UserID, req.AddressBookID, req.ObjectName, req.ObservedETag); err != nil {
+				return err
+			}
+		}
+		const query = `
 UPDATE carddav_contact_objects
 SET status = 'deleted', deleted_at = now(), updated_at = now()
 WHERE user_id = $1::uuid
@@ -862,33 +870,36 @@ WHERE user_id = $1::uuid
   AND object_name = $3
   AND status = 'active'
 RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at`
-	var object ContactObject
-	err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.ObjectName).Scan(
-		&object.ID,
-		&object.UserID,
-		&object.AddressBookID,
-		&object.ObjectName,
-		&object.UID,
-		&object.ETag,
-		&object.Size,
-		&object.VCard,
-		&object.CreatedAt,
-		&object.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ContactObject{}, fmt.Errorf("CardDAV contact object not found")
+		err = tx.QueryRowContext(ctx, query, req.UserID, req.AddressBookID, req.ObjectName).Scan(
+			&object.ID,
+			&object.UserID,
+			&object.AddressBookID,
+			&object.ObjectName,
+			&object.UID,
+			&object.ETag,
+			&object.Size,
+			&object.VCard,
+			&object.CreatedAt,
+			&object.UpdatedAt,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("CardDAV contact object not found")
+			}
+			return fmt.Errorf("delete CardDAV contact object: %w", err)
 		}
-		return ContactObject{}, fmt.Errorf("delete CardDAV contact object: %w", err)
-	}
-	if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
+		if err := updateAddressBookSyncToken(ctx, tx, req.UserID, req.AddressBookID, syncToken); err != nil {
+			return err
+		}
+		if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-deleted", req.ObjectName, object.ETag); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit CardDAV contact delete: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return ContactObject{}, err
-	}
-	if err := insertAddressBookChange(ctx, tx, req.UserID, req.ActorUserID, req.AddressBookID, syncToken, "contact-deleted", req.ObjectName, object.ETag); err != nil {
-		return ContactObject{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return ContactObject{}, fmt.Errorf("commit CardDAV contact delete: %w", err)
 	}
 	return object, nil
 }
@@ -1514,44 +1525,6 @@ func optionalStringArg(value *string) (string, bool) {
 	return *value, true
 }
 
-func lockActiveAddressBook(ctx context.Context, tx *sql.Tx, userID string, addressBookID string) error {
-	var id string
-	err := tx.QueryRowContext(ctx, `
-SELECT id::text
-FROM carddav_addressbooks
-WHERE user_id = $1::uuid
-  AND id = $2::uuid
-  AND status = 'active'
-FOR UPDATE`, userID, addressBookID).Scan(&id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("CardDAV address book not found")
-		}
-		return fmt.Errorf("lock CardDAV address book: %w", err)
-	}
-	return nil
-}
-
-func ensureContactObjectUIDAvailable(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, uid string) error {
-	var existingObject string
-	err := tx.QueryRowContext(ctx, `
-SELECT object_name
-FROM carddav_contact_objects
-WHERE user_id = $1::uuid
-  AND addressbook_id = $2::uuid
-  AND uid = $3
-  AND object_name <> $4
-  AND status = 'active'
-LIMIT 1`, userID, addressBookID, uid, objectName).Scan(&existingObject)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		return fmt.Errorf("read CardDAV contact object UID: %w", err)
-	}
-	return fmt.Errorf("CardDAV contact object UID %q already exists as %q", uid, existingObject)
-}
-
 func mapContactObjectUpsertError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -1565,6 +1538,51 @@ func mapContactObjectUpsertError(err error) error {
 	return fmt.Errorf("upsert CardDAV contact object: %w", err)
 }
 
+func isRetryableCardDAVWriteError(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	switch pgErr.Code {
+	case "40001", "40P01", "40P02", "55P03":
+		return true
+	default:
+		return false
+	}
+}
+
+func sleepWithContext(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func runCardDAVWriteWithRetry(ctx context.Context, fn func() error) error {
+	for attempt := 0; attempt < carddavWriteMaxAttempts; attempt++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if !isRetryableCardDAVWriteError(err) || attempt+1 >= carddavWriteMaxAttempts {
+			return err
+		}
+		delay := carddavWriteBaseDelay << attempt
+		if delay > carddavWriteMaxDelay {
+			delay = carddavWriteMaxDelay
+		}
+		jitter := time.Duration(time.Now().UnixNano() % int64(delay))
+		if err := sleepWithContext(ctx, delay+jitter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func ensureContactObjectETag(ctx context.Context, tx *sql.Tx, userID string, addressBookID string, objectName string, etag string) error {
 	var current string
 	err := tx.QueryRowContext(ctx, `
@@ -1573,8 +1591,7 @@ FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
   AND object_name = $3
-  AND status = 'active'
-FOR UPDATE`, userID, addressBookID, objectName).Scan(&current)
+  AND status = 'active'`, userID, addressBookID, objectName).Scan(&current)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("CardDAV contact object not found")
@@ -1594,8 +1611,7 @@ SELECT id::text, user_id::text, name, description, sync_token, created_at, updat
 FROM carddav_addressbooks
 WHERE user_id = $1::uuid
   AND id = $2::uuid
-  AND status = 'active'
-FOR UPDATE`, userID, addressBookID).Scan(
+  AND status = 'active'`, userID, addressBookID).Scan(
 		&book.ID,
 		&book.UserID,
 		&book.Name,
@@ -1641,33 +1657,36 @@ WHERE user_id = $1::uuid
 }
 
 func ensureAddressBookSyncMarker(ctx context.Context, tx *sql.Tx, userID string, addressBookID string) error {
-	var token string
+	var hasActiveAddressBook bool
 	err := tx.QueryRowContext(ctx, `
-SELECT sync_token
-FROM carddav_addressbooks
-WHERE user_id = $1::uuid
-  AND id = $2::uuid
-  AND status = 'active'`, userID, addressBookID).Scan(&token)
+WITH active_addressbook AS (
+  SELECT sync_token
+  FROM carddav_addressbooks
+  WHERE user_id = $1::uuid
+    AND id = $2::uuid
+    AND status = 'active'
+),
+insert_marker AS (
+  INSERT INTO carddav_addressbook_changes (
+    user_id, addressbook_id, sync_token, action
+  )
+  SELECT $1::uuid, $2::uuid, sync_token, 'addressbook-created'
+  FROM active_addressbook
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM carddav_addressbook_changes existing
+    JOIN active_addressbook active ON active.sync_token = existing.sync_token
+    WHERE existing.addressbook_id = $2::uuid
+      AND existing.sync_token = active.sync_token
+      AND existing.action = 'addressbook-created'
+  )
+)
+SELECT EXISTS (SELECT 1 FROM active_addressbook)`, userID, addressBookID).Scan(&hasActiveAddressBook)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("CardDAV address book not found")
-		}
 		return fmt.Errorf("read CardDAV sync marker: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `
-INSERT INTO carddav_addressbook_changes (
-  user_id, addressbook_id, sync_token, action
-)
-SELECT $1::uuid, $2::uuid, $3, 'addressbook-created'
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM carddav_addressbook_changes
-  WHERE addressbook_id = $2::uuid
-    AND sync_token = $3
-    AND action = 'addressbook-created'
-)`, userID, addressBookID, token)
-	if err != nil {
-		return fmt.Errorf("ensure CardDAV sync marker: %w", err)
+	if !hasActiveAddressBook {
+		return fmt.Errorf("CardDAV address book not found")
 	}
 	return nil
 }
