@@ -140,33 +140,6 @@ function resolveDriveFileType(node: DriveNode): string {
   return 'empty';
 }
 
-function DefaultFolderIcon({ size }: { size: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      fill="none"
-      viewBox="0 0 40 40"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M4.5 8.8c0-1.6 1.3-2.8 2.8-2.8h7.7c.9 0 1.7.5 2.1 1.3l2 3.8h15.9c1.5 0 2.7 1.2 2.7 2.7V29c0 1.5-1.2 2.7-2.7 2.7H7.2c-1.5 0-2.8-1.2-2.8-2.7V8.8Z"
-        stroke="#D5D7DA"
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-      />
-      <path
-        d="M14.3 6.5h13.5c.8 0 1.4.4 1.8.9l1.4 2.2h6.8c1.4 0 2.5 1.1 2.5 2.5V28.1c0 1.4-1.1 2.5-2.5 2.5H7.5c-1.4 0-2.5-1.1-2.5-2.5V10.3c0-1.4 1.1-2.5 2.5-2.5h3.8"
-        stroke="#155EEF"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function UnknownFileIcon({ size }: { size: number }) {
   return (
     <svg
@@ -208,7 +181,7 @@ export function DriveNodeIcon({ node, size = 36 }: { node: DriveNode; size?: num
       }}
     >
       {type === 'folder' ? (
-        <DefaultFolderIcon size={size} />
+        <FileIcon type="folder" size={size} variant="default" theme="light" />
       ) : type === 'empty' ? (
         <UnknownFileIcon size={size} />
       ) : (
