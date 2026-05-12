@@ -1104,6 +1104,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <span id="compose-close-save-title" style={{ fontSize: '13px', color: 'var(--color-text-primary)', flex: 1 }}>{closeSavePrompt}</span>
             <button
               type="button"
+              aria-label="임시저장 후 작성창 닫기"
               onClick={async () => {
                 const bodyText = editor?.getText() ?? '';
                 if (to.trim() || subject.trim() || bodyText.trim()) {
@@ -1119,11 +1120,13 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             >임시저장</button>
             <button
               type="button"
+              aria-label="저장하지 않고 작성창 닫기"
               onClick={onClose}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
             >버리기</button>
             <button
               type="button"
+              aria-label="닫기 취소하고 작성 계속하기"
               onClick={() => setConfirmClose(false)}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
             >취소</button>

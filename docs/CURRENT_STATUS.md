@@ -418,6 +418,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing save/discard/cancel actions and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close confirmation button labels (TASK-152, 2026-05-12, complete)
+- Completed close confirmation button accessibility label pass for user webmail beta.
+- The save button now exposes an accessibility name that says it will save the draft and close the composer.
+- The discard button now exposes an accessibility name that says it will close without saving.
+- The cancel button now exposes an accessibility name that says it will keep composing.
+- Existing visible text, button behavior, and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
