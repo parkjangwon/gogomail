@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV calendar slug/timezone write-through (2026-05-12, complete)
+- `MKCALENDAR`가 parsed `calendar-timezone` 값을 repository 생성 요청으로 전달하도록 보강했다.
+- `PROPPATCH`가 parsed `calendar-slug` 및 `calendar-timezone` 값을 repository 업데이트 요청으로 전달하고,
+  multistatus 응답에 갱신된 slug/timezone 속성을 반환하도록 했다.
+- WebDAV XML serializer에 Apple iCalendar namespace prefix(`I`)를 추가해 `calendar-slug` 응답 직렬화를 지원한다.
+
 ## CardDAV write/delete 락 경합 축소 (2026-05-12, complete)
 - CardDAV contact upsert/delete와 address-book delete/proppatch 경로에 bounded retry/backoff를 추가해
   serialization failure, deadlock, lock contention 상황에서 동일 작업의 성공률을 높였다.

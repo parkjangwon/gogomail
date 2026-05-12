@@ -2019,11 +2019,13 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 	store := newFakeDiscoveryStore()
 	handler := NewHandler(store, fixedUser("user-1"))
 	calendarID := "11111111-1111-4111-8111-111111111111"
-	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/">
+	req := httptest.NewRequest(MethodMkcalendar, "/caldav/calendars/user-1/"+calendarID+"/", strings.NewReader(`<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:" xmlns:CS="http://calendarserver.org/ns/" xmlns:I="http://apple.com/ns/icalendar/">
   <D:set>
     <D:prop>
       <D:displayname>Project Calendar</D:displayname>
       <C:calendar-description>Delivery milestones</C:calendar-description>
+      <C:calendar-timezone>Asia/Seoul</C:calendar-timezone>
+      <I:calendar-slug>project-calendar</I:calendar-slug>
       <CS:calendar-color>#aabbcc</CS:calendar-color>
     </D:prop>
   </D:set>
@@ -2042,6 +2044,12 @@ func TestHandlerMkcalendarCreatesCalendarAtRequestURI(t *testing.T) {
 		t.Fatalf("created calendar lookup failed: %v", err)
 	}
 	if calendar.Name != "Project Calendar" || calendar.Description != "Delivery milestones" || calendar.Color != "#AABBCC" {
+		t.Fatalf("calendar = %+v", calendar)
+	}
+	if calendar.Timezone == nil || *calendar.Timezone != "Asia/Seoul" {
+		t.Fatalf("timezone = %v", calendar.Timezone)
+	}
+	if calendar.Slug == nil || *calendar.Slug != "project-calendar" {
 		t.Fatalf("calendar = %+v", calendar)
 	}
 }
@@ -2171,11 +2179,13 @@ func TestHandlerProppatchUpdatesCalendarCollectionProperties(t *testing.T) {
 
 	store := newFakeDiscoveryStore()
 	handler := NewHandler(store, fixedUser("user-1"))
-	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+	req := httptest.NewRequest(MethodProppatch, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/" xmlns:I="http://apple.com/ns/icalendar/">
   <D:set>
     <D:prop>
       <D:displayname>Product</D:displayname>
       <C:calendar-description>Launch dates</C:calendar-description>
+      <C:calendar-timezone>Asia/Seoul</C:calendar-timezone>
+      <I:calendar-slug>product</I:calendar-slug>
       <CS:calendar-color>#112233</CS:calendar-color>
     </D:prop>
   </D:set>
@@ -2193,11 +2203,19 @@ func TestHandlerProppatchUpdatesCalendarCollectionProperties(t *testing.T) {
 	if calendar.Name != "Product" || calendar.Description != "Launch dates" || calendar.Color != "#112233" {
 		t.Fatalf("calendar = %+v", calendar)
 	}
+	if calendar.Timezone == nil || *calendar.Timezone != "Asia/Seoul" {
+		t.Fatalf("timezone = %v", calendar.Timezone)
+	}
+	if calendar.Slug == nil || *calendar.Slug != "product" {
+		t.Fatalf("slug = %v", calendar.Slug)
+	}
 	body := rec.Body.String()
 	for _, want := range []string{
 		"<D:href>/caldav/calendars/user-1/work/</D:href>",
 		"<D:displayname>Product</D:displayname>",
 		"<C:calendar-description>Launch dates</C:calendar-description>",
+		"<C:calendar-timezone>Asia/Seoul</C:calendar-timezone>",
+		"<I:calendar-slug>product</I:calendar-slug>",
 		"<CS:calendar-color>#112233</CS:calendar-color>",
 		"HTTP/1.1 200 OK",
 	} {
@@ -3072,6 +3090,8 @@ func (s *fakeDiscoveryStore) CreateCalendarAtPath(_ context.Context, req CreateC
 		ID:          validated.CalendarID,
 		UserID:      validated.UserID,
 		Name:        validated.Name,
+		Slug:        validated.Slug,
+		Timezone:    validated.Timezone,
 		Color:       validated.Color,
 		Description: validated.Description,
 		SyncToken:   syncToken,
@@ -3101,6 +3121,12 @@ func (s *fakeDiscoveryStore) UpdateCalendarProperties(_ context.Context, req Upd
 			}
 			if validated.Name != nil {
 				calendar.Name = *validated.Name
+			}
+			if validated.Slug != nil {
+				calendar.Slug = validated.Slug
+			}
+			if validated.Timezone != nil {
+				calendar.Timezone = validated.Timezone
 			}
 			if validated.Color != nil {
 				calendar.Color = *validated.Color

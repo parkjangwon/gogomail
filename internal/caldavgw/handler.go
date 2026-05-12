@@ -318,6 +318,8 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		ActorUserID:  actorUserID,
 		CalendarID:   resource.CalendarID,
 		Name:         patch.Name,
+		Slug:         patch.Slug,
+		Timezone:     patch.Timezone,
 		Color:        patch.Color,
 		Description:  patch.Description,
 		ObservedETag: observedETag,
@@ -415,6 +417,7 @@ func (h *Handler) serveMkcalendar(w http.ResponseWriter, r *http.Request) {
 		CalendarID:  calendarID,
 		Name:        req.DisplayName,
 		Slug:        slug,
+		Timezone:    req.Timezone,
 		Color:       req.Color,
 		Description: req.Description,
 	})
@@ -1699,6 +1702,10 @@ func proppatchResponse(href string, calendar Calendar, properties []XMLName) Mul
 			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Description}, Found: true})
 		case PropCalendarColor:
 			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Color}, Found: true})
+		case PropCalendarSlug:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendarSlugValue(calendar.Slug)}, Found: calendar.Slug != nil})
+		case PropCalendarTimezone:
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendarTimezoneValue(calendar.Timezone)}, Found: calendar.Timezone != nil})
 		}
 	}
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
