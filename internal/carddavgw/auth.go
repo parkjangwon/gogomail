@@ -51,7 +51,7 @@ type BasicAuthResolver struct {
 }
 
 func NewBasicAuthResolver(authenticator smtpd.SubmissionAuthenticator, allowInsecure bool) BasicAuthResolver {
-	return BasicAuthResolver{Authenticator: authenticator, AllowInsecure: allowInsecure, TrustForwardedProto: true}
+	return BasicAuthResolver{Authenticator: authenticator, AllowInsecure: allowInsecure, TrustForwardedProto: false}
 }
 
 func (r BasicAuthResolver) WithTrustedProxies(proxies []string) (BasicAuthResolver, error) {
@@ -101,14 +101,15 @@ func (r BasicAuthResolver) requestUsesTLS(req *http.Request) bool {
 	if !r.TrustForwardedProto {
 		return false
 	}
-	if len(r.TrustedProxies) > 0 {
-		remoteIP, ok := parseRemoteIP(req.RemoteAddr)
-		if !ok {
-			return false
-		}
-		if !trustedProxyMatch(remoteIP, r.TrustedProxies) {
-			return false
-		}
+	if len(r.TrustedProxies) == 0 {
+		return false
+	}
+	remoteIP, ok := parseRemoteIP(req.RemoteAddr)
+	if !ok {
+		return false
+	}
+	if !trustedProxyMatch(remoteIP, r.TrustedProxies) {
+		return false
 	}
 	forwardedProtoHeader := req.Header.Values("X-Forwarded-Proto")
 	if len(forwardedProtoHeader) == 0 {

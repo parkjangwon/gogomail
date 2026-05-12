@@ -27,15 +27,15 @@ func TestBasicAuthResolverAuthenticatesSubmissionUser(t *testing.T) {
 	}
 }
 
-func TestBasicAuthResolverAllowsHTTPSForwardedProto(t *testing.T) {
+func TestBasicAuthResolverRejectsForwardedProtoWithoutTrustedProxyConfig(t *testing.T) {
 	t.Parallel()
 
 	resolver := NewBasicAuthResolver(fakeCalDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
 	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
 	req.SetBasicAuth("user@example.com", "secret")
-	if _, err := resolver.Resolve(req); err != nil {
-		t.Fatalf("Resolve returned error behind HTTPS proxy: %v", err)
+	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {
+		t.Fatalf("Resolve error = %v, want requires TLS", err)
 	}
 }
 
@@ -48,6 +48,7 @@ func TestBasicAuthResolverRejectsUntrustedForwardedProtoFromRemoteProxy(t *testi
 		t.Fatalf("WithTrustedProxies returned error: %v", err)
 	}
 	resolver = trusted
+	resolver.TrustForwardedProto = true
 	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
 	req.RemoteAddr = "203.0.113.1:1234"
 	req.Header.Set("X-Forwarded-Proto", "https")
@@ -66,6 +67,7 @@ func TestBasicAuthResolverAllowsTrustedProxyForwardedProto(t *testing.T) {
 		t.Fatalf("WithTrustedProxies returned error: %v", err)
 	}
 	resolver = trusted
+	resolver.TrustForwardedProto = true
 	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
 	req.RemoteAddr = "127.0.0.1:1234"
 	req.Header.Set("X-Forwarded-Proto", "https")
@@ -101,7 +103,14 @@ func TestBasicAuthResolverRejectsMalformedForwardedProto(t *testing.T) {
 	t.Parallel()
 
 	resolver := NewBasicAuthResolver(fakeCalDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	trusted, err := resolver.WithTrustedProxies([]string{"127.0.0.1/8"})
+	if err != nil {
+		t.Fatalf("WithTrustedProxies returned error: %v", err)
+	}
+	resolver = trusted
+	resolver.TrustForwardedProto = true
 	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
+	req.RemoteAddr = "127.0.0.1:1234"
 	req.Header.Set("X-Forwarded-Proto", "https, http")
 	req.SetBasicAuth("user@example.com", "secret")
 	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {

@@ -213,8 +213,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if !cfg.CalDAVAllowInsecureAuth {
 		t.Fatal("CalDAVAllowInsecureAuth = false, want true in development defaults")
 	}
-	if !cfg.CalDAVTrustForwardedProto {
-		t.Fatal("CalDAVTrustForwardedProto = false, want true in development defaults")
+	if cfg.CalDAVTrustForwardedProto {
+		t.Fatal("CalDAVTrustForwardedProto = true, want false in defaults")
 	}
 	if len(cfg.CalDAVTrustedProxies) != 0 {
 		t.Fatalf("CalDAVTrustedProxies = %#v, want empty", cfg.CalDAVTrustedProxies)
@@ -225,8 +225,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if !cfg.CardDAVAllowInsecureAuth {
 		t.Fatal("CardDAVAllowInsecureAuth = false, want true in development defaults")
 	}
-	if !cfg.CardDAVTrustForwardedProto {
-		t.Fatal("CardDAVTrustForwardedProto = false, want true in development defaults")
+	if cfg.CardDAVTrustForwardedProto {
+		t.Fatal("CardDAVTrustForwardedProto = true, want false in defaults")
 	}
 	if len(cfg.CardDAVTrustedProxies) != 0 {
 		t.Fatalf("CardDAVTrustedProxies = %#v, want empty", cfg.CardDAVTrustedProxies)

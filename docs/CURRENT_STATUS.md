@@ -5,7 +5,7 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 ## CalDAV/CardDAV auth and report stability hardening (2026-05-13, complete)
 - CalDAV/CardDAV Basic Auth now gates `X-Forwarded-Proto=https` on explicit
   trusted proxy configuration, with env/YAML loading, validation, and runtime
-  resolver injection.
+  resolver injection; the default is to trust only direct TLS on the request.
 - Unauthorized DAV responses now include the appropriate Basic challenge while
   delegated authorization failures remain plain 403 responses.
 - CalDAV scheduling validation accepts `METHOD` only for scheduling payloads,
