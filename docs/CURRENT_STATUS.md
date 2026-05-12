@@ -455,6 +455,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visible text, accessibility label, and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close confirmation action naming (TASK-157, 2026-05-12, complete)
+- Completed close confirmation action naming checkpoint for user webmail beta.
+- Close-confirm save, discard, and cancel paths are now named as `saveDraftAndClose`, `discardDraftAndClose`, and `cancelCloseConfirmation`.
+- These names establish the extension points for any future close-confirm loading, failure, or analytics behavior.
+- No code behavior changed in this task.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
