@@ -126,6 +126,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing scheduled time validation and schedule UI clearing behavior are preserved.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail draft-send failure recovery (TASK-113, 2026-05-12, complete)
+- Completed draft-send failure recovery pass for user webmail beta.
+- Preparing a send now marks the freshly saved draft as saved in the compose UI.
+- Draft-send/direct-send failures clear pending draft-send state.
+- Send failure messages now tell the user that the draft is preserved and can be retried.
+- Successful send cleanup behavior is unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
