@@ -397,6 +397,35 @@ func RegisterContactRoutes(mux *http.ServeMux, handler *ContactHandler, tokenMan
 			}
 		}
 
+		// Search groups/distribution lists
+		if handler.directoryRepo != nil && domainID != "" && limit-len(results) > 0 {
+			groups, err := handler.directoryRepo.SearchPrincipals(r.Context(), directory.SearchPrincipalsRequest{
+				DomainID:   domainID,
+				Kinds:      []string{directory.PrincipalKindGroup, directory.PrincipalKindOrganization},
+				Query:      q,
+				ActiveOnly: true,
+				Limit:      limit - len(results),
+			})
+			if err == nil {
+				seen := make(map[string]bool, len(results))
+				for _, res := range results {
+					if res.Email != "" {
+						seen[strings.ToLower(res.Email)] = true
+					}
+				}
+				for _, p := range groups {
+					if p.PrimaryEmail != "" && !seen[strings.ToLower(p.PrimaryEmail)] {
+						results = append(results, AutocompleteResult{
+							Type:        "group",
+							ID:          p.ID,
+							DisplayName: p.DisplayName,
+							Email:       p.PrimaryEmail,
+						})
+					}
+				}
+			}
+		}
+
 		if handler.repo != nil && (limit-len(results)) > 0 {
 			contacts, err := handler.repo.SearchContacts(r.Context(), carddavgw.SearchContactsRequest{
 				UserID: userID,

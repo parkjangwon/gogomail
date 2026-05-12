@@ -55,7 +55,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
     : [];
 
   // Build merged list: { label: string (what to display), value: string (what to commit) }
-  interface DropdownItem { label: string; sublabel?: string; value: string; }
+  interface DropdownItem { label: string; sublabel?: string; value: string; type?: string; }
   const localItems: DropdownItem[] = localFiltered.map((s) => ({ label: s, value: s }));
   const apiEmails = new Set(localFiltered.map((s) => {
     const m = s.match(/<([^>]+)>/);
@@ -67,6 +67,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
       label: r.display_name || r.email,
       sublabel: r.display_name ? r.email : undefined,
       value: formatSuggestion(r),
+      type: r.type,
     }));
   const dropdownItems: DropdownItem[] = [...localItems, ...apiItems].slice(0, 8);
 
@@ -189,8 +190,7 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
               onMouseDown={(e) => { e.preventDefault(); commit(item.value); }}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 width: '100%',
                 textAlign: 'left',
                 padding: '7px 12px',
@@ -201,10 +201,17 @@ export function RecipientChips({ value, onChange, placeholder, id, autoFocus, ha
               onMouseEnter={() => setActiveIdx(i)}
               onMouseLeave={() => setActiveIdx(-1)}
             >
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{item.label}</span>
-              {item.sublabel && (
-                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{item.sublabel}</span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', display: 'block' }}>{item.label}</span>
+                  {item.sublabel && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', display: 'block' }}>{item.sublabel}</span>
+                  )}
+                </div>
+                {item.type === 'group' && (
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '8px', background: 'var(--color-accent-subtle, rgba(47,110,224,0.1))', color: 'var(--color-accent)', fontWeight: 600, flexShrink: 0 }}>그룹</span>
+                )}
+              </div>
             </button>
           ))}
         </div>

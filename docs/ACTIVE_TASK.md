@@ -5,6 +5,19 @@
 
 ---
 
+## ✅ TASK-094: 조직도 수신자 피커 + 그룹 자동완성
+
+**STATUS: COMPLETE**
+
+### 완료 (2026-05-12)
+
+- `internal/httpapi/carddav.go`: `/api/v1/contacts/autocomplete` 그룹/조직 검색 추가 (`PrincipalKindGroup`, `PrincipalKindOrganization`) — `type: "group"` 배지 반환
+- `apps/webmail/src/lib/api.ts`: `ContactSuggestion.type` 필드 추가
+- `apps/webmail/src/components/RecipientChips.tsx`: 드롭다운에 "그룹" 배지 표시
+- `apps/webmail/src/components/ComposeModal.tsx`: 조직도 피커 추가 — To/Cc/Bcc 각 필드에 UsersIcon 버튼, 검색+멀티셀렉트+아바타 패널, 선택된 사용자 수신자 필드에 추가
+
+---
+
 ## ✅ TASK-092: 수신확인 (이메일 오픈 트래킹)
 
 **STATUS: COMPLETE**
