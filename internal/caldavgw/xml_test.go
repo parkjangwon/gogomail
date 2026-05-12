@@ -2,6 +2,7 @@ package caldavgw
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -173,6 +174,30 @@ func TestParseMKCalendarCollectsCreationProperties(t *testing.T) {
 	if req.DisplayName != "Team Calendar" || req.Description != "Milestones" || req.Color != "#aabbcc" {
 		t.Fatalf("request = %+v", req)
 	}
+	wantProperties := []XMLName{PropDisplayName, PropCalendarDescription, PropCalendarColor}
+	if !reflect.DeepEqual(req.Properties, wantProperties) {
+		t.Fatalf("properties = %+v, want %+v", req.Properties, wantProperties)
+	}
+}
+
+func TestParseMKCalendarCollectsUnsupportedProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<C:mkcalendar xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:set>
+    <D:prop>
+      <D:displayname> Team Calendar </D:displayname>
+      <C:unknown>unsupported</C:unknown>
+    </D:prop>
+  </D:set>
+</C:mkcalendar>`
+	req, err := ParseMKCalendar(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseMKCalendar returned error: %v", err)
+	}
+	if len(req.Unsupported) != 1 || req.Unsupported[0] != (XMLName{Space: CalDAVNamespace, Local: "unknown"}) {
+		t.Fatalf("unsupported = %+v", req.Unsupported)
+	}
 }
 
 func TestParseMKCalendarAllowsEmptyBody(t *testing.T) {
@@ -182,7 +207,7 @@ func TestParseMKCalendarAllowsEmptyBody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseMKCalendar returned error: %v", err)
 	}
-	if req != (MKCalendarRequest{}) {
+	if !reflect.DeepEqual(req, MKCalendarRequest{}) {
 		t.Fatalf("request = %+v, want empty", req)
 	}
 }

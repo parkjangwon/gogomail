@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV MKCALENDAR property failure multistatus (2026-05-13, complete)
+- CalDAV `MKCALENDAR` parser now preserves requested creation properties and unsupported
+  property names instead of skipping them during request-body parsing.
+- Unsupported creation properties and invalid supported property values now fail before repository
+  creation, returning RFC 4791 `207 Multi-Status` with a `C:mkcalendar-response` body.
+- Failed properties return `403 Forbidden` or `409 Conflict`; otherwise valid properties in the
+  same atomic creation request return `424 Failed Dependency`, and calendars are not created.
+
 ## CardDAV extended MKCOL property failure response (2026-05-13, complete)
 - CardDAV extended `MKCOL` parser now preserves requested creation properties, unsupported
   properties, and invalid `DAV:resourcetype` state instead of silently skipping them.

@@ -81,6 +81,8 @@ type MKCalendarRequest struct {
 	Color       string
 	Slug        *string
 	Timezone    *string
+	Properties  []XMLName
+	Unsupported []XMLName
 }
 
 type ProppatchRequest struct {
@@ -481,12 +483,14 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 					return err
 				}
 				req.DisplayName = strings.TrimSpace(text)
+				req.Properties = append(req.Properties, PropDisplayName)
 			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-description"):
 				text, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
 					return err
 				}
 				req.Description = strings.TrimSpace(text)
+				req.Properties = append(req.Properties, PropCalendarDescription)
 			case sameXMLName(tok.Name, CalendarServerNamespace, "calendar-color") ||
 				sameXMLName(tok.Name, "http://apple.com/ns/ical/", "calendar-color"):
 				text, err := readSimpleElementText(dec, tok.Name)
@@ -494,6 +498,7 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 					return err
 				}
 				req.Color = strings.TrimSpace(text)
+				req.Properties = append(req.Properties, PropCalendarColor)
 			case sameXMLName(tok.Name, "http://apple.com/ns/icalendar/", "calendar-slug"):
 				text, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
@@ -503,6 +508,7 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 				if slug != "" {
 					req.Slug = &slug
 				}
+				req.Properties = append(req.Properties, PropCalendarSlug)
 			case sameXMLName(tok.Name, CalDAVNamespace, "calendar-timezone"):
 				text, err := readSimpleElementText(dec, tok.Name)
 				if err != nil {
@@ -512,10 +518,12 @@ func parseMKCalendarProp(dec *xml.Decoder, propName xml.Name, req *MKCalendarReq
 				if tz != "" {
 					req.Timezone = &tz
 				}
+				req.Properties = append(req.Properties, PropCalendarTimezone)
 			default:
 				if err := skipElement(dec, tok.Name); err != nil {
 					return err
 				}
+				req.Unsupported = append(req.Unsupported, XMLName{Space: tok.Name.Space, Local: tok.Name.Local})
 			}
 		case xml.EndElement:
 			if sameName(tok.Name, propName) {
