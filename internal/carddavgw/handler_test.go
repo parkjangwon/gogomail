@@ -1429,10 +1429,11 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set>
-    <D:prop>
+    <D:prop xml:lang="ja-JP">
       <D:displayname>Team</D:displayname>
       <E:unsupported>value</E:unsupported>
     </D:prop>
@@ -1450,6 +1451,12 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	}
 	if book.Name != "Personal" {
 		t.Fatalf("address book name = %q, want unchanged Personal", book.Name)
+	}
+	if book.NameLang != "ko-KR" {
+		t.Fatalf("address book name lang = %q, want unchanged ko-KR", book.NameLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastBookUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -1470,10 +1477,11 @@ func TestHandlerProppatchRejectsUnsupportedPropertyWithDuplicateDependencyOnce(t
 
 	store := testCardDAVDiscoveryStore(t)
 	store.books[0].Description = "Original"
+	store.books[0].DescriptionLang = "fr"
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:E="urn:example:test">
   <D:set>
-    <D:prop>
+    <D:prop xml:lang="ja-JP">
       <C:addressbook-description>First</C:addressbook-description>
       <E:unsupported>value</E:unsupported>
       <C:addressbook-description>Final</C:addressbook-description>
@@ -1492,6 +1500,12 @@ func TestHandlerProppatchRejectsUnsupportedPropertyWithDuplicateDependencyOnce(t
 	}
 	if book.Description != "Original" {
 		t.Fatalf("address book description = %q, want unchanged Original", book.Description)
+	}
+	if book.DescriptionLang != "fr" {
+		t.Fatalf("address book description lang = %q, want unchanged fr", book.DescriptionLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastBookUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -1512,10 +1526,12 @@ func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
+	store.books[0].Description = "Original"
+	store.books[0].DescriptionLang = "fr"
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
   <D:remove><D:prop><D:displayname/></D:prop></D:remove>
-  <D:set><D:prop><C:addressbook-description>People</C:addressbook-description></D:prop></D:set>
+  <D:set><D:prop xml:lang=""><C:addressbook-description>People</C:addressbook-description></D:prop></D:set>
 </D:propertyupdate>`))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -1527,8 +1543,14 @@ func TestHandlerProppatchRejectsProtectedRemoveAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatalf("address book lookup failed: %v", err)
 	}
-	if book.Description != "" {
-		t.Fatalf("address book description = %q, want unchanged empty", book.Description)
+	if book.Description != "Original" {
+		t.Fatalf("address book description = %q, want unchanged Original", book.Description)
+	}
+	if book.DescriptionLang != "fr" {
+		t.Fatalf("address book description lang = %q, want unchanged fr", book.DescriptionLang)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded before rollback response: %+v", store.lastBookUpdate)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
