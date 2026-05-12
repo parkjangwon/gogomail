@@ -294,6 +294,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visual design is unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send options close helper (TASK-135, 2026-05-12, complete)
+- Completed send-options close logic consolidation for user webmail beta.
+- ComposeModal now names the close intent through `closeSendDropdown`.
+- Outside-click, Escape, scheduled-option selection, send-and-archive, and custom-date selection paths all use the shared helper.
+- The existing send-options toggle behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
