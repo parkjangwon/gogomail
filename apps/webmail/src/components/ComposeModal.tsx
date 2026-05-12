@@ -355,6 +355,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const closeSavePrompt = composeCloseSavePrompt(!!scheduledAt);
   const scheduleMinDateTime = toDateTimeLocalValue(new Date(Date.now() + 60000));
   const closeSendDropdown = useCallback(() => setShowSendDropdown(false), []);
+  const cancelCloseConfirmation = useCallback(() => setConfirmClose(false), []);
 
   const persistSuccessfulSendLocalState = useCallback((msg: SendMessageRequest) => {
     try {
@@ -1107,7 +1108,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.stopPropagation();
-                setConfirmClose(false);
+                cancelCloseConfirmation();
               }
             }}
             style={{ padding: '10px 16px', borderBottom: '1px solid var(--color-border-subtle)', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
@@ -1138,7 +1139,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button
               type="button"
               aria-label="닫기 취소하고 작성 계속하기"
-              onClick={() => setConfirmClose(false)}
+              onClick={cancelCloseConfirmation}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
             >취소</button>
           </div>

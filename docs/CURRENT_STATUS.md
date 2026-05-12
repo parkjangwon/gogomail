@@ -433,6 +433,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Save, discard, cancel button behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close confirmation cancel helper (TASK-154, 2026-05-12, complete)
+- Completed close confirmation cancel helper cleanup for user webmail beta.
+- ComposeModal now names the cancel intent through `cancelCloseConfirmation`.
+- Escape and the cancel button both use the shared helper.
+- Save, discard, cancel behavior and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
