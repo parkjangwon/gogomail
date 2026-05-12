@@ -238,6 +238,14 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing user-facing copy, display conditions, success timing, and backend contracts are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send result contract fixture (TASK-128, 2026-05-12, complete)
+- Completed send-result type/display contract fixture pass for user webmail beta.
+- Send result label helpers now live in `apps/webmail/src/lib/sendResultLabel.ts` as a React-independent module.
+- ComposeModal imports the shared formatter instead of owning the mapping logic.
+- `apps/webmail/src/lib/sendResultLabel.contract.ts` provides `tsc`-checked samples for queued/pending, bounced, unknown fallback, and null-result formatting.
+- No new frontend test runner was introduced; the existing `pnpm type-check` loop now covers the formatter contract fixture.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
