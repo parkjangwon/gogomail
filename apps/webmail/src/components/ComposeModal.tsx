@@ -194,6 +194,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   const [minimized, setMinimized] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [closeSaveInProgress, setCloseSaveInProgress] = useState(false);
   const [showSigEditor, setShowSigEditor] = useState(false);
   const [signature, setSignature] = useState(() => {
     try { return localStorage.getItem('webmail_signature') ?? ''; } catch { return ''; }
@@ -682,16 +683,22 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
   }, [to, cc, bcc, subject, editor, buildDraftData, markDraftSaved]);
 
   const saveDraftAndClose = useCallback(async () => {
+    if (closeSaveInProgress) return;
+    setCloseSaveInProgress(true);
     const bodyText = editor?.getText() ?? '';
-    if (to.trim() || subject.trim() || bodyText.trim()) {
-      const data = buildDraftData(to, cc, bcc, subject, bodyText);
-      try {
-        if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
-        else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
-      } catch { /* close-save remains best-effort */ }
+    try {
+      if (to.trim() || subject.trim() || bodyText.trim()) {
+        const data = buildDraftData(to, cc, bcc, subject, bodyText);
+        try {
+          if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
+          else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
+        } catch { /* close-save remains best-effort */ }
+      }
+    } finally {
+      setCloseSaveInProgress(false);
+      onClose();
     }
-    onClose();
-  }, [to, cc, bcc, subject, editor, buildDraftData, onClose]);
+  }, [to, cc, bcc, subject, editor, buildDraftData, closeSaveInProgress, onClose]);
 
   const discardDraftAndClose = useCallback(() => {
     onClose();
@@ -1121,6 +1128,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             role="alertdialog"
             aria-modal="false"
             aria-labelledby="compose-close-save-title"
+            aria-busy={closeSaveInProgress}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 e.stopPropagation();
@@ -1133,20 +1141,23 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button
               type="button"
               aria-label="임시저장 후 작성창 닫기"
+              disabled={closeSaveInProgress}
               onClick={() => { void saveDraftAndClose(); }}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer' }}
-            >임시저장</button>
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-primary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
+            >{closeSaveInProgress ? '저장 중...' : '임시저장'}</button>
             <button
               type="button"
               aria-label="저장하지 않고 작성창 닫기"
+              disabled={closeSaveInProgress}
               onClick={discardDraftAndClose}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
             >버리기</button>
             <button
               type="button"
               aria-label="닫기 취소하고 작성 계속하기"
+              disabled={closeSaveInProgress}
               onClick={cancelCloseConfirmation}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid var(--color-border-default)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: closeSaveInProgress ? 'not-allowed' : 'pointer' }}
             >취소</button>
           </div>
         )}
