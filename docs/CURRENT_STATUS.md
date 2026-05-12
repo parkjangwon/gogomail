@@ -347,6 +347,13 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing visual design is unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail close-save prompt helper (TASK-142, 2026-05-12, complete)
+- Completed close-confirm prompt calculation cleanup for user webmail beta.
+- Close-save prompt copy now comes from `composeCloseSavePrompt`.
+- `apps/webmail/src/lib/composeCloseSavePrompt.contract.ts` adds `tsc`-checked scheduled and unscheduled prompt fixtures.
+- Existing copy and close-save behavior are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
