@@ -309,6 +309,12 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing input `min` behavior, send-time validation, and visual design tone are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail schedule guidance constant (TASK-137, 2026-05-12, complete)
+- Completed custom schedule guidance constant cleanup for user webmail beta.
+- The schedule input helper copy now lives in a module-level `SCHEDULE_INPUT_HELP` constant.
+- Existing displayed copy, accessibility linkage, and visual design are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
