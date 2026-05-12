@@ -1177,11 +1177,11 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 
 	store := testCardDAVDiscoveryStore(t)
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
-	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:E="urn:example:test">
   <D:set>
     <D:prop>
       <D:displayname>Team</D:displayname>
-      <C:unsupported>value</C:unsupported>
+      <E:unsupported>value</E:unsupported>
     </D:prop>
   </D:set>
 </D:propertyupdate>`))
@@ -1200,7 +1200,8 @@ func TestHandlerProppatchRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		"<C:unsupported></C:unsupported>",
+		`xmlns:X="urn:example:test"`,
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
 		"HTTP/1.1 403 Forbidden",
 		"<D:displayname></D:displayname>",
 		"HTTP/1.1 424 Failed Dependency",
@@ -1537,12 +1538,12 @@ func TestHandlerMkcolRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	store := testCardDAVDiscoveryStore(t)
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	bookID := "11111111-1111-4111-8111-111111111111"
-	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+	req := httptest.NewRequest(MethodMkcol, "/carddav/addressbooks/user-1/"+bookID+"/", strings.NewReader(`<D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:E="urn:example:test">
   <D:set>
     <D:prop>
       <D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>
       <D:displayname>Team Contacts</D:displayname>
-      <C:unknown>unsupported</C:unknown>
+      <E:unknown>unsupported</E:unknown>
     </D:prop>
   </D:set>
 </D:mkcol>`))
@@ -1559,7 +1560,8 @@ func TestHandlerMkcolRejectsUnsupportedPropertyAtomically(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		"<D:mkcol-response",
-		"<C:unknown></C:unknown>",
+		`xmlns:X="urn:example:test"`,
+		`<X:unknown xmlns:X="urn:example:test"></X:unknown>`,
 		"HTTP/1.1 403 Forbidden",
 		"<D:resourcetype></D:resourcetype>",
 		"<D:displayname></D:displayname>",

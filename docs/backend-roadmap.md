@@ -2194,7 +2194,9 @@ Target outcome:
       Explicit non-empty request-body `Content-Type` headers are validated
       before XML parsing: malformed or duplicate values return `400`, non-XML
       media types return `415`, and absent headers remain accepted for client
-      compatibility.
+      compatibility. Unsupported properties from arbitrary XML namespaces are
+      preserved in `PROPPATCH` and extended `MKCOL` failure responses with a
+      scoped fallback namespace declaration instead of surfacing as `500`.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one

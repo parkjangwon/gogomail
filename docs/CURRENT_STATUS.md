@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CardDAV unsupported namespace failure responses (2026-05-13, complete)
+- CardDAV WebDAV response serialization now preserves unknown property namespaces by adding
+  a scoped fallback XML namespace declaration on the property element.
+- `PROPPATCH` and extended `MKCOL` requests that include unsupported properties from arbitrary
+  namespaces now return property-level failure responses instead of falling through to `500`.
+- Regression tests cover serializer output and handler responses for `urn:example:test`
+  unsupported properties.
+
 ## DAV creation XML Content-Type validation (2026-05-13, complete)
 - CalDAV `MKCALENDAR` and CardDAV extended `MKCOL` now validate explicit
   non-empty request-body `Content-Type` headers before XML parsing or collection creation.

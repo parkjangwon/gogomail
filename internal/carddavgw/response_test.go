@@ -52,6 +52,34 @@ func TestBuildMultiStatusXMLRendersPropStatusEnvelope(t *testing.T) {
 	}
 }
 
+func TestBuildMultiStatusXMLRendersUnknownNamespaceProperty(t *testing.T) {
+	t.Parallel()
+
+	body, err := BuildMultiStatusXML([]MultiStatusResponse{{
+		Href: "/carddav/addressbooks/user-1/personal/",
+		PropStats: []PropStatus{{
+			StatusCode: http.StatusForbidden,
+			Properties: []PropertyResult{
+				{Name: XMLName{Space: "urn:example:test", Local: "unsupported"}},
+			},
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("BuildMultiStatusXML returned error: %v", err)
+	}
+	assertParseableXML(t, body)
+	text := string(body)
+	for _, want := range []string{
+		`xmlns:X="urn:example:test"`,
+		`<X:unsupported xmlns:X="urn:example:test"></X:unsupported>`,
+		"HTTP/1.1 403 Forbidden",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("body missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestBuildSyncCollectionXMLRendersRootSyncToken(t *testing.T) {
 	t.Parallel()
 
