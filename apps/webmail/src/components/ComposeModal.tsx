@@ -356,6 +356,21 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     } catch { /* keep send success independent from local storage */ }
   }, [recentRecipients]);
 
+  const handleSuccessfulSend = useCallback(async (msg: SendMessageRequest, result: SendMessageResult, useDraftSend: boolean) => {
+    rememberSendResult(result);
+    persistSuccessfulSendLocalState(msg);
+    await clearSentDraft(!useDraftSend);
+    pendingDraftSendRef.current = false;
+    setSent(true);
+    setTimeout(() => {
+      if (sendAndArchiveRef.current) {
+        onArchiveSource?.();
+        sendAndArchiveRef.current = false;
+      }
+      onClose();
+    }, 1500);
+  }, [clearSentDraft, onArchiveSource, onClose, persistSuccessfulSendLocalState, rememberSendResult]);
+
   const buildDraftData = useCallback((toVal: string, ccVal: string, bccVal: string, subjectVal: string, bodyText: string) => {
     const attachmentIds = readyAttachmentIds();
     return {
@@ -572,12 +587,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       setSending(true);
       (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
         .then(async (res) => {
-          rememberSendResult(res.message);
-          await clearSentDraft(!useDraftSend);
-          pendingDraftSendRef.current = false;
-          persistSuccessfulSendLocalState(msg);
-          setSent(true);
-          setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500);
+          await handleSuccessfulSend(msg, res.message, useDraftSend);
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
@@ -590,7 +600,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
     const t = setTimeout(() => setSendCountdown((n) => (n !== null ? n - 1 : null)), 1000);
     return () => clearTimeout(t);
-  }, [sendCountdown, onClose, clearSentDraft, rememberSendResult, persistSuccessfulSendLocalState]);
+  }, [sendCountdown, handleSuccessfulSend]);
 
   useEffect(() => {
     if (sendCountdown === null || sendCountdown <= 0 || !pendingMsgRef.current) return;
@@ -725,7 +735,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
       setSending(true);
       (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
-        .then(async (res) => { rememberSendResult(res.message); persistSuccessfulSendLocalState(msg); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+        .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
         .catch((err: unknown) => {
           pendingDraftSendRef.current = false;
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
@@ -740,7 +750,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         const useDraftSend = pendingDraftSendRef.current && !!draftIdRef.current;
         setSending(true);
         (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
-          .then(async (res) => { rememberSendResult(res.message); persistSuccessfulSendLocalState(msg); await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
+          .then(async (res) => { await handleSuccessfulSend(msg, res.message, useDraftSend); })
           .catch((err: unknown) => {
             pendingDraftSendRef.current = false;
             const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
