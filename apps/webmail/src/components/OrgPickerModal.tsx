@@ -77,6 +77,7 @@ export function OrgPickerModal({
   const [bookContacts, setBookContacts] = useState<PickerItem[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
   const [bookLoading, setBookLoading] = useState(false);
+  const [contactsSearch, setContactsSearch] = useState('');
 
   // Recipients
   const [toList, setToList] = useState<Map<string, PickerItem>>(
@@ -190,9 +191,20 @@ export function OrgPickerModal({
       )
     : orgTree;
 
+  // ── Contacts search filtering ──────────────────────────────────────────────
+
+  const cq = contactsSearch.trim().toLowerCase();
+  const filteredContacts: PickerItem[] = cq
+    ? bookContacts.filter(
+        (c) =>
+          c.display_name.toLowerCase().includes(cq) ||
+          c.email.toLowerCase().includes(cq)
+      )
+    : bookContacts;
+
   // Middle pane items
   const middleItems: PickerItem[] = (() => {
-    if (tab === 'contacts') return bookContacts;
+    if (tab === 'contacts') return filteredContacts;
     if (q) {
       // All matching members across all orgs (deduped by id)
       const seen = new Set<string>();
@@ -330,6 +342,17 @@ export function OrgPickerModal({
               </div>
             )}
 
+            {/* Contacts tab: search input */}
+            {tab === 'contacts' && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--color-border-subtle)', flexShrink: 0 }}>
+                <input
+                  type="text" value={contactsSearch} onChange={(e) => setContactsSearch(e.target.value)}
+                  placeholder="이름, 이메일 검색"
+                  style={{ width: '100%', border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
+
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {/* Org tab tree */}
               {tab === 'org' && treeLoading && (
@@ -414,6 +437,9 @@ export function OrgPickerModal({
             )}
             {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length === 0 && (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>연락처 없음</div>
+            )}
+            {tab === 'contacts' && !bookLoading && selectedBook && bookContacts.length > 0 && filteredContacts.length === 0 && (
+              <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>결과 없음</div>
             )}
 
             {/* Item rows */}
