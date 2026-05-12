@@ -894,6 +894,8 @@ export function CalendarView() {
   const [todoHoverId, setTodoHoverId] = useState<string | null>(null);
   const [quickCreate, setQuickCreate] = useState<{ day: Date; rect: DOMRect } | null>(null);
 
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
   // Subscription state
   const [subscriptions, setSubscriptions] = useState<CalendarSubscription[]>([]);
   const [selectedSubIds, setSelectedSubIds] = useState<Set<string>>(new Set());
@@ -1252,48 +1254,78 @@ export function CalendarView() {
           background: 'var(--color-bg-secondary)',
         }}
       >
-        {/* New event button */}
-        <div style={{ padding: '12px 10px 0' }}>
-          <button
-            onClick={() => openCreateModal(currentDate)}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: '24px',
-              border: 'none',
-              background: 'var(--color-bg-primary)',
-              color: 'var(--color-accent)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.07)',
-            }}
-          >
-            <span style={{ fontSize: '22px', lineHeight: 1, fontWeight: 300 }}>+</span>
-            <span>새 일정 만들기</span>
-          </button>
-        </div>
-
         {/* Mini monthly calendar */}
         <MiniCalendar
           selectedDate={currentDate}
           today={today}
           onDateSelect={handleDayClick}
         />
+
+        {/* Unified create button (below mini calendar) */}
+        <div style={{ padding: '0 10px 10px', position: 'relative' }}>
+          <button
+            onClick={() => setShowAddMenu((v) => !v)}
+            style={{
+              width: '100%',
+              padding: '9px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--color-border-default)',
+              background: 'var(--color-bg-primary)',
+              color: 'var(--color-text-primary)',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            }}
+          >
+            <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300, color: 'var(--color-accent)' }}>+</span>
+            <span>만들기</span>
+            <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--color-text-tertiary)', transition: 'transform 150ms', transform: showAddMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+          </button>
+
+          {showAddMenu && (
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowAddMenu(false)} />
+              <div style={{
+                position: 'absolute', top: 'calc(100% - 2px)', left: '10px', right: '10px',
+                background: 'var(--color-bg-primary)', border: '1px solid var(--color-border-default)',
+                borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200,
+                overflow: 'hidden', padding: '4px 0',
+              }}>
+                {[
+                  { icon: '📅', label: '일정', action: () => { setShowAddMenu(false); openCreateModal(currentDate); } },
+                  { icon: '✓', label: '할 일', action: () => { setShowAddMenu(false); setTodoFocused(true); } },
+                  { icon: '📁', label: '새 캘린더', action: () => { setShowAddMenu(false); openCalModal(null); } },
+                  { icon: '🔗', label: '캘린더 구독', action: () => { setShowAddMenu(false); setShowSubModal(true); setSubError(''); } },
+                ].map(({ icon, label, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '9px 14px', border: 'none', background: 'none',
+                      color: 'var(--color-text-primary)', fontSize: '13px', cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+                  >
+                    <span style={{ fontSize: '15px', width: '20px', textAlign: 'center' }}>{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
         <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '0 10px 10px' }} />
 
         {/* Calendar list */}
         <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-          <button
-            onClick={() => openCalModal(null)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', border: '1px dashed var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', marginBottom: '8px', width: '100%' }}
-          >
-            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 새 캘린더
-          </button>
-
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             내 캘린더
           </div>
@@ -1418,19 +1450,7 @@ export function CalendarView() {
                   </button>
                 </div>
               </div>
-            ) : (
-              <button
-                onClick={() => setTodoFocused(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 6px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '13px', width: '100%', textAlign: 'left' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-tertiary)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', border: '1.5px solid var(--color-text-tertiary)', flexShrink: 0 }}>
-                  <span style={{ fontSize: '11px', lineHeight: 1 }}>+</span>
-                </span>
-                할 일 추가
-              </button>
-            )}
+            ) : null}
           </div>
 
           {/* 다른 캘린더 (Subscriptions) */}
