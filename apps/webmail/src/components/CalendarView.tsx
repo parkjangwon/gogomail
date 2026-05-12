@@ -96,6 +96,105 @@ function parseEvents(objects: CalendarObject[], calendars: Calendar[]): ParsedEv
   return events;
 }
 
+// ── MiniCalendar ─────────────────────────────────────────────────────────────
+
+interface MiniCalendarProps {
+  selectedDate: Date;
+  today: Date;
+  onDateSelect: (d: Date) => void;
+}
+
+function MiniCalendar({ selectedDate, today, onDateSelect }: MiniCalendarProps) {
+  const [viewMonth, setViewMonth] = useState<Date>(() => {
+    const d = new Date(selectedDate);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  useEffect(() => {
+    setViewMonth((prev) => {
+      if (
+        prev.getFullYear() === selectedDate.getFullYear() &&
+        prev.getMonth() === selectedDate.getMonth()
+      ) return prev;
+      const d = new Date(selectedDate);
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+  }, [selectedDate]);
+
+  const month = viewMonth.getMonth();
+  const firstDay = startOfMonth(viewMonth);
+  const gridStart = startOfWeek(firstDay);
+  const days: Date[] = [];
+  for (let i = 0; i < 42; i++) days.push(addDays(gridStart, i));
+  const needed = days.findLastIndex((d) => d.getMonth() === month || d <= firstDay) + 1;
+  const cellCount = Math.ceil(Math.max(needed, 28) / 7) * 7;
+  const visibleDays = days.slice(0, cellCount);
+  const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  return (
+    <div style={{ padding: '10px 8px 6px', userSelect: 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+        <button
+          onClick={() => setViewMonth((d) => { const c = new Date(d); c.setMonth(c.getMonth() - 1); return c; })}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', padding: '2px 6px', borderRadius: '4px', lineHeight: 1 }}
+          aria-label="이전 달"
+        >‹</button>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+          {viewMonth.getFullYear()}년 {viewMonth.getMonth() + 1}월
+        </span>
+        <button
+          onClick={() => setViewMonth((d) => { const c = new Date(d); c.setMonth(c.getMonth() + 1); return c; })}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: '16px', padding: '2px 6px', borderRadius: '4px', lineHeight: 1 }}
+          aria-label="다음 달"
+        >›</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: '2px' }}>
+        {weekDays.map((wd) => (
+          <div key={wd} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '2px 0' }}>
+            {wd}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+        {visibleDays.map((day, idx) => {
+          const isCurrentMonth = day.getMonth() === month;
+          const isToday = isSameDay(day, today);
+          const isSelected = isSameDay(day, selectedDate) && !isToday;
+          return (
+            <button
+              key={idx}
+              onClick={() => onDateSelect(day)}
+              style={{
+                background: isToday ? 'var(--color-accent)' : isSelected ? 'var(--color-bg-tertiary)' : 'none',
+                border: 'none',
+                borderRadius: '50%',
+                width: '26px',
+                height: '26px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '11px',
+                fontWeight: isToday ? 700 : 400,
+                color: isToday ? '#fff' : isCurrentMonth ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                cursor: 'pointer',
+                margin: '1px auto',
+                padding: 0,
+                opacity: !isCurrentMonth ? 0.45 : 1,
+              }}
+            >
+              {day.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── EventPopover ─────────────────────────────────────────────────────────────
 
 interface EventPopoverProps {
@@ -228,7 +327,7 @@ function MonthView({ currentDate, events, today, onDayClick, onEventClick }: Mon
                 borderRight: (idx % 7) < 6 ? '1px solid var(--color-border-subtle)' : undefined,
                 borderBottom: '1px solid var(--color-border-subtle)',
                 padding: '4px',
-                minHeight: '90px',
+                minHeight: '120px',
                 background: weekend ? 'var(--color-bg-secondary)' : 'var(--color-bg-primary)',
                 cursor: 'pointer',
                 overflow: 'hidden',
@@ -265,8 +364,8 @@ function MonthView({ currentDate, events, today, onDayClick, onEventClick }: Mon
                     background: ev.color,
                     color: '#fff',
                     fontSize: '11px',
-                    padding: '1px 4px',
-                    borderRadius: '3px',
+                    padding: '2px 5px',
+                    borderRadius: '4px',
                     marginBottom: '2px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -828,62 +927,71 @@ export function CalendarView() {
       {/* Left sidebar */}
       <div
         style={{
-          width: '180px',
+          width: '240px',
           flexShrink: 0,
           borderRight: '1px solid var(--color-border-subtle)',
           display: 'flex',
           flexDirection: 'column',
-          padding: '12px 8px',
-          gap: '4px',
           overflowY: 'auto',
           background: 'var(--color-bg-secondary)',
         }}
       >
-        <button
-          onClick={() => openCalModal(null)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', border: '1px dashed var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', marginBottom: '8px', width: '100%' }}
-        >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 새 캘린더
-        </button>
+        {/* Mini monthly calendar */}
+        <MiniCalendar
+          selectedDate={currentDate}
+          today={today}
+          onDateSelect={handleDayClick}
+        />
+        <div style={{ height: '1px', background: 'var(--color-border-subtle)', margin: '0 10px 10px' }} />
 
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          내 캘린더
-        </div>
+        {/* Calendar list */}
+        <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+          <button
+            onClick={() => openCalModal(null)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', border: '1px dashed var(--color-border-default)', background: 'none', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', marginBottom: '8px', width: '100%' }}
+          >
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> 새 캘린더
+          </button>
 
-        {loading && calendars.length === 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>로딩 중...</div>
-        )}
-        {calendars.length === 0 && !loading && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>캘린더 없음</div>
-        )}
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', padding: '4px 6px 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            내 캘린더
+          </div>
 
-        {calendars.map((cal) => {
-          const checked = selectedCalIds.has(cal.ID);
-          const hovered = calHoverId === cal.ID;
-          return (
-            <div
-              key={cal.ID}
-              onMouseEnter={() => setCalHoverId(cal.ID)}
-              onMouseLeave={() => setCalHoverId(null)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', background: hovered ? 'var(--color-bg-tertiary)' : 'transparent' }}
-            >
-              <span
-                onClick={() => toggleCalendar(cal.ID)}
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${cal.Color || 'var(--color-accent)'}`, background: checked ? (cal.Color || 'var(--color-accent)') : 'transparent', cursor: 'pointer', flexShrink: 0 }}
+          {loading && calendars.length === 0 && (
+            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>로딩 중...</div>
+          )}
+          {calendars.length === 0 && !loading && (
+            <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '6px' }}>캘린더 없음</div>
+          )}
+
+          {calendars.map((cal) => {
+            const checked = selectedCalIds.has(cal.ID);
+            const hovered = calHoverId === cal.ID;
+            return (
+              <div
+                key={cal.ID}
+                onMouseEnter={() => setCalHoverId(cal.ID)}
+                onMouseLeave={() => setCalHoverId(null)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: '5px', cursor: 'pointer', background: hovered ? 'var(--color-bg-tertiary)' : 'transparent' }}
               >
-                {checked && <span style={{ color: '#fff', fontSize: '9px', lineHeight: 1, fontWeight: 700 }}>✓</span>}
-              </span>
-              <span onClick={() => toggleCalendar(cal.ID)} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '13px', color: 'var(--color-text-primary)' }} title={cal.Name}>
-                {cal.Name}
-              </span>
-              {hovered && (
-                <button onClick={(e) => { e.stopPropagation(); openCalModal(cal); }} style={{ padding: '2px 4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px', lineHeight: 1, borderRadius: '3px', flexShrink: 0 }} title="편집">
-                  ···
-                </button>
-              )}
-            </div>
-          );
-        })}
+                <span
+                  onClick={() => toggleCalendar(cal.ID)}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${cal.Color || 'var(--color-accent)'}`, background: checked ? (cal.Color || 'var(--color-accent)') : 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  {checked && <span style={{ color: '#fff', fontSize: '9px', lineHeight: 1, fontWeight: 700 }}>✓</span>}
+                </span>
+                <span onClick={() => toggleCalendar(cal.ID)} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '13px', color: 'var(--color-text-primary)' }} title={cal.Name}>
+                  {cal.Name}
+                </span>
+                {hovered && (
+                  <button onClick={(e) => { e.stopPropagation(); openCalModal(cal); }} style={{ padding: '2px 4px', border: 'none', background: 'transparent', color: 'var(--color-text-tertiary)', cursor: 'pointer', fontSize: '12px', lineHeight: 1, borderRadius: '3px', flexShrink: 0 }} title="편집">
+                    ···
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main calendar area */}
@@ -903,6 +1011,21 @@ export function CalendarView() {
           {/* Nav buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
+              onClick={goToday}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '5px',
+                border: '1px solid var(--color-border-default)',
+                background: 'none',
+                color: 'var(--color-text-primary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 500,
+              }}
+            >
+              오늘
+            </button>
+            <button
               onClick={() => navigate(-1)}
               aria-label="이전"
               style={{
@@ -917,21 +1040,6 @@ export function CalendarView() {
               }}
             >
               ‹
-            </button>
-            <button
-              onClick={goToday}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '5px',
-                border: '1px solid var(--color-border-default)',
-                background: 'none',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 500,
-              }}
-            >
-              오늘
             </button>
             <button
               onClick={() => navigate(1)}
