@@ -336,15 +336,17 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	calendar, err := store.UpdateCalendarProperties(r.Context(), UpdateCalendarRequest{
-		UserID:       userID,
-		ActorUserID:  actorUserID,
-		CalendarID:   resource.CalendarID,
-		Name:         patch.Name,
-		Slug:         patch.Slug,
-		Timezone:     patch.Timezone,
-		Color:        patch.Color,
-		Description:  patch.Description,
-		ObservedETag: observedETag,
+		UserID:          userID,
+		ActorUserID:     actorUserID,
+		CalendarID:      resource.CalendarID,
+		Name:            patch.Name,
+		NameLang:        patch.NameLang,
+		Slug:            patch.Slug,
+		Timezone:        patch.Timezone,
+		Color:           patch.Color,
+		Description:     patch.Description,
+		DescriptionLang: patch.DescriptionLang,
+		ObservedETag:    observedETag,
 	})
 	if err != nil {
 		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
@@ -2060,9 +2062,9 @@ func proppatchResponse(href string, calendar Calendar, properties []XMLName) Mul
 	for _, prop := range uniqueProperties {
 		switch prop {
 		case PropDisplayName:
-			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Name}, Found: true})
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Name, Lang: calendar.NameLang}, Found: true})
 		case PropCalendarDescription:
-			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Description}, Found: true})
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Description, Lang: calendar.DescriptionLang}, Found: true})
 		case PropCalendarColor:
 			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: calendar.Color}, Found: true})
 		case PropCalendarSlug:

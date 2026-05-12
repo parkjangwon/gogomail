@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV PROPPATCH xml:lang persistence (2026-05-13, complete)
+- CalDAV/CardDAV collection `PROPPATCH` now parses `DAV:prop xml:lang` and
+  stores language tags for `DAV:displayname` plus calendar/address-book
+  description properties.
+- `PROPFIND` and successful `PROPPATCH` responses now emit stored language tags
+  as `xml:lang` attributes on those properties.
+- Removing description properties clears their stored language tag, malformed
+  language values are rejected before mutation, and migration 0097 adds durable
+  language columns with DB-level bounds.
+
 ## CalDAV/CardDAV PROPPATCH instruction prop cardinality (2026-05-13, complete)
 - CalDAV/CardDAV `PROPPATCH` now enforce the RFC 4918 `set (prop)` and
   `remove (prop)` grammar by rejecting a second `DAV:prop` child inside the

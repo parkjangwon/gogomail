@@ -50,6 +50,7 @@ var (
 
 type PropertyValue struct {
 	Text               string
+	Lang               string
 	AddressDataVersion string
 	Hrefs              []string
 	ResourceTypes      []XMLName
@@ -219,10 +220,10 @@ func AddressBookCollectionProperties(userID string, book AddressBook, includeSyn
 		return nil, err
 	}
 	return []PropertyResult{
-		{Name: PropDisplayName, Value: PropertyValue{Text: book.Name}, Found: true},
+		{Name: PropDisplayName, Value: PropertyValue{Text: book.Name, Lang: book.NameLang}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeAddressBook}}, Found: true},
 		{Name: PropGetETag, Value: PropertyValue{Text: etag}, Found: true},
-		{Name: PropAddressBookDescription, Value: PropertyValue{Text: book.Description}, Found: true},
+		{Name: PropAddressBookDescription, Value: PropertyValue{Text: book.Description, Lang: book.DescriptionLang}, Found: true},
 		webDAVTimeProperty(PropCreationDate, book.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, book.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
@@ -551,6 +552,9 @@ func encodePropStatus(enc *xml.Encoder, propstat PropStatus) error {
 
 func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 	start := propertyStartElement(prop.Name)
+	if lang := strings.TrimSpace(prop.Value.Lang); lang != "" {
+		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "xml:lang"}, Value: lang})
+	}
 	if prop.Name == PropAddressData {
 		version := strings.TrimSpace(prop.Value.AddressDataVersion)
 		if version == "" {

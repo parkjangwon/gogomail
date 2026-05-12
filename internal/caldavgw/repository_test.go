@@ -218,15 +218,19 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	t.Parallel()
 
 	name := " Product "
+	nameLang := "ko-KR"
 	color := " #aabbcc "
 	description := " Launch dates "
+	descriptionLang := "en-US"
 	req, normalizedName, syncToken, _, _, err := ValidateUpdateCalendarRequest(UpdateCalendarRequest{
-		UserID:       " user-1 ",
-		CalendarID:   " calendar-1 ",
-		Name:         &name,
-		Color:        &color,
-		Description:  &description,
-		ObservedETag: ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
+		UserID:          " user-1 ",
+		CalendarID:      " calendar-1 ",
+		Name:            &name,
+		NameLang:        &nameLang,
+		Color:           &color,
+		Description:     &description,
+		DescriptionLang: &descriptionLang,
+		ObservedETag:    ` "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `,
 	})
 	if err != nil {
 		t.Fatalf("ValidateUpdateCalendarRequest returned error: %v", err)
@@ -240,11 +244,17 @@ func TestValidateUpdateCalendarRequest(t *testing.T) {
 	if req.Name == nil || *req.Name != "Product" || normalizedName != "product" {
 		t.Fatalf("name = %v normalized = %q", req.Name, normalizedName)
 	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" {
+		t.Fatalf("name lang = %v", req.NameLang)
+	}
 	if req.Color == nil || *req.Color != "#AABBCC" {
 		t.Fatalf("color = %v", req.Color)
 	}
 	if req.Description == nil || *req.Description != "Launch dates" {
 		t.Fatalf("description = %v", req.Description)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "en-US" {
+		t.Fatalf("description lang = %v", req.DescriptionLang)
 	}
 	if !strings.HasPrefix(syncToken, "sync-") {
 		t.Fatalf("sync token = %q", syncToken)
@@ -255,15 +265,22 @@ func TestValidateUpdateCalendarRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
 	validName := "Work"
+	validDescription := "Launch dates"
 	badName := "bad\nname"
 	badColor := "blue"
 	badDescription := "bad\nline"
+	badLang := "en US"
+	goodLang := "ko-KR"
 	tests := []UpdateCalendarRequest{
 		{CalendarID: "calendar-1", Name: &validName},
 		{UserID: "user-1", CalendarID: "calendar-1"},
+		{UserID: "user-1", CalendarID: "calendar-1", NameLang: &goodLang},
+		{UserID: "user-1", CalendarID: "calendar-1", DescriptionLang: &goodLang},
 		{UserID: "user-1", CalendarID: "calendar-1", Name: &badName},
 		{UserID: "user-1", CalendarID: "calendar-1", Color: &badColor},
 		{UserID: "user-1", CalendarID: "calendar-1", Description: &badDescription},
+		{UserID: "user-1", CalendarID: "calendar-1", Name: &validName, NameLang: &badLang},
+		{UserID: "user-1", CalendarID: "calendar-1", Description: &validDescription, DescriptionLang: &badLang},
 	}
 	for _, req := range tests {
 		req := req

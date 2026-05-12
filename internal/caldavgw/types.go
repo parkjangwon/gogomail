@@ -69,16 +69,18 @@ type Principal struct {
 }
 
 type Calendar struct {
-	ID          string
-	UserID      string
-	Name        string
-	Slug        *string
-	Timezone    *string
-	Color       string
-	Description string
-	SyncToken   string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID              string
+	UserID          string
+	Name            string
+	NameLang        string
+	Slug            *string
+	Timezone        *string
+	Color           string
+	Description     string
+	DescriptionLang string
+	SyncToken       string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type CalendarObject struct {

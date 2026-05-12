@@ -61,13 +61,15 @@ type Principal struct {
 }
 
 type AddressBook struct {
-	ID          string
-	UserID      string
-	Name        string
-	Description string
-	SyncToken   string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID              string
+	UserID          string
+	Name            string
+	NameLang        string
+	Description     string
+	DescriptionLang string
+	SyncToken       string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type ContactObject struct {

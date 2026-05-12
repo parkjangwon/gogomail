@@ -293,9 +293,11 @@ func (s *fakeCardDAVDiscoveryStore) UpdateAddressBookProperties(_ context.Contex
 			}
 			if req.Name != nil {
 				book.Name = *req.Name
+				book.NameLang = *req.NameLang
 			}
 			if req.Description != nil {
 				book.Description = *req.Description
+				book.DescriptionLang = *req.DescriptionLang
 			}
 			book.SyncToken = syncToken
 			book.UpdatedAt = time.Date(2026, 5, 6, 8, 9, 10, 0, time.UTC)
@@ -1148,11 +1150,55 @@ func TestHandlerProppatchUpdatesAddressBookCollectionProperties(t *testing.T) {
 	}
 }
 
+func TestHandlerProppatchStoresAndReturnsAddressBookPropertyLang(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:displayname>Team Contacts</D:displayname>
+      <C:addressbook-description>People for launch work</C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.NameLang != "ko-KR" || book.DescriptionLang != "ko-KR" {
+		t.Fatalf("address book langs = name %q description %q, want ko-KR", book.NameLang, book.DescriptionLang)
+	}
+	if store.lastBookUpdate.NameLang == nil || *store.lastBookUpdate.NameLang != "ko-KR" {
+		t.Fatalf("update name lang = %#v, want ko-KR", store.lastBookUpdate.NameLang)
+	}
+	if store.lastBookUpdate.DescriptionLang == nil || *store.lastBookUpdate.DescriptionLang != "ko-KR" {
+		t.Fatalf("update description lang = %#v, want ko-KR", store.lastBookUpdate.DescriptionLang)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<D:displayname xml:lang="ko-KR">Team Contacts</D:displayname>`,
+		`<C:addressbook-description xml:lang="ko-KR">People for launch work</C:addressbook-description>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPPATCH response missing %q:\n%s", want, body)
+		}
+	}
+}
+
 func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
 	t.Parallel()
 
 	store := testCardDAVDiscoveryStore(t)
 	store.books[0].Description = "People"
+	store.books[0].DescriptionLang = "fr"
 	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
 	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
   <D:remove><D:prop><C:addressbook-description/></D:prop></D:remove>
@@ -1169,6 +1215,70 @@ func TestHandlerProppatchRemovesAddressBookDescription(t *testing.T) {
 	}
 	if book.Description != "" {
 		t.Fatalf("address book description = %q, want empty", book.Description)
+	}
+	if book.DescriptionLang != "" {
+		t.Fatalf("address book description lang = %q, want empty", book.DescriptionLang)
+	}
+	if store.lastBookUpdate.DescriptionLang == nil || *store.lastBookUpdate.DescriptionLang != "" {
+		t.Fatalf("update description lang = %#v, want empty", store.lastBookUpdate.DescriptionLang)
+	}
+}
+
+func TestHandlerPropfindReturnsAddressBookPropertyLang(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	store.books[0].NameLang = "ko-KR"
+	store.books[0].Description = "People"
+	store.books[0].DescriptionLang = "fr"
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodPropfind, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:prop>
+    <D:displayname/>
+    <C:addressbook-description/>
+  </D:prop>
+</D:propfind>`))
+	req.Header.Set("Depth", "0")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<D:displayname xml:lang="ko-KR">Personal</D:displayname>`,
+		`<C:addressbook-description xml:lang="fr">People</C:addressbook-description>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("PROPFIND response missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestHandlerProppatchRejectsMalformedXMLLangBeforeMutation(t *testing.T) {
+	t.Parallel()
+
+	store := testCardDAVDiscoveryStore(t)
+	handler := NewHandler(&store, func(*http.Request) (string, error) { return "user-1", nil })
+	req := httptest.NewRequest(MethodProppatch, "/carddav/addressbooks/user-1/personal/", strings.NewReader(`<D:propertyupdate xmlns:D="DAV:">
+  <D:set><D:prop xml:lang="en US"><D:displayname>Team Contacts</D:displayname></D:prop></D:set>
+</D:propertyupdate>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	book, err := store.LookupAddressBook(t.Context(), "user-1", "personal")
+	if err != nil {
+		t.Fatalf("address book lookup failed: %v", err)
+	}
+	if book.Name != "Personal" || book.NameLang != "" {
+		t.Fatalf("address book mutated = %+v", book)
+	}
+	if store.lastBookUpdate.AddressBookID != "" {
+		t.Fatalf("update request recorded before rejection: %+v", store.lastBookUpdate)
 	}
 }
 

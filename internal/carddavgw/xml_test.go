@@ -117,6 +117,29 @@ func TestParseProppatchCollectsAddressBookProperties(t *testing.T) {
 	}
 }
 
+func TestParseProppatchCollectsPropXMLLang(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:displayname> Team </D:displayname>
+      <C:addressbook-description> Launch contacts </C:addressbook-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" {
+		t.Fatalf("name lang = %#v, want ko-KR", req.NameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "ko-KR" {
+		t.Fatalf("description lang = %#v, want ko-KR", req.DescriptionLang)
+	}
+}
+
 func TestParseProppatchRemovesAddressBookDescription(t *testing.T) {
 	t.Parallel()
 
@@ -129,6 +152,28 @@ func TestParseProppatchRemovesAddressBookDescription(t *testing.T) {
 	}
 	if req.Description == nil || *req.Description != "" {
 		t.Fatalf("description = %#v", req.Description)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "" {
+		t.Fatalf("description lang = %#v, want empty", req.DescriptionLang)
+	}
+}
+
+func TestParseProppatchRejectsMalformedPropXMLLang(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"control":    `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="en&#x7f;US"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`,
+		"whitespace": `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="en US"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`,
+		"too long":   `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm"><D:displayname>Team</D:displayname></D:prop></D:set></D:propertyupdate>`,
+	}
+	for name, body := range tests {
+		name, body := name, body
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ParseProppatch(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseProppatch error = nil, want rejection")
+			}
+		})
 	}
 }
 

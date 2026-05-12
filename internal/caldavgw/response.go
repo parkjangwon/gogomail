@@ -61,6 +61,7 @@ var (
 
 type PropertyValue struct {
 	Text               string
+	Lang               string
 	Hrefs              []string
 	ResourceTypes      []XMLName
 	Privileges         []XMLName
@@ -169,14 +170,14 @@ func CalendarCollectionProperties(userID string, calendar Calendar, includeSyncC
 		return nil, err
 	}
 	return []PropertyResult{
-		{Name: PropDisplayName, Value: PropertyValue{Text: calendar.Name}, Found: true},
+		{Name: PropDisplayName, Value: PropertyValue{Text: calendar.Name, Lang: calendar.NameLang}, Found: true},
 		{Name: PropResourceType, Value: PropertyValue{ResourceTypes: []XMLName{ResourceTypeCollection, ResourceTypeCalendar}}, Found: true},
 		{Name: PropGetETag, Value: PropertyValue{Text: etag}, Found: true},
 		webDAVTimeProperty(PropCreationDate, calendar.CreatedAt, formatWebDAVCreationDate),
 		webDAVTimeProperty(PropGetLastModified, calendar.UpdatedAt, formatHTTPDate),
 		{Name: PropOwner, Value: PropertyValue{Hrefs: []string{principalPath}}, Found: true},
 		{Name: PropCurrentUserPrivileges, Value: PropertyValue{Privileges: calendarCollectionPrivileges()}, Found: true},
-		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description}, Found: true},
+		{Name: PropCalendarDescription, Value: PropertyValue{Text: calendar.Description, Lang: calendar.DescriptionLang}, Found: true},
 		{Name: PropCalendarColor, Value: PropertyValue{Text: calendar.Color}, Found: calendar.Color != ""},
 		{Name: PropCalendarSlug, Value: PropertyValue{Text: calendarSlugValue(calendar.Slug)}, Found: calendar.Slug != nil},
 		{Name: PropCalendarTimezone, Value: PropertyValue{Text: calendarTimezoneValue(calendar.Timezone)}, Found: calendar.Timezone != nil},
@@ -548,6 +549,9 @@ func encodePropStatus(enc *xml.Encoder, propstat PropStatus) error {
 
 func encodeProperty(enc *xml.Encoder, prop PropertyResult) error {
 	start := propertyStartElement(prop.Name)
+	if prop.Value.Lang != "" {
+		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "xml:lang"}, Value: prop.Value.Lang})
+	}
 	if err := enc.EncodeToken(start); err != nil {
 		return err
 	}

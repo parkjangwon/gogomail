@@ -279,6 +279,51 @@ func TestParseProppatchCollectsCalendarCollectionProperties(t *testing.T) {
 	}
 }
 
+func TestParseProppatchCollectsPropLanguageForTextProperties(t *testing.T) {
+	t.Parallel()
+
+	const body = `<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set>
+    <D:prop xml:lang="ko-KR">
+      <D:displayname>제품</D:displayname>
+      <C:calendar-description>출시 일정</C:calendar-description>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`
+	req, err := ParseProppatch(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("ParseProppatch returned error: %v", err)
+	}
+	if req.NameLang == nil || *req.NameLang != "ko-KR" {
+		t.Fatalf("name lang = %v", req.NameLang)
+	}
+	if req.DescriptionLang == nil || *req.DescriptionLang != "ko-KR" {
+		t.Fatalf("description lang = %v", req.DescriptionLang)
+	}
+}
+
+func TestParseProppatchRejectsMalformedPropLanguage(t *testing.T) {
+	t.Parallel()
+
+	tooLong := strings.Repeat("a", MaxDAVPropertyLanguageLength+1)
+	tests := map[string]string{
+		"control":    "en\nUS",
+		"whitespace": "en US",
+		"too long":   tooLong,
+	}
+	for name, lang := range tests {
+		name, lang := name, lang
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			body := `<D:propertyupdate xmlns:D="DAV:"><D:set><D:prop xml:lang="` + lang + `"><D:displayname>Product</D:displayname></D:prop></D:set></D:propertyupdate>`
+			if _, err := ParseProppatch(strings.NewReader(body)); err == nil {
+				t.Fatal("ParseProppatch error = nil, want xml:lang rejection")
+			}
+		})
+	}
+}
+
 func TestParseProppatchCollectsUnsupportedAndProtectedProperties(t *testing.T) {
 	t.Parallel()
 

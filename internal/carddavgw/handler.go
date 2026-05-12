@@ -386,12 +386,14 @@ func (h *Handler) serveProppatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	book, err := store.UpdateAddressBookProperties(r.Context(), UpdateAddressBookRequest{
-		UserID:        userID,
-		ActorUserID:   actorUserID,
-		AddressBookID: resource.AddressBookID,
-		Name:          patch.Name,
-		Description:   patch.Description,
-		ObservedETag:  observedETag,
+		UserID:          userID,
+		ActorUserID:     actorUserID,
+		AddressBookID:   resource.AddressBookID,
+		Name:            patch.Name,
+		NameLang:        patch.NameLang,
+		Description:     patch.Description,
+		DescriptionLang: patch.DescriptionLang,
+		ObservedETag:    observedETag,
 	})
 	if err != nil {
 		if observedETag != "" && (strings.Contains(err.Error(), "etag mismatch") || strings.Contains(err.Error(), "not found")) {
@@ -1330,9 +1332,9 @@ func proppatchResponse(href string, book AddressBook, properties []XMLName) Mult
 	for _, prop := range uniqueProperties {
 		switch prop {
 		case PropDisplayName:
-			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Name}, Found: true})
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Name, Lang: book.NameLang}, Found: true})
 		case PropAddressBookDescription:
-			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Description}, Found: true})
+			results = append(results, PropertyResult{Name: prop, Value: PropertyValue{Text: book.Description, Lang: book.DescriptionLang}, Found: true})
 		}
 	}
 	return MultiStatusResponse{Href: href, PropStats: []PropStatus{{StatusCode: http.StatusOK, Properties: results}}}
