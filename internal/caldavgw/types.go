@@ -106,6 +106,12 @@ type CalendarChange struct {
 	ChangedAt  time.Time
 }
 
+type CalendarChangeWithObject struct {
+	Change    CalendarChange
+	Object    CalendarObject
+	HasObject bool
+}
+
 type ScheduleMethod string
 
 const (

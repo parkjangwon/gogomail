@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV 커밋 경계 복구 (2026-05-12, complete)
+- 최신 CalDAV 성능 커밋에서 워킹트리에 남아 있던 `CalendarChangeWithObject` 타입과
+  `CalendarObjectPropertiesWithPrincipalPath` 응답 헬퍼를 함께 정리해 clean checkout 컴파일 경계를 복구했다.
+- CalDAV 성능 고도화 문서에 반영된 0090-0094 인덱스 마이그레이션 파일을 추적 대상에 포함해
+  신규 환경에서도 메타데이터/배치 조회/sync-change 최적화 인덱스가 적용되도록 정리했다.
+
 ## CalDAV 성능 고도화 (2026-05-12, complete)
 - `internal/caldavgw/repository.go`의 `UpsertObject`에서 `If-Match` 조건부 경합 창을 줄이기 위해
   선행 존재/ETag 검증 없이 `INSERT ... SELECT ... ON CONFLICT ... DO UPDATE` 단일 문장으로
