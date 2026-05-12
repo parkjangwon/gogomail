@@ -261,6 +261,15 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing button design, disabled behavior, and send flow are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
 
+## Webmail send button accessibility state (TASK-131, 2026-05-12, complete)
+- Completed compose send button accessibility state pass for user webmail beta.
+- The primary send button now exposes its computed label as the accessibility name.
+- Sending/uploading progress is exposed through `aria-busy`.
+- Send-result and draft-save status messages now use polite live status regions.
+- The send-options trigger exposes menu popup and expanded state.
+- Existing visual design and send behavior are unchanged.
+- Verification: `go test ./...` passed; `pnpm type-check` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
