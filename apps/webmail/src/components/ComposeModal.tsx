@@ -561,7 +561,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-          setError(message);
+          setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
           setSendCountdown(null);
           pendingDraftSendRef.current = false;
         })
@@ -587,6 +587,12 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     }
   }, [sendCountdown, uploadedAttachments, readyAttachmentIds]);
 
+  const markDraftSaved = useCallback(() => {
+    const now = new Date();
+    setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+    setSaveStatus('saved');
+  }, []);
+
   const handleManualSave = useCallback(async () => {
     const bodyText = editor?.getText() ?? '';
     if (!to.trim() && !subject.trim() && !bodyText.trim()) return;
@@ -606,11 +612,9 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
       };
       if (draftIdRef.current) await updateDraft(draftIdRef.current, data);
       else { const r = await saveDraft(data); draftIdRef.current = r.draft.id; }
-      const now = new Date();
-      setSavedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-      setSaveStatus('saved');
+      markDraftSaved();
     } catch { setSaveStatus('idle'); }
-  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds]);
+  }, [to, cc, bcc, subject, editor, intent, sourceMessage, fromAddress, readyAttachmentIds, markDraftSaved]);
 
   const saveTemplate = () => {
     const name = templateSaveName.trim();
@@ -712,6 +716,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         draftIdRef.current = saved.draft.id;
       }
       pendingDraftSendRef.current = true;
+      markDraftSaved();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '초안 전송 준비에 실패했습니다.');
       return;
@@ -727,7 +732,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         .catch((err: unknown) => {
           pendingDraftSendRef.current = false;
           const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
-          setError(message);
+          setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
         })
         .finally(() => setSending(false));
     } else {
@@ -739,7 +744,11 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
         setSending(true);
         (useDraftSend ? sendDraft(draftIdRef.current) : sendMessage(msg))
           .then(async () => { await clearSentDraft(!useDraftSend); pendingDraftSendRef.current = false; setSent(true); setTimeout(() => { if (sendAndArchiveRef.current) { onArchiveSource?.(); sendAndArchiveRef.current = false; } onClose(); }, 1500); })
-          .catch((err: unknown) => { pendingDraftSendRef.current = false; setError(err instanceof Error ? err.message : '전송에 실패했습니다.'); })
+          .catch((err: unknown) => {
+            pendingDraftSendRef.current = false;
+            const message = err instanceof Error ? err.message : '전송에 실패했습니다.';
+            setError(`${message} 초안은 보존되어 다시 전송할 수 있습니다.`);
+          })
           .finally(() => setSending(false));
       } else {
         setSendCountdown(sendDelay);
