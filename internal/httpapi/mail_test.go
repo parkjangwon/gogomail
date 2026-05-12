@@ -3762,3 +3762,11 @@ func (f *fakeMessageService) GetWebmailPreferences(_ context.Context, _ string) 
 func (f *fakeMessageService) SetWebmailPreferences(_ context.Context, _ string, _ json.RawMessage) error {
 	return nil
 }
+
+func (f *fakeMessageService) GetUserProfile(_ context.Context, _ string) (maildb.UserProfile, error) {
+	return maildb.UserProfile{}, nil
+}
+
+func (f *fakeMessageService) ChangeUserPassword(_ context.Context, _, _, _ string) error {
+	return nil
+}

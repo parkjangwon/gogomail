@@ -92,6 +92,8 @@ type MessageService interface {
 	MessageDeliveryStatus(ctx context.Context, userID string, messageID string) (maildb.MessageDeliveryStatusView, error)
 	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
 	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
+	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
 type webmailCapabilitiesEnvelope struct {
@@ -1953,6 +1955,53 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"preferences": prefs})
+	})
+
+	mux.HandleFunc("GET /api/v1/me", func(w http.ResponseWriter, r *http.Request) {
+		if !rejectBodylessRequestPayload(w, r) {
+			return
+		}
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		profile, err := service.GetUserProfile(r.Context(), userID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load profile")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"user": profile})
+	})
+
+	mux.HandleFunc("POST /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			CurrentPassword string `json:"current_password"`
+			NewPassword     string `json:"new_password"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if req.CurrentPassword == "" || req.NewPassword == "" {
+			writeError(w, http.StatusBadRequest, "current_password and new_password are required")
+			return
+		}
+		if err := service.ChangeUserPassword(r.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
 }
 

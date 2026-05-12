@@ -1021,6 +1021,37 @@ export async function revokeDriveShareLink(linkId: string): Promise<boolean> {
   } catch { return false; }
 }
 
+// ─── User profile + password ──────────────────────────────────────────────────
+
+export interface UserProfile {
+  user_id: string;
+  display_name: string;
+  email: string;
+  quota_used: number;
+  quota_limit: number | null;
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  try {
+    const res = await fetch('/api/mail/me');
+    if (!res.ok) return null;
+    const data = await res.json() as { user?: UserProfile };
+    return data.user ?? null;
+  } catch { return null; }
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch('/api/mail/me/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error ?? '비밀번호 변경에 실패했습니다.');
+  }
+}
+
 // ─── Server-side user preferences ────────────────────────────────────────────
 
 export interface WebmailPreferences {

@@ -1781,6 +1781,57 @@ paths:
           $ref: "#/components/responses/Attachment"
         default:
           $ref: "#/components/responses/Error"
+  /me:
+    get:
+      operationId: getUserProfile
+      summary: Get the authenticated user's profile
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      user_id: { type: string }
+                      display_name: { type: string }
+                      email: { type: string }
+                      quota_used: { type: integer }
+                      quota_limit: { type: integer, nullable: true }
+        default:
+          $ref: "#/components/responses/Error"
+  /me/password:
+    post:
+      operationId: changeUserPassword
+      summary: Change the authenticated user's password
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string }
+                new_password: { type: string }
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
   /preferences:
     get:
       operationId: getWebmailPreferences
