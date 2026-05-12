@@ -51,7 +51,7 @@ WHERE NOT EXISTS (
   SELECT 1 FROM folders fo WHERE fo.user_id = u.id::uuid AND fo.system_type = f.stype
 );
 
--- ── 4. Organisation units ─────────────────────────────────────────────────────
+-- ── 4. Organisation units (legacy table, kept for reference) ──────────────────
 
 INSERT INTO organization_units (id, company_id, name, name_normalized, type, display_name, status)
 VALUES
@@ -60,7 +60,7 @@ VALUES
   ('c1000000-0000-0000-0000-000000000003', '6106af4e-fc44-4a65-890d-55bb35741d6c', '인사팀',   '인사팀',   'department', '인사팀',   'active')
 ON CONFLICT DO NOTHING;
 
--- ── 5. Organisation members ───────────────────────────────────────────────────
+-- ── 5. Organisation members (legacy) ──────────────────────────────────────────
 
 INSERT INTO organization_members (id, organization_unit_id, user_id, role, is_primary)
 VALUES
@@ -75,6 +75,41 @@ VALUES
   -- 인사팀: 최준호 (manager)
   (gen_random_uuid(), 'c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000005', 'manager', true)
 ON CONFLICT DO NOTHING;
+
+-- ── 5b. Organizations (directory table used by SearchPrincipals / org-tree) ───
+-- Level 0: 본부/부서 (root)
+INSERT INTO organizations (id, domain_id, name, code, depth, order_index, status)
+VALUES
+  ('c2000000-0000-0000-0000-000000000001', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '개발본부',   'dev',  0, 1, 'active'),
+  ('c2000000-0000-0000-0000-000000000002', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '마케팅본부', 'mkt',  0, 2, 'active'),
+  ('c2000000-0000-0000-0000-000000000003', '6049fa6e-d649-44d3-83d2-b548c7e787d5', '경영지원부', 'biz',  0, 3, 'active')
+ON CONFLICT DO NOTHING;
+
+-- Level 1: 팀 (under 개발본부)
+INSERT INTO organizations (id, domain_id, parent_id, name, code, depth, order_index, status)
+VALUES
+  ('c3000000-0000-0000-0000-000000000001', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000001', '백엔드팀',     'be',   1, 1, 'active'),
+  ('c3000000-0000-0000-0000-000000000002', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000001', '프론트엔드팀', 'fe',   1, 2, 'active'),
+  ('c3000000-0000-0000-0000-000000000003', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000001', '인프라팀',     'infra',1, 3, 'active'),
+  -- under 마케팅본부
+  ('c3000000-0000-0000-0000-000000000004', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000002', '브랜드팀',     'brand',1, 1, 'active'),
+  ('c3000000-0000-0000-0000-000000000005', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000002', '퍼포먼스팀',   'perf', 1, 2, 'active'),
+  -- under 경영지원부
+  ('c3000000-0000-0000-0000-000000000006', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000003', '인사팀',       'hr',   1, 1, 'active'),
+  ('c3000000-0000-0000-0000-000000000007', '6049fa6e-d649-44d3-83d2-b548c7e787d5', 'c2000000-0000-0000-0000-000000000003', '재무팀',       'fin',  1, 2, 'active')
+ON CONFLICT DO NOTHING;
+
+-- Link users to leaf-team org_id
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000001'  -- 백엔드팀
+WHERE id IN ('f4b5a283-d1e6-47a9-a69a-e71e90f5343c', 'a1000000-0000-0000-0000-000000000001');
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000002'  -- 프론트엔드팀
+WHERE id = 'a1000000-0000-0000-0000-000000000002';
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000004'  -- 브랜드팀
+WHERE id = 'a1000000-0000-0000-0000-000000000003';
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000005'  -- 퍼포먼스팀
+WHERE id IN ('a1000000-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000006');
+UPDATE users SET org_id = 'c3000000-0000-0000-0000-000000000006'  -- 인사팀
+WHERE id = 'a1000000-0000-0000-0000-000000000005';
 
 -- ── 6. pjw 주소록 + 연락처 ──────────────────────────────────────────────────────
 

@@ -48,6 +48,14 @@ const (
 	MaxGroupMembershipListLimit     = 200
 )
 
+type OrgTreeItem struct {
+	ID          string
+	DisplayName string
+	ParentID    string
+	Depth       int
+	OrderIndex  int
+}
+
 type Principal struct {
 	ID             string
 	Kind           string

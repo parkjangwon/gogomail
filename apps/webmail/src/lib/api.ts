@@ -924,6 +924,29 @@ export async function listDirectoryUsers(q?: string, limit = 50): Promise<Direct
   } catch { return []; }
 }
 
+export interface OrgMember {
+  id: string;
+  display_name: string;
+  email: string;
+}
+
+export interface OrgUnit {
+  id: string;
+  display_name: string;
+  parent_id?: string;
+  depth: number;
+  members: OrgMember[];
+}
+
+export async function listOrgTree(): Promise<OrgUnit[]> {
+  try {
+    const res = await fetch('/api/mail/directory/org-tree');
+    if (!res.ok) return [];
+    const data = await res.json() as { units?: OrgUnit[] };
+    return data.units ?? [];
+  } catch { return []; }
+}
+
 // ── Threads ──────────────────────────────────────────────────────────────────
 
 export interface ThreadSummary {
