@@ -28,6 +28,11 @@ function formatDate(iso: string): string {
 
 interface BreadcrumbItem { id: string; name: string; }
 
+interface SidebarFolderItem {
+  id: string;
+  name: string;
+}
+
 const DRIVE_NODE_DRAG_MIME = 'application/x-gogomail-drive-node';
 const DRIVE_NODE_DRAG_TEXT = 'application/x-gogomail-drive-node-id';
 
@@ -368,6 +373,10 @@ export function DriveView() {
   const [draggingNodeIds, setDraggingNodeIds] = useState<string[]>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
+  const [sidebarFolderChildren, setSidebarFolderChildren] = useState<Record<string, SidebarFolderItem[]>>({});
+  const [sidebarExpandedFolders, setSidebarExpandedFolders] = useState<Set<string>>(new Set(['']));
+  const [sidebarLoadedFolders, setSidebarLoadedFolders] = useState<Set<string>>(new Set());
+  const [sidebarLoadingFolders, setSidebarLoadingFolders] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const newFolderRef = useRef<HTMLInputElement>(null);
@@ -405,6 +414,39 @@ export function DriveView() {
     setTrashLoading(false);
   }, []);
 
+  const sidebarLoadKey = useCallback((folderId: string) => folderId || '__ROOT__', []);
+
+  const loadSidebarFolders = useCallback(async (parentId: string) => {
+    const key = sidebarLoadKey(parentId);
+    if (sidebarLoadedFolders.has(key) || sidebarLoadingFolders[key]) return;
+
+    setSidebarLoadingFolders((prev) => ({ ...prev, [key]: true }));
+    try {
+      const data = await listDriveNodes(parentId || undefined);
+      const sortedFolders = data
+        .filter((n) => n.node_type === 'folder')
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+        .map((n) => ({ id: n.id, name: n.name }));
+      setSidebarFolderChildren((prev) => ({ ...prev, [key]: sortedFolders }));
+      setSidebarLoadedFolders((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+    } finally {
+      setSidebarLoadingFolders((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  }, [sidebarLoadedFolders, sidebarLoadKey, sidebarLoadingFolders]);
+
+  const reloadSidebarCurrentPath = useCallback(() => {
+    setSidebarFolderChildren({});
+    setSidebarLoadedFolders(new Set());
+  }, []);
+
   useEffect(() => {
     loadNodes(currentParentId);
     getDriveUsage().then(setUsage);
@@ -413,6 +455,10 @@ export function DriveView() {
   useEffect(() => {
     if (activeSection === 'trash') loadTrashNodes();
   }, [activeSection, loadTrashNodes]);
+
+  useEffect(() => {
+    if (activeSection === 'drive') loadSidebarFolders('');
+  }, [activeSection, loadSidebarFolders]);
 
   useEffect(() => { if (newFolderMode) setTimeout(() => newFolderRef.current?.focus(), 50); }, [newFolderMode]);
   useEffect(() => { if (renameNodeId) setTimeout(() => renameRef.current?.select(), 50); }, [renameNodeId]);
@@ -431,6 +477,21 @@ export function DriveView() {
     if (!newFolderName.trim()) { setNewFolderMode(false); return; }
     const created = await createDriveFolder(newFolderName.trim(), currentParentId || undefined);
     if (created) setNodes((prev) => [created, ...prev]);
+    if (created && created.node_type === 'folder') {
+      const key = sidebarLoadKey(currentParentId);
+      setSidebarFolderChildren((prev) => {
+        const current = prev[key] ?? [];
+        const next = [...current, { id: created.id, name: created.name }]
+          .filter((value, index, source) => source.findIndex((item) => item.id === value.id) === index)
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        return { ...prev, [key]: next };
+      });
+      setSidebarLoadedFolders((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+    }
     setNewFolderName('');
     setNewFolderMode(false);
   }
@@ -580,6 +641,7 @@ export function DriveView() {
       getDriveUsage().then(setUsage);
     }
     setSelectedNodeIds((prev) => prev.filter((id) => !movedNodeIds.includes(id)));
+    reloadSidebarCurrentPath();
     setDraggingNodeIds([]);
     setDropTargetFolderId(null);
   }
@@ -601,6 +663,127 @@ export function DriveView() {
     .map((id) => nodes.find((node) => node.id === id)?.name)
     .filter(Boolean) as string[];
 
+  const toggleSidebarFolder = useCallback((folderId: string) => {
+    setSidebarExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+    void loadSidebarFolders(folderId);
+  }, [loadSidebarFolders]);
+
+  const renderSidebarFolders = (parentId: string, depth: number, path: BreadcrumbItem[]): React.ReactNode => {
+    const key = sidebarLoadKey(parentId);
+    const children = sidebarFolderChildren[key] ?? [];
+    const isLoading = sidebarLoadingFolders[key];
+
+    if (!children.length && !isLoading && sidebarLoadedFolders.has(key) && parentId === '') {
+      return null;
+    }
+
+    return (
+      <div>
+        {isLoading && children.length === 0 && (
+          <div style={{ marginLeft: `${depth * 12}px`, padding: '6px 8px', fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+            폴더 로딩중...
+          </div>
+        )}
+        {children.map((folder) => {
+          const isExpanded = sidebarExpandedFolders.has(folder.id);
+          const childKey = sidebarLoadKey(folder.id);
+          const childLoading = sidebarLoadingFolders[childKey];
+          const hasKnownChildren = (sidebarFolderChildren[childKey] ?? []).length > 0;
+          const isDropTarget = dropTargetFolderId === folder.id;
+          const isCurrentPath = breadcrumb.some((item) => item.id === folder.id);
+          const folderPath = [...path, { id: folder.id, name: folder.name }];
+
+          return (
+            <div key={folder.id}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  margin: '2px 0',
+                  padding: '6px 8px 6px 0',
+                  borderRadius: '6px',
+                  marginLeft: `${depth * 8}px`,
+                  background: isDropTarget ? 'var(--color-accent-subtle)' : isCurrentPath ? 'var(--color-bg-secondary)' : 'transparent',
+                  border: isDropTarget ? '1px solid var(--color-accent)' : '1px solid transparent',
+                  color: isCurrentPath ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                  transition: 'background 140ms ease, border-color 140ms ease',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                }}
+                onClick={() => setBreadcrumb(folderPath)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDropTargetFolderId(folder.id);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTargetFolderId((prev) => (prev === folder.id ? null : prev));
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const payload = getDriveNodeDragPayload(e.dataTransfer);
+                  const payloadNodeIds = parseDriveNodeIds(payload);
+                  if (payloadNodeIds && payloadNodeIds.length > 0) {
+                    await handleMoveNodes(payloadNodeIds.filter((id) => id !== folder.id), folder.id);
+                    return;
+                  }
+                  const files = await collectDroppedFiles(e.dataTransfer);
+                  if (files.length) await handleUploadEntries(files, folder.id);
+                  setDropTargetFolderId(null);
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSidebarFolder(folder.id);
+                  }}
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    border: 'none',
+                    background: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--color-text-tertiary)',
+                  }}
+                >
+                  <ChevronRightIcon style={{
+                    width: '12px',
+                    height: '12px',
+                    transform: `rotate(${isExpanded ? 90 : 0}deg)`,
+                    transition: 'transform 140ms ease',
+                  }} />
+                </button>
+                <FolderIcon style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {folder.name}
+                  {childLoading && !hasKnownChildren ? ' · 로딩...' : ''}
+                </span>
+              </div>
+              {isExpanded && (
+                <div>
+                  {renderSidebarFolders(folder.id, depth + 1, folderPath)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const sidebarDropTargetActive = dropTargetFolderId === '';
+
   return (
     <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', background: 'var(--color-bg-primary)', position: 'relative' }}>
       <style jsx>{`
@@ -620,13 +803,38 @@ export function DriveView() {
         <div style={{ padding: '0 8px', marginBottom: '4px' }}>
           <button
             onClick={() => setActiveSection('drive')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '6px', border: 'none', background: activeSection === 'drive' ? 'var(--color-accent-subtle)' : 'transparent', color: activeSection === 'drive' ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '13px', fontWeight: activeSection === 'drive' ? 600 : 400, cursor: 'pointer', textAlign: 'left' }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropTargetFolderId('');
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setDropTargetFolderId((prev) => (prev === '' ? null : prev));
+              }
+            }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const payload = getDriveNodeDragPayload(e.dataTransfer);
+              const payloadNodeIds = parseDriveNodeIds(payload);
+              if (payloadNodeIds && payloadNodeIds.length > 0) {
+                await handleMoveNodes(payloadNodeIds, '');
+                return;
+              }
+              const files = await collectDroppedFiles(e.dataTransfer);
+              if (files.length) await handleUploadEntries(files, undefined);
+              setDropTargetFolderId(null);
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '7px 10px', borderRadius: '6px', border: 'none', background: activeSection === 'drive' || sidebarDropTargetActive ? 'var(--color-accent-subtle)' : 'transparent', color: activeSection === 'drive' ? 'var(--color-accent)' : 'var(--color-text-secondary)', fontSize: '13px', fontWeight: activeSection === 'drive' ? 600 : 400, cursor: 'pointer', textAlign: 'left' }}
             onMouseEnter={(e) => { if (activeSection !== 'drive') (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-secondary)'; }}
             onMouseLeave={(e) => { if (activeSection !== 'drive') (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
             <FolderSolid style={{ width: '16px', height: '16px', flexShrink: 0 }} />
             내 드라이브
           </button>
+          <div style={{ marginTop: '6px' }}>
+            {renderSidebarFolders('', 1, [{ id: '', name: '내 드라이브' }])}
+          </div>
         </div>
         <div style={{ padding: '0 8px', marginBottom: '16px' }}>
           <button
