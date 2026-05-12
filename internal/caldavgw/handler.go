@@ -50,6 +50,10 @@ type CalendarObjectCrossCalendarBatchStore interface {
 	ListCalendarObjectsByNameGroups(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) ([]CalendarObject, error)
 }
 
+type CalendarChangeWithObjectStore interface {
+	ListCalendarChangesWithObjectsSince(ctx context.Context, req ListChangesSinceRequest, includeICS bool) ([]CalendarChangeWithObject, error)
+}
+
 type ObjectStore interface {
 	UpsertObject(ctx context.Context, req UpsertObjectRequest) (CalendarObject, error)
 	DeleteObject(ctx context.Context, req DeleteObjectRequest) (CalendarObject, error)
@@ -434,13 +438,11 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
+	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
+	ifModifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Modified-Since")
 	if err != nil {
-		http.Error(w, "caldav object not found", http.StatusNotFound)
-		return
-	}
-	if ifMatch := conditionalHeaderValue(r.Header, "If-Match"); ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
-		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
@@ -448,33 +450,55 @@ func (h *Handler) serveGetObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	useMetadata := r.Method == MethodHead || ifMatch != "" || ifNoneMatch != "" || ifModifiedSince != "" || ifUnmodifiedSince != ""
+	if !useMetadata {
+		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+		if err != nil {
+			http.Error(w, "caldav object not found", http.StatusNotFound)
+			return
+		}
+		writeCalendarObjectHeaders(w, object)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(object.ICS)
+		return
+	}
+
+	object, err := h.lookupCalendarObjectForReport(r.Context(), userID, resource.CalendarID, resource.ObjectName, false)
+	if err != nil {
+		http.Error(w, "caldav object not found", http.StatusNotFound)
+		return
+	}
+	if ifMatch != "" && !ifMatchMatches(ifMatch, object.ETag) {
+		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+		return
+	}
 	if objectModifiedSince(ifUnmodifiedSince, object.UpdatedAt) {
 		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
 		return
 	}
-	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
 	if ifNoneMatchMatches(ifNoneMatch, object.ETag) {
 		writeCalendarObjectNotModifiedHeaders(w, object)
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	if ifNoneMatch == "" {
-		ifModifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Modified-Since")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
-			writeCalendarObjectNotModifiedHeaders(w, object)
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
+	if ifNoneMatch == "" && ifModifiedSince != "" && objectNotModifiedSince(ifModifiedSince, object.UpdatedAt) {
+		writeCalendarObjectNotModifiedHeaders(w, object)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	if r.Method == MethodHead {
+		writeCalendarObjectHeaders(w, object)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	object, err = h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+	if err != nil {
+		http.Error(w, "caldav object not found", http.StatusNotFound)
+		return
 	}
 	writeCalendarObjectHeaders(w, object)
 	w.WriteHeader(http.StatusOK)
-	if r.Method != MethodHead {
-		_, _ = w.Write(object.ICS)
-	}
+	_, _ = w.Write(object.ICS)
 }
 
 func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
@@ -491,51 +515,67 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
+
+	ifMatch := conditionalHeaderValue(r.Header, "If-Match")
 	ifNoneMatch := conditionalHeaderValue(r.Header, "If-None-Match")
-	existed := false
-	var existing CalendarObject
-	if object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName); err == nil {
-		existed = true
-		existing = object
-	}
-	if existed && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
-		http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
-		return
-	}
-	observedETag := conditionalHeaderValue(r.Header, "If-Match")
-	if observedETag == "*" {
-		if !existed {
-			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
-			return
-		}
-		observedETag = existing.ETag
-	} else if observedETag != "" && !existed {
-		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
-		return
-	} else if observedETag != "" && !ifMatchMatches(observedETag, existing.ETag) {
-		http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
-		return
-	} else if observedETag != "" {
-		observedETag = existing.ETag
-	}
 	ifUnmodifiedSince, err := conditionalDateHeaderValue(r.Header, "If-Unmodified-Since")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if ifUnmodifiedSince != "" && !existed {
-		http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
-		return
+
+	needsPreconditionMetadata := ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != ""
+
+	var existing CalendarObject
+	var lookupErr error
+	existed := false
+	if needsPreconditionMetadata {
+		existing, lookupErr, existed = h.lookupCalendarObjectMetadataForWrite(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+		if lookupErr != nil {
+			existing = CalendarObject{}
+		}
+		if ifMatch == "" && ifUnmodifiedSince == "" {
+			// If-None-Match-only exists. If object exists, ensure it is not rejected by matching etag.
+			if existed && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
+				http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
+				return
+			}
+		} else {
+			if !existed {
+				http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+				return
+			}
+		}
+		if existed {
+			if ifNoneMatch != "" && ifNoneMatchMatches(ifNoneMatch, existing.ETag) {
+				http.Error(w, "caldav object already exists", http.StatusPreconditionFailed)
+				return
+			}
+			if ifMatch != "" && !ifMatchMatches(ifMatch, existing.ETag) {
+				http.Error(w, "caldav object etag mismatch", http.StatusPreconditionFailed)
+				return
+			}
+			if ifUnmodifiedSince != "" && objectModifiedSince(ifUnmodifiedSince, existing.UpdatedAt) {
+				http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
+				return
+			}
+		}
 	}
-	if objectModifiedSince(ifUnmodifiedSince, existing.UpdatedAt) {
-		http.Error(w, "caldav object modified since precondition", http.StatusPreconditionFailed)
-		return
+
+	observedETag := ""
+	if ifMatch != "" {
+		if !existed {
+			http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
+			return
+		}
+		observedETag = existing.ETag
 	}
 	body, err := readBoundedCalendarBody(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
 		return
 	}
+
 	object, err := store.UpsertObject(r.Context(), UpsertObjectRequest{
 		UserID:       userID,
 		ActorUserID:  actorUserID,
@@ -545,11 +585,24 @@ func (h *Handler) servePutObject(w http.ResponseWriter, r *http.Request) {
 		ObservedETag: observedETag,
 	})
 	if err != nil {
+		if needsPreconditionMetadata && (strings.Contains(err.Error(), "CalDAV object not found") || strings.Contains(err.Error(), "CalDAV object etag mismatch")) {
+			http.Error(w, err.Error(), http.StatusPreconditionFailed)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	writeCalendarObjectHeaders(w, object)
-	if existed {
+	if needsPreconditionMetadata {
+		if existed {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
+		return
+	}
+
+	if !object.CreatedAt.Equal(object.UpdatedAt) {
 		w.WriteHeader(http.StatusNoContent)
 	} else {
 		w.WriteHeader(http.StatusCreated)
@@ -608,8 +661,8 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	observedETag := ""
 	if ifMatch != "" || ifNoneMatch != "" || ifUnmodifiedSince != "" {
-		object, err := h.Store.LookupCalendarObject(r.Context(), userID, resource.CalendarID, resource.ObjectName)
-		if err != nil {
+		object, lookupErr, exists := h.lookupCalendarObjectMetadataForWrite(r.Context(), userID, resource.CalendarID, resource.ObjectName)
+		if lookupErr != nil || !exists {
 			if ifMatch != "" || ifUnmodifiedSince != "" {
 				http.Error(w, "caldav object not found", http.StatusPreconditionFailed)
 				return
@@ -641,6 +694,27 @@ func (h *Handler) serveDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) lookupCalendarObjectMetadataForWrite(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error, bool) {
+	if h == nil || h.Store == nil {
+		return CalendarObject{}, nil, false
+	}
+	if metadataStore, ok := h.Store.(CalendarObjectMetadataStore); ok {
+		object, err := metadataStore.LookupCalendarObjectMetadata(ctx, userID, calendarID, objectName)
+		if err != nil {
+			return CalendarObject{}, err, false
+		}
+		return object, nil, true
+	}
+	if discoveryStore, ok := h.Store.(DiscoveryStore); ok {
+		object, err := discoveryStore.LookupCalendarObject(ctx, userID, calendarID, objectName)
+		if err != nil {
+			return CalendarObject{}, err, false
+		}
+		return object, nil, true
+	}
+	return CalendarObject{}, nil, false
 }
 
 func (h *Handler) deleteCalendarCollection(w http.ResponseWriter, r *http.Request, userID string, actorUserID string, resource ResourcePath) {
@@ -1480,7 +1554,8 @@ func (h *Handler) propfindResponses(ctx context.Context, userID string, actorUse
 		if depth != DepthZero {
 			return nil, fmt.Errorf("calendar object PROPFIND requires Depth: 0")
 		}
-		object, err := h.Store.LookupCalendarObject(ctx, userID, resource.CalendarID, resource.ObjectName)
+		includeCalendarData := containsXMLName(propfind.Properties, PropCalendarData) || containsXMLName(propfind.Include, PropCalendarData)
+		object, err := h.lookupCalendarObjectForReport(ctx, userID, resource.CalendarID, resource.ObjectName, includeCalendarData)
 		if err != nil {
 			return nil, err
 		}
@@ -1976,6 +2051,58 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		limit = MaxWebDAVReportLimit
 	}
 	fetchLimit := limit + 1
+	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
+	if changeWithObjectStore, ok := store.(CalendarChangeWithObjectStore); ok {
+		changesWithObject, err := changeWithObjectStore.ListCalendarChangesWithObjectsSince(ctx, ListChangesSinceRequest{
+			UserID:     userID,
+			CalendarID: resource.CalendarID,
+			SyncToken:  report.SyncToken,
+			Limit:      fetchLimit,
+		}, includeCalendarData)
+		if err != nil {
+			return nil, "", err
+		}
+		if len(changesWithObject) > limit {
+			return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
+		}
+		syncToken := report.SyncToken
+		propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+		responses := make([]MultiStatusResponse, 0, len(changesWithObject))
+		for _, item := range changesWithObject {
+			change := item.Change
+			if strings.TrimSpace(change.SyncToken) != "" {
+				syncToken = strings.TrimSpace(change.SyncToken)
+			}
+			if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {
+				continue
+			}
+			href, err := CalendarObjectPath(userID, change.CalendarID, change.ObjectName)
+			if err != nil {
+				return nil, "", err
+			}
+			if change.Action == "object-deleted" || !item.HasObject {
+				responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
+				continue
+			}
+			object := item.Object
+			object.CalendarID = change.CalendarID
+			props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
+			if err != nil {
+				return nil, "", err
+			}
+			props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
+			if includeCalendarData {
+				prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+				if err != nil {
+					return nil, "", err
+				}
+				props = append(props, prop)
+			}
+			responses = append(responses, responseForProperties(href, propfind, props))
+		}
+		return responses, syncToken, nil
+	}
+
 	changes, err := store.ListCalendarChangesSince(ctx, ListChangesSinceRequest{
 		UserID:     userID,
 		CalendarID: resource.CalendarID,
@@ -1989,7 +2116,6 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		return nil, "", fmt.Errorf("sync-collection limit may truncate change results")
 	}
 	syncToken := report.SyncToken
-	includeCalendarData := containsXMLName(report.Properties, PropCalendarData)
 	requestedByCalendarNames := make(map[string]map[string]struct{}, len(changes))
 	for _, change := range changes {
 		if change.Action == "collection-deleted" || change.Action == "collection-updated" || change.ObjectName == "" {

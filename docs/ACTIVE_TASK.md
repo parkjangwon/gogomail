@@ -5,6 +5,96 @@
 
 ---
 
+## ✅ TASK-175: CalDAV sync-collection 동시성/락 경합 고도화 및 캐시 힌트
+
+### 배경
+
+쓰기 요청(객체 upsert/delete 및 calendar 속성 변경)에서 `FOR UPDATE` 잠금과 선행 `SELECT`가 동시 요청 시 병목을 만들고 있었습니다.
+또한 UID 중복 선체크는 2회 조회 비용을 추가하고, sync marker 보장 쿼리도 다중 왕복을 유발했습니다.
+현재 목표(베타 운영 대비 RFC-정합성 유지)는 유지하면서 동시성 대비 처리량을 먼저 끌어올리는 것이 핵심이었습니다.
+
+### 구현 대상
+
+- `internal/caldavgw/repository.go`
+- `docs/ACTIVE_TASK.md`
+- `docs/CURRENT_STATUS.md`
+
+### 완료 조건
+
+- [x] 객체 upsert/delete/calendar property 업데이트에서 비필수한 `FOR UPDATE` 잠금을 제거해 동시성 경쟁 구간을 축소한다.
+- [x] UID 중복 선체크(`ensureCalendarObjectUIDAvailable`) 경로를 제거해 업서트 1회 쿼리 실패 처리로 수렴한다.
+- [x] sync marker 초기화 경로를 CTE 단일 쿼리로 정리해 marker 조회+삽입 비용을 축소한다.
+- [x] 에러 시나리오(미활성 캘린더/미발견) 처리 및 기존 RFC 동작(412/412/428 등)은 유지한다.
+- [x] 개발 문서를 최신 상태로 갱신한다.
+
+### 다음 태스크
+
+TASK-176: CalDAV 동시성-쓰기 병목 계측 및 적응형 지연 제어
+
+## ✅ TASK-176: CalDAV 동시성-쓰기 병목 계측 및 적응형 지연 제어
+
+### 배경
+
+쓰기 경로(객체 upsert/delete)는 동시 요청량이 높을 때 `serialization_failure`, deadlock, lock wait가 반복 발생해
+재시도 없이 즉시 실패하거나 롤백되는 구간이 존재했다.
+또한 객체 존재/변경조건 검사에서 본문(ICS)을 함께 조회하는 경로가 실제로는 메타데이터만 필요한 상황에서도 I/O 부하를 만들었다.
+
+다음 단계로는 쓰기 경로에서 조건부 판정 비용을 낮추고, 트랜잭션 경쟁 구간에서 재시도와 회복 대기(backoff)로
+동일 작업의 성공률을 높여 처리량을 끌어올릴 수 있다.
+
+### 구현 대상
+
+- `internal/caldavgw/handler.go`
+- `internal/caldavgw/repository.go`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `servePutObject`, `serveDeleteObject`의 객체 조건부 판정에서 메타데이터 조회 경로를 우선 사용한다.
+- [x] 객체 존재/ETag 판정 실패 시 전체 ICS 본문을 읽는 경로를 제거한다.
+- [x] `repository`의 `UpsertObject`, `DeleteObject`를 트랜잭션 재시도 래퍼로 감싸
+  serialization/deadlock/lock contention 에러를 백오프로 복구한다.
+- [x] `calendar` 컬렉션 변경 경로인 `DeleteCalendar`, `UpdateCalendarProperties`도
+  동일한 재시도 래퍼로 감싸 동시성 경합 시 복구율을 높인다.
+- [x] `serveGetObject`와 `propfind`의 달력 객체 분기를 메타데이터 우선 조회로 분리해
+  `calendar-data` 미요청/조건부 판정 상황에서 ICS 본문 로딩 횟수를 줄인다.
+- [x] RFC 4791/4918 조건부 규약(`If-Match`, `If-None-Match`, `If-Unmodified-Since`, 412 동작)을 변경하지 않는다.
+- [x] 기본 성능 회귀 리스크를 만들지 않는 방향으로 코드 수정 범위를 종료한다.
+- [x] 개발 문서를 함께 갱신한다.
+
+### 다음 태스크
+
+TASK-177: CalDAV 쓰기/동기화 경로 장기 지연 정합성 정교화
+
+## ✅ TASK-177: CalDAV 조건부 PUT 단일문 쿼리 정합성 강화
+
+### 배경
+
+`If-Match` 경합에서 기존 경로는 선행 조회 후 `UpsertObject`가 별도 SQL을 수행해
+짧은 창의 TOCTOU 경합이 남아 있었습니다.
+또한 재시도 구간에서 레이스 윈도우가 발생하면 `upsert`가 `no rows`로 끝나
+412 처리 규칙으로 끌어올리기 어렵던 지점이 남았습니다.
+
+### 구현 대상
+
+- `internal/caldavgw/repository.go`
+- `internal/caldavgw/handler.go`
+- `docs/ACTIVE_TASK.md`
+- `docs/CURRENT_STATUS.md`
+
+### 완료 조건
+
+- `If-Match` 조건부 upsert를 `INSERT ... SELECT + ON CONFLICT DO UPDATE` 단일 문으로 수렴한다.
+- 조건 불일치(존재/ETag 불일치) 시 `QueryRowContext`가 0행인 경우를 안전하게 해석해
+  조건부 실패로 매핑한다.
+- `servePutObject`에서 조건부 실패 경로가 412로 유지되도록 보강한다.
+- 문서 상태가 최신 반영되어 다음 작업 전개의 기준점이 유지된다.
+
+### 다음 태스크
+
+TASK-178: CalDAV 쓰기 경로 종합 계측 + 자동 성능 임계 대응
+
 ## ✅ TASK-173: CalDAV `calendar-query` 컴포넌트 필터 경로 고속화
 
 ### 배경
@@ -32,7 +122,39 @@
 
 ### 다음 태스크
 
-TASK-174: CalDAV sync-collection/대량 변경 경로의 추가 DB 스캔 고도화
+TASK-175: CalDAV sync-collection 동시성/락 경합 고도화 및 캐시 힌트
+
+## ✅ TASK-174: CalDAV sync-collection 증분 응답 단일 조회 고도화
+
+**STATUS: COMPLETE**
+
+### 배경
+
+`sync-collection`은 토큰 기반 변경 집합을 읽은 뒤 객체명을 기준으로 객체를 재조회해 응답을 조립했다.
+동기화 변경량이 많아지면 변경 집합 조회와 객체 조회 경로가 분리되면서 `sync` 응답 지연과 동시 요청 시 DB 왕복이 비례적으로 늘어났다.
+
+이번 라운드는 `sync-collection` 증분 경로를 `sync_changes`와 객체 데이터의 조인 경로 한 번으로 통합해
+요청당 쿼리 횟수를 줄이고 `calendar-data` 요청 여부에 따라 ICS를 선별적으로 로드하도록 만들었다.
+
+### 구현 대상
+
+- `internal/caldavgw/handler.go`
+- `internal/caldavgw/types.go`
+- `internal/caldavgw/repository.go`
+- `docs/CURRENT_STATUS.md`
+- `docs/ACTIVE_TASK.md`
+
+### 완료 조건
+
+- [x] `sync-collection` 증분 응답에서 변경 이벤트와 객체 메타데이터를 `ListCalendarChangesWithObjectsSince` 단일 경로로 조회한다.
+- [x] `object-deleted`는 기존 `404` 규칙을 유지한다.
+- [x] `calendar-data` 요청 시 ICS가 포함되고, 비요청 시에는 ICS를 생략해 오버헤드를 줄인다.
+- [x] 기존 RFC 4918/4791 동기화 token 유효성, truncation 동작을 변경 없이 유지한다.
+- [x] `docs/CURRENT_STATUS.md` 업데이트 완료.
+
+### 다음 태스크
+
+TASK-175: CalDAV sync-collection 동시성/락 경합 고도화 및 캐시 힌트
 
 ---
 
