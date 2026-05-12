@@ -1782,6 +1782,27 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /me:
+    patch:
+      operationId: updateUserProfile
+      summary: Update the authenticated user's profile
+      servers:
+        - url: /api/v1
+          description: Mail API
+      parameters:
+        - $ref: "#/components/parameters/UserIDFallback"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string }
+      responses:
+        "200":
+          $ref: "#/components/responses/Status"
+        default:
+          $ref: "#/components/responses/Error"
     get:
       operationId: getUserProfile
       summary: Get the authenticated user's profile

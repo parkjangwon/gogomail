@@ -1040,6 +1040,18 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   } catch { return null; }
 }
 
+export async function updateUserProfile(fields: { display_name?: string }): Promise<void> {
+  const res = await fetch('/api/mail/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error ?? '프로필 업데이트에 실패했습니다.');
+  }
+}
+
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   const res = await fetch('/api/mail/me/password', {
     method: 'POST',

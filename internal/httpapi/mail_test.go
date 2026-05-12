@@ -3767,6 +3767,10 @@ func (f *fakeMessageService) GetUserProfile(_ context.Context, _ string) (maildb
 	return maildb.UserProfile{}, nil
 }
 
+func (f *fakeMessageService) UpdateUserDisplayName(_ context.Context, _, _ string) error {
+	return nil
+}
+
 func (f *fakeMessageService) ChangeUserPassword(_ context.Context, _, _, _ string) error {
 	return nil
 }

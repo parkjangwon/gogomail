@@ -93,6 +93,7 @@ type MessageService interface {
 	GetWebmailPreferences(ctx context.Context, userID string) (json.RawMessage, error)
 	SetWebmailPreferences(ctx context.Context, userID string, prefs json.RawMessage) error
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
@@ -1955,6 +1956,29 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]json.RawMessage{"preferences": prefs})
+	})
+
+	mux.HandleFunc("PATCH /api/v1/me", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if !rejectUnknownQueryKeys(w, r, "user_id") {
+			return
+		}
+		userID, ok := userIDFromRequest(w, r, tokenManager)
+		if !ok {
+			return
+		}
+		var req struct {
+			DisplayName string `json:"display_name"`
+		}
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		if err := service.UpdateUserDisplayName(r.Context(), userID, req.DisplayName); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
 
 	mux.HandleFunc("GET /api/v1/me", func(w http.ResponseWriter, r *http.Request) {
