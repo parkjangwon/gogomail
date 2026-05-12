@@ -1,8 +1,8 @@
 'use client';
-import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, BuildingOffice2Icon, Cog6ToothIcon, CloudIcon } from '@heroicons/react/24/outline';
-import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, BuildingOffice2Icon as BuildingOffice2Solid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
+import { EnvelopeIcon, CalendarDaysIcon, UserGroupIcon, Cog6ToothIcon, CloudIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon as EnvelopeIconSolid, CalendarDaysIcon as CalendarSolid, UserGroupIcon as UserGroupSolid, Cog6ToothIcon as Cog6ToothSolid, CloudIcon as CloudSolid } from '@heroicons/react/24/solid';
 
-export type AppId = 'mail' | 'calendar' | 'contacts' | 'orgchart' | 'drive' | 'settings';
+export type AppId = 'mail' | 'calendar' | 'contacts' | 'drive' | 'settings';
 
 interface AppIconBarProps {
   activeApp: AppId;
@@ -14,7 +14,6 @@ const MAIN_APPS: { id: AppId; label: string; icon: React.ReactNode; activeIcon: 
   { id: 'mail', label: '메일', icon: <EnvelopeIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <EnvelopeIconSolid style={{ width: '20px', height: '20px' }} /> },
   { id: 'calendar', label: '캘린더', icon: <CalendarDaysIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CalendarSolid style={{ width: '20px', height: '20px' }} /> },
   { id: 'contacts', label: '연락처', icon: <UserGroupIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <UserGroupSolid style={{ width: '20px', height: '20px' }} /> },
-  { id: 'orgchart', label: '조직도', icon: <BuildingOffice2Icon style={{ width: '20px', height: '20px' }} />, activeIcon: <BuildingOffice2Solid style={{ width: '20px', height: '20px' }} /> },
   { id: 'drive', label: '드라이브', icon: <CloudIcon style={{ width: '20px', height: '20px' }} />, activeIcon: <CloudSolid style={{ width: '20px', height: '20px' }} /> },
 ];
 
