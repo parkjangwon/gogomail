@@ -16,7 +16,7 @@ suite before committing:
 - Use `pnpm test:compose-helpers` as the canonical command from `apps/webmail`
   when compose helper copy,
   scheduled-send datetime formatting, send button labels, or close-save prompts
-  are touched.
+  and close-save button accessibility labels are touched.
 - `pnpm test:datetime-local` remains as a compatibility alias for the same
   compose-helper runtime checks because the datetime-local formatter was the
   first helper covered by this script.

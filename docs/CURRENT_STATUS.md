@@ -487,6 +487,12 @@ Last updated: 2026-05-12 (Webmail beta stabilization started)
 - Existing close-save behavior and visual design are unchanged.
 - Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
 
+## Webmail close-save accessibility helper docs (TASK-161, 2026-05-12, complete)
+- Completed compose helper verification docs update for close-save accessibility labels.
+- `docs/WEBMAIL_ROADMAP.md` now includes close-save button accessibility labels in the `pnpm test:compose-helpers` trigger scope.
+- No code behavior changed.
+- Verification: `go test ./...` passed; `pnpm type-check` and `pnpm test:compose-helpers` in `apps/webmail` passed.
+
 ## Webmail org chart hierarchical data (2026-05-12)
 - ✅ Hierarchical organization data loaded in PostgreSQL
 - 9 organizations across 3 depth levels:
