@@ -47,6 +47,28 @@ LIMIT 1`
 	return p, nil
 }
 
+// UpdateUserDisplayName sets the display_name for the authenticated user.
+func (r *Repository) UpdateUserDisplayName(ctx context.Context, userID, displayName string) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	displayName = strings.TrimSpace(displayName)
+	if displayName == "" {
+		return fmt.Errorf("display_name is required")
+	}
+	if len(displayName) > 255 {
+		return fmt.Errorf("display_name is too long")
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET display_name = $2, updated_at = now() WHERE id = $1::uuid`,
+		userID, displayName,
+	)
+	if err != nil {
+		return fmt.Errorf("update display name: %w", err)
+	}
+	return nil
+}
+
 // ChangeUserPassword verifies currentPassword and replaces the stored hash.
 // On success the session_version is bumped, invalidating all existing tokens.
 func (r *Repository) ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, getUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -531,6 +531,7 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
 
   function saveDisplayName() {
     try { localStorage.setItem('webmail_display_name', displayName); } catch { /* ignore */ }
+    updateUserProfile({ display_name: displayName }).catch(() => {});
     setNameSaved(true);
     setTimeout(() => setNameSaved(false), 2000);
   }

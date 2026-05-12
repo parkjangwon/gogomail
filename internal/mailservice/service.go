@@ -115,6 +115,7 @@ type PreferencesRepository interface {
 
 type MeRepository interface {
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
+	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
@@ -1211,6 +1212,14 @@ func (s *Service) GetUserProfile(ctx context.Context, userID string) (maildb.Use
 		return maildb.UserProfile{}, fmt.Errorf("me repository is required")
 	}
 	return repo.GetUserProfile(ctx, strings.TrimSpace(userID))
+}
+
+func (s *Service) UpdateUserDisplayName(ctx context.Context, userID, displayName string) error {
+	repo, ok := s.repository.(MeRepository)
+	if !ok {
+		return fmt.Errorf("me repository is required")
+	}
+	return repo.UpdateUserDisplayName(ctx, strings.TrimSpace(userID), displayName)
 }
 
 func (s *Service) ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error {
