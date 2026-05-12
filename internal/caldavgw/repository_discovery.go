@@ -137,6 +137,58 @@ func (r *Repository) ListCalendarObjectsLimit(ctx context.Context, userID string
 	return r.listObjectsForSync(ctx, ListObjectsRequest{UserID: userID, CalendarID: calendarID, Status: CalendarStatusActive, Limit: limit})
 }
 
+func (r *Repository) WalkCalendarQueryCandidates(ctx context.Context, userID string, calendarID string, status string, component string, yield func(CalendarObject) (bool, error)) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if yield == nil {
+		return fmt.Errorf("CalDAV calendar-query candidate yield function is required")
+	}
+	req, err := ValidateListObjectsForSyncRequest(ListObjectsRequest{
+		UserID:     userID,
+		CalendarID: calendarID,
+		Status:     status,
+		Limit:      MaxWebDAVReportLimit + 1,
+	})
+	if err != nil {
+		return err
+	}
+	component = strings.ToUpper(strings.TrimSpace(component))
+	if component == "" {
+		return fmt.Errorf("CalDAV calendar-query candidate component is required")
+	}
+	const query = `
+SELECT id::text, user_id::text, calendar_id::text, object_name, uid, component_type, etag, size, ics, created_at, updated_at
+FROM caldav_calendar_objects
+WHERE user_id = $1::uuid
+  AND calendar_id = $2::uuid
+  AND status = $3
+  AND component_type = $4
+ORDER BY updated_at DESC, id DESC`
+	rows, err := r.db.QueryContext(ctx, query, req.UserID, req.CalendarID, req.Status, component)
+	if err != nil {
+		return fmt.Errorf("walk CalDAV calendar-query candidates: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var object CalendarObject
+		if err := rows.Scan(&object.ID, &object.UserID, &object.CalendarID, &object.ObjectName, &object.UID, &object.Component, &object.ETag, &object.Size, &object.ICS, &object.CreatedAt, &object.UpdatedAt); err != nil {
+			return fmt.Errorf("scan CalDAV calendar-query candidate: %w", err)
+		}
+		keepGoing, err := yield(object)
+		if err != nil {
+			return err
+		}
+		if !keepGoing {
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate CalDAV calendar-query candidates: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
 	return r.GetObject(ctx, GetObjectRequest{UserID: userID, CalendarID: calendarID, ObjectName: objectName, Status: CalendarStatusActive})
 }

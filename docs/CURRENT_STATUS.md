@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV calendar-query time-range 후보 인덱스 (2026-05-12, complete)
+- time-range `calendar-query`가 요청 component가 있을 때 전체 캘린더 객체 스캔 대신
+  component 후보 walker를 우선 사용하도록 했다.
+- repository candidate walker는 `user_id`, `calendar_id`, `status`, `component_type` scope를 적용해
+  기존 component 인덱스 후보만 ICS 본문과 함께 스트리밍한다.
+- 후보는 기존 `CalendarObjectMatchesTimeRange`로 다시 검증하므로 recurrence/timezone/VTODO 판정과
+  time-range 이후 `nresults` truncation 정합성을 유지한다.
+
 ## CardDAV addressbook-query indexed candidate path (2026-05-12, complete)
 - `addressbook-query`가 안전한 positive ASCII `text-match` 필터를 발견하면 기존 broad object walker보다
   indexed candidate walker를 우선 사용하도록 했다.

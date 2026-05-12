@@ -46,6 +46,10 @@ type CalendarObjectComponentStore interface {
 	ListCalendarObjectsByComponentLimit(ctx context.Context, userID string, calendarID string, status string, component string, limit int, includeICS bool) ([]CalendarObject, error)
 }
 
+type CalendarQueryCandidateWalker interface {
+	WalkCalendarQueryCandidates(ctx context.Context, userID string, calendarID string, status string, component string, yield func(CalendarObject) (bool, error)) error
+}
+
 type CalendarObjectCrossCalendarBatchStore interface {
 	ListCalendarObjectsByNameGroups(ctx context.Context, userID string, objectNamesByCalendar map[string][]string, status string, includeICS bool) ([]CalendarObject, error)
 }
@@ -1842,8 +1846,7 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	}
 	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(ctx, userID, resource.CalendarID, limit+1, component, includeCalendarData)
 	if report.TimeRange != nil {
-		objects, err = h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
-		componentFilteredInStore = false
+		return h.calendarQueryTimeRangeResponses(ctx, userID, resource, report, currentUserPrivileges, objectPrincipalPath, component, tz, includeCalendarData)
 	}
 	if err != nil {
 		return nil, err
@@ -1886,6 +1889,68 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 			return nil, err
 		}
 		responses = append(responses, responseForProperties(href, propfind, props))
+	}
+	return responses, nil
+}
+
+func (h *Handler) calendarQueryTimeRangeResponses(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName, objectPrincipalPath string, component string, tz *time.Location, includeCalendarData bool) ([]MultiStatusResponse, error) {
+	limit := report.Limit
+	if limit <= 0 {
+		limit = MaxWebDAVReportLimit
+	}
+	propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
+	responses := make([]MultiStatusResponse, 0, limit)
+	handleObject := func(object CalendarObject) (bool, error) {
+		if !calendarObjectMatchesComponent(object, component) {
+			return true, nil
+		}
+		matches, err := CalendarObjectMatchesTimeRange(object.ICS, report.Component, report.TimeRange, tz)
+		if err != nil {
+			return false, err
+		}
+		if !matches {
+			return true, nil
+		}
+		if len(responses) >= limit {
+			return false, TruncatedResultsError{Operation: "calendar-query limit"}
+		}
+		props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
+		if err != nil {
+			return false, err
+		}
+		props = withCurrentUserPrivileges(props, ResourceCalendarObject, currentUserPrivileges)
+		if includeCalendarData {
+			prop, err := CalendarObjectDataProperty(object.ICS, report.CalendarData)
+			if err != nil {
+				return false, err
+			}
+			props = append(props, prop)
+		}
+		href, err := CalendarObjectPath(userID, object.CalendarID, object.ObjectName)
+		if err != nil {
+			return false, err
+		}
+		responses = append(responses, responseForProperties(href, propfind, props))
+		return true, nil
+	}
+	if component != "" {
+		if walker, ok := h.Store.(CalendarQueryCandidateWalker); ok {
+			err := walker.WalkCalendarQueryCandidates(ctx, userID, resource.CalendarID, CalendarStatusActive, component, handleObject)
+			return responses, err
+		}
+	}
+	objects, err := h.Store.ListCalendarObjects(ctx, userID, resource.CalendarID)
+	if err != nil {
+		return nil, err
+	}
+	for _, object := range objects {
+		keepGoing, err := handleObject(object)
+		if err != nil {
+			return nil, err
+		}
+		if !keepGoing {
+			break
+		}
 	}
 	return responses, nil
 }

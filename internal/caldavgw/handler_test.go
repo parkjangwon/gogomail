@@ -711,6 +711,54 @@ func TestHandlerReportCalendarQueryFiltersByTimeRange(t *testing.T) {
 	}
 }
 
+func TestHandlerReportCalendarQueryTimeRangeUsesComponentCandidates(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCalendarDiscoveryStore{fakeDiscoveryStore: *newFakeDiscoveryStore()}
+	todoICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nSUMMARY:Todo\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	todo := store.objects[0]
+	todo.ID = "object-todo"
+	todo.ObjectName = "todo-1.ics"
+	todo.UID = "todo-1@example.com"
+	todo.Component = ComponentVTODO
+	todo.ETag = `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`
+	todo.ICS = todoICS
+	todo.Size = int64(len(todoICS))
+	store.objects = append([]CalendarObject{todo}, store.objects...)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.candidateCount != 1 || store.listCount != 0 {
+		t.Fatalf("candidateCount = %d, listCount = %d; want component candidate path only", store.candidateCount, store.listCount)
+	}
+	if len(store.components) != 1 || store.components[0] != ComponentVEVENT {
+		t.Fatalf("components = %v, want [%s]", store.components, ComponentVEVENT)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "event-1.ics") {
+		t.Fatalf("calendar-query candidate path missing matching event:\n%s", body)
+	}
+	if strings.Contains(body, "todo-1.ics") {
+		t.Fatalf("calendar-query candidate path returned non-requested component:\n%s", body)
+	}
+}
+
 func TestHandlerReportCalendarQueryAppliesLimitAfterTimeRangeFilter(t *testing.T) {
 	t.Parallel()
 
@@ -2879,6 +2927,13 @@ type noSyncCalendarDiscoveryStore struct {
 	store fakeDiscoveryStore
 }
 
+type queryCandidateCalendarDiscoveryStore struct {
+	fakeDiscoveryStore
+	candidateCount int
+	listCount      int
+	components     []string
+}
+
 func (s *noSyncCalendarDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
 	return s.store.LookupPrincipal(ctx, userID)
 }
@@ -2901,6 +2956,29 @@ func (s *noSyncCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, 
 
 func (s *noSyncCalendarDiscoveryStore) LookupCalendarObject(ctx context.Context, userID string, calendarID string, objectName string) (CalendarObject, error) {
 	return s.store.LookupCalendarObject(ctx, userID, calendarID, objectName)
+}
+
+func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
+	s.listCount++
+	return s.fakeDiscoveryStore.ListCalendarObjects(ctx, userID, calendarID)
+}
+
+func (s *queryCandidateCalendarDiscoveryStore) WalkCalendarQueryCandidates(_ context.Context, userID string, calendarID string, status string, component string, yield func(CalendarObject) (bool, error)) error {
+	s.candidateCount++
+	s.components = append(s.components, component)
+	for _, object := range s.objects {
+		if object.UserID != userID || object.CalendarID != calendarID || !strings.EqualFold(object.Component, component) {
+			continue
+		}
+		keepGoing, err := yield(object)
+		if err != nil {
+			return err
+		}
+		if !keepGoing {
+			return nil
+		}
+	}
+	return nil
 }
 
 type fakeCalendarAccessAuthorizer struct {
