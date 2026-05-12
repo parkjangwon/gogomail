@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## CalDAV/CardDAV xml:lang state-token WebDAV If coverage (2026-05-13, complete)
+- Collection `PROPPATCH` tests now cover WebDAV `If` state-token conditions
+  with the current no-lock-token-store semantics: bare state tokens fail and
+  reject before body reads.
+- `Not <opaquelocktoken:...>` conditions now succeed, applying text-only
+  updates while preserving omitted CalDAV/CardDAV language tags.
+
 ## CalDAV/CardDAV xml:lang absolute URI WebDAV If coverage (2026-05-13, complete)
 - Collection `PROPPATCH` tests now cover WebDAV `If` tagged lists whose
   resource tag is an absolute HTTP(S) URI and whose path matches the current
