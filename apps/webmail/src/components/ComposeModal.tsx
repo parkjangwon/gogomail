@@ -693,6 +693,10 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
     onClose();
   }, [to, cc, bcc, subject, editor, buildDraftData, onClose]);
 
+  const discardDraftAndClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const saveTemplate = () => {
     const name = templateSaveName.trim();
     if (!name) return;
@@ -1135,7 +1139,7 @@ export function ComposeModal({ onClose, intent = 'new', sourceMessage, draftMess
             <button
               type="button"
               aria-label="저장하지 않고 작성창 닫기"
-              onClick={onClose}
+              onClick={discardDraftAndClose}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(217,79,61,0.4)', background: 'transparent', color: 'var(--color-destructive)', cursor: 'pointer' }}
             >버리기</button>
             <button
