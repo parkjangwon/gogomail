@@ -2247,7 +2247,10 @@ Target outcome:
       language tags and stale observed ETags reject attempted text/language
       mutations before persistence. Tagged WebDAV `If` header coverage now
       asserts exact collection path tags preserve omitted language tags and
-      non-matching or stale-ETag tagged lists reject before body reads.
+      non-matching or stale-ETag tagged lists reject before body reads. WebDAV
+      `If` `Not` condition-list coverage now asserts negated stale ETags allow
+      text-only updates with omitted language preservation while negated current
+      ETags reject before body reads.
       ADR 0014 defines slug alias design for future implementation.
 1055. CalDAV now implements `DELETE` for authenticated calendar collection
       paths, soft-deleting the collection and its active child objects in one
@@ -2628,7 +2631,10 @@ Target outcome:
       language tags and stale observed ETags reject attempted text/language
       mutations before persistence. Tagged WebDAV `If` header coverage now
       asserts exact collection path tags preserve omitted language tags and
-      non-matching or stale-ETag tagged lists reject before body reads.
+      non-matching or stale-ETag tagged lists reject before body reads. WebDAV
+      `If` `Not` condition-list coverage now asserts negated stale ETags allow
+      text-only updates with omitted language preservation while negated current
+      ETags reject before body reads.
 1123. CardDAV address-book collections now derive a strong collection ETag
       from the durable sync token, expose it through WebDAV `getetag`, and use
       it with `If-Match` plus `If-Unmodified-Since` to reject stale collection
