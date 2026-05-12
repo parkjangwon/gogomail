@@ -71,9 +71,12 @@ A keyboard-first webmail client built with Next.js 15, Tailwind v4, and shadcn/u
 - Recurring events (RFC 5545 RRULE: daily/weekly/monthly/yearly, interval, day selection, end by count or date)
 - ICS import via email
 
-**Contacts**
+**Contacts & Organization**
 - CardDAV-backed contact list with search
 - Contact hover card in message headers
+- Organization chart (조직도) with hierarchical navigation
+- Group-based recipient picking in compose modal
+- 3-pane recipient picker (org tree, members/contacts, selected recipients)
 
 **Drive**
 - S3-backed file manager with folder tree, upload, download, share link, trash
@@ -107,6 +110,28 @@ gogomail --mode=migration          # run database migrations
 ```
 
 **Infrastructure**: PostgreSQL, Redis, S3-compatible object storage (local, MinIO, or AWS S3).
+
+---
+
+## Recent Updates (2026-05-12)
+
+### Webmail Phase 3 Completion
+- ✅ E2E test infrastructure (Playwright, 25+ test cases)
+- ✅ Org chart recipient picker with hierarchical navigation
+- ✅ ComposeModal integration: send delay, draft autosave, emoji picker
+- ✅ ReadingPane enhancements: star toggle, read/unread, calendar invite detection
+- ✅ Settings modal: profile picture, security, enterprise features
+- ✅ Drive file picker, message search with operators, inbox categories
+
+### API & Infrastructure
+- ✅ Backend API route alignment: `/api/v1/` → `/api/mail/` (971 tests passing)
+- ✅ Hierarchical organization data structure loaded (depth-based parent_id relationships)
+- ✅ CardDAV directory org-tree endpoint with member resolution
+- ✅ Admin console: user management, organization structure, audit logs
+- ✅ Docker Compose configurations for dev/prod deployments
+
+### Known Issues
+- Webmail org chart UI rendering: hierarchical data in DB pending frontend display integration
 
 ---
 
