@@ -1,30 +1,29 @@
 # ACTIVE_TASK
 
-## TASK-259: CardDAV addressbook-query candidate optimization audit
+## TASK-260: CardDAV sync-token retention audit
 
 ### 배경
 
-CardDAV `addressbook-query`는 안전한 positive text-match에서만 후보 walker를
-사용해 전체 주소록 스캔을 줄인다. 후보 텍스트가 `%`, `_`, `\` 같은 SQL LIKE
-메타문자를 포함하면 구현별 이스케이프 차이로 최적화 경계가 과하게 넓어질 수
-있으므로, 이 경우에는 broad walker로 폴백한다.
+CardDAV sync change pruning은 오래된 marker를 정리하되, 현재 addressbook 행이
+가리키는 최신 `sync_token`은 절대 삭제하면 안 된다. 단순히 더 최신 change가
+있다는 조건만으로 후보를 고르면 레거시/부분 데이터에서 현재 token까지 prune될 수
+있으므로 현재 컬렉션 token을 명시적으로 보존한다.
 
 ### 구현 대상
 
-- `internal/carddavgw/handler.go`
-- `internal/carddavgw/handler_test.go`
+- `internal/carddavgw/repository.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] 후보 텍스트에 LIKE 메타문자가 있으면 candidate walker 최적화를 사용하지 않는다.
-- [x] handler 회귀 테스트가 wildcard 후보 텍스트의 broad walker 폴백을 커버한다.
+- [x] CardDAV sync change prune 후보에서 현재 addressbook `sync_token`을 제외한다.
+- [x] dry-run과 실제 delete prune 경로가 동일한 보존 조건을 사용한다.
 - [x] `go test ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-260: CardDAV sync-token retention audit
+TASK-261: CalDAV scheduling component persistence audit
