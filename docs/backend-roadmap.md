@@ -5740,6 +5740,7 @@ Current implementation notes:
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
 - LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and group `member`.
 - Read-only CompareRequest is implemented with RFC 4511 CompareResponse result codes and OpenLDAP `ldapcompare` coverage.
+- Root DSE advertises the Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`), with OpenLDAP `ldapwhoami` coverage.
 - Cross-naming-context requests can return SearchResultReference values from `GOGOMAIL_LDAP_REFERRAL_URLS` for multi-domain deployments.
 - LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, Simple Paged Results returns continuation cookies, and unsupported critical controls return `unavailableCriticalExtension`.
 - Bind/search/extended/read-only outcomes now expose a metrics boundary and can be logged through `GOGOMAIL_METRICS_BACKEND=slog`.

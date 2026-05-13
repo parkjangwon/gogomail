@@ -1335,6 +1335,77 @@ func TestLDAPServerOpenLDAPCompareCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerWhoAmIExtendedRequest(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	req := buildLDAPPacket(29, opExtendedRequest, buildExtendedRequest(whoAmIOID))
+	if err := sendPDU(conn, req); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode WhoAmI response: %v", err)
+	}
+	if opTag != opExtendedResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("WhoAmI op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opExtendedResponse, resultSuccess)
+	}
+	if !bytesContains(opData, []byte("dn:tester")) {
+		t.Fatalf("WhoAmI response missing authzID: %x", opData)
+	}
+}
+
+func TestLDAPServerOpenLDAPWhoAmICompatibility(t *testing.T) {
+	ldapwhoami, err := exec.LookPath("ldapwhoami")
+	if err != nil {
+		t.Skip("ldapwhoami is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapwhoami,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapwhoami failed: %v\n%s", err, out)
+	}
+	if output := string(out); !strings.Contains(output, "dn:uid=alice,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapwhoami output = %q, want bind DN authzID", output)
+	}
+}
+
 func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
