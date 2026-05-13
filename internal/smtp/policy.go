@@ -13,9 +13,8 @@ type ReceivePolicy struct {
 }
 
 // InboundDomainPolicy carries per-domain SMTP receive and submission limits.
-// It is looked up once per session (on first resolved recipient for inbound,
-// or from the authenticated sender's domain for submission) and overlays the
-// global ReceivePolicy when the domain is in enforce mode.
+// Inbound receive sessions aggregate the enforcing policies of all accepted
+// recipient domains; submission sessions use the authenticated sender's domain.
 type InboundDomainPolicy struct {
 	InboundMode             string
 	MaxRecipientsPerMessage int
@@ -62,4 +61,39 @@ func effectiveMaxRecipients(globalMax int, dp *InboundDomainPolicy) int {
 		return dp.MaxRecipientsPerMessage
 	}
 	return globalMax
+}
+
+func mergeInboundDomainPolicy(current *InboundDomainPolicy, next InboundDomainPolicy) *InboundDomainPolicy {
+	if next.InboundMode != "enforce" {
+		return current
+	}
+	if current == nil || current.InboundMode != "enforce" {
+		merged := next
+		return &merged
+	}
+	merged := *current
+	merged.InboundMode = "enforce"
+	merged.MaxRecipientsPerMessage = stricterPositiveLimit(merged.MaxRecipientsPerMessage, next.MaxRecipientsPerMessage)
+	merged.MaxMessageBytes = stricterPositiveLimit64(merged.MaxMessageBytes, next.MaxMessageBytes)
+	return &merged
+}
+
+func stricterPositiveLimit(a, b int) int {
+	if a <= 0 {
+		return b
+	}
+	if b <= 0 || a < b {
+		return a
+	}
+	return b
+}
+
+func stricterPositiveLimit64(a, b int64) int64 {
+	if a <= 0 {
+		return b
+	}
+	if b <= 0 || a < b {
+		return a
+	}
+	return b
 }

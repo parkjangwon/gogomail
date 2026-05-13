@@ -3615,6 +3615,10 @@ owner/resource target without scanning unrelated audit history.
   writes.
 - Per-domain inbound policy enforced at SMTP receive and Submission MTA (max
   recipients, max message size, inbound mode).
+- SMTP receive evaluates inbound policy for every recipient domain in a
+  multi-recipient transaction, aggregates the strictest enforced recipient and
+  message-size limits, and returns a temporary SMTP policy error instead of
+  failing open when policy lookup fails.
 - Hierarchical quota ledger enforced at mail storage write/delete boundaries:
   company, domain, and user usage counters are updated atomically in the same
   PostgreSQL transaction. User quota source is tracked as `default|custom`, and

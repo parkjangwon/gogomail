@@ -730,6 +730,64 @@ func TestSessionRejectsRecipientsOverPolicyLimit(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsRecipientsOverAnyRecipientDomainPolicyLimit(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxRecipientsPerMessage: 100},
+			"d2": {InboundMode: "enforce", MaxRecipientsPerMessage: 1},
+		},
+	}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100},
+		DomainPolicyLookup: lookup,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", nil); err == nil {
+		t.Fatal("second Rcpt was accepted over second recipient domain policy limit")
+	}
+	if !lookup.seen("d1") || !lookup.seen("d2") {
+		t.Fatalf("domain policy lookup calls = %v, want both domains", lookup.calls)
+	}
+}
+
+func TestSessionRejectsRcptWhenDomainPolicyLookupFails(t *testing.T) {
+	t.Parallel()
+
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+		},
+		DomainPolicyLookup: &mapDomainPolicyLookup{err: errors.New("database unavailable")},
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Rcpt("one@example.com", nil), 451, gosmtp.EnhancedCode{4, 7, 1})
+}
+
 func TestSessionRejectsRecipientWhenRateLimited(t *testing.T) {
 	t.Parallel()
 
@@ -1187,6 +1245,29 @@ type duplicateDeduplicator struct{}
 
 func (duplicateDeduplicator) CheckAndSet(context.Context, DedupKey) (bool, error) {
 	return false, nil
+}
+
+type mapDomainPolicyLookup struct {
+	policies map[string]InboundDomainPolicy
+	calls    []string
+	err      error
+}
+
+func (l *mapDomainPolicyLookup) InboundDomainPolicy(_ context.Context, domainID string) (InboundDomainPolicy, error) {
+	l.calls = append(l.calls, domainID)
+	if l.err != nil {
+		return InboundDomainPolicy{}, l.err
+	}
+	return l.policies[domainID], nil
+}
+
+func (l *mapDomainPolicyLookup) seen(domainID string) bool {
+	for _, call := range l.calls {
+		if call == domainID {
+			return true
+		}
+	}
+	return false
 }
 
 type denyRateLimiter struct{}

@@ -30,6 +30,10 @@ func smtpPolicyReject(format string, args ...any) *gosmtp.SMTPError {
 	return smtpPermanent(550, gosmtp.EnhancedCode{5, 7, 1}, format, args...)
 }
 
+func smtpPolicyTempfail(format string, args ...any) *gosmtp.SMTPError {
+	return smtpTemporary(451, gosmtp.EnhancedCode{4, 7, 1}, format, args...)
+}
+
 func smtpTooManyRecipients(max int) *gosmtp.SMTPError {
 	return smtpTemporary(452, gosmtp.EnhancedCode{4, 5, 3}, "too many recipients; max %d", max)
 }
