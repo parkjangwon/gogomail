@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP restored EXISTS coalescing hardening)
+Last updated: 2026-05-14 (IMAP UID event empty mailbox hardening)
+
+## IMAP UID event empty mailbox hardening (2026-05-14, complete)
+- UID-based IMAP event publishing now skips entries with an empty mailbox ID, matching the summary-based event path and preventing malformed restore/delete events from reaching selected sessions.
+- Restore regression coverage verifies a mixed ensured-UID result publishes only the valid mailbox EXISTS event.
 
 ## IMAP restored EXISTS coalescing hardening (2026-05-14, complete)
 - UID-based restored-message EXISTS events are now coalesced by mailbox before publishing, keeping only the highest sequence count needed to update selected IMAP sessions.

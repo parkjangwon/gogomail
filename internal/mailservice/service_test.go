@@ -2194,6 +2194,34 @@ func TestBulkRestoreMessagesCoalescesExistsEventsByMailbox(t *testing.T) {
 	}
 }
 
+func TestBulkRestoreMessagesSkipsEmptyMailboxExistsEvents(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		bulkRestoreResult: maildb.BulkMessageRestoreResult{Updated: 2, MessageIDs: []string{"msg-1", "msg-2"}},
+		ensuredIMAPUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", UID: 44, SequenceNumber: 3, ModSeq: 9},
+			{MessageID: "msg-2", MailboxID: "inbox", UID: 45, SequenceNumber: 4, ModSeq: 10},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	updated, err := service.BulkRestoreMessages(context.Background(), maildb.BulkMessageRestoreRequest{
+		UserID:     "user-1",
+		MessageIDs: []string{"msg-1", "msg-2"},
+	})
+	if err != nil {
+		t.Fatalf("BulkRestoreMessages returned error: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].MailboxID != "inbox" || events.events[0].UID != 45 || events.events[0].Messages != 4 {
+		t.Fatalf("events = %#v, want only valid mailbox exists event", events.events)
+	}
+}
+
 func TestBulkRestoreThreadsNormalizesRequest(t *testing.T) {
 	t.Parallel()
 
