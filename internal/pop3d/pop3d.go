@@ -250,6 +250,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		sess.writer = bufio.NewWriter(tlsConn)
 		sess.textConn = textproto.NewConn(tlsConn)
 		sess.tlsActive = true
+		sess.user = ""
 	case "NOOP":
 		sess.writeOK("")
 	case "AUTH":

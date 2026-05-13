@@ -5328,6 +5328,8 @@ Progress:
 9. POP3 SASL continuation cancellation now handles `*` for `AUTH PLAIN` and
    both `AUTH LOGIN` prompts, returning `-ERR authentication cancelled` while
    preserving the connection for a subsequent authentication attempt.
+10. POP3 `STLS` now clears any pre-TLS `USER` state after a successful TLS
+    handshake, so clients must repeat `USER`/`PASS` on the protected channel.
 
 ---
 

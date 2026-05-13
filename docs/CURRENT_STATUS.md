@@ -1379,6 +1379,9 @@ line beginning with `.` before the final `.\r\n` terminator.
 `CAPA` advertises `STLS` only while the session is still in AUTHORIZATION state
 and TLS has not already been negotiated; authenticated TRANSACTION sessions
 reject `STLS` while keeping the mailbox session usable.
+Successful `STLS` negotiation resets any pre-TLS `USER` value, requiring the
+client to send credentials again on the protected channel before `PASS` can
+authenticate.
 `CAPA` is state-aware: AUTHORIZATION responses advertise authentication
 mechanisms (`USER`, `SASL PLAIN LOGIN`) while TRANSACTION responses omit those
 auth-only capabilities. All CAPA responses include stable server metadata via

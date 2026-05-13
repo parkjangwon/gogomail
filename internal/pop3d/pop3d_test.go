@@ -2,10 +2,16 @@ package pop3d
 
 import (
 	"bufio"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/textproto"
 	"strings"
@@ -128,6 +134,34 @@ func newTestServerWithMessagesAndTLS(t *testing.T, messages []mockMessage, tlsCo
 	}()
 
 	return server, listener
+}
+
+func testPOP3TLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate TLS key: %v", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create TLS certificate: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("parse TLS key pair: %v", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 }
 
 func pop3Login(t *testing.T, tp *textproto.Conn) {
@@ -758,6 +792,39 @@ func TestPOP3CapaAdvertisesSTLSOnlyBeforeAuthentication(t *testing.T) {
 		t.Fatalf("transaction CAPA advertised STLS after auth: %s", capa)
 	}
 	pop3Cmd(t, tp, "-ERR", "STLS")
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
+func TestPOP3STLSResetsPreTLSUserState(t *testing.T) {
+	_, listener := newTestServerWithMessagesAndTLS(t, []mockMessage{
+		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+	}, testPOP3TLSConfig(t))
+	defer listener.Close()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	tp := textproto.NewConn(conn)
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("greeting: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("unexpected greeting: %s", line)
+	}
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "STLS")
+
+	tlsConn := tls.Client(conn, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12})
+	if err := tlsConn.Handshake(); err != nil {
+		t.Fatalf("TLS handshake: %v", err)
+	}
+	tp = textproto.NewConn(tlsConn)
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "-ERR", "PASS secret")
+	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
