@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 STLS unavailable auth-state session)
+Last updated: 2026-05-14 (POP3 AUTH PLAIN cancellation session)
+
+## POP3 AUTH PLAIN cancellation session (2026-05-14, complete)
+- POP3 server coverage now verifies `AUTH PLAIN` cancellation keeps authorization capabilities advertised.
+- The regression still verifies normal `USER/PASS` login and `STAT` work after cancellation.
 
 ## POP3 STLS unavailable auth-state session (2026-05-14, complete)
 - POP3 server coverage now verifies servers without TLS config reject authorization-state `STLS` with `-ERR`.
