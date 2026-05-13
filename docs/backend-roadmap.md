@@ -4914,6 +4914,10 @@ Target outcome:
          when a selected mailbox starts at zero messages, a `Messages=0`
          legacy EXISTS event still emits `* 1 EXISTS` and updates
          `selectedMessages` to one.
+ 1576. IMAP server zero-sequence EXPUNGE handling is now covered directly:
+         EXPUNGE events without a sequence number produce no wire response and
+         leave selected message counts plus saved SEARCH sequence state
+         unchanged.
 
 ## Deferred until backend contracts stabilize
 
