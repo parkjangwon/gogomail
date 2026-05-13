@@ -37,16 +37,34 @@ async function handler(
       body,
     });
 
-    const contentType = response.headers.get('content-type');
-    const responseBody = contentType?.includes('application/json')
+    const contentType = response.headers.get('content-type') ?? '';
+    const contentDisposition = response.headers.get('content-disposition') ?? '';
+    const responseHeaders: Record<string, string> = {
+      'content-type': contentType || 'application/json',
+    };
+    if (contentDisposition) {
+      responseHeaders['content-disposition'] = contentDisposition;
+    }
+
+    if (response.status === 204) {
+      return new Response(null, { status: 204, headers: responseHeaders });
+    }
+
+    if (contentType.includes('text/csv') || contentType.includes('application/octet-stream')) {
+      const data = await response.arrayBuffer();
+      return new Response(data, {
+        status: response.status,
+        headers: responseHeaders,
+      });
+    }
+
+    const responseBody = contentType.includes('application/json')
       ? await response.json()
       : await response.text();
 
     return Response.json(responseBody, {
       status: response.status,
-      headers: {
-        'content-type': contentType || 'application/json',
-      },
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('API proxy error:', error);
