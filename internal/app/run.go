@@ -745,9 +745,15 @@ func runWebDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logge
 	driveSvc := driveServiceForConfig(db, cfg, store)
 	webdavSvc := httpapi.NewWebDAVService(driveSvc)
 
+	tokenManager, err := auth.NewTokenManager(cfg.AuthJWTSecret)
+	if err != nil {
+		return fmt.Errorf("create token manager: %w", err)
+	}
+
 	mux := http.NewServeMux()
 	opts := httpapi.WebDAVRouteOptions{
 		DepthInfinityEnabled: cfg.WebDAVDepthInfinityEnabled,
+		TokenManager:         tokenManager,
 	}
 	httpapi.RegisterWebDAVRoutes(mux, webdavSvc, opts)
 	server := newWebDAVHTTPServer(cfg, mux)

@@ -93,7 +93,7 @@ type webdavHandler struct {
 	service WebDAVService
 	opts    WebDAVRouteOptions
 	locks   map[string]webdavLock
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	metrics WebDAVMetrics
 }
 
@@ -665,6 +665,7 @@ func (h *webdavHandler) handleLock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	h.cleanupExpiredLocksLocked()
 	h.locks[path] = lock
 	h.mu.Unlock()
 
@@ -709,6 +710,8 @@ func (h *webdavHandler) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.cleanupExpiredLocksLocked()
+
 	existing, ok := h.locks[path]
 	if !ok || existing.UserID != userID || existing.Token != token {
 		http.Error(w, "lock not found or not owned", http.StatusLocked)
@@ -725,6 +728,15 @@ func (h *webdavHandler) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	delete(h.locks, path)
 	w.WriteHeader(http.StatusNoContent)
 	h.observe(ctx, WebDAVMethodUnlock, userID, path, WebDAVResultOK, "")
+}
+
+func (h *webdavHandler) cleanupExpiredLocksLocked() {
+	now := time.Now()
+	for path, lock := range h.locks {
+		if lock.Expiry.Before(now) {
+			delete(h.locks, path)
+		}
+	}
 }
 
 func generateLockToken() string {
