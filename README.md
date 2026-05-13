@@ -33,6 +33,7 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 | CardDAV + vCard | RFC 6352, RFC 6350, RFC 2426 | Advanced |
 | Mail API (REST) | OpenAPI | Production-ready |
 | Admin API | OpenAPI | Production-ready |
+| POP3 | RFC 1939 | Production-ready |
 | Drive / file storage | S3-compatible backend | Advanced |
 | WebDAV / Drive gateway | RFC 4918 | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
@@ -101,6 +102,7 @@ Single binary, multiple modes. Each mode runs one component independently, so yo
 gogomail --mode=smtp-edge          # inbound SMTP (port 25)
 gogomail --mode=smtp-submission    # authenticated submission (port 587)
 gogomail --mode=imap               # IMAP server (port 143 / 993)
+gogomail --mode=pop3               # POP3 server (port 110 / 995)
 gogomail --mode=caldav             # CalDAV server
 gogomail --mode=carddav            # CardDAV server
 gogomail --mode=webdav             # WebDAV gateway (RFC 4918)
@@ -137,9 +139,6 @@ gogomail --mode=migration          # run database migrations
 - ✅ CardDAV directory org-tree endpoint with member resolution
 - ✅ Admin console: user management, organization structure, audit logs
 - ✅ Docker Compose configurations for dev/prod deployments
-
-### Known Issues
-- Webmail org chart UI rendering: hierarchical data in DB pending frontend display integration
 
 ---
 
@@ -245,7 +244,7 @@ Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, 
 | 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | Planned |
 | 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | ✓ WebDAV Complete |
 | 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
-| 7 | POP3 (RFC 1939) | Planned |
+| 7 | POP3 (RFC 1939) | ✓ Complete |
 | 8 | Push notifications: FCM / APNs / Web Push (RFC 8030) | Planned |
 
 Full roadmap: `docs/backend-roadmap.md`.
