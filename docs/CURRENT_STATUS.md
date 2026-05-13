@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 page cursor pagination)
+Last updated: 2026-05-14 (POP3 empty inbox pagination)
+
+## POP3 empty inbox pagination (2026-05-14, complete)
+- POP3 adapter coverage now verifies empty INBOX authentication succeeds with a zero-message mailbox.
+- The regression asserts empty INBOX pagination performs exactly one zero-cursor page lookup.
 
 ## POP3 page cursor pagination (2026-05-14, complete)
 - POP3 multi-page INBOX coverage now asserts a 450-message mailbox is loaded with exactly three page calls.
