@@ -2,6 +2,14 @@
 
 Last updated: 2026-05-14 (CardDAV PHOTO property implementation)
 
+## CardDAV CATEGORIES and GROUP properties (2026-05-14, complete)
+- CardDAV now supports RFC 6350 CATEGORIES and GROUP properties for contact organization.
+- CATEGORIES: Comma-separated list of categories extracted and stored as categories_list (TEXT[]) array in database.
+- GROUP: Group identifier extracted and stored as group_name (VARCHAR(255)) for contact grouping.
+- Both properties are removed from vCard during upsert and merged back during retrieval to avoid duplication.
+- Migration 0100 adds schema with GIN index for category-based filtering and B-tree index for group-name lookups.
+- All repository methods updated to retrieve and merge CATEGORIES/GROUP (GetContactObject, ListContactObjects, SearchContacts, etc.).
+
 ## CardDAV PHOTO property extraction and storage (2026-05-14, complete)
 - CardDAV now supports RFC 6350 PHOTO property for contact photos.
 - Photos are extracted from vCard PHOTO lines during upsert and stored separately in `photo_data` (BYTEA) and `photo_media_type` (VARCHAR) columns.

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gogomail/gogomail/internal/directory"
+	"github.com/lib/pq"
 )
 
 var _ DiscoveryStore = (*Repository)(nil)
@@ -83,7 +84,7 @@ func (r *Repository) WalkAddressBookObjects(ctx context.Context, userID string, 
 		return err
 	}
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name, created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -96,10 +97,11 @@ ORDER BY updated_at DESC, id DESC`
 	defer rows.Close()
 	for rows.Next() {
 		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, &object.CreatedAt, &object.UpdatedAt); err != nil {
+		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, pq.Array(&object.Categories), &object.Group, &object.CreatedAt, &object.UpdatedAt); err != nil {
 			return fmt.Errorf("scan CardDAV contact object: %w", err)
 		}
 		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
+		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
 		keepGoing, err := yield(object)
 		if err != nil {
 			return err
@@ -135,7 +137,7 @@ func (r *Repository) WalkAddressBookQueryCandidates(ctx context.Context, userID 
 	}
 	pattern := "%" + escapeSQLLikePattern(strings.ToLower(containsText)) + "%"
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, categories_list, group_name, created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -149,10 +151,11 @@ ORDER BY updated_at DESC, id DESC`
 	defer rows.Close()
 	for rows.Next() {
 		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, &object.CreatedAt, &object.UpdatedAt); err != nil {
+		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, pq.Array(&object.Categories), &object.Group, &object.CreatedAt, &object.UpdatedAt); err != nil {
 			return fmt.Errorf("scan CardDAV addressbook-query candidate: %w", err)
 		}
 		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
+		object.VCard = mergeCategoriesAndGroupIntoVCard(object.VCard, object.Categories, object.Group)
 		keepGoing, err := yield(object)
 		if err != nil {
 			return err
