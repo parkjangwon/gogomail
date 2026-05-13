@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 deleted RETR TOP visibility)
+Last updated: 2026-05-14 (POP3 RSET restores wire visibility)
+
+## POP3 RSET restores wire visibility (2026-05-14, complete)
+- POP3 server coverage now verifies `RSET` restores `LIST 1` and `UIDL 1` visibility after `DELE 1`.
+- The same regression verifies `RETR 1` can read the message body again after reset.
 
 ## POP3 deleted RETR TOP visibility (2026-05-14, complete)
 - POP3 server coverage now verifies `RETR 1` fails after `DELE 1`.

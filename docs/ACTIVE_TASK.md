@@ -1,13 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-343: POP3 deleted RETR TOP visibility audit
+## TASK-344: POP3 RSET restores wire visibility audit
 
 ### 배경
 
-POP3 `DELE` 이후 삭제 표시된 메시지는 본문을 반환하는 RETR/TOP에서도 숨겨져야 한다.
-mailbox adapter가 content를 lazy-load할 수 있더라도 POP3 server transaction layer가
-`Deleted` 상태를 기준으로 본문 계열 명령을 차단해야 하므로 wire-level 동작을 테스트로
-고정한다.
+POP3 `RSET`은 transaction 중 `DELE`로 표시한 메시지들을 다시 보이게 해야 한다.
+기존 `STAT` 확인만으로는 단일 메시지 조회 명령의 복구를 놓칠 수 있으므로
+wire-level에서 `LIST`, `UIDL`, `RETR`까지 함께 고정한다.
 
 ### 구현 대상
 
@@ -18,13 +17,13 @@ mailbox adapter가 content를 lazy-load할 수 있더라도 POP3 server transact
 
 ### 완료 조건
 
-- [x] `DELE 1` 이후 `RETR 1`이 `-ERR`를 반환하는지 검증한다.
-- [x] `DELE 1` 이후 `TOP 1 0`이 `-ERR`를 반환하는지 검증한다.
-- [x] 삭제 표시된 메시지 본문 명령이 content reader를 열기 전에 차단되는지 wire-level로 검증한다.
+- [x] `DELE 1` 후 `RSET` 이후 `LIST 1`이 메시지 크기를 다시 반환하는지 검증한다.
+- [x] `DELE 1` 후 `RSET` 이후 `UIDL 1`이 메시지 UIDL을 다시 반환하는지 검증한다.
+- [x] `DELE 1` 후 `RSET` 이후 `RETR 1`이 메시지 본문을 다시 반환하는지 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-344: POP3 RSET restores wire visibility audit
+TASK-345: POP3 QUIT commit error visibility audit
