@@ -544,16 +544,9 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	repository := maildb.NewRepository(db)
 	service := mailservice.New(repository, store)
 
-	tlsConfig, err := pop3TLSConfig(cfg)
+	server, err := pop3ServerForConfig(cfg, repository, service)
 	if err != nil {
 		return err
-	}
-
-	server := &pop3d.Server{
-		Store:       mailservice.NewPOP3StoreAdapter(repository, service),
-		TLSConfig:   tlsConfig,
-		Greeting:    "gogomail POP3 ready",
-		IdleTimeout: cfg.POP3IdleTimeout,
 	}
 
 	addr := strings.TrimSpace(cfg.POP3Addr)
@@ -565,7 +558,7 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		return fmt.Errorf("pop3 listen %s: %w", addr, err)
 	}
 
-	logger.Info("pop3 server listening", "mode", ModePOP3, "addr", ln.Addr().String(), "tls_configured", tlsConfig != nil)
+	logger.Info("pop3 server listening", "mode", ModePOP3, "addr", ln.Addr().String(), "tls_configured", server.TLSConfig != nil)
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- server.Serve(ln) }()
@@ -577,6 +570,20 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	case err := <-errCh:
 		return err
 	}
+}
+
+func pop3ServerForConfig(cfg config.Config, repository *maildb.Repository, service *mailservice.Service) (*pop3d.Server, error) {
+	tlsConfig, err := pop3TLSConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &pop3d.Server{
+		Store:          mailservice.NewPOP3StoreAdapter(repository, service),
+		TLSConfig:      tlsConfig,
+		Greeting:       "gogomail POP3 ready",
+		IdleTimeout:    cfg.POP3IdleTimeout,
+		MaxConnections: cfg.POP3MaxConnections,
+	}, nil
 }
 
 func runCalDAVGateway(ctx context.Context, cfg config.Config, logger *slog.Logger) error {

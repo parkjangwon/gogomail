@@ -103,6 +103,9 @@ func (c Config) Validate() error {
 	if c.IMAPMaxConnections < 0 {
 		return fmt.Errorf("GOGOMAIL_IMAP_MAX_CONNECTIONS must not be negative")
 	}
+	if c.POP3MaxConnections < 0 {
+		return fmt.Errorf("GOGOMAIL_POP3_MAX_CONNECTIONS must not be negative")
+	}
 	if c.IMAPNotifyConsumerCount <= 0 {
 		return fmt.Errorf("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT must be positive")
 	}

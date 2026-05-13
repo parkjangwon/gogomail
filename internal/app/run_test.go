@@ -658,6 +658,24 @@ func TestIMAPServerOptionsForConfigUsesRuntimeBackend(t *testing.T) {
 	}
 }
 
+func TestPOP3ServerForConfigUsesMaxConnections(t *testing.T) {
+	t.Parallel()
+
+	server, err := pop3ServerForConfig(config.Config{
+		POP3MaxConnections: 96,
+		POP3IdleTimeout:    3 * time.Minute,
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("pop3ServerForConfig returned error: %v", err)
+	}
+	if server.MaxConnections != 96 {
+		t.Fatalf("MaxConnections = %d, want 96", server.MaxConnections)
+	}
+	if server.IdleTimeout != 3*time.Minute {
+		t.Fatalf("IdleTimeout = %s, want 3m", server.IdleTimeout)
+	}
+}
+
 type fakeIMAPUIDEnsurer struct{}
 
 func (fakeIMAPUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, mailboxID string, messageID string) (maildb.IMAPMessageUID, error) {

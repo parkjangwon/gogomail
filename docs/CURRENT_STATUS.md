@@ -1391,6 +1391,11 @@ same mailbox receives `-ERR maildrop already locked`, and the lock is released
 on QUIT or connection close. The mailservice POP3 mailbox supplies the
 canonical DB user ID as that lock key, so alternate login addresses for the
 same user still converge on one maildrop.
+The POP3 server now enforces the configured maximum connection count in its
+accept loop. `GOGOMAIL_POP3_MAX_CONNECTIONS` and YAML
+`pop3_max_connections` feed the runtime `MaxConnections` setting; excess
+connections receive `-ERR too many connections` and closed sessions release
+their slots for later clients.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 
