@@ -5180,6 +5180,9 @@ Target outcome:
  1663. POP3 transaction AUTH denial after DELE is now covered: reauthentication
          denials preserve pending delete state, so LIST fails for the deleted
          message and STAT excludes it afterward.
+ 1664. POP3 transaction USER/PASS denial after DELE is now covered:
+         reauthentication denials preserve pending delete state, so LIST fails
+         for the deleted message and STAT excludes it afterward.
 
 ## Deferred until backend contracts stabilize
 

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE transaction AUTH denial preserves pending delete)
+Last updated: 2026-05-14 (POP3 DELE transaction USER PASS denial preserves pending delete)
+
+## POP3 DELE transaction USER PASS denial preserves pending delete (2026-05-14, complete)
+- POP3 server coverage now verifies transaction-state `USER` and `PASS` denials after `DELE 1` do not restore the deleted message.
+- The regression verifies `LIST 1` still fails and `STAT` still excludes the pending delete.
 
 ## POP3 DELE transaction AUTH denial preserves pending delete (2026-05-14, complete)
 - POP3 server coverage now verifies transaction-state `AUTH PLAIN` and `AUTH LOGIN` denials after `DELE 1` do not restore the deleted message.
