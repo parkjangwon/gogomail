@@ -6117,3 +6117,7 @@ Target outcome:
       unsubscribe: a missing mailbox retained as `Retired` can be removed with
       `retired`, and the retained LSUB entry disappears from subscription
       listings afterward.
+1712. IMAP existing mailbox subscriptions are now covered for case-insensitive
+      unsubscribe: an `INBOX` subscription can be removed with `inbox`, and the
+      existing mailbox LSUB entry disappears from subscription listings
+      afterward.

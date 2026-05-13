@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP retained subscription case-insensitive unsubscribe)
+Last updated: 2026-05-14 (IMAP existing subscription case-insensitive unsubscribe)
+
+## IMAP existing subscription case-insensitive unsubscribe (2026-05-14, complete)
+- Postgres coverage now verifies an existing `INBOX` subscription can be removed with differently cased `inbox`.
+- The regression verifies the existing mailbox LSUB entry is fully removed from `ListSubscribedIMAPMailboxes` afterward.
 
 ## IMAP retained subscription case-insensitive unsubscribe (2026-05-14, complete)
 - Postgres coverage now verifies a missing mailbox retained subscription such as `Retired` can be removed with a differently cased name such as `retired`.
