@@ -7,20 +7,34 @@ export interface ApiKey {
   id: string;
   domain_id: string;
   name: string;
-  key_hash: string;
-  prefix: string;
-  cidr_allowlist?: string[];
-  cidr_allowlist_enabled: boolean;
-  last_used_at?: string;
+  created_by: string;
   created_at: string;
+  last_used_at?: string;
   expires_at?: string;
-  request_count: number;
+  is_active: boolean;
 }
 
 export interface CreateApiKeyRequest {
   name: string;
-  expires_in_days?: number;
-  cidr_allowlist?: string[];
+  created_by: string;
+}
+
+interface ApiKeyListEnvelope {
+  keys: ApiKey[];
+}
+
+interface ApiKeyCreateEnvelope {
+  id: string;
+  secret: string;
+}
+
+interface ApiKeyRotateEnvelope {
+  status: string;
+  secret: string;
+}
+
+interface StatusEnvelope {
+  status: string;
 }
 
 export function useApiKeys(domainId: string | undefined) {
@@ -28,8 +42,8 @@ export function useApiKeys(domainId: string | undefined) {
     queryKey: ['apiKeys', domainId],
     queryFn: async () => {
       if (!domainId) return [];
-      const res = await api.get(`/domains/${domainId}/api-keys`) as any;
-      return (res.data?.keys || []) as ApiKey[];
+      const res = await api.get<ApiKeyListEnvelope>(`/domains/${domainId}/api-keys`);
+      return res.keys;
     },
     enabled: !!domainId,
   });
@@ -45,8 +59,7 @@ export function useCreateApiKey() {
       domainId: string;
       data: CreateApiKeyRequest;
     }) => {
-      const res = await api.post(`/domains/${domainId}/api-keys`, data) as any;
-      return res.data;
+      return api.post<ApiKeyCreateEnvelope>(`/domains/${domainId}/api-keys`, data);
     },
     onSuccess: (_, { domainId }) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys', domainId] });
@@ -64,8 +77,7 @@ export function useRotateApiKey() {
       domainId: string;
       keyId: string;
     }) => {
-      const res = await api.post(`/domains/${domainId}/api-keys/${keyId}/rotate`, {}) as any;
-      return res.data;
+      return api.post<ApiKeyRotateEnvelope>(`/domains/${domainId}/api-keys/${keyId}/rotate`, {});
     },
     onSuccess: (_, { domainId }) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys', domainId] });
@@ -83,8 +95,7 @@ export function useDeleteApiKey() {
       domainId: string;
       keyId: string;
     }) => {
-      const res = await api.delete(`/domains/${domainId}/api-keys/${keyId}`) as any;
-      return res.data;
+      return api.delete<StatusEnvelope>(`/domains/${domainId}/api-keys/${keyId}`);
     },
     onSuccess: (_, { domainId }) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys', domainId] });
@@ -106,11 +117,11 @@ export function useUpdateApiKeyCIDR() {
       cidrList: string[];
       enabled: boolean;
     }) => {
-      const res = await api.put(
-        `/domains/${domainId}/api-keys/${keyId}`,
-        { cidr_allowlist: cidrList, cidr_allowlist_enabled: enabled }
-      ) as any;
-      return res.data;
+      void domainId;
+      void keyId;
+      void cidrList;
+      void enabled;
+      throw new Error('Per-key CIDR updates are not supported by the current Admin API contract');
     },
     onSuccess: (_, { domainId }) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys', domainId] });
