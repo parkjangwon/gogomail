@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission repeated auth side-effect isolation)
+Last updated: 2026-05-14 (SMTP submission repeated auth transaction state)
+
+## SMTP submission repeated auth transaction state (2026-05-14, complete)
+- SMTP submission coverage now verifies repeated AUTH after `MAIL FROM` is rejected without clearing the active envelope sender.
+- The regression verifies the transaction can continue with `RCPT` and `DATA`, producing the expected submitted message.
 
 ## SMTP submission repeated auth side-effect isolation (2026-05-14, complete)
 - SMTP submission coverage now verifies repeated AUTH after a successful authentication is rejected without replacing or clearing the existing user.
