@@ -9,8 +9,6 @@ import {
   FormField,
   Input,
   Textarea,
-  Select,
-  SelectProps,
   Box,
   Spinner,
   Flashbar,
@@ -18,8 +16,8 @@ import {
   Table,
   Modal,
   Badge,
-  Tabs,
   ColumnLayout,
+  Toggle,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -29,22 +27,13 @@ interface NotifTemplate {
   id: string;
   name: string;
   subject: string;
-  body_html: string;
-  body_text: string;
-  locale: string;
-  variables: string[];
+  body: string;
+  enabled: boolean;
 }
-
-const LOCALE_OPTIONS: SelectProps.Option[] = [
-  { label: 'English', value: 'en' },
-  { label: '한국어', value: 'ko' },
-  { label: '日本語', value: 'ja' },
-  { label: '中文 (简体)', value: 'zh-CN' },
-];
 
 // Substitute {{variable}} placeholders with sample values
 function interpolate(tmpl: string, samples: Record<string, string>): string {
-  return tmpl.replace(/\{\{(\w+)\}\}/g, (_, key) => samples[key] ?? `[${key}]`);
+  return tmpl.replace(/\{\{\.?([\w]+)\}\}/g, (_, key) => samples[key] ?? `[${key}]`);
 }
 
 export default function NotifTemplatesPage() {
@@ -58,7 +47,6 @@ export default function NotifTemplatesPage() {
   const [selected, setSelected] = useState<NotifTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<NotifTemplate>>({});
-  const [sampleVars, setSampleVars] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!cid) return;
@@ -79,10 +67,6 @@ export default function NotifTemplatesPage() {
   const openEdit = (tmpl: NotifTemplate) => {
     setSelected(tmpl);
     setEditForm({ ...tmpl });
-    // Seed sample values with variable names
-    const seeds: Record<string, string> = {};
-    (tmpl.variables ?? []).forEach(v => { seeds[v] = `sample_${v}`; });
-    setSampleVars(seeds);
   };
 
   const handleSave = async () => {
@@ -106,10 +90,16 @@ export default function NotifTemplatesPage() {
   };
 
   const previewHtml = useMemo(() => {
-    const html = editForm.body_html ?? '';
+    const html = editForm.body ?? '';
     const subject = editForm.subject ?? '';
-    const renderedSubject = interpolate(subject, sampleVars);
-    const renderedBody = interpolate(html, sampleVars);
+    const samples = {
+      CompanyName: 'GogoMail',
+      ResetURL: 'https://mail.example.com/reset',
+      UserName: 'user@example.com',
+      UsagePercent: '85',
+    };
+    const renderedSubject = interpolate(subject, samples);
+    const renderedBody = interpolate(html, samples);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -129,12 +119,7 @@ export default function NotifTemplatesPage() {
   </div>
 </body>
 </html>`;
-  }, [editForm.body_html, editForm.subject, sampleVars]);
-
-  const previewText = useMemo(
-    () => interpolate(editForm.body_text ?? '', sampleVars),
-    [editForm.body_text, sampleVars]
-  );
+  }, [editForm.body, editForm.subject]);
 
   if (loading) return <Box padding="xl"><Spinner /></Box>;
 
@@ -149,13 +134,7 @@ export default function NotifTemplatesPage() {
             columnDefinitions={[
               { id: 'name', header: 'Template', cell: (i) => i.name },
               { id: 'id', header: 'ID', cell: (i) => <Box variant="code">{i.id}</Box> },
-              { id: 'locale', header: 'Locale', cell: (i) => <Badge color="blue">{i.locale}</Badge> },
-              {
-                id: 'variables', header: 'Variables',
-                cell: (i) => i.variables?.length
-                  ? <Box variant="small">{i.variables.map(v => `{{${v}}}`).join(', ')}</Box>
-                  : <Box variant="small" color="text-status-inactive">—</Box>,
-              },
+              { id: 'status', header: 'Status', cell: (i) => <Badge color={i.enabled ? 'green' : 'grey'}>{i.enabled ? 'Enabled' : 'Disabled'}</Badge> },
               {
                 id: 'actions', header: '',
                 cell: (i) => <Button variant="inline-link" onClick={() => openEdit(i)}>Edit & Preview</Button>,
@@ -189,110 +168,35 @@ export default function NotifTemplatesPage() {
                     onChange={({ detail }) => setEditForm(f => ({ ...f, subject: detail.value }))}
                   />
                 </FormField>
-                <FormField label={t('pages.notification_templates_page.locale')}>
-                  <Select
-                    selectedOption={LOCALE_OPTIONS.find(o => o.value === editForm.locale) ?? LOCALE_OPTIONS[0]}
-                    options={LOCALE_OPTIONS}
-                    onChange={({ detail }) => setEditForm(f => ({ ...f, locale: detail.selectedOption.value }))}
+                <FormField label={t('pages.notification_templates_page.html_body')}>
+                  <Textarea
+                    rows={16}
+                    value={editForm.body ?? ''}
+                    onChange={({ detail }) => setEditForm(f => ({ ...f, body: detail.value }))}
                   />
                 </FormField>
-
-                {/* Sample variable values */}
-                {(selected.variables ?? []).length > 0 && (
-                  <Container header={<Header variant="h3" description="Used for preview only">Sample Values</Header>}>
-                    <SpaceBetween size="xs">
-                      {(selected.variables ?? []).map(v => (
-                        <FormField key={v} label={`{{${v}}}`}>
-                          <Input
-                            value={sampleVars[v] ?? ''}
-                            onChange={({ detail }) => setSampleVars(s => ({ ...s, [v]: detail.value }))}
-                          />
-                        </FormField>
-                      ))}
-                    </SpaceBetween>
-                  </Container>
-                )}
-
-                <Tabs
-                  tabs={[
-                    {
-                      label: 'HTML',
-                      id: 'html',
-                      content: (
-                        <FormField label={t('pages.notification_templates_page.html_body')}>
-                          <Textarea
-                            rows={14}
-                            value={editForm.body_html ?? ''}
-                            onChange={({ detail }) => setEditForm(f => ({ ...f, body_html: detail.value }))}
-                          />
-                        </FormField>
-                      ),
-                    },
-                    {
-                      label: 'Plain Text',
-                      id: 'text',
-                      content: (
-                        <FormField label={t('pages.notification_templates_page.plain_body')}>
-                          <Textarea
-                            rows={14}
-                            value={editForm.body_text ?? ''}
-                            onChange={({ detail }) => setEditForm(f => ({ ...f, body_text: detail.value }))}
-                          />
-                        </FormField>
-                      ),
-                    },
-                  ]}
-                />
+                <Toggle checked={editForm.enabled ?? true} onChange={({ detail }) => setEditForm(f => ({ ...f, enabled: detail.checked }))}>
+                  Enabled
+                </Toggle>
               </SpaceBetween>
 
               {/* ── Right: Preview ── */}
               <SpaceBetween size="m">
                 <Header variant="h3" description="Live preview with sample values">Email Preview</Header>
-                <Tabs
-                  tabs={[
-                    {
-                      label: 'HTML',
-                      id: 'html-preview',
-                      content: (
-                        <Box>
-                          <iframe
-                            srcDoc={previewHtml}
-                            title="Email HTML Preview"
-                            style={{
-                              width: '100%',
-                              height: '480px',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '4px',
-                              background: '#f4f4f4',
-                            }}
-                            sandbox="allow-same-origin"
-                          />
-                        </Box>
-                      ),
-                    },
-                    {
-                      label: 'Plain Text',
-                      id: 'text-preview',
-                      content: (
-                        <Box>
-                          <div style={{
-                            whiteSpace: 'pre-wrap',
-                            fontFamily: 'monospace',
-                            fontSize: '13px',
-                            background: '#f8f8f8',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            padding: '16px',
-                            minHeight: '200px',
-                            color: previewText ? '#000' : '#aaa',
-                          }}>
-                            {previewText || 'No plain text content yet.'}
-                          </div>
-                        </Box>
-                      ),
-                    },
-                  ]}
-                />
+                <Box>
+                  <iframe
+                    srcDoc={previewHtml}
+                    title="Email HTML Preview"
+                    style={{
+                      width: '100%',
+                      height: '480px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      background: '#f4f4f4',
+                    }}
+                    sandbox="allow-same-origin"
+                  />
+                </Box>
               </SpaceBetween>
             </ColumnLayout>
           </Modal>
