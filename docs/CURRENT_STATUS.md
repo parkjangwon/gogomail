@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 authorization CAPA stability)
+Last updated: 2026-05-14 (POP3 authorization NOOP stability)
+
+## POP3 authorization NOOP stability (2026-05-14, complete)
+- POP3 server coverage now verifies repeated authorization-state `NOOP` returns `+OK`.
+- The regression verifies auth capabilities and normal authentication still work afterward.
 
 ## POP3 authorization CAPA stability (2026-05-14, complete)
 - POP3 server coverage now verifies repeated authorization-state `CAPA` calls keep core auth capabilities stable.
