@@ -4733,6 +4733,13 @@ Target outcome:
          ordinal BYDAY patterns (`1SA` = first Saturday), INTERVAL modifiers
          (`INTERVAL=3`), and timezone-aware matching all expand and match
          correctly through `CalendarObjectMatchesTimeRange`.
+ 1542. CalDAV/CardDAV collection `PROPPATCH` now has WebDAV `If` header
+         regression coverage for duplicate resource-tag closing delimiters.
+         Inputs such as `</caldav/calendars/user-1/work/>> (...)` and
+         `</carddav/addressbooks/user-1/personal/>> (...)` are rejected as
+         malformed resource tags with HTTP 400 before reading the XML body, so
+         collection `xml:lang` metadata cannot mutate through malformed
+         preconditions.
 
 ## Deferred until backend contracts stabilize
 

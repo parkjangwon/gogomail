@@ -5854,3 +5854,7 @@ Next focus areas:
 - Company policy defaults are stored under the reserved company config key `domain_settings_defaults`; newly created domains inherit that policy into `domain_settings` at the backend API boundary.
 - Domain settings still override those defaults after creation, and both company/domain per-user quota fields are shown in MB while the backend continues storing bytes.
 - The quota UX now lets admins enter per-user quota as a number with an explicit MB/GB/TB unit selector; values are converted back to bytes before saving.
+
+## CalDAV/CardDAV WebDAV If header duplicate delimiter hardening (TASK-232, 2026-05-14)
+- CalDAV collection `PROPPATCH` now has regression coverage for WebDAV `If` resource tags with duplicate closing delimiters, rejecting them as malformed resource tags with HTTP 400 before reading the XML body.
+- CardDAV collection `PROPPATCH` now has the same duplicate-delimiter coverage, preserving existing address book `xml:lang` metadata and avoiding any update call when the `If` header is malformed.
