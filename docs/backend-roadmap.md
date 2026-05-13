@@ -312,6 +312,7 @@ Target outcome:
 237. IMAP `AUTHENTICATE PLAIN` now honors plaintext TLS policy before decoding SASL initial responses, keeping `LOGINDISABLED`/`PRIVACYREQUIRED` enforcement ahead of credential payload handling.
 238. IMAP failed `SELECT`/`EXAMINE` reselect attempts now leave the previous selected mailbox and subscription intact until the replacement mailbox is successfully resolved and subscribed.
 239. IMAP `COPY` now validates destination mailbox existence before short-circuiting empty source UID sets, preserving `[TRYCREATE]` semantics for empty `$` SEARCHRES copies.
+240. POP3 authentication now consumes the same `must_change_password` submission-auth state as IMAP and rejects password-rotation-required users before opening a maildrop session.
 231. API metering aggregation now writes both daily and monthly Postgres read models from the same `api.usage` event, with Admin API exposing `GET /admin/v1/api-usage/monthly` for plan/billing analysis groundwork.
 232. Mail API now supports user-scoped push device registration, listing, and soft deletion for APNs, FCM, and Web Push tokens; raw tokens are write-only while response envelopes expose only a short token suffix for diagnostics.
 233. The push notification worker now resolves bounded active device targets from PostgreSQL before invoking its sink, so future FCM/APNs/Web Push adapters receive explicit per-device targets without touching SMTP hot paths.

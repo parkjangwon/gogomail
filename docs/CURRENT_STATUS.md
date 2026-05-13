@@ -3630,6 +3630,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP `COPY` now validates the destination mailbox even when the source UID
   set is empty, so empty `$`/SEARCHRES copies still return `[TRYCREATE]` for
   missing destinations while keeping `OK COPY completed` for existing targets.
+- POP3 authentication now rejects users marked `must_change_password`, matching
+  IMAP session policy so password-rotation-required accounts cannot open
+  protocol sessions before completing the web reset/change flow.
 - Authenticated SMTP Submission now mirrors receive-path storage cleanup:
   if the stored hook, submitted recorder, or mailbox-quota path fails before
   database commit, the just-written submitted `.eml` object is deleted.
