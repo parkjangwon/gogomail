@@ -2154,8 +2154,43 @@ func TestBulkRestoreMessagesNormalizesRequest(t *testing.T) {
 	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
 		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[0].Messages != 3 || events.events[1].UID != 45 || events.events[1].Messages != 4 {
-		t.Fatalf("events = %#v, want exists events", events.events)
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 45 || events.events[0].Messages != 4 {
+		t.Fatalf("events = %#v, want coalesced exists event", events.events)
+	}
+}
+
+func TestBulkRestoreMessagesCoalescesExistsEventsByMailbox(t *testing.T) {
+	t.Parallel()
+
+	events := &fakeIMAPEventPublisher{}
+	repo := &fakeRepository{
+		bulkRestoreResult: maildb.BulkMessageRestoreResult{Updated: 3, MessageIDs: []string{"msg-1", "msg-2", "msg-3"}},
+		ensuredIMAPUIDs: []maildb.IMAPMessageUID{
+			{MessageID: "msg-1", MailboxID: "inbox", UID: 44, SequenceNumber: 3, ModSeq: 9},
+			{MessageID: "msg-2", MailboxID: "archive", UID: 9, SequenceNumber: 2, ModSeq: 4},
+			{MessageID: "msg-3", MailboxID: "inbox", UID: 45, SequenceNumber: 4, ModSeq: 10},
+		},
+	}
+	service := New(repo, nil).WithIMAPMailboxEvents(events)
+
+	updated, err := service.BulkRestoreMessages(context.Background(), maildb.BulkMessageRestoreRequest{
+		UserID:     "user-1",
+		MessageIDs: []string{"msg-1", "msg-2", "msg-3"},
+	})
+	if err != nil {
+		t.Fatalf("BulkRestoreMessages returned error: %v", err)
+	}
+	if updated != 3 {
+		t.Fatalf("updated = %d, want 3", updated)
+	}
+	if len(events.events) != 2 {
+		t.Fatalf("events = %#v, want one exists event per mailbox", events.events)
+	}
+	if events.events[0].Type != imapgw.MailboxEventExists || events.events[0].MailboxID != "inbox" || events.events[0].UID != 45 || events.events[0].Messages != 4 {
+		t.Fatalf("first event = %#v, want coalesced inbox exists event", events.events[0])
+	}
+	if events.events[1].Type != imapgw.MailboxEventExists || events.events[1].MailboxID != "archive" || events.events[1].UID != 9 || events.events[1].Messages != 2 {
+		t.Fatalf("second event = %#v, want archive exists event", events.events[1])
 	}
 }
 
@@ -2188,8 +2223,8 @@ func TestBulkRestoreThreadsNormalizesRequest(t *testing.T) {
 	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
 		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[0].Messages != 3 || events.events[1].UID != 45 || events.events[1].Messages != 4 {
-		t.Fatalf("events = %#v, want exists events", events.events)
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 45 || events.events[0].Messages != 4 {
+		t.Fatalf("events = %#v, want coalesced exists event", events.events)
 	}
 }
 

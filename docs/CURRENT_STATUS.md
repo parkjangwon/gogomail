@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP restored EXISTS event hardening)
+Last updated: 2026-05-14 (IMAP restored EXISTS coalescing hardening)
+
+## IMAP restored EXISTS coalescing hardening (2026-05-14, complete)
+- UID-based restored-message EXISTS events are now coalesced by mailbox before publishing, keeping only the highest sequence count needed to update selected IMAP sessions.
+- Regression coverage verifies bulk message and bulk thread restore publish a single final EXISTS count for one mailbox, while mixed-mailbox restore still emits one EXISTS event per mailbox.
 
 ## IMAP restored EXISTS event hardening (2026-05-14, complete)
 - UID-based restored-message EXISTS events now carry `Messages=SequenceNumber`, matching APPEND/COPY summary events and letting selected IMAP sessions jump to the exact mailbox count instead of incrementing blindly.

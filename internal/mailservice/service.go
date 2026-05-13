@@ -1168,6 +1168,9 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 	if s.imapEvents == nil || len(uids) == 0 {
 		return nil
 	}
+	if eventType == imapgw.MailboxEventExists {
+		uids = coalesceIMAPUIDExistsEvents(uids)
+	}
 	userID = strings.TrimSpace(userID)
 	for _, uid := range uids {
 		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
@@ -1182,6 +1185,25 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 		}
 	}
 	return nil
+}
+
+func coalesceIMAPUIDExistsEvents(uids []maildb.IMAPMessageUID) []maildb.IMAPMessageUID {
+	if len(uids) < 2 {
+		return uids
+	}
+	byMailbox := make(map[imapgw.MailboxID]int, len(uids))
+	coalesced := make([]maildb.IMAPMessageUID, 0, len(uids))
+	for _, uid := range uids {
+		if idx, ok := byMailbox[uid.MailboxID]; ok {
+			if uid.SequenceNumber > coalesced[idx].SequenceNumber {
+				coalesced[idx] = uid
+			}
+			continue
+		}
+		byMailbox[uid.MailboxID] = len(coalesced)
+		coalesced = append(coalesced, uid)
+	}
+	return coalesced
 }
 
 func (s *Service) publishIMAPRestoredMessageEvents(ctx context.Context, userID string, messageIDs []string) error {
