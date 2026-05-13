@@ -1,12 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-439: IMAP existing mailbox unsubscribe case-insensitive audit
+## TASK-440: IMAP subscription duplicate casing update audit
 
 ### 배경
 
-IMAP mailbox names are case-insensitive for common system mailbox matching. Existing mailbox
-subscriptions such as `INBOX` must be removable with a differently cased name such as `inbox`;
-otherwise clients that change casing between SUBSCRIBE and UNSUBSCRIBE can leave stale LSUB entries.
+IMAP subscription canonical keys are lower-case, so repeated SUBSCRIBE commands for a retained
+missing mailbox with different casing must update the same row rather than creating duplicates.
+This prevents duplicate LSUB output and confirms the stored display name follows the latest
+subscription command for retained names.
 
 ### 구현 대상
 
@@ -17,13 +18,13 @@ otherwise clients that change casing between SUBSCRIBE and UNSUBSCRIBE can leave
 
 ### 완료 조건
 
-- [x] existing `INBOX` mailbox subscription을 생성하는 경로를 검증한다.
-- [x] `inbox` casing으로 `UnsubscribeIMAPMailbox`가 같은 existing mailbox subscription을 제거하는지 검증한다.
-- [x] case-insensitive existing mailbox unsubscribe 후 `ListSubscribedIMAPMailboxes`가 빈 목록을 반환하는지 검증한다.
-- [x] `go test -count=1 ./internal/maildb -run TestPostgresIMAPMailboxSubscriptionUnsubscribesExistingMailboxCaseInsensitively` 통과.
+- [x] missing mailbox retained subscription을 한 casing으로 생성한 뒤 다른 casing으로 다시 subscribe하는 경로를 검증한다.
+- [x] duplicate casing subscribe가 subscription row를 늘리지 않고 canonical key 하나만 유지하는지 검증한다.
+- [x] retained display name이 최신 subscribe 명령의 name으로 갱신되는지 검증한다.
+- [x] `go test -count=1 ./internal/maildb -run TestPostgresIMAPMailboxSubscriptionDuplicateCasingUpdatesRetainedName` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-440: IMAP subscription duplicate casing update audit
+TASK-441: IMAP mailbox list subscription ordering audit

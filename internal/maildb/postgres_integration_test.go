@@ -1753,6 +1753,29 @@ func TestPostgresIMAPMailboxSubscriptionUnsubscribesExistingMailboxCaseInsensiti
 	}
 }
 
+func TestPostgresIMAPMailboxSubscriptionDuplicateCasingUpdatesRetainedName(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, "Retired"); err != nil {
+		t.Fatalf("SubscribeIMAPMailbox first returned error: %v", err)
+	}
+	if _, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, "retired"); err != nil {
+		t.Fatalf("SubscribeIMAPMailbox second returned error: %v", err)
+	}
+	listed, err := repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes returned error: %v", err)
+	}
+	if len(listed) != 1 || listed[0].Exists || listed[0].Name != "retired" {
+		t.Fatalf("duplicate-casing retained subscriptions = %#v, want one updated retained name", listed)
+	}
+}
+
 func TestPostgresIMAPMoveMessagesMovesActiveUIDs(t *testing.T) {
 	t.Parallel()
 
