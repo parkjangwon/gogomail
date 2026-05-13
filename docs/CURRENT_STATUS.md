@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 inbox folder first-match)
+Last updated: 2026-05-14 (POP3 missing inbox short-circuit)
+
+## POP3 missing inbox short-circuit (2026-05-14, complete)
+- POP3 adapter coverage now verifies accounts without an INBOX fail after folder listing but before message page lookup.
+- The regression asserts folder listing still uses the normalized user ID and no empty or fallback folder ID reaches message listing.
 
 ## POP3 inbox folder first-match (2026-05-14, complete)
 - POP3 adapter coverage now verifies duplicate INBOX candidates use the first matching system folder.
