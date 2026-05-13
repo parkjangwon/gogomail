@@ -4791,6 +4791,10 @@ Target outcome:
          message receives a fresh UID. After the original source UID is
          expunged, destination sequence numbers, STATUS prediction, LIST/FETCH
          order, and final UIDNEXT/HIGHESTMODSEQ remain monotonic.
+ 1548. IMAP COPY and same-mailbox MOVE lazy UID backfill is now gated on
+         actual source rows, so all-missing UID no-op commands do not assign
+         legacy unassigned message UIDs or advance stored UIDNEXT/HIGHESTMODSEQ
+         merely as a side effect of checking destination mailbox state.
 
 ## Deferred until backend contracts stabilize
 
