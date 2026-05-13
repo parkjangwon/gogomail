@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 delete commit idempotency hardening)
+Last updated: 2026-05-14 (IMAP append lazy UID ordering hardening)
+
+## IMAP append lazy UID ordering hardening (2026-05-14, complete)
+- PostgreSQL-backed IMAP APPEND now backfills existing active messages without `imap_message_uid` rows inside the same mailbox-state transaction before assigning the appended message UID.
+- Regression coverage verifies mailbox STATUS UIDNEXT/HIGHESTMODSEQ prediction, APPENDUID/sequence number, LIST ordering, and final mailbox state stay on the same UID timeline when legacy unassigned messages exist.
 
 ## POP3 delete commit idempotency hardening (2026-05-14, complete)
 - POP3 pending delete commits now normalize message IDs before calling the mail service bulk delete path, trimming whitespace, skipping empty IDs, and de-duplicating IDs while preserving first-seen order.

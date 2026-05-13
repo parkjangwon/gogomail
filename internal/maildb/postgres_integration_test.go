@@ -1389,6 +1389,92 @@ WHERE partition_key = $1`, string(result.Summary.ID)).Scan(&outboxTopic, &outbox
 	}
 }
 
+func TestPostgresIMAPAppendBackfillsLegacyUIDsBeforeAppend(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<legacy-first@example.com>',
+   'legacy first', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+   100, 'mail/legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<legacy-second@example.com>',
+   'legacy second', 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz,
+   100, 'mail/legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.inboxID); err != nil {
+		t.Fatalf("insert legacy imap messages: %v", err)
+	}
+
+	before, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox before append returned error: %v", err)
+	}
+	if before.UIDNext != 3 || before.HighestModSeq != 2 {
+		t.Fatalf("predicted mailbox state = uidnext %d highestmodseq %d, want 3/2", before.UIDNext, before.HighestModSeq)
+	}
+
+	target, err := repo.ResolveIMAPAppendTarget(ctx, seed.userID, "INBOX")
+	if err != nil {
+		t.Fatalf("ResolveIMAPAppendTarget returned error: %v", err)
+	}
+	raw := strings.Join([]string{
+		"Message-ID: <imap-append-after-legacy@example.com>",
+		"Date: Tue, 5 May 2026 12:34:56 +0900",
+		"From: Sender <sender@example.net>",
+		"To: Alice <alice@example.com>",
+		"Subject: appended after legacy",
+		"",
+		"hello after legacy",
+	}, "\r\n")
+	parsed, err := messageparse.ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+
+	result, err := repo.AppendStoredIMAPMessage(ctx, AppendStoredIMAPMessageRequest{
+		Target:       target,
+		StoragePath:  "mailstore/company/domain/user/imap-append/2026/05/append-after-legacy.eml",
+		Parsed:       parsed,
+		InternalDate: time.Date(2026, 5, 5, 12, 34, 56, 0, time.UTC),
+		Size:         int64(len(raw)),
+	})
+	if err != nil {
+		t.Fatalf("AppendStoredIMAPMessage returned error: %v", err)
+	}
+	if result.Summary.UID != 3 || result.Summary.SequenceNumber != 3 {
+		t.Fatalf("append result uid/seq = %d/%d, want 3/3", result.Summary.UID, result.Summary.SequenceNumber)
+	}
+
+	messages, err := repo.ListIMAPMessages(ctx, seed.userID, seed.inboxID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListIMAPMessages returned error: %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("listed messages = %d, want 3", len(messages))
+	}
+	wantSubjects := []string{"legacy first", "legacy second", "appended after legacy"}
+	for i, msg := range messages {
+		wantUID := imapgw.UID(i + 1)
+		wantSeq := uint32(i + 1)
+		if msg.UID != wantUID || msg.SequenceNumber != wantSeq || msg.Envelope.Subject != wantSubjects[i] {
+			t.Fatalf("message[%d] = uid %d seq %d subject %q, want %d/%d/%q", i, msg.UID, msg.SequenceNumber, msg.Envelope.Subject, wantUID, wantSeq, wantSubjects[i])
+		}
+	}
+	after, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox after append returned error: %v", err)
+	}
+	if after.UIDNext != 4 || after.HighestModSeq != 3 {
+		t.Fatalf("mailbox state after append = uidnext %d highestmodseq %d, want 4/3", after.UIDNext, after.HighestModSeq)
+	}
+}
+
 func TestPostgresIMAPExpungeDeletesOnlyMarkedUIDs(t *testing.T) {
 	t.Parallel()
 
