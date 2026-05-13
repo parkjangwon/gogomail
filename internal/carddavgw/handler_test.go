@@ -3891,6 +3891,27 @@ func TestHandlerReportAddressBookQueryHonorsParamFilter(t *testing.T) {
 	}
 }
 
+func TestVCardParamFilterNegatedTextMatchChecksAllValues(t *testing.T) {
+	t.Parallel()
+
+	filter := CardDAVParamFilter{
+		Name:         "TYPE",
+		HasTextMatch: true,
+		TextMatch: CardDAVTextMatch{
+			Text:      "home",
+			MatchType: TextMatchEquals,
+			Collation: TextMatchUnicodeCasemap,
+			Negate:    true,
+		},
+	}
+	if vCardParamFilterApplies(map[string][]string{"TYPE": []string{"home", "work"}}, filter) {
+		t.Fatal("negated param-filter matched a parameter list containing the forbidden value")
+	}
+	if !vCardParamFilterApplies(map[string][]string{"TYPE": []string{"work", "pref"}}, filter) {
+		t.Fatal("negated param-filter rejected parameter values without the forbidden value")
+	}
+}
+
 func TestHandlerReportAddressBookQueryRejectsUnsupportedFilter(t *testing.T) {
 	t.Parallel()
 
