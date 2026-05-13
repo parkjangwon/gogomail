@@ -4961,6 +4961,9 @@ Target outcome:
  1588. POP3 credential validation is now centralized in mailservice adapter
          helpers, with direct coverage for username trimming, username
          empty/CR/LF rejection, and password CR/LF rejection.
+ 1589. POP3 username normalization is now covered at the authenticator boundary:
+         whitespace-wrapped usernames are trimmed before `AuthenticatePlain`
+         receives them, and the test authenticator records the exact value used.
 
 ## Deferred until backend contracts stabilize
 
