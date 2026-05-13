@@ -6113,3 +6113,7 @@ Target outcome:
       spaced names like `" INBOX "` resolve to the existing Inbox rather than a
       missing retained subscription, and the same trim rule applies to
       unsubscribe and canonical subscription keys.
+1711. IMAP retained subscription names are now covered for case-insensitive
+      unsubscribe: a missing mailbox retained as `Retired` can be removed with
+      `retired`, and the retained LSUB entry disappears from subscription
+      listings afterward.
