@@ -563,6 +563,7 @@ func TestValidateUpsertContactObjectRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.txt", VCard: validBody},
 		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", UID: "other", VCard: validBody},
 		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: []byte("BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Contact\r\nEND:VCARD\r\n")},
+		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: []byte("BEGIN:VCARD\nVERSION:4.0\nUID:contact-1\nFN:Contact\nEND:VCARD\n")},
 		{UserID: "user-1", AddressBookID: "book-1", ObjectName: "contact-1.vcf", VCard: validBody, ObservedETag: `"ABC"`},
 	}
 	for _, req := range tests {

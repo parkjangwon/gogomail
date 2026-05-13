@@ -165,6 +165,9 @@ func ValidateVCardObject(vcard []byte) (VCardMetadata, error) {
 	if len(vcard) > MaxContactObjectBytes {
 		return VCardMetadata{}, fmt.Errorf("vcard body is too large")
 	}
+	if err := validateVCardLineEndings(string(vcard)); err != nil {
+		return VCardMetadata{}, err
+	}
 	lines, err := unfoldVCardLines(string(vcard))
 	if err != nil {
 		return VCardMetadata{}, err
@@ -220,6 +223,22 @@ func ValidateVCardObject(vcard []byte) (VCardMetadata, error) {
 		return VCardMetadata{}, fmt.Errorf("vcard FN is required")
 	}
 	return meta, nil
+}
+
+func validateVCardLineEndings(raw string) error {
+	for i := 0; i < len(raw); i++ {
+		switch raw[i] {
+		case '\n':
+			if i == 0 || raw[i-1] != '\r' {
+				return fmt.Errorf("vcard line endings must be CRLF")
+			}
+		case '\r':
+			if i+1 >= len(raw) || raw[i+1] != '\n' {
+				return fmt.Errorf("vcard line endings must be CRLF")
+			}
+		}
+	}
+	return nil
 }
 
 func ValidateContactObjectETag(etag string) (string, error) {
