@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (WebDAV gateway authentication enabled)
+Last updated: 2026-05-14 (CardDAV PHOTO property implementation)
+
+## CardDAV PHOTO property extraction and storage (2026-05-14, complete)
+- CardDAV now supports RFC 6350 PHOTO property for contact photos.
+- Photos are extracted from vCard PHOTO lines during upsert and stored separately in `photo_data` (BYTEA) and `photo_media_type` (VARCHAR) columns.
+- Photos are merged back into vCard when retrieving contacts, maintaining RFC 6350 compliance.
+- Supports base64-encoded photo data with configurable media types (image/jpeg, image/png, etc).
+- Max photo size: 5MB per contact (independent of MaxContactObjectBytes 5MB limit).
+- Migration 0099 adds photo storage schema with index on addressbook_id and photo presence.
+- All repository methods (GetContactObject, ListContactObjects, SearchContacts, etc.) updated to retrieve and merge photos.
 
 ## WebDAV gateway authentication and lock optimization (2026-05-14, complete)
 - WebDAV gateway now requires authenticated Bearer token or HTTPS Basic auth for external client access.

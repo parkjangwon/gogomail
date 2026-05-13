@@ -3,9 +3,11 @@ package carddavgw
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -28,6 +30,86 @@ type contactObjectNameLookup struct {
 
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
+}
+
+var photoLineRegex = regexp.MustCompile(`(?i)^PHOTO(?:\;[^\:]*)?:`)
+
+func extractPhotoFromVCard(vcard []byte) ([]byte, string, []byte, error) {
+	lines := strings.Split(string(vcard), "\r\n")
+	var photoLine strings.Builder
+	var photoMediaType string
+	var photoData []byte
+	var filteredLines []string
+	photoFound := false
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			if !photoFound {
+				filteredLines = append(filteredLines, line)
+			}
+			continue
+		}
+		if photoLineRegex.MatchString(line) {
+			photoFound = true
+			photoLine.WriteString(line)
+			photoLine.WriteString("\r\n")
+
+			name, value, err := parseVCardContentLine(line)
+			if err != nil {
+				continue
+			}
+			if !strings.EqualFold(name, "PHOTO") {
+				filteredLines = append(filteredLines, line)
+				continue
+			}
+
+			for {
+				if err != nil {
+					break
+				}
+				parts := strings.SplitN(value, ",", 2)
+				if len(parts) == 2 {
+					photoMediaType = parts[0]
+					if strings.HasPrefix(photoMediaType, "data:") {
+						photoMediaType = strings.TrimPrefix(photoMediaType, "data:")
+						decoded, err := base64.StdEncoding.DecodeString(parts[1])
+						if err == nil && len(decoded) <= MaxPhotoBytes {
+							photoData = decoded
+							break
+						}
+					}
+				}
+				break
+			}
+		} else if photoFound && (strings.HasPrefix(strings.TrimSpace(line), " ") || strings.HasPrefix(strings.TrimSpace(line), "\t")) {
+			photoLine.WriteString(line)
+			photoLine.WriteString("\r\n")
+		} else {
+			photoFound = false
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	cleanVCard := []byte(strings.Join(filteredLines, "\r\n"))
+	return cleanVCard, photoMediaType, photoData, nil
+}
+
+func mergePhotoIntoVCard(vcard []byte, photoData []byte, photoMediaType string) []byte {
+	if len(photoData) == 0 || photoMediaType == "" {
+		return vcard
+	}
+
+	vCardStr := string(vcard)
+	endIdx := strings.LastIndex(vCardStr, "END:VCARD")
+	if endIdx == -1 {
+		return vcard
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(photoData)
+	photoLine := fmt.Sprintf("PHOTO;ENCODING=base64;TYPE=%s:\r\n %s\r\n", photoMediaType, encoded)
+
+	result := vCardStr[:endIdx] + photoLine + vCardStr[endIdx:]
+	return []byte(result)
 }
 
 type CreateAddressBookRequest struct {
@@ -480,6 +562,9 @@ func (r *Repository) UpsertContactObject(ctx context.Context, req UpsertContactO
 	if err != nil {
 		return ContactObject{}, err
 	}
+
+	cleanVCard, photoMediaType, photoData, _ := extractPhotoFromVCard(req.VCard)
+
 	var object ContactObject
 	if err := runCardDAVWriteWithRetry(ctx, func() error {
 		tx, err := r.db.BeginTx(ctx, nil)
@@ -497,24 +582,28 @@ func (r *Repository) UpsertContactObject(ctx context.Context, req UpsertContactO
 		}
 		const query = `
 INSERT INTO carddav_contact_objects (
-  user_id, addressbook_id, object_name, uid, etag, size, vcard
-) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
+  user_id, addressbook_id, object_name, uid, etag, size, vcard, photo_data, photo_media_type
+) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (addressbook_id, object_name) WHERE status = 'active'
 DO UPDATE SET
   uid = EXCLUDED.uid,
   etag = EXCLUDED.etag,
   size = EXCLUDED.size,
   vcard = EXCLUDED.vcard,
+  photo_data = EXCLUDED.photo_data,
+  photo_media_type = EXCLUDED.photo_media_type,
   updated_at = now()
-RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at`
+RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, created_at, updated_at`
 		err = tx.QueryRowContext(ctx, query,
 			req.UserID,
 			req.AddressBookID,
 			req.ObjectName,
 			req.UID,
 			etag,
-			len(req.VCard),
-			string(req.VCard),
+			len(cleanVCard),
+			string(cleanVCard),
+			photoData,
+			photoMediaType,
 		).Scan(
 			&object.ID,
 			&object.UserID,
@@ -524,6 +613,8 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 			&object.ETag,
 			&object.Size,
 			&object.VCard,
+			&object.PhotoData,
+			&object.PhotoMediaType,
 			&object.CreatedAt,
 			&object.UpdatedAt,
 		)
@@ -567,7 +658,7 @@ func (r *Repository) listContactObjects(ctx context.Context, req ListContactObje
 		return nil, fmt.Errorf("database handle is required")
 	}
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -582,9 +673,10 @@ LIMIT $4`
 	var objects []ContactObject
 	for rows.Next() {
 		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.CreatedAt, &object.UpdatedAt); err != nil {
+		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, &object.CreatedAt, &object.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CardDAV contact object: %w", err)
 		}
+		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
 		objects = append(objects, object)
 	}
 	if err := rows.Err(); err != nil {
@@ -602,7 +694,7 @@ func (r *Repository) GetContactObject(ctx context.Context, req GetContactObjectR
 		return ContactObject{}, err
 	}
 	const query = `
-SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, created_at, updated_at
+SELECT id::text, user_id::text, addressbook_id::text, object_name, uid, etag, size, vcard, photo_data, photo_media_type, created_at, updated_at
 FROM carddav_contact_objects
 WHERE user_id = $1::uuid
   AND addressbook_id = $2::uuid
@@ -618,6 +710,8 @@ WHERE user_id = $1::uuid
 		&object.ETag,
 		&object.Size,
 		&object.VCard,
+		&object.PhotoData,
+		&object.PhotoMediaType,
 		&object.CreatedAt,
 		&object.UpdatedAt,
 	)
@@ -627,6 +721,7 @@ WHERE user_id = $1::uuid
 		}
 		return ContactObject{}, fmt.Errorf("get CardDAV contact object: %w", err)
 	}
+	object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
 	return object, nil
 }
 
@@ -706,6 +801,8 @@ SELECT c.id::text,
        c.etag,
        c.size,
        c.vcard,
+       c.photo_data,
+       c.photo_media_type,
        c.created_at,
        c.updated_at
 FROM requested r
@@ -722,9 +819,10 @@ WHERE c.user_id = $1::uuid
 	objects := make([]ContactObject, 0, len(lookups))
 	for rows.Next() {
 		var object ContactObject
-		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.CreatedAt, &object.UpdatedAt); err != nil {
+		if err := rows.Scan(&object.ID, &object.UserID, &object.AddressBookID, &object.ObjectName, &object.UID, &object.ETag, &object.Size, &object.VCard, &object.PhotoData, &object.PhotoMediaType, &object.CreatedAt, &object.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan CardDAV contact object by names: %w", err)
 		}
+		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
 		objects = append(objects, object)
 	}
 	if err := rows.Err(); err != nil {
@@ -759,6 +857,8 @@ SELECT c.id::text,
        c.etag,
        c.size,
        c.vcard,
+       c.photo_data,
+       c.photo_media_type,
        c.created_at,
        c.updated_at
 FROM carddav_contact_objects c
@@ -786,11 +886,14 @@ LIMIT $3`
 			&object.ETag,
 			&object.Size,
 			&object.VCard,
+			&object.PhotoData,
+			&object.PhotoMediaType,
 			&object.CreatedAt,
 			&object.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan contact object: %w", err)
 		}
+		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
 		objects = append(objects, object)
 	}
 	if err := rows.Err(); err != nil {
@@ -825,6 +928,8 @@ SELECT c.id::text,
        c.etag,
        c.size,
        c.vcard,
+       c.photo_data,
+       c.photo_media_type,
        c.created_at,
        c.updated_at
 FROM carddav_contact_objects c
@@ -852,11 +957,14 @@ LIMIT $3`
 			&object.ETag,
 			&object.Size,
 			&object.VCard,
+			&object.PhotoData,
+			&object.PhotoMediaType,
 			&object.CreatedAt,
 			&object.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan contact object: %w", err)
 		}
+		object.VCard = mergePhotoIntoVCard(object.VCard, object.PhotoData, object.PhotoMediaType)
 		objects = append(objects, object)
 	}
 	if err := rows.Err(); err != nil {
@@ -1012,8 +1120,12 @@ WHERE user_id = $1::uuid
 	}
 
 	vcardExpr := "NULL::text AS object_vcard"
+	photoDataExpr := "NULL::bytea AS object_photo_data"
+	photoMediaTypeExpr := "NULL::text AS object_photo_media_type"
 	if includeVCard {
 		vcardExpr = "o.vcard AS object_vcard"
+		photoDataExpr = "o.photo_data AS object_photo_data"
+		photoMediaTypeExpr = "o.photo_media_type AS object_photo_media_type"
 	}
 	query := `
 SELECT
@@ -1033,6 +1145,8 @@ SELECT
   o.etag AS object_etag,
   o.size AS object_size,
   ` + vcardExpr + `,
+  ` + photoDataExpr + `,
+  ` + photoMediaTypeExpr + `,
   o.created_at AS object_created_at,
   o.updated_at AS object_updated_at
 FROM carddav_addressbook_changes c
@@ -1064,6 +1178,8 @@ LIMIT $4`
 			objectETag          sql.NullString
 			objectSize          sql.NullInt64
 			objectVCard         sql.NullString
+			objectPhotoData     interface{}
+			objectPhotoMediaType sql.NullString
 			objectCreatedAt     sql.NullTime
 			objectUpdatedAt     sql.NullTime
 		)
@@ -1084,6 +1200,8 @@ LIMIT $4`
 			&objectETag,
 			&objectSize,
 			&objectVCard,
+			&objectPhotoData,
+			&objectPhotoMediaType,
 			&objectCreatedAt,
 			&objectUpdatedAt,
 		); err != nil {
@@ -1091,18 +1209,25 @@ LIMIT $4`
 		}
 		if objectID.Valid {
 			item.HasObject = true
-			item.Object = ContactObject{
-				ID:            objectID.String,
-				UserID:        objectUserID.String,
-				AddressBookID: objectAddressBookID.String,
-				ObjectName:    objectObjectName.String,
-				UID:           objectUID.String,
-				ETag:          objectETag.String,
-				Size:          objectSize.Int64,
-				VCard:         []byte(objectVCard.String),
-				CreatedAt:     objectCreatedAt.Time,
-				UpdatedAt:     objectUpdatedAt.Time,
+			photoData := []byte(nil)
+			if objectPhotoData != nil {
+				photoData = objectPhotoData.([]byte)
 			}
+			item.Object = ContactObject{
+				ID:               objectID.String,
+				UserID:           objectUserID.String,
+				AddressBookID:    objectAddressBookID.String,
+				ObjectName:       objectObjectName.String,
+				UID:              objectUID.String,
+				ETag:             objectETag.String,
+				Size:             objectSize.Int64,
+				VCard:            []byte(objectVCard.String),
+				PhotoData:        photoData,
+				PhotoMediaType:   objectPhotoMediaType.String,
+				CreatedAt:        objectCreatedAt.Time,
+				UpdatedAt:        objectUpdatedAt.Time,
+			}
+			item.Object.VCard = mergePhotoIntoVCard(item.Object.VCard, item.Object.PhotoData, item.Object.PhotoMediaType)
 		}
 		changes = append(changes, item)
 	}
