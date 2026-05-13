@@ -24,6 +24,10 @@ type Mailbox interface {
 	Deleted(i int) bool
 }
 
+type messageContentWithError interface {
+	MessageContentWithError(i int) (string, error)
+}
+
 // Store authenticates users and returns their mailboxes.
 type Store interface {
 	Authenticate(user, pass string) (Mailbox, error)
@@ -325,7 +329,11 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 			sess.writeERR("no such message")
 			return
 		}
-		content := sess.mailbox.MessageContent(idx - 1)
+		content, err := sess.messageContent(idx - 1)
+		if err != nil {
+			sess.writeERR("message content unavailable")
+			return
+		}
 		sess.writeOK(fmt.Sprintf("%d octets", len(content)))
 		sess.writeDotStuffedMultiline(content)
 		sess.writer.WriteString(".\r\n")
@@ -379,7 +387,11 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 			return
 		}
 		lines, _ := strconv.Atoi(args[1])
-		content := sess.mailbox.MessageContent(idx - 1)
+		content, err := sess.messageContent(idx - 1)
+		if err != nil {
+			sess.writeERR("message content unavailable")
+			return
+		}
 		sess.writeOK("")
 		sess.writeDotStuffedMultiline(topContent(content, lines))
 		sess.writer.WriteString(".\r\n")
@@ -414,6 +426,13 @@ func (sess *session) writeCapabilities() {
 	}
 	sess.writer.WriteString(".\r\n")
 	sess.writer.Flush()
+}
+
+func (sess *session) messageContent(i int) (string, error) {
+	if mailbox, ok := sess.mailbox.(messageContentWithError); ok {
+		return mailbox.MessageContentWithError(i)
+	}
+	return sess.mailbox.MessageContent(i), nil
 }
 
 func (sess *session) canUseSTLS() bool {

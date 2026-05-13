@@ -13,8 +13,9 @@ import (
 )
 
 type mockMailbox struct {
-	messages []mockMessage
-	deleted  map[int]bool
+	messages   []mockMessage
+	deleted    map[int]bool
+	contentErr map[int]error
 }
 
 type mockMessage struct {
@@ -49,6 +50,16 @@ func (m *mockMailbox) MessageContent(i int) string {
 		return ""
 	}
 	return m.messages[i].content
+}
+
+func (m *mockMailbox) MessageContentWithError(i int) (string, error) {
+	if err := m.contentErr[i]; err != nil {
+		return "", err
+	}
+	if i < 0 || i >= len(m.messages) {
+		return "", fmt.Errorf("invalid message index")
+	}
+	return m.messages[i].content, nil
 }
 
 func (m *mockMailbox) MarkDeleted(i int) error {
@@ -275,6 +286,22 @@ func TestPOP3RetrDotStuffsMessageBody(t *testing.T) {
 	}
 }
 
+func TestPOP3RetrReturnsErrorWhenMessageContentFetchFails(t *testing.T) {
+	server, listener := newTestServerWithMessages(t, []mockMessage{{
+		uidl: "msg001",
+		size: 64,
+	}})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	server.Store.(*mockStore).mailbox.contentErr = map[int]error{0: fmt.Errorf("object storage read failed")}
+	pop3Cmd(t, tp, "-ERR", "RETR 1")
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3DeleAndRset(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
@@ -364,6 +391,22 @@ func TestPOP3TopDotStuffsHeaderAndBody(t *testing.T) {
 	if strings.Contains(content, "last") {
 		t.Fatalf("TOP returned too many body lines: %q", content)
 	}
+}
+
+func TestPOP3TopReturnsErrorWhenMessageContentFetchFails(t *testing.T) {
+	server, listener := newTestServerWithMessages(t, []mockMessage{{
+		uidl: "msg001",
+		size: 64,
+	}})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	server.Store.(*mockStore).mailbox.contentErr = map[int]error{0: fmt.Errorf("object storage read failed")}
+	pop3Cmd(t, tp, "-ERR", "TOP 1 1")
+	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
 func TestPOP3Noop(t *testing.T) {
