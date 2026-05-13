@@ -23,6 +23,10 @@ interface User {
   domain_id: string;
 }
 
+interface Domain {
+  id: string;
+}
+
 interface ConfigEntry {
   ID: string;
   Key: string;
@@ -59,13 +63,20 @@ export default function UserConfigPage() {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      const res = await fetch(`/api/admin/users?limit=200`, {
+      const domainsRes = await fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, {
         credentials: 'include',
       });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data.users || []);
-      }
+      if (!domainsRes.ok) return;
+      const domainsData = await domainsRes.json();
+      const domains: Domain[] = domainsData.domains || [];
+      const userLists = await Promise.all(
+        domains.map((domain) =>
+          fetch(`/api/admin/users?domain_id=${encodeURIComponent(domain.id)}&limit=200`, {
+            credentials: 'include',
+          }).then((res) => res.ok ? res.json() : { users: [] })
+        )
+      );
+      setUsers(userLists.flatMap((data: { users?: User[] }) => data.users || []));
     } catch (error) {
       console.error('Failed to fetch users:', error);
     } finally {
