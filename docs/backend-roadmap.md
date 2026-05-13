@@ -5228,6 +5228,10 @@ Target outcome:
  1680. POP3 RETR after failed delete commit is now covered: failed QUIT
          rollback allows retrieving the restored message body, keeps the
          delete mark clear, and preserves the later no-delete QUIT fast path.
+ 1681. POP3 TOP after failed delete commit is now covered: failed QUIT
+         rollback allows retrieving the restored message header and requested
+         body lines, keeps the delete mark clear, and preserves the later
+         no-delete QUIT fast path.
 
 ## Deferred until backend contracts stabilize
 
