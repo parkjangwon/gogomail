@@ -1176,6 +1176,7 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 			MailboxID:      uid.MailboxID,
 			UID:            uid.UID,
 			SequenceNumber: imapUIDEventSequenceNumber(eventType, uid),
+			Messages:       imapUIDEventMessageCount(eventType, uid),
 		}); err != nil {
 			return err
 		}
@@ -1196,6 +1197,13 @@ func (s *Service) publishIMAPRestoredMessageEvents(ctx context.Context, userID s
 
 func imapUIDEventSequenceNumber(eventType imapgw.MailboxEventType, uid maildb.IMAPMessageUID) uint32 {
 	if eventType == imapgw.MailboxEventExpunge {
+		return uid.SequenceNumber
+	}
+	return 0
+}
+
+func imapUIDEventMessageCount(eventType imapgw.MailboxEventType, uid maildb.IMAPMessageUID) uint32 {
+	if eventType == imapgw.MailboxEventExists {
 		return uid.SequenceNumber
 	}
 	return 0
