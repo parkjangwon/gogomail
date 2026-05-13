@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event stale EXISTS coverage)
+Last updated: 2026-05-14 (IMAP mailbox event fresh EXISTS coverage)
+
+## IMAP mailbox event fresh EXISTS coverage (2026-05-14, complete)
+- `writeMailboxEvent` coverage now verifies a fresh EXISTS event with `Messages` above the selected count emits `* N EXISTS`.
+- The same test verifies `selectedMessages` is set to the event's absolute count rather than incremented by one.
 
 ## IMAP mailbox event stale EXISTS coverage (2026-05-14, complete)
 - `writeMailboxEvent` coverage now verifies EXISTS events whose `Messages` count is below or equal to the selected count produce no wire output.

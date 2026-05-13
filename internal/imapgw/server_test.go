@@ -6685,6 +6685,40 @@ func TestMailboxExistsEventIgnoresStaleCounts(t *testing.T) {
 	}
 }
 
+func TestMailboxExistsEventAppliesFreshCount(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	writer := bufio.NewWriter(&out)
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	state := &imapConnState{
+		session:          &Session{UserID: "user-1"},
+		selectedMailbox:  "inbox",
+		selectedMessages: 3,
+	}
+	err = server.writeMailboxEvent(writer, state, MailboxEvent{
+		Type:      MailboxEventExists,
+		UserID:    "user-1",
+		MailboxID: "inbox",
+		Messages:  5,
+	})
+	if err != nil {
+		t.Fatalf("writeMailboxEvent returned error: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush event: %v", err)
+	}
+	if got, want := out.String(), "* 5 EXISTS\r\n"; got != want {
+		t.Fatalf("fresh exists event output = %q, want %q", got, want)
+	}
+	if state.selectedMessages != 5 {
+		t.Fatalf("selectedMessages = %d, want 5", state.selectedMessages)
+	}
+}
+
 func TestMovedExpungeResponsesUpdateSavedSearchForMultipleExpunges(t *testing.T) {
 	t.Parallel()
 
