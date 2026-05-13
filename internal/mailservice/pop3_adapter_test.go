@@ -29,6 +29,7 @@ type pop3TestRepository struct {
 	pageFolders     []string
 	pageCursors     []maildb.MessageListCursor
 	bulkDeleteCalls int
+	bulkDeleteErr   error
 }
 
 func (r *pop3TestRepository) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -81,6 +82,9 @@ func (r *pop3TestRepository) GetMessage(_ context.Context, _, messageID string) 
 func (r *pop3TestRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
 	r.bulkDeleteCalls++
 	r.lastBulkDelete = req
+	if r.bulkDeleteErr != nil {
+		return 0, r.bulkDeleteErr
+	}
 	return int64(len(req.MessageIDs)), nil
 }
 
@@ -1076,6 +1080,32 @@ func TestPOP3MailboxCommitDeletesClearsPending(t *testing.T) {
 	}
 	if repo.bulkDeleteCalls != 1 {
 		t.Fatalf("bulk delete calls after second commit = %d, want 1", repo.bulkDeleteCalls)
+	}
+}
+
+func TestPOP3MailboxCommitDeleteFailurePreservesPending(t *testing.T) {
+	adapter, repo, _ := newPOP3TestSetup()
+	repo.bulkDeleteErr = fmt.Errorf("bulk delete failed")
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	mailbox, ok := mb.(*pop3Mailbox)
+	if !ok {
+		t.Fatal("expected pop3 mailbox adapter")
+	}
+	if err := mailbox.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	if err := mailbox.CommitDeletes(); err == nil {
+		t.Fatal("expected commit delete error")
+	}
+	if repo.bulkDeleteCalls != 1 {
+		t.Fatalf("bulk delete calls = %d, want 1", repo.bulkDeleteCalls)
+	}
+	if len(mailbox.pending) != 1 || mailbox.pending[0] != "msg-001" {
+		t.Fatalf("pending deletes = %#v, want [msg-001]", mailbox.pending)
+	}
+	if !mailbox.Deleted(0) {
+		t.Fatal("expected message to remain marked deleted after failed commit")
 	}
 }
 
