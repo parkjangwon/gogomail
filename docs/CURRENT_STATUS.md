@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 invalid content index)
+Last updated: 2026-05-14 (POP3 deleted content access)
+
+## POP3 deleted content access (2026-05-14, complete)
+- POP3 mailbox coverage now verifies deleted messages return empty content through `MessageContent`.
+- The error-returning content path now rejects deleted-message access explicitly.
 
 ## POP3 invalid content index (2026-05-14, complete)
 - POP3 mailbox coverage now verifies invalid `MessageContent` indexes return an empty string.

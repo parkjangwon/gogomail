@@ -5018,6 +5018,9 @@ Target outcome:
  1607. POP3 invalid content index handling is now covered: invalid
          `MessageContent` lookups return an empty string, while
          `MessageContentWithError` returns explicit errors for the same indexes.
+ 1608. POP3 deleted-message content access is now covered: after `MarkDeleted`,
+         `MessageContent` returns an empty body and `MessageContentWithError`
+         returns an explicit error.
 
 ## Deferred until backend contracts stabilize
 
