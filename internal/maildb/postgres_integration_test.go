@@ -1138,6 +1138,47 @@ INSERT INTO messages (
 	}
 }
 
+func TestPostgresRestoreMessageAssignsFreshIMAPUID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<restore-fresh-uid@example.com>',
+  'restore fresh uid', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/restore-fresh-uid.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert restore fresh uid message: %v", err)
+	}
+	oldUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if err := repo.DeleteMessage(ctx, seed.userID, messageID); err != nil {
+		t.Fatalf("DeleteMessage returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+	if err := repo.RestoreMessage(ctx, seed.userID, messageID); err != nil {
+		t.Fatalf("RestoreMessage returned error: %v", err)
+	}
+	freshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID restored message returned error: %v", err)
+	}
+	if freshUID.UID <= oldUID.UID {
+		t.Fatalf("restored UID = %d, want fresh UID above deleted UID %d", freshUID.UID, oldUID.UID)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 1)
+}
+
 func TestPostgresBulkMoveMessagesRemovesOldIMAPUIDRows(t *testing.T) {
 	t.Parallel()
 
