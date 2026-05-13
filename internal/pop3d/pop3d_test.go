@@ -144,6 +144,20 @@ func pop3ReadDotLines(t *testing.T, tp *textproto.Conn) string {
 	return string(data)
 }
 
+func pop3Capa(t *testing.T, tp *textproto.Conn) map[string]bool {
+	t.Helper()
+	pop3Cmd(t, tp, "+OK", "CAPA")
+	data := pop3ReadDotLines(t, tp)
+	lines := make(map[string]bool)
+	for _, line := range strings.Split(strings.TrimSpace(data), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line != "" {
+			lines[line] = true
+		}
+	}
+	return lines
+}
+
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -571,16 +585,32 @@ func TestPOP3Capa(t *testing.T) {
 	tp := pop3Conn(t, listener.Addr().String())
 	defer tp.Close()
 
-	pop3Cmd(t, tp, "+OK", "CAPA")
-	reader := tp.DotReader()
-	data := make([]byte, 1024)
-	n, _ := reader.Read(data)
-	if n == 0 {
-		t.Fatalf("expected CAPA list")
+	capa := pop3Capa(t, tp)
+	for _, want := range []string{"IMPLEMENTATION gogomail", "LOGIN-DELAY 0", "UIDL", "TOP", "USER", "SASL PLAIN LOGIN"} {
+		if !capa[want] {
+			t.Fatalf("expected CAPA %q in %#v", want, capa)
+		}
 	}
-	capa := string(data[:n])
-	if !strings.Contains(capa, "UIDL") {
-		t.Fatalf("expected UIDL in CAPA, got: %s", capa)
+}
+
+func TestPOP3TransactionCapaOmitsAuthOnlyCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	capa := pop3Capa(t, tp)
+	for _, want := range []string{"IMPLEMENTATION gogomail", "LOGIN-DELAY 0", "UIDL", "TOP"} {
+		if !capa[want] {
+			t.Fatalf("expected transaction CAPA %q in %#v", want, capa)
+		}
+	}
+	for _, unwanted := range []string{"USER", "SASL PLAIN LOGIN", "STLS"} {
+		if capa[unwanted] {
+			t.Fatalf("transaction CAPA advertised auth-only capability %q in %#v", unwanted, capa)
+		}
 	}
 }
 
