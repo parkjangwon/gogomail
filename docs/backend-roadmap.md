@@ -4819,6 +4819,12 @@ Target outcome:
          while preflighting capacity for new UID rows, returning stable
          exhaustion errors near the 32-bit IMAP UID limit instead of relying on
          database constraint failures.
+ 1553. Batch lazy UID assurance through `EnsureIMAPMessageUIDsForMessages`
+         now assigns missing UIDs in mailbox order rather than caller request
+         order: active targets are sorted by mailbox, internal date, and
+         message ID before invoking the single-message assignment path. This
+         keeps restored/exists event preparation aligned with operational
+         backfill and LIST lazy assignment timelines.
 
 ## Deferred until backend contracts stabilize
 

@@ -1061,6 +1061,48 @@ FOR UPDATE`, messageID).Scan(&lockedID); err != nil {
 	}
 }
 
+func TestPostgresEnsureIMAPMessageUIDsForMessagesAssignsMailboxOrder(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var firstID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<batch-ensure-first@example.com>',
+   'batch ensure first', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+   100, 'mail/batch-ensure-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<batch-ensure-second@example.com>',
+   'batch ensure second', 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz,
+   100, 'mail/batch-ensure-second.eml')
+RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&firstID); err != nil {
+		t.Fatalf("insert first batch ensure message: %v", err)
+	}
+	var secondID string
+	if err := db.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE user_id = $1::uuid
+  AND folder_id = $2::uuid
+  AND subject = 'batch ensure second'`, seed.userID, seed.inboxID).Scan(&secondID); err != nil {
+		t.Fatalf("select second batch ensure message: %v", err)
+	}
+
+	assigned, err := repo.EnsureIMAPMessageUIDsForMessages(ctx, seed.userID, []string{secondID, firstID})
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUIDsForMessages returned error: %v", err)
+	}
+	if len(assigned) != 2 || assigned[0].MessageID != imapgw.MessageID(firstID) || assigned[0].UID != 1 || assigned[1].MessageID != imapgw.MessageID(secondID) || assigned[1].UID != 2 {
+		t.Fatalf("assigned batch UIDs = %#v, want first UID 1 then second UID 2 despite reversed request", assigned)
+	}
+}
+
 func TestPostgresIMAPMailboxSubscriptionsPersistNames(t *testing.T) {
 	t.Parallel()
 
