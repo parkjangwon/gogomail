@@ -4847,6 +4847,10 @@ Target outcome:
          results with an empty mailbox ID before publishing EXISTS or delta
          sync mailbox-change notifications, preventing malformed mailbox
          fanout from incomplete UID rows.
+ 1559. IMAP mailbox event broker subscriptions and published events now trim
+         user and mailbox IDs before storing or fanout matching. Inputs with
+         surrounding whitespace no longer pass validation only to miss
+         subscribers because comparisons used the unnormalized values.
 
 ## Deferred until backend contracts stabilize
 

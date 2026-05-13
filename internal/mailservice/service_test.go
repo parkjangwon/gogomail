@@ -1107,7 +1107,7 @@ func TestSubscribeIMAPMailboxUsesEventBroker(t *testing.T) {
 	}
 }
 
-func TestSubscribeIMAPMailboxPreservesMailboxIDSpacing(t *testing.T) {
+func TestSubscribeIMAPMailboxNormalizesEventIdentity(t *testing.T) {
 	t.Parallel()
 
 	broker := imapgw.NewMailboxEventBroker(2)
@@ -1123,8 +1123,11 @@ func TestSubscribeIMAPMailboxPreservesMailboxIDSpacing(t *testing.T) {
 	}
 	select {
 	case got := <-events:
-		t.Fatalf("received event for trimmed mailbox id: %#v", got)
-	default:
+		if got.Type != imapgw.MailboxEventExists || got.UserID != "user-1" || got.MailboxID != "INBOX" || got.Messages != 1 {
+			t.Fatalf("event = %#v, want normalized trimmed mailbox event", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for normalized trimmed mailbox event")
 	}
 
 	if err := broker.Publish(context.Background(), imapgw.MailboxEvent{Type: imapgw.MailboxEventExists, UserID: "user-1", MailboxID: " INBOX ", Messages: 2}); err != nil {
@@ -1132,11 +1135,11 @@ func TestSubscribeIMAPMailboxPreservesMailboxIDSpacing(t *testing.T) {
 	}
 	select {
 	case got := <-events:
-		if got.Type != imapgw.MailboxEventExists || got.Messages != 2 {
-			t.Fatalf("event = %#v", got)
+		if got.Type != imapgw.MailboxEventExists || got.UserID != "user-1" || got.MailboxID != "INBOX" || got.Messages != 2 {
+			t.Fatalf("event = %#v, want normalized spaced mailbox event", got)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for exact mailbox event")
+		t.Fatal("timed out waiting for normalized spaced mailbox event")
 	}
 }
 
