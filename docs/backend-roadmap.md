@@ -5390,6 +5390,8 @@ Target outcome:
    assignment when predicting `UIDNEXT` and `HIGHESTMODSEQ`.
 10. IMAP message listings now emit explicit mailbox-relative sequence numbers
     after lazy UID assignment, including `AfterUID` partial listings.
+11. POP3 `RETR` now reports the same mailbox size used by `LIST`/`STAT`,
+    keeping message octet counts consistent within a maildrop snapshot.
 
 ---
 

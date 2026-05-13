@@ -1,30 +1,30 @@
 # ACTIVE_TASK
 
-## TASK-268: IMAP lazy UID assignment ordering audit
+## TASK-269: POP3 message listing consistency audit
 
 ### 배경
 
-IMAP lazy UID assignment는 active message에 UID를 뒤늦게 배정하더라도
-클라이언트가 보는 sequence number와 UID ordering이 일관되어야 한다. 특히
-`AfterUID` 기반 부분 목록을 반환할 때 sequence number를 부분 목록 index로
-암묵 대체하면 실제 mailbox 기준 sequence와 어긋난다.
+POP3 `STAT`, `LIST`, `RETR`는 같은 maildrop snapshot의 message size를
+일관되게 보고해야 한다. `LIST`/`STAT`는 mailbox metadata size를 쓰는데
+`RETR`가 content 문자열 길이를 다시 계산하면 line-ending 정규화나 저장소
+표현 차이로 octet count가 서로 달라질 수 있다.
 
 ### 구현 대상
 
-- `internal/maildb/imap_uid.go`
-- `internal/maildb/imap_uid_test.go`
+- `internal/pop3d/pop3d.go`
+- `internal/pop3d/pop3d_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] `ListIMAPMessages`가 UID 정렬 후 실제 mailbox 기준 sequence number를 명시적으로 채운다.
-- [x] `AfterUID` 부분 목록은 이전 active UID 개수를 base로 sequence number를 계산한다.
-- [x] `go test ./internal/maildb` 통과.
+- [x] `RETR`의 octet count가 `LIST`/`STAT`와 같은 `MessageSize` 기준을 사용한다.
+- [x] LF-only content에서도 `LIST`와 `RETR`가 같은 size를 알리는 회귀 테스트를 추가한다.
+- [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-269: POP3 message listing consistency audit
+TASK-270: POP3 delete commit idempotency audit

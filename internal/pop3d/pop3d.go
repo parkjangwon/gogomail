@@ -413,7 +413,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 			sess.writeERR("message content unavailable")
 			return
 		}
-		sess.writeOK(fmt.Sprintf("%d octets", len(content)))
+		sess.writeOK(fmt.Sprintf("%d octets", sess.mailbox.MessageSize(idx-1)))
 		sess.writeDotStuffedMultiline(content)
 		sess.writer.WriteString(".\r\n")
 		sess.writer.Flush()

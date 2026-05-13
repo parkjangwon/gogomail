@@ -548,6 +548,30 @@ func TestPOP3Retr(t *testing.T) {
 	}
 }
 
+func TestPOP3RetrAnnouncesListSize(t *testing.T) {
+	_, listener := newTestServerWithMessages(t, []mockMessage{{
+		uidl:    "msg001",
+		size:    42,
+		content: "From: a@example.com\n\nHello with LF endings\n",
+	}})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	listLine := pop3Cmd(t, tp, "+OK", "LIST 1")
+	retrLine := pop3Cmd(t, tp, "+OK", "RETR 1")
+	_, _ = io.Copy(io.Discard, tp.DotReader())
+
+	if !strings.Contains(listLine, "1 42") {
+		t.Fatalf("LIST response = %q, want stored size 42", listLine)
+	}
+	if !strings.Contains(retrLine, "42 octets") {
+		t.Fatalf("RETR response = %q, want LIST size in octets", retrLine)
+	}
+}
+
 func TestPOP3RetrDotStuffsMessageBody(t *testing.T) {
 	_, listener := newTestServerWithMessages(t, []mockMessage{{
 		uidl:    "msg001",
