@@ -5264,6 +5264,9 @@ Target outcome:
  1691. SMTP inbound EHLO policy reset is now covered at the TCP protocol layer:
          repeated EHLO after mixed-domain RCPT state clears accumulated domain
          limits before accepting the next recipient set.
+ 1692. SMTP inbound HELO policy reset is now covered at the TCP protocol layer:
+         HELO after mixed-domain RCPT state clears accumulated domain limits
+         before accepting the next recipient set.
 
 ## Deferred until backend contracts stabilize
 

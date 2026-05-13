@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound domain policy EHLO reset)
+Last updated: 2026-05-14 (SMTP inbound domain policy HELO reset)
+
+## SMTP inbound domain policy HELO reset (2026-05-14, complete)
+- SMTP protocol coverage now verifies `HELO` clears accumulated mixed-domain recipient policy state.
+- The regression verifies a following d1-only transaction is not blocked by the previous d2 size limit and records only the accepted d1 recipient.
 
 ## SMTP inbound domain policy EHLO reset (2026-05-14, complete)
 - SMTP protocol coverage now verifies a repeated `EHLO` clears accumulated mixed-domain recipient policy state.
