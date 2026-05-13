@@ -46,6 +46,9 @@ delivery_farm_concurrency:
 delivery_domain_concurrency: example.com=5,example.net=3
 attachment_scan_timeout: 3s
 imap_max_connections: 512
+imap_read_timeout: 45s
+imap_write_timeout: 15s
+imap_idle_timeout: 35m
 pop3s_addr: :1995
 pop3_max_connections: 384
 smtp_max_connections: 1024
@@ -94,6 +97,15 @@ submission_max_connections: 256
 	}
 	if cfg.IMAPMaxConnections != 512 {
 		t.Fatalf("IMAPMaxConnections = %d, want 512", cfg.IMAPMaxConnections)
+	}
+	if cfg.IMAPReadTimeout != 45*time.Second {
+		t.Fatalf("IMAPReadTimeout = %s, want 45s", cfg.IMAPReadTimeout)
+	}
+	if cfg.IMAPWriteTimeout != 15*time.Second {
+		t.Fatalf("IMAPWriteTimeout = %s, want 15s", cfg.IMAPWriteTimeout)
+	}
+	if cfg.IMAPIdleTimeout != 35*time.Minute {
+		t.Fatalf("IMAPIdleTimeout = %s, want 35m", cfg.IMAPIdleTimeout)
 	}
 	if cfg.POP3MaxConnections != 384 {
 		t.Fatalf("POP3MaxConnections = %d, want 384", cfg.POP3MaxConnections)

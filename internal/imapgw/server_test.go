@@ -40,6 +40,9 @@ func TestNewServerValidatesListenerOptions(t *testing.T) {
 		{name: "missing backend", opts: ServerOptions{Addr: ":1143", AllowInsecureAuth: true}},
 		{name: "tls required", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}}},
 		{name: "negative max connections", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true, MaxConnections: -1}},
+		{name: "negative read timeout", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true, ReadTimeout: -time.Second}},
+		{name: "negative write timeout", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true, WriteTimeout: -time.Second}},
+		{name: "negative idle timeout", opts: ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true, IdleTimeout: -time.Second}},
 	} {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,6 +52,110 @@ func TestNewServerValidatesListenerOptions(t *testing.T) {
 				t.Fatal("NewServer error = nil, want rejection")
 			}
 		})
+	}
+}
+
+func TestServerServeConnAppliesReadTimeout(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{
+		Addr:              "127.0.0.1:0",
+		Backend:           fakeBackend{},
+		AllowInsecureAuth: true,
+		ReadTimeout:       20 * time.Millisecond,
+		WriteTimeout:      time.Second,
+	})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "* OK ") {
+		t.Fatalf("greeting = %q, err = %v", line, err)
+	}
+
+	select {
+	case err := <-errCh:
+		var netErr net.Error
+		if !errors.As(err, &netErr) || !netErr.Timeout() {
+			t.Fatalf("ServeConn err = %v, want timeout", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ServeConn did not return after read timeout")
+	}
+}
+
+func TestServerServeConnAppliesIdleTimeout(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{
+		Addr:              "127.0.0.1:0",
+		Backend:           fakeBackend{},
+		AllowInsecureAuth: true,
+		ReadTimeout:       time.Second,
+		WriteTimeout:      time.Second,
+		IdleTimeout:       20 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "* OK ") {
+		t.Fatalf("greeting = %q, err = %v", line, err)
+	}
+	if _, err := io.WriteString(client, "a1 LOGIN user@example.com secret\r\n"); err != nil {
+		t.Fatalf("write LOGIN: %v", err)
+	}
+	readUntilPrefix(t, reader, "a1 OK ")
+	if _, err := io.WriteString(client, "a2 SELECT INBOX\r\n"); err != nil {
+		t.Fatalf("write SELECT: %v", err)
+	}
+	readUntilPrefix(t, reader, "a2 OK ")
+	if _, err := io.WriteString(client, "a3 IDLE\r\n"); err != nil {
+		t.Fatalf("write IDLE: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q, err = %v", line, err)
+	}
+
+	select {
+	case err := <-errCh:
+		var netErr net.Error
+		if !errors.As(err, &netErr) || !netErr.Timeout() {
+			t.Fatalf("ServeConn err = %v, want timeout", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ServeConn did not return after idle timeout")
+	}
+}
+
+func readUntilPrefix(t *testing.T, reader *bufio.Reader, prefix string) string {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read %q response: %v", prefix, err)
+		}
+		if strings.HasPrefix(line, prefix) {
+			return line
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for response prefix %q; last line = %q", prefix, line)
+		}
 	}
 }
 

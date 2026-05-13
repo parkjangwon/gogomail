@@ -337,6 +337,9 @@ type imapServerOptions struct {
 	TLSConfig         *tls.Config
 	AllowInsecureAuth bool
 	MaxConnections    int
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
 }
 
 func newIMAPGatewayRuntime(repository mailservice.Repository, store storage.Store, authenticator smtpd.SubmissionAuthenticator, quotaAlertEmitter maildb.QuotaWarningEmitterInterface) imapGatewayRuntime {
@@ -366,6 +369,9 @@ func imapServerOptionsForConfig(cfg config.Config, backend imapgw.Backend) (imap
 		TLSConfig:         tlsConfig,
 		AllowInsecureAuth: cfg.IMAPAllowInsecureAuth,
 		MaxConnections:    cfg.IMAPMaxConnections,
+		ReadTimeout:       cfg.IMAPReadTimeout,
+		WriteTimeout:      cfg.IMAPWriteTimeout,
+		IdleTimeout:       cfg.IMAPIdleTimeout,
 	}, nil
 }
 
@@ -376,6 +382,9 @@ func newIMAPServer(opts imapServerOptions) (*imapgw.Server, error) {
 		TLSConfig:         opts.TLSConfig,
 		AllowInsecureAuth: opts.AllowInsecureAuth,
 		MaxConnections:    opts.MaxConnections,
+		ReadTimeout:       opts.ReadTimeout,
+		WriteTimeout:      opts.WriteTimeout,
+		IdleTimeout:       opts.IdleTimeout,
 	})
 }
 

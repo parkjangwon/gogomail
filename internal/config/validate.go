@@ -106,6 +106,15 @@ func (c Config) Validate() error {
 	if c.IMAPMaxConnections < 0 {
 		return fmt.Errorf("GOGOMAIL_IMAP_MAX_CONNECTIONS must not be negative")
 	}
+	if c.IMAPReadTimeout < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_READ_TIMEOUT must not be negative")
+	}
+	if c.IMAPWriteTimeout < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_WRITE_TIMEOUT must not be negative")
+	}
+	if c.IMAPIdleTimeout < 0 {
+		return fmt.Errorf("GOGOMAIL_IMAP_IDLE_TIMEOUT must not be negative")
+	}
 	if c.POP3MaxConnections < 0 {
 		return fmt.Errorf("GOGOMAIL_POP3_MAX_CONNECTIONS must not be negative")
 	}

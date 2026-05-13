@@ -34,6 +34,9 @@ type ServerOptions struct {
 	TLSConfig         *tls.Config
 	AllowInsecureAuth bool
 	MaxConnections    int
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
 }
 
 type Server struct {
@@ -63,6 +66,15 @@ func NewServer(opts ServerOptions) (*Server, error) {
 	}
 	if opts.MaxConnections < 0 {
 		return nil, fmt.Errorf("imap max connections must not be negative")
+	}
+	if opts.ReadTimeout < 0 {
+		return nil, fmt.Errorf("imap read timeout must not be negative")
+	}
+	if opts.WriteTimeout < 0 {
+		return nil, fmt.Errorf("imap write timeout must not be negative")
+	}
+	if opts.IdleTimeout < 0 {
+		return nil, fmt.Errorf("imap idle timeout must not be negative")
 	}
 	opts.Addr = addr
 	return &Server{options: opts}, nil
@@ -190,11 +202,17 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	if _, err := writer.WriteString("* OK " + s.capabilityCode(&state) + " gogomail IMAP4rev1 service ready\r\n"); err != nil {
 		return err
 	}
+	if err := s.setWriteDeadline(conn); err != nil {
+		return err
+	}
 	if err := writer.Flush(); err != nil {
 		return err
 	}
 	defer state.closeSubscription()
 	for {
+		if err := s.setReadDeadline(conn, s.options.ReadTimeout); err != nil {
+			return err
+		}
 		line, literals, err := s.readCommandLine(reader, writer, &state)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -203,6 +221,9 @@ func (s *Server) ServeConn(conn net.Conn) error {
 			var framingErr imapProtocolFramingError
 			if errors.As(err, &framingErr) {
 				if err := writeIMAPFramingError(writer, framingErr.line, framingErr.message); err != nil {
+					return err
+				}
+				if err := s.setWriteDeadline(conn); err != nil {
 					return err
 				}
 				if err := writer.Flush(); err != nil {
@@ -216,14 +237,20 @@ func (s *Server) ServeConn(conn net.Conn) error {
 		if err != nil {
 			return err
 		}
+		if err := s.setWriteDeadline(conn); err != nil {
+			return err
+		}
 		if err := writer.Flush(); err != nil {
 			return err
 		}
 		if state.pendingIdleTag != "" {
-			if err := s.serveIdle(reader, writer, &state); err != nil {
+			if err := s.serveIdle(conn, reader, writer, &state); err != nil {
 				var framingErr imapProtocolFramingError
 				if errors.As(err, &framingErr) {
 					if err := writeIMAPFramingError(writer, framingErr.line, framingErr.message); err != nil {
+						return err
+					}
+					if err := s.setWriteDeadline(conn); err != nil {
 						return err
 					}
 					if err := writer.Flush(); err != nil {
@@ -233,13 +260,22 @@ func (s *Server) ServeConn(conn net.Conn) error {
 				}
 				return err
 			}
+			if err := s.setWriteDeadline(conn); err != nil {
+				return err
+			}
 			if err := writer.Flush(); err != nil {
 				return err
 			}
 		}
 		if state.startTLS {
+			if err := s.setHandshakeDeadline(conn); err != nil {
+				return err
+			}
 			tlsConn := tls.Server(conn, s.options.TLSConfig)
 			if err := tlsConn.Handshake(); err != nil {
+				return err
+			}
+			if err := tlsConn.SetDeadline(time.Time{}); err != nil {
 				return err
 			}
 			conn = tlsConn
@@ -252,6 +288,37 @@ func (s *Server) ServeConn(conn net.Conn) error {
 			return nil
 		}
 	}
+}
+
+func (s *Server) setReadDeadline(conn net.Conn, timeout time.Duration) error {
+	if conn == nil {
+		return nil
+	}
+	if timeout <= 0 {
+		return conn.SetReadDeadline(time.Time{})
+	}
+	return conn.SetReadDeadline(time.Now().Add(timeout))
+}
+
+func (s *Server) setWriteDeadline(conn net.Conn) error {
+	if conn == nil {
+		return nil
+	}
+	if s.options.WriteTimeout <= 0 {
+		return conn.SetWriteDeadline(time.Time{})
+	}
+	return conn.SetWriteDeadline(time.Now().Add(s.options.WriteTimeout))
+}
+
+func (s *Server) setHandshakeDeadline(conn net.Conn) error {
+	timeout := s.options.ReadTimeout
+	if s.options.WriteTimeout > timeout {
+		timeout = s.options.WriteTimeout
+	}
+	if conn == nil || timeout <= 0 {
+		return nil
+	}
+	return conn.SetDeadline(time.Now().Add(timeout))
 }
 
 func (s *Server) readCommandLine(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) (string, []string, error) {
@@ -1788,7 +1855,10 @@ type idleLineResult struct {
 	err  error
 }
 
-func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) error {
+func (s *Server) serveIdle(conn net.Conn, reader *bufio.Reader, writer *bufio.Writer, state *imapConnState) error {
+	if err := s.setReadDeadline(conn, s.options.IdleTimeout); err != nil {
+		return err
+	}
 	lineCh := make(chan idleLineResult, 1)
 	go func() {
 		line, err := readIMAPLine(reader, maxIMAPCommandLineBytes)
@@ -1824,6 +1894,9 @@ func (s *Server) serveIdle(reader *bufio.Reader, writer *bufio.Writer, state *im
 				continue
 			}
 			if err := s.writeMailboxEvent(writer, state, event); err != nil {
+				return err
+			}
+			if err := s.setWriteDeadline(conn); err != nil {
 				return err
 			}
 			if err := writer.Flush(); err != nil {
@@ -2090,13 +2163,13 @@ func (s *Server) handleUIDLine(writer *bufio.Writer, tag string, fields []string
 	case "THREAD":
 		return s.handleThread(writer, tag, append([]string{fields[0], fields[2]}, fields[3:]...), state, true)
 	case "STORE":
-			return s.handleUIDStore(writer, tag, fields, state)
+		return s.handleUIDStore(writer, tag, fields, state)
 	case "EXPUNGE":
-			return s.handleUIDExpunge(writer, tag, fields, state)
+		return s.handleUIDExpunge(writer, tag, fields, state)
 	case "COPY":
 		return s.handleUIDCopy(writer, tag, fields, state)
 	case "MOVE":
-			return s.handleUIDMove(writer, tag, fields, state)
+		return s.handleUIDMove(writer, tag, fields, state)
 	default:
 		_, err := writer.WriteString(tag + " BAD UID command not implemented\r\n")
 		return false, err

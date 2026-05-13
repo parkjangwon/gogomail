@@ -61,6 +61,12 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLBool(value, &cfg.IMAPAllowInsecureAuth, key)
 	case "imap_max_connections":
 		return setYAMLInt(value, &cfg.IMAPMaxConnections, key)
+	case "imap_read_timeout":
+		return setYAMLDuration(value, &cfg.IMAPReadTimeout, key)
+	case "imap_write_timeout":
+		return setYAMLDuration(value, &cfg.IMAPWriteTimeout, key)
+	case "imap_idle_timeout":
+		return setYAMLDuration(value, &cfg.IMAPIdleTimeout, key)
 	case "pop3s_addr":
 		return setYAMLString(value, &cfg.POP3SAddr, key)
 	case "pop3_max_connections":
