@@ -2032,6 +2032,9 @@ FOR UPDATE`
 	if err := tx.QueryRowContext(ctx, lockMailbox, mailboxID, userID).Scan(&uidNext, &highestModSeq); err != nil {
 		return nil, fmt.Errorf("lock imap mailbox state: %w", err)
 	}
+	if err := lockIMAPMailboxFolderForUIDAllocation(ctx, tx, userID, mailboxID); err != nil {
+		return nil, err
+	}
 
 	const selectMessages = `
 SELECT m.id::text
