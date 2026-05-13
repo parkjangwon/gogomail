@@ -402,6 +402,7 @@ func TestValidateUpsertObjectRequestRejectsUnsafeInput(t *testing.T) {
 	t.Parallel()
 
 	validBody := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+	methodBody := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:event-1@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 	tests := []UpsertObjectRequest{
 		{CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid", ICS: validBody},
 		{UserID: "user-1", ObjectName: "event.ics", UID: "uid", ICS: validBody},
@@ -409,6 +410,7 @@ func TestValidateUpsertObjectRequestRejectsUnsafeInput(t *testing.T) {
 		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "bad/name.ics", UID: "uid", ICS: validBody},
 		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "event.ics", UID: "bad\nuid", ICS: validBody},
 		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid", Component: "VALARM", ICS: validBody},
+		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid", ICS: methodBody},
 		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid"},
 		{UserID: "user-1", CalendarID: "calendar-1", ObjectName: "event.ics", UID: "uid", ICS: validBody, ObservedETag: `"ABC"`},
 	}
