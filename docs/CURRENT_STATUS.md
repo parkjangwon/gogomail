@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 authorization empty command recovery)
+Last updated: 2026-05-14 (POP3 transaction USER PASS denial)
+
+## POP3 transaction USER PASS denial (2026-05-14, complete)
+- POP3 server coverage now verifies transaction-state `USER` and `PASS` are rejected as unknown commands.
+- The regression verifies `NOOP` and `STAT` still work after rejected reauthentication attempts.
 
 ## POP3 authorization empty command recovery (2026-05-14, complete)
 - POP3 server coverage now verifies empty authorization-state command lines return `-ERR syntax error`.

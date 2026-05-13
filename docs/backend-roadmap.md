@@ -5148,6 +5148,8 @@ Target outcome:
  1651. POP3 authorization-state empty-command handling now verifies session
          recovery: blank command lines return syntax error while CAPA and normal
          login remain usable afterward.
+ 1652. POP3 transaction-state USER/PASS denial is now covered: reauthentication
+         attempts are rejected while NOOP and STAT remain usable afterward.
 
 ## Deferred until backend contracts stabilize
 
