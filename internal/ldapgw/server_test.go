@@ -1146,6 +1146,79 @@ func TestLDAPServerOpenLDAPNoAttributesCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPObjectClassRequiredAttributesCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice User",
+	})
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "cn=team,ou=groups,dc=example,dc=com",
+		Kind:        "group",
+		CN:          "Team",
+		UID:         "team",
+		DisplayName: "Team",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	userCmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(objectClass=person)",
+		"objectClass",
+		"cn",
+		"sn",
+	)
+	userOut, err := userCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch user required attrs failed: %v\n%s", err, userOut)
+	}
+	if output := string(userOut); !strings.Contains(output, "objectClass: person") || !strings.Contains(output, "sn: Alice User") {
+		t.Fatalf("ldapsearch user output missing person/sn:\n%s", output)
+	}
+
+	groupCmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=groups,dc=example,dc=com",
+		"(objectClass=groupOfNames)",
+		"objectClass",
+		"cn",
+		"member",
+	)
+	groupOut, err := groupCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch group required attrs failed: %v\n%s", err, groupOut)
+	}
+	if output := string(groupOut); !strings.Contains(output, "objectClass: groupOfNames") ||
+		!strings.Contains(output, "member: cn=team,ou=groups,dc=example,dc=com") {
+		t.Fatalf("ldapsearch group output missing groupOfNames/member:\n%s", output)
+	}
+}
+
 func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
@@ -1523,6 +1596,29 @@ func TestSelectLDAPAttributesHonorsSpecialSelectors(t *testing.T) {
 	got = selectLDAPAttributes(attrs, []string{"*", "+"}, false)
 	if len(got) != len(attrs) || got["cn"][0] != "Alice" || got["supportedLDAPVersion"][0] != "3" {
 		t.Fatalf("*,+ selected attrs = %#v, want user and operational attrs", got)
+	}
+}
+
+func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testing.T) {
+	userAttrs := principalLDAPAttributes(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		UID:         "alice",
+		DisplayName: "Alice User",
+	})
+	if userAttrs["sn"][0] != "Alice User" {
+		t.Fatalf("user sn = %#v, want display-name fallback for person MUST sn", userAttrs["sn"])
+	}
+	groupAttrs := principalLDAPAttributes(PrincipalEntry{
+		DN:          "cn=team,ou=groups,dc=example,dc=com",
+		Kind:        "group",
+		CN:          "Team",
+		UID:         "team",
+		DisplayName: "Team",
+	})
+	if groupAttrs["member"][0] != "cn=team,ou=groups,dc=example,dc=com" {
+		t.Fatalf("group member = %#v, want DN fallback for groupOfNames MUST member", groupAttrs["member"])
 	}
 }
 
