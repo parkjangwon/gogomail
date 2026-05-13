@@ -5177,6 +5177,9 @@ Target outcome:
  1662. POP3 empty-command handling after DELE is now covered: parser errors
          preserve pending delete state, so LIST fails for the deleted message
          and STAT excludes it afterward.
+ 1663. POP3 transaction AUTH denial after DELE is now covered: reauthentication
+         denials preserve pending delete state, so LIST fails for the deleted
+         message and STAT excludes it afterward.
 
 ## Deferred until backend contracts stabilize
 
