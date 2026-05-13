@@ -1046,6 +1046,56 @@ func TestLDAPServerOpenLDAPSearchCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPAttributeSelectionCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(mail=alice@example.com)",
+		"mail",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch attribute selection failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "mail: alice@example.com") {
+		t.Fatalf("ldapsearch output missing requested mail attribute:\n%s", output)
+	}
+	for _, unexpected := range []string{"cn: Alice", "uid: alice", "objectClass: inetOrgPerson", "displayName: Alice"} {
+		if strings.Contains(output, unexpected) {
+			t.Fatalf("ldapsearch output included unrequested attribute %q:\n%s", unexpected, output)
+		}
+	}
+}
+
 func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
