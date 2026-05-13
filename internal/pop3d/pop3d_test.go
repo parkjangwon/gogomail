@@ -560,6 +560,46 @@ func TestPOP3AuthLoginPasswordCancellationKeepsSessionUsable(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthLoginAuthenticates(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("alice"))); err != nil {
+		t.Fatalf("send auth login username: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login password continuation: %v", err)
+	}
+	if !strings.HasPrefix(line, "+") {
+		t.Fatalf("expected password continuation, got: %s", line)
+	}
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("secret"))); err != nil {
+		t.Fatalf("send auth login password: %v", err)
+	}
+	line, err = tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login success: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("expected auth login success, got: %s", line)
+	}
+	tp.EndResponse(id)
+
+	capa := pop3Capa(t, tp)
+	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH LOGIN: %#v", capa)
+	}
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected authenticated STAT after AUTH LOGIN, got: %s", line)
+	}
+}
+
 func TestPOP3AuthLoginInvalidPasswordBase64KeepsAuthCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

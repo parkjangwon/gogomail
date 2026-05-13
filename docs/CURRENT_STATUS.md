@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH PLAIN initial response success capability)
+Last updated: 2026-05-14 (POP3 AUTH LOGIN success capability)
+
+## POP3 AUTH LOGIN success capability (2026-05-14, complete)
+- POP3 server coverage now verifies challenge-style `AUTH LOGIN` accepts valid username/password credentials.
+- The regression verifies transaction CAPA drops auth-only capabilities and `STAT` works after authentication.
 
 ## POP3 AUTH PLAIN initial response success capability (2026-05-14, complete)
 - POP3 server coverage now verifies initial-response `AUTH PLAIN` accepts valid credentials.
