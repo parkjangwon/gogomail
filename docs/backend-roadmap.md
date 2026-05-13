@@ -4830,6 +4830,10 @@ Target outcome:
          therefore match APPEND/COPY summary events by publishing
          `Messages=SequenceNumber`, allowing selected sessions to jump to the
          correct EXISTS count instead of blindly incrementing local state.
+ 1555. Restored-message IMAP EXISTS events are coalesced by mailbox before
+         publishing. Bulk restore operations keep only the highest ensured
+         sequence count for each mailbox, reducing redundant EXISTS chatter
+         while preserving one final count update per affected mailbox.
 
 ## Deferred until backend contracts stabilize
 
