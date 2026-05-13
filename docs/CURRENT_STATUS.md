@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker canceled subscription validation)
+Last updated: 2026-05-14 (IMAP event broker cancel idempotency validation)
+
+## IMAP event broker cancel idempotency validation (2026-05-14, complete)
+- Broker regression coverage now verifies calling a subscription cancel function repeatedly leaves subscriber accounting at zero.
+- The same coverage verifies the subscription channel is closed after repeated cancel calls without panic.
 
 ## IMAP event broker canceled subscription validation (2026-05-14, complete)
 - The mailbox event broker now exposes a safe `SubscriberCount` diagnostic accessor.
