@@ -5276,6 +5276,9 @@ Target outcome:
  1695. SMTP inbound RSET reset is now covered for domain policy and DSN state:
          explicit reset clears accumulated limits and DSN metadata before the
          next accepted transaction.
+ 1696. SMTP inbound MAIL reset is now covered for domain policy and DSN state:
+         a new MAIL command clears accumulated limits and DSN metadata before
+         the next accepted transaction.
 
 ## Deferred until backend contracts stabilize
 
