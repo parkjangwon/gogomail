@@ -269,6 +269,10 @@ function buildInlineQuoteHTML(intent: string, sourceText: string): string {
   return `<p></p>${header}<blockquote>${bodyLines}</blockquote>`;
 }
 
+function backendComposeIntent(intent: 'reply' | 'reply_all' | 'forward' | 'new'): 'reply' | 'forward' | 'new' {
+  return intent === 'reply_all' ? 'reply' : intent;
+}
+
 const toolbarBtnStyleInline = (active?: boolean): React.CSSProperties => ({
   width: '28px',
   height: '28px',
@@ -368,6 +372,8 @@ function InlineCompose({ intent, to: initTo, subject: initSubject, messageId, so
     const toAddrs = parseAddrs(to);
     const ccAddrs = parseAddrs(cc);
     const bccAddrs = parseAddrs(bcc);
+    const normalizedIntent = backendComposeIntent(intent);
+    const isReplyOrForward = normalizedIntent !== 'new';
     setSending(true);
     sendMessage({
       to: toAddrs,
@@ -376,7 +382,7 @@ function InlineCompose({ intent, to: initTo, subject: initSubject, messageId, so
       subject,
       text_body: '',
       html_body: editor.getHTML(),
-      source_message_id: messageId,
+      ...(isReplyOrForward && { intent: normalizedIntent, source_message_id: messageId }),
       attachment_ids: attachments.filter((a) => !a.uploading).map((a) => a.id),
     })
       .then(() => { setSent(true); setTimeout(() => { onClose(); }, 1500); })

@@ -26,9 +26,19 @@ interface DeliveryRoute {
   hosts: string[];
   port: number;
   tls_mode: string;
-  status: string;
+  status: 'active' | 'disabled' | string;
   description: string;
   created_at: string;
+}
+
+type DeliveryRouteStatus = 'active' | 'disabled';
+
+function isRouteActive(status: string): boolean {
+  return status.trim().toLowerCase() === 'active';
+}
+
+function nextRouteStatus(status: string): DeliveryRouteStatus {
+  return isRouteActive(status) ? 'disabled' : 'active';
 }
 
 const TLS_OPTIONS: SelectProps.Option[] = [
@@ -128,7 +138,7 @@ export default function DeliveryRoutesPage() {
 
   const handleToggleStatus = async (route: DeliveryRoute) => {
     setTogglingId(route.id);
-    const nextStatus = route.status === 'active' ? 'inactive' : 'active';
+    const nextStatus = nextRouteStatus(route.status);
     try {
       await fetch(`/api/admin/delivery-routes/${route.id}/status`, {
         method: 'PATCH',
@@ -212,7 +222,7 @@ export default function DeliveryRoutesPage() {
             {
               header: t('pages.routes_page.status'),
               cell: (item: DeliveryRoute) => (
-                <Badge color={item.status === 'active' ? 'green' : 'grey'}>
+                <Badge color={isRouteActive(item.status) ? 'green' : 'grey'}>
                   {item.status}
                 </Badge>
               ),
@@ -233,7 +243,7 @@ export default function DeliveryRoutesPage() {
                     onClick={() => handleToggleStatus(item)}
                     loading={togglingId === item.id}
                   >
-                    {item.status === 'active'
+                    {isRouteActive(item.status)
                       ? t('pages.routes_page.deactivate')
                       : t('pages.routes_page.activate')}
                   </Button>

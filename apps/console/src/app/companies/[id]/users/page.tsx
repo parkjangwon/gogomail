@@ -33,7 +33,7 @@ interface User {
   username: string;
   display_name: string;
   role: string;
-  status: string;
+  status: UserStatus;
   password_configured: boolean;
   must_change_password: boolean;
   quota_used: number;
@@ -47,11 +47,26 @@ interface Domain {
   status: string;
 }
 
-const STATUS_COLORS: Record<string, 'green' | 'red' | 'grey' | 'blue'> = {
+type UserStatus = 'active' | 'suspended' | 'disabled';
+
+const STATUS_COLORS: Record<UserStatus, 'green' | 'red' | 'grey' | 'blue'> = {
   active: 'green',
   suspended: 'red',
-  inactive: 'grey',
+  disabled: 'red',
 };
+
+function normalizeUserStatus(rawStatus: unknown): UserStatus {
+  switch (String(rawStatus).trim().toLowerCase()) {
+    case 'active':
+      return 'active';
+    case 'suspended':
+      return 'suspended';
+    case 'disabled':
+      return 'disabled';
+    default:
+      return 'disabled';
+  }
+}
 
 export default function UsersPage() {
   const { t } = useI18n();
@@ -108,7 +123,10 @@ export default function UsersPage() {
       const res = await fetch('/api/admin/users?limit=200', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setUsers(data.users || []);
+        setUsers((data.users || []).map((u: { status?: unknown }) => ({
+          ...u,
+          status: normalizeUserStatus(u.status),
+        })));
       }
     } catch (e) {
       console.error('Failed to fetch users:', e);
@@ -402,7 +420,7 @@ export default function UsersPage() {
     { label: t('pages.users_page.all_statuses'), value: '' },
     { label: t('pages.users_page.active'), value: 'active' },
     { label: t('pages.users_page.suspended'), value: 'suspended' },
-    { label: t('pages.users_page.inactive'), value: 'inactive' },
+    { label: t('pages.users_page.disabled'), value: 'disabled' },
   ];
 
   const domainOptions = domains.map(d => ({
@@ -425,7 +443,7 @@ export default function UsersPage() {
 
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
-  const suspendedUsers = users.filter(u => u.status === 'suspended' || u.status === 'inactive').length;
+  const suspendedUsers = users.filter(u => u.status === 'suspended' || u.status === 'disabled').length;
 
   const formatStorage = (used: number, limit: number) => {
     const usedGb = (used / 1073741824).toFixed(1);

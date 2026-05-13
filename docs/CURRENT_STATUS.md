@@ -2,6 +2,11 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## Admin/webmail contract 정합성 정리 (2026-05-13, complete)
+- 콘솔 사용자 목록은 상태값(`active|suspended|disabled`)로 정규화해 알 수 없는/레거시 값은 `disabled`로 폴백 처리하고, 상태 색상/카운트 집계도 정합성 있게 정리.
+- 콘솔 전달 라우트 토글 동작을 `active/disabled` 상태계약에 맞춰 수정해 잘못된 `inactive` 요청이 나가지 않도록 보정.
+- 웹메일 인라인 답장/전체답장/전달 동작에서 `reply_all` 인텐트를 `reply`로 변환해 전송 payload를 정규화하고, `reply`/`forward` 케이스에서만 `source_message_id`를 전송하도록 반영해 compose 계약과 정합성 유지.
+
 ## CalDAV/CardDAV auth and report stability hardening (2026-05-13, complete)
 - CalDAV/CardDAV Basic Auth now gates `X-Forwarded-Proto=https` on explicit
   trusted proxy configuration, with env/YAML loading, validation, and runtime
