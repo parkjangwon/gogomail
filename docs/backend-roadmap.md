@@ -5723,6 +5723,18 @@ Implementation order:
 7. LDAP referral for multi-domain environments.
 8. Metrics boundary for bind/search/error observations.
 
+Current implementation notes:
+
+- LDAP gateway mode (`gogomail --mode=ldap-gateway`) can expose plaintext LDAP on `GOGOMAIL_LDAP_ADDR` and implicit TLS LDAP on `GOGOMAIL_LDAPS_ADDR`.
+- StartTLS is advertised through Root DSE `supportedExtension` and handled when `GOGOMAIL_LDAP_TLS_CERT_FILE` / `GOGOMAIL_LDAP_TLS_KEY_FILE` are configured.
+- Root DSE advertises `subschemaSubentry`, and `cn=Subschema` base-object search returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style directory clients.
+- SearchRequest parsing now covers scope, deref aliases, client size/time limits, typesOnly, filter, and requested attribute selection before mapping supported directory filters into the repository boundary.
+- Common client search filters using OR/AND/NOT wrappers and substring matches are accepted for RFC 4519 directory attributes (`cn`, `mail`, `uid`, `displayName`, `givenName`, `sn`).
+- Cross-naming-context requests can return SearchResultReference values from `GOGOMAIL_LDAP_REFERRAL_URLS` for multi-domain deployments.
+- LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, Simple Paged Results returns continuation cookies, and unsupported critical controls return `unavailableCriticalExtension`.
+- Bind/search/extended/read-only outcomes now expose a metrics boundary and can be logged through `GOGOMAIL_METRICS_BACKEND=slog`.
+- Remaining hardening for full enterprise interoperability: broader optional client controls and a wider real-client compatibility matrix.
+
 ### 3-B. SCIM 2.0 Provisioning API (RFC 7642, 7643, 7644)
 
 Machine-to-machine user/group provisioning for identity providers (Okta, Azure AD, Google Workspace).

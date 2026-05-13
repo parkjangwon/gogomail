@@ -625,7 +625,7 @@ WITH principals AS (
 SELECT id, kind, company_id, domain_id, organization_id, display_name, primary_email, status, resource_type
 FROM principals
 ORDER BY kind_rank, lower(display_name), id
-LIMIT $6`
+LIMIT $6 OFFSET $11`
 	rows, err := r.db.QueryContext(ctx, query,
 		req.CompanyID,
 		req.DomainID,
@@ -637,6 +637,7 @@ LIMIT $6`
 		allowOrganization,
 		allowGroup,
 		allowResource,
+		req.Offset,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search directory principals: %w", err)

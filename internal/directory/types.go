@@ -87,6 +87,7 @@ type SearchPrincipalsRequest struct {
 	Query          string
 	ActiveOnly     bool
 	Limit          int
+	Offset         int
 }
 
 type Alias struct {
@@ -351,6 +352,9 @@ func NormalizeSearchPrincipalsRequest(req SearchPrincipalsRequest) (SearchPrinci
 	}
 	if req.Limit > MaxPrincipalSearchLimit {
 		return SearchPrincipalsRequest{}, fmt.Errorf("principal search limit is too large")
+	}
+	if req.Offset < 0 {
+		return SearchPrincipalsRequest{}, fmt.Errorf("principal search offset must not be negative")
 	}
 	if len(req.Kinds) == 0 {
 		req.Kinds = []string{PrincipalKindUser, PrincipalKindOrganization, PrincipalKindGroup, PrincipalKindResource}

@@ -58,6 +58,9 @@ func (c Config) Validate() error {
 	if (c.IMAPTLSCertFile == "") != (c.IMAPTLSKeyFile == "") {
 		return fmt.Errorf("both IMAP TLS certificate and key files are required")
 	}
+	if (c.LDAPTLSCertFile == "") != (c.LDAPTLSKeyFile == "") {
+		return fmt.Errorf("both LDAP TLS certificate and key files are required")
+	}
 	if c.HTTPReadTimeout <= 0 {
 		return fmt.Errorf("GOGOMAIL_HTTP_READ_TIMEOUT must be positive")
 	}
@@ -97,11 +100,31 @@ func (c Config) Validate() error {
 	if err := validateTCPAddr("GOGOMAIL_WEBDAV_ADDR", c.WebDAVAddr, true); err != nil {
 		return err
 	}
+	if err := validateTCPAddr("GOGOMAIL_LDAP_ADDR", c.LDAPAddr, false); err != nil {
+		return err
+	}
+	if err := validateTCPAddr("GOGOMAIL_LDAPS_ADDR", c.LDAPSAddr, false); err != nil {
+		return err
+	}
+	if strings.TrimSpace(c.LDAPSAddr) != "" && (c.LDAPTLSCertFile == "" || c.LDAPTLSKeyFile == "") {
+		return fmt.Errorf("GOGOMAIL_LDAPS_ADDR requires LDAP TLS certificate and key files")
+	}
 	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_CERT_FILE", c.IMAPTLSCertFile, 4096); err != nil {
 		return err
 	}
 	if err := validateBoundedNoCRLF("GOGOMAIL_IMAP_TLS_KEY_FILE", c.IMAPTLSKeyFile, 4096); err != nil {
 		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_LDAP_TLS_CERT_FILE", c.LDAPTLSCertFile, 4096); err != nil {
+		return err
+	}
+	if err := validateBoundedNoCRLF("GOGOMAIL_LDAP_TLS_KEY_FILE", c.LDAPTLSKeyFile, 4096); err != nil {
+		return err
+	}
+	for _, referralURL := range c.LDAPReferralURLs {
+		if err := validateLDAPReferralURL(referralURL); err != nil {
+			return err
+		}
 	}
 	if c.IMAPMaxConnections < 0 {
 		return fmt.Errorf("GOGOMAIL_IMAP_MAX_CONNECTIONS must not be negative")
@@ -818,6 +841,30 @@ func validateS3CredentialNoWhitespace(name string, value string, maxBytes int, r
 	}
 	if len(value) > maxBytes {
 		return fmt.Errorf("%s is too long", name)
+	}
+	return nil
+}
+
+func validateLDAPReferralURL(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("GOGOMAIL_LDAP_REFERRAL_URLS cannot contain line breaks")
+	}
+	if len(value) > 4096 {
+		return fmt.Errorf("GOGOMAIL_LDAP_REFERRAL_URLS entry is too long")
+	}
+	u, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("GOGOMAIL_LDAP_REFERRAL_URLS entry is invalid: %w", err)
+	}
+	if u.Scheme != "ldap" && u.Scheme != "ldaps" {
+		return fmt.Errorf("GOGOMAIL_LDAP_REFERRAL_URLS entries must use ldap or ldaps")
+	}
+	if strings.TrimSpace(u.Host) == "" {
+		return fmt.Errorf("GOGOMAIL_LDAP_REFERRAL_URLS entries must include a host")
 	}
 	return nil
 }

@@ -2,8 +2,15 @@ package ldapgw
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"sync"
 	"testing"
@@ -39,6 +46,25 @@ type fakeDirectoryQuerier struct {
 	principals []PrincipalEntry
 }
 
+type fakeLDAPMetrics struct {
+	mu     sync.Mutex
+	events []MetricEvent
+}
+
+func (f *fakeLDAPMetrics) ObserveLDAP(_ context.Context, event MetricEvent) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.events = append(f.events, event)
+}
+
+func (f *fakeLDAPMetrics) snapshot() []MetricEvent {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]MetricEvent, len(f.events))
+	copy(out, f.events)
+	return out
+}
+
 func newFakeDirectoryQuerier() *fakeDirectoryQuerier {
 	return &fakeDirectoryQuerier{principals: make([]PrincipalEntry, 0)}
 }
@@ -46,8 +72,16 @@ func newFakeDirectoryQuerier() *fakeDirectoryQuerier {
 func (f *fakeDirectoryQuerier) SearchPrincipals(ctx context.Context, req DirectorySearchRequest) ([]PrincipalEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	start := req.Offset
+	if start > len(f.principals) {
+		start = len(f.principals)
+	}
+	end := len(f.principals)
+	if req.Limit > 0 && start+req.Limit < end {
+		end = start + req.Limit
+	}
 	var result []PrincipalEntry
-	for _, p := range f.principals {
+	for _, p := range f.principals[start:end] {
 		result = append(result, p)
 	}
 	return result, nil
@@ -60,6 +94,10 @@ func (f *fakeDirectoryQuerier) addPrincipal(p PrincipalEntry) {
 }
 
 func buildLDAPPacket(msgID int, opTag int, opData []byte) []byte {
+	return buildLDAPPacketWithControls(msgID, opTag, opData, nil)
+}
+
+func buildLDAPPacketWithControls(msgID int, opTag int, opData []byte, controls []control) []byte {
 	var opContent []byte
 	opContent = append([]byte{byte(opTag)}, encodeLength(len(opData))...)
 	opContent = append(opContent, opData...)
@@ -72,12 +110,39 @@ func buildLDAPPacket(msgID int, opTag int, opData []byte) []byte {
 	var seqContent []byte
 	seqContent = append(seqContent, msgIDContent...)
 	seqContent = append(seqContent, opContent...)
+	if len(controls) > 0 {
+		seqContent = append(seqContent, encodeTestControls(controls)...)
+	}
 
 	result := make([]byte, 0, 2+len(seqContent))
 	result = append(result, tagSequence)
 	result = append(result, encodeLength(len(seqContent))...)
 	result = append(result, seqContent...)
 	return result
+}
+
+func encodeTestControls(controls []control) []byte {
+	var controlsContent []byte
+	for _, ctrl := range controls {
+		var ctrlContent []byte
+		ctrlContent = append(ctrlContent, encodeOctetString(ctrl.Type)...)
+		if ctrl.Critical {
+			ctrlContent = append(ctrlContent, tagBoolean, 0x01, 0xff)
+		}
+		if ctrl.Value != nil {
+			ctrlContent = append(ctrlContent, tagOctetString)
+			ctrlContent = append(ctrlContent, encodeLength(len(ctrl.Value))...)
+			ctrlContent = append(ctrlContent, ctrl.Value...)
+		}
+		controlsContent = append(controlsContent, tagSequence)
+		controlsContent = append(controlsContent, encodeLength(len(ctrlContent))...)
+		controlsContent = append(controlsContent, ctrlContent...)
+	}
+	var wrapped []byte
+	wrapped = append(wrapped, 0xa0)
+	wrapped = append(wrapped, encodeLength(len(controlsContent))...)
+	wrapped = append(wrapped, controlsContent...)
+	return wrapped
 }
 
 func buildBindRequest(version int, name, password string) []byte {
@@ -95,16 +160,88 @@ func buildBindRequest(version int, name, password string) []byte {
 func buildSearchRequest(baseDN string, scope int, filter []byte) []byte {
 	var content []byte
 	content = append(content, encodeOctetString(baseDN)...)
-	content = append(content, encodeInt(scope)...)
+	content = append(content, encodeEnumerated(scope)...)
+	content = append(content, encodeEnumerated(0)...)
 	content = append(content, encodeInt(0)...)
+	content = append(content, encodeInt(0)...)
+	content = append(content, tagBoolean, 0x01, 0x00)
 	content = append(content, filter...)
-	content = append(content, encodeInt(0)...)
-	content = append(content, encodeInt(0)...)
 	var attrList []byte
 	attrList = append(attrList, tagSequence)
 	attrList = append(attrList, encodeLength(0)...)
 	content = append(content, attrList...)
 	return content
+}
+
+func buildSearchRequestWithAttrs(baseDN string, scope int, filter []byte, attrs ...string) []byte {
+	var content []byte
+	content = append(content, encodeOctetString(baseDN)...)
+	content = append(content, encodeEnumerated(scope)...)
+	content = append(content, encodeEnumerated(0)...)
+	content = append(content, encodeInt(0)...)
+	content = append(content, encodeInt(0)...)
+	content = append(content, tagBoolean, 0x01, 0x00)
+	content = append(content, filter...)
+	var attrContent []byte
+	for _, attr := range attrs {
+		attrContent = append(attrContent, encodeOctetString(attr)...)
+	}
+	content = append(content, tagSequence)
+	content = append(content, encodeLength(len(attrContent))...)
+	content = append(content, attrContent...)
+	return content
+}
+
+func buildExtendedRequest(name string) []byte {
+	var content []byte
+	content = append(content, 0x80)
+	content = append(content, encodeLength(len(name))...)
+	content = append(content, []byte(name)...)
+	return content
+}
+
+func buildEqualityFilter(attr, value string) []byte {
+	filterContent := append(encodeOctetString(attr), encodeOctetString(value)...)
+	filterData := []byte{tagContextSpecific | filterEqualityMatch}
+	filterData = append(filterData, encodeLength(len(filterContent))...)
+	return append(filterData, filterContent...)
+}
+
+func buildSubstringFilter(attr string, parts ...string) []byte {
+	var substrings []byte
+	for _, part := range parts {
+		substrings = append(substrings, 0x81)
+		substrings = append(substrings, encodeLength(len(part))...)
+		substrings = append(substrings, []byte(part)...)
+	}
+	substringSeq := []byte{tagSequence}
+	substringSeq = append(substringSeq, encodeLength(len(substrings))...)
+	substringSeq = append(substringSeq, substrings...)
+	filterContent := append(encodeOctetString(attr), substringSeq...)
+	filterData := []byte{tagContextSpecific | filterSubstrings}
+	filterData = append(filterData, encodeLength(len(filterContent))...)
+	return append(filterData, filterContent...)
+}
+
+func buildOrFilter(children ...[]byte) []byte {
+	var content []byte
+	for _, child := range children {
+		content = append(content, child...)
+	}
+	filterData := []byte{tagContextSpecific | 0x20 | filterOr}
+	filterData = append(filterData, encodeLength(len(content))...)
+	return append(filterData, content...)
+}
+
+func buildPagedResultsControl(pageSize int, cookie string) control {
+	var value []byte
+	value = append(value, encodeInt(pageSize)...)
+	value = append(value, encodeOctetString(cookie)...)
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(value))...)
+	seq = append(seq, value...)
+	return control{Type: controlPagedResults, Value: seq}
 }
 
 func sendPDU(conn net.Conn, pdu []byte) error {
@@ -148,6 +285,59 @@ func readFullPDU(conn net.Conn, deadline time.Time) ([]byte, error) {
 		return nil, err
 	}
 	return append(header, body...), nil
+}
+
+func readSearchUntilDone(t *testing.T, conn net.Conn) (int, []control) {
+	t.Helper()
+	entries := 0
+	for {
+		resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+		if err != nil {
+			t.Fatalf("read search response: %v", err)
+		}
+		_, opTag, _, controls, err := decodeLDAPPacketWithControls(resp)
+		if err != nil {
+			t.Fatalf("decode search response: %v", err)
+		}
+		switch opTag {
+		case opSearchResultEntry:
+			entries++
+		case opSearchResultDone:
+			return entries, controls
+		default:
+			t.Fatalf("unexpected search response opTag = %d", opTag)
+		}
+	}
+}
+
+func pagedResponseCookie(t *testing.T, controls []control) string {
+	t.Helper()
+	for _, ctrl := range controls {
+		if ctrl.Type != controlPagedResults {
+			continue
+		}
+		if len(ctrl.Value) == 0 || ctrl.Value[0] != tagSequence {
+			t.Fatalf("paged response control value is not a sequence: %x", ctrl.Value)
+		}
+		content, err := decodeContent(ctrl.Value[1:])
+		if err != nil {
+			t.Fatalf("decode paged response control: %v", err)
+		}
+		_, rest, err := decodeInt(content)
+		if err != nil {
+			t.Fatalf("decode paged response size: %v", err)
+		}
+		cookie, rest, err := decodeOctetString(rest)
+		if err != nil {
+			t.Fatalf("decode paged response cookie: %v", err)
+		}
+		if len(rest) != 0 {
+			t.Fatalf("paged response control has trailing data: %x", rest)
+		}
+		return cookie
+	}
+	t.Fatalf("missing paged results response control: %+v", controls)
+	return ""
 }
 
 func TestLDAPServerBindSuccess(t *testing.T) {
@@ -312,10 +502,10 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	auth.addUser("admin@example.com", "secret")
 	dir := newFakeDirectoryQuerier()
 	dir.addPrincipal(PrincipalEntry{
-		DN:   "uid=alice,ou=users,dc=example,dc=com",
-		CN:   "alice",
-		Mail: "alice@example.com",
-		UID:  "alice",
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		CN:          "alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
 		DisplayName: "Alice User",
 	})
 
@@ -329,10 +519,7 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	}
 	defer conn.Close()
 
-	filterData := []byte{tagContextSpecific | filterEqualityMatch}
-	filterContent := append(encodeOctetString("mail"), encodeOctetString("alice@example.com")...)
-	filterData = append(filterData, encodeLength(len(filterContent))...)
-	filterData = append(filterData, filterContent...)
+	filterData := buildEqualityFilter("mail", "alice@example.com")
 
 	searchReq := buildLDAPPacket(5, opSearchRequest, buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, filterData))
 	if err := sendPDU(conn, searchReq); err != nil {
@@ -364,4 +551,404 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 	}
 }
 
+func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
 
+	metrics := &fakeLDAPMetrics{}
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		CN:          "alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice User",
+	})
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), dir, ServerOptions{Metrics: metrics})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacketWithControls(10, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("mail", "alice@example.com")),
+		[]control{{Type: controlManageDsaIT, Critical: true}},
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, _, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	events := metrics.snapshot()
+	if len(events) != 1 || events[0].Operation != "search" || events[0].Result != MetricAccepted || events[0].Entries != 1 {
+		t.Fatalf("metrics = %+v, want accepted search with one entry", events)
+	}
+}
+
+func TestLDAPServerRejectsUnsupportedCriticalControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	metrics := &fakeLDAPMetrics{}
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{Metrics: metrics})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacketWithControls(11, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("mail", "alice@example.com")),
+		[]control{{Type: "1.2.3.4.5", Critical: true}},
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultDone {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultDone)
+	}
+	if got := decodeEnumerated(opData); got != resultUnavailableCriticalExtension {
+		t.Fatalf("result = %d, want %d", got, resultUnavailableCriticalExtension)
+	}
+	events := metrics.snapshot()
+	if len(events) != 1 || events[0].Result != MetricRejected || events[0].ResultCode != resultUnavailableCriticalExtension {
+		t.Fatalf("metrics = %+v, want rejected critical-control event", events)
+	}
+}
+
+func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	for i := 1; i <= 3; i++ {
+		uid := fmt.Sprintf("user%d", i)
+		dir.addPrincipal(PrincipalEntry{
+			DN:          fmt.Sprintf("uid=%s,ou=users,dc=example,dc=com", uid),
+			CN:          uid,
+			Mail:        uid + "@example.com",
+			UID:         uid,
+			DisplayName: "User " + fmt.Sprint(i),
+		})
+	}
+	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	firstPageReq := buildLDAPPacketWithControls(20, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{buildPagedResultsControl(2, "")},
+	)
+	if err := sendPDU(conn, firstPageReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, controls := readSearchUntilDone(t, conn)
+	if entries != 2 {
+		t.Fatalf("first page entries = %d, want 2", entries)
+	}
+	cookie := pagedResponseCookie(t, controls)
+	if cookie != "2" {
+		t.Fatalf("first page cookie = %q, want %q", cookie, "2")
+	}
+
+	secondPageReq := buildLDAPPacketWithControls(21, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+		[]control{buildPagedResultsControl(2, cookie)},
+	)
+	if err := sendPDU(conn, secondPageReq); err != nil {
+		t.Fatal(err)
+	}
+	entries, controls = readSearchUntilDone(t, conn)
+	if entries != 1 {
+		t.Fatalf("second page entries = %d, want 1", entries)
+	}
+	if cookie := pagedResponseCookie(t, controls); cookie != "" {
+		t.Fatalf("second page cookie = %q, want empty", cookie)
+	}
+}
+
+func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{
+		TLSConfig:      testLDAPTLSConfig(t),
+		NamingContexts: []string{"dc=example,dc=com"},
+	})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	filter := []byte{tagContextSpecific | filterPresent}
+	filter = append(filter, encodeLength(len("objectClass"))...)
+	filter = append(filter, []byte("objectClass")...)
+	searchReq := buildLDAPPacket(6, opSearchRequest, buildSearchRequestWithAttrs("", scopeBaseObject, filter, "namingContexts", "supportedExtension", "subschemaSubentry"))
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if !bytesContains(opData, []byte("dc=example,dc=com")) {
+		t.Fatalf("root DSE response did not include naming context: %x", opData)
+	}
+	if !bytesContains(opData, []byte(startTLSOID)) {
+		t.Fatalf("root DSE response did not include StartTLS OID: %x", opData)
+	}
+	if !bytesContains(opData, []byte("cn=Subschema")) {
+		t.Fatalf("root DSE response did not include subschemaSubentry: %x", opData)
+	}
+}
+
+func TestLDAPServerReturnsSubschemaDiscovery(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	filter := []byte{tagContextSpecific | filterPresent}
+	filter = append(filter, encodeLength(len("objectClass"))...)
+	filter = append(filter, []byte("objectClass")...)
+	searchReq := buildLDAPPacket(12, opSearchRequest, buildSearchRequestWithAttrs("cn=Subschema", scopeBaseObject, filter, "objectClasses", "attributeTypes"))
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if !bytesContains(opData, []byte("inetOrgPerson")) || !bytesContains(opData, []byte("displayName")) {
+		t.Fatalf("subschema response missing expected directory schema: %x", opData)
+	}
+}
+
+func TestLDAPServerStartTLSAllowsSearchAfterUpgrade(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		CN:          "alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice User",
+	})
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), dir, ServerOptions{TLSConfig: testLDAPTLSConfig(t)})
+	go srv.Serve()
+	defer srv.Close()
+
+	rawConn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rawConn.Close()
+
+	startTLSReq := buildLDAPPacket(7, opExtendedRequest, buildExtendedRequest(startTLSOID))
+	if err := sendPDU(rawConn, startTLSReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(rawConn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opExtendedResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("StartTLS response op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opExtendedResponse, resultSuccess)
+	}
+
+	conn := tls.Client(rawConn, &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12})
+	if err := conn.Handshake(); err != nil {
+		t.Fatalf("TLS handshake: %v", err)
+	}
+
+	filterData := buildEqualityFilter("mail", "alice@example.com")
+	searchReq := buildLDAPPacket(8, opSearchRequest, buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, filterData))
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, _, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode search response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag after StartTLS = %d, want %d", opTag, opSearchResultEntry)
+	}
+}
+
+func TestLDAPServerReturnsSearchReferenceForForeignNamingContext(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{
+		NamingContexts: []string{"dc=example,dc=com"},
+		ReferralURLs:   []string{"ldap://directory.example.net/dc=example,dc=net"},
+	})
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacket(9, opSearchRequest, buildSearchRequest("dc=example,dc=net", scopeWholeSubtree, buildEqualityFilter("mail", "alice@example.net")))
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultReference {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultReference)
+	}
+	if !bytesContains(opData, []byte("ldap://directory.example.net/dc=example,dc=net")) {
+		t.Fatalf("referral response did not include URL: %x", opData)
+	}
+}
+
+func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
+	filter := buildOrFilter(
+		buildEqualityFilter("objectClass", "person"),
+		buildSubstringFilter("cn", "ali"),
+		buildSubstringFilter("mail", "ali"),
+	)
+	got, err := parseLDAPFilter(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilter returned error: %v", err)
+	}
+	if got != "(cn=ali)" {
+		t.Fatalf("parseLDAPFilter = %q, want first searchable substring candidate", got)
+	}
+}
+
+func bytesContains(haystack, needle []byte) bool {
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if string(haystack[i:i+len(needle)]) == string(needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func testLDAPTLSConfig(t *testing.T) *tls.Config {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey returned error: %v", err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("CreateCertificate returned error: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("X509KeyPair returned error: %v", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+}

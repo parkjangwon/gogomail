@@ -805,32 +805,86 @@ func runLDAPGateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 		companyID:  cfg.LDAPCompanyID,
 		baseDomain: cfg.LDAPBaseDomain,
 	}
-
-	addr := cfg.LDAPAddr
-	if addr == "" {
-		addr = ":389"
-	}
-	ln, err := net.Listen("tcp", addr)
+	tlsConfig, err := ldapTLSConfig(cfg)
 	if err != nil {
 		return err
 	}
+	namingContexts := []string{}
+	if strings.TrimSpace(cfg.LDAPBaseDomain) != "" {
+		namingContexts = append(namingContexts, strings.TrimSpace(cfg.LDAPBaseDomain))
+	}
 
-	srv := ldapgw.NewServer(ln, auth, querier)
-	errCh := make(chan error, 1)
-	go func() {
-		logger.Info("ldap gateway listening", "mode", ModeLDAPGateway, "addr", ln.Addr().String())
-		errCh <- srv.Serve()
-	}()
+	errCh := make(chan error, 2)
+	var servers []*ldapgw.LDAPServer
+	if addr := strings.TrimSpace(cfg.LDAPAddr); addr != "" {
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return err
+		}
+		srv := ldapgw.NewServerWithOptions(ln, auth, querier, ldapgw.ServerOptions{
+			TLSConfig:      tlsConfig,
+			NamingContexts: namingContexts,
+			ReferralURLs:   cfg.LDAPReferralURLs,
+			Metrics:        ldapMetrics(cfg, logger),
+		})
+		servers = append(servers, srv)
+		go func() {
+			logger.Info("ldap gateway listening", "mode", ModeLDAPGateway, "addr", ln.Addr().String(), "starttls_configured", tlsConfig != nil)
+			errCh <- srv.Serve()
+		}()
+	}
+	if addr := strings.TrimSpace(cfg.LDAPSAddr); addr != "" {
+		if tlsConfig == nil {
+			return errors.New("GOGOMAIL_LDAPS_ADDR requires LDAP TLS certificate and key files")
+		}
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return err
+		}
+		tlsLn := tls.NewListener(ln, tlsConfig)
+		srv := ldapgw.NewServerWithOptions(tlsLn, auth, querier, ldapgw.ServerOptions{
+			NamingContexts: namingContexts,
+			ReferralURLs:   cfg.LDAPReferralURLs,
+			Metrics:        ldapMetrics(cfg, logger),
+		})
+		servers = append(servers, srv)
+		go func() {
+			logger.Info("ldaps gateway listening", "mode", ModeLDAPGateway, "addr", ln.Addr().String())
+			errCh <- srv.Serve()
+		}()
+	}
+	if len(servers) == 0 {
+		return errors.New("at least one LDAP listener address must be configured")
+	}
 
 	select {
 	case <-ctx.Done():
-		if err := srv.Close(); err != nil {
-			logger.Warn("close ldap server", "error", err)
+		for _, srv := range servers {
+			if err := srv.Close(); err != nil {
+				logger.Warn("close ldap server", "error", err)
+			}
 		}
 		return ctx.Err()
 	case err := <-errCh:
 		return err
 	}
+}
+
+func ldapTLSConfig(cfg config.Config) (*tls.Config, error) {
+	if cfg.LDAPTLSCertFile == "" && cfg.LDAPTLSKeyFile == "" {
+		return nil, nil
+	}
+	if cfg.LDAPTLSCertFile == "" || cfg.LDAPTLSKeyFile == "" {
+		return nil, errors.New("both LDAP TLS certificate and key files are required")
+	}
+	cert, err := tls.LoadX509KeyPair(cfg.LDAPTLSCertFile, cfg.LDAPTLSKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}, nil
 }
 
 type ldapDirectoryQuerier struct {
@@ -850,6 +904,7 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 		Query:      query,
 		ActiveOnly: true,
 		Limit:      limit,
+		Offset:     req.Offset,
 	})
 	if err != nil {
 		return nil, err
@@ -963,8 +1018,14 @@ func ldapFilterToQuery(filter string) string {
 	filter = strings.TrimPrefix(filter, "(")
 	filter = strings.TrimSuffix(filter, ")")
 	if idx := strings.Index(filter, "="); idx >= 0 {
+		attr := strings.ToLower(strings.TrimSpace(filter[:idx]))
+		switch attr {
+		case "cn", "mail", "uid", "displayname", "givenname", "sn":
+		default:
+			return ""
+		}
 		val := filter[idx+1:]
-		val = strings.TrimSuffix(val, "*")
+		val = strings.Trim(val, "*")
 		return val
 	}
 	return ""
@@ -2471,6 +2532,13 @@ func smtpMetrics(cfg config.Config, logger *slog.Logger) smtpd.Metrics {
 }
 
 func deliveryMetrics(cfg config.Config, logger *slog.Logger) delivery.Metrics {
+	if cfg.MetricsBackend == "slog" {
+		return observability.NewSlogAdapter(logger)
+	}
+	return nil
+}
+
+func ldapMetrics(cfg config.Config, logger *slog.Logger) ldapgw.Metrics {
 	if cfg.MetricsBackend == "slog" {
 		return observability.NewSlogAdapter(logger)
 	}

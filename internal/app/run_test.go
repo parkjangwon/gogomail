@@ -70,6 +70,40 @@ func TestIMAPTLSServerNameUsesListenerHost(t *testing.T) {
 	}
 }
 
+func TestLDAPTLSConfigRequiresCertAndKeyTogether(t *testing.T) {
+	t.Parallel()
+
+	if _, err := ldapTLSConfig(config.Config{LDAPTLSCertFile: "cert.pem"}); err == nil {
+		t.Fatal("ldapTLSConfig accepted certificate without key")
+	}
+	if _, err := ldapTLSConfig(config.Config{LDAPTLSKeyFile: "key.pem"}); err == nil {
+		t.Fatal("ldapTLSConfig accepted key without certificate")
+	}
+}
+
+func TestLDAPTLSConfigAllowsNoTLSFiles(t *testing.T) {
+	t.Parallel()
+
+	tlsConfig, err := ldapTLSConfig(config.Config{})
+	if err != nil {
+		t.Fatalf("ldapTLSConfig returned error: %v", err)
+	}
+	if tlsConfig != nil {
+		t.Fatal("ldapTLSConfig returned config without TLS files")
+	}
+}
+
+func TestLDAPFilterToQueryExtractsDirectorySearchAttributes(t *testing.T) {
+	t.Parallel()
+
+	if got := ldapFilterToQuery("(cn=*Alice*)"); got != "Alice" {
+		t.Fatalf("ldapFilterToQuery cn = %q, want Alice", got)
+	}
+	if got := ldapFilterToQuery("(objectClass=person)"); got != "" {
+		t.Fatalf("ldapFilterToQuery objectClass = %q, want empty", got)
+	}
+}
+
 type fakeStorageChecker struct {
 	err error
 }

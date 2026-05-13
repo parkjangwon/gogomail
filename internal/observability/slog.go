@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/ldapgw"
 	smtpd "github.com/gogomail/gogomail/internal/smtp"
 )
 
@@ -57,6 +58,24 @@ func (a SlogAdapter) ObserveDelivery(ctx context.Context, event delivery.MetricE
 		return
 	}
 	logger.InfoContext(ctx, "delivery metric", attrs...)
+}
+
+func (a SlogAdapter) ObserveLDAP(ctx context.Context, event ldapgw.MetricEvent) {
+	logger := a.logger()
+	attrs := []any{
+		"component", "ldap",
+		"operation", event.Operation,
+		"result", event.Result,
+		"result_code", event.ResultCode,
+		"remote_addr", event.RemoteAddr,
+		"entries", event.Entries,
+	}
+	if event.Error != "" {
+		attrs = append(attrs, "error", event.Error)
+		logger.WarnContext(ctx, "ldap metric", attrs...)
+		return
+	}
+	logger.InfoContext(ctx, "ldap metric", attrs...)
 }
 
 func (a SlogAdapter) logger() *slog.Logger {
