@@ -310,6 +310,7 @@ Target outcome:
 235. Push notification enqueue has a first async worker boundary: `push-notification-worker` consumes committed `mail.stored` events, routes them through `internal/pushnotify`, and supports a disabled-by-default `slog` sink while FCM/APNs delivery remains adapter work.
 236. IMAP listener runtime now exposes configurable read, write, and IDLE timeouts and applies connection deadlines around command reads, response flushes, STARTTLS handshakes, and IDLE waits.
 237. IMAP `AUTHENTICATE PLAIN` now honors plaintext TLS policy before decoding SASL initial responses, keeping `LOGINDISABLED`/`PRIVACYREQUIRED` enforcement ahead of credential payload handling.
+238. IMAP failed `SELECT`/`EXAMINE` reselect attempts now leave the previous selected mailbox and subscription intact until the replacement mailbox is successfully resolved and subscribed.
 231. API metering aggregation now writes both daily and monthly Postgres read models from the same `api.usage` event, with Admin API exposing `GET /admin/v1/api-usage/monthly` for plan/billing analysis groundwork.
 232. Mail API now supports user-scoped push device registration, listing, and soft deletion for APNs, FCM, and Web Push tokens; raw tokens are write-only while response envelopes expose only a short token suffix for diagnostics.
 233. The push notification worker now resolves bounded active device targets from PostgreSQL before invoking its sink, so future FCM/APNs/Web Push adapters receive explicit per-device targets without touching SMTP hot paths.
