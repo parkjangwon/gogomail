@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV query candidate optimization hardening)
+Last updated: 2026-05-14 (CardDAV sync-token retention hardening)
+
+## CardDAV sync-token retention hardening (2026-05-14, complete)
+- CardDAV sync change pruning now explicitly excludes the current `carddav_addressbooks.sync_token` from both dry-run candidate counts and delete candidates.
+- This keeps the latest collection sync marker available even if legacy or partial change rows make "newer change exists" insufficient as the only retention guard.
 
 ## CardDAV query candidate optimization hardening (2026-05-14, complete)
 - CardDAV `addressbook-query` candidate selection now falls back to the broad object walker when seed text contains SQL LIKE wildcard characters or an escape character.

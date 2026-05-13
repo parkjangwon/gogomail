@@ -1137,6 +1137,12 @@ WITH candidates AS (
       WHERE newer.addressbook_id = c.addressbook_id
         AND newer.id > c.id
     )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM carddav_addressbooks a
+      WHERE a.id = c.addressbook_id
+        AND a.sync_token = c.sync_token
+    )
   ORDER BY c.id ASC
   LIMIT $4
 )
@@ -1158,6 +1164,12 @@ WITH candidates AS (
       FROM carddav_addressbook_changes newer
       WHERE newer.addressbook_id = c.addressbook_id
         AND newer.id > c.id
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM carddav_addressbooks a
+      WHERE a.id = c.addressbook_id
+        AND a.sync_token = c.sync_token
     )
   ORDER BY c.id ASC
   LIMIT $4
