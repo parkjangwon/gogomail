@@ -3610,6 +3610,10 @@ owner/resource target without scanning unrelated audit history.
   and that readiness flag.
 - Mail API send/draft-send applies domain outbound policy in enforce mode for
   recipient-count and composed-message-size guardrails.
+- Authenticated SMTP Submission now carries the authenticated user's available
+  sender addresses from `user_addresses`; `MAIL FROM` accepts either the
+  primary address or an authorized additional address while still rejecting
+  unrelated senders.
 - Mail API attachment reservation/direct upload applies enforced domain
   `max_attachment_bytes` policy before quota reservation or object storage
   writes.

@@ -17,11 +17,12 @@ import (
 )
 
 type SubmissionUser struct {
-	CompanyID   string
-	DomainID    string
-	UserID      string
-	Address     string
-	DisplayName string
+	CompanyID           string
+	DomainID            string
+	UserID              string
+	Address             string
+	DisplayName         string
+	AuthorizedAddresses []string
 }
 
 type SubmissionAuthenticator interface {
@@ -197,7 +198,7 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 	if err := validateSMTPUTF8Address(from, normalized, mailOptionsUTF8(opts), s.receiver.supportSMTPUTF8); err != nil {
 		return err
 	}
-	if !strings.EqualFold(normalized, s.user.Address) {
+	if !submissionSenderAllowed(normalized, s.user) {
 		return smtpPolicyReject("mail from %q is not allowed for authenticated user", normalized)
 	}
 	s.from = normalized
@@ -213,6 +214,18 @@ func (s *submissionSession) Mail(from string, opts *gosmtp.MailOptions) (err err
 		return err
 	}
 	return nil
+}
+
+func submissionSenderAllowed(address string, user SubmissionUser) bool {
+	if strings.EqualFold(address, user.Address) {
+		return true
+	}
+	for _, allowed := range user.AuthorizedAddresses {
+		if strings.EqualFold(address, allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *submissionSession) Rcpt(to string, opts *gosmtp.RcptOptions) (err error) {
