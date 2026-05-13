@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE invalid command sequence docs audit)
+Last updated: 2026-05-14 (POP3 DELE invalid command sequence helper cleanup)
+
+## POP3 DELE invalid command sequence helper cleanup (2026-05-14, complete)
+- POP3 tests now share a pending-delete visibility assertion for `LIST 1` and `STAT` checks.
+- NOOP, CAPA, unknown/empty command, AUTH, USER/PASS, and STLS pending-delete regressions now use the shared helper.
 
 ## POP3 DELE invalid command sequence docs audit (2026-05-14, complete)
 - POP3 pending-delete preservation coverage is now mapped across `NOOP`, `CAPA`, empty command, unknown command, `AUTH`, `USER/PASS`, and `STLS` paths.
