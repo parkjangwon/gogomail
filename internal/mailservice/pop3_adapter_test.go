@@ -1001,6 +1001,31 @@ func TestPOP3MailboxMarkDeletedAndReset(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxMarkDeletedDuplicate(t *testing.T) {
+	adapter, repo, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	mailbox, ok := mb.(*pop3Mailbox)
+	if !ok {
+		t.Fatal("expected pop3 mailbox adapter")
+	}
+	if err := mailbox.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	if err := mailbox.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted again: %v", err)
+	}
+	if len(mailbox.pending) != 1 || mailbox.pending[0] != "msg-001" {
+		t.Fatalf("pending deletes = %#v, want one msg-001", mailbox.pending)
+	}
+	if err := mailbox.CommitDeletes(); err != nil {
+		t.Fatalf("commit deletes: %v", err)
+	}
+	if got := repo.lastBulkDelete.MessageIDs; len(got) != 1 || got[0] != "msg-001" {
+		t.Fatalf("deleted IDs = %#v, want [msg-001]", got)
+	}
+}
+
 func TestPOP3MailboxSizeZeroWhenDeleted(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
