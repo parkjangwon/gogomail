@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH LOGIN invalid password base64 capability)
+Last updated: 2026-05-14 (POP3 auth capability assertion helper cleanup)
+
+## POP3 auth capability assertion helper cleanup (2026-05-14, complete)
+- POP3 tests now share an auth capability assertion helper for `USER` and `SASL PLAIN LOGIN` preservation checks.
+- AUTH PLAIN and AUTH LOGIN cancellation/error regressions now use the shared helper.
 
 ## POP3 AUTH LOGIN invalid password base64 capability (2026-05-14, complete)
 - POP3 server coverage now verifies invalid base64 in the `AUTH LOGIN` password step returns `-ERR invalid base64`.

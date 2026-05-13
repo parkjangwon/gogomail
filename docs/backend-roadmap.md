@@ -5089,6 +5089,9 @@ Target outcome:
  1631. POP3 AUTH LOGIN password invalid-base64 handling now verifies
          authorization-state capability preservation: password parse errors
          leave CAPA and normal login usable afterward.
+ 1632. POP3 auth capability regression tests now share an assertion helper for
+         USER and SASL preservation, reducing duplicated CAPA checks across
+         AUTH PLAIN and AUTH LOGIN error paths.
 
 ## Deferred until backend contracts stabilize
 

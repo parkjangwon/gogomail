@@ -193,6 +193,14 @@ func pop3Capa(t *testing.T, tp *textproto.Conn) map[string]bool {
 	return lines
 }
 
+func assertPOP3AuthCapabilities(t *testing.T, tp *textproto.Conn, context string) {
+	t.Helper()
+	capa := pop3Capa(t, tp)
+	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("expected auth capabilities after %s, got: %#v", context, capa)
+	}
+}
+
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -340,10 +348,7 @@ func TestPOP3AuthPlainInvalidBase64KeepsAuthCapabilities(t *testing.T) {
 	if !strings.Contains(line, "invalid base64") {
 		t.Fatalf("expected invalid base64 response, got: %s", line)
 	}
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH PLAIN invalid base64, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH PLAIN invalid base64")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -360,10 +365,7 @@ func TestPOP3AuthPlainInvalidFormatKeepsAuthCapabilities(t *testing.T) {
 	if !strings.Contains(line, "invalid credentials format") {
 		t.Fatalf("expected invalid credentials format response, got: %s", line)
 	}
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH PLAIN invalid format, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH PLAIN invalid format")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -389,10 +391,7 @@ func TestPOP3AuthPlainCancellationKeepsSessionUsable(t *testing.T) {
 
 	id := pop3BeginAuth(t, tp, "AUTH PLAIN")
 	pop3CancelAuth(t, tp, id)
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH PLAIN cancellation, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH PLAIN cancellation")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -406,10 +405,7 @@ func TestPOP3AuthLoginUsernameCancellationKeepsSessionUsable(t *testing.T) {
 
 	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
 	pop3CancelAuth(t, tp, id)
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH LOGIN username cancellation, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH LOGIN username cancellation")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -434,10 +430,7 @@ func TestPOP3AuthLoginInvalidUsernameBase64KeepsAuthCapabilities(t *testing.T) {
 	}
 	tp.EndResponse(id)
 
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH LOGIN username invalid base64, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH LOGIN username invalid base64")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -461,10 +454,7 @@ func TestPOP3AuthLoginPasswordCancellationKeepsSessionUsable(t *testing.T) {
 		t.Fatalf("expected password continuation, got: %s", line)
 	}
 	pop3CancelAuth(t, tp, id)
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH LOGIN password cancellation, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH LOGIN password cancellation")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
@@ -499,10 +489,7 @@ func TestPOP3AuthLoginInvalidPasswordBase64KeepsAuthCapabilities(t *testing.T) {
 	}
 	tp.EndResponse(id)
 
-	capa := pop3Capa(t, tp)
-	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("expected auth capabilities after AUTH LOGIN password invalid base64, got: %#v", capa)
-	}
+	assertPOP3AuthCapabilities(t, tp, "AUTH LOGIN password invalid base64")
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
