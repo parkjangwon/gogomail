@@ -6165,3 +6165,7 @@ Target outcome:
       mechanisms such as `LOGIN` return `ErrAuthUnsupported` with no SASL
       server and without hooks, metrics, session authentication, or `MAIL FROM`
       access.
+1725. SMTP submission repeated AUTH side-effect isolation is now covered:
+      repeated AUTH after successful authentication does not replace or clear
+      the existing user, does not add hooks or metrics, and leaves `MAIL FROM`
+      available for the original authenticated user.
