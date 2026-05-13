@@ -1324,6 +1324,64 @@ func TestHandlerReportSyncCollectionCoalescesDuplicateObjectChangesBeforeLimit(t
 	}
 }
 
+func TestHandlerReportSyncCollectionLoadsCalendarDataAfterCoalescing(t *testing.T) {
+	t.Parallel()
+
+	store := &syncProjectionDiscoveryStore{fakeDiscoveryStore: *newFakeDiscoveryStore()}
+	store.calendars[0].SyncToken = "sync-updated-2"
+	store.changes = append(store.changes,
+		CalendarChange{
+			ID:         int64(len(store.changes) + 1),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			ETag:       store.objects[0].ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-1",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC),
+		},
+		CalendarChange{
+			ID:         int64(len(store.changes) + 2),
+			UserID:     "user-1",
+			CalendarID: "work",
+			ObjectName: "event-1.ics",
+			ETag:       store.objects[0].ETag,
+			Action:     "object-upserted",
+			SyncToken:  "sync-updated-2",
+			ChangedAt:  time.Date(2026, 5, 6, 12, 1, 0, 0, time.UTC),
+		},
+	)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:sync-token>sync-calendar</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+</D:sync-collection>`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.changeIncludeICS) != 1 || store.changeIncludeICS[0] {
+		t.Fatalf("change includeICS calls = %v, want one metadata-only change query", store.changeIncludeICS)
+	}
+	if len(store.batchIncludeICS) != 1 || !store.batchIncludeICS[0] {
+		t.Fatalf("batch includeICS calls = %v, want one calendar-data batch lookup", store.batchIncludeICS)
+	}
+	if len(store.batchNames) != 1 || len(store.batchNames[0]) != 1 || store.batchNames[0][0] != "event-1.ics" {
+		t.Fatalf("batch names = %v, want one coalesced object lookup", store.batchNames)
+	}
+	body := rec.Body.String()
+	if count := strings.Count(body, "<D:response>"); count != 1 {
+		t.Fatalf("response count = %d, want 1:\n%s", count, body)
+	}
+	if !strings.Contains(body, "<C:calendar-data>BEGIN:VCALENDAR") {
+		t.Fatalf("sync response missing calendar-data:\n%s", body)
+	}
+}
+
 func TestHandlerReportSyncCollectionRejectsNonZeroHTTPDepth(t *testing.T) {
 	t.Parallel()
 
@@ -4912,6 +4970,13 @@ type queryCandidateCalendarDiscoveryStore struct {
 	components         []string
 }
 
+type syncProjectionDiscoveryStore struct {
+	fakeDiscoveryStore
+	changeIncludeICS []bool
+	batchIncludeICS  []bool
+	batchNames       [][]string
+}
+
 func (s *noSyncCalendarDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
 	return s.store.LookupPrincipal(ctx, userID)
 }
@@ -4980,6 +5045,46 @@ func (s *queryCandidateCalendarDiscoveryStore) WalkCalendarQueryCandidates(_ con
 		}
 	}
 	return nil
+}
+
+func (s *syncProjectionDiscoveryStore) ListCalendarChangesWithObjectsSince(ctx context.Context, req ListChangesSinceRequest, includeICS bool) ([]CalendarChangeWithObject, error) {
+	s.changeIncludeICS = append(s.changeIncludeICS, includeICS)
+	changes, err := s.fakeDiscoveryStore.ListCalendarChangesSince(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]CalendarChangeWithObject, 0, len(changes))
+	for _, change := range changes {
+		item := CalendarChangeWithObject{Change: change}
+		if change.Action != "object-deleted" && strings.TrimSpace(change.ObjectName) != "" {
+			if object, err := s.fakeDiscoveryStore.LookupCalendarObject(ctx, change.UserID, change.CalendarID, change.ObjectName); err == nil {
+				item.HasObject = true
+				item.Object = object
+				if !includeICS {
+					item.Object.ICS = nil
+				}
+			}
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (s *syncProjectionDiscoveryStore) ListCalendarObjectsByNames(ctx context.Context, userID string, calendarID string, _ string, objectNames []string, includeICS bool) ([]CalendarObject, error) {
+	s.batchIncludeICS = append(s.batchIncludeICS, includeICS)
+	s.batchNames = append(s.batchNames, append([]string(nil), objectNames...))
+	objects := make([]CalendarObject, 0, len(objectNames))
+	for _, objectName := range objectNames {
+		object, err := s.fakeDiscoveryStore.LookupCalendarObject(ctx, userID, calendarID, objectName)
+		if err != nil {
+			continue
+		}
+		if !includeICS {
+			object.ICS = nil
+		}
+		objects = append(objects, object)
+	}
+	return objects, nil
 }
 
 type fakeCalendarAccessAuthorizer struct {

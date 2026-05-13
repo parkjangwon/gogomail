@@ -2802,7 +2802,7 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			CalendarID: resource.CalendarID,
 			SyncToken:  report.SyncToken,
 			Limit:      fetchLimit,
-		}, includeCalendarData)
+		}, false)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2819,6 +2819,21 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 		if len(changesWithObject) > limit {
 			return nil, "", TruncatedResultsError{Operation: "sync-collection limit"}
 		}
+		objectsWithData := map[calendarObjectLookupKey]CalendarObject{}
+		if includeCalendarData {
+			requestedByCalendar := make(map[string][]string)
+			for _, item := range changesWithObject {
+				change := item.Change
+				if change.Action == "object-deleted" || !item.HasObject {
+					continue
+				}
+				requestedByCalendar[change.CalendarID] = append(requestedByCalendar[change.CalendarID], change.ObjectName)
+			}
+			objectsWithData, err = h.lookupCalendarObjectsByNames(ctx, userID, requestedByCalendar, CalendarStatusActive, true)
+			if err != nil {
+				return nil, "", err
+			}
+		}
 		propfind := PropfindRequest{Kind: PropfindProp, Properties: report.Properties}
 		responses := make([]MultiStatusResponse, 0, len(changesWithObject))
 		for _, item := range changesWithObject {
@@ -2833,6 +2848,14 @@ func (h *Handler) syncChangeResponses(ctx context.Context, userID string, resour
 			}
 			object := item.Object
 			object.CalendarID = change.CalendarID
+			if includeCalendarData {
+				objectWithData, ok := objectsWithData[calendarObjectLookupKey{calendarID: change.CalendarID, objectName: change.ObjectName}]
+				if !ok {
+					responses = append(responses, MultiStatusResponse{Href: href, Status: http.StatusNotFound})
+					continue
+				}
+				object = objectWithData
+			}
 			props, err := CalendarObjectPropertiesWithPrincipalPath(userID, object, objectPrincipalPath)
 			if err != nil {
 				return nil, "", err

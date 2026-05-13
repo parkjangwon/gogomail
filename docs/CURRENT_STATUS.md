@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV free-busy candidate optimization hardening)
+Last updated: 2026-05-14 (CalDAV sync payload projection hardening)
+
+## CalDAV sync payload projection hardening (2026-05-14, complete)
+- `sync-collection` change responses now coalesce duplicate object changes from metadata-only change rows before loading `calendar-data`.
+- When clients request calendar bodies, the handler performs a single batched object lookup for the final coalesced response set instead of reading ICS payloads for discarded intermediate changes.
 
 ## CalDAV free-busy candidate optimization hardening (2026-05-14, complete)
 - `free-busy-query` now limits candidate object loading to VEVENT and VFREEBUSY components when the store supports component-scoped listing.

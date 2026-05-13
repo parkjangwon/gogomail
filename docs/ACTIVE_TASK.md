@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-264: CalDAV free-busy recurrence performance audit
+## TASK-265: CalDAV sync-collection payload projection audit
 
 ### 배경
 
-CalDAV `free-busy-query`는 VEVENT recurrence와 저장된 VFREEBUSY 기간만 busy
-결과에 사용한다. VTODO/VJOURNAL 같은 비 busy 컴포넌트가 많을 때 broad list
-한도에 먼저 걸리면 실제 busy 후보가 적어도 truncation 오류가 발생하거나
-불필요한 ICS를 읽을 수 있다.
+CalDAV `sync-collection` 변경 응답은 동일 오브젝트의 여러 변경을 최신 상태로
+coalesce한 뒤 응답한다. `calendar-data`가 요청된 경우 coalesce 전에 원문 ICS를
+join하면 최종 응답에서 버려질 중간 변경들의 payload까지 읽게 되어 대형 캘린더
+증분 동기화 비용이 커진다.
 
 ### 구현 대상
 
@@ -19,12 +19,12 @@ CalDAV `free-busy-query`는 VEVENT recurrence와 저장된 VFREEBUSY 기간만 b
 
 ### 완료 조건
 
-- [x] `free-busy-query` 대상 조회를 VEVENT/VFREEBUSY component list로 제한한다.
-- [x] 비 busy 컴포넌트가 한도 계산에 포함되지 않는 회귀 테스트를 추가한다.
+- [x] 변경 로그 join은 metadata-only로 수행하고 coalesce 이후 최종 객체만 `calendar-data`로 배치 조회한다.
+- [x] 중복 변경이 있는 `sync-collection`에서 ICS payload를 한 번만 조회하는 회귀 테스트를 추가한다.
 - [x] `go test ./internal/caldavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-265: CalDAV sync-collection payload projection audit
+TASK-266: CardDAV sync-collection payload projection audit

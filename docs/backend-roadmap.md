@@ -5382,6 +5382,8 @@ Target outcome:
    avoiding broad or component-list prefetch on large calendars.
 6. CalDAV `free-busy-query` limits optimized object loading to VEVENT and
    VFREEBUSY candidates so VTODO/VJOURNAL rows do not consume busy limits.
+7. CalDAV `sync-collection` coalesces change rows before loading requested
+   `calendar-data`, avoiding duplicate ICS reads for superseded object changes.
 
 ---
 
