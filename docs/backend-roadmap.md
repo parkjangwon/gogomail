@@ -4958,6 +4958,9 @@ Target outcome:
  1587. POP3 authenticated user ID validation is now centralized in a
          mailservice adapter helper, with direct coverage for trimming, empty
          identity rejection, and CR/LF rejection before mailbox construction.
+ 1588. POP3 credential validation is now centralized in mailservice adapter
+         helpers, with direct coverage for username trimming, username
+         empty/CR/LF rejection, and password CR/LF rejection.
 
 ## Deferred until backend contracts stabilize
 
