@@ -6129,3 +6129,7 @@ Target outcome:
       coverage: `CreateCalendar` and `CreateAddressBook` reject disabled user,
       domain, and company state instead of creating DAV collections for inactive
       principals.
+1715. CalDAV Basic auth now has parity coverage with CardDAV:
+      unauthorized failures expose `WWWAuthenticate()` with `Basic realm="CalDAV"`,
+      and trusted-proxy `X-Forwarded-Proto` handling accepts uppercase/whitespace
+      HTTPS tokens.
