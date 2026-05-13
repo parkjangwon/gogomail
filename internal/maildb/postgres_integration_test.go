@@ -1453,6 +1453,12 @@ INSERT INTO messages (
 func assertMailboxHasNoAssignedIMAPUIDs(t *testing.T, db *sql.DB, userID string, mailboxID string) {
 	t.Helper()
 
+	assertMailboxAssignedIMAPUIDCount(t, db, userID, mailboxID, 0)
+}
+
+func assertMailboxAssignedIMAPUIDCount(t *testing.T, db *sql.DB, userID string, mailboxID string, want int) {
+	t.Helper()
+
 	var assigned int
 	if err := db.QueryRowContext(context.Background(), `
 SELECT COUNT(*)
@@ -1461,8 +1467,8 @@ WHERE user_id = $1::uuid
   AND mailbox_id = $2::uuid`, userID, mailboxID).Scan(&assigned); err != nil {
 		t.Fatalf("count assigned imap uids: %v", err)
 	}
-	if assigned != 0 {
-		t.Fatalf("assigned imap uids = %d, want 0", assigned)
+	if assigned != want {
+		t.Fatalf("assigned imap uids = %d, want %d", assigned, want)
 	}
 }
 
@@ -1648,6 +1654,59 @@ INSERT INTO messages (
 	}
 }
 
+func TestPostgresIMAPCopyRejectsLazyUIDBackfillOverflow(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var sourceID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-overflow-source@example.com>',
+  'copy overflow source', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/copy-overflow-source.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&sourceID); err != nil {
+		t.Fatalf("insert copy overflow source: %v", err)
+	}
+	sourceUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, sourceID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, seed.sentID); err != nil {
+		t.Fatalf("EnsureIMAPMailboxState destination returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE imap_mailbox_state
+SET uidnext = 4294967294,
+    highest_modseq = 4294967293
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid`, seed.sentID, seed.userID); err != nil {
+		t.Fatalf("prime destination uid state: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-overflow-legacy@example.com>',
+  'copy overflow legacy', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+  100, 'mail/copy-overflow-legacy.eml'
+)`, seed.companyID, seed.domainID, seed.userID, seed.sentID); err != nil {
+		t.Fatalf("insert copy overflow legacy: %v", err)
+	}
+
+	if _, err := repo.CopyIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{sourceUID.UID}); err == nil || !strings.Contains(err.Error(), "imap uid space exhausted") {
+		t.Fatalf("CopyIMAPMessages overflow error = %v, want imap uid space exhausted", err)
+	}
+	assertMailboxAssignedIMAPUIDCount(t, db, seed.userID, seed.sentID, 0)
+}
+
 func TestPostgresIMAPAppendStoresMessageAndUID(t *testing.T) {
 	t.Parallel()
 
@@ -1816,6 +1875,61 @@ INSERT INTO messages (
 	if after.UIDNext != 4 || after.HighestModSeq != 3 {
 		t.Fatalf("mailbox state after append = uidnext %d highestmodseq %d, want 4/3", after.UIDNext, after.HighestModSeq)
 	}
+}
+
+func TestPostgresIMAPAppendRejectsLazyUIDBackfillOverflow(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	target, err := repo.ResolveIMAPAppendTarget(ctx, seed.userID, "INBOX")
+	if err != nil {
+		t.Fatalf("ResolveIMAPAppendTarget returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE imap_mailbox_state
+SET uidnext = 4294967294,
+    highest_modseq = 4294967293
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid`, seed.inboxID, seed.userID); err != nil {
+		t.Fatalf("prime append uid state: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<append-overflow-legacy@example.com>',
+  'append overflow legacy', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+  100, 'mail/append-overflow-legacy.eml'
+)`, seed.companyID, seed.domainID, seed.userID, seed.inboxID); err != nil {
+		t.Fatalf("insert append overflow legacy: %v", err)
+	}
+	raw := strings.Join([]string{
+		"Message-ID: <append-overflow@example.com>",
+		"From: Sender <sender@example.net>",
+		"To: Alice <alice@example.com>",
+		"Subject: append overflow new",
+		"",
+		"hello overflow",
+	}, "\r\n")
+	parsed, err := messageparse.ParseEML(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ParseEML returned error: %v", err)
+	}
+
+	if _, err := repo.AppendStoredIMAPMessage(ctx, AppendStoredIMAPMessageRequest{
+		Target:      target,
+		StoragePath: "mailstore/company/domain/user/imap-append/2026/05/append-overflow.eml",
+		Parsed:      parsed,
+		Size:        int64(len(raw)),
+	}); err == nil || !strings.Contains(err.Error(), "imap uid space exhausted") {
+		t.Fatalf("AppendStoredIMAPMessage overflow error = %v, want imap uid space exhausted", err)
+	}
+	assertMailboxAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, 0)
 }
 
 func TestPostgresIMAPExpungeDeletesOnlyMarkedUIDs(t *testing.T) {

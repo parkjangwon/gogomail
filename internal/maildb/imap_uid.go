@@ -583,7 +583,7 @@ source_bytes AS (
   LEFT JOIN attachments a ON a.message_id = source.id
   GROUP BY source.id, source.size
 )
-SELECT COALESCE(SUM(copied_size), 0)
+SELECT COALESCE(SUM(copied_size), 0), COUNT(*)
 FROM source_bytes
 WHERE EXISTS (
   SELECT 1
@@ -591,10 +591,14 @@ WHERE EXISTS (
   WHERE f.id = $3::uuid
     AND f.user_id = $1::uuid
 )`
-	if err := tx.QueryRowContext(ctx, totalQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs)).Scan(&totalSize); err != nil {
+	var sourceCount int64
+	if err := tx.QueryRowContext(ctx, totalQuery, userID, sourceMailboxID, destMailboxID, string(rawUIDs)).Scan(&totalSize, &sourceCount); err != nil {
 		return nil, fmt.Errorf("sum imap copy message sizes: %w", err)
 	}
 	if err := checkAndIncrementUserQuota(ctx, tx, userID, totalSize); err != nil {
+		return nil, err
+	}
+	if err := ensureIMAPUIDAllocationCapacity(ctx, tx, userID, destMailboxID, sourceCount); err != nil {
 		return nil, err
 	}
 
@@ -1254,7 +1258,7 @@ FOR UPDATE OF i, m`
 	}
 	destState.uidNext += imapgw.UID(backfilledDest)
 	destState.highestModSeq += uint64(backfilledDest)
-	if uint64(destState.uidNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
+	if uint64(destState.uidNext)+uint64(len(messageIDs)) > math.MaxUint32 {
 		return nil, fmt.Errorf("imap destination uidnext exhausted")
 	}
 	rawMessageIDs, err := json.Marshal(messageIDs)
@@ -1372,7 +1376,7 @@ FOR UPDATE OF m`
 	if len(messageIDs) == 0 {
 		return 0, nil
 	}
-	if uint64(uidNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
+	if uint64(uidNext)+uint64(len(messageIDs)) > math.MaxUint32 {
 		return 0, fmt.Errorf("imap destination uidnext exhausted")
 	}
 
@@ -1385,6 +1389,66 @@ VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)`
 		}
 	}
 	return len(messageIDs), nil
+}
+
+func ensureIMAPUIDAllocationCapacity(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, additional int64) error {
+	if additional <= 0 {
+		return nil
+	}
+	var uidNext imapgw.UID
+	const lockState = `
+SELECT uidnext
+FROM imap_mailbox_state
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	if err := tx.QueryRowContext(ctx, lockState, mailboxID, userID).Scan(&uidNext); err != nil {
+		return fmt.Errorf("lock imap uid allocation state: %w", err)
+	}
+
+	var unassigned int64
+	const countUnassigned = `
+SELECT COUNT(*)
+FROM messages m
+LEFT JOIN imap_message_uid i
+  ON i.message_id = m.id
+ AND i.user_id = m.user_id
+ AND i.mailbox_id = m.folder_id
+WHERE m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND i.message_id IS NULL`
+	if err := tx.QueryRowContext(ctx, countUnassigned, userID, mailboxID).Scan(&unassigned); err != nil {
+		return fmt.Errorf("count imap uid allocation backlog: %w", err)
+	}
+	if uint64(uidNext)+uint64(unassigned)+uint64(additional) > math.MaxUint32 {
+		return fmt.Errorf("imap uid space exhausted")
+	}
+	return nil
+}
+
+func countIMAPSourceUIDsTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, rawUIDs string) (int64, error) {
+	const query = `
+WITH input AS (
+  SELECT value::bigint AS uid
+  FROM jsonb_array_elements_text($3::jsonb)
+)
+SELECT COUNT(*)
+FROM input
+JOIN imap_message_uid i
+  ON i.uid = input.uid
+ AND i.user_id = $1::uuid
+ AND i.mailbox_id = $2::uuid
+JOIN messages m
+  ON m.id = i.message_id
+ AND m.user_id = $1::uuid
+ AND m.folder_id = $2::uuid
+ AND m.status = 'active'`
+	var count int64
+	if err := tx.QueryRowContext(ctx, query, userID, mailboxID, rawUIDs).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count imap source uids: %w", err)
+	}
+	return count, nil
 }
 
 func (r *Repository) moveIMAPMessagesWithinMailbox(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {
@@ -1419,6 +1483,13 @@ WHERE id = $1::uuid
 ON CONFLICT (mailbox_id) DO NOTHING`
 	if _, err := tx.ExecContext(ctx, ensureState, mailboxID, userID); err != nil {
 		return nil, fmt.Errorf("ensure imap same-mailbox move state: %w", err)
+	}
+	moveCount, err := countIMAPSourceUIDsTx(ctx, tx, userID, mailboxID, string(rawUIDs))
+	if err != nil {
+		return nil, err
+	}
+	if err := ensureIMAPUIDAllocationCapacity(ctx, tx, userID, mailboxID, moveCount); err != nil {
+		return nil, err
 	}
 
 	const query = `

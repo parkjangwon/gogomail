@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP lazy UID no-op mutation hardening)
+Last updated: 2026-05-14 (IMAP lazy UID exhaustion hardening)
+
+## IMAP lazy UID exhaustion hardening (2026-05-14, complete)
+- IMAP APPEND, COPY, and same-mailbox MOVE now preflight UID allocation capacity inside the transaction by combining existing unassigned-message backlog with the new UID allocation count.
+- Cross-mailbox MOVE destination backfill now uses UIDNEXT-after-allocation bounds, and PostgreSQL coverage verifies APPEND/COPY overflow fails with `imap uid space exhausted` without leaving UID rows behind.
 
 ## IMAP lazy UID no-op mutation hardening (2026-05-14, complete)
 - PostgreSQL-backed IMAP COPY and same-mailbox MOVE now gate lazy destination backfill on the existence of actual source rows, so all-missing UID requests do not mutate mailbox UID rows or stored UID state.
