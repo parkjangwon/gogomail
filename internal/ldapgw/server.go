@@ -259,6 +259,8 @@ func encodeControlErrorResponse(msgID int, opTag int, resultCode int, message st
 		return encodeSearchResultDone(msgID, resultCode, "", message)
 	case opExtendedRequest:
 		return encodeExtendedResponse(msgID, resultCode, "", message)
+	case opModifyRequest, opAddRequest, opDeleteRequest, opModDNRequest:
+		return encodeReadOnlyWriteResponse(msgID, opTag, resultCode, "", message)
 	default:
 		return encodeLDAPResponse(msgID, opTag, encodeLDAPResult(resultCode, "", message))
 	}
@@ -329,6 +331,9 @@ func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, 
 	case opExtendedRequest:
 		resp, result := s.handleExtendedRequest(msgID, opData, authenticated, authzID)
 		return resp, result, 0, false
+	case opModifyRequest, opAddRequest, opDeleteRequest, opModDNRequest:
+		result := resultUnwillingToPerform
+		return encodeReadOnlyWriteResponse(msgID, opTag, result, "", "read-only LDAP gateway"), result, 0, false
 	default:
 		result := resultUnwillingToPerform
 		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported()), result, 0, false

@@ -16,9 +16,13 @@ const (
 	opSearchResultEntry     = 0x64 // APPLICATION 4
 	opSearchResultDone      = 0x65 // APPLICATION 5
 	opModifyRequest         = 0x66 // APPLICATION 6
+	opModifyResponse        = 0x67 // APPLICATION 7
 	opAddRequest            = 0x68 // APPLICATION 8
+	opAddResponse           = 0x69 // APPLICATION 9
 	opDeleteRequest         = 0x4a // APPLICATION 10
+	opDeleteResponse        = 0x6b // APPLICATION 11
 	opModDNRequest          = 0x6c // APPLICATION 12
+	opModDNResponse         = 0x6d // APPLICATION 13
 	opSearchResultReference = 0x73 // APPLICATION 19
 	opCompareRequest        = 0x6e // APPLICATION 14
 	opCompareResponse       = 0x6f // APPLICATION 15
@@ -531,6 +535,21 @@ func encodeBindResponse(messageID int, resultCode int, matchedDN, errorMessage s
 
 func encodeCompareResponse(messageID int, resultCode int, matchedDN, errorMessage string) []byte {
 	return encodeLDAPResponse(messageID, opCompareResponse, encodeLDAPResult(resultCode, matchedDN, errorMessage))
+}
+
+func encodeReadOnlyWriteResponse(messageID int, requestOp int, resultCode int, matchedDN, errorMessage string) []byte {
+	responseOp := requestOp
+	switch requestOp {
+	case opModifyRequest:
+		responseOp = opModifyResponse
+	case opAddRequest:
+		responseOp = opAddResponse
+	case opDeleteRequest:
+		responseOp = opDeleteResponse
+	case opModDNRequest:
+		responseOp = opModDNResponse
+	}
+	return encodeLDAPResponse(messageID, responseOp, encodeLDAPResult(resultCode, matchedDN, errorMessage))
 }
 
 func encodeExtendedResponse(messageID int, resultCode int, matchedDN, errorMessage string) []byte {

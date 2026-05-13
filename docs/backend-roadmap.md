@@ -5718,7 +5718,7 @@ Implementation order:
 2. `BindRequest`: simple bind with domain user credentials, delegating to existing auth boundary.
 3. `SearchRequest`: maps LDAP filter to SQL/repository queries for `cn`, `mail`, `uid`, `displayName`, `givenName`, `sn` attributes (RFC 4519 schema).
 4. `SearchResultEntry`: returns attributes from `users`/`user_addresses`.
-5. Read-only enforced: `AddRequest`, `ModifyRequest`, `DeleteRequest`, `ModifyDNRequest` return `unwillingToPerform`.
+5. Read-only enforced: `AddRequest`, `ModifyRequest`, `DeleteRequest`, `ModifyDNRequest` return `unwillingToPerform` using their RFC 4511 response protocolOp tags.
 6. TLS: LDAPS (implicit, port 636) and StartTLS (RFC 4511 §4.14) support.
 7. LDAP referral for multi-domain environments.
 8. Metrics boundary for bind/search/error observations.
@@ -5740,6 +5740,7 @@ Current implementation notes:
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
 - LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and group `member`.
+- Read-only write operations reject Modify/Add/Delete/ModifyDN with `ModifyResponse`, `AddResponse`, `DelResponse`, and `ModifyDNResponse` tags plus `unwillingToPerform`.
 - Read-only CompareRequest is implemented with RFC 4511 CompareResponse result codes and OpenLDAP `ldapcompare` coverage.
 - Root DSE advertises the Who Am I? extended operation (`1.3.6.1.4.1.4203.1.11.3`), with OpenLDAP `ldapwhoami` coverage.
 - AbandonRequest follows RFC 4511 no-response semantics.
