@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP UID event empty mailbox hardening)
+Last updated: 2026-05-14 (mail.stored IMAP EXISTS count hardening)
+
+## mail.stored IMAP EXISTS count hardening (2026-05-14, complete)
+- The mail-stored IMAP notification handler now publishes EXISTS events with `Messages=SequenceNumber` after UID assurance, matching restore and service summary event semantics.
+- Handler regression coverage verifies stored-message EXISTS events carry the exact mailbox count instead of relying on selected sessions to increment blindly.
 
 ## IMAP UID event empty mailbox hardening (2026-05-14, complete)
 - UID-based IMAP event publishing now skips entries with an empty mailbox ID, matching the summary-based event path and preventing malformed restore/delete events from reaching selected sessions.
