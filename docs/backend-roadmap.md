@@ -4779,6 +4779,12 @@ Target outcome:
          destination sequence numbers, STATUS prediction, and later LIST/FETCH
          results therefore remain monotonic even when the destination mailbox
          has legacy or API-created unassigned messages.
+ 1546. PostgreSQL-backed cross-mailbox IMAP MOVE now backfills existing active
+         destination messages without `imap_message_uid` rows before assigning
+         moved-message destination UIDs. MOVE destination UID/sequence results,
+         source removal, STATUS prediction, and later LIST/FETCH ordering now
+         remain on the same monotonic destination UID timeline under legacy or
+         API-created unassigned destination messages.
 
 ## Deferred until backend contracts stabilize
 
