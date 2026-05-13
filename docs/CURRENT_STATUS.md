@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 invalid credential short-circuit)
+Last updated: 2026-05-14 (POP3 must-change-password short-circuit)
+
+## POP3 must-change-password short-circuit (2026-05-14, complete)
+- POP3 adapter coverage now verifies must-change-password users fail after authentication but before mail service lookup.
+- The existing policy rejection test now asserts no folder or inbox page reads occur for blocked users.
 
 ## POP3 invalid credential short-circuit (2026-05-14, complete)
 - POP3 adapter coverage now verifies invalid usernames and CR/LF-bearing passwords fail before authenticator calls.
