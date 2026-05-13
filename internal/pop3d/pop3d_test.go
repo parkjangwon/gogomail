@@ -348,6 +348,26 @@ func TestPOP3AuthPlainInvalidBase64KeepsAuthCapabilities(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthPlainInvalidFormatKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	invalid := base64.StdEncoding.EncodeToString([]byte("alice\x00secret"))
+	line := pop3Cmd(t, tp, "-ERR", "AUTH PLAIN %s", invalid)
+	if !strings.Contains(line, "invalid credentials format") {
+		t.Fatalf("expected invalid credentials format response, got: %s", line)
+	}
+	capa := pop3Capa(t, tp)
+	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("expected auth capabilities after AUTH PLAIN invalid format, got: %#v", capa)
+	}
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthLoginRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
