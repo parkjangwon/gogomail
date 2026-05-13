@@ -5164,6 +5164,8 @@ Target outcome:
  1657. POP3 authorization-state NOOP stability is now covered: repeated NOOP
          calls keep auth capabilities and normal authentication usable
          afterward.
+ 1658. POP3 transaction-state NOOP stability is now covered: repeated NOOP
+         calls keep LIST and STAT maildrop state usable afterward.
 
 ## Deferred until backend contracts stabilize
 
