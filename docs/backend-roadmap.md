@@ -4871,6 +4871,9 @@ Target outcome:
          subscriber count, and canceled-subscribe coverage verifies an already
          canceled context returns no channel/cancel function and leaves no
          subscriber behind.
+ 1565. IMAP mailbox event broker cancel idempotency is now covered explicitly:
+         repeated subscription cancel calls leave subscriber accounting at zero
+         and keep the subscription channel closed without panic.
 
 ## Deferred until backend contracts stabilize
 

@@ -103,6 +103,34 @@ func TestMailboxEventBrokerCancelClosesSubscription(t *testing.T) {
 	}
 }
 
+func TestMailboxEventBrokerCancelIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	events, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	if got := broker.SubscriberCount(); got != 1 {
+		t.Fatalf("SubscriberCount = %d, want 1 before cancel", got)
+	}
+
+	cancel()
+	cancel()
+
+	if got := broker.SubscriberCount(); got != 0 {
+		t.Fatalf("SubscriberCount = %d, want 0 after repeated cancel", got)
+	}
+	select {
+	case _, ok := <-events:
+		if ok {
+			t.Fatal("subscription channel is still open after repeated cancel")
+		}
+	default:
+		t.Fatal("subscription channel was not closed after repeated cancel")
+	}
+}
+
 func TestMailboxEventBrokerPublishDoesNotBlockOnSlowSubscriber(t *testing.T) {
 	t.Parallel()
 
