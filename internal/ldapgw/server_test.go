@@ -1178,6 +1178,52 @@ func TestLDAPServerOpenLDAPSearchCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPExtensibleMatchCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "ou=org-1,ou=organizations,dc=example,dc=com",
+		Kind:        "organization",
+		CN:          "Research",
+		UID:         "org-1",
+		OU:          "Research",
+		DisplayName: "Research",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=organizations,dc=example,dc=com",
+		"(&(objectClass:caseIgnoreMatch:=organizationalUnit)(ou:caseIgnoreMatch:=Research))",
+		"ou",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch extensibleMatch failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: ou=org-1,ou=organizations,dc=example,dc=com") ||
+		!strings.Contains(output, "ou: Research") {
+		t.Fatalf("ldapsearch extensibleMatch output missing organization entry:\n%s", output)
+	}
+}
+
 func TestLDAPServerOpenLDAPAttributeSelectionCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
