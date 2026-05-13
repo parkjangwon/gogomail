@@ -4895,6 +4895,10 @@ Target outcome:
          and IDLE live paths: other-user and other-mailbox events are consumed
          without wire responses, while the selected mailbox event still updates
          the client-visible EXISTS count.
+ 1571. IMAP server mailbox event unknown-type handling is now covered on both
+         NOOP drain and IDLE live paths. A selected-mailbox event with an
+         unsupported type is ignored without a wire response, and the following
+         valid EXISTS event still drives the visible message count.
 
 ## Deferred until backend contracts stabilize
 
