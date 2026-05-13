@@ -34,6 +34,7 @@ This matters in practice. When your mail client, calendar app, and contacts sync
 | Mail API (REST) | OpenAPI | Production-ready |
 | Admin API | OpenAPI | Production-ready |
 | Drive / file storage | S3-compatible backend | Advanced |
+| WebDAV / Drive gateway | RFC 4918 | Advanced |
 | Mail flow logs + analytics | PostgreSQL + OpenSearch | Advanced |
 
 ### Webmail (Next.js 15)
@@ -102,6 +103,7 @@ gogomail --mode=smtp-submission    # authenticated submission (port 587)
 gogomail --mode=imap               # IMAP server (port 143 / 993)
 gogomail --mode=caldav             # CalDAV server
 gogomail --mode=carddav            # CardDAV server
+gogomail --mode=webdav             # WebDAV gateway (RFC 4918)
 gogomail --mode=api                # Mail + Admin REST API
 gogomail --mode=delivery-worker    # outbound SMTP delivery
 gogomail --mode=outbox-relay       # outbox → event stream relay
@@ -113,9 +115,15 @@ gogomail --mode=migration          # run database migrations
 
 ---
 
-## Recent Updates (2026-05-12)
+## Recent Updates (2026-05-14)
 
-### Webmail Phase 3 Completion
+### WebDAV Gateway Authentication (2026-05-14)
+- ✅ Bearer token and HTTPS Basic auth support enabled for external client access
+- ✅ External clients (Mac Finder, Windows Explorer, Linux) can mount gogomail drive via `/dav/` endpoint
+- ✅ Lock management optimized with RWMutex and automatic cleanup of expired locks
+- ✅ All RFC 4918 WebDAV operations supported: OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK
+
+### Webmail Phase 3 Completion (2026-05-12)
 - ✅ E2E test infrastructure (Playwright, 25+ test cases)
 - ✅ Org chart recipient picker with hierarchical navigation
 - ✅ ComposeModal integration: send delay, draft autosave, emoji picker
@@ -235,7 +243,7 @@ Development workflow is driven by `docs/ACTIVE_TASK.md` — one task at a time, 
 | 2 | Webmail frontend — keyboard-first, settings, filters, calendar, contacts, drive | ✓ Complete |
 | 3 | Runtime config store · company→domain→user settings hierarchy · 2FA/TOTP | Planned |
 | 4 | Enterprise identity: LDAP (RFC 4511) · SCIM 2.0 · SAML/OIDC | Planned |
-| 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | Planned |
+| 5 | Drive WebDAV gateway (RFC 4918) · CalDAV/CardDAV production hardening | ✓ WebDAV Complete |
 | 6 | Mail security: milter adapter · DNSBL (RFC 5782) | Planned |
 | 7 | POP3 (RFC 1939) | Planned |
 | 8 | Push notifications: FCM / APNs / Web Push (RFC 8030) | Planned |
