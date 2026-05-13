@@ -4891,6 +4891,10 @@ Target outcome:
          verification point: `go test -race -count=1 ./internal/imapgw` passes
          across the concurrent publish, subscribe, cancel, and diagnostic
          coverage.
+ 1570. IMAP server mailbox event filtering is now covered on both NOOP drain
+         and IDLE live paths: other-user and other-mailbox events are consumed
+         without wire responses, while the selected mailbox event still updates
+         the client-visible EXISTS count.
 
 ## Deferred until backend contracts stabilize
 

@@ -6037,7 +6037,7 @@ func TestServerOmitsCopyUIDForUIDNotStickyDestination(t *testing.T) {
 func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 	t.Parallel()
 
-	backendImpl := &eventBackend{events: make(chan MailboxEvent, 4)}
+	backendImpl := &eventBackend{events: make(chan MailboxEvent, 6)}
 	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
 	if err != nil {
 		t.Fatalf("NewServer returned error: %v", err)
@@ -6064,6 +6064,8 @@ func TestServerNoopDrainsMailboxEvents(t *testing.T) {
 			t.Fatalf("read select response: %v", err)
 		}
 	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-2", MailboxID: "inbox", Messages: 99}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "archive", Messages: 99}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 2}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 3}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventFlags, UserID: "user-1", MailboxID: "inbox", UID: 7}
@@ -6323,6 +6325,8 @@ func TestServerHandlesIdleDoneWithMailboxEvents(t *testing.T) {
 	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
 		t.Fatalf("idle continuation = %q err = %v", line, err)
 	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-2", MailboxID: "inbox", Messages: 99}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "archive", Messages: 99}
 	backendImpl.events <- MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 4}
 	if err := client.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
 		t.Fatalf("set read deadline: %v", err)

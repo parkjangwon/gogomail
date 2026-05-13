@@ -1,30 +1,30 @@
 # ACTIVE_TASK
 
-## TASK-296: IMAP event broker diagnostics race audit
+## TASK-297: IMAP mailbox event server ignore audit
 
 ### 배경
 
-IMAP mailbox event broker 진단 메서드와 동시성 테스트가 추가됐다. 단위 테스트가
-통과해도 Go race detector로 publish, subscribe, cancel, diagnostic 경로의 실제
-메모리 접근 경쟁 여부를 별도로 확인해야 한다. IMAP gateway 패키지에 race detector
-게이트를 실행해 브로커 동시성 계약을 검증한다.
+IMAP server는 selected mailbox 이벤트를 NOOP drain과 IDLE live 경로에서 소비한다.
+이때 다른 user 또는 다른 mailbox의 이벤트는 반드시 무시해야 하며, selected
+message count나 wire response에 영향을 주면 안 된다. 브로커가 identity를
+정규화하더라도 서버 측 필터가 정확히 동작한다는 것을 회귀 테스트로 고정한다.
 
 ### 구현 대상
 
-- `internal/imapgw/events.go`
-- `internal/imapgw/events_test.go`
+- `internal/imapgw/server_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] `go test -race -count=1 ./internal/imapgw` 통과.
-- [x] IMAP event broker 동시성 진단 테스트가 race detector 아래에서 실행된다.
+- [x] NOOP drain 경로가 다른 user/mailbox 이벤트를 wire response에 출력하지 않는지 검증한다.
+- [x] IDLE live 경로가 다른 user/mailbox 이벤트를 wire response에 출력하지 않는지 검증한다.
+- [x] selected mailbox 이벤트만 EXISTS response로 반영되는지 검증한다.
 - [x] `go test ./internal/imapgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-297: IMAP mailbox event server ignore audit
+TASK-298: IMAP mailbox event unknown-type server audit
