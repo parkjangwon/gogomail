@@ -5192,6 +5192,8 @@ Target outcome:
  1667. POP3 DELE invalid-command sequence tests now share a pending-delete
          visibility helper for LIST and STAT assertions across no-op, parser
          error, unknown command, reauthentication, and STLS denial paths.
+ 1668. POP3 RSET pending-delete clearing is now tied to a shared assertion:
+         after DELE then RSET, LIST and STAT both prove the message is restored.
 
 ## Deferred until backend contracts stabilize
 
