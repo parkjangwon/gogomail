@@ -4948,6 +4948,9 @@ Target outcome:
          mailservice adapter boundary: whitespace around the authenticated user
          ID is trimmed before folder loads, inbox page loads, and maildrop lock
          key generation.
+ 1585. POP3 authentication now rejects empty authenticated identities at the
+         adapter boundary: a user ID that becomes empty after trimming fails
+         before folder or inbox page lookups can run.
 
 ## Deferred until backend contracts stabilize
 
