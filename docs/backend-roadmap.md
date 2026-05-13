@@ -6177,3 +6177,7 @@ Target outcome:
       unsupported AUTH after `MAIL FROM` is rejected without clearing the active
       envelope sender, and the transaction can continue through `RCPT` and
       `DATA`.
+1728. SMTP submission Logout domain policy reset is now covered: successful
+      `AUTH` and `Logout` clear authenticated-user domain policy cache, so a
+      same-session reauthentication as another domain user cannot inherit the
+      previous domain's message-size policy or DSN options.

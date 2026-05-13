@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-454: SMTP submission unsupported auth transaction state audit
+## TASK-455: SMTP submission Logout domain policy reset audit
 
 ### 배경
 
-SMTP submission must reject unsupported AUTH mechanisms even when the client sends them after a mail
-transaction has started. That rejection must not clear the active envelope sender or abort a valid
-transaction that can continue with `RCPT` and `DATA`.
+SMTP submission domain policy caches are keyed by the authenticated user's domain. If a session is
+logged out and reauthenticated as a different domain user through the same session object, the old
+domain policy and DSN envelope state must not affect the new authenticated identity.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ transaction that can continue with `RCPT` and `DATA`.
 
 ### 완료 조건
 
-- [x] `MAIL FROM` 이후 unsupported AUTH mechanism이 `ErrAuthUnsupported`로 거절되는지 검증한다.
-- [x] unsupported AUTH 거절 후 active envelope sender가 보존되는지 검증한다.
-- [x] 거절 후 `RCPT`와 `DATA`가 이어져 submitted message가 정상 기록되는지 검증한다.
-- [x] `go test -count=1 ./internal/smtp -run TestSubmissionUnsupportedAuthPreservesEnvelopeTransaction` 통과.
+- [x] `Logout` 이후 재인증 전에는 `MAIL FROM`이 계속 인증 필요 오류로 거절되는지 검증한다.
+- [x] 다른 도메인 사용자로 재인증하면 이전 도메인 정책 캐시가 적용되지 않는지 검증한다.
+- [x] `Logout` 전 DSN envelope/recipient 옵션이 재인증 후 제출 메시지에 누출되지 않는지 검증한다.
+- [x] `go test -count=1 ./internal/smtp -run TestSubmissionLogoutResetsDomainPolicyForReauth` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-455: SMTP submission malformed auth transaction state audit
+TASK-456: SMTP submission RSET DSN reset audit
