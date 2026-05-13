@@ -5116,6 +5116,9 @@ Target outcome:
  1640. POP3 AUTH PLAIN challenge wrong-password handling now verifies
          authorization-state capability preservation: failed continuation
          authentication leaves CAPA and normal login usable afterward.
+ 1641. POP3 auth success regressions now share an authenticated-state assertion
+         helper for transaction CAPA and STAT checks across AUTH PLAIN and AUTH
+         LOGIN success paths.
 
 ## Deferred until backend contracts stabilize
 

@@ -201,6 +201,18 @@ func assertPOP3AuthCapabilities(t *testing.T, tp *textproto.Conn, context string
 	}
 }
 
+func assertPOP3AuthenticatedState(t *testing.T, tp *textproto.Conn, context string, wantCount string) {
+	t.Helper()
+	capa := pop3Capa(t, tp)
+	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("transaction CAPA advertised auth capabilities after %s: %#v", context, capa)
+	}
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, wantCount+" ") {
+		t.Fatalf("expected authenticated STAT after %s, got: %s", context, line)
+	}
+}
+
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -346,14 +358,7 @@ func TestPOP3AuthPlainInitialResponseAuthenticates(t *testing.T) {
 
 	initial := base64.StdEncoding.EncodeToString([]byte("\x00alice\x00secret"))
 	pop3Cmd(t, tp, "+OK", "AUTH PLAIN %s", initial)
-	capa := pop3Capa(t, tp)
-	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH PLAIN initial response: %#v", capa)
-	}
-	line := pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "2 ") {
-		t.Fatalf("expected authenticated STAT after AUTH PLAIN initial response, got: %s", line)
-	}
+	assertPOP3AuthenticatedState(t, tp, "AUTH PLAIN initial response", "2")
 }
 
 func TestPOP3AuthPlainInitialResponseWrongPasswordKeepsAuthCapabilities(t *testing.T) {
@@ -461,14 +466,7 @@ func TestPOP3AuthPlainChallengeAuthenticates(t *testing.T) {
 	}
 	tp.EndResponse(id)
 
-	capa := pop3Capa(t, tp)
-	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH PLAIN challenge: %#v", capa)
-	}
-	line = pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "2 ") {
-		t.Fatalf("expected authenticated STAT after AUTH PLAIN challenge, got: %s", line)
-	}
+	assertPOP3AuthenticatedState(t, tp, "AUTH PLAIN challenge", "2")
 }
 
 func TestPOP3AuthPlainChallengeWrongPasswordKeepsAuthCapabilities(t *testing.T) {
@@ -633,14 +631,7 @@ func TestPOP3AuthLoginAuthenticates(t *testing.T) {
 	}
 	tp.EndResponse(id)
 
-	capa := pop3Capa(t, tp)
-	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
-		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH LOGIN: %#v", capa)
-	}
-	line = pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "2 ") {
-		t.Fatalf("expected authenticated STAT after AUTH LOGIN, got: %s", line)
-	}
+	assertPOP3AuthenticatedState(t, tp, "AUTH LOGIN", "2")
 }
 
 func TestPOP3AuthLoginWrongPasswordKeepsAuthCapabilities(t *testing.T) {
