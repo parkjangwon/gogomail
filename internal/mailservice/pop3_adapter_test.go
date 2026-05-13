@@ -321,6 +321,30 @@ func TestPOP3StoreAdapterTrimsAuthenticatedUserID(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterRejectsEmptyAuthenticatedUserID(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: " \t "}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
+		t.Fatal("expected empty authenticated user ID to be rejected")
+	}
+	if auth.calls != 1 {
+		t.Fatalf("auth calls = %d, want 1", auth.calls)
+	}
+	if len(repo.folderUsers) != 0 {
+		t.Fatalf("folder users = %#v, want no service lookup", repo.folderUsers)
+	}
+	if len(repo.pageUsers) != 0 {
+		t.Fatalf("page users = %#v, want no service lookup", repo.pageUsers)
+	}
+}
+
 func TestPOP3MailboxMessageSize(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

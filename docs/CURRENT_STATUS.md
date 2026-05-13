@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth identity trimming coverage)
+Last updated: 2026-05-14 (POP3 auth empty identity rejection)
+
+## POP3 auth empty identity rejection (2026-05-14, complete)
+- POP3 adapter authentication now rejects an authenticated user ID that becomes empty after trimming.
+- Regression coverage verifies empty authenticated user IDs do not trigger folder or inbox page lookups.
 
 ## POP3 auth identity trimming coverage (2026-05-14, complete)
 - POP3 adapter coverage now verifies authenticated user IDs are trimmed before maildrop lock key generation.
