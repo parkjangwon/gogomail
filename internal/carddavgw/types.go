@@ -68,8 +68,20 @@ type AddressBook struct {
 	Description     string
 	DescriptionLang string
 	SyncToken       string
+	ACLRules        []ACLRule
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type ACLRule struct {
+	ID               string
+	AddressBookID    string
+	PrincipalID      string
+	GrantPrivileges  []string
+	DenyPrivileges   []string
+	Protected        bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type ContactObject struct {
