@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction AUTH denial)
+Last updated: 2026-05-14 (POP3 transaction STLS denial session audit)
+
+## POP3 transaction STLS denial session audit (2026-05-14, complete)
+- POP3 transaction-state `STLS` denial coverage was revalidated without adding a duplicate test.
+- Existing coverage verifies the clear `-ERR` denial and confirms `NOOP` and `STAT` still work afterward.
 
 ## POP3 transaction AUTH denial (2026-05-14, complete)
 - POP3 server coverage now verifies transaction-state `AUTH PLAIN` and `AUTH LOGIN` are rejected as unknown commands.

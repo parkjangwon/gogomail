@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-380: POP3 transaction AUTH denial audit
+## TASK-381: POP3 transaction STLS denial session audit
 
 ### 배경
 
-POP3 transaction 상태에서는 SASL `AUTH` 재인증도 허용하지 않아야 한다. 잘못된
-재인증 시도가 기존 maildrop 세션을 오염시키지 않고 이후 명령을 계속 처리하는지
-고정한다.
+POP3 transaction 상태에서는 `STLS`를 허용하지 않아야 한다. 이미 wire-level 회귀가
+있으므로 중복 테스트를 추가하지 않고, 기존 커버리지가 명확한 `-ERR` 메시지와
+세션 유지 조건을 충족하는지 재검증한다.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ POP3 transaction 상태에서는 SASL `AUTH` 재인증도 허용하지 않아야
 
 ### 완료 조건
 
-- [x] transaction 상태의 `AUTH PLAIN`이 `-ERR unknown command`로 거부되는지 검증한다.
-- [x] transaction 상태의 `AUTH LOGIN`이 `-ERR unknown command`로 거부되는지 검증한다.
-- [x] 거부 이후 `NOOP`과 `STAT`이 성공해 기존 transaction 세션이 유지되는지 검증한다.
+- [x] `TestPOP3STLSDeniedInTransactionStateKeepsSessionUsable`가 transaction `STLS`의 `-ERR` 거부를 검증한다.
+- [x] 같은 회귀가 거부 이후 `NOOP` 성공을 검증한다.
+- [x] 같은 회귀가 거부 이후 `STAT` 성공을 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-381: POP3 transaction STLS denial session audit
+TASK-382: POP3 transaction CAPA stability audit
