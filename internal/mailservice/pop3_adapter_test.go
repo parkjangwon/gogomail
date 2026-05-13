@@ -22,6 +22,7 @@ type pop3TestRepository struct {
 	folderErr   error
 	messages    []maildb.MessageSummary
 	details     map[string]maildb.MessageDetail
+	pageErr     error
 	pageCalls   int
 	folderUsers []string
 	pageUsers   []string
@@ -44,6 +45,9 @@ func (r *pop3TestRepository) ListMessagesPage(_ context.Context, userID, folderI
 	r.pageCalls++
 	r.pageUsers = append(r.pageUsers, userID)
 	r.pageFolders = append(r.pageFolders, folderID)
+	if r.pageErr != nil {
+		return nil, r.pageErr
+	}
 	start := 0
 	if cursor.ID != "" {
 		start = len(r.messages)
@@ -328,6 +332,28 @@ func TestPOP3StoreAdapterFolderListingErrorSkipsMessagePageLookup(t *testing.T) 
 	}
 	if len(repo.pageFolders) != 0 {
 		t.Fatalf("page folders = %#v, want no message page lookup", repo.pageFolders)
+	}
+}
+
+func TestPOP3StoreAdapterMessagePageErrorPropagates(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "inbox"}},
+		pageErr:  fmt.Errorf("page list failed"),
+		messages: []maildb.MessageSummary{{ID: "msg-001", Size: 42}},
+		details:  map[string]maildb.MessageDetail{"msg-001": {ID: "msg-001", StoragePath: "path/msg-001"}},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil || !strings.Contains(err.Error(), "list inbox messages") {
+		t.Fatalf("expected list inbox messages error, got %v", err)
+	}
+	if repo.pageCalls != 1 {
+		t.Fatalf("page calls = %d, want 1", repo.pageCalls)
+	}
+	if len(repo.pageFolders) != 1 || repo.pageFolders[0] != "folder-inbox" {
+		t.Fatalf("page folders = %#v, want [folder-inbox]", repo.pageFolders)
 	}
 }
 
