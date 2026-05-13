@@ -139,6 +139,11 @@ func TestLDAPPrincipalDNUsesKindSpecificSubtrees(t *testing.T) {
 			p:    directory.Principal{ID: "room-1", Kind: directory.PrincipalKindResource},
 			want: "cn=room-1,ou=resources,dc=example,dc=com",
 		},
+		{
+			name: "escaped user",
+			p:    directory.Principal{ID: " user,1+ops ", Kind: directory.PrincipalKindUser},
+			want: `uid=\20user\2c1\2bops\20,ou=users,dc=example,dc=com`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -162,6 +167,7 @@ func TestLDAPPrincipalFromDNUsesKindSpecificSubtrees(t *testing.T) {
 		{dn: "ou=org-1,ou=organizations,dc=example,dc=com", wantKind: directory.PrincipalKindOrganization, wantID: "org-1", wantOK: true},
 		{dn: "cn=group-1,ou=groups,dc=example,dc=com", wantKind: directory.PrincipalKindGroup, wantID: "group-1", wantOK: true},
 		{dn: "cn=room-1,ou=resources,dc=example,dc=com", wantKind: directory.PrincipalKindResource, wantID: "room-1", wantOK: true},
+		{dn: `uid=\20user\2c1\2bops\20,ou=users,dc=example,dc=com`, wantKind: directory.PrincipalKindUser, wantID: " user,1+ops ", wantOK: true},
 		{dn: "cn=room-1,ou=users,dc=example,dc=com", wantOK: false},
 	}
 	for _, tt := range tests {

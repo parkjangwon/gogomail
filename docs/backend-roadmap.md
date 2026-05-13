@@ -5735,6 +5735,7 @@ Current implementation notes:
 - LDAP `objectClass` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations`.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
+- Generated user/organization/group/resource DNs escape RDN values, and base-object lookup unescapes generated DN values before resolving principals.
 - Non-discovery directory searches require successful bind while Root DSE and `cn=Subschema` discovery remain pre-bind accessible.
 - SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by OpenLDAP `ldapsearch` plaintext, extensibleMatch, StartTLS, LDAPS, and paged-results smoke tests when the client is available.
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.

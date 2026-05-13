@@ -948,20 +948,21 @@ func ldapPrincipalEntry(p directory.Principal, baseDN string) ldapgw.PrincipalEn
 }
 
 func ldapPrincipalDN(p directory.Principal, baseDN string) string {
+	id := ldapEscapeDNValue(p.ID)
 	switch p.Kind {
 	case directory.PrincipalKindOrganization:
-		return fmt.Sprintf("ou=%s,ou=organizations,%s", p.ID, baseDN)
+		return fmt.Sprintf("ou=%s,ou=organizations,%s", id, baseDN)
 	case directory.PrincipalKindGroup:
-		return fmt.Sprintf("cn=%s,ou=groups,%s", p.ID, baseDN)
+		return fmt.Sprintf("cn=%s,ou=groups,%s", id, baseDN)
 	case directory.PrincipalKindResource:
-		return fmt.Sprintf("cn=%s,ou=resources,%s", p.ID, baseDN)
+		return fmt.Sprintf("cn=%s,ou=resources,%s", id, baseDN)
 	default:
-		return fmt.Sprintf("uid=%s,ou=users,%s", p.ID, baseDN)
+		return fmt.Sprintf("uid=%s,ou=users,%s", id, baseDN)
 	}
 }
 
 func ldapPrincipalFromDN(dn string) (kind string, id string, ok bool) {
-	parts := strings.Split(strings.ToLower(strings.TrimSpace(dn)), ",")
+	parts := ldapSplitDN(dn)
 	if len(parts) < 2 {
 		return "", "", false
 	}
@@ -969,18 +970,99 @@ func ldapPrincipalFromDN(dn string) (kind string, id string, ok bool) {
 	if len(first) != 2 {
 		return "", "", false
 	}
-	value := strings.TrimSpace(first[1])
+	attr := strings.ToLower(strings.TrimSpace(first[0]))
+	value := ldapUnescapeDNValue(strings.TrimSpace(first[1]))
+	parent := strings.ToLower(strings.TrimSpace(parts[1]))
 	switch {
-	case first[0] == "uid" && strings.TrimSpace(parts[1]) == "ou=users":
+	case attr == "uid" && parent == "ou=users":
 		return directory.PrincipalKindUser, value, true
-	case first[0] == "ou" && strings.TrimSpace(parts[1]) == "ou=organizations":
+	case attr == "ou" && parent == "ou=organizations":
 		return directory.PrincipalKindOrganization, value, true
-	case first[0] == "cn" && strings.TrimSpace(parts[1]) == "ou=groups":
+	case attr == "cn" && parent == "ou=groups":
 		return directory.PrincipalKindGroup, value, true
-	case first[0] == "cn" && strings.TrimSpace(parts[1]) == "ou=resources":
+	case attr == "cn" && parent == "ou=resources":
 		return directory.PrincipalKindResource, value, true
 	default:
 		return "", "", false
+	}
+}
+
+func ldapEscapeDNValue(value string) string {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		needsEscape := c == ',' || c == '+' || c == '"' || c == '\\' || c == '<' || c == '>' || c == ';' || c == '=' || c == 0
+		if i == 0 && (c == ' ' || c == '#') {
+			needsEscape = true
+		}
+		if i == len(value)-1 && c == ' ' {
+			needsEscape = true
+		}
+		if needsEscape {
+			b.WriteString(fmt.Sprintf("\\%02x", c))
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+func ldapSplitDN(dn string) []string {
+	var parts []string
+	var b strings.Builder
+	escaped := false
+	for _, r := range strings.TrimSpace(dn) {
+		if escaped {
+			b.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if r == '\\' {
+			b.WriteRune(r)
+			escaped = true
+			continue
+		}
+		if r == ',' {
+			parts = append(parts, strings.TrimSpace(b.String()))
+			b.Reset()
+			continue
+		}
+		b.WriteRune(r)
+	}
+	parts = append(parts, strings.TrimSpace(b.String()))
+	return parts
+}
+
+func ldapUnescapeDNValue(value string) string {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		if value[i] != '\\' || i+1 >= len(value) {
+			b.WriteByte(value[i])
+			continue
+		}
+		if i+2 < len(value) && isHex(value[i+1]) && isHex(value[i+2]) {
+			b.WriteByte(fromHex(value[i+1])<<4 | fromHex(value[i+2]))
+			i += 2
+			continue
+		}
+		i++
+		b.WriteByte(value[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+func fromHex(c byte) byte {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0'
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10
+	default:
+		return c - 'A' + 10
 	}
 }
 
