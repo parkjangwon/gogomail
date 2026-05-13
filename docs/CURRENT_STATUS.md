@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (DAV auth repository active policy)
+Last updated: 2026-05-14 (DAV auth must-change-password repository policy)
+
+## DAV auth must-change-password repository policy (2026-05-14, complete)
+- Postgres coverage now verifies `AuthenticatePlain`, the credential path used by CalDAV/CardDAV Basic auth, returns `MustChangePassword=true` from the users table.
+- The regression also verifies the authenticated user/domain IDs still match the principal so DAV resolvers can reject password-change-required users accurately.
 
 ## DAV auth repository active policy (2026-05-14, complete)
 - Postgres coverage now verifies `AuthenticatePlain`, the credential path used by CalDAV/CardDAV Basic auth, rejects suspended users and domains after first proving the same credential works while active.

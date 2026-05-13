@@ -6136,3 +6136,7 @@ Target outcome:
 1716. DAV Basic auth repository active policy is now covered:
       `AuthenticatePlain`, used by CalDAV/CardDAV Basic auth, rejects suspended
       users and domains after proving the same credentials work while active.
+1717. DAV Basic auth must-change-password propagation is now covered:
+      `AuthenticatePlain` returns the DB `must_change_password` flag alongside
+      user/domain IDs so CalDAV/CardDAV resolvers can reject password-change-
+      required users.
