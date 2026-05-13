@@ -1219,6 +1219,87 @@ func TestPostgresBulkDeleteMessagesRemovesIMAPUIDRows(t *testing.T) {
 	}
 }
 
+func TestPostgresBulkMoveThreadsRemovesOldIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	threadID, firstID, secondID := insertTwoPostgresThreadIMAPUIDMessages(t, db, seed, "bulk thread move stale")
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, firstID, 1)
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, secondID, 1)
+
+	moved, err := repo.BulkMoveThreads(ctx, BulkThreadMoveRequest{
+		UserID:    seed.userID,
+		ThreadIDs: []string{threadID},
+		FolderID:  seed.sentID,
+	})
+	if err != nil {
+		t.Fatalf("BulkMoveThreads returned error: %v", err)
+	}
+	if moved.Updated != 2 || !sameStringSet(moved.MessageIDs, []string{firstID, secondID}) {
+		t.Fatalf("BulkMoveThreads result = %#v, want both thread messages", moved)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+		if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+			t.Fatalf("EnsureIMAPMessageUID old mailbox for thread message %s error = %v, want ErrIMAPMessageNotActive", messageID, err)
+		}
+		freshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.sentID, messageID)
+		if err != nil {
+			t.Fatalf("EnsureIMAPMessageUID destination for thread message %s returned error: %v", messageID, err)
+		}
+		if freshUID.MailboxID != imapgw.MailboxID(seed.sentID) {
+			t.Fatalf("destination UID mailbox for thread message %s = %q, want sent %q", messageID, freshUID.MailboxID, seed.sentID)
+		}
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.sentID, messageID, 1)
+	}
+}
+
+func TestPostgresBulkDeleteThreadsRemovesIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	threadID, firstID, secondID := insertTwoPostgresThreadIMAPUIDMessages(t, db, seed, "bulk thread delete stale")
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, firstID, 1)
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, secondID, 1)
+
+	deleted, err := repo.BulkDeleteThreads(ctx, BulkThreadDeleteRequest{
+		UserID:    seed.userID,
+		ThreadIDs: []string{threadID},
+	})
+	if err != nil {
+		t.Fatalf("BulkDeleteThreads returned error: %v", err)
+	}
+	if deleted.Updated != 2 || !sameStringSet(deleted.MessageIDs, []string{firstID, secondID}) {
+		t.Fatalf("BulkDeleteThreads result = %#v, want both thread messages", deleted)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+		if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+			t.Fatalf("EnsureIMAPMessageUID deleted thread message %s error = %v, want ErrIMAPMessageNotActive", messageID, err)
+		}
+	}
+}
+
 func TestPostgresEnsureIMAPMessageUIDsForMessagesAssignsMailboxOrder(t *testing.T) {
 	t.Parallel()
 
@@ -1811,6 +1892,73 @@ INSERT INTO messages (
 	}
 
 	return insert("first", "2026-05-04T00:00:00Z"), insert("second", "2026-05-04T00:01:00Z")
+}
+
+func insertTwoPostgresThreadIMAPUIDMessages(t *testing.T, db *sql.DB, seed postgresSeed, prefix string) (string, string, string) {
+	t.Helper()
+
+	ctx := context.Background()
+	slug := strings.ReplaceAll(prefix, " ", "-")
+	var firstID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5,
+  $6, 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz, 100, $7
+) RETURNING id::text`,
+		seed.companyID,
+		seed.domainID,
+		seed.userID,
+		seed.inboxID,
+		fmt.Sprintf("<%s-root@example.com>", slug),
+		fmt.Sprintf("%s root", prefix),
+		fmt.Sprintf("mail/%s-root.eml", slug),
+	).Scan(&firstID); err != nil {
+		t.Fatalf("insert thread root message: %v", err)
+	}
+
+	var secondID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, in_reply_to, thread_id,
+  subject, from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, $7::uuid,
+  $8, 'sender@example.net', '2026-05-04T00:01:00Z'::timestamptz, 100, $9
+) RETURNING id::text`,
+		seed.companyID,
+		seed.domainID,
+		seed.userID,
+		seed.inboxID,
+		fmt.Sprintf("<%s-reply@example.com>", slug),
+		fmt.Sprintf("<%s-root@example.com>", slug),
+		firstID,
+		fmt.Sprintf("%s reply", prefix),
+		fmt.Sprintf("mail/%s-reply.eml", slug),
+	).Scan(&secondID); err != nil {
+		t.Fatalf("insert thread reply message: %v", err)
+	}
+
+	return firstID, firstID, secondID
+}
+
+func sameStringSet(got []string, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	counts := make(map[string]int, len(got))
+	for _, value := range got {
+		counts[value]++
+	}
+	for _, value := range want {
+		counts[value]--
+		if counts[value] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {

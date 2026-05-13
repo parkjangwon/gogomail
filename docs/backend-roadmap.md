@@ -6085,3 +6085,8 @@ Target outcome:
      `BulkMoveMessages` removes source mailbox UID rows before destination
      reassignment, and `BulkDeleteMessages` removes assigned UID rows before
      rejecting later reallocation.
+1704. IMAP bulk thread move/delete stale UID rows are now covered:
+     `BulkMoveThreads` removes source mailbox UID rows for every moved thread
+     message before destination reassignment, and `BulkDeleteThreads` removes
+     assigned UID rows for every deleted thread message before rejecting later
+     reallocation.
