@@ -1173,6 +1173,9 @@ func (s *Service) publishIMAPUIDEvents(ctx context.Context, eventType imapgw.Mai
 	}
 	userID = strings.TrimSpace(userID)
 	for _, uid := range uids {
+		if uid.MailboxID == "" {
+			continue
+		}
 		if err := s.imapEvents.Publish(ctx, imapgw.MailboxEvent{
 			Type:           eventType,
 			UserID:         imapgw.UserID(userID),

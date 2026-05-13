@@ -4834,6 +4834,11 @@ Target outcome:
          publishing. Bulk restore operations keep only the highest ensured
          sequence count for each mailbox, reducing redundant EXISTS chatter
          while preserving one final count update per affected mailbox.
+ 1556. UID-based IMAP event publishing now skips entries whose mailbox ID is
+         empty, matching the summary-event path. Restore/delete UID event
+         helpers therefore avoid publishing malformed mailbox events if a
+         repository result is incomplete or a legacy row cannot identify its
+         mailbox.
 
 ## Deferred until backend contracts stabilize
 
