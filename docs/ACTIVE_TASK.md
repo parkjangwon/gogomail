@@ -1,12 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-336: POP3 reset restores content access audit
+## TASK-337: POP3 commit clears pending deletes audit
 
 ### 배경
 
-POP3 `RSET`은 세션 내 삭제 표시를 해제한다. `DELE` 후 content 접근이 차단되더라도
-`ResetDeleted` 이후에는 같은 메시지의 본문을 다시 읽을 수 있어야 하므로, reset 이후
-content lazy-load 경로가 복구되는지 테스트로 고정한다.
+POP3 `QUIT` 시점의 delete commit은 pending delete 목록을 한 번만 반영하고 성공 후
+pending 상태를 비워야 한다. 성공한 commit 뒤에도 pending이 남아 있으면 재시도나 중복
+QUIT 처리에서 같은 message ID가 반복 삭제될 수 있으므로, 성공 후 no-op 동작까지
+테스트로 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +18,13 @@ content lazy-load 경로가 복구되는지 테스트로 고정한다.
 
 ### 완료 조건
 
-- [x] 삭제 표시 후 `ResetDeleted`를 호출한다.
-- [x] reset 이후 `MessageContentWithError`가 오류 없이 content를 반환하는지 검증한다.
-- [x] reset 이후 반환 content가 실제 저장된 원문을 포함하는지 검증한다.
+- [x] POP3 test repository가 bulk delete 호출 횟수를 기록한다.
+- [x] `CommitDeletes` 성공 후 mailbox pending delete 목록이 비는지 검증한다.
+- [x] 두 번째 `CommitDeletes`가 추가 bulk delete를 호출하지 않는지 검증한다.
 - [x] `go test ./internal/mailservice` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-337: POP3 commit clears pending deletes audit
+TASK-338: POP3 commit failure preserves pending deletes audit
