@@ -169,6 +169,28 @@ func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) 
 	}
 }
 
+func TestMailboxEventBrokerRejectsCanceledSubscribeContext(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	events, cancelSubscription, err := broker.Subscribe(ctx, "user-1", "inbox")
+	if err == nil {
+		t.Fatal("Subscribe accepted canceled context")
+	}
+	if events != nil {
+		t.Fatalf("events channel = %#v, want nil", events)
+	}
+	if cancelSubscription != nil {
+		t.Fatal("cancel func is non-nil, want nil")
+	}
+	if got := broker.SubscriberCount(); got != 0 {
+		t.Fatalf("SubscriberCount = %d, want 0 after canceled subscribe", got)
+	}
+}
+
 func TestMailboxEventBrokerConcurrentPublishCancelDoesNotPanic(t *testing.T) {
 	t.Parallel()
 

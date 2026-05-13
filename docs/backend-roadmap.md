@@ -4867,6 +4867,10 @@ Target outcome:
  1563. IMAP mailbox event broker cancellation coverage now verifies a canceled
          publish context exits before fanout and before aggregate or
          per-mailbox slow-subscriber drop counters can change.
+ 1564. IMAP mailbox event broker subscription diagnostics now expose a safe
+         subscriber count, and canceled-subscribe coverage verifies an already
+         canceled context returns no channel/cancel function and leaves no
+         subscriber behind.
 
 ## Deferred until backend contracts stabilize
 
