@@ -2,6 +2,7 @@ package smtpd
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/emersion/go-sasl"
 	gosmtp "github.com/emersion/go-smtp"
+	"github.com/gogomail/gogomail/internal/mail"
 	"github.com/gogomail/gogomail/internal/storage"
 )
 
@@ -93,6 +95,75 @@ func TestSubmissionAcceptsAuthorizedEnvelopeAlias(t *testing.T) {
 	}
 	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-alias.eml"); err != nil {
 		t.Fatalf("stored alias submission not found: %v", err)
+	}
+}
+
+func TestSubmissionDeletesStoredObjectWhenStoredHookFails(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	session := newAuthenticatedSubmissionSessionWithOptions(t, SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		IDGenerator:   func() string { return "submission-hook-fail" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC) },
+		Hooks: []Hook{func(_ context.Context, event Event) error {
+			if event.Stage == StageStored {
+				return errors.New("stored hook failed")
+			}
+			return nil
+		}},
+	})
+
+	err := submitSimpleMessage(t, session, "submission-hook-fail@example.com")
+	if err == nil {
+		t.Fatal("Data succeeded despite stored hook failure")
+	}
+	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-hook-fail.eml"); err == nil {
+		t.Fatal("stored object remained after submission stored hook failure")
+	}
+}
+
+func TestSubmissionDeletesStoredObjectWhenRecorderFails(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	session := newAuthenticatedSubmissionSessionWithOptions(t, SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      failingSubmissionRecorder{err: errors.New("record failed")},
+		IDGenerator:   func() string { return "submission-record-fail" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC) },
+	})
+
+	err := submitSimpleMessage(t, session, "submission-record-fail@example.com")
+	if err == nil {
+		t.Fatal("Data succeeded despite recorder failure")
+	}
+	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-record-fail.eml"); err == nil {
+		t.Fatal("stored object remained after submission recorder failure")
+	}
+}
+
+func TestSubmissionDeletesStoredObjectWhenRecorderReportsMailboxFull(t *testing.T) {
+	t.Parallel()
+
+	store := storage.NewLocalStore(t.TempDir())
+	session := newAuthenticatedSubmissionSessionWithOptions(t, SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      failingSubmissionRecorder{err: mail.ErrMailboxFull},
+		IDGenerator:   func() string { return "submission-mailbox-full" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC) },
+	})
+
+	err := submitSimpleMessage(t, session, "submission-mailbox-full@example.com")
+	if err == nil {
+		t.Fatal("Data succeeded despite mailbox full")
+	}
+	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-mailbox-full.eml"); err == nil {
+		t.Fatal("stored object remained after submission mailbox full")
 	}
 }
 
@@ -556,13 +627,19 @@ func TestSubmissionPreservesDSNOptions(t *testing.T) {
 func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorder, store storage.Store) *submissionSession {
 	t.Helper()
 
-	receiver := NewSubmissionReceiver(SubmissionOptions{
+	return newAuthenticatedSubmissionSessionWithOptions(t, SubmissionOptions{
 		Store:         store,
 		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
 		Recorder:      recorder,
 		IDGenerator:   func() string { return "submitted-id" },
 		Clock:         func() time.Time { return time.Date(2026, 5, 3, 10, 0, 0, 0, time.UTC) },
 	})
+}
+
+func newAuthenticatedSubmissionSessionWithOptions(t *testing.T, opts SubmissionOptions) *submissionSession {
+	t.Helper()
+
+	receiver := NewSubmissionReceiver(opts)
 
 	session, err := receiver.NewSession(nil)
 	if err != nil {
@@ -583,6 +660,18 @@ func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorde
 		t.Fatal("AUTH PLAIN did not complete")
 	}
 	return submission
+}
+
+func submitSimpleMessage(t *testing.T, submission *submissionSession, messageID string) error {
+	t.Helper()
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <" + messageID + ">\r\nFrom: jangwon@example.com\r\nTo: outside@example.net\r\nSubject: submitted\r\n\r\nbody"
+	return submission.Data(strings.NewReader(raw))
 }
 
 type submissionAuthenticator struct {
@@ -612,6 +701,14 @@ type submissionRecorder struct {
 func (r *submissionRecorder) RecordSubmitted(_ context.Context, msg SubmittedMessage) (string, error) {
 	r.messages = append(r.messages, msg)
 	return "message-1", nil
+}
+
+type failingSubmissionRecorder struct {
+	err error
+}
+
+func (r failingSubmissionRecorder) RecordSubmitted(context.Context, SubmittedMessage) (string, error) {
+	return "", r.err
 }
 
 type staticSubmissionDomainPolicy struct {

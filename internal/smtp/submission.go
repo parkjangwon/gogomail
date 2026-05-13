@@ -388,6 +388,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		SubmittedAt:    submittedAt,
 		Size:           size,
 	}); err != nil {
+		s.deleteStoredMessage(path)
 		return err
 	}
 	_, err = s.receiver.recorder.RecordSubmitted(context.Background(), SubmittedMessage{
@@ -401,6 +402,7 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		Size:         size,
 	})
 	if err != nil {
+		s.deleteStoredMessage(path)
 		if errors.Is(err, mail.ErrMailboxFull) {
 			return smtpMailboxFull(s.user.Address)
 		}
@@ -420,6 +422,13 @@ func (s *submissionSession) Data(r io.Reader) (err error) {
 		return err
 	}
 	return nil
+}
+
+func (s *submissionSession) deleteStoredMessage(path string) {
+	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
+		return
+	}
+	_ = s.receiver.store.Delete(context.Background(), path)
 }
 
 func submittedMessageID(id string, fromAddress string) string {
