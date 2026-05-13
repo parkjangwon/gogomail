@@ -1382,6 +1382,9 @@ reject `STLS` while keeping the mailbox session usable.
 The mailservice POP3 adapter now exposes raw body fetch errors to the POP3
 server, so `RETR` and `TOP` return `-ERR` instead of opening a successful
 multi-line response when message content cannot be loaded.
+The same adapter now loads INBOX through the service cursor pagination API
+until no further page remains, so POP3 sessions see every active INBOX message
+instead of only the first normalized list page.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 
