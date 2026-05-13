@@ -4231,6 +4231,60 @@ func TestServerPreservesSelectedMailboxWhenReselectFails(t *testing.T) {
 	}
 }
 
+func TestWriteCopyResponseValidatesDestinationForEmptyUIDSet(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name    string
+		backend Backend
+		dest    MailboxID
+		want    string
+	}{
+		{
+			name:    "missing destination",
+			backend: missingMailboxBackend{},
+			dest:    "missing",
+			want:    "a1 NO [TRYCREATE] COPY destination mailbox does not exist\r\n",
+		},
+		{
+			name:    "existing destination",
+			backend: fakeBackend{},
+			dest:    "archive",
+			want:    "a1 OK COPY completed\r\n",
+		},
+	} {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server, err := NewServer(ServerOptions{Addr: ":1143", Backend: tt.backend, AllowInsecureAuth: true})
+			if err != nil {
+				t.Fatalf("NewServer returned error: %v", err)
+			}
+			var buf bytes.Buffer
+			writer := bufio.NewWriter(&buf)
+			state := imapConnState{
+				session:         &Session{UserID: "user-1"},
+				selectedMailbox: "inbox",
+			}
+
+			done, err := server.writeCopyResponse(writer, "a1", &state, nil, tt.dest, "COPY")
+			if err != nil {
+				t.Fatalf("writeCopyResponse returned error: %v", err)
+			}
+			if done {
+				t.Fatal("writeCopyResponse done = true, want false")
+			}
+			if err := writer.Flush(); err != nil {
+				t.Fatalf("flush response: %v", err)
+			}
+			if got := buf.String(); got != tt.want {
+				t.Fatalf("response = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestServerReturnsNonexistentForMissingMailboxCommands(t *testing.T) {
 	t.Parallel()
 

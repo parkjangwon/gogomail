@@ -3627,6 +3627,9 @@ owner/resource target without scanning unrelated audit history.
 - IMAP failed reselect attempts now preserve the current selected mailbox and
   subscription. `SELECT`/`EXAMINE` only deselects the previous mailbox after
   the replacement mailbox and event subscription are ready.
+- IMAP `COPY` now validates the destination mailbox even when the source UID
+  set is empty, so empty `$`/SEARCHRES copies still return `[TRYCREATE]` for
+  missing destinations while keeping `OK COPY completed` for existing targets.
 - Authenticated SMTP Submission now mirrors receive-path storage cleanup:
   if the stored hook, submitted recorder, or mailbox-quota path fails before
   database commit, the just-written submitted `.eml` object is deleted.
