@@ -5166,6 +5166,8 @@ Target outcome:
          afterward.
  1658. POP3 transaction-state NOOP stability is now covered: repeated NOOP
          calls keep LIST and STAT maildrop state usable afterward.
+ 1659. POP3 NOOP after DELE is now covered: NOOP preserves pending delete state,
+         so LIST fails for the deleted message and STAT excludes it afterward.
 
 ## Deferred until backend contracts stabilize
 
