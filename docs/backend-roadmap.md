@@ -4951,6 +4951,10 @@ Target outcome:
  1585. POP3 authentication now rejects empty authenticated identities at the
          adapter boundary: a user ID that becomes empty after trimming fails
          before folder or inbox page lookups can run.
+ 1586. POP3 authentication now rejects control-character authenticated
+         identities at the adapter boundary: CR/LF-bearing user IDs fail before
+         normalization, folder lookup, inbox page lookup, or maildrop lock key
+         generation.
 
 ## Deferred until backend contracts stabilize
 
