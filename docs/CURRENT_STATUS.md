@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH PLAIN cancellation session)
+Last updated: 2026-05-14 (POP3 AUTH LOGIN username cancellation capability)
+
+## POP3 AUTH LOGIN username cancellation capability (2026-05-14, complete)
+- POP3 server coverage now verifies `AUTH LOGIN` username cancellation keeps authorization capabilities advertised.
+- The regression still verifies normal `USER/PASS` login and `STAT` work after cancellation.
 
 ## POP3 AUTH PLAIN cancellation session (2026-05-14, complete)
 - POP3 server coverage now verifies `AUTH PLAIN` cancellation keeps authorization capabilities advertised.
