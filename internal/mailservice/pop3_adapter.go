@@ -71,7 +71,7 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 
 	msgs := make([]pop3InboxMsg, len(summaries))
 	for i, s := range summaries {
-		msgs[i] = pop3InboxMsg{id: s.ID, size: int(s.Size)}
+		msgs[i] = pop3InboxMsg{id: s.ID, size: normalizePOP3MessageSize(s.Size)}
 	}
 
 	return &pop3Mailbox{
@@ -138,6 +138,20 @@ func normalizePOP3AuthenticatedUserID(userID string) (string, error) {
 		return "", fmt.Errorf("authenticated user id is required")
 	}
 	return userID, nil
+}
+
+func normalizePOP3MessageSize(size int64) int {
+	return normalizePOP3MessageSizeForInt(size, int(^uint(0)>>1))
+}
+
+func normalizePOP3MessageSizeForInt(size int64, maxInt int) int {
+	if size <= 0 {
+		return 0
+	}
+	if size > int64(maxInt) {
+		return maxInt
+	}
+	return int(size)
 }
 
 type pop3InboxMsg struct {
