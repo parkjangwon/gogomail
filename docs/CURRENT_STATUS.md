@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT success commits pending delete)
+Last updated: 2026-05-14 (POP3 QUIT without deletes skips commit)
+
+## POP3 QUIT without deletes skips commit (2026-05-14, complete)
+- POP3 transaction `QUIT` now calls `CommitDeletes` only when at least one message is marked deleted.
+- Regression coverage verifies no-delete `QUIT` returns `+OK` without invoking a failing commit hook, while existing delete commit coverage remains intact.
 
 ## POP3 QUIT success commits pending delete (2026-05-14, complete)
 - POP3 server coverage now verifies successful `QUIT` after `DELE 1` invokes `CommitDeletes` exactly once.

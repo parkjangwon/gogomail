@@ -476,7 +476,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.writer.WriteString(".\r\n")
 		sess.writer.Flush()
 	case "QUIT":
-		if committer, ok := sess.mailbox.(interface{ CommitDeletes() error }); ok {
+		if committer, ok := sess.mailbox.(interface{ CommitDeletes() error }); ok && sess.hasDeletedMessages() {
 			if err := committer.CommitDeletes(); err != nil {
 				sess.mailbox.ResetDeleted()
 				sess.writeERR("commit failed: " + err.Error())
@@ -493,6 +493,15 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 	default:
 		sess.writeERR("unknown command")
 	}
+}
+
+func (sess *session) hasDeletedMessages() bool {
+	for i := 0; i < sess.mailbox.MessageCount(); i++ {
+		if sess.mailbox.Deleted(i) {
+			return true
+		}
+	}
+	return false
 }
 
 func mailboxLockKey(mailbox Mailbox, fallback string) string {
