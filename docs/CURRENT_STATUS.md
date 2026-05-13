@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 connection-close test helper cleanup)
+Last updated: 2026-05-14 (POP3 STLS failure connection close)
+
+## POP3 STLS failure connection close (2026-05-14, complete)
+- POP3 server coverage now verifies invalid post-`STLS` plaintext triggers TLS handshake failure.
+- The regression verifies the server closes the TCP connection after the failed STLS negotiation path.
 
 ## POP3 connection-close test helper cleanup (2026-05-14, complete)
 - POP3 test coverage now has a shared deadline-enabled connection helper for EOF-sensitive checks.

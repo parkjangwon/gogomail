@@ -5059,6 +5059,9 @@ Target outcome:
  1621. POP3 connection-close tests now share a deadline-enabled connection
          helper so EOF-sensitive regressions avoid duplicated greeting and
          timeout setup.
+ 1622. POP3 STLS handshake failure behavior is now covered: invalid plaintext
+         after `STLS` triggers the failure path and the server closes the TCP
+         connection.
 
 ## Deferred until backend contracts stabilize
 

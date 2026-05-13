@@ -947,6 +947,31 @@ func TestPOP3STLSResetsPreTLSUserState(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3STLSHandshakeFailureClosesConnection(t *testing.T) {
+	_, listener := newTestServerWithMessagesAndTLS(t, []mockMessage{
+		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+	}, testPOP3TLSConfig(t))
+	defer listener.Close()
+
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), 2*time.Second)
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "STLS")
+	if err := tp.PrintfLine("NOOP"); err != nil {
+		t.Fatalf("send invalid TLS payload: %v", err)
+	}
+
+	line, err := tp.ReadLine()
+	if err == nil && !strings.HasPrefix(line, "-ERR") {
+		t.Fatalf("expected STLS failure response or connection close, got line: %s", line)
+	}
+	if err == nil {
+		if line, err := tp.ReadLine(); err == nil {
+			t.Fatalf("expected connection close after STLS failure, got line: %s", line)
+		}
+	}
+}
+
 func TestPOP3ImplicitTLSDoesNotAdvertiseSTLS(t *testing.T) {
 	store := &mockStore{
 		mailbox: &mockMailbox{
