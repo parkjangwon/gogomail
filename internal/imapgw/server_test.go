@@ -3034,7 +3034,7 @@ func TestServerCanonicalizesPermanentFlagsInSelectResponses(t *testing.T) {
 	}
 }
 
-func TestServerFailedSelectDeselectsCurrentMailbox(t *testing.T) {
+func TestServerFailedReselectPreservesCurrentMailbox(t *testing.T) {
 	t.Parallel()
 
 	backendImpl := &selectMissingAfterSelectBackend{}
@@ -3066,7 +3066,8 @@ func TestServerFailedSelectDeselectsCurrentMailbox(t *testing.T) {
 		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
 		"a2 OK [READ-WRITE] SELECT completed\r\n",
 		"a3 NO [NONEXISTENT] SELECT mailbox does not exist\r\n",
-		"a4 NO mailbox must be selected\r\n",
+		"* 1 FETCH (UID 7 FLAGS (\\Seen \\Flagged) RFC822.SIZE 11)\r\n",
+		"a4 OK FETCH completed\r\n",
 	}
 	for _, expected := range want {
 		line, err := reader.ReadString('\n')
@@ -4176,6 +4177,55 @@ func TestServerExamineFailureUsesExamineCommandName(t *testing.T) {
 	}
 	_, _ = reader.ReadString('\n')
 	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
+func TestServerPreservesSelectedMailboxWhenReselectFails(t *testing.T) {
+	t.Parallel()
+
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: selectMissingBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\na3 SELECT missing\r\na4 CHECK\r\na5 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write reselect flow: %v", err)
+	}
+	want := []string{
+		"a1 OK [CAPABILITY IMAP4rev1 LITERAL+ IDLE ID NAMESPACE CHILDREN UNSELECT UIDPLUS MOVE CONDSTORE ENABLE SPECIAL-USE LIST-EXTENDED LIST-STATUS ESEARCH SEARCHRES STATUS=SIZE SORT THREAD=ORDEREDSUBJECT] LOGIN completed\r\n",
+		"* FLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)\r\n",
+		"* 2 EXISTS\r\n",
+		"* 0 RECENT\r\n",
+		"* OK [UIDVALIDITY 1] UIDs valid\r\n",
+		"* OK [UIDNEXT 5] Predicted next UID\r\n",
+		"* OK [PERMANENTFLAGS (\\Seen \\Flagged \\Answered \\Draft \\Deleted)] Permanent flags\r\n",
+		"a2 OK [READ-WRITE] SELECT completed\r\n",
+		"a3 NO [NONEXISTENT] SELECT mailbox does not exist\r\n",
+		"a4 OK CHECK completed\r\n",
+		"* BYE gogomail IMAP4rev1 server logging out\r\n",
+		"a5 OK LOGOUT completed\r\n",
+	}
+	for _, expected := range want {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read reselect response: %v", err)
+		}
+		if line != expected {
+			t.Fatalf("reselect response = %q, want %q", line, expected)
+		}
+	}
 	if err := <-errCh; err != nil {
 		t.Fatalf("ServeConn returned error: %v", err)
 	}
@@ -15370,6 +15420,17 @@ func (b *renameSelectedBackend) Subscribe(_ context.Context, _ UserID, mailboxID
 
 type missingMailboxBackend struct {
 	fakeBackend
+}
+
+type selectMissingBackend struct {
+	fakeBackend
+}
+
+func (selectMissingBackend) SelectMailbox(ctx context.Context, req SelectMailboxRequest) (MailboxState, error) {
+	if req.MailboxID == "missing" {
+		return MailboxState{}, ErrMailboxNotFound
+	}
+	return fakeBackend{}.SelectMailbox(ctx, req)
 }
 
 func (missingMailboxBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {

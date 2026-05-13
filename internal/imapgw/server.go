@@ -698,7 +698,6 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 			_, err := writer.WriteString(tag + " NO authentication required\r\n")
 			return false, err
 		}
-		state.deselectMailbox()
 		mailboxState, err := s.options.Backend.SelectMailbox(context.Background(), SelectMailboxRequest{
 			UserID:    state.session.UserID,
 			MailboxID: MailboxID(mailboxName),
@@ -758,6 +757,7 @@ func (s *Server) handleLineWithLiteral(writer *bufio.Writer, line string, litera
 				return false, err
 			}
 		}
+		state.deselectMailbox()
 		state.selectedMailbox = mailboxState.ID
 		state.selectedMessages = mailboxState.Messages
 		state.selectedHighestModSeq = mailboxState.HighestModSeq
