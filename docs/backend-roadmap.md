@@ -4878,6 +4878,10 @@ Target outcome:
          repeated context cancellation closes the subscription channel, drops
          subscriber accounting to zero, and remains stable when the explicit
          cancel function is called afterward.
+ 1567. IMAP mailbox event broker validation failures are now covered for
+         side-effect safety: invalid publish attempts do not fan out events or
+         update drop counters, and invalid subscribe attempts do not change
+         subscriber accounting.
 
 ## Deferred until backend contracts stabilize
 

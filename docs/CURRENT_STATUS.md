@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker context cancel idempotency validation)
+Last updated: 2026-05-14 (IMAP event broker validation side-effect coverage)
+
+## IMAP event broker validation side-effect coverage (2026-05-14, complete)
+- Broker regression coverage now verifies invalid publish attempts do not fan out events or modify aggregate/per-mailbox drop counters.
+- The same coverage verifies invalid subscribe attempts leave the existing subscriber set unchanged.
 
 ## IMAP event broker context cancel idempotency validation (2026-05-14, complete)
 - Broker regression coverage now verifies repeated subscription context cancellation closes the event channel and leaves subscriber accounting at zero.
