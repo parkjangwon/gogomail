@@ -36,11 +36,12 @@ WHERE u.status = 'active'
   AND (
     lower(u.username) = lower($1)
     OR lower(ua.address) = lower($2)
+    OR u.id::text = $3
   )
 ORDER BY ua.is_primary DESC
 LIMIT 1`
 	var passwordHash string
-	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress).Scan(&passwordHash)
+	err := r.db.QueryRowContext(ctx, query, normalized, normalizedAddress, normalized).Scan(&passwordHash)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
