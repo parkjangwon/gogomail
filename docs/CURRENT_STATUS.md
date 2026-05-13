@@ -1387,6 +1387,10 @@ auth-only capabilities. All CAPA responses include stable server metadata via
 before entering SASL decoding or continuation prompts. Extra arguments return
 `-ERR syntax error` and leave the session in AUTHORIZATION state so clients can
 retry with `USER`/`PASS` or a well-formed `AUTH` command on the same connection.
+SASL continuation cancellation is also handled explicitly: `AUTH PLAIN` and
+both `AUTH LOGIN` prompts accept `*` as cancellation, return
+`-ERR authentication cancelled`, and keep the connection ready for a later
+authentication attempt.
 The mailservice POP3 adapter now exposes raw body fetch errors to the POP3
 server, so `RETR` and `TOP` return `-ERR` instead of opening a successful
 multi-line response when message content cannot be loaded.
