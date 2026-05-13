@@ -989,7 +989,7 @@ SELECT EXISTS (
 	return changes, nil
 }
 
-func (r *Repository) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChangeWithObject, error) {
+func (r *Repository) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest, includeVCard bool) ([]AddressBookChangeWithObject, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
 	}
@@ -1011,7 +1011,11 @@ WHERE user_id = $1::uuid
 		return nil, fmt.Errorf("get CardDAV sync marker: %w", err)
 	}
 
-	const query = `
+	vcardExpr := "NULL::text AS object_vcard"
+	if includeVCard {
+		vcardExpr = "o.vcard AS object_vcard"
+	}
+	query := `
 SELECT
   c.id,
   c.user_id::text,
@@ -1028,7 +1032,7 @@ SELECT
   o.uid AS object_uid,
   o.etag AS object_etag,
   o.size AS object_size,
-  o.vcard AS object_vcard,
+  ` + vcardExpr + `,
   o.created_at AS object_created_at,
   o.updated_at AS object_updated_at
 FROM carddav_addressbook_changes c

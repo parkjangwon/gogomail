@@ -61,8 +61,11 @@ type noSyncCardDAVDiscoveryStore struct {
 
 type joinedSyncCardDAVDiscoveryStore struct {
 	fakeCardDAVDiscoveryStore
-	lookupCount int
-	joinedCount int
+	lookupCount       int
+	joinedCount       int
+	joinedIncludeCard []bool
+	batchCount        int
+	batchNames        [][]string
 }
 
 type batchCardDAVDiscoveryStore struct {
@@ -183,8 +186,9 @@ func (s *joinedSyncCardDAVDiscoveryStore) LookupContactObject(ctx context.Contex
 	return s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, userID, addressBookID, objectName)
 }
 
-func (s *joinedSyncCardDAVDiscoveryStore) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChangeWithObject, error) {
+func (s *joinedSyncCardDAVDiscoveryStore) ListAddressBookChangesWithObjectsSince(ctx context.Context, req ListAddressBookChangesSinceRequest, includeVCard bool) ([]AddressBookChangeWithObject, error) {
 	s.joinedCount++
+	s.joinedIncludeCard = append(s.joinedIncludeCard, includeVCard)
 	changes, err := s.fakeCardDAVDiscoveryStore.ListAddressBookChangesSince(ctx, req)
 	if err != nil {
 		return nil, err
@@ -195,11 +199,29 @@ func (s *joinedSyncCardDAVDiscoveryStore) ListAddressBookChangesWithObjectsSince
 		object, err := s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, change.UserID, change.AddressBookID, change.ObjectName)
 		if err == nil {
 			item.Object = object
+			if !includeVCard {
+				item.Object.VCard = nil
+			}
 			item.HasObject = true
 		}
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (s *joinedSyncCardDAVDiscoveryStore) ListContactObjectsByNameGroups(ctx context.Context, userID string, objectNamesByAddressBook map[string][]string, _ string) ([]ContactObject, error) {
+	s.batchCount++
+	var objects []ContactObject
+	for addressBookID, objectNames := range objectNamesByAddressBook {
+		s.batchNames = append(s.batchNames, append([]string(nil), objectNames...))
+		for _, objectName := range objectNames {
+			object, err := s.fakeCardDAVDiscoveryStore.LookupContactObject(ctx, userID, addressBookID, objectName)
+			if err == nil {
+				objects = append(objects, object)
+			}
+		}
+	}
+	return objects, nil
 }
 
 func (s *batchCardDAVDiscoveryStore) LookupContactObject(ctx context.Context, userID string, addressBookID string, objectName string) (ContactObject, error) {
@@ -4261,6 +4283,71 @@ func TestHandlerReportSyncCollectionUsesJoinedChangeObjectStore(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("joined sync REPORT missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestHandlerReportSyncCollectionLoadsAddressDataAfterCoalescing(t *testing.T) {
+	t.Parallel()
+
+	base := testCardDAVDiscoveryStore(t)
+	base.books[0].SyncToken = "sync-updated-2"
+	base.changes = []AddressBookChange{{
+		ID:            1,
+		UserID:        "user-1",
+		AddressBookID: "personal",
+		Action:        "addressbook-created",
+		SyncToken:     "sync-old",
+		ChangedAt:     time.Date(2026, 5, 6, 1, 0, 0, 0, time.UTC),
+	}, {
+		ID:            2,
+		UserID:        "user-1",
+		AddressBookID: "personal",
+		ObjectName:    "contact-1.vcf",
+		Action:        "contact-upserted",
+		SyncToken:     "sync-updated-1",
+		ChangedAt:     time.Date(2026, 5, 6, 2, 0, 0, 0, time.UTC),
+	}, {
+		ID:            3,
+		UserID:        "user-1",
+		AddressBookID: "personal",
+		ObjectName:    "contact-1.vcf",
+		Action:        "contact-upserted",
+		SyncToken:     "sync-updated-2",
+		ChangedAt:     time.Date(2026, 5, 6, 3, 0, 0, 0, time.UTC),
+	}}
+	store := &joinedSyncCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: base}
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	body := `<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+  <D:sync-token>sync-old</D:sync-token>
+  <D:sync-level>1</D:sync-level>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</D:sync-collection>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthZero))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(store.joinedIncludeCard) != 1 || store.joinedIncludeCard[0] {
+		t.Fatalf("joined includeVCard calls = %v, want one metadata-only change query", store.joinedIncludeCard)
+	}
+	if store.batchCount != 1 {
+		t.Fatalf("batch lookups = %d, want 1", store.batchCount)
+	}
+	if len(store.batchNames) != 1 || len(store.batchNames[0]) != 1 || store.batchNames[0][0] != "contact-1.vcf" {
+		t.Fatalf("batch names = %v, want one coalesced contact lookup", store.batchNames)
+	}
+	text := rec.Body.String()
+	if count := strings.Count(text, "<D:response>"); count != 1 {
+		t.Fatalf("response count = %d, want 1:\n%s", count, text)
+	}
+	if !strings.Contains(text, "<C:address-data") || !strings.Contains(text, "BEGIN:VCARD") {
+		t.Fatalf("sync response missing address-data:\n%s", text)
+	}
+	if !strings.Contains(text, "<D:sync-token>sync-updated-2</D:sync-token>") {
+		t.Fatalf("sync response missing latest token:\n%s", text)
 	}
 }
 
