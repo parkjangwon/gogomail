@@ -1096,6 +1096,62 @@ func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPPagedResultsCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	for i := 1; i <= 3; i++ {
+		uid := fmt.Sprintf("user%d", i)
+		dir.addPrincipal(PrincipalEntry{
+			DN:          fmt.Sprintf("uid=%s,ou=users,dc=example,dc=com", uid),
+			Kind:        "user",
+			CN:          "User " + fmt.Sprint(i),
+			Mail:        uid + "@example.com",
+			UID:         uid,
+			DisplayName: "User " + fmt.Sprint(i),
+		})
+	}
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"-E", "pr=1/noprompt",
+		"(objectClass=person)",
+		"mail",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch paged results failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	for i := 1; i <= 3; i++ {
+		wantDN := fmt.Sprintf("dn: uid=user%d,ou=users,dc=example,dc=com", i)
+		wantMail := fmt.Sprintf("mail: user%d@example.com", i)
+		if !strings.Contains(output, wantDN) || !strings.Contains(output, wantMail) {
+			t.Fatalf("ldapsearch paged output missing %q/%q:\n%s", wantDN, wantMail, output)
+		}
+	}
+	if got := strings.Count(output, "pagedresults: cookie="); got < 2 {
+		t.Fatalf("ldapsearch output did not show multiple paged-results exchanges:\n%s", output)
+	}
+}
+
 func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
