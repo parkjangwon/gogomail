@@ -3828,6 +3828,28 @@ func TestHandlerReportAddressBookQueryFallsBackForUnsafeCandidateFilter(t *testi
 	}
 }
 
+func TestHandlerReportAddressBookQueryFallsBackForWildcardCandidateText(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCardDAVDiscoveryStore{fakeCardDAVDiscoveryStore: testCardDAVDiscoveryStore(t)}
+	body := `<C:addressbook-query xmlns:C="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+  <C:filter><C:prop-filter name="FN"><C:text-match>Contact_</C:text-match></C:prop-filter></C:filter>
+  <D:prop><D:getetag/><C:address-data/></D:prop>
+</C:addressbook-query>`
+	req := httptest.NewRequest(MethodReport, "/carddav/addressbooks/user-1/personal/", strings.NewReader(body))
+	req.Header.Set("Depth", string(DepthOne))
+	rec := httptest.NewRecorder()
+	handler := NewHandler(store, func(*http.Request) (string, error) { return "user-1", nil })
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMultiStatus {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if store.candidateCount != 0 || store.walkCount != 1 {
+		t.Fatalf("candidateCount = %d, walkCount = %d; want broad walker fallback", store.candidateCount, store.walkCount)
+	}
+}
+
 func TestHandlerReportAddressBookQueryFiltersSpecificVCardProperty(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV query filter semantics hardening)
+Last updated: 2026-05-14 (CardDAV query candidate optimization hardening)
+
+## CardDAV query candidate optimization hardening (2026-05-14, complete)
+- CardDAV `addressbook-query` candidate selection now falls back to the broad object walker when seed text contains SQL LIKE wildcard characters or an escape character.
+- Handler coverage now verifies wildcard-bearing text-match filters do not enter the optimized candidate walker path.
 
 ## CardDAV query filter semantics hardening (2026-05-14, complete)
 - CardDAV `param-filter` negated text matches now evaluate all parameter values and reject a property when any value matches the forbidden text.
