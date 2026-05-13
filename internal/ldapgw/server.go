@@ -705,6 +705,7 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		attrs["ou"] = []string{firstNonEmpty(p.OU, p.DisplayName, cn)}
 	case "group":
 		attrs["objectClass"] = []string{"top", "groupOfNames"}
+		attrs["member"] = []string{firstNonEmpty(p.DN, "cn=placeholder")}
 	case "resource":
 		attrs["objectClass"] = []string{"top", "device"}
 		if p.ResourceType != "" {
@@ -718,9 +719,7 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		if p.GivenName != "" {
 			attrs["givenName"] = []string{p.GivenName}
 		}
-		if p.SN != "" {
-			attrs["sn"] = []string{p.SN}
-		}
+		attrs["sn"] = []string{firstNonEmpty(p.SN, p.DisplayName, cn)}
 	}
 	return attrs
 }

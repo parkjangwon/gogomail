@@ -5738,6 +5738,7 @@ Current implementation notes:
 - SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by OpenLDAP `ldapsearch` plaintext, StartTLS, and paged-results smoke tests when the client is available.
 - SearchRequest requested-attribute lists are decoded from real client requests, preserving narrow attribute projection for compatibility and payload efficiency.
 - Attribute selection honors LDAP special selectors: `1.1` for no attributes, `*` for user attributes, and `+` for operational attributes.
+- LDAP entries provide conservative fallbacks for declared objectClass MUST attributes, including user `sn` and group `member`.
 - Cross-naming-context requests can return SearchResultReference values from `GOGOMAIL_LDAP_REFERRAL_URLS` for multi-domain deployments.
 - LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, Simple Paged Results returns continuation cookies, and unsupported critical controls return `unavailableCriticalExtension`.
 - Bind/search/extended/read-only outcomes now expose a metrics boundary and can be logged through `GOGOMAIL_METRICS_BACKEND=slog`.
