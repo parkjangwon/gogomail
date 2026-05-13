@@ -55,6 +55,34 @@ func TestMailboxEventBrokerNormalizesMailboxEventIdentity(t *testing.T) {
 	}
 }
 
+func TestMailboxEventBrokerNormalizesMailboxEventType(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	events, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	if err := broker.Publish(context.Background(), MailboxEvent{Type: " exists ", UserID: "user-1", MailboxID: "inbox", Messages: 3}); err != nil {
+		t.Fatalf("Publish returned error: %v", err)
+	}
+
+	select {
+	case got := <-events:
+		if got.Type != MailboxEventExists || got.Messages != 3 {
+			t.Fatalf("event = %#v, want normalized exists event", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for normalized event type")
+	}
+
+	if err := broker.Publish(context.Background(), MailboxEvent{Type: "unknown", UserID: "user-1", MailboxID: "inbox", Messages: 4}); err == nil {
+		t.Fatal("Publish accepted unsupported event type")
+	}
+}
+
 func TestMailboxEventBrokerCancelClosesSubscription(t *testing.T) {
 	t.Parallel()
 
