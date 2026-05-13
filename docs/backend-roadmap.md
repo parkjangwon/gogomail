@@ -6144,3 +6144,7 @@ Target outcome:
       `AUTH PLAIN` rejects authenticated users flagged `MustChangePassword`,
       leaves the session unauthenticated, records a rejected auth metric, and
       continues to require AUTH before `MAIL FROM`.
+1719. SMTP submission must-change-password event isolation is now covered:
+      rejected password-change-required auth attempts do not emit hook events,
+      preventing downstream audit/logging extensions from seeing a false
+      `StageAuthenticated` success.

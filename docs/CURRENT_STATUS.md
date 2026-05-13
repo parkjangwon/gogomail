@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission must-change-password policy)
+Last updated: 2026-05-14 (SMTP submission must-change-password event isolation)
+
+## SMTP submission must-change-password event isolation (2026-05-14, complete)
+- SMTP submission coverage now verifies a `MustChangePassword` auth rejection does not emit any hook event, including `StageAuthenticated`.
+- This keeps audit/logging extensions from observing a false successful authentication when the SMTP session remains unauthenticated.
 
 ## SMTP submission must-change-password policy (2026-05-14, complete)
 - SMTP submission `AUTH PLAIN` now rejects authenticated users flagged `MustChangePassword` instead of marking the session authenticated.

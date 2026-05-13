@@ -78,6 +78,42 @@ func TestSubmissionRejectsMustChangePasswordUser(t *testing.T) {
 	}
 }
 
+func TestSubmissionDoesNotEmitAuthHookForMustChangePasswordUser(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{
+			username:           "jangwon@example.com",
+			password:           "pass",
+			mustChangePassword: true,
+		},
+		Recorder: &submissionRecorder{},
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); !errors.Is(err, gosmtp.ErrAuthFailed) {
+		t.Fatalf("AUTH PLAIN error = %v, want ErrAuthFailed", err)
+	}
+	if len(stages) != 0 {
+		t.Fatalf("hook stages after must-change-password rejection = %v, want none", stages)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 
