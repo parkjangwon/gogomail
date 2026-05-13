@@ -87,19 +87,25 @@ SELECT
   COALESCE(c.total, 0) AS total,
   COALESCE(c.unread, 0) AS unread,
   COALESCE(c.starred, 0) AS starred,
-  COALESCE(c.total_size, 0) AS total_size
+  COALESCE(c.total_size, 0) AS total_size,
+  COALESCE(c.imap_unassigned, 0) AS imap_unassigned
 FROM folders f
 LEFT JOIN (
   SELECT
-    folder_id,
+    m.folder_id,
     COUNT(*) AS total,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred,
-    SUM(size) AS total_size
-  FROM messages
-  WHERE user_id = $1::uuid
-    AND status = 'active'
-  GROUP BY folder_id
+    SUM(size) AS total_size,
+    COUNT(*) FILTER (WHERE i.message_id IS NULL) AS imap_unassigned
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $1::uuid
+    AND m.status = 'active'
+  GROUP BY m.folder_id
 ) c ON c.folder_id = f.id
 WHERE f.user_id = $1::uuid
   AND (
@@ -133,6 +139,7 @@ LIMIT 1`
 		&folder.Unread,
 		&folder.Starred,
 		&folder.TotalSize,
+		&folder.IMAPUnassigned,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return imapgw.Mailbox{}, fmt.Errorf("%w: %q", imapgw.ErrMailboxNotFound, mailboxID)
@@ -1929,6 +1936,12 @@ func sampleIMAPUIDBackfillAuditIDs(assigned []IMAPMessageUID) []imapUIDBackfillA
 }
 
 func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
+	uidNext := state.UIDNext
+	highestModSeq := state.HighestModSeq
+	if folder.IMAPUnassigned > 0 {
+		uidNext = addIMAPUIDOffset(uidNext, folder.IMAPUnassigned)
+		highestModSeq = addIMAPModSeqOffset(highestModSeq, folder.IMAPUnassigned)
+	}
 	return imapgw.Mailbox{
 		ID:            imapgw.MailboxID(folder.ID),
 		ParentID:      imapgw.MailboxID(folder.ParentID),
@@ -1936,12 +1949,32 @@ func imapMailboxFromFolder(folder Folder, state IMAPUIDState) imapgw.Mailbox {
 		FullPath:      folder.FullPath,
 		SystemType:    folder.SystemType,
 		UIDValidity:   state.UIDValidity,
-		UIDNext:       state.UIDNext,
-		HighestModSeq: state.HighestModSeq,
+		UIDNext:       uidNext,
+		HighestModSeq: highestModSeq,
 		Messages:      uint32(folder.Total),
 		Unseen:        uint32(folder.Unread),
 		Size:          folder.TotalSize,
 	}
+}
+
+func addIMAPUIDOffset(uid imapgw.UID, offset int64) imapgw.UID {
+	if offset <= 0 {
+		return uid
+	}
+	if uint64(uid)+uint64(offset) > uint64(^uint32(0)) {
+		return imapgw.UID(^uint32(0))
+	}
+	return imapgw.UID(uint32(uid) + uint32(offset))
+}
+
+func addIMAPModSeqOffset(modseq uint64, offset int64) uint64 {
+	if offset <= 0 {
+		return modseq
+	}
+	if ^uint64(0)-modseq < uint64(offset) {
+		return ^uint64(0)
+	}
+	return modseq + uint64(offset)
 }
 
 type imapMessageRow struct {

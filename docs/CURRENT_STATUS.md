@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV sync payload projection hardening)
+Last updated: 2026-05-14 (IMAP mailbox status consistency hardening)
+
+## IMAP mailbox status consistency hardening (2026-05-14, complete)
+- Folder and mailbox status aggregation now counts active messages without assigned IMAP UIDs.
+- `UIDNEXT` and `HIGHESTMODSEQ` reported through DB-backed IMAP mailbox status now include those pending lazy UID assignments, keeping EXISTS and UID state predictions aligned.
 
 ## CardDAV sync payload projection hardening (2026-05-14, complete)
 - `sync-collection` change responses now coalesce duplicate contact changes before loading requested `address-data`.

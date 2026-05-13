@@ -50,17 +50,18 @@ type MessageDetail struct {
 }
 
 type Folder struct {
-	ID         string `json:"id"`
-	ParentID   string `json:"parent_id,omitempty"`
-	Name       string `json:"name"`
-	FullPath   string `json:"full_path"`
-	Type       string `json:"type"`
-	SystemType string `json:"system_type,omitempty"`
-	OrderIndex int    `json:"order_index"`
-	Total      int64  `json:"total"`
-	Unread     int64  `json:"unread"`
-	Starred    int64  `json:"starred"`
-	TotalSize  int64  `json:"-"`
+	ID             string `json:"id"`
+	ParentID       string `json:"parent_id,omitempty"`
+	Name           string `json:"name"`
+	FullPath       string `json:"full_path"`
+	Type           string `json:"type"`
+	SystemType     string `json:"system_type,omitempty"`
+	OrderIndex     int    `json:"order_index"`
+	Total          int64  `json:"total"`
+	Unread         int64  `json:"unread"`
+	Starred        int64  `json:"starred"`
+	TotalSize      int64  `json:"-"`
+	IMAPUnassigned int64  `json:"-"`
 }
 
 type CreateFolderRequest struct {
@@ -448,19 +449,25 @@ SELECT
   COALESCE(c.total, 0) AS total,
   COALESCE(c.unread, 0) AS unread,
   COALESCE(c.starred, 0) AS starred,
-  COALESCE(c.total_size, 0) AS total_size
+  COALESCE(c.total_size, 0) AS total_size,
+  COALESCE(c.imap_unassigned, 0) AS imap_unassigned
 FROM folders f
 LEFT JOIN (
   SELECT
-    folder_id,
+    m.folder_id,
     COUNT(*) AS total,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'read')::boolean, false) = false) AS unread,
     COUNT(*) FILTER (WHERE COALESCE((flags->>'starred')::boolean, false) = true) AS starred,
-    SUM(size) AS total_size
-  FROM messages
-  WHERE user_id = $1
-    AND status = 'active'
-  GROUP BY folder_id
+    SUM(size) AS total_size,
+    COUNT(*) FILTER (WHERE i.message_id IS NULL) AS imap_unassigned
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $1
+    AND m.status = 'active'
+  GROUP BY m.folder_id
 ) c ON c.folder_id = f.id
 WHERE f.user_id = $1
 ORDER BY type DESC, order_index ASC, full_path ASC`
@@ -489,6 +496,7 @@ ORDER BY type DESC, order_index ASC, full_path ASC`
 			&folder.Unread,
 			&folder.Starred,
 			&folder.TotalSize,
+			&folder.IMAPUnassigned,
 		); err != nil {
 			return nil, fmt.Errorf("scan folder: %w", err)
 		}
