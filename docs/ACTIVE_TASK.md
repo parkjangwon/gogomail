@@ -1,31 +1,31 @@
 # ACTIVE_TASK
 
-## TASK-235: POP3 RETR fetch-error response audit
+## TASK-236: POP3 mailbox pagination audit
 
 ### 배경
 
-POP3 서버는 메시지 원문을 가져오지 못하면 `RETR`/`TOP`에서 성공 응답을 보내면
-안 된다. 현재 기본 `Mailbox` 인터페이스는 본문 조회 오류를 표현할 수 없고,
-mailservice adapter는 fetch 실패 시 빈 문자열을 반환해 `+OK 0 octets` 같은
-성공 응답으로 흐를 수 있다. 본문 조회 오류를 POP3 명령 처리까지 전달해야 한다.
+mailservice 메시지 목록 API는 페이지 크기를 서버 최대값으로 정규화한다. POP3
+어댑터가 INBOX를 한 번만 조회하면 메일함에 서버 최대 페이지보다 많은 메시지가
+있을 때 POP3 클라이언트가 일부 메시지만 볼 수 있다. POP3 세션 생성 시 INBOX
+전체를 안정적인 커서 페이지네이션으로 수집해야 한다.
 
 ### 구현 대상
 
-- `internal/pop3d/pop3d.go`
-- `internal/pop3d/*_test.go`
+- `internal/mailservice/pop3_adapter.go`
+- `internal/mailservice/pop3_adapter_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] POP3 `RETR`가 메시지 본문 조회 실패 시 `-ERR`를 반환하고 multiline 성공 응답을 시작하지 않는다.
-- [x] POP3 `TOP`이 메시지 본문 조회 실패 시 `-ERR`를 반환하고 multiline 성공 응답을 시작하지 않는다.
-- [x] mailservice POP3 adapter가 raw body fetch 오류를 서버까지 전달한다.
-- [x] `go test ./internal/pop3d ./internal/mailservice` 통과.
+- [x] POP3 adapter가 INBOX 메시지를 `MessageListMaxLimit` 크기 페이지로 끝까지 조회한다.
+- [x] 커서가 있는 다음 페이지를 디코드해 이어서 조회하고, 조회 순서를 유지한다.
+- [x] 200개 초과 메시지 메일함에 대한 회귀 테스트를 추가한다.
+- [x] `go test ./internal/mailservice` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-236: POP3 mailbox pagination audit
+TASK-237: POP3 per-user exclusive maildrop lock audit

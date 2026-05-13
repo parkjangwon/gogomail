@@ -58,7 +58,7 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 		return nil, fmt.Errorf("inbox not found")
 	}
 
-	summaries, err := a.service.ListMessagesInFolder(ctx, userID, inboxID, 1000)
+	summaries, err := a.listInboxMessages(ctx, userID, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("list inbox messages: %w", err)
 	}
@@ -78,6 +78,31 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 		loaded:  make([]bool, len(msgs)),
 		pending: make([]string, 0),
 	}, nil
+}
+
+func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID string) ([]maildb.MessageSummary, error) {
+	const pageSize = maildb.MessageListMaxLimit
+	var all []maildb.MessageSummary
+	var cursor maildb.MessageListCursor
+
+	for {
+		summaries, err := a.service.ListMessagesPage(ctx, userID, inboxID, pageSize, cursor, maildb.MessageListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		page, err := maildb.NewMessageListPage(summaries, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page.Messages...)
+		if !page.HasMore {
+			return all, nil
+		}
+		cursor, err = maildb.DecodeMessageListCursor(page.NextCursor)
+		if err != nil {
+			return nil, fmt.Errorf("decode inbox cursor: %w", err)
+		}
+	}
 }
 
 type pop3InboxMsg struct {

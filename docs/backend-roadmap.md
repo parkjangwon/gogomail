@@ -5306,6 +5306,9 @@ Progress:
 3. POP3 raw-message fetch failures now propagate from the mailservice adapter
    to the protocol server. `RETR` and `TOP` return `-ERR` before starting a
    multi-line success response when message content cannot be loaded.
+4. The mailservice POP3 adapter now walks INBOX with cursor pagination using
+   the service message-list maximum page size, preserving message order and
+   exposing mailboxes larger than a single normalized page to POP3 clients.
 
 ---
 

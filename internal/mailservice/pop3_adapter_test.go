@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gogomail/gogomail/internal/maildb"
 	"github.com/gogomail/gogomail/internal/pop3d"
@@ -17,9 +18,10 @@ import (
 // the methods the POP3 adapter actually calls.
 type pop3TestRepository struct {
 	fakeRepository
-	folders  []maildb.Folder
-	messages []maildb.MessageSummary
-	details  map[string]maildb.MessageDetail
+	folders   []maildb.Folder
+	messages  []maildb.MessageSummary
+	details   map[string]maildb.MessageDetail
+	pageCalls int
 }
 
 func (r *pop3TestRepository) ListFolders(_ context.Context, _ string) ([]maildb.Folder, error) {
@@ -28,6 +30,28 @@ func (r *pop3TestRepository) ListFolders(_ context.Context, _ string) ([]maildb.
 
 func (r *pop3TestRepository) ListMessagesInFolder(_ context.Context, _, _ string, _ int) ([]maildb.MessageSummary, error) {
 	return r.messages, nil
+}
+
+func (r *pop3TestRepository) ListMessagesPage(_ context.Context, _, _ string, limit int, cursor maildb.MessageListCursor, _ maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
+	r.pageCalls++
+	start := 0
+	if cursor.ID != "" {
+		start = len(r.messages)
+		for i, message := range r.messages {
+			if message.ID == cursor.ID {
+				start = i + 1
+				break
+			}
+		}
+	}
+	end := start + limit + 1
+	if end > len(r.messages) {
+		end = len(r.messages)
+	}
+	if start >= end {
+		return nil, nil
+	}
+	return append([]maildb.MessageSummary(nil), r.messages[start:end]...), nil
 }
 
 func (r *pop3TestRepository) GetMessage(_ context.Context, _, messageID string) (maildb.MessageDetail, error) {
@@ -106,6 +130,43 @@ func TestPOP3StoreAdapterAuthenticate(t *testing.T) {
 	}
 	if mb.MessageCount() != 2 {
 		t.Fatalf("expected 2 messages, got %d", mb.MessageCount())
+	}
+}
+
+func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
+	messages := make([]maildb.MessageSummary, 450)
+	base := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
+	for i := range messages {
+		messages[i] = maildb.MessageSummary{
+			ID:         fmt.Sprintf("00000000-0000-0000-0000-%012d", i+1),
+			Size:       int64(100 + i),
+			ReceivedAt: base.Add(-time.Duration(i) * time.Minute),
+		}
+	}
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "inbox"}},
+		messages: messages,
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	if got := mb.MessageCount(); got != len(messages) {
+		t.Fatalf("expected %d messages, got %d", len(messages), got)
+	}
+	if got := mb.MessageUIDL(0); got != messages[0].ID {
+		t.Fatalf("expected first UIDL %s, got %s", messages[0].ID, got)
+	}
+	if got := mb.MessageUIDL(len(messages) - 1); got != messages[len(messages)-1].ID {
+		t.Fatalf("expected last UIDL %s, got %s", messages[len(messages)-1].ID, got)
+	}
+	if repo.pageCalls < 3 {
+		t.Fatalf("expected at least 3 page calls, got %d", repo.pageCalls)
 	}
 }
 
