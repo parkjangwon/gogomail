@@ -666,6 +666,112 @@ func TestSubmissionRejectsRecipientsOverDomainPolicyLimitAtRcpt(t *testing.T) {
 	}
 }
 
+func TestSubmissionLogoutResetsDomainPolicyForReauth(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024, MaxRecipientsPerMessage: 10},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32, MaxRecipientsPerMessage: 10},
+		},
+	}
+	recorder := &submissionRecorder{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Authenticator: multiSubmissionAuthenticator{
+			password: "pass",
+			users: map[string]SubmissionUser{
+				"one@example.com": {
+					CompanyID: "company-1",
+					DomainID:  "d1",
+					UserID:    "user-1",
+					Address:   "one@example.com",
+				},
+				"two@example.net": {
+					CompanyID: "company-1",
+					DomainID:  "d2",
+					UserID:    "user-2",
+					Address:   "two@example.net",
+				},
+			},
+		},
+		Recorder:           recorder,
+		DomainPolicyLookup: lookup,
+		Policy:             ReceivePolicy{MaxMessageBytes: 1024, MaxRecipientsPerMessage: 100},
+		SupportDSN:         true,
+		IDGenerator:        func() string { return "submission-logout-policy" },
+		Clock:              func() time.Time { return time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC) },
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	authPlain := func(username string) {
+		t.Helper()
+		server, err := submission.Auth(sasl.Plain)
+		if err != nil {
+			t.Fatalf("Auth(%s) returned error: %v", username, err)
+		}
+		if _, done, err := server.Next([]byte("\x00" + username + "\x00pass")); err != nil {
+			t.Fatalf("AUTH PLAIN(%s) returned error: %v", username, err)
+		} else if !done {
+			t.Fatalf("AUTH PLAIN(%s) did not complete", username)
+		}
+	}
+
+	authPlain("two@example.net")
+	if err := submission.Mail("two@example.net", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnHeaders,
+		EnvelopeID: "old-domain",
+	}); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.org", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;outside@example.org",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if !lookup.seen("d2") {
+		t.Fatal("domain policy lookup did not load first authenticated user's domain")
+	}
+	if err := submission.Logout(); err != nil {
+		t.Fatalf("Logout returned error: %v", err)
+	}
+	if err := submission.Mail("one@example.com", nil); !errors.Is(err, gosmtp.ErrAuthRequired) {
+		t.Fatalf("Mail after Logout error = %v, want ErrAuthRequired", err)
+	}
+
+	authPlain("one@example.com")
+	if err := submission.Mail("one@example.com", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.org", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-logout-policy@example.com>\r\nFrom: one@example.com\r\nTo: outside@example.org\r\nSubject: larger than stale d2 limit\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data after reauth returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0]
+	if got.User.DomainID != "d1" || got.EnvelopeFrom != "one@example.com" {
+		t.Fatalf("recorded submission = domain %q from %q, want d1/one@example.com", got.User.DomainID, got.EnvelopeFrom)
+	}
+	if got.DSN.Return != "" || got.DSN.EnvelopeID != "" {
+		t.Fatalf("recorded DSN envelope = %+v, want no pre-Logout leak", got.DSN)
+	}
+	if len(got.DSN.Recipients) != 1 || len(got.DSN.Recipients[0].Notify) != 0 || got.DSN.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("recorded DSN recipients = %+v, want no pre-Logout recipient DSN leak", got.DSN.Recipients)
+	}
+	if !lookup.seen("d1") {
+		t.Fatal("domain policy lookup did not load reauthenticated user's domain")
+	}
+}
+
 func TestSubmissionResetsEnvelopeAfterSuccessfulData(t *testing.T) {
 	t.Parallel()
 
@@ -1073,6 +1179,22 @@ func (a submissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, 
 		AuthorizedAddresses: a.authorizedAddresses,
 		MustChangePassword:  a.mustChangePassword,
 	}, nil
+}
+
+type multiSubmissionAuthenticator struct {
+	password string
+	users    map[string]SubmissionUser
+}
+
+func (a multiSubmissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) (SubmissionUser, error) {
+	if password != a.password {
+		return SubmissionUser{}, errAuthTestFailed
+	}
+	user, ok := a.users[username]
+	if !ok {
+		return SubmissionUser{}, errAuthTestFailed
+	}
+	return user, nil
 }
 
 type submissionRecorder struct {

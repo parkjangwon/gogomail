@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission unsupported auth transaction state)
+Last updated: 2026-05-14 (SMTP submission Logout domain policy reset)
+
+## SMTP submission Logout domain policy reset (2026-05-14, complete)
+- SMTP submission now clears authenticated-user domain policy cache on successful `AUTH` and `Logout`.
+- The regression verifies a same-session Logout and re-authentication as a different domain user does not inherit the previous domain's message-size policy or DSN options.
 
 ## SMTP submission unsupported auth transaction state (2026-05-14, complete)
 - SMTP submission coverage now verifies unsupported AUTH after `MAIL FROM` is rejected without clearing the active envelope sender.

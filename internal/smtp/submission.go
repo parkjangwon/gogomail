@@ -168,6 +168,7 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			return err
 		}
 		s.user = user
+		s.clearDomainPolicy()
 		return nil
 	}), nil
 }
@@ -496,8 +497,14 @@ func (s *submissionSession) clearEnvelope() {
 	s.smtpUTF8 = false
 }
 
+func (s *submissionSession) clearDomainPolicy() {
+	s.domainPolicy = nil
+	s.domainPolicyLoaded = false
+}
+
 func (s *submissionSession) Logout() error {
 	s.Reset()
 	s.user = SubmissionUser{}
+	s.clearDomainPolicy()
 	return nil
 }
