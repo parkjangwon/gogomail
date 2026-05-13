@@ -5295,6 +5295,10 @@ Target outcome:
          locks the target messages row with `FOR UPDATE OF m`, and Postgres
          coverage verifies no stale UID row is inserted while that row is
          locked.
+ 1702. IMAP regular message move/delete stale UID rows are now covered:
+         MoveMessage removes old mailbox UID rows before destination
+         reassignment, and DeleteMessage removes assigned UID rows before
+         rejecting later reallocation.
 
 ## Deferred until backend contracts stabilize
 

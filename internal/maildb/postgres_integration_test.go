@@ -1061,6 +1061,83 @@ FOR UPDATE`, messageID).Scan(&lockedID); err != nil {
 	}
 }
 
+func TestPostgresMoveMessageRemovesOldIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<move-stale-uid@example.com>',
+  'move stale uid', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/move-stale-uid.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert move stale uid message: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID source returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 1)
+
+	if err := repo.MoveMessage(ctx, seed.userID, messageID, seed.sentID); err != nil {
+		t.Fatalf("MoveMessage returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+		t.Fatalf("EnsureIMAPMessageUID old mailbox error = %v, want ErrIMAPMessageNotActive", err)
+	}
+
+	freshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.sentID, messageID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID destination returned error: %v", err)
+	}
+	if freshUID.MailboxID != imapgw.MailboxID(seed.sentID) || freshUID.UID != 1 {
+		t.Fatalf("destination UID = %#v, want sent UID 1", freshUID)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.sentID, messageID, 1)
+}
+
+func TestPostgresDeleteMessageRemovesIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<delete-stale-uid@example.com>',
+  'delete stale uid', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/delete-stale-uid.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert delete stale uid message: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 1)
+
+	if err := repo.DeleteMessage(ctx, seed.userID, messageID); err != nil {
+		t.Fatalf("DeleteMessage returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+		t.Fatalf("EnsureIMAPMessageUID deleted message error = %v, want ErrIMAPMessageNotActive", err)
+	}
+}
+
 func TestPostgresEnsureIMAPMessageUIDsForMessagesAssignsMailboxOrder(t *testing.T) {
 	t.Parallel()
 
@@ -1601,6 +1678,23 @@ WHERE user_id = $1::uuid
 	}
 	if assigned != want {
 		t.Fatalf("assigned imap uids = %d, want %d", assigned, want)
+	}
+}
+
+func assertMessageAssignedIMAPUIDCount(t *testing.T, db *sql.DB, userID string, mailboxID string, messageID string, want int) {
+	t.Helper()
+
+	var assigned int
+	if err := db.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM imap_message_uid
+WHERE user_id = $1::uuid
+  AND mailbox_id = $2::uuid
+  AND message_id = $3::uuid`, userID, mailboxID, messageID).Scan(&assigned); err != nil {
+		t.Fatalf("count message imap uids: %v", err)
+	}
+	if assigned != want {
+		t.Fatalf("assigned imap uids for message %s in mailbox %s = %d, want %d", messageID, mailboxID, assigned, want)
 	}
 }
 
