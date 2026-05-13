@@ -16,7 +16,7 @@ import {
   Alert,
   Badge,
 } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 
@@ -203,35 +203,50 @@ export default function DomainSettingsPage() {
       }
     >
       <SpaceBetween size="l">
-        <Container>
-          <FormField label={t('pages.domain_settings_page.select_domain_label')}>
-            <Select
-              selectedOption={domainOptions.find(o => o.value === selectedDomainId) ?? null}
-              options={domainOptions}
-              onChange={(e) => handleDomainChange(e.detail.selectedOption?.value ?? '')}
-              placeholder={t('pages.domain_settings_page.select_domain_placeholder')}
-              expandToViewport
-            />
-          </FormField>
-        </Container>
+        <Fragment key="domain-selector">
+          <Container key="domain-selector-card">
+            <FormField label={t('pages.domain_settings_page.select_domain_label')}>
+              <Select
+                selectedOption={domainOptions.find(o => o.value === selectedDomainId) ?? null}
+                options={domainOptions}
+                onChange={(e) => handleDomainChange(e.detail.selectedOption?.value ?? '')}
+                placeholder={t('pages.domain_settings_page.select_domain_placeholder')}
+                expandToViewport
+              />
+            </FormField>
+          </Container>
+        </Fragment>
 
         {loadingSettings && (
-          <Box textAlign="center" padding="xl"><Spinner /></Box>
+          <Fragment key="loading-settings">
+            <Box key="loading-settings-box" textAlign="center" padding="xl"><Spinner /></Box>
+          </Fragment>
         )}
 
-        {!loadingSettings && saveError && <Alert type="error">{saveError}</Alert>}
+        {!loadingSettings && saveError && (
+          <Fragment key="load-error">
+            <Alert key="load-error-alert" type="error">{saveError}</Alert>
+          </Fragment>
+        )}
 
         {!loadingSettings && domains.length === 0 && (
-          <Alert type="info">{t('pages.domain_settings_page.no_domains')}</Alert>
+          <Fragment key="empty-domains">
+            <Alert key="empty-domains-alert" type="info">{t('pages.domain_settings_page.no_domains')}</Alert>
+          </Fragment>
         )}
 
         {settings && form && (
-          <SpaceBetween size="l">
-            {saveSuccess && <Alert type="success">{t('pages.domain_settings_page.save_success')}</Alert>}
+          <Fragment key="settings-form">
+            <SpaceBetween key="settings-stack" size="l">
+              {saveSuccess && (
+                <Fragment key="save-success">
+                  <Alert key="save-success-alert" type="success">{t('pages.domain_settings_page.save_success')}</Alert>
+                </Fragment>
+              )}
 
-            {/* User Registration */}
-            <Container header={<Header variant="h2">{t('pages.domain_settings_page.section_registration')}</Header>}>
-              <SpaceBetween size="m">
+              {/* User Registration */}
+              <Container key="registration-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_registration')}</Header>}>
+              <SpaceBetween key="registration-stack" size="m">
                 <FormField
                   label={t('pages.domain_settings_page.registration_mode_label')}
                   description={t('pages.domain_settings_page.registration_mode_desc')}
@@ -252,9 +267,9 @@ export default function DomainSettingsPage() {
             </Container>
 
             {/* Security */}
-            <Container header={<Header variant="h2">{t('pages.domain_settings_page.section_security')}</Header>}>
+            <Container key="security-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_security')}</Header>}>
               <ColumnLayout columns={2}>
-                <SpaceBetween size="m">
+                <SpaceBetween key="security-left" size="m">
                   <FormField label={t('pages.domain_settings_page.tls_policy_label')}>
                     <Select
                       selectedOption={tlsOptions.find(o => o.value === f('tls_policy')) ?? tlsOptions[0]}
@@ -276,7 +291,7 @@ export default function DomainSettingsPage() {
                     {t('pages.domain_settings_page.ip_whitelist_label')}
                   </Toggle>
                 </SpaceBetween>
-                <SpaceBetween size="m">
+                <SpaceBetween key="security-right" size="m">
                   <FormField label={t('pages.domain_settings_page.session_timeout_label')} description={t('pages.domain_settings_page.minutes')}>
                     <Input
                       type="number"
@@ -289,9 +304,9 @@ export default function DomainSettingsPage() {
             </Container>
 
             {/* Password Policy */}
-            <Container header={<Header variant="h2">{t('pages.domain_settings_page.section_password')}</Header>}>
+            <Container key="password-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_password')}</Header>}>
               <ColumnLayout columns={2}>
-                <SpaceBetween size="m">
+                <SpaceBetween key="password-left" size="m">
                   <FormField label={t('pages.domain_settings_page.password_min_length_label')}>
                     <Input
                       type="number"
@@ -317,7 +332,7 @@ export default function DomainSettingsPage() {
                     />
                   </FormField>
                 </SpaceBetween>
-                <SpaceBetween size="m">
+                <SpaceBetween key="password-right" size="m">
                   <Toggle
                     checked={!!f('password_require_uppercase')}
                     onChange={(e) => set('password_require_uppercase', e.detail.checked)}
@@ -341,7 +356,7 @@ export default function DomainSettingsPage() {
             </Container>
 
             {/* Quota */}
-            <Container header={<Header variant="h2">{t('pages.domain_settings_page.section_quota')}</Header>}>
+            <Container key="quota-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_quota')}</Header>}>
               <FormField label={t('pages.domain_settings_page.quota_per_user_label')} description="bytes">
                 <Input
                   type="number"
@@ -352,8 +367,8 @@ export default function DomainSettingsPage() {
             </Container>
 
             {/* Footer */}
-            <Box float="right">
-              <SpaceBetween direction="horizontal" size="xs">
+            <Box key="settings-footer" float="right">
+              <SpaceBetween key="settings-footer-stack" direction="horizontal" size="xs">
                 {settings.updated_at && (
                   <Box color="text-body-secondary" fontSize="body-s" padding={{ top: 'xs' }}>
                     {t('pages.domain_settings_page.last_updated')}: {new Date(settings.updated_at).toLocaleString()}
@@ -364,8 +379,9 @@ export default function DomainSettingsPage() {
                   {t('pages.domain_settings_page.save_btn')}
                 </Button>
               </SpaceBetween>
-            </Box>
-          </SpaceBetween>
+              </Box>
+            </SpaceBetween>
+          </Fragment>
         )}
       </SpaceBetween>
     </ContentLayout>

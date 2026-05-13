@@ -6,6 +6,7 @@ Last updated: 2026-05-14 (Domain settings visibility hardening)
 - Domain settings now load whenever the selected domain changes, including the auto-selected first domain, so the editable registration/security/password/quota form appears without requiring a second manual selection.
 - Domain settings load failures and empty-domain states are rendered outside the settings form block, preventing the page from looking blank when settings data cannot be fetched.
 - Domain settings reads now scan nullable `updated_by` values safely, preventing legacy/default settings rows from failing to load before the form can render.
+- The domain settings page now gives conditional Cloudscape layout children stable React keys, removing the console warning emitted while rendering the settings form.
 
 ## Recovery settings form hardening (2026-05-14, complete)
 - Webmail profile updates now parse structured API error envelopes before displaying them, so backup email validation errors no longer render as `[object Object]`.
