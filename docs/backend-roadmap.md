@@ -424,6 +424,7 @@ Target outcome:
 333. CardDAV `addressbook-query` candidate optimization now declines LIKE wildcard or escape-bearing seed text, falling back to exact in-memory filtering over the broad walker.
 334. CardDAV sync change pruning now explicitly preserves the current address book `sync_token` in both dry-run and delete paths, preventing retention cleanup from expiring the latest collection marker.
 335. CalDAV storage validation tests now pin the split between iTIP scheduling payloads and persisted calendar object resources by rejecting `METHOD`-bearing VCALENDAR bodies at `UpsertObject`.
+336. CalDAV sync change pruning now explicitly preserves the current calendar `sync_token` in both dry-run and delete paths, matching the CardDAV retention guard for latest collection markers.
 329. Shared EML parsing now exposes a `MaxHeaderBytes` option wired into go-message header parsing, letting hot-path callers bound pathological RFC 5322 header blocks alongside body, attachment, and part limits.
 330. Push notification attempt outcomes can now persist provider message IDs and provider status codes, preparing the async push pipeline for FCM/APNs/Web Push adapters without exposing a public mutation API or coupling vendor behavior to SMTP writes.
 331. Delivery attempt rows now persist sender, RFC 3463 enhanced status, and RFC 3461 DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` metadata, and Admin/user delivery status reads expose those diagnostics for bounce and retry triage.
