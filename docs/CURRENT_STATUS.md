@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth failure short-circuit)
+Last updated: 2026-05-14 (POP3 inbox folder casing)
+
+## POP3 inbox folder casing (2026-05-14, complete)
+- POP3 adapter coverage now verifies `SystemType=INBOX` is accepted as the user's INBOX.
+- The regression confirms message listing proceeds with the normalized user ID after case-insensitive INBOX detection.
 
 ## POP3 auth failure short-circuit (2026-05-14, complete)
 - POP3 adapter coverage now verifies authenticator credential failures stop before mail service lookup.

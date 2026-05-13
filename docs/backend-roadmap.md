@@ -4976,6 +4976,9 @@ Target outcome:
  1593. POP3 credential failure handling is now covered as a service
          short-circuit: wrong-password authenticator failures call the
          authenticator once and perform no folder or inbox page lookup.
+ 1594. POP3 INBOX folder detection is now covered as case-insensitive at the
+         mailservice adapter boundary: `SystemType=INBOX` is accepted and
+         message listing continues with the normalized user ID.
 
 ## Deferred until backend contracts stabilize
 
