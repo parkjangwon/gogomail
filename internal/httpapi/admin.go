@@ -64,6 +64,8 @@ func WithTokenManager(tm *auth.TokenManager) AdminRouteOption {
 
 type adminContextKey struct{}
 
+const companyDomainSettingsDefaultsKey = "domain_settings_defaults"
+
 func adminClaimsFromCtx(ctx context.Context) (auth.Claims, bool) {
 	c, ok := ctx.Value(adminContextKey{}).(auth.Claims)
 	return c, ok
@@ -539,6 +541,34 @@ type adminConfigPropagateRequest struct {
 	Key    string          `json:"key"`
 	Value  json.RawMessage `json:"value"`
 	Locked bool            `json:"locked"`
+}
+
+func inheritCompanyDomainSettings(ctx context.Context, service AdminService, domain maildb.DomainView) error {
+	if domain.CompanyID == "" || domain.ID == "" {
+		return nil
+	}
+	entry, err := service.GetCompanyConfig(ctx, domain.CompanyID, companyDomainSettingsDefaultsKey)
+	if err != nil {
+		if errors.Is(err, configstore.ErrConfigNotFound) {
+			return nil
+		}
+		return fmt.Errorf("load company domain settings defaults: %w", err)
+	}
+	if len(entry.Value) == 0 {
+		return nil
+	}
+	var settings admin.DomainSettings
+	if err := json.Unmarshal(entry.Value, &settings); err != nil {
+		return fmt.Errorf("decode company domain settings defaults: %w", err)
+	}
+	settings.DomainID = domain.ID
+	if settings.IPWhitelist == nil {
+		settings.IPWhitelist = []string{}
+	}
+	if err := service.UpdateDomainSettings(ctx, &settings); err != nil {
+		return fmt.Errorf("apply company domain settings defaults: %w", err)
+	}
+	return nil
 }
 
 func parseAdminAttachmentCleanupRequest(w http.ResponseWriter, req adminAttachmentCleanupRunRequest) (time.Time, bool) {
@@ -1100,6 +1130,10 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		}
 		domain, err := service.CreateDomain(r.Context(), req)
 		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := inheritCompanyDomainSettings(r.Context(), service, domain); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
