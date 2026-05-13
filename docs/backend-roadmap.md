@@ -4994,6 +4994,9 @@ Target outcome:
  1599. POP3 multi-page cursor decode failures are now covered at authentication
          time: malformed message IDs in a paged INBOX surface as
          `decode inbox cursor` errors and stop after the first page lookup.
+ 1600. POP3 multi-page missing-cursor handling is now hardened: `HasMore=true`
+         pages without a `NextCursor` fail as `missing inbox cursor` after the
+         first lookup, preventing repeated first-page reads.
 
 ## Deferred until backend contracts stabilize
 
