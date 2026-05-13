@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 folder listing error short-circuit)
+Last updated: 2026-05-14 (POP3 message page error propagation)
+
+## POP3 message page error propagation (2026-05-14, complete)
+- POP3 adapter coverage now verifies INBOX message page errors fail authentication as `list inbox messages` errors.
+- The regression asserts the failing page lookup uses the selected INBOX folder ID and does not create a mailbox.
 
 ## POP3 folder listing error short-circuit (2026-05-14, complete)
 - POP3 adapter coverage now verifies folder listing errors are returned as `list folders` failures.

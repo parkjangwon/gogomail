@@ -4988,6 +4988,9 @@ Target outcome:
  1597. POP3 folder listing failure handling is now covered as a message-listing
          short-circuit: folder errors propagate as `list folders` failures and
          prevent message page lookup.
+ 1598. POP3 message page failure handling is now covered at authentication
+         time: INBOX page errors propagate as `list inbox messages` failures
+         after a single lookup against the selected INBOX folder.
 
 ## Deferred until backend contracts stabilize
 
