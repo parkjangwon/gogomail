@@ -4843,6 +4843,10 @@ Target outcome:
          with `Messages=SequenceNumber` after UID assurance. New inbound
          delivery notifications therefore use the same exact mailbox-count
          update semantics as APPEND/COPY and restored-message events.
+ 1558. The `mail.stored` IMAP notification path now drops UID assurance
+         results with an empty mailbox ID before publishing EXISTS or delta
+         sync mailbox-change notifications, preventing malformed mailbox
+         fanout from incomplete UID rows.
 
 ## Deferred until backend contracts stabilize
 

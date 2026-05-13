@@ -66,6 +66,9 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 		}
 		return fmt.Errorf("ensure imap uid for stored message %q: %w", event.MessageID, err)
 	}
+	if uid.MailboxID == "" {
+		return nil
+	}
 	if h.events != nil {
 		if err := h.events.Publish(ctx, imapgw.MailboxEvent{
 			Type:      imapgw.MailboxEventExists,

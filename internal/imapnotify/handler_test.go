@@ -57,6 +57,38 @@ func TestMailStoredHandlerPublishesExistsAfterUIDAssignment(t *testing.T) {
 	}
 }
 
+func TestMailStoredHandlerSkipsEmptyMailboxUIDResult(t *testing.T) {
+	t.Parallel()
+
+	ensurer := &fakeUIDEnsurer{
+		result: maildb.IMAPMessageUID{
+			MessageID:      "msg-1",
+			UID:            1,
+			SequenceNumber: 1,
+			ModSeq:         1,
+		},
+	}
+	events := &fakeMailboxEventPublisher{}
+	notifier := &fakeDeltaSyncNotifier{}
+	handler := NewMailStoredHandler(ensurer).WithMailboxEvents(events).WithDeltaSync(notifier)
+	err := handler.HandleEvent(context.Background(), eventstream.Message{Payload: json.RawMessage(`{
+		"event":"mail.stored",
+		"schema_version":"2026-05-04.mail-stored.v1",
+		"message_id":"msg-1",
+		"user_id":"user-1",
+		"folder_id":"inbox-1"
+	}`)})
+	if err != nil {
+		t.Fatalf("HandleEvent returned error: %v", err)
+	}
+	if len(events.events) != 0 {
+		t.Fatalf("events = %+v, want no event for empty mailbox UID result", events.events)
+	}
+	if len(notifier.calls) != 0 {
+		t.Fatalf("DeltaSyncNotifier calls = %+v, want no notification for empty mailbox UID result", notifier.calls)
+	}
+}
+
 func TestMailStoredHandlerIgnoresInactiveMessageUIDAssignment(t *testing.T) {
 	t.Parallel()
 
@@ -206,6 +238,7 @@ type fakeUIDEnsurer struct {
 	userID    string
 	mailboxID string
 	messageID string
+	result    maildb.IMAPMessageUID
 	err       error
 }
 
@@ -215,6 +248,9 @@ func (f *fakeUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, 
 	f.messageID = messageID
 	if f.err != nil {
 		return maildb.IMAPMessageUID{}, f.err
+	}
+	if f.result.MessageID != "" || f.result.MailboxID != "" || f.result.UID != 0 || f.result.SequenceNumber != 0 || f.result.ModSeq != 0 {
+		return f.result, nil
 	}
 	return maildb.IMAPMessageUID{
 		MessageID:      imapgw.MessageID(messageID),
