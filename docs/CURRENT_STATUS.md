@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction NOOP stability)
+Last updated: 2026-05-14 (POP3 DELE NOOP preserves pending delete)
+
+## POP3 DELE NOOP preserves pending delete (2026-05-14, complete)
+- POP3 server coverage now verifies `NOOP` after `DELE 1` does not restore the deleted message.
+- The regression verifies `LIST 1` still fails and `STAT` still excludes the pending delete.
 
 ## POP3 transaction NOOP stability (2026-05-14, complete)
 - POP3 server coverage now verifies repeated transaction-state `NOOP` returns `+OK`.
