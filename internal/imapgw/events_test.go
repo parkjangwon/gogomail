@@ -295,3 +295,46 @@ func TestMailboxEventBrokerRejectsBlankSubscription(t *testing.T) {
 		t.Fatal("Publish accepted blank event")
 	}
 }
+
+func TestMailboxEventBrokerValidationFailuresDoNotMutateState(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	events, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	invalidPublishes := []MailboxEvent{
+		{Type: MailboxEventExists, UserID: "", MailboxID: "inbox", Messages: 1},
+		{Type: MailboxEventExists, UserID: "user-1", MailboxID: "", Messages: 1},
+		{Type: "", UserID: "user-1", MailboxID: "inbox", Messages: 1},
+		{Type: "unknown", UserID: "user-1", MailboxID: "inbox", Messages: 1},
+	}
+	for _, event := range invalidPublishes {
+		if err := broker.Publish(context.Background(), event); err == nil {
+			t.Fatalf("Publish accepted invalid event %#v", event)
+		}
+	}
+	if _, _, err := broker.Subscribe(context.Background(), "", "archive"); err == nil {
+		t.Fatal("Subscribe accepted blank user")
+	}
+	if _, _, err := broker.Subscribe(context.Background(), "user-2", ""); err == nil {
+		t.Fatal("Subscribe accepted blank mailbox")
+	}
+	if got := broker.SubscriberCount(); got != 1 {
+		t.Fatalf("SubscriberCount = %d, want original subscriber only", got)
+	}
+	if got := broker.DroppedEvents(); got != 0 {
+		t.Fatalf("DroppedEvents = %d, want 0 after validation failures", got)
+	}
+	if got := broker.DroppedEventsFor("user-1", "inbox"); got != 0 {
+		t.Fatalf("DroppedEventsFor = %d, want 0 after validation failures", got)
+	}
+	select {
+	case got := <-events:
+		t.Fatalf("received event from validation failure: %#v", got)
+	default:
+	}
+}
