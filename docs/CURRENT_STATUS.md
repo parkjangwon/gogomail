@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission malformed auth payload isolation)
+Last updated: 2026-05-14 (SMTP submission unsupported auth mechanism)
+
+## SMTP submission unsupported auth mechanism (2026-05-14, complete)
+- SMTP submission coverage now verifies unsupported mechanisms such as `LOGIN` return `ErrAuthUnsupported` with no SASL server.
+- The regression verifies unsupported mechanisms do not authenticate the session, emit hooks, record metrics, or unlock `MAIL FROM`.
 
 ## SMTP submission malformed auth payload isolation (2026-05-14, complete)
 - SMTP submission coverage now verifies malformed AUTH PLAIN payloads fail without authenticating the session.
