@@ -7427,21 +7427,21 @@ func handleTestCompanyWebhook(w http.ResponseWriter, r *http.Request, service Ad
 		time.Now().UTC().Format(time.RFC3339))
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, target.URL, strings.NewReader(payload))
 	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("failed to build request: %v", err)})
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": fmt.Sprintf("failed to build request: %v", err)})
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Gogomail-Event", "test")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("request failed: %v", err)})
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": 0, "message": fmt.Sprintf("request failed: %v", err)})
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
+		writeJSON(w, http.StatusOK, map[string]any{"success": true, "status_code": resp.StatusCode, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
 	} else {
-		writeJSON(w, http.StatusOK, map[string]any{"success": false, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "status_code": resp.StatusCode, "message": fmt.Sprintf("webhook responded with %d", resp.StatusCode)})
 	}
 }
 

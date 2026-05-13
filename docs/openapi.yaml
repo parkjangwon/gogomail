@@ -9992,8 +9992,6 @@ components:
           type: string
         url:
           type: string
-        secret:
-          type: string
         events:
           type: array
           items:
@@ -10009,16 +10007,10 @@ components:
           type: string
         subject:
           type: string
-        body_html:
+        body:
           type: string
-        body_text:
-          type: string
-        locale:
-          type: string
-        variables:
-          type: array
-          items:
-            type: string
+        enabled:
+          type: boolean
     IPAccessPolicy:
       type: object
       properties:

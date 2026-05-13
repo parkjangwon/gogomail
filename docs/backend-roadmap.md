@@ -240,6 +240,7 @@ Implementation order:
 192. Webmail settings no longer call the nonexistent mailbox import `/messages/restore` route; mailbox export remains local, while backend-supported message restore stays on trash message endpoints.
 193. Backend tenant-scoped user summaries now share the company-domain user enumeration path for bulk export, SCIM status, and security posture, preventing unscoped user counts or CSV rows.
 194. The console `/admin/v1` proxy now preserves backend 204 no-body responses and download headers like `/api/admin`, keeping direct admin-v1 pages aligned with backend response contracts.
+195. Admin OpenAPI webhook and notification-template schemas now match backend behavior: generated webhook secrets are response-only, webhook tests include `status_code`, and templates use `subject`, `body`, and `enabled`.
 190. A backend-only OpenAPI 3.1 draft now documents the current mail/admin API surface without starting frontend implementation.
 191. OpenAPI route coverage is now tested against registered Go HTTP routes, including health probes, so backend handlers cannot drift silently from the contract.
 192. OpenAPI request bodies now describe the current JSON and multipart mutation payloads, giving future generated webmail/admin clients a stable backend contract before frontend implementation starts.
