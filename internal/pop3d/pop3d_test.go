@@ -209,6 +209,29 @@ func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	return tp
 }
 
+func pop3ConnWithDeadline(t *testing.T, addr string, timeout time.Duration) *textproto.Conn {
+	t.Helper()
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		conn.Close()
+		t.Fatalf("set deadline: %v", err)
+	}
+	tp := textproto.NewConn(conn)
+	line, err := tp.ReadLine()
+	if err != nil {
+		tp.Close()
+		t.Fatalf("greeting: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		tp.Close()
+		t.Fatalf("unexpected greeting: %s", line)
+	}
+	return tp
+}
+
 func pop3Cmd(t *testing.T, tp *textproto.Conn, expected string, format string, args ...interface{}) string {
 	t.Helper()
 	id, err := tp.Cmd(format, args...)
@@ -806,24 +829,8 @@ func TestPOP3AuthStateQuitClosesConnection(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
 
-	conn, err := net.Dial("tcp", listener.Addr().String())
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer conn.Close()
-	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("set deadline: %v", err)
-	}
-	tp := textproto.NewConn(conn)
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), 2*time.Second)
 	defer tp.Close()
-
-	line, err := tp.ReadLine()
-	if err != nil {
-		t.Fatalf("greeting: %v", err)
-	}
-	if !strings.HasPrefix(line, "+OK") {
-		t.Fatalf("unexpected greeting: %s", line)
-	}
 
 	pop3Cmd(t, tp, "+OK", "QUIT")
 	if line, err := tp.ReadLine(); err == nil {
@@ -1237,24 +1244,8 @@ func TestPOP3QuitSuccessClosesConnection(t *testing.T) {
 	_, listener := newCommitServer(t, mb)
 	defer listener.Close()
 
-	conn, err := net.Dial("tcp", listener.Addr().String())
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	defer conn.Close()
-	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("set deadline: %v", err)
-	}
-	tp := textproto.NewConn(conn)
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), 2*time.Second)
 	defer tp.Close()
-
-	line, err := tp.ReadLine()
-	if err != nil {
-		t.Fatalf("greeting: %v", err)
-	}
-	if !strings.HasPrefix(line, "+OK") {
-		t.Fatalf("unexpected greeting: %s", line)
-	}
 
 	pop3Cmd(t, tp, "+OK", "USER alice")
 	pop3Cmd(t, tp, "+OK", "PASS secret")
