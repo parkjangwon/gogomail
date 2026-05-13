@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit RSET)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit invalid DELE)
+
+## POP3 QUIT after failed commit invalid DELE (2026-05-14, complete)
+- POP3 server coverage now verifies an out-of-range `DELE` after failed `QUIT` rollback returns `-ERR`.
+- The regression verifies the restored message remains visible through `LIST 1` and the delete mark stays clear.
 
 ## POP3 QUIT after failed commit RSET (2026-05-14, complete)
 - POP3 server coverage now verifies `RSET` after a failed delete commit on `QUIT` returns `+OK`.

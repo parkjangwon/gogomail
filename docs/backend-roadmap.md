@@ -5222,6 +5222,9 @@ Target outcome:
  1678. POP3 RSET after failed delete commit is now covered: failed QUIT
          rollback followed by RSET keeps the message visible and leaves the
          delete mark clear.
+ 1679. POP3 invalid DELE after failed delete commit is now covered: an
+         out-of-range DELE after rollback returns `-ERR` without hiding the
+         restored message or setting a delete mark.
 
 ## Deferred until backend contracts stabilize
 
