@@ -326,6 +326,21 @@ func TestIMAPMailboxFromFolderPredictsUnassignedUIDState(t *testing.T) {
 	}
 }
 
+func TestAssignIMAPListSequenceNumbersUsesMailboxBase(t *testing.T) {
+	t.Parallel()
+
+	messages := []imapgw.MessageSummary{
+		{ID: "msg-3", UID: 9},
+		{ID: "msg-4", UID: 10},
+	}
+	if err := assignIMAPListSequenceNumbers(messages, 2); err != nil {
+		t.Fatalf("assignIMAPListSequenceNumbers returned error: %v", err)
+	}
+	if messages[0].SequenceNumber != 3 || messages[1].SequenceNumber != 4 {
+		t.Fatalf("sequence numbers = %d/%d, want 3/4", messages[0].SequenceNumber, messages[1].SequenceNumber)
+	}
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

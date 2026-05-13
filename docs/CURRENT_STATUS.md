@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox status consistency hardening)
+Last updated: 2026-05-14 (IMAP lazy UID sequence hardening)
+
+## IMAP lazy UID sequence hardening (2026-05-14, complete)
+- `ListIMAPMessages` now assigns explicit sequence numbers after lazy UID assignment and UID sorting.
+- Partial `AfterUID` listings compute their sequence base from active UIDs already at or below the cursor, preventing subset-local sequence numbers from leaking into IMAP responses and events.
 
 ## IMAP mailbox status consistency hardening (2026-05-14, complete)
 - Folder and mailbox status aggregation now counts active messages without assigned IMAP UIDs.

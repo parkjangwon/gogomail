@@ -5388,6 +5388,8 @@ Target outcome:
    `address-data`, avoiding duplicate vCard reads and limit pressure.
 9. IMAP mailbox status aggregation includes active messages awaiting lazy UID
    assignment when predicting `UIDNEXT` and `HIGHESTMODSEQ`.
+10. IMAP message listings now emit explicit mailbox-relative sequence numbers
+    after lazy UID assignment, including `AfterUID` partial listings.
 
 ---
 
