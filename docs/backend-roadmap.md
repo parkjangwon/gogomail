@@ -6133,3 +6133,6 @@ Target outcome:
       unauthorized failures expose `WWWAuthenticate()` with `Basic realm="CalDAV"`,
       and trusted-proxy `X-Forwarded-Proto` handling accepts uppercase/whitespace
       HTTPS tokens.
+1716. DAV Basic auth repository active policy is now covered:
+      `AuthenticatePlain`, used by CalDAV/CardDAV Basic auth, rejects suspended
+      users and domains after proving the same credentials work while active.

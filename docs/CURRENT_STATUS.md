@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV Basic auth parity)
+Last updated: 2026-05-14 (DAV auth repository active policy)
+
+## DAV auth repository active policy (2026-05-14, complete)
+- Postgres coverage now verifies `AuthenticatePlain`, the credential path used by CalDAV/CardDAV Basic auth, rejects suspended users and domains after first proving the same credential works while active.
+- Existing company rejection coverage is now complemented by user/domain policy coverage for DAV auth.
 
 ## CalDAV Basic auth parity (2026-05-14, complete)
 - CalDAV auth coverage now verifies unauthorized Basic auth failures expose the `WWWAuthenticate()` challenge with `Basic realm="CalDAV"`.
