@@ -187,6 +187,29 @@ WHERE id = $1::uuid`, seed.companyID); err != nil {
 	}
 }
 
+func TestPostgresAuthenticateLDAPAcceptsUserIDIdentity(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+UPDATE users
+SET password_hash = 'plain:dev-password'
+WHERE id = $1::uuid`, seed.userID); err != nil {
+		t.Fatalf("set password hash: %v", err)
+	}
+	ok, err := repo.AuthenticateLDAP(ctx, seed.userID, "dev-password")
+	if err != nil {
+		t.Fatalf("AuthenticateLDAP by user ID returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("AuthenticateLDAP by user ID returned false")
+	}
+}
+
 func TestPostgresAuthenticatePlainRejectsSuspendedUserAndDomain(t *testing.T) {
 	t.Parallel()
 

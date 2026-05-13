@@ -331,12 +331,98 @@ func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []
 		return encodeBindResponse(msgID, result, "", "unsupported LDAP version"), result
 	}
 
-	ok, err := s.auth.AuthenticateLDAP(ctx, req.name, string(req.auth))
+	ok, err := s.authenticateBindIdentity(ctx, req.name, string(req.auth))
 	if err != nil || !ok {
 		result := resultInvalidCredentials
 		return encodeBindResponse(msgID, result, "", "invalid credentials"), result
 	}
 	return encodeBindResponse(msgID, resultSuccess, "", ""), resultSuccess
+}
+
+func (s *LDAPServer) authenticateBindIdentity(ctx context.Context, name, password string) (bool, error) {
+	for _, candidate := range bindIdentityCandidates(name) {
+		ok, err := s.auth.AuthenticateLDAP(ctx, candidate, password)
+		if err != nil || ok {
+			return ok, err
+		}
+	}
+	return false, nil
+}
+
+func bindIdentityCandidates(name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return []string{""}
+	}
+	candidates := []string{name}
+	if attr, value, ok := firstDNAttributeValue(name); ok {
+		switch strings.ToLower(attr) {
+		case "uid", "mail", "cn":
+			candidates = append(candidates, value)
+		}
+	}
+	out := make([]string, 0, len(candidates))
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		key := strings.ToLower(candidate)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, candidate)
+	}
+	return out
+}
+
+func firstDNAttributeValue(dn string) (string, string, bool) {
+	first := strings.TrimSpace(strings.Split(dn, ",")[0])
+	parts := strings.SplitN(first, "=", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	attr := strings.TrimSpace(parts[0])
+	value, ok := unescapeDNValue(strings.TrimSpace(parts[1]))
+	return attr, value, ok
+}
+
+func unescapeDNValue(value string) (string, bool) {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		if value[i] != '\\' {
+			b.WriteByte(value[i])
+			continue
+		}
+		if i+1 >= len(value) {
+			return "", false
+		}
+		if i+2 < len(value) && isHexByte(value[i+1]) && isHexByte(value[i+2]) {
+			b.WriteByte(fromHexPair(value[i+1], value[i+2]))
+			i += 2
+			continue
+		}
+		i++
+		b.WriteByte(value[i])
+	}
+	return b.String(), true
+}
+
+func isHexByte(b byte) bool {
+	return ('0' <= b && b <= '9') || ('a' <= b && b <= 'f') || ('A' <= b && b <= 'F')
+}
+
+func fromHexPair(a, b byte) byte {
+	return fromHexNibble(a)<<4 | fromHexNibble(b)
+}
+
+func fromHexNibble(b byte) byte {
+	switch {
+	case '0' <= b && b <= '9':
+		return b - '0'
+	case 'a' <= b && b <= 'f':
+		return b - 'a' + 10
+	default:
+		return b - 'A' + 10
+	}
 }
 
 func decodeBindRequestData(data []byte) (*bindRequest, error) {

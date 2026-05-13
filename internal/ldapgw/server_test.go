@@ -398,6 +398,43 @@ func TestLDAPServerBindSuccess(t *testing.T) {
 	}
 }
 
+func TestLDAPServerBindAcceptsUserDNIdentity(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	bindReq := buildLDAPPacket(25, opBindRequest, buildBindRequest(3, "uid=alice,ou=users,dc=example,dc=com", "secret"))
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("DN bind response op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opBindResponse, resultSuccess)
+	}
+}
+
 func TestLDAPServerBindInvalidCredentials(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -437,6 +474,19 @@ func TestLDAPServerBindInvalidCredentials(t *testing.T) {
 	resultCode := decodeEnumerated(opData)
 	if resultCode != resultInvalidCredentials {
 		t.Errorf("resultCode = %d, want %d (InvalidCredentials)", resultCode, resultInvalidCredentials)
+	}
+}
+
+func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
+	got := bindIdentityCandidates(`uid=alice\2eops,ou=users,dc=example,dc=com`)
+	want := []string{`uid=alice\2eops,ou=users,dc=example,dc=com`, "alice.ops"}
+	if len(got) != len(want) {
+		t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("bindIdentityCandidates = %#v, want %#v", got, want)
+		}
 	}
 }
 
