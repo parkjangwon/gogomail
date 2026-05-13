@@ -1,29 +1,29 @@
 # ACTIVE_TASK
 
-## TASK-340: POP3 duplicate mark delete audit
+## TASK-341: POP3 deleted UIDL visibility audit
 
 ### 배경
 
-POP3 클라이언트가 같은 메시지에 `DELE`를 반복하더라도 pending delete 목록에는 같은
-message ID가 한 번만 들어가야 한다. 중복 pending은 commit 시 중복 bulk delete 요청을
-만들 수 있으므로, duplicate mark delete 경로를 테스트로 고정한다.
+POP3 `DELE` 이후 삭제 표시된 메시지는 UIDL 응답에서도 숨겨져야 한다. adapter 내부
+UIDL 값이 남아 있더라도 POP3 server transaction layer가 `Deleted` 상태를 기준으로
+목록/단건 UIDL을 차단해야 하므로 wire-level 동작을 테스트로 고정한다.
 
 ### 구현 대상
 
-- `internal/mailservice/pop3_adapter_test.go`
+- `internal/pop3d/pop3d_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] 같은 index에 `MarkDeleted`를 두 번 호출한다.
-- [x] pending delete 목록에 message ID가 한 번만 들어가는지 검증한다.
-- [x] commit 시 bulk delete 요청에도 message ID가 한 번만 포함되는지 검증한다.
-- [x] `go test ./internal/mailservice` 통과.
+- [x] `DELE 1` 이후 `UIDL 1`이 `-ERR`를 반환하는지 검증한다.
+- [x] `DELE 1` 이후 multi-line `UIDL` 목록에서 삭제 메시지가 제외되는지 검증한다.
+- [x] 삭제되지 않은 메시지 UIDL은 계속 노출되는지 검증한다.
+- [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-341: POP3 deleted UIDL visibility audit
+TASK-342: POP3 deleted LIST visibility audit

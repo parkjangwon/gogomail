@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 duplicate mark delete)
+Last updated: 2026-05-14 (POP3 deleted UIDL visibility)
+
+## POP3 deleted UIDL visibility (2026-05-14, complete)
+- POP3 server coverage now verifies `UIDL 1` fails after `DELE 1`.
+- The multi-line UIDL regression verifies deleted messages are hidden while remaining messages stay visible.
 
 ## POP3 duplicate mark delete (2026-05-14, complete)
 - POP3 mailbox coverage now verifies repeated `MarkDeleted` calls for the same message keep one pending delete ID.

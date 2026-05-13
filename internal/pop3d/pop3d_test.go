@@ -657,6 +657,36 @@ func TestPOP3Uidl(t *testing.T) {
 	}
 }
 
+func TestPOP3UidlHidesDeletedMessages(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "UIDL 1")
+	pop3Cmd(t, tp, "+OK", "UIDL")
+
+	reader := tp.DotReader()
+	scanner := bufio.NewScanner(reader)
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 UIDL line after delete, got %d", len(lines))
+	}
+	if strings.Contains(lines[0], "msg001") {
+		t.Fatalf("deleted message UIDL should be hidden, got: %s", lines[0])
+	}
+	if !strings.Contains(lines[0], "msg002") {
+		t.Fatalf("expected remaining msg002 UIDL, got: %s", lines[0])
+	}
+}
+
 func TestPOP3Top(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
