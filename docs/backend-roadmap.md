@@ -4907,6 +4907,9 @@ Target outcome:
          `writeMailboxEvent` treats `Messages` above the selected count as an
          absolute mailbox count, emits `* N EXISTS`, and updates
          `selectedMessages` to that count rather than incrementing blindly.
+ 1574. IMAP server legacy EXISTS handling is now covered directly:
+         `Messages=0` remains a compatibility signal to increment the selected
+         count by one, with separate tests from the absolute-count EXISTS path.
 
 ## Deferred until backend contracts stabilize
 
