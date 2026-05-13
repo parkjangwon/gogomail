@@ -87,6 +87,9 @@ func TestPostgresDraftToSendMovesAttachmentsAndQueuesOutbox(t *testing.T) {
 	if !draftForSend.TrackOpens {
 		t.Fatal("draft track_opens = false, want true")
 	}
+	if len(draftForSend.To) != 1 || draftForSend.To[0].Email != "bob@example.net" || draftForSend.To[0].Name != "Bob" {
+		t.Fatalf("draft recipients = %+v, want Bob <bob@example.net>", draftForSend.To)
+	}
 	if !draftForSend.ScheduledAt.Equal(scheduledAt) {
 		t.Fatalf("draft scheduled_at = %s, want %s", draftForSend.ScheduledAt.Format(time.RFC3339), scheduledAt.Format(time.RFC3339))
 	}

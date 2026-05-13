@@ -208,7 +208,7 @@ INSERT INTO messages (
   NULLIF($5, '')::uuid, $6,
   $7, $8, $9,
   $10::jsonb, $11::jsonb, $12::jsonb,
-  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean, 'scheduled_at', $16), 'draft'
+  $13, $14, '', jsonb_build_object('read', true, 'track_opens', $15::boolean, 'scheduled_at', $16::text), 'draft'
 ) RETURNING id::text, COALESCE(rfc_message_id, ''), subject, from_addr, from_name,
   to_addrs, cc_addrs, bcc_addrs, draft_updated_at, size, has_attachment, flags, storage_path, draft_text_body`
 
@@ -298,7 +298,7 @@ SET source_message_id = NULLIF($3, '')::uuid,
     draft_text_body = $11,
     draft_updated_at = $12,
     updated_at = $12,
-    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean, 'scheduled_at', $14)
+    flags = COALESCE(flags, '{}'::jsonb) || jsonb_build_object('read', true, 'track_opens', $13::boolean, 'scheduled_at', $14::text)
 WHERE user_id = $1
   AND id = $2
   AND status = 'draft'
@@ -541,9 +541,25 @@ func draftOutboundAddresses(raw []byte) ([]outbound.Address, error) {
 	if len(raw) == 0 {
 		return nil, nil
 	}
-	var addresses []outbound.Address
-	if err := json.Unmarshal(raw, &addresses); err != nil {
+	type dto struct {
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		Address string `json:"address"`
+	}
+	var values []dto
+	if err := json.Unmarshal(raw, &values); err != nil {
 		return nil, fmt.Errorf("decode draft addresses: %w", err)
+	}
+	addresses := make([]outbound.Address, 0, len(values))
+	for _, value := range values {
+		email := strings.TrimSpace(value.Email)
+		if email == "" {
+			email = strings.TrimSpace(value.Address)
+		}
+		addresses = append(addresses, outbound.Address{
+			Name:  value.Name,
+			Email: email,
+		})
 	}
 	return addresses, nil
 }

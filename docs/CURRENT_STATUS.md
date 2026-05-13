@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-12 (Webmail beta stabilization started)
 
+## Admin console to webmail browser smoke hardening (2026-05-13, complete)
+- 실제 dev 스택(PostgreSQL/Redis/MinIO, Go all-in-one, admin console, webmail)을 기동해 콘솔 로그인 → 회사 사용자 생성 → 웹메일 로그인/작성 플로우를 점검했다.
+- Admin console의 `/companies/default/...` 경로는 인증 후 첫 회사의 실제 UUID 경로로 즉시 정규화하도록 수정해, 사용자/도메인 관리 API가 `company_id=default`로 호출되어 빈 테넌트 데이터처럼 보이는 문제를 제거했다.
+- Webmail API 오류 파서는 `{error:{message}}`/`error_message` 응답을 문자열로 정규화해 로그인/메일 준비 실패가 `[object Object]`로 표시되지 않게 했다.
+- PostgreSQL draft 저장 SQL은 `scheduled_at` JSONB 파라미터를 명시적으로 `text` 캐스팅해, compose 전송 준비 중 draft 저장이 `could not determine data type of parameter`로 실패하지 않도록 보정했다.
+- Draft-send는 기존 DB 저장 포맷인 `address` 키를 `outbound.Address.Email`로 복원하도록 보강해, autosave된 수신자가 발송 시 `to[0].email is required`로 사라지지 않게 했다.
+
 ## Admin/webmail contract 정합성 정리 (2026-05-13, complete)
 - 콘솔 사용자 목록은 상태값(`active|suspended|disabled`)로 정규화해 알 수 없는/레거시 값은 `disabled`로 폴백 처리하고, 상태 색상/카운트 집계도 정합성 있게 정리.
 - 콘솔 전달 라우트 토글 동작을 `active/disabled` 상태계약에 맞춰 수정해 잘못된 `inactive` 요청이 나가지 않도록 보정.

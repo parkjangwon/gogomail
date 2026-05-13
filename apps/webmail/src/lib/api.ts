@@ -148,6 +148,30 @@ function clearTokenAndRedirect(): void {
   window.location.href = '/login';
 }
 
+type APIErrorBody = {
+  error?: string | { message?: string; code?: string; status_text?: string };
+  error_message?: string;
+  message?: string;
+};
+
+function messageFromAPIErrorBody(body: APIErrorBody, fallback: string): string {
+  if (typeof body.error_message === 'string' && body.error_message.trim()) return body.error_message;
+  if (typeof body.error === 'string' && body.error.trim()) return body.error;
+  if (typeof body.error === 'object' && typeof body.error.message === 'string' && body.error.message.trim()) {
+    return body.error.message;
+  }
+  if (typeof body.message === 'string' && body.message.trim()) return body.message;
+  return fallback;
+}
+
+async function responseErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    return messageFromAPIErrorBody((await res.json()) as APIErrorBody, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -168,14 +192,7 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    let message = `Request failed: ${res.status}`;
-    try {
-      const errBody = (await res.json()) as { error?: string; message?: string };
-      message = errBody.error ?? errBody.message ?? message;
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(message);
+    throw new Error(await responseErrorMessage(res, `Request failed: ${res.status}`));
   }
 
   if (res.status === 204) {
@@ -196,14 +213,7 @@ export async function loginUser(
   });
 
   if (!res.ok) {
-    let message = '로그인에 실패했습니다.';
-    try {
-      const errBody = (await res.json()) as { error?: string; message?: string };
-      message = errBody.error ?? errBody.message ?? message;
-    } catch {
-      // ignore
-    }
-    throw new Error(message);
+    throw new Error(await responseErrorMessage(res, '로그인에 실패했습니다.'));
   }
 
   return res.json() as Promise<AuthTokenResponse>;
