@@ -3621,6 +3621,9 @@ owner/resource target without scanning unrelated audit history.
   timeouts. The protocol loop refreshes deadlines around command reads,
   response flushes, STARTTLS handshakes, and IDLE waits so slow or abandoned
   clients cannot hold goroutines and connection slots indefinitely.
+- IMAP `AUTHENTICATE PLAIN` now enforces `PRIVACYREQUIRED` before decoding an
+  initial SASL response on plaintext connections that require TLS, while still
+  rejecting malformed command/mechanism tokens with `BAD`.
 - Authenticated SMTP Submission now mirrors receive-path storage cleanup:
   if the stored hook, submitted recorder, or mailbox-quota path fails before
   database commit, the just-written submitted `.eml` object is deleted.
