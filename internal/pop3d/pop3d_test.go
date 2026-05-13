@@ -442,6 +442,22 @@ func TestPOP3AuthorizationUnknownCommandKeepsAuthCapabilities(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthorizationEmptyCommandKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	line := pop3Cmd(t, tp, "-ERR", "")
+	if !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected syntax error response, got: %s", line)
+	}
+	assertPOP3AuthCapabilities(t, tp, "authorization empty command")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3TransactionUnknownCommandKeepsSessionUsable(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

@@ -5145,6 +5145,9 @@ Target outcome:
  1650. POP3 transaction-state empty-command handling now verifies session
          recovery: blank command lines return syntax error while NOOP and STAT
          remain usable afterward.
+ 1651. POP3 authorization-state empty-command handling now verifies session
+         recovery: blank command lines return syntax error while CAPA and normal
+         login remain usable afterward.
 
 ## Deferred until backend contracts stabilize
 

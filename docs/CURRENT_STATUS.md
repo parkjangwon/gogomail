@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction empty command recovery)
+Last updated: 2026-05-14 (POP3 authorization empty command recovery)
+
+## POP3 authorization empty command recovery (2026-05-14, complete)
+- POP3 server coverage now verifies empty authorization-state command lines return `-ERR syntax error`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the syntax error.
 
 ## POP3 transaction empty command recovery (2026-05-14, complete)
 - POP3 server coverage now verifies empty transaction-state command lines return `-ERR syntax error`.
