@@ -114,6 +114,43 @@ func TestSubmissionDoesNotEmitAuthHookForMustChangePasswordUser(t *testing.T) {
 	}
 }
 
+func TestSubmissionAuthHookFailureLeavesSessionUnauthenticated(t *testing.T) {
+	t.Parallel()
+
+	hookErr := errors.New("auth hook failed")
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				if event.Stage == StageAuthenticated {
+					return hookErr
+				}
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); !errors.Is(err, hookErr) {
+		t.Fatalf("AUTH PLAIN error = %v, want hook error", err)
+	}
+	if submission.user.UserID != "" {
+		t.Fatalf("submission user = %#v, want unauthenticated after auth hook failure", submission.user)
+	}
+	if err := submission.Mail("jangwon@example.com", nil); !errors.Is(err, gosmtp.ErrAuthRequired) {
+		t.Fatalf("Mail after auth hook failure error = %v, want ErrAuthRequired", err)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 

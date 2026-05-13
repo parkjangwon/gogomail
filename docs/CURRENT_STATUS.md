@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission must-change-password event isolation)
+Last updated: 2026-05-14 (SMTP submission auth hook failure isolation)
+
+## SMTP submission auth hook failure isolation (2026-05-14, complete)
+- SMTP submission now stores the authenticated session user only after `StageAuthenticated` hooks succeed.
+- Coverage verifies an auth hook failure leaves the session unauthenticated and `MAIL FROM` still returns `ErrAuthRequired`.
 
 ## SMTP submission must-change-password event isolation (2026-05-14, complete)
 - SMTP submission coverage now verifies a `MustChangePassword` auth rejection does not emit any hook event, including `StageAuthenticated`.
