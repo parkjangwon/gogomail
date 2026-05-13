@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-13 (Admin console data-list controls)
+Last updated: 2026-05-14 (Password reset contact groundwork)
+
+## Password reset contact groundwork (2026-05-14, complete)
+- Users now have a shared `recovery_email` field exposed consistently through admin user list/detail/create/update APIs and the authenticated webmail profile API.
+- Webmail account settings let users save or clear a personal backup email address for future password reset delivery.
+- Admin console user management lets operators set the same backup email at create time or from the user edit dialog without exposing or editing the user's current password.
+- Domain settings now include `password_reset_token_ttl_minutes`, allowing each domain to configure future password reset link expiry between 1 minute and 7 days.
+- The OpenAPI contract and migrations were updated so reset-link generation/email delivery can use the shared recovery email and per-domain TTL instead of introducing a separate data path.
 
 ## Admin console data-list controls (2026-05-13, complete)
 - Admin console table/list screens now use a shared `DataTable` wrapper over Cloudscape `Table`, giving table surfaces a consistent scroll container plus default client-side search and pagination when the page does not provide its own controls.

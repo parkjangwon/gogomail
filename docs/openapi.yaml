@@ -1798,6 +1798,7 @@ paths:
               type: object
               properties:
                 display_name: { type: string }
+                recovery_email: { type: string, format: email }
       responses:
         "200":
           $ref: "#/components/responses/Status"
@@ -1825,6 +1826,7 @@ paths:
                       user_id: { type: string }
                       display_name: { type: string }
                       email: { type: string }
+                      recovery_email: { type: string, format: email }
                       quota_used: { type: integer }
                       quota_limit: { type: integer, nullable: true }
         default:
@@ -6213,6 +6215,35 @@ paths:
                 role:
                   type: string
                   enum: [user, company_admin, system_admin]
+      responses:
+        "200":
+          $ref: "#/components/responses/IDStatus"
+        default:
+          $ref: "#/components/responses/Error"
+  /users/{id}/recovery-email:
+    patch:
+      operationId: updateAdminUserRecoveryEmail
+      summary: Update a user's backup recovery email
+      servers:
+        - url: /admin/v1
+          description: Admin API
+      security:
+        - adminToken: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PathID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recovery_email]
+              properties:
+                recovery_email:
+                  type: string
+                  format: email
+                  description: Empty string clears the backup email.
       responses:
         "200":
           $ref: "#/components/responses/IDStatus"
@@ -14607,7 +14638,7 @@ components:
           $ref: "#/components/schemas/DomainPolicy"
     DomainSettings:
       type: object
-      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, updated_at, updated_by]
+      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, password_reset_token_ttl_minutes, updated_at, updated_by]
       properties:
         domain_id:
           type: string
@@ -14641,6 +14672,10 @@ components:
         password_expiry_days:
           type: integer
           minimum: 0
+        password_reset_token_ttl_minutes:
+          type: integer
+          minimum: 1
+          maximum: 10080
         updated_at:
           type: string
           format: date-time
@@ -14654,7 +14689,7 @@ components:
           $ref: "#/components/schemas/DomainSettings"
     DomainSettingsUpdateRequest:
       type: object
-      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days]
+      required: [domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, require_2fa, session_timeout_minutes, password_min_length, password_require_uppercase, password_require_numbers, password_require_special_chars, password_expiry_days, password_reset_token_ttl_minutes]
       properties:
         domain_id:
           type: string
@@ -14688,6 +14723,10 @@ components:
         password_expiry_days:
           type: integer
           minimum: 0
+        password_reset_token_ttl_minutes:
+          type: integer
+          minimum: 1
+          maximum: 10080
     APISettingsEnvelope:
       type: object
       required: [settings]
@@ -14766,7 +14805,7 @@ components:
           type: boolean
     User:
       type: object
-      required: [id, domain_id, username, display_name, role, status, password_configured, quota_used, quota_remaining, quota_source, created_at]
+      required: [id, domain_id, username, display_name, role, status, password_configured, must_change_password, quota_used, quota_remaining, quota_source, created_at]
       properties:
         id:
           type: string
@@ -14776,12 +14815,17 @@ components:
           type: string
         display_name:
           type: string
+        recovery_email:
+          type: string
+          format: email
         role:
           type: string
         status:
           type: string
           enum: [active, suspended, disabled]
         password_configured:
+          type: boolean
+        must_change_password:
           type: boolean
         quota_used:
           type: integer
@@ -15077,6 +15121,9 @@ components:
         display_name:
           type: string
         address:
+          type: string
+          format: email
+        recovery_email:
           type: string
           format: email
         password:

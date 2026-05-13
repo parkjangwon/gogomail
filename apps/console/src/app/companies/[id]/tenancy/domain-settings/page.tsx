@@ -40,6 +40,7 @@ interface DomainSettings {
   password_require_special_chars: boolean;
   password_expiry_days: number;
   user_registration_mode: string;
+  password_reset_token_ttl_minutes: number;
   updated_at: string;
   updated_by: string;
 }
@@ -265,6 +266,16 @@ export default function DomainSettingsPage() {
                       type="number"
                       value={String(f('password_expiry_days') ?? 0)}
                       onChange={(e) => set('password_expiry_days', parseInt(e.detail.value) || 0)}
+                    />
+                  </FormField>
+                  <FormField
+                    label={t('pages.domain_settings_page.password_reset_ttl_label')}
+                    description={t('pages.domain_settings_page.password_reset_ttl_desc')}
+                  >
+                    <Input
+                      type="number"
+                      value={String(f('password_reset_token_ttl_minutes') ?? 60)}
+                      onChange={(e) => set('password_reset_token_ttl_minutes', parseInt(e.detail.value) || 60)}
                     />
                   </FormField>
                 </SpaceBetween>

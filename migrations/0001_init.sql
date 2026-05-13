@@ -44,6 +44,7 @@ CREATE TABLE users (
   org_id uuid REFERENCES organizations(id) ON DELETE SET NULL,
   username text NOT NULL,
   display_name text NOT NULL,
+  recovery_email text NOT NULL DEFAULT '',
   password_hash text,
   auth_source text NOT NULL DEFAULT 'local',
   role text NOT NULL DEFAULT 'user',

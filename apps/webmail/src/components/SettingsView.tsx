@@ -281,6 +281,9 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   // Account
   const [displayName, setDisplayName] = useState('');
   const [nameSaved, setNameSaved] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoverySaved, setRecoverySaved] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
   const [signature, setSignature] = useState('');
   const [sigSaved, setSigSaved] = useState(false);
 
@@ -385,7 +388,12 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
 
   // ── Load server preferences (overlay over localStorage on mount) ──────────────
   useEffect(() => {
-    getUserProfile().then((p) => { if (p) setProfile(p); }).catch(() => {});
+    getUserProfile().then((p) => {
+      if (p) {
+        setProfile(p);
+        setRecoveryEmail(p.recovery_email ?? '');
+      }
+    }).catch(() => {});
     getPreferences().then((prefs: WebmailPreferences) => {
       try {
         if (prefs.settings) {
@@ -534,6 +542,17 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
     setTimeout(() => setNameSaved(false), 2000);
   }
 
+  async function saveRecoveryEmail() {
+    setRecoveryError('');
+    try {
+      await updateUserProfile({ recovery_email: recoveryEmail.trim() });
+      setRecoverySaved(true);
+      setTimeout(() => setRecoverySaved(false), 2000);
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : '백업 이메일 저장에 실패했습니다.');
+    }
+  }
+
   function saveSignature() {
     try { localStorage.setItem('webmail_signature', signature); } catch { /* ignore */ }
     setSigSaved(true);
@@ -604,8 +623,23 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                   </button>
                 </div>
               </Row>
-              <Row label="이메일 주소" description="변경하려면 관리자에게 문의하세요" last>
+              <Row label="이메일 주소" description="변경하려면 관리자에게 문의하세요">
                 <span style={{ fontSize: '13px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>{userEmail}</span>
+              </Row>
+              <Row label="백업 이메일" description="비밀번호 재설정 링크를 받을 개인 이메일 주소입니다" last>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    placeholder="personal@example.com"
+                    style={{ padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--color-border-default)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', fontSize: '13px', width: '220px', outline: 'none' }}
+                  />
+                  <button onClick={saveRecoveryEmail} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                    {recoverySaved ? <><CheckIcon style={{ width: 13, height: 13 }} />저장됨</> : '저장'}
+                  </button>
+                  {recoveryError && <span style={{ fontSize: '12px', color: 'var(--color-danger, #dc2626)', width: '100%', textAlign: 'right' }}>{recoveryError}</span>}
+                </div>
               </Row>
             </SectionCard>
             <SectionCard>

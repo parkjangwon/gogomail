@@ -11,28 +11,28 @@ import (
 )
 
 var (
-	ErrRoleNotFound           = fmt.Errorf("role not found")
-	ErrPermissionNotFound     = fmt.Errorf("permission not found")
-	ErrUserRoleNotFound       = fmt.Errorf("user role not found")
-	ErrAuditPolicyNotFound    = fmt.Errorf("audit policy not found")
-	ErrAuditLogNotFound       = fmt.Errorf("audit log not found")
-	ErrInvalidRole            = fmt.Errorf("invalid role")
-	ErrInvalidPermission      = fmt.Errorf("invalid permission")
-	ErrCannotDeleteBuiltin    = fmt.Errorf("cannot delete builtin role")
-	ErrMissingRequiredField   = fmt.Errorf("missing required field")
-	ErrInvalidResource        = fmt.Errorf("invalid resource")
-	ErrInvalidAction          = fmt.Errorf("invalid action")
-	ErrInvalidScope           = fmt.Errorf("invalid scope")
-	ErrInvalidAuditLevel      = fmt.Errorf("invalid audit level")
+	ErrRoleNotFound            = fmt.Errorf("role not found")
+	ErrPermissionNotFound      = fmt.Errorf("permission not found")
+	ErrUserRoleNotFound        = fmt.Errorf("user role not found")
+	ErrAuditPolicyNotFound     = fmt.Errorf("audit policy not found")
+	ErrAuditLogNotFound        = fmt.Errorf("audit log not found")
+	ErrInvalidRole             = fmt.Errorf("invalid role")
+	ErrInvalidPermission       = fmt.Errorf("invalid permission")
+	ErrCannotDeleteBuiltin     = fmt.Errorf("cannot delete builtin role")
+	ErrMissingRequiredField    = fmt.Errorf("missing required field")
+	ErrInvalidResource         = fmt.Errorf("invalid resource")
+	ErrInvalidAction           = fmt.Errorf("invalid action")
+	ErrInvalidScope            = fmt.Errorf("invalid scope")
+	ErrInvalidAuditLevel       = fmt.Errorf("invalid audit level")
 	ErrDuplicateRoleAssignment = fmt.Errorf("user already has this role")
 )
 
 const (
-	ResourceUsers         = "users"
-	ResourceDomains       = "domains"
-	ResourceLogs          = "logs"
-	ResourceOrganization  = "organization"
-	ResourceSettings      = "settings"
+	ResourceUsers        = "users"
+	ResourceDomains      = "domains"
+	ResourceLogs         = "logs"
+	ResourceOrganization = "organization"
+	ResourceSettings     = "settings"
 
 	ActionCreate = "create"
 	ActionRead   = "read"
@@ -156,11 +156,11 @@ func (s *Service) AddPermissionToRole(ctx context.Context, roleID, resource, act
 	}
 
 	permission := &Permission{
-		RoleID:     roleID,
-		Resource:   resource,
-		Action:     action,
-		Scope:      scope,
-		CreatedAt:  time.Now(),
+		RoleID:    roleID,
+		Resource:  resource,
+		Action:    action,
+		Scope:     scope,
+		CreatedAt: time.Now(),
 	}
 	if conditions != nil {
 		permission.Conditions = *conditions
@@ -269,12 +269,12 @@ func (s *Service) LogAuditEvent(ctx context.Context, companyID, adminUserID, act
 	}
 
 	auditLog := &AuditLog{
-		CompanyID:   companyID,
-		AdminUserID: adminUserID,
-		Action:      action,
+		CompanyID:    companyID,
+		AdminUserID:  adminUserID,
+		Action:       action,
 		ResourceType: resourceType,
-		ResourceID:  resourceID,
-		Timestamp:   time.Now(),
+		ResourceID:   resourceID,
+		Timestamp:    time.Now(),
 	}
 	if changes != nil {
 		auditLog.Changes = *changes
@@ -339,6 +339,12 @@ func (s *Service) UpdateDomainSettings(ctx context.Context, settings *DomainSett
 	}
 	if settings.PasswordExpiryDays < 0 {
 		return fmt.Errorf("password_expiry_days must be >= 0")
+	}
+	if settings.PasswordResetTokenTTLMinutes <= 0 {
+		return fmt.Errorf("password_reset_token_ttl_minutes must be greater than 0")
+	}
+	if settings.PasswordResetTokenTTLMinutes > 10080 {
+		return fmt.Errorf("password_reset_token_ttl_minutes must be <= 10080")
 	}
 	return s.repo.UpdateDomainSettings(ctx, settings)
 }

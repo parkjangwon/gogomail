@@ -190,6 +190,7 @@ type AdminService interface {
 	UpdateUserQuota(ctx context.Context, req maildb.UpdateUserQuotaRequest) error
 	UpdateUserPasswordHash(ctx context.Context, req maildb.UpdateUserPasswordHashRequest) error
 	UpdateUserRole(ctx context.Context, req maildb.UpdateUserRoleRequest) error
+	UpdateUserRecoveryEmail(ctx context.Context, req maildb.UpdateUserRecoveryEmailRequest) error
 	AuthenticateUser(ctx context.Context, email, password string) (maildb.AuthenticatedUser, error)
 	ListQueueStats(ctx context.Context) ([]maildb.QueueStat, error)
 	ListOutboxEvents(ctx context.Context, req maildb.OutboxEventListRequest) ([]maildb.OutboxEventView, error)
@@ -529,9 +530,9 @@ type adminDAVSyncRetentionRunRequest struct {
 }
 
 type adminConfigSetRequest struct {
-	Value    json.RawMessage `json:"value"`
-	Locked   bool            `json:"locked"`
-	Version  int64          `json:"version,omitempty"`
+	Value   json.RawMessage `json:"value"`
+	Locked  bool            `json:"locked"`
+	Version int64           `json:"version,omitempty"`
 }
 
 type adminConfigPropagateRequest struct {
@@ -4263,6 +4264,29 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
 	}))
 
+	mux.HandleFunc("PATCH /admin/v1/users/{id}/recovery-email", adminAuth(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		if !rejectUnknownQueryKeys(w, r) {
+			return
+		}
+		id, ok := parseBoundedAdminPathValue(w, r, "id")
+		if !ok {
+			return
+		}
+		var req maildb.UpdateUserRecoveryEmailRequest
+		if err := decodeJSONBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		req.ID = id
+		if err := service.UpdateUserRecoveryEmail(r.Context(), req); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "id": req.ID})
+	}))
+
 	mux.HandleFunc("GET /admin/v1/dkim-keys", adminAuth(func(w http.ResponseWriter, r *http.Request) {
 		if !rejectUnknownQueryKeys(w, r, "limit", "domain_id", "status") {
 			return
@@ -4916,28 +4940,28 @@ func handleListRoles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"roles": []map[string]any{
 			{
-				"id":               "role-admin",
-				"name":             "Administrator",
-				"description":      "Full system access",
+				"id":                "role-admin",
+				"name":              "Administrator",
+				"description":       "Full system access",
 				"permissions_count": 42,
-				"assigned_users":   1,
-				"created_at":       now,
+				"assigned_users":    1,
+				"created_at":        now,
 			},
 			{
-				"id":               "role-operator",
-				"name":             "Operator",
-				"description":      "Read and manage mail flow",
+				"id":                "role-operator",
+				"name":              "Operator",
+				"description":       "Read and manage mail flow",
 				"permissions_count": 18,
-				"assigned_users":   0,
-				"created_at":       now,
+				"assigned_users":    0,
+				"created_at":        now,
 			},
 			{
-				"id":               "role-viewer",
-				"name":             "Viewer",
-				"description":      "Read-only access",
+				"id":                "role-viewer",
+				"name":              "Viewer",
+				"description":       "Read-only access",
 				"permissions_count": 8,
-				"assigned_users":   0,
-				"created_at":       now,
+				"assigned_users":    0,
+				"created_at":        now,
 			},
 		},
 	})
@@ -4960,12 +4984,12 @@ func handleCreateRole(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"role": map[string]any{
-			"id":               "role-" + req.Name,
-			"name":             req.Name,
-			"description":      req.Description,
+			"id":                "role-" + req.Name,
+			"name":              req.Name,
+			"description":       req.Description,
 			"permissions_count": 0,
-			"assigned_users":   0,
-			"created_at":       now,
+			"assigned_users":    0,
+			"created_at":        now,
 		},
 	})
 }
@@ -5508,12 +5532,12 @@ func parseMailFlowLogListRequest(w http.ResponseWriter, r *http.Request, limit i
 		UserID:       userID,
 		MessageID:    messageID,
 		RFCMessageID: rfcMessageID,
-		FromAddr:    fromAddr,
-		ToAddr:      toAddr,
-		Subject:     subject,
-		FlowStatus:  flowStatus,
-		Since:       since,
-		Until:       until,
+		FromAddr:     fromAddr,
+		ToAddr:       toAddr,
+		Subject:      subject,
+		FlowStatus:   flowStatus,
+		Since:        since,
+		Until:        until,
 	}, true
 }
 
@@ -6285,12 +6309,12 @@ func handleListAdminUsers(w http.ResponseWriter, r *http.Request, service AdminS
 	// Return mock data - in production, query admin_user_roles joined with users
 	mockUsers := []map[string]any{
 		{
-			"id":       "system-admin-1",
-			"username": "admin",
-			"email":    "admin@system",
-			"role":     "system_admin",
+			"id":         "system-admin-1",
+			"username":   "admin",
+			"email":      "admin@system",
+			"role":       "system_admin",
 			"created_at": "2026-05-10T13:00:00Z",
-			"status": "active",
+			"status":     "active",
 		},
 	}
 
@@ -6319,11 +6343,11 @@ func handleCreateAdminUser(w http.ResponseWriter, r *http.Request, service Admin
 
 	// Return mock success
 	writeJSON(w, http.StatusOK, map[string]any{
-		"id": "new-admin-user",
+		"id":       "new-admin-user",
 		"username": req.Username,
-		"email": req.Email,
-		"role": req.Role,
-		"status": "active",
+		"email":    req.Email,
+		"role":     req.Role,
+		"status":   "active",
 	})
 }
 
@@ -7891,13 +7915,13 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"health": map[string]any{
-			"status":           healthStatus,
-			"company_id":       id,
-			"company_name":     company.Name,
-			"domain_count":     len(domains),
-			"active_domains":   activeDomains,
-			"active_webhooks":  activeWebhooks,
-			"over_allocated":   overAllocated,
+			"status":          healthStatus,
+			"company_id":      id,
+			"company_name":    company.Name,
+			"domain_count":    len(domains),
+			"active_domains":  activeDomains,
+			"active_webhooks": activeWebhooks,
+			"over_allocated":  overAllocated,
 			"quota": map[string]any{
 				"total_bytes": totalQuotaBytes,
 				"used_bytes":  usedQuotaBytes,
@@ -7977,10 +8001,10 @@ func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service Ad
 			"enabled": mfaStats.Enabled,
 			"rate":    mfaRate,
 		},
-		"ip_policy_configured":    ipPolicyConfigured,
-		"users_without_password":  usersWithoutPassword,
-		"domain_count":            len(domains),
-		"active_domains":          activeDomains,
+		"ip_policy_configured":   ipPolicyConfigured,
+		"users_without_password": usersWithoutPassword,
+		"domain_count":           len(domains),
+		"active_domains":         activeDomains,
 	})
 }
 

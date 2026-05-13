@@ -817,6 +817,7 @@ type UserView struct {
 	DomainID           string    `json:"domain_id"`
 	Username           string    `json:"username"`
 	DisplayName        string    `json:"display_name"`
+	RecoveryEmail      string    `json:"recovery_email,omitempty"`
 	Role               string    `json:"role"`
 	Status             string    `json:"status"`
 	PasswordConfigured bool      `json:"password_configured"`
@@ -887,6 +888,7 @@ type CreateUserRequest struct {
 	DomainID           string `json:"domain_id"`
 	Username           string `json:"username"`
 	DisplayName        string `json:"display_name"`
+	RecoveryEmail      string `json:"recovery_email,omitempty"`
 	Address            string `json:"address"`
 	Password           string `json:"password,omitempty"`      // plain text; hashed by caller before reaching DB
 	PasswordHash       string `json:"password_hash,omitempty"` // pre-hashed alternative
@@ -915,10 +917,15 @@ type UpdateUserRoleRequest struct {
 	Role string `json:"role"`
 }
 
+type UpdateUserRecoveryEmailRequest struct {
+	ID            string `json:"id"`
+	RecoveryEmail string `json:"recovery_email"`
+}
+
 var validUserRoles = map[string]bool{
-	"user":         true,
+	"user":          true,
 	"company_admin": true,
-	"system_admin": true,
+	"system_admin":  true,
 }
 
 func ValidateUpdateUserRoleRequest(req UpdateUserRoleRequest) error {
@@ -927,6 +934,16 @@ func ValidateUpdateUserRoleRequest(req UpdateUserRoleRequest) error {
 	}
 	if !validUserRoles[req.Role] {
 		return fmt.Errorf("invalid role %q: must be user, company_admin, or system_admin", req.Role)
+	}
+	return nil
+}
+
+func ValidateUpdateUserRecoveryEmailRequest(req UpdateUserRecoveryEmailRequest) error {
+	if strings.TrimSpace(req.ID) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	if _, err := normalizeRecoveryEmail(req.RecoveryEmail); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1139,6 +1156,9 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 	}
 	if req.QuotaLimit < 0 {
 		return fmt.Errorf("quota_limit must not be negative")
+	}
+	if _, err := normalizeRecoveryEmail(req.RecoveryEmail); err != nil {
+		return err
 	}
 	if strings.TrimSpace(req.PasswordHash) != "" {
 		if err := auth.ValidatePasswordHash(req.PasswordHash); err != nil {
@@ -1426,28 +1446,31 @@ func (r *Repository) CreateUser(ctx context.Context, req CreateUserRequest) (Use
 	}
 
 	const insertUser = `
-INSERT INTO users (domain_id, username, display_name, password_hash, quota_limit, quota_source, must_change_password)
+INSERT INTO users (domain_id, username, display_name, recovery_email, password_hash, quota_limit, quota_source, must_change_password)
 SELECT
   d.id,
   $2,
   $3,
-  NULLIF($4, ''),
+  $4,
+  NULLIF($5, ''),
   CASE
-    WHEN $5::bigint > 0 THEN $5::bigint
+    WHEN $6::bigint > 0 THEN $6::bigint
     ELSE NULLIF(COALESCE((d.settings #>> '{policy,default_user_quota}')::bigint, 0), 0)
   END,
-  $6,
-  $7
+  $7,
+  $8
 FROM domains d
 WHERE d.id = $1
-RETURNING id::text, domain_id::text, username, display_name, role, status, COALESCE(password_hash, '') <> '', must_change_password, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
+RETURNING id::text, domain_id::text, username, display_name, recovery_email, role, status, COALESCE(password_hash, '') <> '', must_change_password, quota_used, COALESCE(quota_limit, 0), quota_source, created_at`
 
 	var user UserView
-	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource, req.MustChangePassword).Scan(
+	recoveryEmail, _ := normalizeRecoveryEmail(req.RecoveryEmail)
+	if err := tx.QueryRowContext(ctx, insertUser, strings.TrimSpace(req.DomainID), strings.TrimSpace(req.Username), strings.TrimSpace(req.DisplayName), recoveryEmail, strings.TrimSpace(req.PasswordHash), req.QuotaLimit, quotaSource, req.MustChangePassword).Scan(
 		&user.ID,
 		&user.DomainID,
 		&user.Username,
 		&user.DisplayName,
+		&user.RecoveryEmail,
 		&user.Role,
 		&user.Status,
 		&user.PasswordConfigured,
@@ -2189,6 +2212,26 @@ UPDATE users SET role = $2, updated_at = now() WHERE id = $1::uuid`, strings.Tri
 	return nil
 }
 
+func (r *Repository) UpdateUserRecoveryEmail(ctx context.Context, req UpdateUserRecoveryEmailRequest) error {
+	if r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	if err := ValidateUpdateUserRecoveryEmailRequest(req); err != nil {
+		return err
+	}
+	recoveryEmail, _ := normalizeRecoveryEmail(req.RecoveryEmail)
+	result, err := r.db.ExecContext(ctx, `
+UPDATE users SET recovery_email = $2, updated_at = now() WHERE id = $1::uuid`, strings.TrimSpace(req.ID), recoveryEmail)
+	if err != nil {
+		return fmt.Errorf("update user recovery email: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("user %q not found", req.ID)
+	}
+	return nil
+}
+
 func normalizeAdminStatus(status string) string {
 	return strings.ToLower(strings.TrimSpace(status))
 }
@@ -2408,9 +2451,11 @@ SELECT
   domain_id::text,
   username,
   display_name,
+  COALESCE(recovery_email, ''),
   role,
   status,
   COALESCE(password_hash, '') <> '' AS password_configured,
+  must_change_password,
   quota_used,
   COALESCE(quota_limit, 0),
   quota_source,
@@ -2436,9 +2481,11 @@ LIMIT $4`
 			&user.DomainID,
 			&user.Username,
 			&user.DisplayName,
+			&user.RecoveryEmail,
 			&user.Role,
 			&user.Status,
 			&user.PasswordConfigured,
+			&user.MustChangePassword,
 			&user.QuotaUsed,
 			&user.QuotaLimit,
 			&user.QuotaSource,
@@ -2470,9 +2517,11 @@ SELECT
   domain_id::text,
   username,
   display_name,
+  COALESCE(recovery_email, ''),
   role,
   status,
   COALESCE(password_hash, '') <> '' AS password_configured,
+  must_change_password,
   quota_used,
   COALESCE(quota_limit, 0),
   quota_source,
@@ -2487,9 +2536,11 @@ LIMIT 1`
 		&user.DomainID,
 		&user.Username,
 		&user.DisplayName,
+		&user.RecoveryEmail,
 		&user.Role,
 		&user.Status,
 		&user.PasswordConfigured,
+		&user.MustChangePassword,
 		&user.QuotaUsed,
 		&user.QuotaLimit,
 		&user.QuotaSource,

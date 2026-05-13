@@ -1336,6 +1336,7 @@ export interface UserProfile {
   user_id: string;
   display_name: string;
   email: string;
+  recovery_email?: string;
   quota_used: number;
   quota_limit: number | null;
 }
@@ -1364,7 +1365,7 @@ export async function listUserAddresses(): Promise<UserAddressEntry[]> {
   } catch { return []; }
 }
 
-export async function updateUserProfile(fields: { display_name?: string }): Promise<void> {
+export async function updateUserProfile(fields: { display_name?: string; recovery_email?: string }): Promise<void> {
   const res = await fetch('/api/mail/me', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
