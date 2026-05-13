@@ -226,7 +226,7 @@ Implementation order:
 179. Outbound SMTP DSN wire coverage now confirms DSN parameters are suppressed when a remote peer does not advertise DSN support.
 180. Backend release readiness documentation now calls out SMTP extension, TLS/SMTPS, trusted relay, DSN/bounce, and same-connection soak verification before a release cut.
 181. PostgreSQL-backed release integration tests can run migrations in an isolated temporary schema and verify draft-to-send, attachment handoff, sent-message state, DSN payload persistence, and outbound outbox enqueue behavior against real SQL.
-182. Admin console and webmail client contracts now align with the backend OpenAPI shapes for folders, messages, compose intents, domains, users, roles, DNS checks, and scoped company user loading.
+182. Admin console and webmail client contracts now align with the backend OpenAPI shapes for folders, messages, compose intents, domains, users, roles, DNS checks, scoped company user loading, SSO/auth policy, reports, organization hierarchy, and audit log envelopes.
 182. PostgreSQL outbox integration tests now verify `available_at` claiming, retry-to-pending behavior, retry exhaustion, and UTF-8-safe failure diagnostics against the migrated schema.
 183. Trusted relay tests now explicitly cover empty relay policy defaults and malformed remote address rejection, tightening final inbound relay boundary verification.
 184. Same-connection SMTP soak coverage now verifies DSN `RET`/`ENVID`/`NOTIFY`/`ORCPT` state does not leak into a later transaction on the same TCP session.

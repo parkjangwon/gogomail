@@ -15,9 +15,18 @@ export interface OrganizationMember {
 export interface OrganizationNode {
   id: string;
   name: string;
-  type: 'company' | 'group' | 'user';
+  type?: 'company' | 'group' | 'user' | 'unit';
   parent_id?: string;
   member_count?: number;
+  children?: OrganizationNode[];
+}
+
+interface OrganizationHierarchyEnvelope {
+  hierarchy: OrganizationNode | null;
+}
+
+interface OrganizationUnitEnvelope {
+  unit: OrganizationNode;
 }
 
 export function useOrganizationStructure(companyId: string | undefined) {
@@ -25,8 +34,10 @@ export function useOrganizationStructure(companyId: string | undefined) {
     queryKey: ['organizationStructure', companyId],
     queryFn: async () => {
       if (!companyId) return { root: null, nodes: [] };
-      const res = await api.get(`/companies/${companyId}/organization/structure`) as any;
-      return res.data || { root: null, nodes: [] };
+      const res = await api.get<OrganizationHierarchyEnvelope>('/organization/hierarchy', {
+        params: { company_id: companyId },
+      });
+      return { root: res.hierarchy, nodes: res.hierarchy ? [res.hierarchy] : [] };
     },
     enabled: !!companyId,
   });
@@ -36,7 +47,6 @@ export function useUpdateOrganizationHierarchy() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      companyId,
       nodeId,
       newParentId,
     }: {
@@ -44,11 +54,11 @@ export function useUpdateOrganizationHierarchy() {
       nodeId: string;
       newParentId: string;
     }) => {
-      const res = await api.put(
-        `/companies/${companyId}/organization/structure/${nodeId}`,
+      const res = await api.put<OrganizationUnitEnvelope>(
+        `/organization/units/${nodeId}`,
         { parent_id: newParentId }
-      ) as any;
-      return res.data;
+      );
+      return res.unit;
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({
@@ -63,8 +73,8 @@ export function useGetOrganizationNode(companyId: string | undefined, nodeId: st
     queryKey: ['organizationNode', companyId, nodeId],
     queryFn: async () => {
       if (!companyId || !nodeId) return null;
-      const res = await api.get(`/companies/${companyId}/organization/${nodeId}`) as any;
-      return res.data as OrganizationNode;
+      const res = await api.get<OrganizationUnitEnvelope>(`/organization/units/${nodeId}`);
+      return res.unit;
     },
     enabled: !!companyId && !!nodeId,
   });

@@ -27,29 +27,25 @@ export interface AuditLogFilter {
 }
 
 export interface AuditLogResponse {
-  logs: AuditLog[];
-  total: number;
-  page: number;
-  per_page: number;
+  audit_logs: AuditLog[];
 }
 
 export function useAuditLogs(companyId: string | undefined, filters?: AuditLogFilter) {
   return useQuery({
     queryKey: ['auditLogs', companyId, filters],
     queryFn: async () => {
-      if (!companyId) return { logs: [], total: 0, page: 1, per_page: 50 };
+      if (!companyId) return { audit_logs: [] };
 
       const params = new URLSearchParams();
-      if (filters?.start_date) params.append('start_date', filters.start_date);
-      if (filters?.end_date) params.append('end_date', filters.end_date);
+      params.append('company_id', companyId);
+      if (filters?.start_date) params.append('since', filters.start_date);
       if (filters?.action) params.append('action', filters.action);
-      if (filters?.resource_type) params.append('resource_type', filters.resource_type);
-      if (filters?.admin_user_id) params.append('admin_user_id', filters.admin_user_id);
+      if (filters?.resource_type) params.append('target_type', filters.resource_type);
+      if (filters?.admin_user_id) params.append('actor_id', filters.admin_user_id);
       if (filters?.limit) params.append('limit', filters.limit.toString());
-      if (filters?.offset) params.append('offset', filters.offset.toString());
 
-      const res = await api.get(`/companies/${companyId}/audit-logs?${params}`) as any;
-      return res.data || { logs: [], total: 0, page: 1, per_page: 50 };
+      const res = await api.get<AuditLogResponse>(`/audit-logs?${params}`);
+      return res;
     },
     enabled: !!companyId,
     staleTime: 0,
@@ -74,8 +70,7 @@ export function useExportAuditLogs() {
       if (filters?.action) params.append('action', filters.action);
       if (filters?.resource_type) params.append('resource_type', filters.resource_type);
 
-      const res = await api.get(`/companies/${companyId}/audit-logs/export?${params}`) as any;
-      return res.data;
+      return api.get(`/companies/${companyId}/audit-logs/export?${params}`);
     },
   });
 }

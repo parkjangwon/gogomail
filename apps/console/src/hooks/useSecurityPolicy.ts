@@ -4,20 +4,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 
 export interface SecurityPolicy {
-  company_id: string;
-  mfa_mode: 'disabled' | 'optional' | 'required';
-  mfa_grace_period_days: number;
+  min_length: number;
+  require_uppercase: boolean;
+  require_numbers: boolean;
+  require_symbols: boolean;
+  max_age_days: number;
+  history_count: number;
+  mfa_required: boolean;
+  mfa_methods: string[];
   session_timeout_minutes: number;
-  password_min_length: number;
-  password_require_uppercase: boolean;
-  password_require_numbers: boolean;
-  password_require_special: boolean;
-  password_expiration_days?: number;
-  ip_restriction_enabled: boolean;
-  allowed_ips?: string[];
-  login_failure_lockout_attempts: number;
-  login_failure_lockout_duration_minutes: number;
-  updated_at: string;
+  max_concurrent_sessions: number;
+}
+
+interface SecurityPolicyEnvelope {
+  policy: SecurityPolicy;
 }
 
 export function useSecurityPolicy(companyId: string | undefined) {
@@ -25,8 +25,8 @@ export function useSecurityPolicy(companyId: string | undefined) {
     queryKey: ['securityPolicy', companyId],
     queryFn: async () => {
       if (!companyId) return null;
-      const res = await api.get(`/companies/${companyId}/security-policy`) as any;
-      return res.data as SecurityPolicy;
+      const res = await api.get<SecurityPolicyEnvelope>(`/companies/${companyId}/security/auth-policy`);
+      return res.policy;
     },
     enabled: !!companyId,
   });
@@ -42,11 +42,11 @@ export function useUpdateSecurityPolicy() {
       companyId: string;
       policy: Partial<SecurityPolicy>;
     }) => {
-      const res = await api.put(
-        `/companies/${companyId}/security-policy`,
+      const res = await api.put<SecurityPolicyEnvelope>(
+        `/companies/${companyId}/security/auth-policy`,
         policy
-      ) as any;
-      return res.data as SecurityPolicy;
+      );
+      return res.policy;
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['securityPolicy', companyId] });
