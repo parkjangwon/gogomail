@@ -1131,18 +1131,20 @@ func subschemaAttributes() map[string][]string {
 
 func selectLDAPAttributes(attrs map[string][]string, requested []string, typesOnly bool) map[string][]string {
 	selected := make(map[string][]string, len(attrs))
-	if len(requested) == 0 || containsLDAPAttribute(requested, "*") || containsLDAPAttribute(requested, "+") {
-		for k, values := range attrs {
-			if typesOnly {
-				selected[k] = nil
-			} else {
-				selected[k] = values
-			}
-		}
+	if containsLDAPAttribute(requested, "1.1") {
 		return selected
+	}
+	if len(requested) == 0 || containsLDAPAttribute(requested, "*") {
+		copyLDAPAttributeSet(selected, attrs, typesOnly, false)
+	}
+	if containsLDAPAttribute(requested, "+") {
+		copyLDAPAttributeSet(selected, attrs, typesOnly, true)
 	}
 	for _, name := range requested {
 		name = strings.TrimSpace(name)
+		if name == "*" || name == "+" {
+			continue
+		}
 		for attrName, values := range attrs {
 			if strings.EqualFold(name, attrName) {
 				if typesOnly {
@@ -1154,6 +1156,28 @@ func selectLDAPAttributes(attrs map[string][]string, requested []string, typesOn
 		}
 	}
 	return selected
+}
+
+func copyLDAPAttributeSet(dst map[string][]string, attrs map[string][]string, typesOnly bool, operational bool) {
+	for k, values := range attrs {
+		if operational != isOperationalLDAPAttribute(k) {
+			continue
+		}
+		if typesOnly {
+			dst[k] = nil
+		} else {
+			dst[k] = values
+		}
+	}
+}
+
+func isOperationalLDAPAttribute(attr string) bool {
+	switch strings.ToLower(strings.TrimSpace(attr)) {
+	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname":
+		return true
+	default:
+		return false
+	}
 }
 
 func containsLDAPAttribute(attrs []string, want string) bool {
