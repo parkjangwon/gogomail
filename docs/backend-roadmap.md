@@ -4940,6 +4940,10 @@ Target outcome:
          adapter boundary: each login re-invokes the authenticator, and a
          `must_change_password` policy change between logins is enforced on the
          next POP3 authentication attempt.
+ 1583. POP3 authentication identity freshness is now covered at the mailservice
+         adapter boundary: a second login that resolves to a different user ID
+         uses that fresh identity for folder loads, inbox page loads, and the
+         maildrop lock key.
 
 ## Deferred until backend contracts stabilize
 

@@ -18,13 +18,16 @@ import (
 // the methods the POP3 adapter actually calls.
 type pop3TestRepository struct {
 	fakeRepository
-	folders   []maildb.Folder
-	messages  []maildb.MessageSummary
-	details   map[string]maildb.MessageDetail
-	pageCalls int
+	folders     []maildb.Folder
+	messages    []maildb.MessageSummary
+	details     map[string]maildb.MessageDetail
+	pageCalls   int
+	folderUsers []string
+	pageUsers   []string
 }
 
-func (r *pop3TestRepository) ListFolders(_ context.Context, _ string) ([]maildb.Folder, error) {
+func (r *pop3TestRepository) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
+	r.folderUsers = append(r.folderUsers, userID)
 	return r.folders, nil
 }
 
@@ -32,8 +35,9 @@ func (r *pop3TestRepository) ListMessagesInFolder(_ context.Context, _, _ string
 	return r.messages, nil
 }
 
-func (r *pop3TestRepository) ListMessagesPage(_ context.Context, _, _ string, limit int, cursor maildb.MessageListCursor, _ maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
+func (r *pop3TestRepository) ListMessagesPage(_ context.Context, userID, _ string, limit int, cursor maildb.MessageListCursor, _ maildb.MessageListFilter) ([]maildb.MessageSummary, error) {
 	r.pageCalls++
+	r.pageUsers = append(r.pageUsers, userID)
 	start := 0
 	if cursor.ID != "" {
 		start = len(r.messages)
@@ -247,6 +251,44 @@ func TestPOP3StoreAdapterRechecksAuthPolicyEachLogin(t *testing.T) {
 	}
 	if auth.calls != 2 {
 		t.Fatalf("auth calls = %d, want 2", auth.calls)
+	}
+}
+
+func TestPOP3StoreAdapterUsesFreshAuthenticatedUserID(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	first, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("initial Authenticate returned error: %v", err)
+	}
+	auth.userID = "user-2"
+	second, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("second Authenticate returned error: %v", err)
+	}
+	firstLock, ok := first.(interface{ MaildropLockKey() string })
+	if !ok {
+		t.Fatal("first mailbox does not expose MaildropLockKey")
+	}
+	secondLock, ok := second.(interface{ MaildropLockKey() string })
+	if !ok {
+		t.Fatal("second mailbox does not expose MaildropLockKey")
+	}
+	if firstLock.MaildropLockKey() != "user-1" || secondLock.MaildropLockKey() != "user-2" {
+		t.Fatalf("maildrop lock keys = %q/%q, want user-1/user-2", firstLock.MaildropLockKey(), secondLock.MaildropLockKey())
+	}
+	if len(repo.folderUsers) != 2 || repo.folderUsers[0] != "user-1" || repo.folderUsers[1] != "user-2" {
+		t.Fatalf("folder users = %#v, want user-1 then user-2", repo.folderUsers)
+	}
+	if len(repo.pageUsers) != 2 || repo.pageUsers[0] != "user-1" || repo.pageUsers[1] != "user-2" {
+		t.Fatalf("page users = %#v, want user-1 then user-2", repo.pageUsers)
 	}
 }
 
