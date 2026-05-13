@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE STLS denial preserves pending delete)
+Last updated: 2026-05-14 (POP3 DELE invalid command sequence docs audit)
+
+## POP3 DELE invalid command sequence docs audit (2026-05-14, complete)
+- POP3 pending-delete preservation coverage is now mapped across `NOOP`, `CAPA`, empty command, unknown command, `AUTH`, `USER/PASS`, and `STLS` paths.
+- The audit revalidated the existing wire-level tests without adding duplicate coverage.
 
 ## POP3 DELE STLS denial preserves pending delete (2026-05-14, complete)
 - POP3 server coverage now verifies transaction-state `STLS` denial after `DELE 1` does not restore the deleted message.

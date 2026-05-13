@@ -5186,6 +5186,9 @@ Target outcome:
  1665. POP3 transaction STLS denial after DELE is now covered: STLS denial
          preserves pending delete state, so LIST fails for the deleted message
          and STAT excludes it afterward.
+ 1666. POP3 DELE invalid-command sequence coverage has been audited across
+         NOOP, CAPA, empty command, unknown command, AUTH, USER/PASS, and STLS
+         paths without adding duplicate tests.
 
 ## Deferred until backend contracts stabilize
 
