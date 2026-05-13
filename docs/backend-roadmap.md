@@ -4812,6 +4812,13 @@ Target outcome:
          state first, folder row second, and message rows last. This keeps
          manual repair/backfill jobs aligned with protocol write paths and
          avoids introducing a reversed lock order around folder/message scans.
+ 1552. Single-message lazy UID assignment through `EnsureIMAPMessageUID` now
+         uses the same mailbox UID state then folder-row lock order before
+         inspecting the target message, and the assignment CTE locks that
+         message row before inserting a UID. It preserves existing UID lookups
+         while preflighting capacity for new UID rows, returning stable
+         exhaustion errors near the 32-bit IMAP UID limit instead of relying on
+         database constraint failures.
 
 ## Deferred until backend contracts stabilize
 

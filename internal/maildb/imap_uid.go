@@ -2757,6 +2757,9 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 	if _, err := tx.ExecContext(ctx, ensureState, mailboxID, userID); err != nil {
 		return IMAPMessageUID{}, fmt.Errorf("ensure imap mailbox state: %w", err)
 	}
+	if err := ensureIMAPMessageUIDCapacityTx(ctx, tx, userID, mailboxID, messageID); err != nil {
+		return IMAPMessageUID{}, err
+	}
 
 	var uid uint32
 	var modseq uint64
@@ -2769,12 +2772,13 @@ WITH mailbox AS (
   FOR UPDATE
 ),
 message AS (
-  SELECT id, folder_id, user_id
-  FROM messages
-  WHERE id = $1::uuid
-    AND folder_id = $2::uuid
-    AND user_id = $3::uuid
-    AND status = 'active'
+  SELECT m.id, m.folder_id, m.user_id
+  FROM messages m
+  WHERE m.id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.user_id = $3::uuid
+    AND m.status = 'active'
+  FOR UPDATE OF m
 ),
 inserted AS (
   INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
@@ -2823,4 +2827,43 @@ LIMIT 1`
 		return IMAPMessageUID{}, fmt.Errorf("commit imap uid transaction: %w", err)
 	}
 	return result, nil
+}
+
+func ensureIMAPMessageUIDCapacityTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, messageID string) error {
+	var uidNext imapgw.UID
+	const lockState = `
+SELECT uidnext
+FROM imap_mailbox_state
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	if err := tx.QueryRowContext(ctx, lockState, mailboxID, userID).Scan(&uidNext); err != nil {
+		return fmt.Errorf("lock imap message uid state: %w", err)
+	}
+	if err := lockIMAPMailboxFolderForUIDAllocation(ctx, tx, userID, mailboxID); err != nil {
+		return err
+	}
+
+	var needsUID bool
+	const target = `
+SELECT EXISTS (
+  SELECT 1
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.user_id = $3::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+)`
+	if err := tx.QueryRowContext(ctx, target, messageID, mailboxID, userID).Scan(&needsUID); err != nil {
+		return fmt.Errorf("inspect imap message uid target: %w", err)
+	}
+	if needsUID && uidNext >= math.MaxUint32 {
+		return fmt.Errorf("imap uid space exhausted")
+	}
+	return nil
 }
