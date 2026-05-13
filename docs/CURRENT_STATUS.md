@@ -3617,6 +3617,10 @@ owner/resource target without scanning unrelated audit history.
 - IMAP authentication now rejects users marked `must_change_password`, using
   the DB authentication result to prevent long-lived protocol sessions before
   the user completes the required password rotation.
+- IMAP server connections now carry configurable read, write, and IDLE
+  timeouts. The protocol loop refreshes deadlines around command reads,
+  response flushes, STARTTLS handshakes, and IDLE waits so slow or abandoned
+  clients cannot hold goroutines and connection slots indefinitely.
 - Authenticated SMTP Submission now mirrors receive-path storage cleanup:
   if the stored hook, submitted recorder, or mailbox-quota path fails before
   database commit, the just-written submitted `.eml` object is deleted.

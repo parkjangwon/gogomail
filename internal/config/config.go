@@ -23,6 +23,9 @@ type Config struct {
 	IMAPTLSKeyFile                      string
 	IMAPAllowInsecureAuth               bool
 	IMAPMaxConnections                  int
+	IMAPReadTimeout                     time.Duration
+	IMAPWriteTimeout                    time.Duration
+	IMAPIdleTimeout                     time.Duration
 	IMAPNotifyConsumerGroup             string
 	IMAPNotifyConsumerName              string
 	IMAPNotifyConsumerCount             int
@@ -250,6 +253,9 @@ func Load() Config {
 		IMAPTLSKeyFile:                      envOrDefault("GOGOMAIL_IMAP_TLS_KEY_FILE", ""),
 		IMAPAllowInsecureAuth:               boolEnvOrDefault("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", defaultSubmissionAllowInsecureAuth()),
 		IMAPMaxConnections:                  intEnvOrDefault("GOGOMAIL_IMAP_MAX_CONNECTIONS", 0),
+		IMAPReadTimeout:                     durationEnvOrDefault("GOGOMAIL_IMAP_READ_TIMEOUT", 5*time.Minute),
+		IMAPWriteTimeout:                    durationEnvOrDefault("GOGOMAIL_IMAP_WRITE_TIMEOUT", 30*time.Second),
+		IMAPIdleTimeout:                     durationEnvOrDefault("GOGOMAIL_IMAP_IDLE_TIMEOUT", 30*time.Minute),
 		IMAPNotifyConsumerGroup:             envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "gogomail.imap-gateway"),
 		IMAPNotifyConsumerName:              envOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "imap-gateway-1"),
 		IMAPNotifyConsumerCount:             intEnvOrDefault("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", 50),

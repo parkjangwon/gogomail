@@ -21,6 +21,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_IMAP_TLS_KEY_FILE", "")
 	t.Setenv("GOGOMAIL_IMAP_ALLOW_INSECURE_AUTH", "")
 	t.Setenv("GOGOMAIL_IMAP_MAX_CONNECTIONS", "")
+	t.Setenv("GOGOMAIL_IMAP_READ_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_IMAP_WRITE_TIMEOUT", "")
+	t.Setenv("GOGOMAIL_IMAP_IDLE_TIMEOUT", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_GROUP", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_NAME", "")
 	t.Setenv("GOGOMAIL_IMAP_NOTIFY_CONSUMER_COUNT", "")
@@ -185,6 +188,15 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.IMAPMaxConnections != 0 {
 		t.Fatalf("IMAPMaxConnections = %d, want 0 for unlimited default", cfg.IMAPMaxConnections)
+	}
+	if cfg.IMAPReadTimeout != 5*time.Minute {
+		t.Fatalf("IMAPReadTimeout = %s, want 5m", cfg.IMAPReadTimeout)
+	}
+	if cfg.IMAPWriteTimeout != 30*time.Second {
+		t.Fatalf("IMAPWriteTimeout = %s, want 30s", cfg.IMAPWriteTimeout)
+	}
+	if cfg.IMAPIdleTimeout != 30*time.Minute {
+		t.Fatalf("IMAPIdleTimeout = %s, want 30m", cfg.IMAPIdleTimeout)
 	}
 	if cfg.POP3MaxConnections != 0 {
 		t.Fatalf("POP3MaxConnections = %d, want 0 for unlimited default", cfg.POP3MaxConnections)
