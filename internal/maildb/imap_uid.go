@@ -1953,24 +1953,28 @@ WITH requested AS (
   SELECT value AS message_id, ord
   FROM jsonb_array_elements_text($2::jsonb) WITH ORDINALITY AS requested(value, ord)
 )
-SELECT m.id::text, m.folder_id::text
+SELECT
+  m.id::text,
+  m.folder_id::text,
+  COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
 FROM requested
 JOIN messages m ON m.id = requested.message_id::uuid
 WHERE m.user_id = $1::uuid
   AND m.status = 'active'
-ORDER BY requested.ord`
+ORDER BY m.folder_id, internal_date, m.id`
 	rows, err := r.db.QueryContext(ctx, query, userID, string(rawIDs))
 	if err != nil {
 		return nil, fmt.Errorf("list active imap message uid targets: %w", err)
 	}
 	type target struct {
-		messageID string
-		mailboxID string
+		messageID    string
+		mailboxID    string
+		internalDate time.Time
 	}
 	targets := make([]target, 0, len(messageIDs))
 	for rows.Next() {
 		var item target
-		if err := rows.Scan(&item.messageID, &item.mailboxID); err != nil {
+		if err := rows.Scan(&item.messageID, &item.mailboxID, &item.internalDate); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("scan active imap message uid target: %w", err)
 		}

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP ensure-message UID hardening)
+Last updated: 2026-05-14 (IMAP batch ensure UID ordering hardening)
+
+## IMAP batch ensure UID ordering hardening (2026-05-14, complete)
+- `EnsureIMAPMessageUIDsForMessages` now orders active targets by mailbox, internal date, and message ID before assigning missing UIDs, instead of using caller request order.
+- Regression coverage verifies reversed batch requests still assign lower UIDs to older messages in the mailbox.
 
 ## IMAP ensure-message UID hardening (2026-05-14, complete)
 - `EnsureIMAPMessageUID` now preflights single-message lazy UID assignment under the same mailbox UID state then folder-row lock order used by live allocation and operational backfill paths.
