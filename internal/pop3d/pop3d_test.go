@@ -3,6 +3,7 @@ package pop3d
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/textproto"
 	"strings"
@@ -77,13 +78,17 @@ func (s *mockStore) Authenticate(user, pass string) (Mailbox, error) {
 }
 
 func newTestServer(t *testing.T) (*Server, net.Listener) {
+	return newTestServerWithMessages(t, []mockMessage{
+		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+		{uidl: "msg002", size: 38, content: "From: b@example.com\r\n\r\nWorld\r\n"},
+	})
+}
+
+func newTestServerWithMessages(t *testing.T, messages []mockMessage) (*Server, net.Listener) {
 	store := &mockStore{
 		mailbox: &mockMailbox{
-			messages: []mockMessage{
-				{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
-				{uidl: "msg002", size: 38, content: "From: b@example.com\r\n\r\nWorld\r\n"},
-			},
-			deleted: make(map[int]bool),
+			messages: messages,
+			deleted:  make(map[int]bool),
 		},
 	}
 
@@ -105,6 +110,12 @@ func newTestServer(t *testing.T) (*Server, net.Listener) {
 	}()
 
 	return server, listener
+}
+
+func pop3Login(t *testing.T, tp *textproto.Conn) {
+	t.Helper()
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
 }
 
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
@@ -223,6 +234,32 @@ func TestPOP3Retr(t *testing.T) {
 	}
 }
 
+func TestPOP3RetrDotStuffsMessageBody(t *testing.T) {
+	_, listener := newTestServerWithMessages(t, []mockMessage{{
+		uidl:    "msg001",
+		size:    64,
+		content: "From: a@example.com\r\n\r\nfirst\r\n.secret\r\n.\r\nlast\r\n",
+	}})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "RETR 1")
+
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read RETR body: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"first", ".secret", "\n.\n", "last"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("RETR body = %q, want %q", content, want)
+		}
+	}
+}
+
 func TestPOP3DeleAndRset(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
@@ -282,6 +319,35 @@ func TestPOP3Top(t *testing.T) {
 	n, _ := reader.Read(data)
 	if n == 0 {
 		t.Fatalf("expected headers from TOP")
+	}
+}
+
+func TestPOP3TopDotStuffsHeaderAndBody(t *testing.T) {
+	_, listener := newTestServerWithMessages(t, []mockMessage{{
+		uidl:    "msg001",
+		size:    96,
+		content: "From: a@example.com\r\n.X-Debug: header\r\n\r\n.body\r\n.\r\nlast\r\n",
+	}})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "TOP 1 2")
+
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read TOP body: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{".X-Debug: header", ".body", "\n.\n"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("TOP body = %q, want %q", content, want)
+		}
+	}
+	if strings.Contains(content, "last") {
+		t.Fatalf("TOP returned too many body lines: %q", content)
 	}
 }
 

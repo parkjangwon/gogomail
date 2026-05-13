@@ -5293,6 +5293,13 @@ Implementation order:
 8. Metrics boundary for AUTH/RETR/DELE observations.
 9. Pipeline stages parallel to IMAP so quota enforcement and audit logging attach without duplicating logic.
 
+Progress:
+
+1. POP3 `RETR` and `TOP` multi-line responses now apply RFC 1939
+   dot-stuffing to every content line beginning with `.`, canonicalize content
+   line endings to CRLF, and preserve the final `.\r\n` terminator. Regression
+   tests cover body, header, and TOP body dot-starting lines.
+
 ---
 
 ## Phase 7: Push Notifications & Mobile Sync

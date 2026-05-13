@@ -1373,6 +1373,9 @@ AUTHORIZATION to TRANSACTION; QUIT in TRANSACTION transitions to UPDATE
 where pending deletions are applied. The `Store` interface abstracts user
 authentication and mailbox access, while the `Mailbox` interface provides
 message count, size, UIDL, content retrieval, and deletion tracking.
+`RETR` and `TOP` now send RFC 1939 multi-line content through a shared
+dot-stuffing writer that canonicalizes line endings to CRLF and escapes every
+line beginning with `.` before the final `.\r\n` terminator.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 

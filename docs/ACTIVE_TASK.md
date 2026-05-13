@@ -1,35 +1,32 @@
 # ACTIVE_TASK
 
-## TASK-232: CardDAV/CalDAV collection xml:lang If header duplicate resource tag delimiter audit
+## TASK-233: POP3 multiline RETR/TOP dot-stuffing audit
 
 ### 배경
 
-TASK-231에서 resource tag 뒤 suffix 토큰이 malformed resource tag로 HTTP 400
-처리되는지 확인했다. 이제 resource tag 종료 delimiter가 중복된 값이 유효한
-tag처럼 흡수되어 412로 흐르지 않고, malformed resource tag로 HTTP 400 처리되어
-collection `PROPPATCH` 본문을 읽기 전에 `xml:lang` mutation을 차단하는지
-확인한다.
+POP3 `RETR`와 `TOP`은 RFC 1939 multi-line response 규칙에 따라 본문 줄이
+마침표(`.`)로 시작하면 전송 시 dot-stuffing 해야 한다. 현재 구현은 원문을
+그대로 쓰고 마지막에 `.\r\n` terminator를 붙이므로, 메시지 본문에 `.` 단독
+또는 `.` 시작 줄이 있으면 클라이언트가 응답을 조기 종료하거나 내용을 잘못
+복원할 수 있다.
 
 ### 구현 대상
 
-- `internal/caldavgw/handler.go`
-- `internal/caldavgw/*_test.go`
-- `internal/carddavgw/handler.go`
-- `internal/carddavgw/*_test.go`
+- `internal/pop3d/pop3d.go`
+- `internal/pop3d/*_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] CalDAV WebDAV `If` header의 duplicate resource-tag delimiter를 HTTP 400으로 거부한다.
-- [x] CardDAV WebDAV `If` header의 duplicate resource-tag delimiter를 HTTP 400으로 거부한다.
-- [x] CalDAV duplicate-delimiter resource tag `If` 헤더가 body read 전에 collection language mutation을 차단한다.
-- [x] CardDAV duplicate-delimiter resource tag `If` 헤더가 body read 전에 collection language mutation을 차단한다.
-- [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
+- [x] POP3 `RETR` multi-line response가 `.` 시작 줄을 dot-stuffing한다.
+- [x] POP3 `TOP` multi-line response가 header/body 모두에서 `.` 시작 줄을 dot-stuffing한다.
+- [x] POP3 multi-line 응답은 CRLF canonical form과 `.\r\n` terminator를 유지한다.
+- [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-233: POP3 multiline RETR/TOP dot-stuffing audit
+TASK-234: POP3 STLS transaction-state capability audit
