@@ -1223,6 +1223,35 @@ INSERT INTO messages (
 	}
 }
 
+func TestPostgresDeleteFolderRemovesIMAPMailboxState(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	folder, err := repo.CreateFolder(ctx, CreateFolderRequest{
+		UserID: seed.userID,
+		Name:   "Receipts",
+	})
+	if err != nil {
+		t.Fatalf("CreateFolder returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, folder.ID); err != nil {
+		t.Fatalf("EnsureIMAPMailboxState returned error: %v", err)
+	}
+	assertIMAPMailboxStateCount(t, db, seed.userID, folder.ID, 1)
+
+	if err := repo.DeleteFolder(ctx, seed.userID, folder.ID); err != nil {
+		t.Fatalf("DeleteFolder returned error: %v", err)
+	}
+	assertIMAPMailboxStateCount(t, db, seed.userID, folder.ID, 0)
+	if _, err := repo.GetIMAPMailbox(ctx, seed.userID, folder.ID); err == nil {
+		t.Fatal("GetIMAPMailbox found deleted folder")
+	}
+}
+
 func TestPostgresBulkMoveMessagesRemovesOldIMAPUIDRows(t *testing.T) {
 	t.Parallel()
 
@@ -2031,6 +2060,22 @@ WHERE user_id = $1::uuid
 	}
 	if assigned != want {
 		t.Fatalf("assigned imap uids = %d, want %d", assigned, want)
+	}
+}
+
+func assertIMAPMailboxStateCount(t *testing.T, db *sql.DB, userID string, mailboxID string, want int) {
+	t.Helper()
+
+	var assigned int
+	if err := db.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM imap_mailbox_state
+WHERE user_id = $1::uuid
+  AND mailbox_id = $2::uuid`, userID, mailboxID).Scan(&assigned); err != nil {
+		t.Fatalf("count imap mailbox state rows: %v", err)
+	}
+	if assigned != want {
+		t.Fatalf("imap mailbox state rows for mailbox %s = %d, want %d", mailboxID, assigned, want)
 	}
 }
 

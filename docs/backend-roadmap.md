@@ -6102,3 +6102,6 @@ Target outcome:
      `DeleteFolder` checks for any remaining message row, not only active
      messages, before deleting a folder so soft-deleted messages cannot leak a
      database foreign-key error after IMAP UID row cleanup.
+1708. IMAP mailbox state cascade cleanup is now covered:
+     deleting an empty user folder removes its `imap_mailbox_state` row and
+     `GetIMAPMailbox` no longer exposes the deleted mailbox after cleanup.

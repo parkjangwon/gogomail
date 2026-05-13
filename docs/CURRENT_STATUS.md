@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (mailbox delete deleted-message guard)
+Last updated: 2026-05-14 (IMAP mailbox state cascade cleanup)
+
+## IMAP mailbox state cascade cleanup (2026-05-14, complete)
+- Postgres coverage now verifies deleting an empty user folder removes its `imap_mailbox_state` row through the folder cascade.
+- The regression also verifies `GetIMAPMailbox` no longer exposes the deleted mailbox after state cleanup.
 
 ## Mailbox delete deleted-message guard (2026-05-14, complete)
 - `DeleteFolder` now treats any remaining message row, including soft-deleted messages, as folder content before attempting folder deletion.
