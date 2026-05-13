@@ -5848,3 +5848,8 @@ Next focus areas:
 - Backend company user exports, SCIM status counts, and security posture now enumerate users through the company's domains instead of unscoped `ListUsers` calls, keeping tenant-scoped admin data aligned with the console behavior.
 - The console `/admin/v1` proxy now mirrors `/api/admin` 204 and download-header handling, so direct admin-v1 DELETE/export screens preserve backend response semantics.
 - Admin OpenAPI metadata now matches organization webhook and notification-template behavior: webhook create requests omit caller-provided secrets, webhook tests return `status_code`, and notification templates expose `subject`/`body`/`enabled`.
+
+## Company/domain settings inheritance polish (2026-05-14)
+- Console company settings now presents the same policy sections as domain settings: user registration, security, password/reset policy, and per-user storage quota.
+- Company policy defaults are stored under the reserved company config key `domain_settings_defaults`; newly created domains inherit that policy into `domain_settings` at the backend API boundary.
+- Domain settings still override those defaults after creation, and both company/domain per-user quota fields are shown in MB while the backend continues storing bytes.

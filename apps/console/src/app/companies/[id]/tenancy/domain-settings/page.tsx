@@ -3,7 +3,6 @@
 import {
   ContentLayout,
   Header,
-  SpaceBetween,
   Box,
   Spinner,
   Select,
@@ -44,6 +43,8 @@ interface DomainSettings {
   updated_at: string;
   updated_by: string;
 }
+
+const BYTES_PER_MB = 1048576;
 
 export default function DomainSettingsPage() {
   const { t } = useI18n();
@@ -202,7 +203,7 @@ export default function DomainSettingsPage() {
         </Header>
       }
     >
-      <SpaceBetween size="l">
+      <div style={{ display: 'grid', gap: '24px' }}>
         <Fragment key="domain-selector">
           <Container key="domain-selector-card">
             <FormField label={t('pages.domain_settings_page.select_domain_label')}>
@@ -237,7 +238,7 @@ export default function DomainSettingsPage() {
 
         {settings && form && (
           <Fragment key="settings-form">
-            <SpaceBetween key="settings-stack" size="l">
+            <div key="settings-stack" style={{ display: 'grid', gap: '24px' }}>
               {saveSuccess && (
                 <Fragment key="save-success">
                   <Alert key="save-success-alert" type="success">{t('pages.domain_settings_page.save_success')}</Alert>
@@ -246,7 +247,7 @@ export default function DomainSettingsPage() {
 
               {/* User Registration */}
               <Container key="registration-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_registration')}</Header>}>
-              <SpaceBetween key="registration-stack" size="m">
+              <div key="registration-stack" style={{ display: 'grid', gap: '16px' }}>
                 <FormField
                   label={t('pages.domain_settings_page.registration_mode_label')}
                   description={t('pages.domain_settings_page.registration_mode_desc')}
@@ -263,13 +264,13 @@ export default function DomainSettingsPage() {
                     ? t('pages.domain_settings_page.mode_invite_hint')
                     : t('pages.domain_settings_page.mode_temp_hint')}
                 </Box>
-              </SpaceBetween>
+              </div>
             </Container>
 
             {/* Security */}
             <Container key="security-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_security')}</Header>}>
               <ColumnLayout columns={2}>
-                <SpaceBetween key="security-left" size="m">
+                <div key="security-left" style={{ display: 'grid', gap: '16px' }}>
                   <FormField label={t('pages.domain_settings_page.tls_policy_label')}>
                     <Select
                       selectedOption={tlsOptions.find(o => o.value === f('tls_policy')) ?? tlsOptions[0]}
@@ -290,8 +291,8 @@ export default function DomainSettingsPage() {
                   >
                     {t('pages.domain_settings_page.ip_whitelist_label')}
                   </Toggle>
-                </SpaceBetween>
-                <SpaceBetween key="security-right" size="m">
+                </div>
+                <div key="security-right" style={{ display: 'grid', gap: '16px' }}>
                   <FormField label={t('pages.domain_settings_page.session_timeout_label')} description={t('pages.domain_settings_page.minutes')}>
                     <Input
                       type="number"
@@ -299,14 +300,14 @@ export default function DomainSettingsPage() {
                       onChange={(e) => set('session_timeout_minutes', parseInt(e.detail.value) || 480)}
                     />
                   </FormField>
-                </SpaceBetween>
+                </div>
               </ColumnLayout>
             </Container>
 
             {/* Password Policy */}
             <Container key="password-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_password')}</Header>}>
               <ColumnLayout columns={2}>
-                <SpaceBetween key="password-left" size="m">
+                <div key="password-left" style={{ display: 'grid', gap: '16px' }}>
                   <FormField label={t('pages.domain_settings_page.password_min_length_label')}>
                     <Input
                       type="number"
@@ -331,8 +332,8 @@ export default function DomainSettingsPage() {
                       onChange={(e) => set('password_reset_token_ttl_minutes', parseInt(e.detail.value) || 60)}
                     />
                   </FormField>
-                </SpaceBetween>
-                <SpaceBetween key="password-right" size="m">
+                </div>
+                <div key="password-right" style={{ display: 'grid', gap: '16px' }}>
                   <Toggle
                     checked={!!f('password_require_uppercase')}
                     onChange={(e) => set('password_require_uppercase', e.detail.checked)}
@@ -351,24 +352,24 @@ export default function DomainSettingsPage() {
                   >
                     {t('pages.domain_settings_page.require_special_chars_label')}
                   </Toggle>
-                </SpaceBetween>
+                </div>
               </ColumnLayout>
             </Container>
 
             {/* Quota */}
             <Container key="quota-settings" header={<Header variant="h2">{t('pages.domain_settings_page.section_quota')}</Header>}>
-              <FormField label={t('pages.domain_settings_page.quota_per_user_label')} description="bytes">
+              <FormField label={t('pages.domain_settings_page.quota_per_user_label')} description="MB">
                 <Input
                   type="number"
-                  value={String(f('quota_per_user') ?? 10737418240)}
-                  onChange={(e) => set('quota_per_user', parseInt(e.detail.value) || 10737418240)}
+                  value={String(Math.max(1, Math.round(Number(f('quota_per_user') ?? 10737418240) / BYTES_PER_MB)))}
+                  onChange={(e) => set('quota_per_user', Math.max(1, parseInt(e.detail.value) || 1) * BYTES_PER_MB)}
                 />
               </FormField>
             </Container>
 
             {/* Footer */}
             <Box key="settings-footer" float="right">
-              <SpaceBetween key="settings-footer-stack" direction="horizontal" size="xs">
+              <div key="settings-footer-stack" style={{ alignItems: 'center', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 {settings.updated_at && (
                   <Box color="text-body-secondary" fontSize="body-s" padding={{ top: 'xs' }}>
                     {t('pages.domain_settings_page.last_updated')}: {new Date(settings.updated_at).toLocaleString()}
@@ -378,12 +379,12 @@ export default function DomainSettingsPage() {
                 <Button variant="primary" onClick={handleSave} loading={saving}>
                   {t('pages.domain_settings_page.save_btn')}
                 </Button>
-              </SpaceBetween>
+              </div>
               </Box>
-            </SpaceBetween>
+            </div>
           </Fragment>
         )}
-      </SpaceBetween>
+      </div>
     </ContentLayout>
   );
 }

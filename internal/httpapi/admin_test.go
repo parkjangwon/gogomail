@@ -5709,6 +5709,53 @@ func TestAdminCreateDomainHandler(t *testing.T) {
 	}
 }
 
+func TestAdminCreateDomainHandlerInheritsCompanyDomainSettings(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		companyConfig: []configstore.ConfigEntry{{
+			ScopeID: "company-1",
+			Key:     companyDomainSettingsDefaultsKey,
+			Value: json.RawMessage(`{
+				"tls_policy":"require",
+				"quota_per_user":536870912,
+				"ip_whitelist_enabled":true,
+				"ip_whitelist":["10.0.0.0/8"],
+				"require_2fa":true,
+				"session_timeout_minutes":120,
+				"password_min_length":12,
+				"password_require_uppercase":true,
+				"password_require_numbers":true,
+				"password_require_special_chars":true,
+				"password_expiry_days":90,
+				"user_registration_mode":"email_invite",
+				"password_reset_token_ttl_minutes":30
+			}`),
+		}},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	body := []byte(`{"company_id":"company-1","name":"Example.COM","quota_limit":1024}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/domains", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if service.lastCompanyConfigKey != companyDomainSettingsDefaultsKey {
+		t.Fatalf("lastCompanyConfigKey = %q", service.lastCompanyConfigKey)
+	}
+	if service.lastDomainSettings.DomainID != "domain-new" || service.lastDomainSettings.TLSPolicy != "require" || service.lastDomainSettings.QuotaPerUser != 536870912 {
+		t.Fatalf("lastDomainSettings = %+v", service.lastDomainSettings)
+	}
+	if service.lastDomainSettings.UserRegistrationMode != "email_invite" || service.lastDomainSettings.PasswordResetTokenTTLMinutes != 30 {
+		t.Fatalf("lastDomainSettings registration/reset = %+v", service.lastDomainSettings)
+	}
+}
+
 func TestAdminUpdateDomainStatusHandler(t *testing.T) {
 	t.Parallel()
 
@@ -8382,6 +8429,7 @@ type fakeAdminService struct {
 	lastCompanyQuota                            maildb.UpdateCompanyQuotaRequest
 	lastDomainQuota                             maildb.UpdateDomainQuotaRequest
 	lastDomainPolicy                            maildb.UpdateDomainPolicyRequest
+	lastDomainSettings                          admin.DomainSettings
 	lastCreateDomain                            maildb.CreateDomainRequest
 	lastUserStatus                              maildb.UpdateUserStatusRequest
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
@@ -9520,6 +9568,7 @@ func (f *fakeAdminService) GetDomainSettings(_ context.Context, domainID string)
 
 func (f *fakeAdminService) UpdateDomainSettings(_ context.Context, settings *admin.DomainSettings) error {
 	f.lastDomainID = settings.DomainID
+	f.lastDomainSettings = *settings
 	return nil
 }
 
