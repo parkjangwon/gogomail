@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker slow-subscriber accounting)
+Last updated: 2026-05-14 (IMAP event broker per-mailbox drop accounting)
+
+## IMAP event broker per-mailbox drop accounting (2026-05-14, complete)
+- Slow-subscriber drops are now counted both as an aggregate and by normalized user/mailbox identity.
+- Broker tests verify `DroppedEventsFor` reports the affected mailbox while unrelated mailboxes remain at zero.
 
 ## IMAP event broker slow-subscriber accounting (2026-05-14, complete)
 - The mailbox event broker now counts events dropped because a matching subscriber channel was full.
