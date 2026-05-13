@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -10,7 +12,6 @@ import {
   KeyValuePairs,
   StatusIndicator,
   SpaceBetween,
-  Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -119,7 +120,7 @@ export default function MonitoringPage() {
 
         {/* Network Traffic */}
         <Container header={<Header variant="h2">{t('pages.monitoring_page.network_traffic')}</Header>}>
-          <Table
+          <DataTable
             columnDefinitions={[
               { header: t('pages.monitoring_page.protocol'), cell: (item: any) => item.protocol, width: '20%' },
               { header: t('pages.monitoring_page.inbound'), cell: (item: any) => item.inbound, width: '25%' },

@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -126,7 +127,7 @@ export default function LegalHoldsPage() {
         </Header>
       }
     >
-      <Table
+      <DataTable
         columnDefinitions={[
           {
             header: t('legal_holds.user'),

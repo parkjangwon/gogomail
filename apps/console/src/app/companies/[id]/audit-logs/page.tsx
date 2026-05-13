@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Box,
   ButtonDropdown,
   TextFilter,
@@ -157,7 +158,7 @@ export default function AuditLogsPage() {
       <SpaceBetween size="m">
         {flash.length > 0 && <Flashbar items={flash} />}
 
-        <Table
+        <DataTable
           items={filtered}
           loading={loading}
           loadingText={t('pages.audit_logs_page.loading')}

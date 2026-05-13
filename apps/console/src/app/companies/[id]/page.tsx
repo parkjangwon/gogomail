@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -12,7 +14,6 @@ import {
   Button,
   ProgressBar,
   KeyValuePairs,
-  Table,
   StatusIndicator,
   Alert,
   Tabs,
@@ -216,7 +217,7 @@ export default function CompanyOverviewPage() {
   );
 
   const domainsTab = (
-    <Table
+    <DataTable
       loading={loadingDomains}
       loadingText={t('pages.company_overview.loading_domains')}
       columnDefinitions={[
@@ -346,7 +347,7 @@ export default function CompanyOverviewPage() {
         </SpaceBetween>
       </Container>
 
-      <Table
+      <DataTable
         loading={loadingConfigs}
         items={configs}
         columnDefinitions={[

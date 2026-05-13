@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -7,7 +9,6 @@ import {
   Spinner,
   SpaceBetween,
   Badge,
-  Table,
   Container,
   ColumnLayout,
   Button,
@@ -186,7 +187,7 @@ export default function APIHealthPage() {
         </ColumnLayout>
 
         {/* Service Health */}
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.health_page.service'),
@@ -220,7 +221,7 @@ export default function APIHealthPage() {
 
         {/* Queue Stats */}
         {queues.length > 0 && (
-          <Table
+          <DataTable
             columnDefinitions={[
               {
                 header: t('pages.api_health.topic'),

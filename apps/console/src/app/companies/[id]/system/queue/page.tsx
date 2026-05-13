@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -9,7 +11,6 @@ import {
   Spinner,
   SpaceBetween,
   Badge,
-  Table,
   StatusIndicator,
 } from '@cloudscape-design/components';
 import { useI18n } from '@/app/i18n-provider';
@@ -107,7 +108,7 @@ export default function QueueStatsPage() {
           </Container>
         </ColumnLayout>
 
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.queue_stats_page.topic'),

@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -109,7 +110,7 @@ export default function AttachmentsPage() {
           <Alert type="success">{t('pages.attachments_page.cleanup_success')}</Alert>
         )}
 
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.attachments_page.filename'),

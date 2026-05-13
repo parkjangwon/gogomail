@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   Wizard,
@@ -9,7 +11,6 @@ import {
   Container,
   Header,
   SpaceBetween,
-  Table,
   Button,
   StatusIndicator,
   Textarea,
@@ -472,7 +473,7 @@ export default function OnboardingPage() {
     <Container header={<Header variant="h2">{t('onboarding.step3_title')}</Header>}>
       <SpaceBetween size="l">
         <Alert type="info">{t('onboarding.step3_info')}</Alert>
-        <Table
+        <DataTable
           header={<Header variant="h3">{t('onboarding.dns_records')}</Header>}
           columnDefinitions={[
             { id: 'type', header: t('onboarding.dns_type'), cell: (item) => item.type },

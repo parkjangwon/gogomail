@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -15,7 +17,6 @@ import {
   Spinner,
   Flashbar,
   FlashbarProps,
-  Table,
   Modal,
   Badge,
 } from '@cloudscape-design/components';
@@ -139,7 +140,7 @@ export default function WebhooksPage() {
             </Header>
           }
         >
-          <Table
+          <DataTable
             items={webhooks}
             columnDefinitions={[
               { id: 'name', header: t('webhooks_page.name'), cell: (i) => i.name },

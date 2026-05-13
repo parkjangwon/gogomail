@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -527,7 +528,7 @@ export default function UsersPage() {
         </ColumnLayout>
 
         {/* User Table */}
-        <Table
+        <DataTable
           selectionType="multi"
           selectedItems={selectedUsers}
           onSelectionChange={e => setSelectedUsers(e.detail.selectedItems)}

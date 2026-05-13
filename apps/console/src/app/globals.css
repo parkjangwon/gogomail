@@ -24,6 +24,19 @@ main[class*="awsui_layout"] {
   height: calc(100dvh - var(--awsui-app-layout-main-offset-top, 56px));
   overflow: hidden;
 }
+[class*="awsui_content"] {
+  min-height: 0;
+}
+[class*="awsui_content-main"] {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+main[class*="awsui_layout"] > [class*="awsui_container"] {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 [class*="awsui_navigation-container"] {
   overflow-y: auto;
   height: 100%;
@@ -46,7 +59,19 @@ code {
   padding-right: 24px;
   padding-bottom: 32px;
   min-height: 0;
+  overflow: visible;
   transition: padding 0.2s ease;
+}
+
+.admin-data-table {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-data-table [class*="awsui_table-container"] {
+  min-width: 100%;
 }
 
 /* Tablet (688px – 1024px) */

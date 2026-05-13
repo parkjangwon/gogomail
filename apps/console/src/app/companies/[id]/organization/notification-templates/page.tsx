@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -13,7 +15,6 @@ import {
   Spinner,
   Flashbar,
   FlashbarProps,
-  Table,
   Modal,
   Badge,
   ColumnLayout,
@@ -129,7 +130,7 @@ export default function NotifTemplatesPage() {
         {flash.length > 0 && <Flashbar items={flash} />}
 
         <Container header={<Header variant="h2">{t('notif_templates_page.templates')} ({templates.length})</Header>}>
-          <Table
+          <DataTable
             items={templates}
             columnDefinitions={[
               { id: 'name', header: t('notif_templates_page.template'), cell: (i) => i.name },

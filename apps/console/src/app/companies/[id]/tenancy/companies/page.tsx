@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -256,7 +257,7 @@ export default function CompaniesPage() {
           </Alert>
         )}
 
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.companies.company_name'),
@@ -542,7 +543,7 @@ export default function CompaniesPage() {
                     </SpaceBetween>
                   </Box>
                 ) : (
-                  <Table
+                  <DataTable
                     columnDefinitions={[
                       {
                         header: t('pages.companies.domain'),

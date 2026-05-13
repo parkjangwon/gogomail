@@ -1,6 +1,12 @@
 # gogomail current status
 
-Last updated: 2026-05-13 (Admin console navigation hardening)
+Last updated: 2026-05-13 (Admin console data-list controls)
+
+## Admin console data-list controls (2026-05-13, complete)
+- Admin console table/list screens now use a shared `DataTable` wrapper over Cloudscape `Table`, giving table surfaces a consistent scroll container plus default client-side search and pagination when the page does not provide its own controls.
+- The wrapper preserves existing page-specific filters and pagination on screens such as users, companies, domains, and admin activity, while adding missing search/pagination to list surfaces such as admin users, legal holds, compliance reports, routing rules, webhooks, notification templates, system queue, system health tables, domain detail tables, and other table-based pages.
+- AppLayout content scrolling now targets the actual Cloudscape content container, so long data lists can be scrolled independently without requiring a full page refresh or losing the fixed top navigation/sidebar.
+- Verification covered all console app table call sites (`51` tables across `46` page files) being routed through `DataTable`, admin console TypeScript type-checking, and OpenChrome smoke checks for admin-users search/pagination and users-list vertical scrolling.
 
 ## Admin console navigation hardening (2026-05-13, complete)
 - Admin console side navigation now derives company-scoped links from the current `/companies/{id}` route before falling back to company context, preventing transient context loading from producing stale `/companies/default/...` menu links during SPA transitions.

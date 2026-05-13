@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -14,7 +16,6 @@ import {
   Box,
   Spinner,
   Alert,
-  Table,
   Flashbar,
   FlashbarProps,
   ColumnLayout,
@@ -308,7 +309,7 @@ export default function DmarcSpfPage() {
             {/* Generated DNS Records */}
             {generatedRecords && (
               <Container header={<Header variant="h2" description={t('pages.dmarc_page.records_desc')}>{t('pages.dmarc_page.records_header')}</Header>}>
-                <Table
+                <DataTable
                   columnDefinitions={[
                     { header: t('pages.dmarc_page.record_type'), cell: (r: typeof recordRows[0]) => <Badge color="blue">{r.type}</Badge>, width: '8%' },
                     { header: t('pages.dmarc_page.record_label'), cell: r => r.label, width: '10%' },
