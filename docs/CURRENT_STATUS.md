@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 listing size consistency hardening)
+Last updated: 2026-05-14 (POP3 delete commit idempotency hardening)
+
+## POP3 delete commit idempotency hardening (2026-05-14, complete)
+- POP3 pending delete commits now normalize message IDs before calling the mail service bulk delete path, trimming whitespace, skipping empty IDs, and de-duplicating IDs while preserving first-seen order.
+- Regression coverage now verifies an internally duplicated pending delete list produces a single stable bulk delete request and clears pending state after a successful commit.
 
 ## POP3 listing size consistency hardening (2026-05-14, complete)
 - `RETR` now announces the same mailbox `MessageSize` value used by `LIST` and `STAT` for the selected message.

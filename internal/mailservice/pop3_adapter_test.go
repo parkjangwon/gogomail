@@ -324,6 +324,28 @@ func TestPOP3MailboxCommitDeletes(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxCommitDeletesDeduplicatesPendingIDs(t *testing.T) {
+	adapter, repo, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	mailbox, ok := mb.(*pop3Mailbox)
+	if !ok {
+		t.Fatal("expected pop3 mailbox adapter")
+	}
+	mailbox.pending = []string{" msg-001 ", "msg-001", "", "msg-002", "msg-002"}
+
+	if err := mailbox.CommitDeletes(); err != nil {
+		t.Fatalf("commit deletes: %v", err)
+	}
+	got := repo.lastBulkDelete.MessageIDs
+	if len(got) != 2 || got[0] != "msg-001" || got[1] != "msg-002" {
+		t.Fatalf("expected unique pending deletes [msg-001 msg-002], got %#v", got)
+	}
+	if len(mailbox.pending) != 0 {
+		t.Fatalf("expected pending deletes to clear after success, got %#v", mailbox.pending)
+	}
+}
+
 func TestPOP3MailboxResetClearsPending(t *testing.T) {
 	adapter, repo, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
