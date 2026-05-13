@@ -5048,6 +5048,9 @@ Target outcome:
  1617. POP3 RSET restoration is now covered beyond STAT: after `DELE` then
          `RSET`, LIST, UIDL, and RETR all expose the message again at the wire
          layer.
+ 1618. POP3 failed QUIT commit rollback is now covered at the wire layer:
+         after a delete commit failure, LIST, UIDL, and RETR expose the message
+         again on the same connection.
 
 ## Deferred until backend contracts stabilize
 
