@@ -5225,6 +5225,9 @@ Target outcome:
  1679. POP3 invalid DELE after failed delete commit is now covered: an
          out-of-range DELE after rollback returns `-ERR` without hiding the
          restored message or setting a delete mark.
+ 1680. POP3 RETR after failed delete commit is now covered: failed QUIT
+         rollback allows retrieving the restored message body, keeps the
+         delete mark clear, and preserves the later no-delete QUIT fast path.
 
 ## Deferred until backend contracts stabilize
 

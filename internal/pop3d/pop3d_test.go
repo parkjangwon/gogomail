@@ -1999,6 +1999,46 @@ func TestPOP3CommitDeletesErrorRestoresWireVisibility(t *testing.T) {
 	}
 }
 
+func TestPOP3CommitDeletesErrorRetrKeepsDeleteMarkClear(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+	pop3Cmd(t, tp, "+OK", "RETR 1")
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read RETR body after failed QUIT: %v", err)
+	}
+	if !strings.Contains(string(data), "Hello") {
+		t.Fatalf("expected RETR 1 body after failed QUIT, got %q", string(data))
+	}
+	if mb.Deleted(0) {
+		t.Fatal("expected RETR after failed QUIT to leave delete mark clear")
+	}
+
+	mb.commitErr = nil
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls after RETR then no-delete QUIT = %d, want 1", mb.commitCalls)
+	}
+}
+
 func TestPOP3CommitDeletesErrorPreservesTransactionCapabilities(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{
