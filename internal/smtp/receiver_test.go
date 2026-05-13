@@ -898,6 +898,53 @@ func TestSessionRejectsRcptWhenDomainPolicyLookupFails(t *testing.T) {
 	requireSMTPStatus(t, session.Rcpt("one@example.com", nil), 451, gosmtp.EnhancedCode{4, 7, 1})
 }
 
+func TestSessionDomainPolicyLookupFailureDoesNotPoisonAcceptedRecipients(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+		},
+		errs: map[string]error{
+			"d2": errors.New("database unavailable"),
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	requireSMTPStatus(t, session.Rcpt("two@example.net", nil), 451, gosmtp.EnhancedCode{4, 7, 1})
+
+	raw := "Message-ID: <one@example.org>\r\nSubject: accepted\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data after failed second-domain policy lookup returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].Mailbox.Address != "one@example.com" {
+		t.Fatalf("recorded mailbox = %q, want accepted first recipient", recorder.messages[0].Mailbox.Address)
+	}
+}
+
 func TestSessionRejectsRecipientWhenRateLimited(t *testing.T) {
 	t.Parallel()
 
@@ -1369,12 +1416,16 @@ type mapDomainPolicyLookup struct {
 	policies map[string]InboundDomainPolicy
 	calls    []string
 	err      error
+	errs     map[string]error
 }
 
 func (l *mapDomainPolicyLookup) InboundDomainPolicy(_ context.Context, domainID string) (InboundDomainPolicy, error) {
 	l.calls = append(l.calls, domainID)
 	if l.err != nil {
 		return InboundDomainPolicy{}, l.err
+	}
+	if err := l.errs[domainID]; err != nil {
+		return InboundDomainPolicy{}, err
 	}
 	return l.policies[domainID], nil
 }
