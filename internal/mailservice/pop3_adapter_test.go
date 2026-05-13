@@ -133,6 +133,22 @@ func TestPOP3StoreAdapterAuthenticate(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterMailboxLockKeyUsesUserID(t *testing.T) {
+	adapter, _, _ := newPOP3TestSetup()
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	keyed, ok := mb.(interface{ MaildropLockKey() string })
+	if !ok {
+		t.Fatal("mailbox does not expose MaildropLockKey")
+	}
+	if got := keyed.MaildropLockKey(); got != "user-1" {
+		t.Fatalf("expected lock key user-1, got %s", got)
+	}
+}
+
 func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 	messages := make([]maildb.MessageSummary, 450)
 	base := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)

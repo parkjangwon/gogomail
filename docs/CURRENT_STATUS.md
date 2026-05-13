@@ -1385,6 +1385,12 @@ multi-line response when message content cannot be loaded.
 The same adapter now loads INBOX through the service cursor pagination API
 until no further page remains, so POP3 sessions see every active INBOX message
 instead of only the first normalized list page.
+POP3 authentication now acquires an exclusive maildrop lock per normalized
+user key before entering TRANSACTION state. A concurrent POP3 login for the
+same mailbox receives `-ERR maildrop already locked`, and the lock is released
+on QUIT or connection close. The mailservice POP3 mailbox supplies the
+canonical DB user ID as that lock key, so alternate login addresses for the
+same user still converge on one maildrop.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 

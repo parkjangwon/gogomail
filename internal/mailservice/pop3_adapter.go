@@ -123,6 +123,8 @@ type pop3Mailbox struct {
 
 func (m *pop3Mailbox) MessageCount() int { return len(m.msgs) }
 
+func (m *pop3Mailbox) MaildropLockKey() string { return m.userID }
+
 func (m *pop3Mailbox) MessageSize(i int) int {
 	if i < 0 || i >= len(m.msgs) || m.deleted[i] {
 		return 0

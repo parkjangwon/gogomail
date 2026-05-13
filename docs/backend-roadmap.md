@@ -5309,6 +5309,11 @@ Progress:
 4. The mailservice POP3 adapter now walks INBOX with cursor pagination using
    the service message-list maximum page size, preserving message order and
    exposing mailboxes larger than a single normalized page to POP3 clients.
+5. POP3 authentication now enforces an exclusive maildrop lock per normalized
+   mailbox key before entering TRANSACTION state. Concurrent logins for the
+   same user receive `-ERR`, and locks are released on QUIT or connection
+   close. The mailservice adapter provides the canonical DB user ID as the lock
+   key.
 
 ---
 

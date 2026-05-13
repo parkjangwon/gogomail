@@ -28,6 +28,10 @@ type messageContentWithError interface {
 	MessageContentWithError(i int) (string, error)
 }
 
+type maildropLockKey interface {
+	MaildropLockKey() string
+}
+
 // Store authenticates users and returns their mailboxes.
 type Store interface {
 	Authenticate(user, pass string) (Mailbox, error)
@@ -41,6 +45,7 @@ type Server struct {
 	IdleTimeout time.Duration
 	mu          sync.Mutex
 	listeners   []net.Listener
+	maildrops   map[string]struct{}
 }
 
 // Serve accepts connections on the listener.
@@ -87,11 +92,10 @@ type session struct {
 	writer    *bufio.Writer
 	textConn  *textproto.Conn
 	tlsActive bool
+	release   func()
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
-
 	idle := s.IdleTimeout
 	if idle == 0 {
 		idle = 30 * time.Minute
@@ -105,6 +109,10 @@ func (s *Server) handleConn(conn net.Conn) {
 		reader: bufio.NewReader(conn),
 		writer: bufio.NewWriter(conn),
 	}
+	defer func() {
+		sess.releaseMaildropLock()
+		_ = sess.conn.Close()
+	}()
 	sess.textConn = textproto.NewConn(conn)
 
 	greeting := s.Greeting
@@ -182,14 +190,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 			sess.writeERR("authentication failed")
 			return
 		}
-		mb, err := sess.server.Store.Authenticate(user, pass)
-		if err != nil {
-			sess.writeERR("authentication failed")
-			return
-		}
-		sess.mailbox = mb
-		sess.state = stateTransaction
-		sess.writeOK("mailbox ready")
+		sess.authenticate(user, pass)
 	case "QUIT":
 		sess.writeOK("bye")
 		sess.conn.Close()
@@ -245,14 +246,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 				return
 			}
 			user, pass := parts[1], parts[2]
-			mb, err := sess.server.Store.Authenticate(user, pass)
-			if err != nil {
-				sess.writeERR("authentication failed")
-				return
-			}
-			sess.mailbox = mb
-			sess.state = stateTransaction
-			sess.writeOK("mailbox ready")
+			sess.authenticate(user, pass)
 		case "LOGIN":
 			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Username:")))
 			userLine, err := sess.reader.ReadString('\n')
@@ -276,14 +270,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 				sess.writeERR("invalid base64")
 				return
 			}
-			mb, err := sess.server.Store.Authenticate(string(userDecoded), string(passDecoded))
-			if err != nil {
-				sess.writeERR("authentication failed")
-				return
-			}
-			sess.mailbox = mb
-			sess.state = stateTransaction
-			sess.writeOK("mailbox ready")
+			sess.authenticate(string(userDecoded), string(passDecoded))
 		default:
 			sess.writeERR("unsupported authentication mechanism")
 		}
@@ -292,8 +279,34 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 	}
 }
 
+func (sess *session) authenticate(user, pass string) {
+	mb, err := sess.server.Store.Authenticate(user, pass)
+	if err != nil {
+		sess.writeERR("authentication failed")
+		return
+	}
+	release, ok := sess.server.acquireMaildropLock(mailboxLockKey(mb, user))
+	if !ok {
+		sess.writeERR("maildrop already locked")
+		return
+	}
+	sess.mailbox = mb
+	sess.release = release
+	sess.state = stateTransaction
+	sess.writeOK("mailbox ready")
+}
+
 func (sess *session) extractUser(raw string) string {
 	return sess.user
+}
+
+func (sess *session) releaseMaildropLock() {
+	if sess.release == nil {
+		return
+	}
+	release := sess.release
+	sess.release = nil
+	release()
 }
 
 func (sess *session) handleTransaction(cmd string, args []string) {
@@ -405,6 +418,7 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 			}
 		}
 		sess.writeOK("bye")
+		sess.releaseMaildropLock()
 		sess.conn.Close()
 	case "CAPA":
 		sess.writeCapabilities()
@@ -413,6 +427,40 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 	default:
 		sess.writeERR("unknown command")
 	}
+}
+
+func mailboxLockKey(mailbox Mailbox, fallback string) string {
+	if keyed, ok := mailbox.(maildropLockKey); ok {
+		if key := strings.TrimSpace(keyed.MaildropLockKey()); key != "" {
+			return key
+		}
+	}
+	return fallback
+}
+
+func normalizeMaildropLockKey(key string) string {
+	return strings.ToLower(strings.TrimSpace(key))
+}
+
+func (s *Server) acquireMaildropLock(key string) (func(), bool) {
+	key = normalizeMaildropLockKey(key)
+	if key == "" {
+		return func() {}, true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.maildrops == nil {
+		s.maildrops = make(map[string]struct{})
+	}
+	if _, exists := s.maildrops[key]; exists {
+		return nil, false
+	}
+	s.maildrops[key] = struct{}{}
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		delete(s.maildrops, key)
+	}, true
 }
 
 func (sess *session) writeCapabilities() {

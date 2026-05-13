@@ -212,6 +212,59 @@ func TestPOP3AuthFail(t *testing.T) {
 	pop3Cmd(t, tp, "-ERR", "PASS wrong")
 }
 
+func TestPOP3RejectsConcurrentMaildropAccess(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	first := pop3Conn(t, listener.Addr().String())
+	defer first.Close()
+	pop3Login(t, first)
+
+	second := pop3Conn(t, listener.Addr().String())
+	defer second.Close()
+	pop3Cmd(t, second, "+OK", "USER alice")
+	pop3Cmd(t, second, "-ERR", "PASS secret")
+
+	pop3Cmd(t, first, "+OK", "STAT")
+	pop3Cmd(t, first, "+OK", "QUIT")
+
+	third := pop3Conn(t, listener.Addr().String())
+	defer third.Close()
+	pop3Login(t, third)
+}
+
+func TestPOP3ReleasesMaildropLockOnConnectionClose(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	first := pop3Conn(t, listener.Addr().String())
+	pop3Login(t, first)
+	first.Close()
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		tp := textproto.NewConn(conn)
+		if _, err := tp.ReadLine(); err != nil {
+			t.Fatalf("greeting: %v", err)
+		}
+		pop3Cmd(t, tp, "+OK", "USER alice")
+		line := pop3Cmd(t, tp, "", "PASS secret")
+		if strings.HasPrefix(line, "+OK") {
+			tp.Close()
+			break
+		}
+		tp.Close()
+		if time.Now().After(deadline) {
+			t.Fatalf("maildrop lock was not released after connection close; last response: %s", line)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestPOP3List(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
