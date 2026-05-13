@@ -227,6 +227,33 @@ WHERE id = $1::uuid`, seed.userID); err != nil {
 	}
 }
 
+func TestPostgresAuthenticatePlainReturnsMustChangePassword(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+UPDATE users
+SET password_hash = 'plain:dev-password',
+    must_change_password = true
+WHERE id = $1::uuid`, seed.userID); err != nil {
+		t.Fatalf("set password hash: %v", err)
+	}
+	user, err := repo.AuthenticatePlain(ctx, "", "alice@example.com", "dev-password")
+	if err != nil {
+		t.Fatalf("AuthenticatePlain returned error: %v", err)
+	}
+	if !user.MustChangePassword {
+		t.Fatalf("AuthenticatePlain MustChangePassword = false, want true")
+	}
+	if user.UserID != seed.userID || user.DomainID != seed.domainID {
+		t.Fatalf("AuthenticatePlain user/domain = %q/%q, want %q/%q", user.UserID, user.DomainID, seed.userID, seed.domainID)
+	}
+}
+
 func TestPostgresCanceledDraftAttachmentCannotBeRebound(t *testing.T) {
 	t.Parallel()
 
