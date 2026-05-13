@@ -1269,6 +1269,56 @@ func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPLDAPSCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	rawLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rawLn.Close()
+	ln := tls.NewListener(rawLn, testLDAPTLSConfig(t))
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldaps://"+rawLn.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(mail=alice@example.com)",
+		"mail",
+		"cn",
+	)
+	cmd.Env = append(os.Environ(), "LDAPTLS_REQCERT=never")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch LDAPS failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") ||
+		!strings.Contains(output, "mail: alice@example.com") ||
+		!strings.Contains(output, "cn: Alice") {
+		t.Fatalf("ldapsearch LDAPS output missing user entry:\n%s", output)
+	}
+}
+
 func TestLDAPServerOpenLDAPPagedResultsCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
