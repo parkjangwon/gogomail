@@ -5194,6 +5194,9 @@ Target outcome:
          error, unknown command, reauthentication, and STLS denial paths.
  1668. POP3 RSET pending-delete clearing is now tied to a shared assertion:
          after DELE then RSET, LIST and STAT both prove the message is restored.
+ 1669. POP3 successful QUIT delete commit is now covered: after DELE, QUIT
+         invokes CommitDeletes exactly once and preserves the committed delete
+         mark.
 
 ## Deferred until backend contracts stabilize
 

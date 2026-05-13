@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE RSET clears pending delete)
+Last updated: 2026-05-14 (POP3 QUIT success commits pending delete)
+
+## POP3 QUIT success commits pending delete (2026-05-14, complete)
+- POP3 server coverage now verifies successful `QUIT` after `DELE 1` invokes `CommitDeletes` exactly once.
+- The regression verifies the delete mark remains committed after the successful quit path.
 
 ## POP3 DELE RSET clears pending delete (2026-05-14, complete)
 - POP3 tests now share a pending-delete-cleared assertion for `LIST 1` and `STAT` recovery checks.
