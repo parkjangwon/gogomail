@@ -877,6 +877,86 @@ func TestSMTPProtocolHELOResetsMixedDomainPolicy(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolQUITIsolatesMixedDomainPolicy(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com"})
+	defer shutdown()
+
+	firstConn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("first Dial returned error: %v", err)
+	}
+	first := textproto.NewConn(firstConn)
+	if _, _, err := first.ReadResponse(220); err != nil {
+		t.Fatalf("first greeting returned error: %v", err)
+	}
+	if err := rawProtocolCommand(first, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("first EHLO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(first, 250, "MAIL FROM:<sender@example.org>"); err != nil {
+		t.Fatalf("first MAIL returned error: %v", err)
+	}
+	if err := rawProtocolCommand(first, 250, "RCPT TO:<one@example.com>"); err != nil {
+		t.Fatalf("first RCPT returned error: %v", err)
+	}
+	if err := rawProtocolCommand(first, 250, "RCPT TO:<two@example.net>"); err != nil {
+		t.Fatalf("second RCPT returned error: %v", err)
+	}
+	if err := rawProtocolCommand(first, 221, "QUIT"); err != nil {
+		t.Fatalf("first QUIT returned error: %v", err)
+	}
+	_ = first.Close()
+
+	secondConn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("second Dial returned error: %v", err)
+	}
+	defer secondConn.Close()
+	second := textproto.NewConn(secondConn)
+	defer second.Close()
+	if _, _, err := second.ReadResponse(220); err != nil {
+		t.Fatalf("second greeting returned error: %v", err)
+	}
+	if err := rawProtocolCommand(second, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("second EHLO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(second, 250, "MAIL FROM:<sender@example.org>"); err != nil {
+		t.Fatalf("second MAIL returned error: %v", err)
+	}
+	if err := rawProtocolCommand(second, 250, "RCPT TO:<one@example.com>"); err != nil {
+		t.Fatalf("third RCPT returned error: %v", err)
+	}
+	writeProtocolData(t, second, "Message-ID: <quit-isolation@example.org>\r\nSubject: larger than d2\r\n\r\nbody\r\n")
+	if err := rawProtocolCommand(second, 221, "QUIT"); err != nil {
+		t.Fatalf("second QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].Mailbox.Address != "one@example.com" {
+		t.Fatalf("recorded mailbox = %q, want d1-only recipient", recorder.messages[0].Mailbox.Address)
+	}
+}
+
 func TestSMTPProtocolImplicitTLSAcceptsMessage(t *testing.T) {
 	t.Parallel()
 
