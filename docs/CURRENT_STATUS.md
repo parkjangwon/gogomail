@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH LOGIN success capability)
+Last updated: 2026-05-14 (POP3 AUTH LOGIN wrong password capability)
+
+## POP3 AUTH LOGIN wrong password capability (2026-05-14, complete)
+- POP3 server coverage now verifies wrong-password `AUTH LOGIN` returns `-ERR authentication failed`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the failed AUTH LOGIN attempt.
 
 ## POP3 AUTH LOGIN success capability (2026-05-14, complete)
 - POP3 server coverage now verifies challenge-style `AUTH LOGIN` accepts valid username/password credentials.

@@ -5107,6 +5107,9 @@ Target outcome:
  1637. POP3 AUTH LOGIN success is now covered: valid username/password
          challenge credentials authenticate, auth-only CAPA entries disappear,
          and STAT works in transaction state.
+ 1638. POP3 AUTH LOGIN wrong-password handling now verifies authorization-state
+         capability preservation: failed authentication leaves CAPA and normal
+         login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
