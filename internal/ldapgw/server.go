@@ -447,6 +447,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
+	principals = filterPrincipalEntriesByScope(principals, baseObject, scope)
 	if sizeLimit > 0 && len(principals) > sizeLimit {
 		principals = principals[:sizeLimit]
 	}
@@ -475,6 +476,45 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
 	}
 	return resp, result, len(principals)
+}
+
+func filterPrincipalEntriesByScope(principals []PrincipalEntry, baseObject string, scope int) []PrincipalEntry {
+	base := normalizeDNForCompare(baseObject)
+	if base == "" {
+		if scope == scopeBaseObject {
+			return nil
+		}
+		return principals
+	}
+	filtered := make([]PrincipalEntry, 0, len(principals))
+	for _, p := range principals {
+		entryDN := normalizeDNForCompare(p.DN)
+		switch scope {
+		case scopeBaseObject:
+			if entryDN == base {
+				filtered = append(filtered, p)
+			}
+		case scopeSingleLevel:
+			if parentDN(entryDN) == base {
+				filtered = append(filtered, p)
+			}
+		case scopeWholeSubtree:
+			if entryDN == base || strings.HasSuffix(entryDN, ","+base) {
+				filtered = append(filtered, p)
+			}
+		default:
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
+func parentDN(dn string) string {
+	parts := strings.SplitN(dn, ",", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
 }
 
 func ldapContainerAttributes(dn string) (map[string][]string, bool) {
