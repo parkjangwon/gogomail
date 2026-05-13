@@ -5161,6 +5161,9 @@ Target outcome:
  1656. POP3 authorization-state CAPA stability is now covered: repeated CAPA
          calls keep auth capabilities stable and leave normal authentication
          usable afterward.
+ 1657. POP3 authorization-state NOOP stability is now covered: repeated NOOP
+         calls keep auth capabilities and normal authentication usable
+         afterward.
 
 ## Deferred until backend contracts stabilize
 

@@ -1387,6 +1387,20 @@ func TestPOP3AuthorizationCapaIsStable(t *testing.T) {
 	assertPOP3AuthenticatedState(t, tp, "authorization CAPA stability", "2")
 }
 
+func TestPOP3AuthorizationNoopKeepsAuthFlowUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	assertPOP3AuthCapabilities(t, tp, "authorization NOOP")
+	pop3Login(t, tp)
+	assertPOP3AuthenticatedState(t, tp, "authorization NOOP", "2")
+}
+
 func TestPOP3TransactionCapaOmitsAuthOnlyCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
