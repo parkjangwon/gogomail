@@ -96,6 +96,10 @@ export default function DomainSettingsPage() {
     fetchDomains();
   }, [companyId]);
 
+  useEffect(() => {
+    if (selectedDomainId) fetchSettings(selectedDomainId);
+  }, [selectedDomainId]);
+
   const fetchDomains = async () => {
     setLoadingDomains(true);
     try {
@@ -109,7 +113,6 @@ export default function DomainSettingsPage() {
         setDomains(nextDomains);
         if (!selectedDomainId && nextDomains.length > 0) {
           setSelectedDomainId(nextDomains[0].id);
-          fetchSettings(nextDomains[0].id);
         }
       }
     } catch (e) {
@@ -145,7 +148,6 @@ export default function DomainSettingsPage() {
   const handleDomainChange = (domainId: string) => {
     setSelectedDomainId(domainId);
     setSettings(null);
-    if (domainId) fetchSettings(domainId);
   };
 
   const handleSave = async () => {
@@ -217,10 +219,15 @@ export default function DomainSettingsPage() {
           <Box textAlign="center" padding="xl"><Spinner /></Box>
         )}
 
+        {!loadingSettings && saveError && <Alert type="error">{saveError}</Alert>}
+
+        {!loadingSettings && domains.length === 0 && (
+          <Alert type="info">{t('pages.domain_settings_page.no_domains')}</Alert>
+        )}
+
         {settings && form && (
           <SpaceBetween size="l">
             {saveSuccess && <Alert type="success">{t('pages.domain_settings_page.save_success')}</Alert>}
-            {saveError && <Alert type="error">{saveError}</Alert>}
 
             {/* User Registration */}
             <Container header={<Header variant="h2">{t('pages.domain_settings_page.section_registration')}</Header>}>

@@ -1096,6 +1096,7 @@
       "registration_email_invite": "邮件邀请（用户通过链接设置密码）",
       "save_error": "保存设置失败",
       "minutes": "分钟",
+      "no_domains": "没有可配置的域名。",
       "password_expiry_desc": "天（0 = 永不过期）"
     },
     "domains": {

@@ -1193,6 +1193,7 @@
       "registration_email_invite": "Email Invite (user sets own password via link)",
       "save_error": "Failed to save settings",
       "minutes": "minutes",
+      "no_domains": "There are no domains to configure.",
       "password_expiry_desc": "days (0 = never)"
     },
     "domains": {

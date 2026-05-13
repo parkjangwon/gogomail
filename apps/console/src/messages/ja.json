@@ -1096,6 +1096,7 @@
       "registration_email_invite": "メール招待 (ユーザーがリンクで設定)",
       "save_error": "設定の保存に失敗しました",
       "minutes": "分",
+      "no_domains": "設定できるドメインがありません。",
       "password_expiry_desc": "日 (0 = 期限なし)"
     },
     "domains": {
