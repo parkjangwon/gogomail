@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, restoreMailbox, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
+import { CheckIcon, ExclamationTriangleIcon, UserCircleIcon, SwatchIcon, BellIcon, ShieldCheckIcon, InformationCircleIcon, InboxIcon, BookOpenIcon, PencilSquareIcon, KeyIcon, FunnelIcon, CalendarDaysIcon, NoSymbolIcon, LockClosedIcon, EyeIcon, CircleStackIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { revokeAllSessions, getFolderStats, exportFolderEml, exportFolderZip, getPreferences, setPreferences, getUserProfile, updateUserProfile, changePassword, type FolderStats, type WebmailPreferences, type UserProfile } from '@/lib/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import LinkExt from '@tiptap/extension-link';
@@ -370,8 +370,6 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
   const [statsLoading, setStatsLoading] = useState(false);
   type BackupState = { status: 'idle' | 'running' | 'done' | 'error'; fetched: number; total: number; error?: string };
   const [backupStates, setBackupStates] = useState<Record<string, BackupState>>({});
-  const [restoreFolder, setRestoreFolder] = useState('');
-  const [restoreState, setRestoreState] = useState<{ status: 'idle' | 'running' | 'done' | 'error'; imported?: number; error?: string }>({ status: 'idle' });
 
   // User profile
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -1604,47 +1602,6 @@ export function SettingsView({ userEmail, userName }: SettingsViewProps) {
                 </div>
               </SectionCard>
             )}
-
-            {/* Restore */}
-            <SectionCard>
-              <SectionHeader>메일 복구 (가져오기)</SectionHeader>
-              <div style={{ padding: '0 20px 12px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                .eml, .mbox, .zip 파일을 업로드하면 선택한 편지함으로 메일을 가져옵니다. 비동기로 처리되며 완료까지 계속 사용할 수 있습니다.
-              </div>
-              <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', flexShrink: 0 }}>대상 편지함:</span>
-                  <select value={restoreFolder} onChange={(e) => setRestoreFolder(e.target.value)} style={{ border: '1px solid var(--color-border-default)', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none', cursor: 'pointer', flex: 1 }}>
-                    <option value="">편지함 선택...</option>
-                    {folderStats.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    {folderStats.length === 0 && <option disabled>먼저 용량 정보를 불러오세요</option>}
-                  </select>
-                </div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '6px', border: `2px dashed ${restoreState.status === 'running' ? 'var(--color-accent)' : 'var(--color-border-default)'}`, background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: restoreState.status === 'running' ? 'default' : 'pointer', width: 'fit-content' }}>
-                  <ArrowUpTrayIcon style={{ width: 16, height: 16 }} />
-                  {restoreState.status === 'idle' && '파일 업로드 (.eml / .mbox / .zip)'}
-                  {restoreState.status === 'running' && '복구 중...'}
-                  {restoreState.status === 'done' && `완료 — ${restoreState.imported}개 메일 가져옴 ✓`}
-                  {restoreState.status === 'error' && `오류: ${restoreState.error}`}
-                  <input
-                    type="file" accept=".eml,.mbox,.zip" style={{ display: 'none' }}
-                    disabled={restoreState.status === 'running'}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file || !restoreFolder) { window.alert('편지함을 먼저 선택하세요.'); return; }
-                      setRestoreState({ status: 'running' });
-                      try {
-                        const result = await restoreMailbox(restoreFolder, file);
-                        setRestoreState({ status: 'done', imported: result.imported });
-                        getFolderStats().then(setFolderStats).catch(() => {});
-                      } catch (err) {
-                        setRestoreState({ status: 'error', error: err instanceof Error ? err.message : String(err) });
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            </SectionCard>
           </>
         );
       }
