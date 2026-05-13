@@ -1974,7 +1974,10 @@ func (s *Server) writeMailboxEvent(writer *bufio.Writer, state *imapConnState, e
 		if sequenceNumber == 0 {
 			return nil
 		}
-		if state.selectedMessages > 0 && sequenceNumber > state.selectedMessages {
+		if state.selectedMessages == 0 {
+			return nil
+		}
+		if sequenceNumber > state.selectedMessages {
 			sequenceNumber = state.selectedMessages
 		}
 		if sequenceNumber == 0 {

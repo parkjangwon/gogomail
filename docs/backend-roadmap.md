@@ -4922,6 +4922,10 @@ Target outcome:
          sequence numbers above the selected message count are clamped to the
          selected count before emitting EXPUNGE, and saved SEARCH state is
          updated using the clamped sequence.
+ 1578. IMAP server empty-selected EXPUNGE handling now drops EXPUNGE events
+         when `selectedMessages=0`, preventing invalid `* 1 EXPUNGE` responses
+         for an empty selected mailbox while preserving the existing clamp path
+         for non-empty mailboxes.
 
 ## Deferred until backend contracts stabilize
 

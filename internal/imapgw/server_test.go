@@ -6921,6 +6921,40 @@ func TestMailboxExpungeEventClampsSequenceToSelectedMessages(t *testing.T) {
 	}
 }
 
+func TestMailboxExpungeEventIgnoresEmptySelectedMailbox(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	writer := bufio.NewWriter(&out)
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	state := &imapConnState{
+		session:         &Session{UserID: "user-1"},
+		selectedMailbox: "inbox",
+	}
+	err = server.writeMailboxEvent(writer, state, MailboxEvent{
+		Type:           MailboxEventExpunge,
+		UserID:         "user-1",
+		MailboxID:      "inbox",
+		UID:            7,
+		SequenceNumber: 1,
+	})
+	if err != nil {
+		t.Fatalf("writeMailboxEvent returned error: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush event: %v", err)
+	}
+	if got := out.String(); got != "" {
+		t.Fatalf("empty selected expunge output = %q, want empty", got)
+	}
+	if state.selectedMessages != 0 {
+		t.Fatalf("selectedMessages = %d, want 0", state.selectedMessages)
+	}
+}
+
 func TestServerStreamsExpungeEventsOverIdle(t *testing.T) {
 	t.Parallel()
 

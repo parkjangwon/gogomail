@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event clamped EXPUNGE coverage)
+Last updated: 2026-05-14 (IMAP mailbox event empty-selected EXPUNGE hardening)
+
+## IMAP mailbox event empty-selected EXPUNGE hardening (2026-05-14, complete)
+- `writeMailboxEvent` now ignores EXPUNGE events when `selectedMessages=0`, preventing invalid `* 1 EXPUNGE` responses for an empty selected mailbox.
+- Regression coverage verifies the empty-selected EXPUNGE path emits no wire output and leaves selected message count unchanged.
 
 ## IMAP mailbox event clamped EXPUNGE coverage (2026-05-14, complete)
 - `writeMailboxEvent` coverage now verifies EXPUNGE events whose sequence exceeds the selected message count are clamped to the selected count before emitting a wire response.
