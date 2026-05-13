@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit CAPA)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit NOOP)
+
+## POP3 QUIT after failed commit NOOP (2026-05-14, complete)
+- POP3 server coverage now verifies the connection remains usable for `NOOP` after a failed delete commit on `QUIT`.
+- The regression verifies `STAT` after that `NOOP` still reports the rollback-restored maildrop state.
 
 ## POP3 QUIT after failed commit CAPA (2026-05-14, complete)
 - POP3 server coverage now verifies failed delete commit rollback leaves the session in transaction state for `CAPA`.
