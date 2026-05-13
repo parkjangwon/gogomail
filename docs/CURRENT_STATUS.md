@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (mail.stored IMAP EXISTS count hardening)
+Last updated: 2026-05-14 (mail.stored empty mailbox event hardening)
+
+## mail.stored empty mailbox event hardening (2026-05-14, complete)
+- The mail-stored IMAP notification handler now stops after UID assurance if the resulting mailbox ID is empty, avoiding malformed EXISTS fanout.
+- Delta sync notifications use the same guard, so mailbox change fanout is not invoked for an empty mailbox identifier.
 
 ## mail.stored IMAP EXISTS count hardening (2026-05-14, complete)
 - The mail-stored IMAP notification handler now publishes EXISTS events with `Messages=SequenceNumber` after UID assurance, matching restore and service summary event semantics.
