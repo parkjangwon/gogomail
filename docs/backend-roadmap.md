@@ -5012,6 +5012,9 @@ Target outcome:
  1605. POP3 invalid message-size index handling is now covered: negative and
          out-of-range `MessageSize` lookups return zero instead of panicking or
          exposing invalid sizes.
+ 1606. POP3 invalid UIDL index handling is now covered: negative and
+         out-of-range `MessageUIDL` lookups return an empty string instead of
+         exposing arbitrary or stale message identifiers.
 
 ## Deferred until backend contracts stabilize
 
