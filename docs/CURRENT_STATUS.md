@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission invalid credential event isolation)
+Last updated: 2026-05-14 (SMTP submission malformed auth payload isolation)
+
+## SMTP submission malformed auth payload isolation (2026-05-14, complete)
+- SMTP submission coverage now verifies malformed AUTH PLAIN payloads fail without authenticating the session.
+- The regression verifies malformed payloads emit no authenticated hook events and `MAIL FROM` continues to require AUTH.
 
 ## SMTP submission invalid credential event isolation (2026-05-14, complete)
 - SMTP submission coverage now verifies invalid AUTH credentials fail without emitting authenticated hook events.

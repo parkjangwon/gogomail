@@ -227,6 +227,44 @@ func TestSubmissionInvalidCredentialsDoNotEmitAuthHook(t *testing.T) {
 	}
 }
 
+func TestSubmissionMalformedAuthPayloadLeavesSessionUnauthenticated(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("malformed")); err == nil {
+		t.Fatal("AUTH PLAIN malformed payload succeeded")
+	}
+	if submission.user.UserID != "" {
+		t.Fatalf("submission user = %#v, want unauthenticated after malformed auth payload", submission.user)
+	}
+	if len(stages) != 0 {
+		t.Fatalf("hook stages after malformed auth payload = %v, want none", stages)
+	}
+	if err := submission.Mail("jangwon@example.com", nil); !errors.Is(err, gosmtp.ErrAuthRequired) {
+		t.Fatalf("Mail after malformed auth payload error = %v, want ErrAuthRequired", err)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 
