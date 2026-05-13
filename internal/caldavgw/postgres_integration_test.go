@@ -115,6 +115,42 @@ WHERE id = $1::uuid
 	assertCalDAVPostgresCheckViolation(t, err, "caldav_calendars_description_lang_check")
 }
 
+func TestPostgresCreateCalendarRejectsInactivePrincipalPolicy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		table string
+	}{
+		{name: "user", table: "users"},
+		{name: "domain", table: "domains"},
+		{name: "company", table: "companies"},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			db := openMigratedCalDAVPostgresTestDB(t)
+			userID := seedCalDAVPostgresUser(t, ctx, db)
+			repo := NewRepository(db)
+			if _, err := db.ExecContext(ctx, "UPDATE "+tt.table+" SET status = 'disabled'"); err != nil {
+				t.Fatalf("disable %s: %v", tt.table, err)
+			}
+
+			_, err := repo.CreateCalendar(ctx, CreateCalendarRequest{
+				UserID:      userID,
+				ActorUserID: userID,
+				Name:        "Blocked",
+			})
+			if err == nil || !strings.Contains(err.Error(), "active user not found") {
+				t.Fatalf("CreateCalendar with disabled %s error = %v, want active user not found", tt.name, err)
+			}
+		})
+	}
+}
+
 func TestPostgresCalendarPropertyLanguagesPreservedWhenOmitted(t *testing.T) {
 	t.Parallel()
 

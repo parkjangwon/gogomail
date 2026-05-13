@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP duplicate-casing subscription update)
+Last updated: 2026-05-14 (CalDAV/CardDAV inactive principal create policy)
+
+## CalDAV/CardDAV inactive principal create policy (2026-05-14, complete)
+- CalDAV Postgres coverage now verifies `CreateCalendar` rejects disabled user, domain, and company state through the active principal join.
+- CardDAV Postgres coverage now verifies `CreateAddressBook` rejects disabled user, domain, and company state through the same active principal policy.
 
 ## IMAP duplicate-casing subscription update (2026-05-14, complete)
 - Postgres coverage now verifies repeated SUBSCRIBE for a retained missing mailbox with different casing updates the existing canonical subscription row instead of creating duplicates.
