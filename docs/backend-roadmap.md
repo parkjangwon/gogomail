@@ -5270,6 +5270,9 @@ Target outcome:
  1693. SMTP inbound QUIT policy isolation is now covered at the TCP protocol
          layer: mixed-domain RCPT state from a closed connection does not leak
          into a new connection's recipient-domain limits.
+ 1694. SMTP inbound DATA failure reset is now covered for domain policy and DSN
+         state: a mixed-domain size failure clears accumulated limits and DSN
+         metadata before the next accepted transaction.
 
 ## Deferred until backend contracts stabilize
 
