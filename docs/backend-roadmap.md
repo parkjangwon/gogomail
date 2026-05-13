@@ -5252,6 +5252,9 @@ Target outcome:
          a later recipient lookup failure returns `451 4.7.1` without
          poisoning earlier accepted recipients, and DATA records only accepted
          recipients afterward.
+ 1688. SMTP inbound mixed-domain policy reset is now covered: a failed DATA
+         caused by a later recipient domain's stricter size limit clears the
+         accumulated policy state before the next MAIL transaction.
 
 ## Deferred until backend contracts stabilize
 

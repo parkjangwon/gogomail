@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound domain policy lookup failure)
+Last updated: 2026-05-14 (SMTP inbound mixed-domain policy reset)
+
+## SMTP inbound mixed-domain policy reset (2026-05-14, complete)
+- SMTP receiver coverage now verifies a failed mixed-domain `DATA` resets the accumulated recipient-domain policy state.
+- The regression verifies a following d1-only transaction is not blocked by the previous d2 size limit and records only the accepted d1 recipient.
 
 ## SMTP inbound domain policy lookup failure (2026-05-14, complete)
 - SMTP receiver coverage now verifies a later recipient domain policy lookup failure returns `451 4.7.1` without poisoning earlier accepted recipients.
