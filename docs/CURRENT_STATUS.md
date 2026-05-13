@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission repeated auth transaction state)
+Last updated: 2026-05-14 (SMTP submission unsupported auth transaction state)
+
+## SMTP submission unsupported auth transaction state (2026-05-14, complete)
+- SMTP submission coverage now verifies unsupported AUTH after `MAIL FROM` is rejected without clearing the active envelope sender.
+- The regression verifies the transaction can continue with `RCPT` and `DATA`, producing the expected submitted message.
 
 ## SMTP submission repeated auth transaction state (2026-05-14, complete)
 - SMTP submission coverage now verifies repeated AUTH after `MAIL FROM` is rejected without clearing the active envelope sender.

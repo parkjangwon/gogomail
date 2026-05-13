@@ -163,6 +163,39 @@ func TestSubmissionRejectsUnsupportedAuthMechanismWithoutSideEffects(t *testing.
 	}
 }
 
+func TestSubmissionUnsupportedAuthPreservesEnvelopeTransaction(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	submission := newAuthenticatedSubmissionSession(t, recorder, storage.NewLocalStore(t.TempDir()))
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	server, err := submission.Auth("LOGIN")
+	if !errors.Is(err, gosmtp.ErrAuthUnsupported) {
+		t.Fatalf("Auth(LOGIN) error = %v, want ErrAuthUnsupported", err)
+	}
+	if server != nil {
+		t.Fatalf("Auth(LOGIN) server = %#v, want nil", server)
+	}
+	if submission.from != "jangwon@example.com" {
+		t.Fatalf("envelope sender after unsupported AUTH = %q, want preserved", submission.from)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt after unsupported AUTH returned error: %v", err)
+	}
+	raw := "Message-ID: <unsupported-auth-transaction@example.com>\r\nFrom: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: unsupported auth\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data after unsupported AUTH returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages after unsupported AUTH = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].EnvelopeFrom != "jangwon@example.com" || len(recorder.messages[0].Recipients) != 1 || recorder.messages[0].Recipients[0] != "outside@example.net" {
+		t.Fatalf("recorded envelope after unsupported AUTH = from %q recipients %v", recorder.messages[0].EnvelopeFrom, recorder.messages[0].Recipients)
+	}
+}
+
 func TestSubmissionRejectsMustChangePasswordUser(t *testing.T) {
 	t.Parallel()
 
