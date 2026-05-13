@@ -4933,6 +4933,9 @@ Target outcome:
  1580. IMAP NOOP drain coverage now verifies the same empty-selected EXPUNGE
          guard end to end: an empty selected mailbox drains a queued EXPUNGE
          event without emitting EXPUNGE, and NOOP still completes normally.
+ 1581. IMAP empty-selected EXPUNGE handling now has a race-detector verification
+         point: `go test -race -count=1 ./internal/imapgw` passes across the
+         updated writeMailboxEvent logic and the IDLE/NOOP integration paths.
 
 ## Deferred until backend contracts stabilize
 
