@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth empty identity rejection)
+Last updated: 2026-05-14 (POP3 auth control-character identity rejection)
+
+## POP3 auth control-character identity rejection (2026-05-14, complete)
+- POP3 adapter authentication now rejects authenticated user IDs containing CR/LF before identity normalization or service lookup.
+- Regression coverage verifies CR/LF-bearing authenticated user IDs do not trigger folder or inbox page lookups.
 
 ## POP3 auth empty identity rejection (2026-05-14, complete)
 - POP3 adapter authentication now rejects an authenticated user ID that becomes empty after trimming.

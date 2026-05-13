@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-312: POP3 auth empty user identity rejection audit
+## TASK-313: POP3 auth control-character identity rejection audit
 
 ### 배경
 
-POP3 gateway는 authenticator가 반환한 user ID를 mail service 조회와 maildrop lock
-key의 신뢰 경계로 사용한다. 인증은 성공했지만 identity adapter가 빈 user ID를
-반환하면 POP3 세션은 빈 ID로 folder/page 조회를 시작하면 안 되며, 인증 경계에서
-명확히 실패해야 한다.
+POP3 gateway는 클라이언트 username/password에서 CR/LF를 거부하지만, authenticator가
+반환한 user ID도 mail service 조회와 maildrop lock key의 신뢰 경계에 들어간다.
+인증된 identity 안의 CR/LF는 로그/프로토콜/조회 경계에서 혼선을 만들 수 있으므로,
+서비스 조회 전에 POP3 adapter가 명확히 거부해야 한다.
 
 ### 구현 대상
 
@@ -19,13 +19,13 @@ key의 신뢰 경계로 사용한다. 인증은 성공했지만 identity adapter
 
 ### 완료 조건
 
-- [x] trim 후 빈 authenticated user ID를 POP3 adapter가 거부한다.
-- [x] 빈 authenticated user ID가 folder 조회로 전달되지 않는지 검증한다.
-- [x] 빈 authenticated user ID가 inbox page 조회로 전달되지 않는지 검증한다.
+- [x] CR/LF가 포함된 authenticated user ID를 POP3 adapter가 거부한다.
+- [x] CR/LF가 포함된 authenticated user ID가 folder 조회로 전달되지 않는지 검증한다.
+- [x] CR/LF가 포함된 authenticated user ID가 inbox page 조회로 전달되지 않는지 검증한다.
 - [x] `go test ./internal/mailservice` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-313: POP3 auth control-character identity rejection audit
+TASK-314: POP3 auth user identity validation consolidation audit

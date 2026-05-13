@@ -44,6 +44,9 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 	if authUser.MustChangePassword {
 		return nil, fmt.Errorf("password change required")
 	}
+	if strings.ContainsAny(authUser.UserID, "\r\n") {
+		return nil, fmt.Errorf("invalid authenticated user id")
+	}
 	userID := strings.TrimSpace(authUser.UserID)
 	if userID == "" {
 		return nil, fmt.Errorf("authenticated user id is required")
