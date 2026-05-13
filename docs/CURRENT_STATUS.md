@@ -3614,6 +3614,9 @@ owner/resource target without scanning unrelated audit history.
   sender addresses from `user_addresses`; `MAIL FROM` accepts either the
   primary address or an authorized additional address while still rejecting
   unrelated senders.
+- Authenticated SMTP Submission now mirrors receive-path storage cleanup:
+  if the stored hook, submitted recorder, or mailbox-quota path fails before
+  database commit, the just-written submitted `.eml` object is deleted.
 - Mail API attachment reservation/direct upload applies enforced domain
   `max_attachment_bytes` policy before quota reservation or object storage
   writes.
