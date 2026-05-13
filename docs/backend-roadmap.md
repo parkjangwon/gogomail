@@ -5083,6 +5083,9 @@ Target outcome:
  1629. POP3 AUTH PLAIN invalid-format handling now verifies authorization-state
          capability preservation: malformed decoded credentials leave CAPA and
          normal login usable afterward.
+ 1630. POP3 AUTH LOGIN username invalid-base64 handling now verifies
+         authorization-state capability preservation: username parse errors
+         leave CAPA and normal login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
