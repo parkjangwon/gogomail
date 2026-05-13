@@ -5095,6 +5095,9 @@ Target outcome:
  1633. POP3 AUTH PLAIN challenge invalid-base64 handling now verifies
          authorization-state capability preservation: continuation parse errors
          leave CAPA and normal login usable afterward.
+ 1634. POP3 AUTH PLAIN challenge invalid-format handling now verifies
+         authorization-state capability preservation: malformed continuation
+         credentials leave CAPA and normal login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
