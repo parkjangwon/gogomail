@@ -187,6 +187,46 @@ WHERE id = $1::uuid`, seed.companyID); err != nil {
 	}
 }
 
+func TestPostgresAuthenticatePlainRejectsSuspendedUserAndDomain(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		table string
+		id    func(postgresSeed) string
+	}{
+		{name: "user", table: "users", id: func(seed postgresSeed) string { return seed.userID }},
+		{name: "domain", table: "domains", id: func(seed postgresSeed) string { return seed.domainID }},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			db := openMigratedPostgresTestDB(t)
+			seed := seedPostgresMailUser(t, db)
+			repo := NewRepository(db)
+			if _, err := db.ExecContext(ctx, `
+UPDATE users
+SET password_hash = 'plain:dev-password'
+WHERE id = $1::uuid`, seed.userID); err != nil {
+				t.Fatalf("set password hash: %v", err)
+			}
+			if _, err := repo.AuthenticatePlain(ctx, "", "alice@example.com", "dev-password"); err != nil {
+				t.Fatalf("AuthenticatePlain active principal returned error: %v", err)
+			}
+			if _, err := db.ExecContext(ctx, "UPDATE "+tt.table+" SET status = 'suspended' WHERE id = $1::uuid", tt.id(seed)); err != nil {
+				t.Fatalf("suspend %s: %v", tt.name, err)
+			}
+
+			if _, err := repo.AuthenticatePlain(ctx, "", "alice@example.com", "dev-password"); err == nil {
+				t.Fatalf("AuthenticatePlain succeeded for suspended %s", tt.name)
+			}
+		})
+	}
+}
+
 func TestPostgresCanceledDraftAttachmentCannotBeRebound(t *testing.T) {
 	t.Parallel()
 
