@@ -4807,6 +4807,11 @@ Target outcome:
          writes are serialized with capacity preflight and destination backfill
          target selection, reducing race windows between backlog counting and
          UID allocation.
+ 1551. Operational IMAP UID backfill now follows the same mailbox UID mutation
+         lock order as live APPEND/COPY/MOVE lazy allocation: mailbox UID
+         state first, folder row second, and message rows last. This keeps
+         manual repair/backfill jobs aligned with protocol write paths and
+         avoids introducing a reversed lock order around folder/message scans.
 
 ## Deferred until backend contracts stabilize
 

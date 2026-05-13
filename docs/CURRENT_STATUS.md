@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP lazy UID capacity race hardening)
+Last updated: 2026-05-14 (IMAP lazy UID lock ordering hardening)
+
+## IMAP lazy UID lock ordering hardening (2026-05-14, complete)
+- The operational `BackfillIMAPMailboxUIDs` path now locks the mailbox folder row after the mailbox UID state row and before selecting unassigned message rows.
+- Manual backfill and live APPEND/COPY/MOVE lazy allocation paths now share the same state → folder → message lock order for mailbox UID mutation.
 
 ## IMAP lazy UID capacity race hardening (2026-05-14, complete)
 - IMAP UID capacity preflight now locks the target folder row in the same transaction as the mailbox state row, serializing API/message inserts that rely on the folder foreign key with lazy UID backlog counting.
