@@ -5204,6 +5204,9 @@ Target outcome:
          connection.
  1672. POP3 QUIT after RSET now skips the delete commit hook: RSET clears the
          delete mark, QUIT returns `+OK`, and CommitDeletes is not called.
+ 1673. POP3 QUIT retry after failed delete commit is now covered: failed commit
+         rollback clears the delete mark, and a later QUIT without another
+         DELE skips CommitDeletes instead of retrying stale work.
 
 ## Deferred until backend contracts stabilize
 
