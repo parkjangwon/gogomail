@@ -6148,3 +6148,7 @@ Target outcome:
       rejected password-change-required auth attempts do not emit hook events,
       preventing downstream audit/logging extensions from seeing a false
       `StageAuthenticated` success.
+1720. SMTP submission auth hook failure isolation is now fixed and covered:
+      the session user is stored only after `StageAuthenticated` hooks succeed,
+      and hook failure leaves the session unauthenticated with `MAIL FROM`
+      still requiring AUTH.

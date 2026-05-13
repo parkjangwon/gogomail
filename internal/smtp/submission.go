@@ -160,7 +160,6 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
 		}
-		s.user = user
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageAuthenticated,
 			SubmissionUser: user,
@@ -168,6 +167,7 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			authErr = err
 			return err
 		}
+		s.user = user
 		return nil
 	}), nil
 }
