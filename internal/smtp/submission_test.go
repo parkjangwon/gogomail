@@ -41,6 +41,56 @@ func TestSubmissionRejectsRepeatedAuth(t *testing.T) {
 	}
 }
 
+func TestSubmissionRepeatedAuthHasNoSideEffects(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	metrics := &recordingMetrics{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Metrics:       metrics,
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	initialMetricCount := len(metrics.events)
+	initialStageCount := len(stages)
+	if _, err := submission.Auth(sasl.Plain); err == nil {
+		t.Fatal("second AUTH was accepted")
+	}
+	if submission.user.UserID != "user-1" {
+		t.Fatalf("submission user after repeated AUTH = %#v, want original user", submission.user)
+	}
+	if len(metrics.events) != initialMetricCount {
+		t.Fatalf("metrics after repeated AUTH = %+v, want no new metrics", metrics.events)
+	}
+	if len(stages) != initialStageCount {
+		t.Fatalf("hook stages after repeated AUTH = %v, want no new stages", stages)
+	}
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail after rejected repeated AUTH returned error: %v", err)
+	}
+}
+
 func TestSubmissionRejectsUnsupportedAuthMechanismWithoutSideEffects(t *testing.T) {
 	t.Parallel()
 

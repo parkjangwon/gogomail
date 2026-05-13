@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission unsupported auth mechanism)
+Last updated: 2026-05-14 (SMTP submission repeated auth side-effect isolation)
+
+## SMTP submission repeated auth side-effect isolation (2026-05-14, complete)
+- SMTP submission coverage now verifies repeated AUTH after a successful authentication is rejected without replacing or clearing the existing user.
+- The regression verifies repeated AUTH does not add hooks or metrics, and `MAIL FROM` remains available for the original authenticated user.
 
 ## SMTP submission unsupported auth mechanism (2026-05-14, complete)
 - SMTP submission coverage now verifies unsupported mechanisms such as `LOGIN` return `ErrAuthUnsupported` with no SASL server.
