@@ -1194,3 +1194,45 @@ func TestPOP3CommitDeletesSuccess(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "DELE 1")
 	pop3Cmd(t, tp, "+OK", "QUIT")
 }
+
+func TestPOP3QuitSuccessClosesConnection(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: nil,
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+	tp := textproto.NewConn(conn)
+	defer tp.Close()
+
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("greeting: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("unexpected greeting: %s", line)
+	}
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if line, err := tp.ReadLine(); err == nil {
+		t.Fatalf("expected connection close after successful QUIT, got line: %s", line)
+	}
+}

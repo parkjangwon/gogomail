@@ -5051,6 +5051,9 @@ Target outcome:
  1618. POP3 failed QUIT commit rollback is now covered at the wire layer:
          after a delete commit failure, LIST, UIDL, and RETR expose the message
          again on the same connection.
+ 1619. POP3 successful QUIT close behavior is now covered: after a successful
+         delete commit and `+OK`, the TCP connection closes instead of staying
+         readable.
 
 ## Deferred until backend contracts stabilize
 

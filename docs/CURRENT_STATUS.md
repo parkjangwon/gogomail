@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT commit error visibility)
+Last updated: 2026-05-14 (POP3 QUIT success connection close)
+
+## POP3 QUIT success connection close (2026-05-14, complete)
+- POP3 server coverage now verifies successful delete commit `QUIT` returns `+OK`.
+- The regression verifies the TCP connection closes after successful `QUIT` instead of remaining readable.
 
 ## POP3 QUIT commit error visibility (2026-05-14, complete)
 - POP3 server coverage now verifies failed delete commits return `-ERR` from `QUIT`.
