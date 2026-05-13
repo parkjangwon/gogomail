@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound HELO DSN reset)
+Last updated: 2026-05-14 (SMTP inbound QUIT DSN isolation)
+
+## SMTP inbound QUIT DSN isolation (2026-05-14, complete)
+- SMTP protocol coverage now verifies mixed-domain domain policy and DSN state do not leak across TCP connections after `QUIT`.
+- The regression verifies a new d1-only connection is not blocked by the previous d2 size limit and does not inherit previous connection DSN options.
 
 ## SMTP inbound HELO DSN reset (2026-05-14, complete)
 - SMTP protocol coverage now verifies `HELO` clears accumulated domain policy and DSN state before the next transaction.
