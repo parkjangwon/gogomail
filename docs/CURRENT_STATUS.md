@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP lazy UID sequence hardening)
+Last updated: 2026-05-14 (POP3 listing size consistency hardening)
+
+## POP3 listing size consistency hardening (2026-05-14, complete)
+- `RETR` now announces the same mailbox `MessageSize` value used by `LIST` and `STAT` for the selected message.
+- POP3 regression coverage now verifies LF-only stored content does not make `RETR` advertise a different octet count from `LIST`.
 
 ## IMAP lazy UID sequence hardening (2026-05-14, complete)
 - `ListIMAPMessages` now assigns explicit sequence numbers after lazy UID assignment and UID sorting.
