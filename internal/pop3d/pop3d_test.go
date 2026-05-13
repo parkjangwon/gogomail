@@ -1133,6 +1133,44 @@ func TestPOP3CommitDeletesErrorRollsBack(t *testing.T) {
 	}
 }
 
+func TestPOP3CommitDeletesErrorRestoresWireVisibility(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+
+	if line := pop3Cmd(t, tp, "+OK", "LIST 1"); !strings.Contains(line, "1 42") {
+		t.Fatalf("expected LIST 1 after failed QUIT to restore message size, got: %s", line)
+	}
+	if line := pop3Cmd(t, tp, "+OK", "UIDL 1"); !strings.Contains(line, "msg001") {
+		t.Fatalf("expected UIDL 1 after failed QUIT to restore message UIDL, got: %s", line)
+	}
+
+	pop3Cmd(t, tp, "+OK", "RETR 1")
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read RETR body after failed QUIT: %v", err)
+	}
+	if !strings.Contains(string(data), "Hello") {
+		t.Fatalf("expected RETR 1 body after failed QUIT, got %q", string(data))
+	}
+}
+
 // TestPOP3CommitDeletesSuccess verifies that a successful CommitDeletes on QUIT
 // returns +OK to the client.
 func TestPOP3CommitDeletesSuccess(t *testing.T) {

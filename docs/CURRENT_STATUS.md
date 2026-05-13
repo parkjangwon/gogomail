@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 RSET restores wire visibility)
+Last updated: 2026-05-14 (POP3 QUIT commit error visibility)
+
+## POP3 QUIT commit error visibility (2026-05-14, complete)
+- POP3 server coverage now verifies failed delete commits return `-ERR` from `QUIT`.
+- The same wire-level regression verifies `LIST 1`, `UIDL 1`, and `RETR 1` expose the message again after the failed commit rollback.
 
 ## POP3 RSET restores wire visibility (2026-05-14, complete)
 - POP3 server coverage now verifies `RSET` restores `LIST 1` and `UIDL 1` visibility after `DELE 1`.
