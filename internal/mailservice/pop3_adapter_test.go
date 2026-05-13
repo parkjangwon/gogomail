@@ -890,6 +890,30 @@ func TestPOP3MailboxMessageContent(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxMessageContentInvalidIndex(t *testing.T) {
+	adapter, _, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	if got := mb.MessageContent(-1); got != "" {
+		t.Fatalf("negative index content = %q, want empty", got)
+	}
+	if got := mb.MessageContent(mb.MessageCount()); got != "" {
+		t.Fatalf("out-of-range index content = %q, want empty", got)
+	}
+	contentWithError, ok := mb.(interface {
+		MessageContentWithError(int) (string, error)
+	})
+	if !ok {
+		t.Fatal("mailbox does not expose MessageContentWithError")
+	}
+	if _, err := contentWithError.MessageContentWithError(-1); err == nil {
+		t.Fatal("expected error for negative content index")
+	}
+	if _, err := contentWithError.MessageContentWithError(mb.MessageCount()); err == nil {
+		t.Fatal("expected error for out-of-range content index")
+	}
+}
+
 func TestPOP3MailboxMessageContentLazyLoad(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

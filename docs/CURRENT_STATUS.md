@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 invalid UIDL index)
+Last updated: 2026-05-14 (POP3 invalid content index)
+
+## POP3 invalid content index (2026-05-14, complete)
+- POP3 mailbox coverage now verifies invalid `MessageContent` indexes return an empty string.
+- The error-returning content path now has explicit coverage for negative and out-of-range index failures.
 
 ## POP3 invalid UIDL index (2026-05-14, complete)
 - POP3 mailbox coverage now verifies `MessageUIDL` returns an empty string for negative and out-of-range indexes.
