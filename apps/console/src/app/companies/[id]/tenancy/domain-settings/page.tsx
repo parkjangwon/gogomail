@@ -71,6 +71,27 @@ export default function DomainSettingsPage() {
     { label: t('pages.domain_settings_page.registration_email_invite'), value: 'email_invite' },
   ];
 
+  const apiErrorMessage = (value: unknown, fallback: string): string => {
+    if (!value || typeof value !== 'object') return fallback;
+    const body = value as { error?: unknown; error_message?: unknown; message?: unknown };
+    if (typeof body.error_message === 'string' && body.error_message.trim()) return body.error_message;
+    if (typeof body.error === 'string' && body.error.trim()) return body.error;
+    if (body.error && typeof body.error === 'object') {
+      const error = body.error as { message?: unknown; status_text?: unknown };
+      if (typeof error.message === 'string' && error.message.trim()) return error.message;
+      if (typeof error.status_text === 'string' && error.status_text.trim()) return error.status_text;
+    }
+    if (typeof body.message === 'string' && body.message.trim()) return body.message;
+    return fallback;
+  };
+
+  const normalizeSettings = (value: DomainSettings): DomainSettings => ({
+    ...value,
+    ip_whitelist: value.ip_whitelist ?? [],
+    user_registration_mode: value.user_registration_mode ?? 'temp_password',
+    password_reset_token_ttl_minutes: value.password_reset_token_ttl_minutes ?? 60,
+  });
+
   useEffect(() => {
     fetchDomains();
   }, [companyId]);
@@ -84,7 +105,12 @@ export default function DomainSettingsPage() {
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setDomains(data.domains || []);
+        const nextDomains: Domain[] = data.domains || [];
+        setDomains(nextDomains);
+        if (!selectedDomainId && nextDomains.length > 0) {
+          setSelectedDomainId(nextDomains[0].id);
+          fetchSettings(nextDomains[0].id);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch domains:', e);
@@ -101,11 +127,16 @@ export default function DomainSettingsPage() {
       const res = await fetch(`/api/admin/domains/${domainId}/settings`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        setSettings(data.settings);
-        setForm(data.settings);
+        const nextSettings = normalizeSettings(data.settings);
+        setSettings(nextSettings);
+        setForm(nextSettings);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(apiErrorMessage(err, t('pages.domain_settings_page.load_error')));
       }
     } catch (e) {
       console.error('Failed to fetch domain settings:', e);
+      setSaveError(t('pages.domain_settings_page.load_error'));
     } finally {
       setLoadingSettings(false);
     }
@@ -134,7 +165,7 @@ export default function DomainSettingsPage() {
         fetchSettings(selectedDomainId);
       } else {
         const err = await res.json().catch(() => ({}));
-        setSaveError(err.error || t('pages.domain_settings_page.save_error'));
+        setSaveError(apiErrorMessage(err, t('pages.domain_settings_page.save_error')));
       }
     } catch (e) {
       setSaveError(t('pages.domain_settings_page.save_error'));

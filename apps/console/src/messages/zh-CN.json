@@ -1055,6 +1055,7 @@
       "description": "配置每个域的安全性、密码策略、配额和用户注册设置。",
       "ip_whitelist_label": "启用IP白名单",
       "last_updated": "最后更新",
+      "load_error": "无法加载域名设置",
       "mode_invite_hint": "用户通过邀请链接自行设置密码。建议在邮件配置完成后使用。",
       "mode_temp_hint": "管理员设置临时密码，用户首次登录时必须修改。",
       "password_expiry_label": "密码有效期",

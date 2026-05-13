@@ -536,6 +536,15 @@ func (r *Repository) ListLoginAudits(ctx context.Context, filter LoginAuditFilte
 
 // GetDomainSettings retrieves domain-level configuration.
 func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*DomainSettings, error) {
+	if _, err := r.db.ExecContext(ctx,
+		`INSERT INTO domain_settings (domain_id, updated_by)
+		 VALUES ($1, NULL)
+		 ON CONFLICT (domain_id) DO NOTHING`,
+		domainID,
+	); err != nil {
+		return nil, err
+	}
+
 	settings := &DomainSettings{}
 	err := r.db.QueryRowContext(ctx,
 		`SELECT domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist,
@@ -551,6 +560,9 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UserRegistrationMode,
 		&settings.PasswordResetTokenTTLMinutes,
 		&settings.UpdatedAt, &settings.UpdatedBy)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("domain settings not found")
+	}
 	if err != nil {
 		return nil, err
 	}

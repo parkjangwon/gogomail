@@ -1372,8 +1372,7 @@ export async function updateUserProfile(fields: { display_name?: string; recover
     body: JSON.stringify(fields),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(data.error ?? '프로필 업데이트에 실패했습니다.');
+    throw new Error(await responseErrorMessage(res, '프로필 업데이트에 실패했습니다.'));
   }
 }
 
