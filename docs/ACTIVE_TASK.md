@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-368: POP3 auth success test helper cleanup
+## TASK-369: POP3 USER PASS transaction capability audit
 
 ### 배경
 
-POP3 인증 성공 회귀 테스트들이 transaction CAPA에서 auth-only capability 제거와
-`STAT` 성공을 반복적으로 검증하고 있다. 성공 상태 검증을 공통 헬퍼로 정리해
-다음 인증 메커니즘 테스트를 더 안전하게 추가한다.
+POP3 기본 `USER/PASS` 인증 성공 후에도 SASL 인증과 동일하게 transaction 상태로
+전환되어야 하며, 인증 전용 capability가 더 이상 노출되지 않아야 한다. 가장 흔한
+인증 경로를 명시적으로 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ POP3 인증 성공 회귀 테스트들이 transaction CAPA에서 auth-only capab
 
 ### 완료 조건
 
-- [x] transaction CAPA와 `STAT` 성공을 함께 확인하는 인증 성공 헬퍼를 추가한다.
-- [x] `AUTH PLAIN` initial/challenge 성공 테스트가 공통 헬퍼를 사용하도록 정리한다.
-- [x] `AUTH LOGIN` 성공 테스트가 공통 헬퍼를 사용하도록 정리한다.
+- [x] `USER/PASS` 정상 credential이 transaction 상태로 전환되는지 검증한다.
+- [x] 인증 성공 후 CAPA에서 `USER`와 `SASL PLAIN LOGIN`이 사라지는지 검증한다.
+- [x] 인증 성공 후 `STAT`이 성공하는지 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-369: POP3 USER PASS transaction capability audit
+TASK-370: POP3 USER PASS failure capability audit

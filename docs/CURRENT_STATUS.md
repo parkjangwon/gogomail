@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth success test helper cleanup)
+Last updated: 2026-05-14 (POP3 USER PASS transaction capability)
+
+## POP3 USER PASS transaction capability (2026-05-14, complete)
+- POP3 server coverage now verifies successful `USER/PASS` authentication reaches transaction state.
+- The regression verifies transaction CAPA drops auth-only capabilities and `STAT` works after authentication.
 
 ## POP3 auth success test helper cleanup (2026-05-14, complete)
 - POP3 tests now share an authenticated-state assertion helper for transaction CAPA and `STAT` checks.
