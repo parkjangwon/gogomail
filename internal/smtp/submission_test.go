@@ -1156,6 +1156,101 @@ func TestSubmissionPreservesDSNOptions(t *testing.T) {
 	}
 }
 
+func TestSubmissionMailClearsDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	// First transaction with DSN options
+	if err := submission.Mail("jangwon@example.com", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnFull,
+		EnvelopeID: "first-env",
+	}); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", &gosmtp.RcptOptions{
+		Notify: []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	raw1 := "Message-ID: <first@example.com>\r\nFrom: jangwon@example.com\r\nTo: outside@example.net\r\nSubject: first\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw1)); err != nil {
+		t.Fatalf("first Data returned error: %v", err)
+	}
+
+	// Second transaction without DSN options (implicit clear)
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("another@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw2 := "Message-ID: <second@example.com>\r\nFrom: jangwon@example.com\r\nTo: another@example.net\r\nSubject: second\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw2)); err != nil {
+		t.Fatalf("second Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 2 {
+		t.Fatalf("recorded messages = %d, want 2", len(recorder.messages))
+	}
+
+	// First message should have DSN options
+	first := recorder.messages[0].DSN
+	if first.Return != "FULL" || first.EnvelopeID != "first-env" {
+		t.Fatalf("first DSN envelope = %+v, want Return=FULL EnvelopeID=first-env", first)
+	}
+	if len(first.Recipients) != 1 || len(first.Recipients[0].Notify) != 1 || first.Recipients[0].Notify[0] != "FAILURE" {
+		t.Fatalf("first DSN recipients = %+v, want one FAILURE notification", first.Recipients)
+	}
+
+	// Second message should NOT have first message's DSN options
+	second := recorder.messages[1].DSN
+	if second.Return != "" || second.EnvelopeID != "" {
+		t.Fatalf("second DSN envelope = %+v, want no DSN options from first MAIL", second)
+	}
+	if len(second.Recipients) != 1 || len(second.Recipients[0].Notify) != 0 {
+		t.Fatalf("second DSN recipients = %+v, want no recipient DSN options", second.Recipients)
+	}
+}
+
+func TestSubmissionMailDSNParameterVariations(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	submission := newAuthenticatedSubmissionSession(t, recorder, store)
+	submission.receiver.supportDSN = true
+
+	// Test RET=HDRS variation
+	if err := submission.Mail("jangwon@example.com", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnHeaders,
+		EnvelopeID: "env-hdrs",
+	}); err != nil {
+		t.Fatalf("Mail with RET=HDRS returned error: %v", err)
+	}
+	if err := submission.Rcpt("dest@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <dsn-param@example.com>\r\nFrom: jangwon@example.com\r\nTo: dest@example.net\r\nSubject: dsn\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "HDRS" {
+		t.Fatalf("DSN Return = %q, want HDRS", got.Return)
+	}
+	if got.EnvelopeID != "env-hdrs" {
+		t.Fatalf("DSN EnvelopeID = %q, want env-hdrs", got.EnvelopeID)
+	}
+}
+
 func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorder, store storage.Store) *submissionSession {
 	t.Helper()
 
