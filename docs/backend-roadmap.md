@@ -5384,6 +5384,8 @@ Target outcome:
    VFREEBUSY candidates so VTODO/VJOURNAL rows do not consume busy limits.
 7. CalDAV `sync-collection` coalesces change rows before loading requested
    `calendar-data`, avoiding duplicate ICS reads for superseded object changes.
+8. CardDAV `sync-collection` coalesces contact changes before loading requested
+   `address-data`, avoiding duplicate vCard reads and limit pressure.
 
 ---
 

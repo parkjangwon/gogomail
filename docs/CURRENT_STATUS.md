@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV sync payload projection hardening)
+Last updated: 2026-05-14 (CardDAV sync payload projection hardening)
+
+## CardDAV sync payload projection hardening (2026-05-14, complete)
+- `sync-collection` change responses now coalesce duplicate contact changes before loading requested `address-data`.
+- The CardDAV repository joined-change path can return metadata-only objects, allowing the handler to batch-load vCard payloads only for the final coalesced response set.
 
 ## CalDAV sync payload projection hardening (2026-05-14, complete)
 - `sync-collection` change responses now coalesce duplicate object changes from metadata-only change rows before loading `calendar-data`.
