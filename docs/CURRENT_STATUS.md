@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction USER PASS denial)
+Last updated: 2026-05-14 (POP3 transaction AUTH denial)
+
+## POP3 transaction AUTH denial (2026-05-14, complete)
+- POP3 server coverage now verifies transaction-state `AUTH PLAIN` and `AUTH LOGIN` are rejected as unknown commands.
+- The regression verifies `NOOP` and `STAT` still work after rejected SASL reauthentication attempts.
 
 ## POP3 transaction USER PASS denial (2026-05-14, complete)
 - POP3 server coverage now verifies transaction-state `USER` and `PASS` are rejected as unknown commands.
