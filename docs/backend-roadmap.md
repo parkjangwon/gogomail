@@ -5248,6 +5248,10 @@ Target outcome:
          sessions aggregate enforcing recipient-domain policies, and DATA
          returns `552 5.3.4` when a later recipient domain has a stricter
          message size limit.
+ 1687. SMTP inbound domain policy lookup failure isolation is now covered:
+         a later recipient lookup failure returns `451 4.7.1` without
+         poisoning earlier accepted recipients, and DATA records only accepted
+         recipients afterward.
 
 ## Deferred until backend contracts stabilize
 
