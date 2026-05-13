@@ -337,6 +337,25 @@ func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthPlainInitialResponseAuthenticates(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	initial := base64.StdEncoding.EncodeToString([]byte("\x00alice\x00secret"))
+	pop3Cmd(t, tp, "+OK", "AUTH PLAIN %s", initial)
+	capa := pop3Capa(t, tp)
+	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH PLAIN initial response: %#v", capa)
+	}
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected authenticated STAT after AUTH PLAIN initial response, got: %s", line)
+	}
+}
+
 func TestPOP3AuthPlainInvalidBase64KeepsAuthCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
