@@ -4903,6 +4903,10 @@ Target outcome:
          `writeMailboxEvent` ignores EXISTS counts that are below or equal to
          the selected message count, producing no wire response and leaving
          `selectedMessages` unchanged.
+ 1573. IMAP server fresh EXISTS handling is now covered directly:
+         `writeMailboxEvent` treats `Messages` above the selected count as an
+         absolute mailbox count, emits `* N EXISTS`, and updates
+         `selectedMessages` to that count rather than incrementing blindly.
 
 ## Deferred until backend contracts stabilize
 
