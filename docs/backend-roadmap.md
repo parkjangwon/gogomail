@@ -5216,6 +5216,9 @@ Target outcome:
  1676. POP3 CAPA after failed delete commit is now covered: failed QUIT keeps
          the session in transaction state, keeps auth-only capabilities hidden,
          and exposes the restored maildrop count through STAT.
+ 1677. POP3 NOOP after failed delete commit is now covered: failed QUIT keeps
+         the connection usable for NOOP, and STAT still reports the restored
+         maildrop state afterward.
 
 ## Deferred until backend contracts stabilize
 
