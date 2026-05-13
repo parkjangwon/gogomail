@@ -5288,6 +5288,9 @@ Target outcome:
  1699. SMTP inbound QUIT isolation is now covered for domain policy and DSN
          state at the TCP protocol layer: closed connections do not leak
          accumulated limits or DSN metadata into later connections.
+ 1700. SMTP inbound auth reset is now covered for domain policy and DSN state:
+         Logout clears accumulated limits and DSN metadata, requires
+         re-authentication, and prevents pre-Logout state from leaking.
 
 ## Deferred until backend contracts stabilize
 

@@ -1522,6 +1522,99 @@ func TestSessionRejectsRepeatedAuth(t *testing.T) {
 	}
 }
 
+func TestSessionLogoutResetsDSNAndDomainPolicy(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+		Authenticator:      plainAuthenticator{username: "user", password: "pass"},
+		RequireAuth:        true,
+		SupportDSN:         true,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	authSession := session.(interface {
+		Auth(string) (sasl.Server, error)
+	})
+	authPlain := func(context string) {
+		t.Helper()
+		server, err := authSession.Auth(sasl.Plain)
+		if err != nil {
+			t.Fatalf("%s Auth returned error: %v", context, err)
+		}
+		if _, done, err := server.Next([]byte("\x00user\x00pass")); err != nil {
+			t.Fatalf("%s AUTH PLAIN returned error: %v", context, err)
+		} else if !done {
+			t.Fatalf("%s AUTH PLAIN did not complete", context)
+		}
+	}
+
+	authPlain("first")
+	if err := session.Mail("sender@example.org", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnFull,
+		EnvelopeID: "logout-env",
+	}); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;one@example.com",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyDelayed},
+		OriginalRecipient: "rfc822;two@example.net",
+	}); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	if err := session.Logout(); err != nil {
+		t.Fatalf("Logout returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err == nil {
+		t.Fatal("Mail accepted after Logout without re-authentication")
+	}
+
+	authPlain("second")
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("third Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <logout-dsn-reset@example.org>\r\nSubject: larger than d2\r\n\r\nbody"
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("d1-only Data after Logout returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "" || got.EnvelopeID != "" {
+		t.Fatalf("recorded DSN envelope = %+v, want no pre-Logout DSN leak", got)
+	}
+	if len(got.Recipients) != 1 || len(got.Recipients[0].Notify) != 0 || got.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("recorded DSN recipients = %+v, want accepted address without pre-Logout options", got.Recipients)
+	}
+}
+
 func TestSessionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
 	t.Parallel()
 

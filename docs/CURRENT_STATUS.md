@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound QUIT DSN isolation)
+Last updated: 2026-05-14 (SMTP inbound auth reset)
+
+## SMTP inbound auth reset (2026-05-14, complete)
+- SMTP receiver coverage now verifies `Logout` clears accumulated domain policy and DSN state along with authentication state.
+- The regression verifies re-authentication is required, and the following d1-only success is not blocked by previous d2 limits or pre-Logout DSN options.
 
 ## SMTP inbound QUIT DSN isolation (2026-05-14, complete)
 - SMTP protocol coverage now verifies mixed-domain domain policy and DSN state do not leak across TCP connections after `QUIT`.
