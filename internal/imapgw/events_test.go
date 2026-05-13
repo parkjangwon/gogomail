@@ -132,6 +132,9 @@ func TestMailboxEventBrokerPublishDoesNotBlockOnSlowSubscriber(t *testing.T) {
 		t.Fatalf("slow subscriber unexpectedly received non-blocking event: %#v", got)
 	default:
 	}
+	if got := broker.DroppedEvents(); got != 1 {
+		t.Fatalf("DroppedEvents = %d, want 1", got)
+	}
 }
 
 func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) {
