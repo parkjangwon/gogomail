@@ -17,6 +17,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - Runtime config now supports `GOGOMAIL_LDAP_TLS_CERT_FILE`, `GOGOMAIL_LDAP_TLS_KEY_FILE`, optional `GOGOMAIL_LDAPS_ADDR`, and semicolon/newline-separated `GOGOMAIL_LDAP_REFERRAL_URLS` for cross-naming-context SearchResultReference responses.
 - LDAP controls are parsed at the LDAPMessage boundary; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, unsupported critical controls return `unavailableCriticalExtension`, and Simple Paged Results uses opaque offset cookies across search pages.
 - LDAP simple bind now accepts common client bind identities including raw username/email and DN-style identities such as `uid=alice,ou=users,...`, with DN value unescaping and repository authentication by user ID for generated LDAP entry DNs.
+- LDAP generated principal DNs now escape RDN values and base-object lookup unescapes them, preserving user/organization/group/resource identifiers containing RFC 4514 special characters.
 - Non-discovery directory searches now require a successful bind; Root DSE and `cn=Subschema` base-object discovery remain available before bind for standard client setup.
 - `SearchResultEntry` encoding now emits the RFC 4511 application payload directly, matching OpenLDAP client decoding expectations.
 - LDAP requested-attribute selection now decodes real client SearchRequest attribute lists correctly, so clients can request narrow projections such as only `mail` without receiving every directory attribute.
