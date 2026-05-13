@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth identity validation consolidation)
+Last updated: 2026-05-14 (POP3 auth credential validation consolidation)
+
+## POP3 auth credential validation consolidation (2026-05-14, complete)
+- POP3 username normalization and password validation are now centralized in small adapter helpers.
+- Helper-level coverage fixes username trim/empty/CRLF behavior and password CRLF rejection without changing authentication semantics.
 
 ## POP3 auth identity validation consolidation (2026-05-14, complete)
 - POP3 authenticated user ID normalization is now centralized in a helper that trims spaces and rejects empty or CR/LF-bearing identities.

@@ -28,12 +28,12 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 	if a.authenticator == nil {
 		return nil, fmt.Errorf("pop3 authenticator is required")
 	}
-	user = strings.TrimSpace(user)
-	if user == "" || strings.ContainsAny(user, "\r\n") {
-		return nil, fmt.Errorf("invalid username")
+	user, err := normalizePOP3Username(user)
+	if err != nil {
+		return nil, err
 	}
-	if strings.ContainsAny(pass, "\r\n") {
-		return nil, fmt.Errorf("invalid password")
+	if err := validatePOP3Password(pass); err != nil {
+		return nil, err
 	}
 
 	ctx := context.Background()
@@ -109,6 +109,21 @@ func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID
 			return nil, fmt.Errorf("decode inbox cursor: %w", err)
 		}
 	}
+}
+
+func normalizePOP3Username(user string) (string, error) {
+	user = strings.TrimSpace(user)
+	if user == "" || strings.ContainsAny(user, "\r\n") {
+		return "", fmt.Errorf("invalid username")
+	}
+	return user, nil
+}
+
+func validatePOP3Password(pass string) error {
+	if strings.ContainsAny(pass, "\r\n") {
+		return fmt.Errorf("invalid password")
+	}
+	return nil
 }
 
 func normalizePOP3AuthenticatedUserID(userID string) (string, error) {
