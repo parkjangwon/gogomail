@@ -469,6 +469,44 @@ func TestPOP3AuthLoginPasswordCancellationKeepsSessionUsable(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthLoginInvalidPasswordBase64KeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("alice"))); err != nil {
+		t.Fatalf("send auth login username: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login password continuation: %v", err)
+	}
+	if !strings.HasPrefix(line, "+") {
+		t.Fatalf("expected password continuation, got: %s", line)
+	}
+	if err := tp.PrintfLine("not-base64!"); err != nil {
+		t.Fatalf("send invalid auth login password: %v", err)
+	}
+	line, err = tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login password error: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR invalid base64") {
+		t.Fatalf("expected invalid base64 response, got: %s", line)
+	}
+	tp.EndResponse(id)
+
+	capa := pop3Capa(t, tp)
+	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("expected auth capabilities after AUTH LOGIN password invalid base64, got: %#v", capa)
+	}
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3RejectsConcurrentMaildropAccess(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH LOGIN invalid username base64 capability)
+Last updated: 2026-05-14 (POP3 AUTH LOGIN invalid password base64 capability)
+
+## POP3 AUTH LOGIN invalid password base64 capability (2026-05-14, complete)
+- POP3 server coverage now verifies invalid base64 in the `AUTH LOGIN` password step returns `-ERR invalid base64`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the password parse error.
 
 ## POP3 AUTH LOGIN invalid username base64 capability (2026-05-14, complete)
 - POP3 server coverage now verifies invalid base64 in the `AUTH LOGIN` username step returns `-ERR invalid base64`.
