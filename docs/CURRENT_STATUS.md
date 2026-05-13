@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Domain settings visibility hardening)
+Last updated: 2026-05-14 (Protocol company suspension auth hardening)
+
+## Protocol company suspension auth hardening (2026-05-14, complete)
+- Submission authentication now joins the owning company and requires `companies.status = 'active'`, so suspended tenants cannot continue authenticating through shared protocol credentials.
+- The hardening applies to CardDAV and every protocol path backed by the same submission authenticator, keeping company/domain/user status policy aligned at the database trust boundary.
+- PostgreSQL integration coverage now verifies an active user can authenticate before company suspension and is rejected immediately after the company status changes.
 
 ## Domain settings visibility hardening (2026-05-14, complete)
 - Domain settings now load whenever the selected domain changes, including the auto-selected first domain, so the editable registration/security/password/quota form appears without requiring a second manual selection.
