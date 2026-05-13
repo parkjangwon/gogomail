@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 must-change-password short-circuit)
+Last updated: 2026-05-14 (POP3 auth failure short-circuit)
+
+## POP3 auth failure short-circuit (2026-05-14, complete)
+- POP3 adapter coverage now verifies authenticator credential failures stop before mail service lookup.
+- The wrong-password regression asserts one authenticator call and no folder or inbox page reads.
 
 ## POP3 must-change-password short-circuit (2026-05-14, complete)
 - POP3 adapter coverage now verifies must-change-password users fail after authentication but before mail service lookup.

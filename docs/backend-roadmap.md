@@ -4973,6 +4973,9 @@ Target outcome:
  1592. POP3 must-change-password policy enforcement is now covered as a service
          short-circuit: blocked users authenticate once but fail before folder
          or inbox page lookup.
+ 1593. POP3 credential failure handling is now covered as a service
+         short-circuit: wrong-password authenticator failures call the
+         authenticator once and perform no folder or inbox page lookup.
 
 ## Deferred until backend contracts stabilize
 
