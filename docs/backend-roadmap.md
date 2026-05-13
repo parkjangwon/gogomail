@@ -5386,6 +5386,8 @@ Target outcome:
    `calendar-data`, avoiding duplicate ICS reads for superseded object changes.
 8. CardDAV `sync-collection` coalesces contact changes before loading requested
    `address-data`, avoiding duplicate vCard reads and limit pressure.
+9. IMAP mailbox status aggregation includes active messages awaiting lazy UID
+   assignment when predicting `UIDNEXT` and `HIGHESTMODSEQ`.
 
 ---
 

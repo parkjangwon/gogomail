@@ -300,6 +300,32 @@ func TestIMAPUIDBackfillAuditDetailSamplesAssignments(t *testing.T) {
 	}
 }
 
+func TestIMAPMailboxFromFolderPredictsUnassignedUIDState(t *testing.T) {
+	t.Parallel()
+
+	folder := Folder{
+		ID:             "inbox",
+		Name:           "Inbox",
+		FullPath:       "/Inbox",
+		Total:          3,
+		Unread:         1,
+		TotalSize:      512,
+		IMAPUnassigned: 2,
+	}
+	state := IMAPUIDState{UIDValidity: 7, UIDNext: 5, HighestModSeq: 11}
+
+	got := imapMailboxFromFolder(folder, state)
+	if got.UIDNext != 7 {
+		t.Fatalf("UIDNext = %d, want 7", got.UIDNext)
+	}
+	if got.HighestModSeq != 13 {
+		t.Fatalf("HighestModSeq = %d, want 13", got.HighestModSeq)
+	}
+	if got.Messages != 3 || got.Unseen != 1 || got.Size != 512 {
+		t.Fatalf("mailbox counts = messages %d unseen %d size %d, want 3/1/512", got.Messages, got.Unseen, got.Size)
+	}
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }
