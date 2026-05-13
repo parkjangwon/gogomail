@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker diagnostics concurrency coverage)
+Last updated: 2026-05-14 (IMAP event broker race verification)
+
+## IMAP event broker race verification (2026-05-14, complete)
+- `go test -race -count=1 ./internal/imapgw` passes with the new mailbox event broker diagnostics and concurrent publish/subscribe/cancel coverage.
+- This gives the broker diagnostics path an explicit race-detector gate in addition to the normal `go test ./...` suite.
 
 ## IMAP event broker diagnostics concurrency coverage (2026-05-14, complete)
 - Broker regression coverage now exercises aggregate/per-mailbox drop diagnostics and subscriber-count diagnostics while publish, subscribe, and cancel operations run concurrently.

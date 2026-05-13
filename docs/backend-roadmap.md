@@ -4887,6 +4887,10 @@ Target outcome:
          counters and subscriber-count reads are exercised while state is
          changing, with final subscriber accounting verified to converge to
          zero.
+ 1569. IMAP mailbox event broker diagnostics now have an explicit race-detector
+         verification point: `go test -race -count=1 ./internal/imapgw` passes
+         across the concurrent publish, subscribe, cancel, and diagnostic
+         coverage.
 
 ## Deferred until backend contracts stabilize
 
