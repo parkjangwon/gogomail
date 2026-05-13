@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-351: POP3 STLS unavailable auth-state session audit
+## TASK-352: POP3 AUTH PLAIN cancellation session audit
 
 ### 배경
 
-TLS 설정이 없는 POP3 서버는 authorization 상태에서도 `STLS`를 거부해야 한다.
-이 거부는 TLS 협상을 시작하지 않는 단순 명령 오류이므로, 이후 `USER/PASS` 로그인과
-transaction 명령이 계속 정상 동작하는지 wire-level로 고정한다.
+POP3 `AUTH PLAIN` challenge 중 클라이언트가 `*`로 취소하면 서버는 authorization
+상태를 유지해야 한다. 단순히 이후 로그인이 되는지만 보면 capability 상태 회귀를
+놓칠 수 있으므로 취소 직후 CAPA와 로그인 흐름을 함께 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ transaction 명령이 계속 정상 동작하는지 wire-level로 고정한다.
 
 ### 완료 조건
 
-- [x] TLS 설정이 없는 authorization 상태의 `STLS`가 `-ERR`로 거부되는지 검증한다.
-- [x] 거부 메시지가 STLS unavailable 사유를 담는지 검증한다.
-- [x] 거부 이후 `USER/PASS`와 `STAT`이 성공해 세션이 계속 사용 가능한지 검증한다.
+- [x] `AUTH PLAIN` challenge 취소가 `-ERR authentication cancelled`를 반환하는지 검증한다.
+- [x] 취소 직후 CAPA에 `USER`와 `SASL PLAIN LOGIN`이 남아 authorization 상태를 유지하는지 검증한다.
+- [x] 취소 이후 `USER/PASS`와 `STAT`이 성공해 세션이 계속 사용 가능한지 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-352: POP3 AUTH PLAIN cancellation session audit
+TASK-353: POP3 AUTH LOGIN username cancellation capability audit

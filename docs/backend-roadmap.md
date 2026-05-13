@@ -5068,6 +5068,9 @@ Target outcome:
  1624. POP3 unavailable-STLS auth-state denial is now covered: servers without
          TLS config reject `STLS` while keeping normal `USER/PASS` login and
          `STAT` usable afterward.
+ 1625. POP3 AUTH PLAIN cancellation now verifies authorization-state capability
+         preservation: after `*`, CAPA still advertises USER and SASL before
+         normal login continues.
 
 ## Deferred until backend contracts stabilize
 
