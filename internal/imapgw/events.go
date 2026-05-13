@@ -94,8 +94,10 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	if event.UserID == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if event.Type == "" {
-		return fmt.Errorf("event type is required")
+	var err error
+	event.Type, err = normalizeMailboxEventType(event.Type)
+	if err != nil {
+		return err
 	}
 
 	b.mu.Lock()
@@ -109,4 +111,16 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	}
 	b.mu.Unlock()
 	return nil
+}
+
+func normalizeMailboxEventType(eventType MailboxEventType) (MailboxEventType, error) {
+	eventType = MailboxEventType(strings.TrimSpace(string(eventType)))
+	switch eventType {
+	case MailboxEventExists, MailboxEventExpunge, MailboxEventFlags:
+		return eventType, nil
+	case "":
+		return "", fmt.Errorf("event type is required")
+	default:
+		return "", fmt.Errorf("unsupported event type %q", eventType)
+	}
 }

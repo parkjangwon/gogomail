@@ -4851,6 +4851,11 @@ Target outcome:
          user and mailbox IDs before storing or fanout matching. Inputs with
          surrounding whitespace no longer pass validation only to miss
          subscribers because comparisons used the unnormalized values.
+ 1560. IMAP mailbox event broker publish now trims event types and rejects
+         anything outside EXISTS, EXPUNGE, and FLAGS. Producer mistakes such
+         as whitespace-wrapped or unknown event types are normalized or
+         surfaced at the broker boundary instead of being silently ignored by
+         selected sessions.
 
 ## Deferred until backend contracts stabilize
 

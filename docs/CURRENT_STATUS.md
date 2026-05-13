@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker identity normalization)
+Last updated: 2026-05-14 (IMAP event broker type normalization)
+
+## IMAP event broker type normalization (2026-05-14, complete)
+- Published mailbox event types are now trimmed and validated against the supported EXISTS, EXPUNGE, and FLAGS types before fanout.
+- Broker coverage verifies whitespace-wrapped event types are normalized and unsupported event types are rejected at publish time instead of being silently ignored by IMAP sessions.
 
 ## IMAP event broker identity normalization (2026-05-14, complete)
 - Mailbox event broker subscriptions now store trimmed user and mailbox IDs after validation.
