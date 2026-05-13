@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 USER syntax preserves auth capability)
+Last updated: 2026-05-14 (POP3 PASS syntax preserves auth capability)
+
+## POP3 PASS syntax preserves auth capability (2026-05-14, complete)
+- POP3 server coverage now verifies malformed `PASS` commands return `-ERR syntax error`.
+- The regression verifies auth capabilities are preserved and a later valid `PASS` still enters transaction state.
 
 ## POP3 USER syntax preserves auth capability (2026-05-14, complete)
 - POP3 server coverage now verifies malformed `USER` commands return `-ERR syntax error`.

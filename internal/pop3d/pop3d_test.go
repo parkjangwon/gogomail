@@ -409,6 +409,23 @@ func TestPOP3UserSyntaxErrorKeepsAuthCapabilities(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3PassSyntaxErrorKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	line := pop3Cmd(t, tp, "-ERR", "PASS secret extra")
+	if !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected syntax error, got: %s", line)
+	}
+	assertPOP3AuthCapabilities(t, tp, "PASS syntax error")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	assertPOP3AuthenticatedState(t, tp, "PASS after syntax error", "2")
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

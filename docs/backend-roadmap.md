@@ -5134,6 +5134,9 @@ Target outcome:
  1646. POP3 USER syntax-error handling now verifies authorization-state
          capability preservation: malformed USER commands leave CAPA and normal
          login usable afterward.
+ 1647. POP3 PASS syntax-error handling now verifies authorization-state
+         capability preservation: malformed PASS commands leave CAPA intact and
+         a later valid PASS still enters transaction state.
 
 ## Deferred until backend contracts stabilize
 
