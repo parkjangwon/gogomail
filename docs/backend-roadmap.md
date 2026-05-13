@@ -5291,6 +5291,10 @@ Target outcome:
  1700. SMTP inbound auth reset is now covered for domain policy and DSN state:
          Logout clears accumulated limits and DSN metadata, requires
          re-authentication, and prevents pre-Logout state from leaking.
+ 1701. IMAP single-message UID row locking is now audited: EnsureIMAPMessageUID
+         locks the target messages row with `FOR UPDATE OF m`, and Postgres
+         coverage verifies no stale UID row is inserted while that row is
+         locked.
 
 ## Deferred until backend contracts stabilize
 
