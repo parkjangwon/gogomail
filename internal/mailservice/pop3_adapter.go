@@ -195,8 +195,11 @@ func (m *pop3Mailbox) CommitDeletes() error {
 	if len(m.pending) == 0 {
 		return nil
 	}
-	ids := make([]string, len(m.pending))
-	copy(ids, m.pending)
+	ids := uniquePOP3PendingIDs(m.pending)
+	if len(ids) == 0 {
+		m.pending = m.pending[:0]
+		return nil
+	}
 	_, err := m.service.BulkDeleteMessages(m.ctx, maildb.BulkMessageDeleteRequest{
 		UserID:     m.userID,
 		MessageIDs: ids,
@@ -206,4 +209,21 @@ func (m *pop3Mailbox) CommitDeletes() error {
 	}
 	m.pending = m.pending[:0]
 	return nil
+}
+
+func uniquePOP3PendingIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	unique := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return unique
 }

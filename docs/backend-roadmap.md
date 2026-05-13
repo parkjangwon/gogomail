@@ -4759,6 +4759,12 @@ Target outcome:
          malformed resource tags with HTTP 400 before reading the XML body, so
          collection `xml:lang` metadata cannot mutate through malformed
          preconditions.
+ 1543. POP3 UPDATE-phase delete commits now normalize pending message IDs
+         before calling the shared bulk delete service boundary. Whitespace-only
+         IDs are skipped, duplicates are collapsed in first-seen order, and
+         successful commits still clear pending state, keeping QUIT-triggered
+         deletion work idempotent and audit/storage side effects stable even if
+         adapter-local pending state is retried or internally duplicated.
 
 ## Deferred until backend contracts stabilize
 
