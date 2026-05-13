@@ -981,6 +981,36 @@ func TestPOP3ListSingle(t *testing.T) {
 	}
 }
 
+func TestPOP3ListHidesDeletedMessages(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	pop3Cmd(t, tp, "+OK", "LIST")
+
+	reader := tp.DotReader()
+	scanner := bufio.NewScanner(reader)
+	var lines []string
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 LIST line after delete, got %d", len(lines))
+	}
+	if strings.HasPrefix(lines[0], "1 ") {
+		t.Fatalf("deleted message LIST should be hidden, got: %s", lines[0])
+	}
+	if !strings.HasPrefix(lines[0], "2 ") {
+		t.Fatalf("expected remaining message 2 LIST entry, got: %s", lines[0])
+	}
+}
+
 func TestPOP3RetrInvalid(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

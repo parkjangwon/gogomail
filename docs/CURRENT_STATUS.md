@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 deleted UIDL visibility)
+Last updated: 2026-05-14 (POP3 deleted LIST visibility)
+
+## POP3 deleted LIST visibility (2026-05-14, complete)
+- POP3 server coverage now verifies `LIST 1` fails after `DELE 1`.
+- The multi-line LIST regression verifies deleted messages are hidden while remaining messages stay visible.
 
 ## POP3 deleted UIDL visibility (2026-05-14, complete)
 - POP3 server coverage now verifies `UIDL 1` fails after `DELE 1`.

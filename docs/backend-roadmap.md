@@ -5039,6 +5039,9 @@ Target outcome:
  1614. POP3 deleted-message UIDL visibility is now covered at the wire layer:
          after `DELE`, single-message UIDL fails and multi-line UIDL omits the
          deleted message while retaining non-deleted messages.
+ 1615. POP3 deleted-message LIST visibility is now covered at the wire layer:
+         after `DELE`, single-message LIST fails and multi-line LIST omits the
+         deleted message while retaining non-deleted messages.
 
 ## Deferred until backend contracts stabilize
 
