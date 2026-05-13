@@ -1,17 +1,18 @@
 # ACTIVE_TASK
 
-## TASK-436: IMAP mailbox subscription deleted-folder noselect audit
+## TASK-437: IMAP subscription name normalization audit
 
 ### 배경
 
-IMAP LSUB 호환 동작에서는 구독된 mailbox가 사라져도 구독 이름을 noselect/non-existing
-항목으로 유지할 수 있어야 한다. 기존 테스트는 system folder를 DB에서 직접 삭제하는 경로만
-검증했으므로 실제 user folder `DeleteFolder` 경로에서도 구독 이름이 보존되고, 존재하지
-않는 mailbox로 표시되며, retained name으로 unsubscribe할 수 있는지 Postgres 통합 테스트로
-고정한다.
+IMAP subscription API가 mailbox name/id 입력의 앞뒤 공백을 그대로 canonical key와 retained
+name에 반영하면 `" INBOX "` 같은 입력이 실제 `INBOX`가 아니라 missing mailbox 구독으로
+저장될 수 있다. repository 경계에서 mailbox name/id를 trim하고, canonical subscription name도
+trim 기준으로 계산해 기존 mailbox 조회와 unsubscribe가 같은 이름으로 동작하도록 고정한다.
 
 ### 구현 대상
 
+- `internal/maildb/imap_subscriptions.go`
+- `internal/maildb/imap_subscriptions_test.go`
 - `internal/maildb/postgres_integration_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
@@ -19,13 +20,15 @@ IMAP LSUB 호환 동작에서는 구독된 mailbox가 사라져도 구독 이름
 
 ### 완료 조건
 
-- [x] user folder를 구독한 뒤 `DeleteFolder`로 삭제하는 실제 경로를 검증한다.
-- [x] 삭제 후 `ListSubscribedIMAPMailboxes`가 retained name을 noselect/non-existing 항목으로 반환하는지 검증한다.
-- [x] retained subscription name으로 `UnsubscribeIMAPMailbox`가 성공하는지 검증한다.
-- [x] `go test -count=1 ./internal/maildb -run TestPostgresIMAPMailboxSubscriptionPersistsAfterDeleteFolder` 통과.
+- [x] `SubscribeIMAPMailbox`가 mailbox name/id 입력의 앞뒤 공백을 제거한 뒤 기존 mailbox를 조회하도록 수정한다.
+- [x] `UnsubscribeIMAPMailbox`도 같은 trim 규칙으로 retained/existing subscription을 제거하도록 수정한다.
+- [x] canonical subscription name 계산이 trim된 이름 기준으로 동작하도록 수정한다.
+- [x] canonical subscription unit test를 trim 기반 정규화 계약으로 갱신한다.
+- [x] `" INBOX "` 구독이 missing mailbox가 아니라 기존 Inbox 구독으로 저장되고 같은 입력으로 unsubscribe되는지 검증한다.
+- [x] `go test -count=1 ./internal/maildb -run TestPostgresIMAPMailboxSubscriptionTrimsNames` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-437: IMAP subscription name normalization audit
+TASK-438: IMAP subscription case-insensitive retained-name audit

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP deleted-folder subscription noselect)
+Last updated: 2026-05-14 (IMAP subscription name normalization)
+
+## IMAP subscription name normalization (2026-05-14, complete)
+- `SubscribeIMAPMailbox` and `UnsubscribeIMAPMailbox` now trim mailbox name/id input before resolving existing mailboxes or retained subscription names.
+- Canonical subscription names are also trim-based, and Postgres coverage verifies `" INBOX "` subscribes to the real Inbox and can be removed with the same spaced input.
 
 ## IMAP deleted-folder subscription noselect (2026-05-14, complete)
 - Postgres coverage now verifies a subscribed user folder deleted through `DeleteFolder` remains listed by subscription name as a non-existing/noselect mailbox.

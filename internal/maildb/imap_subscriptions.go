@@ -85,18 +85,15 @@ func (r *Repository) SubscribeIMAPMailbox(ctx context.Context, userID string, ma
 	if userID == "" {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("user_id is required")
 	}
-	if strings.TrimSpace(mailboxID) == "" {
+	mailboxID = strings.TrimSpace(mailboxID)
+	if mailboxID == "" {
 		return imapgw.MailboxSubscription{}, fmt.Errorf("mailbox_id is required")
 	}
 	var mailbox imapgw.Mailbox
 	var err error
 	exists := true
 	name := ""
-	if strings.TrimSpace(mailboxID) == mailboxID {
-		mailbox, err = r.GetIMAPMailbox(ctx, userID, mailboxID)
-	} else {
-		err = imapgw.ErrMailboxNotFound
-	}
+	mailbox, err = r.GetIMAPMailbox(ctx, userID, mailboxID)
 	if err != nil {
 		if !isIMAPMailboxNotFound(err) {
 			return imapgw.MailboxSubscription{}, err
@@ -128,17 +125,16 @@ func (r *Repository) UnsubscribeIMAPMailbox(ctx context.Context, userID string, 
 	if userID == "" {
 		return fmt.Errorf("user_id is required")
 	}
-	if strings.TrimSpace(mailboxID) == "" {
+	mailboxID = strings.TrimSpace(mailboxID)
+	if mailboxID == "" {
 		return fmt.Errorf("mailbox_id is required")
 	}
 
 	name := mailboxID
-	if strings.TrimSpace(mailboxID) == mailboxID {
-		if mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID); err == nil {
-			name = imapSubscriptionDisplayName(mailbox)
-		} else if !isIMAPMailboxNotFound(err) {
-			return err
-		}
+	if mailbox, err := r.GetIMAPMailbox(ctx, userID, mailboxID); err == nil {
+		name = imapSubscriptionDisplayName(mailbox)
+	} else if !isIMAPMailboxNotFound(err) {
+		return err
 	}
 	canonical := canonicalIMAPSubscriptionName(name)
 	if canonical == "" {
@@ -164,7 +160,8 @@ func imapSubscriptionDisplayName(mailbox imapgw.Mailbox) string {
 }
 
 func canonicalIMAPSubscriptionName(value string) string {
-	if strings.TrimSpace(value) == "" {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return ""
 	}
 	return strings.ToLower(value)
