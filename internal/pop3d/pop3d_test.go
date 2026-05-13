@@ -393,6 +393,22 @@ func TestPOP3UserCanBeReplacedBeforePass(t *testing.T) {
 	assertPOP3AuthenticatedState(t, tp, "replaced USER/PASS", "2")
 }
 
+func TestPOP3UserSyntaxErrorKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	line := pop3Cmd(t, tp, "-ERR", "USER alice extra")
+	if !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected syntax error, got: %s", line)
+	}
+	assertPOP3AuthCapabilities(t, tp, "USER syntax error")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
