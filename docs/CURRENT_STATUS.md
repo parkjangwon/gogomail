@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP append lazy UID ordering hardening)
+Last updated: 2026-05-14 (IMAP copy lazy UID destination ordering hardening)
+
+## IMAP copy lazy UID destination ordering hardening (2026-05-14, complete)
+- PostgreSQL-backed IMAP COPY now backfills existing active destination messages without `imap_message_uid` rows inside the locked destination mailbox-state transaction before assigning copied message UIDs.
+- Regression coverage verifies destination STATUS prediction, COPYUID destination UID/sequence number, LIST ordering, and final UIDNEXT/HIGHESTMODSEQ stay monotonic when the destination mailbox contains legacy unassigned messages.
 
 ## IMAP append lazy UID ordering hardening (2026-05-14, complete)
 - PostgreSQL-backed IMAP APPEND now backfills existing active messages without `imap_message_uid` rows inside the same mailbox-state transaction before assigning the appended message UID.

@@ -1305,6 +1305,87 @@ WHERE message_id = $1::uuid`, string(copiedSummary.ID)).Scan(&copiedAttachmentCo
 	}
 }
 
+func TestPostgresIMAPCopyBackfillsDestinationLegacyUIDsBeforeCopy(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var sourceID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-order-source@example.com>',
+  'copy order source', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/copy-order-source.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&sourceID); err != nil {
+		t.Fatalf("insert copy source message: %v", err)
+	}
+	sourceUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, sourceID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<dest-legacy-first@example.com>',
+   'destination legacy first', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/dest-legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<dest-legacy-second@example.com>',
+   'destination legacy second', 'sender@example.net', '2026-05-04T00:03:00Z'::timestamptz,
+   100, 'mail/dest-legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.sentID); err != nil {
+		t.Fatalf("insert destination legacy messages: %v", err)
+	}
+
+	before, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.sentID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox before copy returned error: %v", err)
+	}
+	if before.UIDNext != 3 || before.HighestModSeq != 2 {
+		t.Fatalf("predicted destination state = uidnext %d highestmodseq %d, want 3/2", before.UIDNext, before.HighestModSeq)
+	}
+
+	copied, err := repo.CopyIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{sourceUID.UID})
+	if err != nil {
+		t.Fatalf("CopyIMAPMessages returned error: %v", err)
+	}
+	if len(copied) != 1 {
+		t.Fatalf("copied summaries = %#v, want 1", copied)
+	}
+	if copied[0].Destination.UID != 3 || copied[0].Destination.SequenceNumber != 3 {
+		t.Fatalf("copied destination uid/seq = %d/%d, want 3/3", copied[0].Destination.UID, copied[0].Destination.SequenceNumber)
+	}
+
+	messages, err := repo.ListIMAPMessages(ctx, seed.userID, seed.sentID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListIMAPMessages returned error: %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("listed destination messages = %d, want 3", len(messages))
+	}
+	wantSubjects := []string{"destination legacy first", "destination legacy second", "copy order source"}
+	for i, msg := range messages {
+		wantUID := imapgw.UID(i + 1)
+		wantSeq := uint32(i + 1)
+		if msg.UID != wantUID || msg.SequenceNumber != wantSeq || msg.Envelope.Subject != wantSubjects[i] {
+			t.Fatalf("destination[%d] = uid %d seq %d subject %q, want %d/%d/%q", i, msg.UID, msg.SequenceNumber, msg.Envelope.Subject, wantUID, wantSeq, wantSubjects[i])
+		}
+	}
+	after, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.sentID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox after copy returned error: %v", err)
+	}
+	if after.UIDNext != 4 || after.HighestModSeq != 3 {
+		t.Fatalf("destination state after copy = uidnext %d highestmodseq %d, want 4/3", after.UIDNext, after.HighestModSeq)
+	}
+}
+
 func TestPostgresIMAPAppendStoresMessageAndUID(t *testing.T) {
 	t.Parallel()
 
