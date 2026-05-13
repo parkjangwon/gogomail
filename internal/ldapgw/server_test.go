@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -72,16 +73,23 @@ func newFakeDirectoryQuerier() *fakeDirectoryQuerier {
 func (f *fakeDirectoryQuerier) SearchPrincipals(ctx context.Context, req DirectorySearchRequest) ([]PrincipalEntry, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	start := req.Offset
-	if start > len(f.principals) {
-		start = len(f.principals)
+	var filtered []PrincipalEntry
+	for _, p := range f.principals {
+		if len(req.Kinds) > 0 && !containsStringFold(req.Kinds, firstNonEmpty(p.Kind, "user")) {
+			continue
+		}
+		filtered = append(filtered, p)
 	}
-	end := len(f.principals)
+	start := req.Offset
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	end := len(filtered)
 	if req.Limit > 0 && start+req.Limit < end {
 		end = start + req.Limit
 	}
 	var result []PrincipalEntry
-	for _, p := range f.principals[start:end] {
+	for _, p := range filtered[start:end] {
 		result = append(result, p)
 	}
 	return result, nil
@@ -91,6 +99,15 @@ func (f *fakeDirectoryQuerier) addPrincipal(p PrincipalEntry) {
 	f.mu.Lock()
 	f.principals = append(f.principals, p)
 	f.mu.Unlock()
+}
+
+func containsStringFold(values []string, want string) bool {
+	for _, value := range values {
+		if strings.EqualFold(value, want) {
+			return true
+		}
+	}
+	return false
 }
 
 func buildLDAPPacket(msgID int, opTag int, opData []byte) []byte {
@@ -706,6 +723,161 @@ func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOrganizationalUnitSearchReturnsOrganizationEntries(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=user-1,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "user-1",
+		DisplayName: "Alice",
+	})
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "ou=org-1,ou=organizations,dc=example,dc=com",
+		Kind:        "organization",
+		CN:          "Research",
+		UID:         "org-1",
+		OU:          "Research",
+		DisplayName: "Research",
+	})
+	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacket(22, opSearchRequest,
+		buildSearchRequestWithAttrs("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "organizationalUnit"), "objectClass", "ou", "mail"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if !bytesContains(opData, []byte("ou=org-1,ou=organizations,dc=example,dc=com")) {
+		t.Fatalf("organization DN missing from LDAP entry: %x", opData)
+	}
+	if !bytesContains(opData, []byte("organizationalUnit")) || !bytesContains(opData, []byte("Research")) {
+		t.Fatalf("organization LDAP attrs missing objectClass/ou: %x", opData)
+	}
+	if bytesContains(opData, []byte("alice@example.com")) {
+		t.Fatalf("organizationalUnit search returned user mail attribute: %x", opData)
+	}
+}
+
+func TestLDAPServerOrganizationBaseDNRestrictsSubtreeSearch(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{DN: "uid=user-1,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "user-1", DisplayName: "Alice"})
+	dir.addPrincipal(PrincipalEntry{DN: "ou=org-1,ou=organizations,dc=example,dc=com", Kind: "organization", CN: "Research", UID: "org-1", OU: "Research", DisplayName: "Research"})
+	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	filter := []byte{tagContextSpecific | filterPresent}
+	filter = append(filter, encodeLength(len("objectClass"))...)
+	filter = append(filter, []byte("objectClass")...)
+	searchReq := buildLDAPPacket(23, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=organizations,dc=example,dc=com", scopeWholeSubtree, filter, "objectClass", "ou", "mail"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if !bytesContains(opData, []byte("ou=org-1,ou=organizations,dc=example,dc=com")) {
+		t.Fatalf("organization subtree did not return organization entry: %x", opData)
+	}
+	if bytesContains(opData, []byte("alice@example.com")) {
+		t.Fatalf("organization subtree returned user entry: %x", opData)
+	}
+}
+
+func TestLDAPServerContainerBaseObjectSearch(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	filter := []byte{tagContextSpecific | filterPresent}
+	filter = append(filter, encodeLength(len("objectClass"))...)
+	filter = append(filter, []byte("objectClass")...)
+	searchReq := buildLDAPPacket(24, opSearchRequest,
+		buildSearchRequestWithAttrs("ou=organizations,dc=example,dc=com", scopeBaseObject, filter, "objectClass", "ou", "displayName"),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultEntry {
+		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
+	}
+	if !bytesContains(opData, []byte("ou=organizations,dc=example,dc=com")) || !bytesContains(opData, []byte("Organizations")) {
+		t.Fatalf("container base-object response missing organization container data: %x", opData)
+	}
+}
+
 func TestLDAPServerRootDSEAdvertisesNamingContextAndStartTLS(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -913,6 +1085,27 @@ func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
 	}
 	if got != "(cn=ali)" {
 		t.Fatalf("parseLDAPFilter = %q, want first searchable substring candidate", got)
+	}
+}
+
+func TestParseLDAPFilterPrincipalKindsFromObjectClass(t *testing.T) {
+	filter := buildOrFilter(
+		buildEqualityFilter("objectClass", "organizationalUnit"),
+		buildEqualityFilter("objectClass", "groupOfNames"),
+		buildSubstringFilter("ou", "Research"),
+	)
+	got, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	want := []string{"organization", "group"}
+	if len(got) != len(want) {
+		t.Fatalf("kinds = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("kinds = %#v, want %#v", got, want)
+		}
 	}
 }
 

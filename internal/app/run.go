@@ -901,6 +901,7 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 	}
 	principals, err := q.repo.SearchPrincipals(ctx, directory.SearchPrincipalsRequest{
 		CompanyID:  q.companyID,
+		Kinds:      req.Kinds,
 		Query:      query,
 		ActiveOnly: true,
 		Limit:      limit,
@@ -915,16 +916,32 @@ func (q *ldapDirectoryQuerier) SearchPrincipals(ctx context.Context, req ldapgw.
 		baseDN = "dc=local"
 	}
 	for _, p := range principals {
-		dn := fmt.Sprintf("uid=%s,ou=users,%s", p.ID, baseDN)
+		dn := ldapPrincipalDN(p, baseDN)
 		entries = append(entries, ldapgw.PrincipalEntry{
-			DN:          dn,
-			CN:          p.DisplayName,
-			Mail:        p.PrimaryEmail,
-			UID:         p.ID,
-			DisplayName: p.DisplayName,
+			DN:           dn,
+			Kind:         p.Kind,
+			CN:           p.DisplayName,
+			Mail:         p.PrimaryEmail,
+			UID:          p.ID,
+			OU:           p.DisplayName,
+			DisplayName:  p.DisplayName,
+			ResourceType: p.ResourceType,
 		})
 	}
 	return entries, nil
+}
+
+func ldapPrincipalDN(p directory.Principal, baseDN string) string {
+	switch p.Kind {
+	case directory.PrincipalKindOrganization:
+		return fmt.Sprintf("ou=%s,ou=organizations,%s", p.ID, baseDN)
+	case directory.PrincipalKindGroup:
+		return fmt.Sprintf("cn=%s,ou=groups,%s", p.ID, baseDN)
+	case directory.PrincipalKindResource:
+		return fmt.Sprintf("cn=%s,ou=resources,%s", p.ID, baseDN)
+	default:
+		return fmt.Sprintf("uid=%s,ou=users,%s", p.ID, baseDN)
+	}
 }
 
 type maildbSCIMUserService struct {

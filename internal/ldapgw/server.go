@@ -21,13 +21,16 @@ type DirectoryQuerier interface {
 }
 
 type PrincipalEntry struct {
-	DN          string
-	CN          string
-	Mail        string
-	UID         string
-	DisplayName string
-	GivenName   string
-	SN          string
+	DN           string
+	Kind         string
+	CN           string
+	Mail         string
+	UID          string
+	OU           string
+	DisplayName  string
+	GivenName    string
+	SN           string
+	ResourceType string
 }
 
 type DirectorySearchRequest struct {
@@ -35,6 +38,7 @@ type DirectorySearchRequest struct {
 	Scope  int
 	Filter string
 	Attrs  []string
+	Kinds  []string
 	Limit  int
 	Offset int
 }
@@ -387,6 +391,14 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		}
 		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
 	}
+	if containerAttrs, ok := ldapContainerAttributes(baseObject); ok && scope == scopeBaseObject {
+		entry, err := encodeSearchResultEntry(msgID, baseObject, selectLDAPAttributes(containerAttrs, attrs, typesOnly))
+		if err != nil {
+			result := resultUnwillingToPerform
+			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+		}
+		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+	}
 	if !s.baseDNWithinNamingContext(baseObject) && len(s.referralURLs) > 0 {
 		resp := encodeSearchResultReference(msgID, s.referralURLs)
 		resp = append(resp, encodeSearchResultDone(msgID, resultSuccess, "", "")...)
@@ -408,6 +420,15 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		result := resultUnwillingToPerform
 		return encodeSearchResultDone(msgID, result, "", "malformed filter"), result, 0
 	}
+	kinds, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", "malformed objectClass filter"), result, 0
+	}
+	kinds, noKindMatch := intersectPrincipalKinds(kinds, principalKindsForBaseDN(baseObject))
+	if noKindMatch {
+		return encodeSearchResultDone(msgID, resultSuccess, "", ""), resultSuccess, 0
+	}
 
 	limit := 100
 	if paged && pageSize > 0 {
@@ -418,6 +439,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		Scope:  scope,
 		Filter: ldapFilter,
 		Attrs:  attrs,
+		Kinds:  kinds,
 		Limit:  limit,
 		Offset: pageOffset,
 	})
@@ -436,18 +458,7 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 
 	resp := make([]byte, 0, 4096)
 	for _, p := range principals {
-		attrMap := map[string][]string{
-			"cn":          {p.CN},
-			"mail":        {p.Mail},
-			"uid":         {p.UID},
-			"displayName": {p.DisplayName},
-		}
-		if p.GivenName != "" {
-			attrMap["givenName"] = []string{p.GivenName}
-		}
-		if p.SN != "" {
-			attrMap["sn"] = []string{p.SN}
-		}
+		attrMap := principalLDAPAttributes(p)
 		entry, err := encodeSearchResultEntry(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly))
 		if err != nil {
 			continue
@@ -464,6 +475,117 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
 	}
 	return resp, result, len(principals)
+}
+
+func ldapContainerAttributes(dn string) (map[string][]string, bool) {
+	switch firstRDNValue(normalizeDNForCompare(dn), "ou") {
+	case "users":
+		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"users"}, "cn": {"users"}, "displayName": {"Users"}}, true
+	case "organizations":
+		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"organizations"}, "cn": {"organizations"}, "displayName": {"Organizations"}}, true
+	case "groups":
+		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"groups"}, "cn": {"groups"}, "displayName": {"Groups"}}, true
+	case "resources":
+		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"resources"}, "cn": {"resources"}, "displayName": {"Resources"}}, true
+	default:
+		return nil, false
+	}
+}
+
+func principalKindsForBaseDN(dn string) []string {
+	switch firstRDNValue(normalizeDNForCompare(dn), "ou") {
+	case "users":
+		return []string{"user"}
+	case "organizations":
+		return []string{"organization"}
+	case "groups":
+		return []string{"group"}
+	case "resources":
+		return []string{"resource"}
+	default:
+		return nil
+	}
+}
+
+func firstRDNValue(dn, attr string) string {
+	if dn == "" {
+		return ""
+	}
+	first := strings.TrimSpace(strings.Split(dn, ",")[0])
+	parts := strings.SplitN(first, "=", 2)
+	if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[0]), attr) {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
+func intersectPrincipalKinds(filterKinds, baseKinds []string) ([]string, bool) {
+	if len(baseKinds) == 0 {
+		return filterKinds, false
+	}
+	if len(filterKinds) == 0 {
+		return baseKinds, false
+	}
+	base := make(map[string]struct{}, len(baseKinds))
+	for _, kind := range baseKinds {
+		base[kind] = struct{}{}
+	}
+	out := make([]string, 0, len(filterKinds))
+	for _, kind := range filterKinds {
+		if _, ok := base[kind]; ok {
+			out = append(out, kind)
+		}
+	}
+	if len(out) == 0 {
+		return nil, true
+	}
+	return out, false
+}
+
+func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
+	kind := strings.ToLower(strings.TrimSpace(p.Kind))
+	if kind == "" {
+		kind = "user"
+	}
+	cn := firstNonEmpty(p.CN, p.DisplayName, p.UID)
+	attrs := map[string][]string{
+		"cn":          {cn},
+		"uid":         {p.UID},
+		"displayName": {firstNonEmpty(p.DisplayName, cn)},
+	}
+	switch kind {
+	case "organization":
+		attrs["objectClass"] = []string{"top", "organizationalUnit"}
+		attrs["ou"] = []string{firstNonEmpty(p.OU, p.DisplayName, cn)}
+	case "group":
+		attrs["objectClass"] = []string{"top", "groupOfNames"}
+	case "resource":
+		attrs["objectClass"] = []string{"top", "device"}
+		if p.ResourceType != "" {
+			attrs["description"] = []string{p.ResourceType}
+		}
+	default:
+		attrs["objectClass"] = []string{"top", "person", "organizationalPerson", "inetOrgPerson"}
+		if p.Mail != "" {
+			attrs["mail"] = []string{p.Mail}
+		}
+		if p.GivenName != "" {
+			attrs["givenName"] = []string{p.GivenName}
+		}
+		if p.SN != "" {
+			attrs["sn"] = []string{p.SN}
+		}
+	}
+	return attrs
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (s *LDAPServer) baseDNWithinNamingContext(baseDN string) bool {
@@ -839,10 +961,15 @@ func subschemaAttributes() map[string][]string {
 			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
 			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
 			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName ) )",
+			"( 2.5.6.5 NAME 'organizationalUnit' SUP top STRUCTURAL MUST ou MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )",
+			"( 2.5.6.9 NAME 'groupOfNames' SUP top STRUCTURAL MUST ( member $ cn ) MAY ( businessCategory $ seeAlso $ owner $ ou $ o $ description ) )",
+			"( 2.5.6.14 NAME 'device' SUP top STRUCTURAL MUST cn MAY ( serialNumber $ seeAlso $ owner $ ou $ o $ l $ description ) )",
 		},
 		"attributeTypes": {
 			"( 2.5.4.3 NAME 'cn' SUP name )",
 			"( 2.5.4.4 NAME 'sn' SUP name )",
+			"( 2.5.4.11 NAME 'ou' SUP name )",
+			"( 2.5.4.13 NAME 'description' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 2.5.4.42 NAME 'givenName' SUP name )",
 			"( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
 			"( 0.9.2342.19200300.100.1.1 NAME 'uid' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
@@ -918,6 +1045,91 @@ func parseLDAPFilter(data []byte) (string, error) {
 		return "", nil
 	}
 	return fmt.Sprintf("(%s=%s)", attr, value), nil
+}
+
+func parseLDAPFilterPrincipalKinds(data []byte) ([]string, error) {
+	seen := map[string]struct{}{}
+	if err := collectLDAPFilterPrincipalKinds(data, seen); err != nil {
+		return nil, err
+	}
+	if len(seen) == 0 {
+		return nil, nil
+	}
+	order := []string{"user", "organization", "group", "resource"}
+	kinds := make([]string, 0, len(seen))
+	for _, kind := range order {
+		if _, ok := seen[kind]; ok {
+			kinds = append(kinds, kind)
+		}
+	}
+	return kinds, nil
+}
+
+func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if data[0]&0x80 == 0 {
+		return fmt.Errorf("filter tag 0x%02x is not context-specific", data[0])
+	}
+	filterType := int(data[0] & 0x1f)
+	content, err := decodeContent(data[1:])
+	if err != nil {
+		return err
+	}
+	switch filterType {
+	case filterAnd, filterOr:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return err
+			}
+			if err := collectLDAPFilterPrincipalKinds(child, seen); err != nil {
+				return err
+			}
+			content = rest
+		}
+	case filterNot:
+		child, _, err := readRawTLV(content)
+		if err != nil {
+			return err
+		}
+		return collectLDAPFilterPrincipalKinds(child, seen)
+	case filterEqualityMatch, filterApproxMatch:
+		attr, valRest, err := decodeOctetString(content)
+		if err != nil {
+			return err
+		}
+		value, _, err := decodeOctetString(valRest)
+		if err != nil {
+			return err
+		}
+		if strings.EqualFold(strings.TrimSpace(attr), "objectClass") {
+			for _, kind := range principalKindsForObjectClass(value) {
+				seen[kind] = struct{}{}
+			}
+		}
+	case filterPresent, filterSubstrings, filterGreaterOrEqual, filterLessOrEqual:
+		return nil
+	default:
+		return fmt.Errorf("unsupported filter type: %d", filterType)
+	}
+	return nil
+}
+
+func principalKindsForObjectClass(value string) []string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "person", "organizationalperson", "inetorgperson":
+		return []string{"user"}
+	case "organizationalunit":
+		return []string{"organization"}
+	case "groupofnames", "groupofuniquenames", "posixgroup":
+		return []string{"group"}
+	case "device":
+		return []string{"resource"}
+	default:
+		return nil
+	}
 }
 
 func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, err error) {
@@ -1027,7 +1239,7 @@ func decodeSubstringParts(data []byte) ([]string, error) {
 
 func isDirectorySearchAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "cn", "mail", "uid", "displayname", "givenname", "sn":
+	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description":
 		return true
 	default:
 		return false

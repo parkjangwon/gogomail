@@ -18,6 +18,7 @@ import (
 	"github.com/gogomail/gogomail/internal/auth"
 	"github.com/gogomail/gogomail/internal/config"
 	"github.com/gogomail/gogomail/internal/delivery"
+	"github.com/gogomail/gogomail/internal/directory"
 	"github.com/gogomail/gogomail/internal/drive"
 	"github.com/gogomail/gogomail/internal/eventstream"
 	"github.com/gogomail/gogomail/internal/imapgw"
@@ -101,6 +102,44 @@ func TestLDAPFilterToQueryExtractsDirectorySearchAttributes(t *testing.T) {
 	}
 	if got := ldapFilterToQuery("(objectClass=person)"); got != "" {
 		t.Fatalf("ldapFilterToQuery objectClass = %q, want empty", got)
+	}
+}
+
+func TestLDAPPrincipalDNUsesKindSpecificSubtrees(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		p    directory.Principal
+		want string
+	}{
+		{
+			name: "user",
+			p:    directory.Principal{ID: "user-1", Kind: directory.PrincipalKindUser},
+			want: "uid=user-1,ou=users,dc=example,dc=com",
+		},
+		{
+			name: "organization",
+			p:    directory.Principal{ID: "org-1", Kind: directory.PrincipalKindOrganization},
+			want: "ou=org-1,ou=organizations,dc=example,dc=com",
+		},
+		{
+			name: "group",
+			p:    directory.Principal{ID: "group-1", Kind: directory.PrincipalKindGroup},
+			want: "cn=group-1,ou=groups,dc=example,dc=com",
+		},
+		{
+			name: "resource",
+			p:    directory.Principal{ID: "room-1", Kind: directory.PrincipalKindResource},
+			want: "cn=room-1,ou=resources,dc=example,dc=com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ldapPrincipalDN(tt.p, "dc=example,dc=com"); got != tt.want {
+				t.Fatalf("ldapPrincipalDN = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
