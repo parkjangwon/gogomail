@@ -5255,6 +5255,9 @@ Target outcome:
  1688. SMTP inbound mixed-domain policy reset is now covered: a failed DATA
          caused by a later recipient domain's stricter size limit clears the
          accumulated policy state before the next MAIL transaction.
+ 1689. SMTP inbound RSET policy reset is now covered: explicit reset after
+         mixed-domain RCPT state clears accumulated domain limits before the
+         next MAIL transaction.
 
 ## Deferred until backend contracts stabilize
 
