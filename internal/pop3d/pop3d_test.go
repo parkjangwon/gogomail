@@ -2039,6 +2039,50 @@ func TestPOP3CommitDeletesErrorRetrKeepsDeleteMarkClear(t *testing.T) {
 	}
 }
 
+func TestPOP3CommitDeletesErrorTopKeepsDeleteMarkClear(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 56, content: "From: a@example.com\r\n\r\nHello\r\nWorld\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+	pop3Cmd(t, tp, "+OK", "TOP 1 1")
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read TOP body after failed QUIT: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "From: a@example.com") || !strings.Contains(content, "Hello") {
+		t.Fatalf("expected TOP 1 1 after failed QUIT to return restored message header and first body line, got %q", content)
+	}
+	if strings.Contains(content, "World") {
+		t.Fatalf("expected TOP 1 1 after failed QUIT to omit later body lines, got %q", content)
+	}
+	if mb.Deleted(0) {
+		t.Fatal("expected TOP after failed QUIT to leave delete mark clear")
+	}
+
+	mb.commitErr = nil
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls after TOP then no-delete QUIT = %d, want 1", mb.commitCalls)
+	}
+}
+
 func TestPOP3CommitDeletesErrorPreservesTransactionCapabilities(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{
