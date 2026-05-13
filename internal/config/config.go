@@ -53,8 +53,12 @@ type Config struct {
 	WebDAVAddr                          string
 	WebDAVDepthInfinityEnabled          bool
 	LDAPAddr                            string
+	LDAPSAddr                           string
+	LDAPTLSCertFile                     string
+	LDAPTLSKeyFile                      string
 	LDAPCompanyID                       string
 	LDAPBaseDomain                      string
+	LDAPReferralURLs                    []string
 	SCIMToken                           string
 	SCIMDefaultDomainID                 string
 	SubmissionAddr                      string
@@ -283,8 +287,12 @@ func Load() Config {
 		WebDAVAddr:                          envOrDefault("GOGOMAIL_WEBDAV_ADDR", ":8083"),
 		WebDAVDepthInfinityEnabled:          boolEnvOrDefault("GOGOMAIL_WEBDAV_DEPTH_INFINITY_ENABLED", false),
 		LDAPAddr:                            envOrDefault("GOGOMAIL_LDAP_ADDR", ":389"),
+		LDAPSAddr:                           envOrDefault("GOGOMAIL_LDAPS_ADDR", ""),
+		LDAPTLSCertFile:                     envOrDefault("GOGOMAIL_LDAP_TLS_CERT_FILE", ""),
+		LDAPTLSKeyFile:                      envOrDefault("GOGOMAIL_LDAP_TLS_KEY_FILE", ""),
 		LDAPCompanyID:                       envOrDefault("GOGOMAIL_LDAP_COMPANY_ID", ""),
 		LDAPBaseDomain:                      envOrDefault("GOGOMAIL_LDAP_BASE_DOMAIN", ""),
+		LDAPReferralURLs:                    splitLDAPReferralURLs(os.Getenv("GOGOMAIL_LDAP_REFERRAL_URLS")),
 		SCIMToken:                           envOrDefault("GOGOMAIL_SCIM_TOKEN", ""),
 		SCIMDefaultDomainID:                 envOrDefault("GOGOMAIL_SCIM_DEFAULT_DOMAIN_ID", ""),
 		SubmissionAddr:                      envOrDefault("GOGOMAIL_SUBMISSION_ADDR", ":2587"),
@@ -503,6 +511,23 @@ func splitCSV(raw string) []string {
 		}
 	}
 	return values
+}
+
+func splitLDAPReferralURLs(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ';' || r == '\n' || r == '\t'
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func intEnvOrDefault(key string, fallback int) int {

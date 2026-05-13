@@ -521,6 +521,11 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "carddav missing port", mutate: func(cfg *Config) { cfg.CardDAVAddr = "localhost" }},
 		{name: "carddav newline", mutate: func(cfg *Config) { cfg.CardDAVAddr = ":8082\nbad" }},
 		{name: "imap tls cert newline", mutate: func(cfg *Config) { cfg.IMAPTLSCertFile = "cert.pem\nbad" }},
+		{name: "ldap missing port", mutate: func(cfg *Config) { cfg.LDAPAddr = "localhost" }},
+		{name: "ldaps missing tls files", mutate: func(cfg *Config) { cfg.LDAPSAddr = ":636"; cfg.LDAPTLSCertFile = ""; cfg.LDAPTLSKeyFile = "" }},
+		{name: "ldap tls key newline", mutate: func(cfg *Config) { cfg.LDAPTLSKeyFile = "key.pem\nbad" }},
+		{name: "ldap referral bad scheme", mutate: func(cfg *Config) { cfg.LDAPReferralURLs = []string{"https://directory.example.net"} }},
+		{name: "ldap referral missing host", mutate: func(cfg *Config) { cfg.LDAPReferralURLs = []string{"ldap:///dc=example,dc=net"} }},
 		{name: "submission port too high", mutate: func(cfg *Config) { cfg.SubmissionAddr = "127.0.0.1:70000" }},
 		{name: "submission max connections negative", mutate: func(cfg *Config) { cfg.SubmissionMaxConnections = -1 }},
 		{name: "smtps optional invalid", mutate: func(cfg *Config) { cfg.SubmissionSMTPSAddr = "bad" }},
@@ -545,6 +550,8 @@ func TestValidateAcceptsListenerAddressForms(t *testing.T) {
 	cfg.InboundSMTPAddr = "127.0.0.1:2526"
 	cfg.IMAPAddr = "localhost:1143"
 	cfg.CalDAVAddr = "localhost:8081"
+	cfg.LDAPAddr = "localhost:389"
+	cfg.LDAPSAddr = ""
 	cfg.IMAPTLSCertFile = "imap-cert.pem"
 	cfg.IMAPTLSKeyFile = "imap-key.pem"
 	cfg.SubmissionAddr = "localhost:2587"
@@ -557,6 +564,13 @@ func TestValidateAcceptsListenerAddressForms(t *testing.T) {
 	cfg.SMTPTLSKeyFile = "key.pem"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error with SMTPS addr = %v", err)
+	}
+	cfg.LDAPSAddr = "[::1]:636"
+	cfg.LDAPTLSCertFile = "ldap-cert.pem"
+	cfg.LDAPTLSKeyFile = "ldap-key.pem"
+	cfg.LDAPReferralURLs = []string{"ldap://directory.example.net/dc=example,dc=net"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error with LDAPS addr = %v", err)
 	}
 }
 

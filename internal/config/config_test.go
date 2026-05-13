@@ -141,6 +141,13 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("GOGOMAIL_PUSH_NOTIFICATION_DEVICE_LIMIT", "")
 	t.Setenv("GOGOMAIL_CARDDAV_TRUST_FORWARDED_PROTO", "")
 	t.Setenv("GOGOMAIL_CARDDAV_TRUSTED_PROXIES", "")
+	t.Setenv("GOGOMAIL_LDAP_ADDR", "")
+	t.Setenv("GOGOMAIL_LDAPS_ADDR", "")
+	t.Setenv("GOGOMAIL_LDAP_TLS_CERT_FILE", "")
+	t.Setenv("GOGOMAIL_LDAP_TLS_KEY_FILE", "")
+	t.Setenv("GOGOMAIL_LDAP_COMPANY_ID", "")
+	t.Setenv("GOGOMAIL_LDAP_BASE_DOMAIN", "")
+	t.Setenv("GOGOMAIL_LDAP_REFERRAL_URLS", "")
 
 	cfg := Load()
 
@@ -248,6 +255,12 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if len(cfg.CardDAVTrustedProxies) != 0 {
 		t.Fatalf("CardDAVTrustedProxies = %#v, want empty", cfg.CardDAVTrustedProxies)
+	}
+	if cfg.LDAPAddr != ":389" || cfg.LDAPSAddr != "" || cfg.LDAPTLSCertFile != "" || cfg.LDAPTLSKeyFile != "" {
+		t.Fatalf("LDAP defaults = addr:%q ldaps:%q tls:%q/%q", cfg.LDAPAddr, cfg.LDAPSAddr, cfg.LDAPTLSCertFile, cfg.LDAPTLSKeyFile)
+	}
+	if len(cfg.LDAPReferralURLs) != 0 {
+		t.Fatalf("LDAPReferralURLs = %#v, want empty", cfg.LDAPReferralURLs)
 	}
 	if cfg.SubmissionAddr != ":2587" {
 		t.Fatalf("SubmissionAddr = %q, want :2587", cfg.SubmissionAddr)
@@ -541,6 +554,13 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_HTTP_READ_HEADER_TIMEOUT", "3s")
 	t.Setenv("GOGOMAIL_HTTP_MAX_HEADER_BYTES", "32768")
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
+	t.Setenv("GOGOMAIL_LDAP_ADDR", ":1389")
+	t.Setenv("GOGOMAIL_LDAPS_ADDR", ":1636")
+	t.Setenv("GOGOMAIL_LDAP_TLS_CERT_FILE", "ldap-cert.pem")
+	t.Setenv("GOGOMAIL_LDAP_TLS_KEY_FILE", "ldap-key.pem")
+	t.Setenv("GOGOMAIL_LDAP_COMPANY_ID", "company-1")
+	t.Setenv("GOGOMAIL_LDAP_BASE_DOMAIN", "dc=example,dc=com")
+	t.Setenv("GOGOMAIL_LDAP_REFERRAL_URLS", "ldap://directory.example.net/dc=example,dc=net;ldaps://directory.example.org/dc=example,dc=org")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_POP3_MAX_CONNECTIONS", "96")
 	t.Setenv("GOGOMAIL_POP3S_ADDR", ":1995")
@@ -712,6 +732,15 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.POP3SAddr != ":1995" {
 		t.Fatalf("POP3SAddr = %q, want :1995", cfg.POP3SAddr)
+	}
+	if cfg.LDAPAddr != ":1389" || cfg.LDAPSAddr != ":1636" || cfg.LDAPTLSCertFile != "ldap-cert.pem" || cfg.LDAPTLSKeyFile != "ldap-key.pem" {
+		t.Fatalf("LDAP env = addr:%q ldaps:%q tls:%q/%q", cfg.LDAPAddr, cfg.LDAPSAddr, cfg.LDAPTLSCertFile, cfg.LDAPTLSKeyFile)
+	}
+	if cfg.LDAPCompanyID != "company-1" || cfg.LDAPBaseDomain != "dc=example,dc=com" {
+		t.Fatalf("LDAP scope = company:%q base:%q", cfg.LDAPCompanyID, cfg.LDAPBaseDomain)
+	}
+	if len(cfg.LDAPReferralURLs) != 2 || cfg.LDAPReferralURLs[0] != "ldap://directory.example.net/dc=example,dc=net" || cfg.LDAPReferralURLs[1] != "ldaps://directory.example.org/dc=example,dc=org" {
+		t.Fatalf("LDAPReferralURLs = %#v", cfg.LDAPReferralURLs)
 	}
 	if cfg.SubmissionMaxConnections != 128 {
 		t.Fatalf("SubmissionMaxConnections = %d, want 128", cfg.SubmissionMaxConnections)

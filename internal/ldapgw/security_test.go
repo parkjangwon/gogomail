@@ -128,7 +128,7 @@ func TestMalformedFilterRejected(t *testing.T) {
 	malformedFilter := []byte{
 		tagContextSpecific | filterEqualityMatch, // 0x83
 		0x20,                                     // declares 32 bytes
-		0x04, 0x02, 'c', 'n',                    // only 4 bytes
+		0x04, 0x02, 'c', 'n',                     // only 4 bytes
 	}
 	pdu := buildLDAPPacket(7, opSearchRequest,
 		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, malformedFilter))

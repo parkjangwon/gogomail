@@ -49,7 +49,7 @@ func TestBerDecodeBindRequest(t *testing.T) {
 
 func TestIsReadOnlyOperation(t *testing.T) {
 	tests := []struct {
-		op     int
+		op       int
 		readOnly bool
 	}{
 		{opBindRequest, true},

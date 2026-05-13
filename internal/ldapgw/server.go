@@ -2,8 +2,10 @@ package ldapgw
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -34,21 +36,66 @@ type DirectorySearchRequest struct {
 	Filter string
 	Attrs  []string
 	Limit  int
+	Offset int
 }
 
 type LDAPServer struct {
-	ln      net.Listener
-	auth    LDAPAuthenticator
-	quer    DirectoryQuerier
-	closed  bool
-	closeMu sync.Mutex
-	ctx     context.Context
-	cancel  context.CancelFunc
+	ln             net.Listener
+	auth           LDAPAuthenticator
+	quer           DirectoryQuerier
+	tlsConfig      *tls.Config
+	namingContexts []string
+	referralURLs   []string
+	metrics        Metrics
+	closed         bool
+	closeMu        sync.Mutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+}
+
+type ServerOptions struct {
+	TLSConfig      *tls.Config
+	NamingContexts []string
+	ReferralURLs   []string
+	Metrics        Metrics
 }
 
 func NewServer(ln net.Listener, auth LDAPAuthenticator, quer DirectoryQuerier) *LDAPServer {
+	return NewServerWithOptions(ln, auth, quer, ServerOptions{})
+}
+
+func NewServerWithOptions(ln net.Listener, auth LDAPAuthenticator, quer DirectoryQuerier, opts ServerOptions) *LDAPServer {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &LDAPServer{ln: ln, auth: auth, quer: quer, ctx: ctx, cancel: cancel}
+	var tlsConfig *tls.Config
+	if opts.TLSConfig != nil {
+		tlsConfig = opts.TLSConfig.Clone()
+		if tlsConfig.MinVersion == 0 {
+			tlsConfig.MinVersion = tls.VersionTLS12
+		}
+	}
+	namingContexts := make([]string, 0, len(opts.NamingContexts))
+	for _, dc := range opts.NamingContexts {
+		if dc = strings.TrimSpace(dc); dc != "" {
+			namingContexts = append(namingContexts, dc)
+		}
+	}
+	referralURLs := make([]string, 0, len(opts.ReferralURLs))
+	for _, u := range opts.ReferralURLs {
+		if u = strings.TrimSpace(u); u != "" {
+			referralURLs = append(referralURLs, u)
+		}
+	}
+	return &LDAPServer{
+		ln:             ln,
+		auth:           auth,
+		quer:           quer,
+		tlsConfig:      tlsConfig,
+		namingContexts: namingContexts,
+		referralURLs:   referralURLs,
+		metrics:        metricsOrDefault(opts.Metrics),
+		ctx:            ctx,
+		cancel:         cancel,
+	}
 }
 
 func (s *LDAPServer) Serve() error {
@@ -79,6 +126,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 8192)
 	readOffset := 0
+	tlsActive := false
 
 	for {
 		// Check context before blocking on read.
@@ -121,22 +169,86 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 			copy(buf, buf[totalLen:readOffset])
 			readOffset -= totalLen
 
-			msgID, opTag, opData, err := decodeLDAPPacket(pdu)
+			msgID, opTag, opData, controls, err := decodeLDAPPacketWithControls(pdu)
 			if err != nil {
 				resp := encodeLDAPResponse(0, opTag, mustEncodeNotSupported())
 				conn.Write(resp) //nolint:errcheck
+				s.observe(ctx, opTag, resultUnwillingToPerform, 0, conn.RemoteAddr(), err)
 				return
 			}
-			resp := s.handleOperation(ctx, msgID, opTag, opData)
+			if ctrl, ok := firstUnsupportedCriticalControl(controls); ok {
+				result := resultUnavailableCriticalExtension
+				resp := encodeControlErrorResponse(msgID, opTag, result, "unsupported critical control: "+ctrl.Type)
+				if _, err := conn.Write(resp); err != nil {
+					return
+				}
+				s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+				continue
+			}
+			if opTag == opExtendedRequest && isStartTLSRequest(opData) {
+				if tlsActive {
+					result := resultOperationsError
+					resp := encodeExtendedResponse(msgID, result, "", "TLS already active")
+					if _, err := conn.Write(resp); err != nil {
+						return
+					}
+					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+					continue
+				}
+				if s.tlsConfig == nil {
+					result := resultUnavailable
+					resp := encodeExtendedResponse(msgID, result, "", "StartTLS not configured")
+					if _, err := conn.Write(resp); err != nil {
+						return
+					}
+					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+					continue
+				}
+				if readOffset != 0 {
+					result := resultProtocolError
+					resp := encodeExtendedResponse(msgID, result, "", "StartTLS must be the last plaintext operation")
+					conn.Write(resp) //nolint:errcheck
+					s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+					return
+				}
+				result := resultSuccess
+				resp := encodeExtendedResponse(msgID, result, "", "")
+				if _, err := conn.Write(resp); err != nil {
+					return
+				}
+				s.observe(ctx, opTag, result, 0, conn.RemoteAddr(), nil)
+				tlsConn := tls.Server(conn, s.tlsConfig.Clone())
+				if err := tlsConn.HandshakeContext(ctx); err != nil {
+					return
+				}
+				conn = tlsConn
+				tlsActive = true
+				continue
+			}
+			resp, resultCode, entries := s.handleOperation(ctx, msgID, opTag, opData, controls)
 			if len(resp) > 0 {
 				if _, err := conn.Write(resp); err != nil {
 					return
 				}
 			}
+			s.observe(ctx, opTag, resultCode, entries, conn.RemoteAddr(), nil)
 			if opTag == opUnbindRequest {
 				return
 			}
 		}
+	}
+}
+
+func encodeControlErrorResponse(msgID int, opTag int, resultCode int, message string) []byte {
+	switch opTag {
+	case opBindRequest:
+		return encodeBindResponse(msgID, resultCode, "", message)
+	case opSearchRequest:
+		return encodeSearchResultDone(msgID, resultCode, "", message)
+	case opExtendedRequest:
+		return encodeExtendedResponse(msgID, resultCode, "", message)
+	default:
+		return encodeLDAPResponse(msgID, opTag, encodeLDAPResult(resultCode, "", message))
 	}
 }
 
@@ -179,39 +291,48 @@ func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error)
 	return pduLen, 1 + 1 + numLenBytes, nil
 }
 
-func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte) []byte {
+func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control) ([]byte, int, int) {
 	switch opTag {
 	case opBindRequest:
-		return s.handleBindRequest(ctx, msgID, opData)
+		resp, result := s.handleBindRequest(ctx, msgID, opData)
+		return resp, result, 0
 	case opSearchRequest:
-		return s.handleSearchRequest(ctx, msgID, opData)
+		return s.handleSearchRequest(ctx, msgID, opData, controls)
 	case opUnbindRequest:
-		return nil
+		return nil, resultSuccess, 0
+	case opExtendedRequest:
+		result := resultUnwillingToPerform
+		return encodeExtendedResponse(msgID, result, "", "extended operation not supported"), result, 0
 	default:
-		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported())
+		result := resultUnwillingToPerform
+		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported()), result, 0
 	}
 }
 
-func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) []byte {
+func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) ([]byte, int) {
 	select {
 	case <-ctx.Done():
-		return encodeBindResponse(msgID, resultUnwillingToPerform, "", "operation timed out")
+		result := resultUnwillingToPerform
+		return encodeBindResponse(msgID, result, "", "operation timed out"), result
 	default:
 	}
 
 	req, err := decodeBindRequestData(opData)
 	if err != nil {
-		return encodeBindResponse(msgID, resultUnwillingToPerform, "", "malformed bind request")
+		result := resultUnwillingToPerform
+		return encodeBindResponse(msgID, result, "", "malformed bind request"), result
 	}
 	if req.version != ldapV3 {
-		return encodeBindResponse(msgID, resultAuthMethodNotSupported, "", "unsupported LDAP version")
+		result := resultAuthMethodNotSupported
+		return encodeBindResponse(msgID, result, "", "unsupported LDAP version"), result
 	}
 
 	ok, err := s.auth.AuthenticateLDAP(ctx, req.name, string(req.auth))
 	if err != nil || !ok {
-		return encodeBindResponse(msgID, resultInvalidCredentials, "", "invalid credentials")
+		result := resultInvalidCredentials
+		return encodeBindResponse(msgID, result, "", "invalid credentials"), result
 	}
-	return encodeBindResponse(msgID, resultSuccess, "", "")
+	return encodeBindResponse(msgID, resultSuccess, "", ""), resultSuccess
 }
 
 func decodeBindRequestData(data []byte) (*bindRequest, error) {
@@ -237,35 +358,80 @@ func decodeBindRequestData(data []byte) (*bindRequest, error) {
 	return &bindRequest{version: version, name: name, auth: auth}, nil
 }
 
-func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData []byte) []byte {
+func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData []byte, controls []control) ([]byte, int, int) {
 	select {
 	case <-ctx.Done():
-		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", "operation timed out")
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", "operation timed out"), result, 0
 	default:
 	}
 
-	baseObject, scope, filter, _, err := decodeSearchRequest(opData)
+	baseObject, scope, filter, attrs, sizeLimit, _, typesOnly, err := decodeSearchRequest(opData)
 	if err != nil {
-		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", err.Error())
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
+	if baseObject == "" && scope == scopeBaseObject {
+		entry, err := encodeSearchResultEntry(msgID, "", selectLDAPAttributes(rootDSEAttributes(s.namingContexts, s.tlsConfig != nil), attrs, typesOnly))
+		if err != nil {
+			result := resultUnwillingToPerform
+			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+		}
+		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+	}
+	if normalizeDNForCompare(baseObject) == "cn=subschema" && scope == scopeBaseObject {
+		entry, err := encodeSearchResultEntry(msgID, "cn=Subschema", selectLDAPAttributes(subschemaAttributes(), attrs, typesOnly))
+		if err != nil {
+			result := resultUnwillingToPerform
+			return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+		}
+		return append(entry, encodeSearchResultDone(msgID, resultSuccess, "", "")...), resultSuccess, 1
+	}
+	if !s.baseDNWithinNamingContext(baseObject) && len(s.referralURLs) > 0 {
+		resp := encodeSearchResultReference(msgID, s.referralURLs)
+		resp = append(resp, encodeSearchResultDone(msgID, resultSuccess, "", "")...)
+		return resp, resultSuccess, 0
+	}
+	pageSize, pageOffset, paged, err := parsePagedResultsControl(controls)
+	if err != nil {
+		result := resultProtocolError
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
 	}
 
 	if err := validateFilter(filter); err != nil {
-		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", fmt.Sprintf("invalid filter: %v", err))
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", fmt.Sprintf("invalid filter: %v", err)), result, 0
 	}
 
 	ldapFilter, err := parseLDAPFilter(filter)
 	if err != nil {
-		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", "malformed filter")
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", "malformed filter"), result, 0
 	}
 
+	limit := 100
+	if paged && pageSize > 0 {
+		limit = pageSize + 1
+	}
 	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
 		BaseDN: baseObject,
 		Scope:  scope,
 		Filter: ldapFilter,
-		Limit:  100,
+		Attrs:  attrs,
+		Limit:  limit,
+		Offset: pageOffset,
 	})
 	if err != nil {
-		return encodeSearchResultDone(msgID, resultUnwillingToPerform, "", err.Error())
+		result := resultUnwillingToPerform
+		return encodeSearchResultDone(msgID, result, "", err.Error()), result, 0
+	}
+	if sizeLimit > 0 && len(principals) > sizeLimit {
+		principals = principals[:sizeLimit]
+	}
+	nextCookie := ""
+	if paged && pageSize > 0 && len(principals) > pageSize {
+		principals = principals[:pageSize]
+		nextCookie = fmt.Sprintf("%d", pageOffset+pageSize)
 	}
 
 	resp := make([]byte, 0, 4096)
@@ -282,17 +448,184 @@ func (s *LDAPServer) handleSearchRequest(ctx context.Context, msgID int, opData 
 		if p.SN != "" {
 			attrMap["sn"] = []string{p.SN}
 		}
-		entry, err := encodeSearchResultEntry(msgID, p.DN, attrMap)
+		entry, err := encodeSearchResultEntry(msgID, p.DN, selectLDAPAttributes(attrMap, attrs, typesOnly))
 		if err != nil {
 			continue
 		}
 		resp = append(resp, entry...)
 	}
-	resp = append(resp, encodeSearchResultDone(msgID, resultSuccess, "", "")...)
-	return resp
+	result := resultSuccess
+	if sizeLimit > 0 && len(principals) == sizeLimit {
+		result = resultSizeLimitExceeded
+	}
+	if paged {
+		resp = append(resp, encodeSearchResultDoneWithControls(msgID, result, "", "", []control{pagedResultsResponseControl(nextCookie)})...)
+	} else {
+		resp = append(resp, encodeSearchResultDone(msgID, result, "", "")...)
+	}
+	return resp, result, len(principals)
 }
 
-func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, attrs []string, err error) {
+func (s *LDAPServer) baseDNWithinNamingContext(baseDN string) bool {
+	baseDN = normalizeDNForCompare(baseDN)
+	if baseDN == "" || len(s.namingContexts) == 0 {
+		return true
+	}
+	for _, namingContext := range s.namingContexts {
+		ctxDN := normalizeDNForCompare(namingContext)
+		if baseDN == ctxDN || strings.HasSuffix(baseDN, ","+ctxDN) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstUnsupportedCriticalControl(controls []control) (control, bool) {
+	for _, ctrl := range controls {
+		if ctrl.Critical && !isSupportedControl(ctrl.Type) {
+			return ctrl, true
+		}
+	}
+	return control{}, false
+}
+
+func parsePagedResultsControl(controls []control) (pageSize int, offset int, ok bool, err error) {
+	for _, ctrl := range controls {
+		if ctrl.Type != controlPagedResults {
+			continue
+		}
+		ok = true
+		pageSize, offset, err = decodePagedResultsControlValue(ctrl.Value)
+		if err != nil {
+			return 0, 0, true, err
+		}
+		return pageSize, offset, true, nil
+	}
+	return 0, 0, false, nil
+}
+
+func decodePagedResultsControlValue(value []byte) (pageSize int, offset int, err error) {
+	if len(value) == 0 {
+		return 0, 0, fmt.Errorf("paged results control value is required")
+	}
+	if value[0] != tagSequence {
+		return 0, 0, fmt.Errorf("paged results control value must be a sequence")
+	}
+	content, err := decodeContent(value[1:])
+	if err != nil {
+		return 0, 0, err
+	}
+	pageSize, rest, err := decodeInt(content)
+	if err != nil {
+		return 0, 0, fmt.Errorf("paged results size: %w", err)
+	}
+	if pageSize < 0 {
+		return 0, 0, fmt.Errorf("paged results size must not be negative")
+	}
+	cookie, rest, err := decodeOctetString(rest)
+	if err != nil {
+		return 0, 0, fmt.Errorf("paged results cookie: %w", err)
+	}
+	if len(rest) != 0 {
+		return 0, 0, fmt.Errorf("paged results control has trailing data")
+	}
+	if strings.TrimSpace(cookie) == "" {
+		return pageSize, 0, nil
+	}
+	for _, r := range cookie {
+		if r < '0' || r > '9' {
+			return 0, 0, fmt.Errorf("paged results cookie is invalid")
+		}
+		offset = offset*10 + int(r-'0')
+	}
+	return pageSize, offset, nil
+}
+
+func pagedResultsResponseControl(cookie string) control {
+	var value []byte
+	value = append(value, encodeInt(0)...)
+	value = append(value, encodeOctetString(cookie)...)
+	var seq []byte
+	seq = append(seq, tagSequence)
+	seq = append(seq, encodeLength(len(value))...)
+	seq = append(seq, value...)
+	return control{Type: controlPagedResults, Value: seq}
+}
+
+func isSupportedControl(controlType string) bool {
+	switch strings.TrimSpace(controlType) {
+	case controlManageDsaIT, controlPagedResults:
+		return true
+	default:
+		return false
+	}
+}
+
+const (
+	controlManageDsaIT  = "2.16.840.1.113730.3.4.2"
+	controlPagedResults = "1.2.840.113556.1.4.319"
+)
+
+func (s *LDAPServer) observe(ctx context.Context, opTag int, resultCode int, entries int, remoteAddr net.Addr, err error) {
+	result := MetricAccepted
+	errText := ""
+	if resultCode != resultSuccess && resultCode != resultSizeLimitExceeded {
+		result = MetricRejected
+	}
+	if err != nil {
+		result = MetricRejected
+		errText = err.Error()
+	}
+	remote := ""
+	if remoteAddr != nil {
+		remote = remoteAddr.String()
+	}
+	metricsOrDefault(s.metrics).ObserveLDAP(ctx, MetricEvent{
+		Operation:  ldapOperationName(opTag),
+		Result:     result,
+		ResultCode: resultCode,
+		RemoteAddr: remote,
+		Entries:    entries,
+		Error:      errText,
+	})
+}
+
+func ldapOperationName(opTag int) string {
+	switch opTag {
+	case opBindRequest:
+		return "bind"
+	case opSearchRequest:
+		return "search"
+	case opUnbindRequest:
+		return "unbind"
+	case opExtendedRequest:
+		return "extended"
+	case opModifyRequest:
+		return "modify"
+	case opAddRequest:
+		return "add"
+	case opDeleteRequest:
+		return "delete"
+	case opModDNRequest:
+		return "modify_dn"
+	case opCompareRequest:
+		return "compare"
+	case opAbandonRequest:
+		return "abandon"
+	default:
+		return fmt.Sprintf("op_%02x", opTag)
+	}
+}
+
+func normalizeDNForCompare(dn string) string {
+	parts := strings.Split(strings.TrimSpace(dn), ",")
+	for i, part := range parts {
+		parts[i] = strings.ToLower(strings.TrimSpace(part))
+	}
+	return strings.Join(parts, ",")
+}
+
+func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, attrs []string, sizeLimit int, timeLimit int, typesOnly bool, err error) {
 	if len(data) < 2 {
 		err = fmt.Errorf("search request too short")
 		return
@@ -308,7 +641,7 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 		return
 	}
 
-	scopeVal, rest, err := decodeInt(rest)
+	scopeVal, rest, err := decodeLDAPIntLike(rest)
 	if err != nil {
 		err = fmt.Errorf("decode scope: %w", err)
 		return
@@ -319,9 +652,24 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 		err = fmt.Errorf("search request: missing derefAliases")
 		return
 	}
-	_, rest, err = decodeInt(rest)
+	_, rest, err = decodeLDAPIntLike(rest)
 	if err != nil {
 		err = fmt.Errorf("decode derefAliases: %w", err)
+		return
+	}
+	sizeLimit, rest, err = decodeInt(rest)
+	if err != nil {
+		err = fmt.Errorf("decode sizeLimit: %w", err)
+		return
+	}
+	timeLimit, rest, err = decodeInt(rest)
+	if err != nil {
+		err = fmt.Errorf("decode timeLimit: %w", err)
+		return
+	}
+	typesOnly, rest, err = decodeBoolean(rest)
+	if err != nil {
+		err = fmt.Errorf("decode typesOnly: %w", err)
 		return
 	}
 
@@ -329,9 +677,63 @@ func decodeSearchRequest(data []byte) (baseDN string, scope int, filter []byte, 
 		err = fmt.Errorf("search request: missing filter")
 		return
 	}
-	filter = rest
+	filterLen, filterRest, err := decodeLength(rest[1:])
+	if err != nil {
+		err = fmt.Errorf("decode filter length: %w", err)
+		return
+	}
+	filterHeaderLen := len(rest) - len(filterRest)
+	if len(rest) < filterHeaderLen+filterLen {
+		err = fmt.Errorf("search request: truncated filter")
+		return
+	}
+	filter = rest[:filterHeaderLen+filterLen]
+	rest = rest[filterHeaderLen+filterLen:]
+	attrs, _, err = decodeAttributeDescriptionList(rest)
+	if err != nil {
+		err = fmt.Errorf("decode attributes: %w", err)
+		return
+	}
 
 	return
+}
+
+func decodeLDAPIntLike(data []byte) (int, []byte, error) {
+	if len(data) < 2 {
+		return 0, nil, fmt.Errorf("integer/enumerated data too short")
+	}
+	if data[0] == tagInteger {
+		return decodeInt(data)
+	}
+	if data[0] != 0x0A {
+		return 0, nil, fmt.Errorf("invalid integer/enumerated tag")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(rest) < length {
+		return 0, nil, fmt.Errorf("enumerated data too short")
+	}
+	var v int64
+	for i := 0; i < length; i++ {
+		v = v<<8 | int64(rest[i])
+	}
+	return int(v), rest[length:], nil
+}
+
+func decodeBoolean(data []byte) (bool, []byte, error) {
+	if len(data) < 3 || data[0] != tagBoolean {
+		return false, nil, fmt.Errorf("invalid boolean tag")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return false, nil, err
+	}
+	if length != 1 || len(rest) < 1 {
+		return false, nil, fmt.Errorf("invalid boolean length")
+	}
+	return rest[0] != 0, rest[1:], nil
 }
 
 func decodeSequence(data []byte) ([][]byte, error) {
@@ -381,6 +783,14 @@ func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 	if len(data) == 0 || data[0] != tagSequence {
 		return nil, data, nil
 	}
+	contentLen, restAfterLen, err := decodeLength(data[1:])
+	if err != nil {
+		return nil, data, err
+	}
+	totalLen := len(data) - len(restAfterLen) + contentLen
+	if len(data) < totalLen {
+		return nil, data, fmt.Errorf("attribute list truncated")
+	}
 	content, err := decodeContent(data[1:])
 	if err != nil {
 		return nil, data, err
@@ -400,54 +810,228 @@ func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 			break
 		}
 	}
-	return attrs, data, nil
+	return attrs, data[totalLen:], nil
+}
+
+func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string][]string {
+	if len(namingContexts) == 0 {
+		namingContexts = []string{"dc=local"}
+	}
+	attrs := map[string][]string{
+		"objectClass":          {"top", "OpenLDAProotDSE"},
+		"namingContexts":       namingContexts,
+		"subschemaSubentry":    {"cn=Subschema"},
+		"supportedLDAPVersion": {"3"},
+		"supportedControl":     {controlManageDsaIT, controlPagedResults},
+		"vendorName":           {"gogomail"},
+	}
+	if startTLSEnabled {
+		attrs["supportedExtension"] = []string{startTLSOID}
+	}
+	return attrs
+}
+
+func subschemaAttributes() map[string][]string {
+	return map[string][]string{
+		"objectClass": {"top", "subschema"},
+		"objectClasses": {
+			"( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )",
+			"( 2.5.6.6 NAME 'person' SUP top STRUCTURAL MUST ( sn $ cn ) MAY ( userPassword $ telephoneNumber $ seeAlso $ description ) )",
+			"( 2.5.6.7 NAME 'organizationalPerson' SUP person STRUCTURAL MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $ preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $ postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )",
+			"( 2.16.840.1.113730.3.2.2 NAME 'inetOrgPerson' SUP organizationalPerson STRUCTURAL MAY ( mail $ uid $ givenName $ displayName ) )",
+		},
+		"attributeTypes": {
+			"( 2.5.4.3 NAME 'cn' SUP name )",
+			"( 2.5.4.4 NAME 'sn' SUP name )",
+			"( 2.5.4.42 NAME 'givenName' SUP name )",
+			"( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 0.9.2342.19200300.100.1.1 NAME 'uid' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+			"( 0.9.2342.19200300.100.1.3 NAME 'mail' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )",
+			"( 2.16.840.1.113730.3.1.241 NAME 'displayName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
+		},
+	}
+}
+
+func selectLDAPAttributes(attrs map[string][]string, requested []string, typesOnly bool) map[string][]string {
+	selected := make(map[string][]string, len(attrs))
+	if len(requested) == 0 || containsLDAPAttribute(requested, "*") || containsLDAPAttribute(requested, "+") {
+		for k, values := range attrs {
+			if typesOnly {
+				selected[k] = nil
+			} else {
+				selected[k] = values
+			}
+		}
+		return selected
+	}
+	for _, name := range requested {
+		name = strings.TrimSpace(name)
+		for attrName, values := range attrs {
+			if strings.EqualFold(name, attrName) {
+				if typesOnly {
+					selected[attrName] = nil
+				} else {
+					selected[attrName] = values
+				}
+			}
+		}
+	}
+	return selected
+}
+
+func containsLDAPAttribute(attrs []string, want string) bool {
+	for _, attr := range attrs {
+		if strings.EqualFold(strings.TrimSpace(attr), want) {
+			return true
+		}
+	}
+	return false
+}
+
+const startTLSOID = "1.3.6.1.4.1.1466.20037"
+
+func isStartTLSRequest(data []byte) bool {
+	name, err := decodeExtendedRequestName(data)
+	return err == nil && name == startTLSOID
+}
+
+func decodeExtendedRequestName(data []byte) (string, error) {
+	if len(data) < 2 || data[0] != 0x80 {
+		return "", fmt.Errorf("extended request missing requestName")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return "", err
+	}
+	if len(rest) < length {
+		return "", fmt.Errorf("extended requestName truncated")
+	}
+	return string(rest[:length]), nil
 }
 
 func parseLDAPFilter(data []byte) (string, error) {
-	if len(data) == 0 {
+	attr, value, ok, err := parseLDAPFilterCandidate(data)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
 		return "", nil
 	}
-	if data[0] == tagContextSpecific || (data[0]&0x80) != 0 {
-		filterType := int(data[0] & 0x3f)
-		content, err := decodeContent(data[1:])
-		if err != nil {
-			return "", err
-		}
-		switch filterType {
-		case filterEqualityMatch:
-			if len(content) < 2 || content[0] != tagOctetString {
-				return "", fmt.Errorf("malformed equality match")
-			}
-			attrLen, _, err := decodeLength(content[1:])
-			if err != nil {
-				return "", err
-			}
-			rest := content[2:]
-			if len(rest) < attrLen {
-				return "", fmt.Errorf("truncated attr")
-			}
-			attr := string(rest[:attrLen])
-			valRest := rest[attrLen:]
-			if len(valRest) < 2 || valRest[0] != tagOctetString {
-				return "", fmt.Errorf("malformed equality value")
-			}
-			valLen, _, err := decodeLength(valRest[1:])
-			if err != nil {
-				return "", err
-			}
-			val := string(valRest[2 : 2+valLen])
-			return fmt.Sprintf("(%s=%s)", attr, val), nil
-		case filterPresent:
-			attr, _, err := decodeOctetString(content)
-			if err != nil {
-				return "", err
-			}
-			return fmt.Sprintf("(%s=*)", attr), nil
-		default:
-			return "", fmt.Errorf("unsupported filter type: %d", filterType)
-		}
+	return fmt.Sprintf("(%s=%s)", attr, value), nil
+}
+
+func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, err error) {
+	if len(data) == 0 {
+		return "", "", false, nil
 	}
-	return "", nil
+	if data[0]&0x80 == 0 {
+		return "", "", false, fmt.Errorf("filter tag 0x%02x is not context-specific", data[0])
+	}
+	filterType := int(data[0] & 0x1f)
+	content, err := decodeContent(data[1:])
+	if err != nil {
+		return "", "", false, err
+	}
+	switch filterType {
+	case filterAnd, filterOr:
+		for len(content) > 0 {
+			child, rest, err := readRawTLV(content)
+			if err != nil {
+				return "", "", false, err
+			}
+			childAttr, childValue, childOK, err := parseLDAPFilterCandidate(child)
+			if err != nil {
+				return "", "", false, err
+			}
+			if childOK && isDirectorySearchAttribute(childAttr) && strings.Trim(childValue, "*") != "" {
+				return childAttr, childValue, true, nil
+			}
+			content = rest
+		}
+		return "", "", false, nil
+	case filterNot:
+		child, _, err := readRawTLV(content)
+		if err != nil {
+			return "", "", false, err
+		}
+		return parseLDAPFilterCandidate(child)
+	case filterEqualityMatch, filterApproxMatch, filterGreaterOrEqual, filterLessOrEqual:
+		attr, valRest, err := decodeOctetString(content)
+		if err != nil {
+			return "", "", false, fmt.Errorf("malformed attribute assertion: %w", err)
+		}
+		val, _, err := decodeOctetString(valRest)
+		if err != nil {
+			return "", "", false, fmt.Errorf("malformed assertion value: %w", err)
+		}
+		return attr, val, true, nil
+	case filterSubstrings:
+		attr, rest, err := decodeOctetString(content)
+		if err != nil {
+			return "", "", false, fmt.Errorf("malformed substring attribute: %w", err)
+		}
+		parts, err := decodeSubstringParts(rest)
+		if err != nil {
+			return "", "", false, err
+		}
+		return attr, strings.Join(parts, "*"), len(parts) > 0, nil
+	case filterPresent:
+		return string(content), "*", true, nil
+	default:
+		return "", "", false, fmt.Errorf("unsupported filter type: %d", filterType)
+	}
+}
+
+func readRawTLV(data []byte) ([]byte, []byte, error) {
+	if len(data) < 2 {
+		return nil, nil, fmt.Errorf("truncated TLV")
+	}
+	length, rest, err := decodeLength(data[1:])
+	if err != nil {
+		return nil, nil, err
+	}
+	headerLen := len(data) - len(rest)
+	totalLen := headerLen + length
+	if len(data) < totalLen {
+		return nil, nil, fmt.Errorf("truncated TLV content")
+	}
+	return data[:totalLen], data[totalLen:], nil
+}
+
+func decodeSubstringParts(data []byte) ([]string, error) {
+	if len(data) == 0 || data[0] != tagSequence {
+		return nil, fmt.Errorf("substring filter missing sequence")
+	}
+	content, err := decodeContent(data[1:])
+	if err != nil {
+		return nil, err
+	}
+	var parts []string
+	for len(content) > 0 {
+		tag := content[0]
+		if tag != 0x80 && tag != 0x81 && tag != 0x82 {
+			return nil, fmt.Errorf("unsupported substring choice tag 0x%02x", tag)
+		}
+		length, rest, err := decodeLength(content[1:])
+		if err != nil {
+			return nil, err
+		}
+		if len(rest) < length {
+			return nil, fmt.Errorf("substring value truncated")
+		}
+		parts = append(parts, string(rest[:length]))
+		content = rest[length:]
+	}
+	return parts, nil
+}
+
+func isDirectorySearchAttribute(attr string) bool {
+	switch strings.ToLower(strings.TrimSpace(attr)) {
+	case "cn", "mail", "uid", "displayname", "givenname", "sn":
+		return true
+	default:
+		return false
+	}
 }
 
 // validateFilter checks that filter data is well-formed before processing.

@@ -91,6 +91,20 @@ func applyYAMLConfigValue(cfg *Config, key string, value any) error {
 		return setYAMLString(value, &cfg.WebDAVAddr, key)
 	case "webdav_depth_infinity_enabled":
 		return setYAMLBool(value, &cfg.WebDAVDepthInfinityEnabled, key)
+	case "ldap_addr":
+		return setYAMLString(value, &cfg.LDAPAddr, key)
+	case "ldaps_addr":
+		return setYAMLString(value, &cfg.LDAPSAddr, key)
+	case "ldap_tls_cert_file":
+		return setYAMLString(value, &cfg.LDAPTLSCertFile, key)
+	case "ldap_tls_key_file":
+		return setYAMLString(value, &cfg.LDAPTLSKeyFile, key)
+	case "ldap_company_id":
+		return setYAMLString(value, &cfg.LDAPCompanyID, key)
+	case "ldap_base_domain":
+		return setYAMLString(value, &cfg.LDAPBaseDomain, key)
+	case "ldap_referral_urls":
+		return setYAMLStringSlice(value, &cfg.LDAPReferralURLs, key)
 	case "submission_addr":
 		return setYAMLString(value, &cfg.SubmissionAddr, key)
 	case "submission_smtps_addr":

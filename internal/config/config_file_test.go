@@ -51,6 +51,14 @@ imap_write_timeout: 15s
 imap_idle_timeout: 35m
 pop3s_addr: :1995
 pop3_max_connections: 384
+ldap_addr: :1389
+ldaps_addr: :1636
+ldap_tls_cert_file: /etc/gogomail/ldap.crt
+ldap_tls_key_file: /etc/gogomail/ldap.key
+ldap_company_id: company-1
+ldap_base_domain: dc=example,dc=com
+ldap_referral_urls:
+  - ldap://directory.example.net/dc=example,dc=net
 smtp_max_connections: 1024
 submission_max_connections: 256
 `)
@@ -112,6 +120,15 @@ submission_max_connections: 256
 	}
 	if cfg.POP3SAddr != ":1995" {
 		t.Fatalf("POP3SAddr = %q, want :1995", cfg.POP3SAddr)
+	}
+	if cfg.LDAPAddr != ":1389" || cfg.LDAPSAddr != ":1636" || cfg.LDAPTLSCertFile != "/etc/gogomail/ldap.crt" || cfg.LDAPTLSKeyFile != "/etc/gogomail/ldap.key" {
+		t.Fatalf("LDAP overlay = addr:%q ldaps:%q tls:%q/%q", cfg.LDAPAddr, cfg.LDAPSAddr, cfg.LDAPTLSCertFile, cfg.LDAPTLSKeyFile)
+	}
+	if cfg.LDAPCompanyID != "company-1" || cfg.LDAPBaseDomain != "dc=example,dc=com" {
+		t.Fatalf("LDAP scope overlay = company:%q base:%q", cfg.LDAPCompanyID, cfg.LDAPBaseDomain)
+	}
+	if len(cfg.LDAPReferralURLs) != 1 || cfg.LDAPReferralURLs[0] != "ldap://directory.example.net/dc=example,dc=net" {
+		t.Fatalf("LDAP referral overlay = %#v", cfg.LDAPReferralURLs)
 	}
 	if cfg.SMTPMaxConnections != 1024 {
 		t.Fatalf("SMTPMaxConnections = %d, want 1024", cfg.SMTPMaxConnections)

@@ -1,6 +1,18 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission DSN parameter validation and isolation complete)
+Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
+
+## LDAP gateway StartTLS/LDAPS and discovery hardening (2026-05-14, complete)
+- `internal/ldapgw` now handles RFC 4511 StartTLS extended requests (`1.3.6.1.4.1.1466.20037`) when a TLS certificate/key is configured.
+- Root DSE base-object search now returns `namingContexts`, `supportedLDAPVersion`, `vendorName`, and `supportedExtension` for StartTLS discovery.
+- `SearchRequest` parsing now consumes scope, deref aliases, size limit, time limit, typesOnly, filter, and requested attribute selection instead of treating filter bytes as the remainder of the request.
+- Root DSE now advertises `subschemaSubentry`, and base-object search for `cn=Subschema` returns minimal RFC 4512/RFC 4519 schema metadata for person/inetOrgPerson-style clients.
+- LDAP search filters now accept common client OR/AND/NOT wrappers and substring filters such as `(|(cn=*alice*)(mail=*alice*)(uid=*alice*))`, extracting supported RFC 4519 directory attributes while ignoring non-directory predicates such as `objectClass`.
+- Search responses now wrap attributes in a proper RFC 4511 `PartialAttributeList`, honor requested attributes, support types-only responses, and return size-limit status when a client-requested size limit is reached.
+- Runtime config now supports `GOGOMAIL_LDAP_TLS_CERT_FILE`, `GOGOMAIL_LDAP_TLS_KEY_FILE`, optional `GOGOMAIL_LDAPS_ADDR`, and semicolon/newline-separated `GOGOMAIL_LDAP_REFERRAL_URLS` for cross-naming-context SearchResultReference responses.
+- LDAP controls are parsed at the LDAPMessage boundary; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, unsupported critical controls return `unavailableCriticalExtension`, and Simple Paged Results uses opaque offset cookies across search pages.
+- LDAP bind/search/extended/read-only outcomes now flow through a metrics boundary, with `GOGOMAIL_METRICS_BACKEND=slog` wiring for operational logs.
+- Coverage verifies Root DSE and subschema discovery, StartTLS upgrade followed by LDAP search, referral responses, critical-control handling, Simple Paged Results paging cookies, LDAP metrics, LDAP TLS/referral config validation, YAML/env config loading, and existing bind/search/read-only protections.
 
 ## SMTP submission MAIL DSN parameter validation (2026-05-14, complete)
 - SMTP submission `MAIL FROM` with DSN parameters (RFC 3461) now has comprehensive coverage.
