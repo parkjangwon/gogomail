@@ -4772,6 +4772,13 @@ Target outcome:
          sequence numbers, and later LIST/FETCH ordering on one monotonic UID
          timeline when legacy or API-created messages are first observed by
          IMAP.
+ 1545. PostgreSQL-backed IMAP COPY now applies the same lazy UID ordering guard
+         to the destination mailbox: existing active destination messages
+         without `imap_message_uid` rows are backfilled under the locked
+         destination state before copied-message UIDs are allocated. COPYUID,
+         destination sequence numbers, STATUS prediction, and later LIST/FETCH
+         results therefore remain monotonic even when the destination mailbox
+         has legacy or API-created unassigned messages.
 
 ## Deferred until backend contracts stabilize
 
