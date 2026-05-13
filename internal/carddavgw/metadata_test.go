@@ -147,6 +147,8 @@ func TestValidateVCardObjectRejectsMalformedCards(t *testing.T) {
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Contact\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:bad\nuid\r\nFN:Contact\r\nEND:VCARD\r\n",
+		"BEGIN:VCARD\nVERSION:4.0\nUID:contact-1\nFN:Contact\nEND:VCARD\n",
+		"BEGIN:VCARD\r\nVERSION:4.0\nUID:contact-1\r\nFN:Contact\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nBEGIN:VCARD\r\nEND:VCARD\r\nEND:VCARD\r\n",
 		"BEGIN:VCARD\r\nVERSION:4.0\r\nUID:contact-1\r\nFN:Contact\r\nNOTE\rbad\r\nEND:VCARD\r\n",
 	}

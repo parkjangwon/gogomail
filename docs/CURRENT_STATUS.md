@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (DAV password-change auth hardening)
+Last updated: 2026-05-14 (CardDAV vCard line-ending hardening)
+
+## CardDAV vCard line-ending hardening (2026-05-14, complete)
+- CardDAV vCard object validation now rejects LF-only and mixed newline payloads before contact objects can be stored.
+- Metadata and repository tests now cover CRLF-only vCard line-ending enforcement alongside existing UID/FN/version validation.
 
 ## DAV password-change auth hardening (2026-05-14, complete)
 - CalDAV and CardDAV Basic Auth resolvers now reject authenticated submission users marked `must_change_password`, matching SMTP submission, IMAP, and POP3 policy.
