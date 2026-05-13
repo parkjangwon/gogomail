@@ -1,6 +1,14 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission RSET DSN reset)
+Last updated: 2026-05-14 (WebDAV gateway authentication enabled)
+
+## WebDAV gateway authentication and lock optimization (2026-05-14, complete)
+- WebDAV gateway now requires authenticated Bearer token or HTTPS Basic auth for external client access.
+- External clients (Mac Finder, Windows Explorer, Linux file managers) can now mount gogomail drive via `/dav/` endpoint.
+- Lock management optimized: RWMutex for better read-heavy concurrency, automatic cleanup of expired 5-minute locks.
+- Supports all RFC 4918 WebDAV operations: OPTIONS, PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK.
+
+## Previously updated: 2026-05-14 (SMTP submission RSET DSN reset)
 
 ## SMTP submission RSET DSN reset (2026-05-14, complete)
 - SMTP submission coverage now verifies explicit `Reset` clears the active envelope before the next submitted transaction.
