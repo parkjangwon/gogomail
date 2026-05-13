@@ -5802,3 +5802,4 @@ Next focus areas:
 - Console organization webhooks no longer POST caller-supplied `secret` fields that the backend rejects, and notification templates now edit the backend's `subject`/`body`/`enabled` model instead of stale locale/body_text/body_html fields.
 - Webmail settings no longer expose the stale mailbox-import flow that called nonexistent `/messages/restore`; the UI now keeps only supported local export and backend trash restore paths.
 - Backend company user exports, SCIM status counts, and security posture now enumerate users through the company's domains instead of unscoped `ListUsers` calls, keeping tenant-scoped admin data aligned with the console behavior.
+- The console `/admin/v1` proxy now mirrors `/api/admin` 204 and download-header handling, so direct admin-v1 DELETE/export screens preserve backend response semantics.
