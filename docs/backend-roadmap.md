@@ -4874,6 +4874,10 @@ Target outcome:
  1565. IMAP mailbox event broker cancel idempotency is now covered explicitly:
          repeated subscription cancel calls leave subscriber accounting at zero
          and keep the subscription channel closed without panic.
+ 1566. IMAP mailbox event broker context-cancel idempotency is now covered:
+         repeated context cancellation closes the subscription channel, drops
+         subscriber accounting to zero, and remains stable when the explicit
+         cancel function is called afterward.
 
 ## Deferred until backend contracts stabilize
 
