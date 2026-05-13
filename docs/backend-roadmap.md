@@ -5158,6 +5158,9 @@ Target outcome:
  1655. POP3 transaction-state CAPA stability is now covered: repeated CAPA
          calls keep core capabilities stable, keep auth-only entries hidden, and
          leave STAT usable afterward.
+ 1656. POP3 authorization-state CAPA stability is now covered: repeated CAPA
+         calls keep auth capabilities stable and leave normal authentication
+         usable afterward.
 
 ## Deferred until backend contracts stabilize
 
