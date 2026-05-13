@@ -4936,6 +4936,10 @@ Target outcome:
  1581. IMAP empty-selected EXPUNGE handling now has a race-detector verification
          point: `go test -race -count=1 ./internal/imapgw` passes across the
          updated writeMailboxEvent logic and the IDLE/NOOP integration paths.
+ 1582. POP3 authentication policy freshness is now covered at the mailservice
+         adapter boundary: each login re-invokes the authenticator, and a
+         `must_change_password` policy change between logins is enforced on the
+         next POP3 authentication attempt.
 
 ## Deferred until backend contracts stabilize
 

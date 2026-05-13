@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP empty-selected EXPUNGE race verification)
+Last updated: 2026-05-14 (POP3 auth policy freshness coverage)
+
+## POP3 auth policy freshness coverage (2026-05-14, complete)
+- POP3 adapter coverage now verifies each login calls the authenticator again rather than reusing prior authentication state.
+- The test flips `must_change_password` between logins and verifies the second login is rejected immediately.
 
 ## IMAP empty-selected EXPUNGE race verification (2026-05-14, complete)
 - `go test -race -count=1 ./internal/imapgw` passes after the empty-selected EXPUNGE fix and IDLE/NOOP integration coverage.
