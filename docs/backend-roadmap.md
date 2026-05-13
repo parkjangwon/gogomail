@@ -5054,6 +5054,8 @@ Target outcome:
  1619. POP3 successful QUIT close behavior is now covered: after a successful
          delete commit and `+OK`, the TCP connection closes instead of staying
          readable.
+ 1620. POP3 authorization-state QUIT close behavior is now covered: pre-login
+         `QUIT` returns `+OK` and then closes the TCP connection.
 
 ## Deferred until backend contracts stabilize
 
