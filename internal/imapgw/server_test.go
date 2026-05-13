@@ -2009,7 +2009,7 @@ func TestServerValidatesAuthSyntaxBeforePrivacyRequired(t *testing.T) {
 		"a3 BAD AUTHENTICATE mechanism is malformed\r\n",
 		"a4 NO AUTHENTICATE mechanism is unsupported\r\n",
 		"a5 BAD AUTHENTICATE PLAIN response is malformed\r\n",
-		"a6 BAD AUTHENTICATE PLAIN response is malformed\r\n",
+		"a6 NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n",
 		"a7 NO [PRIVACYREQUIRED] TLS is required for AUTHENTICATE\r\n",
 		"a8 NO [PRIVACYREQUIRED] TLS is required for LOGIN\r\n",
 		"* BYE gogomail IMAP4rev1 server logging out\r\n",
