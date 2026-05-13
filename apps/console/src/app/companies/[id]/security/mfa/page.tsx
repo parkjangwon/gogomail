@@ -27,6 +27,10 @@ interface UserRow {
   status: string;
 }
 
+interface DomainRow {
+  id: string;
+}
+
 interface MFAStats {
   total: number;
   enabled: number;
@@ -57,13 +61,20 @@ export default function MFAManagementPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [usersRes, statsRes] = await Promise.all([
-        fetch('/api/admin/users?limit=200', { credentials: 'include' }),
+      const [domainsRes, statsRes] = await Promise.all([
+        fetch(`/api/admin/domains?company_id=${encodeURIComponent(companyId)}&limit=200`, { credentials: 'include' }),
         fetch(`/api/admin/companies/${companyId}/mfa/stats`, { credentials: 'include' }),
       ]);
-      if (usersRes.ok) {
-        const data = await usersRes.json();
-        setUsers(data.users || []);
+      if (domainsRes.ok) {
+        const domainsData = await domainsRes.json();
+        const domains: DomainRow[] = domainsData.domains || [];
+        const userLists = await Promise.all(
+          domains.map((domain) =>
+            fetch(`/api/admin/users?domain_id=${encodeURIComponent(domain.id)}&limit=200`, { credentials: 'include' })
+              .then((res) => res.ok ? res.json() : { users: [] })
+          )
+        );
+        setUsers(userLists.flatMap((data: { users?: UserRow[] }) => data.users || []));
       }
       if (statsRes.ok) {
         const data = await statsRes.json();
