@@ -34,6 +34,9 @@ func (a IMAPAuthenticatorAdapter) Authenticate(ctx context.Context, username str
 	if err != nil {
 		return imapgw.Session{}, err
 	}
+	if user.MustChangePassword {
+		return imapgw.Session{}, fmt.Errorf("password change required")
+	}
 	return imapgw.Session{
 		UserID:      imapgw.UserID(strings.TrimSpace(user.UserID)),
 		Username:    strings.TrimSpace(firstNonEmpty(user.Address, username)),

@@ -293,9 +293,10 @@ Implementation order:
 226. SMTP receive deletes a just-written raw `.eml` object if the stored hook, recorder, or mailbox-quota path fails before the database record commits, preventing orphaned object-storage data after failed DATA.
 227. Authenticated SMTP Submission now carries all available `user_addresses` from DB authentication into `SubmissionUser` and authorizes `MAIL FROM` against that set, allowing owned additional sender addresses without permitting unrelated envelope senders.
 228. Authenticated SMTP Submission now deletes a just-written submitted `.eml` object if the stored hook, submitted recorder, or mailbox-quota path fails before database commit.
-229. API metering aggregation has a first worker/read-model boundary: `api-metering-worker` consumes `api.usage` events from `api.event`, upserts `api_usage_daily`, and Admin API exposes `GET /admin/v1/api-usage/daily`.
-230. ADR 0004 captures the API metering aggregation boundary: HTTP remains fail-open, aggregation is disabled by default, daily aggregates are operational read models, and billing-grade idempotency is deferred.
-231. Search results now have opt-in relevance ordering, rank scores, and bounded headline snippets through `sort=relevance`, `include_rank=true`, and `include_highlights=true`, while the default response remains date sorted.
+229. IMAP authentication now consumes the DB authentication result's `must_change_password` state and rejects users that must rotate their password before opening protocol sessions.
+230. API metering aggregation has a first worker/read-model boundary: `api-metering-worker` consumes `api.usage` events from `api.event`, upserts `api_usage_daily`, and Admin API exposes `GET /admin/v1/api-usage/daily`.
+231. ADR 0004 captures the API metering aggregation boundary: HTTP remains fail-open, aggregation is disabled by default, daily aggregates are operational read models, and billing-grade idempotency is deferred.
+232. Search results now have opt-in relevance ordering, rank scores, and bounded headline snippets through `sort=relevance`, `include_rank=true`, and `include_highlights=true`, while the default response remains date sorted.
 ## Phase 2: Protocol Gateways
 
 Target outcome:
@@ -304,9 +305,9 @@ Target outcome:
 
 `internal/imapgw`, `internal/caldavgw`, `internal/carddavgw`는 SMTP/Mail API와 분리된 독립 게이트웨이입니다. 각 게이트웨이는 서비스 어댑터 경계를 통해 `maildb`, `mailservice`, `storage`를 사용합니다.
 
-232. `internal/imapgw` establishes a dependency-light IMAP gateway boundary with native DTOs/interfaces, UID-oriented mailbox state, RFC 3501 system flag mapping, mailbox helpers, and explicit deferral of `\Deleted`/EXPUNGE semantics.
-233. ADR 0005 records that IMAP will be a separate gateway over stable mailbox/message interfaces rather than protocol code embedded into Mail API, SMTP, or `maildb` internals.
-234. Push notification enqueue has a first async worker boundary: `push-notification-worker` consumes committed `mail.stored` events, routes them through `internal/pushnotify`, and supports a disabled-by-default `slog` sink while FCM/APNs delivery remains adapter work.
+233. `internal/imapgw` establishes a dependency-light IMAP gateway boundary with native DTOs/interfaces, UID-oriented mailbox state, RFC 3501 system flag mapping, mailbox helpers, and explicit deferral of `\Deleted`/EXPUNGE semantics.
+234. ADR 0005 records that IMAP will be a separate gateway over stable mailbox/message interfaces rather than protocol code embedded into Mail API, SMTP, or `maildb` internals.
+235. Push notification enqueue has a first async worker boundary: `push-notification-worker` consumes committed `mail.stored` events, routes them through `internal/pushnotify`, and supports a disabled-by-default `slog` sink while FCM/APNs delivery remains adapter work.
 231. API metering aggregation now writes both daily and monthly Postgres read models from the same `api.usage` event, with Admin API exposing `GET /admin/v1/api-usage/monthly` for plan/billing analysis groundwork.
 232. Mail API now supports user-scoped push device registration, listing, and soft deletion for APNs, FCM, and Web Push tokens; raw tokens are write-only while response envelopes expose only a short token suffix for diagnostics.
 233. The push notification worker now resolves bounded active device targets from PostgreSQL before invoking its sink, so future FCM/APNs/Web Push adapters receive explicit per-device targets without touching SMTP hot paths.

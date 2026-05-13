@@ -35,6 +35,7 @@ SELECT
   u.id::text,
   ua.address,
   u.display_name,
+  u.must_change_password,
   COALESCE(u.password_hash, '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
@@ -57,6 +58,7 @@ LIMIT 1`
 		&user.UserID,
 		&user.Address,
 		&user.DisplayName,
+		&user.MustChangePassword,
 		&passwordHash,
 	); err != nil {
 		if err == sql.ErrNoRows {

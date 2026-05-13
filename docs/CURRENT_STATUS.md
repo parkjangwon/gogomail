@@ -3614,6 +3614,9 @@ owner/resource target without scanning unrelated audit history.
   sender addresses from `user_addresses`; `MAIL FROM` accepts either the
   primary address or an authorized additional address while still rejecting
   unrelated senders.
+- IMAP authentication now rejects users marked `must_change_password`, using
+  the DB authentication result to prevent long-lived protocol sessions before
+  the user completes the required password rotation.
 - Authenticated SMTP Submission now mirrors receive-path storage cleanup:
   if the stored hook, submitted recorder, or mailbox-quota path fails before
   database commit, the just-written submitted `.eml` object is deleted.
