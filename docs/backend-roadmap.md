@@ -4918,6 +4918,10 @@ Target outcome:
          EXPUNGE events without a sequence number produce no wire response and
          leave selected message counts plus saved SEARCH sequence state
          unchanged.
+ 1577. IMAP server out-of-range EXPUNGE handling is now covered directly:
+         sequence numbers above the selected message count are clamped to the
+         selected count before emitting EXPUNGE, and saved SEARCH state is
+         updated using the clamped sequence.
 
 ## Deferred until backend contracts stabilize
 
