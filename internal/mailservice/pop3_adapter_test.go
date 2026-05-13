@@ -285,6 +285,27 @@ func TestPOP3StoreAdapterUsesFirstInboxFolderMatch(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterMissingInboxSkipsMessagePageLookup(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-archive", Name: "Archive", SystemType: "archive"}},
+		messages: []maildb.MessageSummary{{ID: "msg-001", Size: 42}},
+		details:  map[string]maildb.MessageDetail{"msg-001": {ID: "msg-001", StoragePath: "path/msg-001"}},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
+		t.Fatal("expected missing inbox error")
+	}
+	if len(repo.folderUsers) != 1 || repo.folderUsers[0] != "user-1" {
+		t.Fatalf("folder users = %#v, want [user-1]", repo.folderUsers)
+	}
+	if len(repo.pageFolders) != 0 {
+		t.Fatalf("page folders = %#v, want no message page lookup", repo.pageFolders)
+	}
+}
+
 func TestPOP3StoreAdapterAuthenticateFail(t *testing.T) {
 	adapter, repo, _ := newPOP3TestSetup()
 	auth := adapter.authenticator.(*pop3TestAuth)

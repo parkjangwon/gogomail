@@ -4982,6 +4982,9 @@ Target outcome:
  1595. POP3 INBOX selection is now covered as first-match routing: when folder
          lists contain non-INBOX entries and multiple INBOX candidates, message
          page lookup uses the first matching INBOX folder ID.
+ 1596. POP3 missing-INBOX handling is now covered as a message-listing
+         short-circuit: folder lookup can run, but no message page lookup occurs
+         when no INBOX system folder is present.
 
 ## Deferred until backend contracts stabilize
 
