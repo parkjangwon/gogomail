@@ -5152,6 +5152,9 @@ Target outcome:
          attempts are rejected while NOOP and STAT remain usable afterward.
  1653. POP3 transaction-state AUTH denial is now covered: SASL reauthentication
          attempts are rejected while NOOP and STAT remain usable afterward.
+ 1654. POP3 transaction-state STLS denial coverage has been revalidated without
+         duplicate tests: the existing regression checks the clear `-ERR`,
+         `NOOP`, and `STAT` recovery behavior.
 
 ## Deferred until backend contracts stabilize
 
