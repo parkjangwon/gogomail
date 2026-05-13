@@ -4997,6 +4997,9 @@ Target outcome:
  1600. POP3 multi-page missing-cursor handling is now hardened: `HasMore=true`
          pages without a `NextCursor` fail as `missing inbox cursor` after the
          first lookup, preventing repeated first-page reads.
+ 1601. POP3 multi-page cursor progression is now covered for large INBOX loads:
+         a 450-message fixture performs exactly three page calls, with page 2
+         and page 3 cursors based on the previous page's last message ID.
 
 ## Deferred until backend contracts stabilize
 
