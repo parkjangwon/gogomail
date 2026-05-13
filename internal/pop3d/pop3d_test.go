@@ -2035,6 +2035,38 @@ func TestPOP3QuitAfterFailedCommitSkipsRetryAfterRollback(t *testing.T) {
 	}
 }
 
+func TestPOP3QuitAfterFailedCommitNoDeleteRetryClosesConnection(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), 2*time.Second)
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+
+	mb.commitErr = nil
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls after no-delete retry QUIT = %d, want 1", mb.commitCalls)
+	}
+	if line, err := tp.ReadLine(); err == nil {
+		t.Fatalf("expected connection close after no-delete retry QUIT, got line: %s", line)
+	}
+}
+
 func TestPOP3QuitAfterFailedCommitAllowsRedeletedRetry(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{

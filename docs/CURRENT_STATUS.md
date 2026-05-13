@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit re-delete retry)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit close retry)
+
+## POP3 QUIT after failed commit close retry (2026-05-14, complete)
+- POP3 server coverage now verifies a no-delete `QUIT` after failed commit rollback returns `+OK` without another `CommitDeletes` call.
+- The regression verifies that retry path closes the TCP connection after the successful `QUIT`.
 
 ## POP3 QUIT after failed commit re-delete retry (2026-05-14, complete)
 - POP3 server coverage now verifies a failed `QUIT` rollback allows the client to issue `DELE 1` again in the same session.
