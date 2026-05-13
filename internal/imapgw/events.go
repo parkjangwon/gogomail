@@ -34,10 +34,12 @@ func (b *MailboxEventBroker) Subscribe(ctx context.Context, userID UserID, mailb
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	if strings.TrimSpace(string(userID)) == "" {
+	userID = UserID(strings.TrimSpace(string(userID)))
+	if userID == "" {
 		return nil, nil, fmt.Errorf("user_id is required")
 	}
-	if strings.TrimSpace(string(mailboxID)) == "" {
+	mailboxID = MailboxID(strings.TrimSpace(string(mailboxID)))
+	if mailboxID == "" {
 		return nil, nil, fmt.Errorf("mailbox_id is required")
 	}
 
@@ -84,10 +86,12 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if strings.TrimSpace(string(event.MailboxID)) == "" {
+	event.MailboxID = MailboxID(strings.TrimSpace(string(event.MailboxID)))
+	if event.MailboxID == "" {
 		return fmt.Errorf("mailbox_id is required")
 	}
-	if strings.TrimSpace(string(event.UserID)) == "" {
+	event.UserID = UserID(strings.TrimSpace(string(event.UserID)))
+	if event.UserID == "" {
 		return fmt.Errorf("user_id is required")
 	}
 	if event.Type == "" {

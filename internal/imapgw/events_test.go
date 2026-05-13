@@ -31,6 +31,30 @@ func TestMailboxEventBrokerDeliversMatchingMailboxEvents(t *testing.T) {
 	}
 }
 
+func TestMailboxEventBrokerNormalizesMailboxEventIdentity(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(1)
+	events, cancel, err := broker.Subscribe(context.Background(), " user-1 ", " inbox ")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	if err := broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: " user-1 ", MailboxID: " inbox ", Messages: 3}); err != nil {
+		t.Fatalf("Publish returned error: %v", err)
+	}
+
+	select {
+	case got := <-events:
+		if got.UserID != "user-1" || got.MailboxID != "inbox" || got.Messages != 3 {
+			t.Fatalf("event = %#v, want normalized inbox exists event", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for normalized mailbox event")
+	}
+}
+
 func TestMailboxEventBrokerCancelClosesSubscription(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,11 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (mail.stored empty mailbox event hardening)
+Last updated: 2026-05-14 (IMAP event broker identity normalization)
+
+## IMAP event broker identity normalization (2026-05-14, complete)
+- Mailbox event broker subscriptions now store trimmed user and mailbox IDs after validation.
+- Published mailbox events are normalized the same way before fanout, so whitespace-bearing producer inputs do not pass validation but fail subscriber matching.
+- The mailservice subscription wrapper regression test now verifies the same normalized matching behavior through the service-facing API.
 
 ## mail.stored empty mailbox event hardening (2026-05-14, complete)
 - The mail-stored IMAP notification handler now stops after UID assurance if the resulting mailbox ID is empty, avoiding malformed EXISTS fanout.
