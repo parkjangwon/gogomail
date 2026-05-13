@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 reset restores content access)
+Last updated: 2026-05-14 (POP3 commit clears pending deletes)
+
+## POP3 commit clears pending deletes (2026-05-14, complete)
+- POP3 mailbox coverage now verifies successful `CommitDeletes` clears pending delete state.
+- The repository fake records bulk delete call counts, and the regression verifies a second commit is a no-op.
 
 ## POP3 reset restores content access (2026-05-14, complete)
 - POP3 mailbox coverage now verifies `ResetDeleted` restores content access after a message was marked deleted.

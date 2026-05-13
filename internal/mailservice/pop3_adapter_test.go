@@ -18,16 +18,17 @@ import (
 // the methods the POP3 adapter actually calls.
 type pop3TestRepository struct {
 	fakeRepository
-	folders     []maildb.Folder
-	folderErr   error
-	messages    []maildb.MessageSummary
-	details     map[string]maildb.MessageDetail
-	pageErr     error
-	pageCalls   int
-	folderUsers []string
-	pageUsers   []string
-	pageFolders []string
-	pageCursors []maildb.MessageListCursor
+	folders         []maildb.Folder
+	folderErr       error
+	messages        []maildb.MessageSummary
+	details         map[string]maildb.MessageDetail
+	pageErr         error
+	pageCalls       int
+	folderUsers     []string
+	pageUsers       []string
+	pageFolders     []string
+	pageCursors     []maildb.MessageListCursor
+	bulkDeleteCalls int
 }
 
 func (r *pop3TestRepository) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -75,6 +76,12 @@ func (r *pop3TestRepository) GetMessage(_ context.Context, _, messageID string) 
 		return d, nil
 	}
 	return maildb.MessageDetail{}, fmt.Errorf("message not found: %s", messageID)
+}
+
+func (r *pop3TestRepository) BulkDeleteMessages(_ context.Context, req maildb.BulkMessageDeleteRequest) (int64, error) {
+	r.bulkDeleteCalls++
+	r.lastBulkDelete = req
+	return int64(len(req.MessageIDs)), nil
 }
 
 // pop3TestStore embeds recordingStore and adds body lookup.
@@ -1038,6 +1045,37 @@ func TestPOP3MailboxCommitDeletesDeduplicatesPendingIDs(t *testing.T) {
 	}
 	if len(mailbox.pending) != 0 {
 		t.Fatalf("expected pending deletes to clear after success, got %#v", mailbox.pending)
+	}
+}
+
+func TestPOP3MailboxCommitDeletesClearsPending(t *testing.T) {
+	adapter, repo, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	mailbox, ok := mb.(*pop3Mailbox)
+	if !ok {
+		t.Fatal("expected pop3 mailbox adapter")
+	}
+	if err := mailbox.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	if err := mailbox.CommitDeletes(); err != nil {
+		t.Fatalf("commit deletes: %v", err)
+	}
+	if len(mailbox.pending) != 0 {
+		t.Fatalf("pending deletes = %#v, want empty", mailbox.pending)
+	}
+	if repo.bulkDeleteCalls != 1 {
+		t.Fatalf("bulk delete calls = %d, want 1", repo.bulkDeleteCalls)
+	}
+	if got := repo.lastBulkDelete.MessageIDs; len(got) != 1 || got[0] != "msg-001" {
+		t.Fatalf("deleted IDs = %#v, want [msg-001]", got)
+	}
+	if err := mailbox.CommitDeletes(); err != nil {
+		t.Fatalf("second commit deletes: %v", err)
+	}
+	if repo.bulkDeleteCalls != 1 {
+		t.Fatalf("bulk delete calls after second commit = %d, want 1", repo.bulkDeleteCalls)
 	}
 }
 

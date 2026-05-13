@@ -5024,6 +5024,9 @@ Target outcome:
  1609. POP3 reset behavior is now covered for content access: after
          `ResetDeleted`, a previously deleted message can be read again through
          `MessageContentWithError`.
+ 1610. POP3 delete commit cleanup is now covered: successful `CommitDeletes`
+         clears pending delete state, and repeated commits do not issue
+         duplicate bulk delete requests.
 
 ## Deferred until backend contracts stabilize
 
