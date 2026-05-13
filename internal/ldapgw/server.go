@@ -1016,30 +1016,33 @@ func decodeSequence(data []byte) ([][]byte, error) {
 	pos := 0
 	for pos < len(content) {
 		if content[pos]&0x3f == 0x30 {
-			elemLen, elemHeader, err := decodeLength(content[pos+1:])
-			if err != nil || pos+1+len(content[pos+1:])-len(elemHeader) < elemLen {
+			elemLen, elemRest, err := decodeLength(content[pos+1:])
+			elemHeaderLen := len(content[pos+1:]) - len(elemRest)
+			if err != nil || len(elemRest) < elemLen {
 				break
 			}
-			elem := content[pos+1+len(elemHeader) : pos+1+len(elemHeader)+elemLen]
+			elem := elemRest[:elemLen]
 			result = append(result, elem)
-			pos += 1 + len(elemHeader) + elemLen
+			pos += 1 + elemHeaderLen + elemLen
 		} else if content[pos]&0x80 != 0 && content[pos]&0x40 != 0 {
 			// Context-specific constructed tag (e.g., LDAP filter 0x83).
-			elemLen, elemHeader, err := decodeLength(content[pos+1:])
-			if err != nil || pos+1+len(content[pos+1:])-len(elemHeader) < elemLen {
+			elemLen, elemRest, err := decodeLength(content[pos+1:])
+			elemHeaderLen := len(content[pos+1:]) - len(elemRest)
+			if err != nil || len(elemRest) < elemLen {
 				break
 			}
-			elem := content[pos+1+len(elemHeader) : pos+1+len(elemHeader)+elemLen]
+			elem := elemRest[:elemLen]
 			result = append(result, elem)
-			pos += 1 + len(elemHeader) + elemLen
+			pos += 1 + elemHeaderLen + elemLen
 		} else if content[pos] == tagInteger || content[pos] == tagOctetString || content[pos] == 0x0A {
-			elemLen, elemHeader, err := decodeLength(content[pos+1:])
-			if err != nil || pos+1+len(content[pos+1:])-len(elemHeader) < elemLen {
+			elemLen, elemRest, err := decodeLength(content[pos+1:])
+			elemHeaderLen := len(content[pos+1:]) - len(elemRest)
+			if err != nil || len(elemRest) < elemLen {
 				break
 			}
-			elem := content[pos+1+len(elemHeader) : pos+1+len(elemHeader)+elemLen]
+			elem := elemRest[:elemLen]
 			result = append(result, elem)
-			pos += 1 + len(elemHeader) + elemLen
+			pos += 1 + elemHeaderLen + elemLen
 		} else {
 			break
 		}
@@ -1067,13 +1070,14 @@ func decodeAttributeDescriptionList(data []byte) ([]string, []byte, error) {
 	pos := 0
 	for pos < len(content) {
 		if content[pos] == tagOctetString {
-			attrLen, attrHeader, err := decodeLength(content[pos+1:])
-			if err != nil || pos+1+len(content[pos+1:])-len(attrHeader) < attrLen {
+			attrLen, attrRest, err := decodeLength(content[pos+1:])
+			attrHeaderLen := len(content[pos+1:]) - len(attrRest)
+			if err != nil || len(attrRest) < attrLen {
 				break
 			}
-			attr := string(content[pos+1+len(attrHeader) : pos+1+len(attrHeader)+attrLen])
+			attr := string(attrRest[:attrLen])
 			attrs = append(attrs, attr)
-			pos += 1 + len(attrHeader) + attrLen
+			pos += 1 + attrHeaderLen + attrLen
 		} else {
 			break
 		}
