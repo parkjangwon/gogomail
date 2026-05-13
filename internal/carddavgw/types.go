@@ -73,18 +73,20 @@ type AddressBook struct {
 }
 
 type ContactObject struct {
-	ID            string
-	UserID        string
-	AddressBookID string
-	ObjectName    string
-	UID           string
-	ETag          string
-	Size          int64
-	VCard         []byte
-	PhotoData     []byte
+	ID             string
+	UserID         string
+	AddressBookID  string
+	ObjectName     string
+	UID            string
+	ETag           string
+	Size           int64
+	VCard          []byte
+	PhotoData      []byte
 	PhotoMediaType string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	Categories     []string
+	Group          string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type SearchContactsByEmailRequest struct {
