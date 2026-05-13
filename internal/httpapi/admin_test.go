@@ -5852,6 +5852,41 @@ func TestAdminUsersHandlerRejectsUnsafeFilters(t *testing.T) {
 	}
 }
 
+func TestAdminCompanyUsersBulkExportScopesUsersByCompanyDomains(t *testing.T) {
+	t.Parallel()
+
+	service := &fakeAdminService{
+		domains: []maildb.DomainView{
+			{ID: "domain-1", CompanyID: "company-1", Name: "example.com"},
+			{ID: "domain-2", CompanyID: "company-2", Name: "other.test"},
+		},
+		users: []maildb.UserView{
+			{ID: "user-1", DomainID: "domain-1", Username: "alice", DisplayName: "Alice", Status: "active"},
+			{ID: "user-2", DomainID: "domain-2", Username: "bob", DisplayName: "Bob", Status: "active"},
+		},
+	}
+	mux := http.NewServeMux()
+	RegisterAdminRoutes(mux, service, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/v1/companies/company-1/users/bulk-export", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "alice") {
+		t.Fatalf("export missing company user: %s", body)
+	}
+	if strings.Contains(body, "bob") {
+		t.Fatalf("export leaked another company user: %s", body)
+	}
+	if service.lastDomainList.CompanyID != "company-1" || service.lastUserList.DomainID != "domain-1" {
+		t.Fatalf("domain/user list = %+v/%+v", service.lastDomainList, service.lastUserList)
+	}
+}
+
 func TestAdminOperationalGetHandlersRejectUnknownQueryParameters(t *testing.T) {
 	t.Parallel()
 
@@ -8522,7 +8557,26 @@ func (f *fakeAdminService) DeleteCompany(_ context.Context, id string) error {
 func (f *fakeAdminService) ListDomains(_ context.Context, req maildb.DomainListRequest) ([]maildb.DomainView, error) {
 	f.lastDomainList = req
 	f.lastLimit = req.Limit
-	return f.domains, nil
+	if req.CompanyID == "" {
+		return f.domains, nil
+	}
+	hasCompanyIDs := false
+	for _, domain := range f.domains {
+		if domain.CompanyID != "" {
+			hasCompanyIDs = true
+			break
+		}
+	}
+	if !hasCompanyIDs {
+		return f.domains, nil
+	}
+	domains := make([]maildb.DomainView, 0, len(f.domains))
+	for _, domain := range f.domains {
+		if domain.CompanyID == req.CompanyID {
+			domains = append(domains, domain)
+		}
+	}
+	return domains, nil
 }
 
 func (f *fakeAdminService) CreateDomain(_ context.Context, req maildb.CreateDomainRequest) (maildb.DomainView, error) {
@@ -8587,7 +8641,26 @@ func (f *fakeAdminService) ListUsers(_ context.Context, req maildb.UserListReque
 	f.lastUserList = req
 	f.lastDomainID = req.DomainID
 	f.lastLimit = req.Limit
-	return f.users, nil
+	if req.DomainID == "" {
+		return f.users, nil
+	}
+	hasDomainIDs := false
+	for _, user := range f.users {
+		if user.DomainID != "" {
+			hasDomainIDs = true
+			break
+		}
+	}
+	if !hasDomainIDs {
+		return f.users, nil
+	}
+	users := make([]maildb.UserView, 0, len(f.users))
+	for _, user := range f.users {
+		if user.DomainID == req.DomainID {
+			users = append(users, user)
+		}
+	}
+	return users, nil
 }
 
 func (f *fakeAdminService) CreateUser(_ context.Context, req maildb.CreateUserRequest) (maildb.UserView, error) {

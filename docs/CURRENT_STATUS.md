@@ -5801,3 +5801,4 @@ Next focus areas:
 - User runtime-config and MFA management pages now load users through the current company's domains before querying `/users`, preventing cross-company user rows from appearing in company-scoped admin tools.
 - Console organization webhooks no longer POST caller-supplied `secret` fields that the backend rejects, and notification templates now edit the backend's `subject`/`body`/`enabled` model instead of stale locale/body_text/body_html fields.
 - Webmail settings no longer expose the stale mailbox-import flow that called nonexistent `/messages/restore`; the UI now keeps only supported local export and backend trash restore paths.
+- Backend company user exports, SCIM status counts, and security posture now enumerate users through the company's domains instead of unscoped `ListUsers` calls, keeping tenant-scoped admin data aligned with the console behavior.

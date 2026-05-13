@@ -787,11 +787,7 @@ func RegisterAdminRoutes(mux *http.ServeMux, service AdminService, token string,
 		if !ok {
 			return
 		}
-		// List users across all domains for this company by fetching domain users
-		// We use a high limit and filter by listing all domains then their users.
-		// Since UserListRequest has no CompanyID field, we export via domain listing.
-		_ = id
-		users, err := service.ListUsers(r.Context(), maildb.UserListRequest{Limit: 1000})
+		users, err := listCompanyUsers(r.Context(), service, id, 1000)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -7912,6 +7908,26 @@ func handleGetCompanyHealth(w http.ResponseWriter, r *http.Request, service Admi
 	})
 }
 
+func listCompanyUsers(ctx context.Context, service AdminService, companyID string, perDomainLimit int) ([]maildb.UserView, error) {
+	domains, err := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
+	if err != nil {
+		return nil, err
+	}
+	return listUsersForDomains(ctx, service, domains, perDomainLimit)
+}
+
+func listUsersForDomains(ctx context.Context, service AdminService, domains []maildb.DomainView, perDomainLimit int) ([]maildb.UserView, error) {
+	users := []maildb.UserView{}
+	for _, domain := range domains {
+		domainUsers, err := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domain.ID, Limit: perDomainLimit})
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, domainUsers...)
+	}
+	return users, nil
+}
+
 // ─── Security Posture ─────────────────────────────────────────────────────────
 
 func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service AdminService, companyID string) {
@@ -7920,7 +7936,7 @@ func handleGetSecurityPosture(w http.ResponseWriter, r *http.Request, service Ad
 	mfaStats, _ := service.GetMFAStats(ctx, companyID)
 	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: companyID, Limit: 200})
 
-	users, _ := service.ListUsers(ctx, maildb.UserListRequest{Limit: 500})
+	users, _ := listUsersForDomains(ctx, service, domains, 1000)
 	usersWithoutPassword := 0
 	for _, u := range users {
 		if !u.PasswordConfigured {
@@ -8155,12 +8171,12 @@ func handleGetSCIMStatus(w http.ResponseWriter, r *http.Request, service AdminSe
 	if !ok {
 		return
 	}
-	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 10})
+	domains, _ := service.ListDomains(ctx, maildb.DomainListRequest{CompanyID: id, Limit: 200})
 	domainID := ""
 	if len(domains) > 0 {
 		domainID = domains[0].ID
 	}
-	users, _ := service.ListUsers(ctx, maildb.UserListRequest{DomainID: domainID, Limit: 1000})
+	users, _ := listUsersForDomains(ctx, service, domains, 1000)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"endpoint":            "/scim/v2",
 		"supported_resources": []string{"Users"},
