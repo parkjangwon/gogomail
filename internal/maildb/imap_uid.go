@@ -1247,6 +1247,12 @@ FOR UPDATE OF i, m`
 		}
 		return nil, nil
 	}
+	backfilledDest, err := backfillIMAPMailboxUIDsTx(ctx, tx, userID, destMailboxID, destState.uidNext, destState.highestModSeq)
+	if err != nil {
+		return nil, err
+	}
+	destState.uidNext += imapgw.UID(backfilledDest)
+	destState.highestModSeq += uint64(backfilledDest)
 	if uint64(destState.uidNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
 		return nil, fmt.Errorf("imap destination uidnext exhausted")
 	}
@@ -1327,6 +1333,57 @@ WHERE mailbox_id = $1::uuid
 		return nil, fmt.Errorf("commit imap move transaction: %w", err)
 	}
 	return results, nil
+}
+
+func backfillIMAPMailboxUIDsTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, uidNext imapgw.UID, highestModSeq uint64) (int, error) {
+	const selectMessages = `
+SELECT m.id::text
+FROM messages m
+LEFT JOIN imap_message_uid i
+  ON i.message_id = m.id
+ AND i.user_id = m.user_id
+ AND i.mailbox_id = m.folder_id
+WHERE m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'
+  AND i.message_id IS NULL
+ORDER BY COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at), m.id
+FOR UPDATE OF m`
+	rows, err := tx.QueryContext(ctx, selectMessages, userID, mailboxID)
+	if err != nil {
+		return 0, fmt.Errorf("select imap destination uid backfill messages: %w", err)
+	}
+	var messageIDs []string
+	for rows.Next() {
+		var messageID string
+		if err := rows.Scan(&messageID); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan imap destination uid backfill message: %w", err)
+		}
+		messageIDs = append(messageIDs, messageID)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close imap destination uid backfill rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("iterate imap destination uid backfill messages: %w", err)
+	}
+	if len(messageIDs) == 0 {
+		return 0, nil
+	}
+	if uint64(uidNext)+uint64(len(messageIDs))-1 > math.MaxUint32 {
+		return 0, fmt.Errorf("imap destination uidnext exhausted")
+	}
+
+	const insertUID = `
+INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)`
+	for i, messageID := range messageIDs {
+		if _, err := tx.ExecContext(ctx, insertUID, messageID, mailboxID, userID, int64(uidNext+imapgw.UID(i)), int64(highestModSeq+uint64(i)+1)); err != nil {
+			return 0, fmt.Errorf("insert imap destination uid backfill row: %w", err)
+		}
+	}
+	return len(messageIDs), nil
 }
 
 func (r *Repository) moveIMAPMessagesWithinMailbox(ctx context.Context, userID string, mailboxID string, uids []imapgw.UID) ([]imapgw.MoveMessageResult, error) {

@@ -1127,6 +1127,90 @@ WHERE user_id = $1::uuid
 	}
 }
 
+func TestPostgresIMAPMoveBackfillsDestinationLegacyUIDsBeforeMove(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var sourceID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<move-order-source@example.com>',
+  'move order source', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/move-order-source.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&sourceID); err != nil {
+		t.Fatalf("insert move source message: %v", err)
+	}
+	sourceUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, sourceID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<move-dest-legacy-first@example.com>',
+   'move destination legacy first', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/move-dest-legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<move-dest-legacy-second@example.com>',
+   'move destination legacy second', 'sender@example.net', '2026-05-04T00:03:00Z'::timestamptz,
+   100, 'mail/move-dest-legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.sentID); err != nil {
+		t.Fatalf("insert move destination legacy messages: %v", err)
+	}
+
+	before, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.sentID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox before move returned error: %v", err)
+	}
+	if before.UIDNext != 3 || before.HighestModSeq != 2 {
+		t.Fatalf("predicted move destination state = uidnext %d highestmodseq %d, want 3/2", before.UIDNext, before.HighestModSeq)
+	}
+
+	moved, err := repo.MoveIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{sourceUID.UID})
+	if err != nil {
+		t.Fatalf("MoveIMAPMessages returned error: %v", err)
+	}
+	if len(moved) != 1 {
+		t.Fatalf("moved summaries = %#v, want 1", moved)
+	}
+	if moved[0].Destination.UID != 3 || moved[0].Destination.SequenceNumber != 3 {
+		t.Fatalf("moved destination uid/seq = %d/%d, want 3/3", moved[0].Destination.UID, moved[0].Destination.SequenceNumber)
+	}
+	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, sourceUID.UID); err == nil {
+		t.Fatal("GetIMAPMessage found moved message in source mailbox")
+	}
+
+	messages, err := repo.ListIMAPMessages(ctx, seed.userID, seed.sentID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListIMAPMessages returned error: %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("listed move destination messages = %d, want 3", len(messages))
+	}
+	wantSubjects := []string{"move destination legacy first", "move destination legacy second", "move order source"}
+	for i, msg := range messages {
+		wantUID := imapgw.UID(i + 1)
+		wantSeq := uint32(i + 1)
+		if msg.UID != wantUID || msg.SequenceNumber != wantSeq || msg.Envelope.Subject != wantSubjects[i] {
+			t.Fatalf("move destination[%d] = uid %d seq %d subject %q, want %d/%d/%q", i, msg.UID, msg.SequenceNumber, msg.Envelope.Subject, wantUID, wantSeq, wantSubjects[i])
+		}
+	}
+	after, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.sentID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox after move returned error: %v", err)
+	}
+	if after.UIDNext != 4 || after.HighestModSeq != 3 {
+		t.Fatalf("move destination state after move = uidnext %d highestmodseq %d, want 4/3", after.UIDNext, after.HighestModSeq)
+	}
+}
+
 func TestPostgresIMAPMoveMessagesAllowsSameMailbox(t *testing.T) {
 	t.Parallel()
 
