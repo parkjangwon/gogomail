@@ -5285,6 +5285,9 @@ Target outcome:
  1698. SMTP inbound HELO reset is now covered for domain policy and DSN state
          at the TCP protocol layer: HELO clears accumulated limits and DSN
          metadata before the next accepted transaction.
+ 1699. SMTP inbound QUIT isolation is now covered for domain policy and DSN
+         state at the TCP protocol layer: closed connections do not leak
+         accumulated limits or DSN metadata into later connections.
 
 ## Deferred until backend contracts stabilize
 
