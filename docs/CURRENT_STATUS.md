@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV sync-token retention hardening)
+Last updated: 2026-05-14 (CalDAV scheduling persistence guard)
+
+## CalDAV scheduling persistence guard (2026-05-14, complete)
+- CalDAV repository validation tests now explicitly reject `METHOD`-bearing VCALENDAR bodies at the `UpsertObject` storage boundary.
+- The documented contract remains split: iTIP scheduling parsing may accept `METHOD`, while persisted calendar object resources must not store scheduling payloads.
 
 ## CardDAV sync-token retention hardening (2026-05-14, complete)
 - CardDAV sync change pruning now explicitly excludes the current `carddav_addressbooks.sync_token` from both dry-run candidate counts and delete candidates.
