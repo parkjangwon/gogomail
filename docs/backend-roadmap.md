@@ -5033,6 +5033,9 @@ Target outcome:
  1612. POP3 reset-after-failed-commit behavior is now covered: `ResetDeleted`
          clears preserved pending delete state, and the next commit is a no-op
          instead of retrying an intentionally reset delete.
+ 1613. POP3 duplicate delete marking is now covered: repeated `MarkDeleted`
+         calls for the same message create one pending delete ID and one bulk
+         delete entry at commit time.
 
 ## Deferred until backend contracts stabilize
 

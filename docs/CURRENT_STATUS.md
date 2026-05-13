@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 reset after commit failure)
+Last updated: 2026-05-14 (POP3 duplicate mark delete)
+
+## POP3 duplicate mark delete (2026-05-14, complete)
+- POP3 mailbox coverage now verifies repeated `MarkDeleted` calls for the same message keep one pending delete ID.
+- The commit regression confirms the bulk delete request contains the duplicated message only once.
 
 ## POP3 reset after commit failure (2026-05-14, complete)
 - POP3 mailbox coverage now verifies `ResetDeleted` clears pending deletes after a failed commit.
