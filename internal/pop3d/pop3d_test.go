@@ -1368,6 +1368,26 @@ func TestPOP3NoopPreservesPendingDelete(t *testing.T) {
 	}
 }
 
+func TestPOP3CapaPreservesPendingDelete(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	capa := pop3Capa(t, tp)
+	if !capa["UIDL"] || !capa["TOP"] {
+		t.Fatalf("expected transaction CAPA after delete, got: %#v", capa)
+	}
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "1 ") {
+		t.Fatalf("expected CAPA to preserve pending delete, got: %s", line)
+	}
+}
+
 func TestPOP3Quit(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
