@@ -838,6 +838,45 @@ func TestSessionRejectsRecipientsOverAnyRecipientDomainPolicyLimit(t *testing.T)
 	}
 }
 
+func TestSessionAppliesStrictestMixedDomainMessageSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+
+	requireSMTPStatus(t, session.Data(strings.NewReader("Subject: too large for d2\r\n\r\nbody")), 552, gosmtp.EnhancedCode{5, 3, 4})
+	if !lookup.seen("d1") || !lookup.seen("d2") {
+		t.Fatalf("domain policy lookup calls = %v, want both domains", lookup.calls)
+	}
+}
+
 func TestSessionRejectsRcptWhenDomainPolicyLookupFails(t *testing.T) {
 	t.Parallel()
 
