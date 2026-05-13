@@ -1,6 +1,16 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV PHOTO property implementation)
+Last updated: 2026-05-14 (CardDAV RFC 6350 & RFC 3744 ACL implementation complete)
+
+## CardDAV ACL support (RFC 3744) (2026-05-14, complete)
+- Implemented RFC 3744 Access Control List (ACL) support for CardDAV collections.
+- ACL rules define principal-based access control for addressbooks.
+- Support for granting/denying privileges on a per-principal basis.
+- carddav_acl_rules table stores ACL rules with principal_id, grant_privileges, deny_privileges.
+- ACL rules can be created, retrieved, and deleted via repository methods.
+- Protected ACL rules flag indicates rules that cannot be modified.
+- Indexes on addressbook_id and principal_id for efficient permission lookups.
+- Migration 0101_carddav_acl_support.sql creates schema with foreign key to addressbooks.
 
 ## CardDAV CATEGORIES and GROUP properties (2026-05-14, complete)
 - CardDAV now supports RFC 6350 CATEGORIES and GROUP properties for contact organization.

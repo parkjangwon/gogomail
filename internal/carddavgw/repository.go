@@ -1137,6 +1137,102 @@ RETURNING id::text, user_id::text, addressbook_id::text, object_name, uid, etag,
 	return object, nil
 }
 
+func (r *Repository) CreateACLRule(ctx context.Context, req CreateACLRuleRequest) (ACLRule, error) {
+	if r == nil || r.db == nil {
+		return ACLRule{}, fmt.Errorf("database handle is required")
+	}
+	const query = `
+INSERT INTO carddav_acl_rules (addressbook_id, principal_id, grant_privileges, deny_privileges, protected)
+VALUES ($1::uuid, $2, $3, $4, $5)
+ON CONFLICT (addressbook_id, principal_id)
+DO UPDATE SET
+  grant_privileges = EXCLUDED.grant_privileges,
+  deny_privileges = EXCLUDED.deny_privileges,
+  updated_at = now()
+RETURNING id::text, addressbook_id::text, principal_id, grant_privileges, deny_privileges, protected, created_at, updated_at`
+
+	var rule ACLRule
+	err := r.db.QueryRowContext(ctx, query,
+		req.AddressBookID,
+		req.PrincipalID,
+		pq.Array(req.GrantPrivileges),
+		pq.Array(req.DenyPrivileges),
+		req.Protected,
+	).Scan(
+		&rule.ID,
+		&rule.AddressBookID,
+		&rule.PrincipalID,
+		pq.Array(&rule.GrantPrivileges),
+		pq.Array(&rule.DenyPrivileges),
+		&rule.Protected,
+		&rule.CreatedAt,
+		&rule.UpdatedAt,
+	)
+	if err != nil {
+		return ACLRule{}, fmt.Errorf("create CardDAV ACL rule: %w", err)
+	}
+	return rule, nil
+}
+
+func (r *Repository) GetACLRules(ctx context.Context, req GetACLRulesRequest) ([]ACLRule, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("database handle is required")
+	}
+	const query = `
+SELECT id::text, addressbook_id::text, principal_id, grant_privileges, deny_privileges, protected, created_at, updated_at
+FROM carddav_acl_rules
+WHERE addressbook_id = $1::uuid
+ORDER BY created_at ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, req.AddressBookID)
+	if err != nil {
+		return nil, fmt.Errorf("get CardDAV ACL rules: %w", err)
+	}
+	defer rows.Close()
+
+	var rules []ACLRule
+	for rows.Next() {
+		var rule ACLRule
+		if err := rows.Scan(
+			&rule.ID,
+			&rule.AddressBookID,
+			&rule.PrincipalID,
+			pq.Array(&rule.GrantPrivileges),
+			pq.Array(&rule.DenyPrivileges),
+			&rule.Protected,
+			&rule.CreatedAt,
+			&rule.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan CardDAV ACL rule: %w", err)
+		}
+		rules = append(rules, rule)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate CardDAV ACL rules: %w", err)
+	}
+	return rules, nil
+}
+
+func (r *Repository) DeleteACLRule(ctx context.Context, req DeleteACLRuleRequest) error {
+	if r == nil || r.db == nil {
+		return fmt.Errorf("database handle is required")
+	}
+	result, err := r.db.ExecContext(ctx, `
+DELETE FROM carddav_acl_rules
+WHERE id = $1::uuid`, req.ACLRuleID)
+	if err != nil {
+		return fmt.Errorf("delete CardDAV ACL rule: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("CardDAV ACL rule not found")
+	}
+	return nil
+}
+
 func (r *Repository) ListAddressBookChangesSince(ctx context.Context, req ListAddressBookChangesSinceRequest) ([]AddressBookChange, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("database handle is required")
@@ -1804,6 +1900,28 @@ const (
 	davChangeKindCardDAV       = "carddav"
 	davChangePartitionFallback = "unknown"
 )
+
+type CreateACLRuleRequest struct {
+	AddressBookID   string
+	PrincipalID     string
+	GrantPrivileges []string
+	DenyPrivileges  []string
+	Protected       bool
+}
+
+type GetACLRulesRequest struct {
+	AddressBookID string
+}
+
+type UpdateACLRuleRequest struct {
+	ACLRuleID      string
+	GrantPrivileges []string
+	DenyPrivileges  []string
+}
+
+type DeleteACLRuleRequest struct {
+	ACLRuleID string
+}
 
 func insertAddressBookChange(ctx context.Context, execer addressBookChangeExecer, userID string, actorUserID string, addressBookID string, syncToken string, action string, objectName string, etag string) error {
 	_, err := execer.ExecContext(ctx, `
