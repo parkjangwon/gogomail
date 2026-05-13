@@ -1372,6 +1372,100 @@ INSERT INTO messages (
 	}
 }
 
+func TestPostgresIMAPCopyNoMatchDoesNotBackfillDestinationUIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-noop-legacy-first@example.com>',
+   'copy noop legacy first', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/copy-noop-legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<copy-noop-legacy-second@example.com>',
+   'copy noop legacy second', 'sender@example.net', '2026-05-04T00:03:00Z'::timestamptz,
+   100, 'mail/copy-noop-legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.sentID); err != nil {
+		t.Fatalf("insert copy no-op destination legacy messages: %v", err)
+	}
+
+	copied, err := repo.CopyIMAPMessages(ctx, seed.userID, seed.inboxID, seed.sentID, []imapgw.UID{999999})
+	if err != nil {
+		t.Fatalf("CopyIMAPMessages no-op returned error: %v", err)
+	}
+	if len(copied) != 0 {
+		t.Fatalf("copied no-op results = %#v, want empty", copied)
+	}
+	assertMailboxHasNoAssignedIMAPUIDs(t, db, seed.userID, seed.sentID)
+	state, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, seed.sentID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMailboxState returned error: %v", err)
+	}
+	if state.UIDNext != 1 || state.HighestModSeq != 0 {
+		t.Fatalf("destination state after copy no-op = uidnext %d highestmodseq %d, want stored 1/0", state.UIDNext, state.HighestModSeq)
+	}
+}
+
+func TestPostgresIMAPSameMailboxMoveNoMatchDoesNotBackfillUIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-noop-legacy-first@example.com>',
+   'same move noop legacy first', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/same-move-noop-legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-noop-legacy-second@example.com>',
+   'same move noop legacy second', 'sender@example.net', '2026-05-04T00:03:00Z'::timestamptz,
+   100, 'mail/same-move-noop-legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.inboxID); err != nil {
+		t.Fatalf("insert same-mailbox move no-op legacy messages: %v", err)
+	}
+
+	moved, err := repo.MoveIMAPMessages(ctx, seed.userID, seed.inboxID, seed.inboxID, []imapgw.UID{999999})
+	if err != nil {
+		t.Fatalf("MoveIMAPMessages no-op returned error: %v", err)
+	}
+	if len(moved) != 0 {
+		t.Fatalf("same-mailbox move no-op results = %#v, want empty", moved)
+	}
+	assertMailboxHasNoAssignedIMAPUIDs(t, db, seed.userID, seed.inboxID)
+	state, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMailboxState returned error: %v", err)
+	}
+	if state.UIDNext != 1 || state.HighestModSeq != 0 {
+		t.Fatalf("same-mailbox state after move no-op = uidnext %d highestmodseq %d, want stored 1/0", state.UIDNext, state.HighestModSeq)
+	}
+}
+
+func assertMailboxHasNoAssignedIMAPUIDs(t *testing.T, db *sql.DB, userID string, mailboxID string) {
+	t.Helper()
+
+	var assigned int
+	if err := db.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM imap_message_uid
+WHERE user_id = $1::uuid
+  AND mailbox_id = $2::uuid`, userID, mailboxID).Scan(&assigned); err != nil {
+		t.Fatalf("count assigned imap uids: %v", err)
+	}
+	if assigned != 0 {
+		t.Fatalf("assigned imap uids = %d, want 0", assigned)
+	}
+}
+
 func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {
 	t.Parallel()
 

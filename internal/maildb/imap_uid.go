@@ -610,40 +610,6 @@ locked_state AS (
     AND user_id = $1::uuid
   FOR UPDATE
 ),
-locked_unassigned AS (
-  SELECT
-    m.id,
-    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
-  FROM messages m
-  LEFT JOIN imap_message_uid i
-    ON i.message_id = m.id
-   AND i.user_id = m.user_id
-   AND i.mailbox_id = m.folder_id
-  WHERE m.user_id = $1::uuid
-    AND m.folder_id = $3::uuid
-    AND m.status = 'active'
-    AND i.message_id IS NULL
-  FOR UPDATE OF m
-),
-unassigned_existing AS (
-  SELECT
-    id,
-    row_number() OVER (ORDER BY internal_date, id) AS rn
-  FROM locked_unassigned
-),
-backfilled_existing AS (
-  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
-  SELECT
-    unassigned_existing.id,
-    locked_state.mailbox_id,
-    locked_state.user_id,
-    locked_state.uidnext + unassigned_existing.rn - 1,
-    locked_state.highest_modseq + unassigned_existing.rn
-  FROM unassigned_existing
-  CROSS JOIN locked_state
-  ON CONFLICT (message_id) DO NOTHING
-  RETURNING 1
-),
 source AS (
   SELECT
     gen_random_uuid() AS new_id,
@@ -684,6 +650,41 @@ source AS (
    AND m.user_id = $1::uuid
    AND m.folder_id = $2::uuid
    AND m.status = 'active'
+),
+locked_unassigned AS (
+  SELECT
+    m.id,
+    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $1::uuid
+    AND m.folder_id = $3::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+  FOR UPDATE OF m
+),
+unassigned_existing AS (
+  SELECT
+    id,
+    row_number() OVER (ORDER BY internal_date, id) AS rn
+  FROM locked_unassigned
+),
+backfilled_existing AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    unassigned_existing.id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + unassigned_existing.rn - 1,
+    locked_state.highest_modseq + unassigned_existing.rn
+  FROM unassigned_existing
+  CROSS JOIN locked_state
+  WHERE EXISTS (SELECT 1 FROM source)
+  ON CONFLICT (message_id) DO NOTHING
+  RETURNING 1
 ),
 inserted_messages AS (
   INSERT INTO messages (
@@ -1432,40 +1433,6 @@ locked_state AS (
     AND user_id = $1::uuid
   FOR UPDATE
 ),
-locked_unassigned AS (
-  SELECT
-    m.id,
-    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
-  FROM messages m
-  LEFT JOIN imap_message_uid i
-    ON i.message_id = m.id
-   AND i.user_id = m.user_id
-   AND i.mailbox_id = m.folder_id
-  WHERE m.user_id = $1::uuid
-    AND m.folder_id = $2::uuid
-    AND m.status = 'active'
-    AND i.message_id IS NULL
-  FOR UPDATE OF m
-),
-unassigned_existing AS (
-  SELECT
-    id,
-    row_number() OVER (ORDER BY internal_date, id) AS rn
-  FROM locked_unassigned
-),
-backfilled_existing AS (
-  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
-  SELECT
-    unassigned_existing.id,
-    locked_state.mailbox_id,
-    locked_state.user_id,
-    locked_state.uidnext + unassigned_existing.rn - 1,
-    locked_state.highest_modseq + unassigned_existing.rn
-  FROM unassigned_existing
-  CROSS JOIN locked_state
-  ON CONFLICT (message_id) DO NOTHING
-  RETURNING 1
-),
 source AS (
   SELECT
     gen_random_uuid() AS new_id,
@@ -1517,6 +1484,41 @@ source AS (
    AND m.user_id = $1::uuid
    AND m.folder_id = $2::uuid
    AND m.status = 'active'
+),
+locked_unassigned AS (
+  SELECT
+    m.id,
+    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+  FOR UPDATE OF m
+),
+unassigned_existing AS (
+  SELECT
+    id,
+    row_number() OVER (ORDER BY internal_date, id) AS rn
+  FROM locked_unassigned
+),
+backfilled_existing AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    unassigned_existing.id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + unassigned_existing.rn - 1,
+    locked_state.highest_modseq + unassigned_existing.rn
+  FROM unassigned_existing
+  CROSS JOIN locked_state
+  WHERE EXISTS (SELECT 1 FROM source)
+  ON CONFLICT (message_id) DO NOTHING
+  RETURNING 1
 ),
 inserted_messages AS (
   INSERT INTO messages (
