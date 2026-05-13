@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 STLS failure connection close)
+Last updated: 2026-05-14 (POP3 STLS transaction-state denial)
+
+## POP3 STLS transaction-state denial (2026-05-14, complete)
+- POP3 server coverage now verifies transaction-state `STLS` returns a clear `-ERR` denial.
+- The regression verifies `NOOP` and `STAT` still work after the denial, proving no TLS negotiation started.
 
 ## POP3 STLS failure connection close (2026-05-14, complete)
 - POP3 server coverage now verifies invalid post-`STLS` plaintext triggers TLS handshake failure.

@@ -5062,6 +5062,9 @@ Target outcome:
  1622. POP3 STLS handshake failure behavior is now covered: invalid plaintext
          after `STLS` triggers the failure path and the server closes the TCP
          connection.
+ 1623. POP3 transaction-state STLS denial is now covered: after authentication,
+         `STLS` returns a clear `-ERR` and the existing transaction session
+         remains usable for `NOOP` and `STAT`.
 
 ## Deferred until backend contracts stabilize
 
