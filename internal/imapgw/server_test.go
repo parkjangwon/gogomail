@@ -7014,6 +7014,71 @@ func TestServerStreamsExpungeEventsOverIdle(t *testing.T) {
 	}
 }
 
+func TestServerIgnoresExpungeEventsOverIdleWhenSelectedMailboxEmpty(t *testing.T) {
+	t.Parallel()
+
+	backendImpl := &emptyEventBackend{eventBackend: eventBackend{events: make(chan MailboxEvent, 1)}}
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: backendImpl, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	client, backend := net.Pipe()
+	defer client.Close()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ServeConn(backend)
+	}()
+
+	reader := bufio.NewReader(client)
+	if _, err := reader.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+	if _, err := client.Write([]byte("a1 LOGIN user@example.com secret\r\na2 SELECT inbox\r\n")); err != nil {
+		t.Fatalf("write login/select: %v", err)
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read login/select response: %v", err)
+		}
+		if strings.HasPrefix(line, "a2 OK ") {
+			break
+		}
+	}
+	if _, err := client.Write([]byte("a3 IDLE\r\n")); err != nil {
+		t.Fatalf("write idle: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "+ idling\r\n" {
+		t.Fatalf("idle continuation = %q err = %v", line, err)
+	}
+	backendImpl.events <- MailboxEvent{Type: MailboxEventExpunge, UserID: "user-1", MailboxID: "inbox", UID: 7, SequenceNumber: 1}
+	if err := client.SetReadDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err == nil {
+		t.Fatalf("idle empty selected expunge event = %q, want no response", line)
+	} else if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("read idle empty selected expunge response error = %v, want timeout", err)
+	}
+	if err := client.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
+	if _, err := client.Write([]byte("DONE\r\n")); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "a3 OK IDLE completed\r\n" {
+		t.Fatalf("idle completion = %q err = %v", line, err)
+	}
+	if _, err := client.Write([]byte("a4 LOGOUT\r\n")); err != nil {
+		t.Fatalf("write logout: %v", err)
+	}
+	_, _ = reader.ReadString('\n')
+	_, _ = reader.ReadString('\n')
+	if err := <-errCh; err != nil {
+		t.Fatalf("ServeConn returned error: %v", err)
+	}
+}
+
 func TestServerHandlesListAfterLogin(t *testing.T) {
 	t.Parallel()
 
@@ -15593,6 +15658,17 @@ func (b *eventBackend) Subscribe(context.Context, UserID, MailboxID) (<-chan Mai
 		b.canceled = true
 	}
 	return b.events, cancel, nil
+}
+
+type emptyEventBackend struct {
+	eventBackend
+}
+
+func (emptyEventBackend) SelectMailbox(context.Context, SelectMailboxRequest) (MailboxState, error) {
+	return MailboxState{
+		Mailbox:        Mailbox{ID: "inbox", Name: "INBOX", UIDValidity: 1, UIDNext: 1},
+		PermanentFlags: []string{FlagSeen, FlagFlagged, FlagAnswered, FlagDraft, FlagDeleted},
+	}, nil
 }
 
 type eventSequenceBackend struct {

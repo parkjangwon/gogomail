@@ -4926,6 +4926,10 @@ Target outcome:
          when `selectedMessages=0`, preventing invalid `* 1 EXPUNGE` responses
          for an empty selected mailbox while preserving the existing clamp path
          for non-empty mailboxes.
+ 1579. IMAP IDLE live-event coverage now verifies the empty-selected EXPUNGE
+         guard end to end: an empty selected mailbox receives no EXPUNGE wire
+         response for an injected EXPUNGE event, and DONE still completes
+         normally afterward.
 
 ## Deferred until backend contracts stabilize
 
