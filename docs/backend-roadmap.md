@@ -4910,6 +4910,10 @@ Target outcome:
  1574. IMAP server legacy EXISTS handling is now covered directly:
          `Messages=0` remains a compatibility signal to increment the selected
          count by one, with separate tests from the absolute-count EXISTS path.
+ 1575. IMAP server initial legacy EXISTS handling is now covered directly:
+         when a selected mailbox starts at zero messages, a `Messages=0`
+         legacy EXISTS event still emits `* 1 EXISTS` and updates
+         `selectedMessages` to one.
 
 ## Deferred until backend contracts stabilize
 

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event legacy EXISTS coverage)
+Last updated: 2026-05-14 (IMAP mailbox event initial legacy EXISTS coverage)
+
+## IMAP mailbox event initial legacy EXISTS coverage (2026-05-14, complete)
+- `writeMailboxEvent` coverage now verifies a legacy `Messages=0` EXISTS event increments an initially empty selected mailbox to `* 1 EXISTS`.
+- The test documents that `Messages=0` is treated as a legacy increment signal, not an absolute zero-count event.
 
 ## IMAP mailbox event legacy EXISTS coverage (2026-05-14, complete)
 - `writeMailboxEvent` coverage now verifies a legacy EXISTS event with `Messages=0` increments the selected count by one.
