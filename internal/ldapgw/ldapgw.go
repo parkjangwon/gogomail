@@ -33,6 +33,7 @@ const (
 	resultOperationsError              = 1
 	resultProtocolError                = 2
 	resultUnavailableCriticalExtension = 12
+	resultInsufficientAccessRights     = 50
 	resultAuthMethodNotSupported       = 48
 	resultInvalidCredentials           = 49
 	resultUnavailable                  = 52
