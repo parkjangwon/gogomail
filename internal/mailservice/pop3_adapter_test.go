@@ -364,6 +364,15 @@ func TestPOP3StoreAdapterRejectsMustChangePassword(t *testing.T) {
 	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
 		t.Fatal("expected error for user that must change password")
 	}
+	if auth.calls != 1 {
+		t.Fatalf("auth calls = %d, want 1", auth.calls)
+	}
+	if len(repo.folderUsers) != 0 {
+		t.Fatalf("folder users = %#v, want no service lookup", repo.folderUsers)
+	}
+	if len(repo.pageUsers) != 0 {
+		t.Fatalf("page users = %#v, want no service lookup", repo.pageUsers)
+	}
 }
 
 func TestPOP3StoreAdapterRechecksAuthPolicyEachLogin(t *testing.T) {
