@@ -2,6 +2,7 @@ package ldapgw
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -744,15 +745,22 @@ func parentDN(dn string) string {
 }
 
 func ldapContainerAttributes(dn string) (map[string][]string, bool) {
+	operational := ldapOperationalAttributes(dn)
+	withOperational := func(attrs map[string][]string) map[string][]string {
+		for k, values := range operational {
+			attrs[k] = values
+		}
+		return attrs
+	}
 	switch firstRDNValue(normalizeDNForCompare(dn), "ou") {
 	case "users":
-		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"users"}, "cn": {"users"}, "displayName": {"Users"}}, true
+		return withOperational(map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"users"}, "cn": {"users"}, "displayName": {"Users"}}), true
 	case "organizations":
-		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"organizations"}, "cn": {"organizations"}, "displayName": {"Organizations"}}, true
+		return withOperational(map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"organizations"}, "cn": {"organizations"}, "displayName": {"Organizations"}}), true
 	case "groups":
-		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"groups"}, "cn": {"groups"}, "displayName": {"Groups"}}, true
+		return withOperational(map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"groups"}, "cn": {"groups"}, "displayName": {"Groups"}}), true
 	case "resources":
-		return map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"resources"}, "cn": {"resources"}, "displayName": {"Resources"}}, true
+		return withOperational(map[string][]string{"objectClass": {"top", "organizationalUnit"}, "ou": {"resources"}, "cn": {"resources"}, "displayName": {"Resources"}}), true
 	default:
 		return nil, false
 	}
@@ -841,7 +849,33 @@ func principalLDAPAttributes(p PrincipalEntry) map[string][]string {
 		}
 		attrs["sn"] = []string{firstNonEmpty(p.SN, p.DisplayName, cn)}
 	}
+	for k, values := range ldapOperationalAttributes(p.DN) {
+		attrs[k] = values
+	}
 	return attrs
+}
+
+func ldapOperationalAttributes(dn string) map[string][]string {
+	dn = strings.TrimSpace(dn)
+	if dn == "" {
+		return nil
+	}
+	return map[string][]string{
+		"entryDN":         {dn},
+		"entryUUID":       {ldapEntryUUID(dn)},
+		"createTimestamp": {"19700101000000Z"},
+		"modifyTimestamp": {"19700101000000Z"},
+		"creatorsName":    {"cn=gogomail"},
+		"modifiersName":   {"cn=gogomail"},
+	}
+}
+
+func ldapEntryUUID(dn string) string {
+	sum := sha1.Sum([]byte(normalizeDNForCompare(dn)))
+	b := sum[:16]
+	b[6] = (b[6] & 0x0f) | 0x50
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 func firstNonEmpty(values ...string) string {
@@ -1293,7 +1327,8 @@ func copyLDAPAttributeSet(dst map[string][]string, attrs map[string][]string, ty
 
 func isOperationalLDAPAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
-	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname":
+	case "subschemasubentry", "supportedldapversion", "supportedcontrol", "supportedextension", "namingcontexts", "vendorname",
+		"entrydn", "entryuuid", "createtimestamp", "modifytimestamp", "creatorsname", "modifiersname":
 		return true
 	default:
 		return false
