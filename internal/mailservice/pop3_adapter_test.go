@@ -76,14 +76,15 @@ func (s *pop3TestStore) Get(_ context.Context, path string) (io.ReadCloser, erro
 
 // pop3TestAuth validates fixed credentials.
 type pop3TestAuth struct {
-	validUser string
-	validPass string
-	userID    string
+	validUser          string
+	validPass          string
+	userID             string
+	mustChangePassword bool
 }
 
 func (a *pop3TestAuth) AuthenticatePlain(_ context.Context, _, username, password string) (smtpd.SubmissionUser, error) {
 	if username == a.validUser && password == a.validPass {
-		return smtpd.SubmissionUser{UserID: a.userID, Address: username}, nil
+		return smtpd.SubmissionUser{UserID: a.userID, Address: username, MustChangePassword: a.mustChangePassword}, nil
 	}
 	return smtpd.SubmissionUser{}, fmt.Errorf("invalid credentials")
 }
@@ -207,6 +208,21 @@ func TestPOP3StoreAdapterAuthenticateNilAuth(t *testing.T) {
 	_, err := adapter.Authenticate("alice", "secret")
 	if err == nil {
 		t.Fatal("expected error for nil authenticator")
+	}
+}
+
+func TestPOP3StoreAdapterRejectsMustChangePassword(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1", mustChangePassword: true}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
+		t.Fatal("expected error for user that must change password")
 	}
 }
 

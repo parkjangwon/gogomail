@@ -41,6 +41,9 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
 	}
+	if authUser.MustChangePassword {
+		return nil, fmt.Errorf("password change required")
+	}
 	userID := strings.TrimSpace(authUser.UserID)
 
 	folders, err := a.service.ListFolders(ctx, userID)
