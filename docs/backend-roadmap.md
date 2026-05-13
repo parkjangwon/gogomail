@@ -6181,3 +6181,7 @@ Target outcome:
       `AUTH` and `Logout` clear authenticated-user domain policy cache, so a
       same-session reauthentication as another domain user cannot inherit the
       previous domain's message-size policy or DSN options.
+1729. SMTP submission explicit Reset DSN isolation is now covered: `Reset`
+      clears the active envelope plus RFC 3461 `RET`, `ENVID`, `NOTIFY`, and
+      `ORCPT` state while preserving authentication for the next submitted
+      transaction.

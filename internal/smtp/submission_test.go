@@ -792,6 +792,53 @@ func TestSubmissionResetsEnvelopeAfterSuccessfulData(t *testing.T) {
 	}
 }
 
+func TestSubmissionResetClearsDSNOptions(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	submission := newAuthenticatedSubmissionSession(t, recorder, storage.NewLocalStore(t.TempDir()))
+	submission.receiver.supportDSN = true
+
+	if err := submission.Mail("jangwon@example.com", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnFull,
+		EnvelopeID: "reset-env",
+	}); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;outside@example.net",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+
+	submission.Reset()
+
+	if err := submission.Data(strings.NewReader("Subject: no envelope\r\n\r\nbody")); err == nil {
+		t.Fatal("Data accepted after Reset without new envelope")
+	}
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-rset-dsn-reset@example.com>\r\nFrom: jangwon@example.com\r\nTo: outside@example.net\r\nSubject: rset dsn reset\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data after Reset returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "" || got.EnvelopeID != "" {
+		t.Fatalf("recorded DSN envelope = %+v, want no pre-Reset leak", got)
+	}
+	if len(got.Recipients) != 1 || len(got.Recipients[0].Notify) != 0 || got.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("recorded DSN recipients = %+v, want recipient address without pre-Reset DSN options", got.Recipients)
+	}
+}
+
 func TestSubmissionStoresAndRecordsSubmittedMessage(t *testing.T) {
 	t.Parallel()
 
