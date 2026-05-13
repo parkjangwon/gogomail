@@ -1383,6 +1383,10 @@ reject `STLS` while keeping the mailbox session usable.
 mechanisms (`USER`, `SASL PLAIN LOGIN`) while TRANSACTION responses omit those
 auth-only capabilities. All CAPA responses include stable server metadata via
 `IMPLEMENTATION gogomail` and `LOGIN-DELAY 0`.
+`AUTH PLAIN` and `AUTH LOGIN` now validate mechanism-specific argument counts
+before entering SASL decoding or continuation prompts. Extra arguments return
+`-ERR syntax error` and leave the session in AUTHORIZATION state so clients can
+retry with `USER`/`PASS` or a well-formed `AUTH` command on the same connection.
 The mailservice POP3 adapter now exposes raw body fetch errors to the POP3
 server, so `RETR` and `TOP` return `-ERR` instead of opening a successful
 multi-line response when message content cannot be loaded.
