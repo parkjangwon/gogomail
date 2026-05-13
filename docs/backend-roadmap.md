@@ -5027,6 +5027,9 @@ Target outcome:
  1610. POP3 delete commit cleanup is now covered: successful `CommitDeletes`
          clears pending delete state, and repeated commits do not issue
          duplicate bulk delete requests.
+ 1611. POP3 failed delete commits now have explicit preservation coverage:
+         bulk delete errors leave pending delete IDs and deleted flags intact
+         for retry/error handling.
 
 ## Deferred until backend contracts stabilize
 

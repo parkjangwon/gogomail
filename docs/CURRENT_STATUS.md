@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 commit clears pending deletes)
+Last updated: 2026-05-14 (POP3 commit failure preserves pending deletes)
+
+## POP3 commit failure preserves pending deletes (2026-05-14, complete)
+- POP3 mailbox coverage now verifies failed bulk delete commits return an error without clearing pending deletes.
+- The regression confirms the message remains marked deleted after a failed commit, preserving retry state.
 
 ## POP3 commit clears pending deletes (2026-05-14, complete)
 - POP3 mailbox coverage now verifies successful `CommitDeletes` clears pending delete state.
