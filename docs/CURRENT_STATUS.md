@@ -29,6 +29,17 @@ Last updated: 2026-05-14 (CardDAV RFC 6350 & RFC 3744 ACL implementation complet
 - Migration 0099 adds photo storage schema with index on addressbook_id and photo presence.
 - All repository methods (GetContactObject, ListContactObjects, SearchContacts, etc.) updated to retrieve and merge photos.
 
+## CalDAV production-ready status (2026-05-14, complete)
+- CalDAV now marked as production-ready with 176+ comprehensive test cases covering all major RFC features.
+- Supports RFC 4791 (CalDAV core), RFC 5545 (iCalendar), RFC 6638 (iCalendar Scheduling Extensions), RFC 7809 (Timezone support), and RFC 3744 (ACL).
+- Full calendar management: create, read, update, delete, move, copy calendars with proper HTTP status codes and error handling.
+- Recurring events with RFC 5545 RRULE support: daily/weekly/monthly/yearly frequencies with intervals, custom days, and end conditions (count or date).
+- iMIP scheduling support for calendar invitations and responses with proper delivery tracking.
+- Proper timezone handling with VTIMEZONE components and daylight saving time adjustments.
+- ACL support for principal-based access control on calendar collections (RFC 3744).
+- Free-busy query support for checking calendar availability across events.
+- Calendar sync with sync-token and change detection for efficient client synchronization.
+
 ## WebDAV gateway authentication and lock optimization (2026-05-14, complete)
 - WebDAV gateway now requires authenticated Bearer token or HTTPS Basic auth for external client access.
 - External clients (Mac Finder, Windows Explorer, Linux file managers) can now mount gogomail drive via `/dav/` endpoint.

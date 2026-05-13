@@ -27,7 +27,7 @@ Go로 구축한 표준 중심의 메일 플랫폼입니다. SMTP, IMAP, CalDAV, 
 | SPF / DMARC 검증 | RFC 7208, RFC 7489 | 프로덕션 준비 완료 |
 | DSN / 바운스 처리 | RFC 3461, RFC 3464 | 프로덕션 준비 완료 |
 | IMAP | RFC 9051 (IMAP4rev2), RFC 3501 | 프로덕션 준비 완료 |
-| CalDAV + iCalendar | RFC 4791, RFC 5545, RFC 6638 | 고급 |
+| CalDAV + iCalendar | RFC 4791, RFC 5545, RFC 6638, RFC 7809, RFC 3744 | 프로덕션 준비 완료 |
 | iMIP 스케줄링 | RFC 6047 | 완료 |
 | 타임존 지원 | RFC 7809 | 완료 |
 | CardDAV + vCard | RFC 6352, RFC 6350, RFC 2426, RFC 3744 | 프로덕션 준비 완료 |
