@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 STLS transaction-state denial)
+Last updated: 2026-05-14 (POP3 STLS unavailable auth-state session)
+
+## POP3 STLS unavailable auth-state session (2026-05-14, complete)
+- POP3 server coverage now verifies servers without TLS config reject authorization-state `STLS` with `-ERR`.
+- The regression verifies normal `USER/PASS` login and `STAT` still work after the unavailable-STLS denial.
 
 ## POP3 STLS transaction-state denial (2026-05-14, complete)
 - POP3 server coverage now verifies transaction-state `STLS` returns a clear `-ERR` denial.
