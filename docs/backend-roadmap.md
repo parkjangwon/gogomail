@@ -5113,6 +5113,9 @@ Target outcome:
  1639. POP3 AUTH PLAIN initial-response wrong-password handling now verifies
          authorization-state capability preservation: failed authentication
          leaves CAPA and normal login usable afterward.
+ 1640. POP3 AUTH PLAIN challenge wrong-password handling now verifies
+         authorization-state capability preservation: failed continuation
+         authentication leaves CAPA and normal login usable afterward.
 
 ## Deferred until backend contracts stabilize
 

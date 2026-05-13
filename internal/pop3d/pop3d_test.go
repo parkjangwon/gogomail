@@ -471,6 +471,32 @@ func TestPOP3AuthPlainChallengeAuthenticates(t *testing.T) {
 	}
 }
 
+func TestPOP3AuthPlainChallengeWrongPasswordKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH PLAIN")
+	credential := base64.StdEncoding.EncodeToString([]byte("\x00alice\x00wrong"))
+	if err := tp.PrintfLine("%s", credential); err != nil {
+		t.Fatalf("send auth plain response: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth plain failure: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR authentication failed") {
+		t.Fatalf("expected auth plain failure, got: %s", line)
+	}
+	tp.EndResponse(id)
+
+	assertPOP3AuthCapabilities(t, tp, "AUTH PLAIN challenge wrong password")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthPlainInvalidFormatKeepsAuthCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
