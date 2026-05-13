@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth policy freshness coverage)
+Last updated: 2026-05-14 (POP3 auth identity freshness coverage)
+
+## POP3 auth identity freshness coverage (2026-05-14, complete)
+- POP3 adapter coverage now verifies a second login uses the latest authenticated user ID for the maildrop lock key.
+- The same test verifies folder and inbox page loads are performed with the fresh user ID returned by the authenticator.
 
 ## POP3 auth policy freshness coverage (2026-05-14, complete)
 - POP3 adapter coverage now verifies each login calls the authenticator again rather than reusing prior authentication state.
