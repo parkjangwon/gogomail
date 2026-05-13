@@ -2120,7 +2120,7 @@ func TestRestoreMessageDelegatesToRepository(t *testing.T) {
 	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 1 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" {
 		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
 	}
-	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 {
+	if len(events.events) != 1 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UserID != "user-1" || events.events[0].MailboxID != "inbox" || events.events[0].UID != 44 || events.events[0].Messages != 3 {
 		t.Fatalf("events = %#v, want exists event", events.events)
 	}
 }
@@ -2154,7 +2154,7 @@ func TestBulkRestoreMessagesNormalizesRequest(t *testing.T) {
 	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
 		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[1].UID != 45 {
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[0].Messages != 3 || events.events[1].UID != 45 || events.events[1].Messages != 4 {
 		t.Fatalf("events = %#v, want exists events", events.events)
 	}
 }
@@ -2188,7 +2188,7 @@ func TestBulkRestoreThreadsNormalizesRequest(t *testing.T) {
 	if repo.lastEnsureIMAPUIDUserID != "user-1" || len(repo.lastEnsureIMAPUIDMessageIDs) != 2 || repo.lastEnsureIMAPUIDMessageIDs[0] != "msg-1" || repo.lastEnsureIMAPUIDMessageIDs[1] != "msg-2" {
 		t.Fatalf("ensure imap uid request = %q/%#v", repo.lastEnsureIMAPUIDUserID, repo.lastEnsureIMAPUIDMessageIDs)
 	}
-	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[1].UID != 45 {
+	if len(events.events) != 2 || events.events[0].Type != imapgw.MailboxEventExists || events.events[0].UID != 44 || events.events[0].Messages != 3 || events.events[1].UID != 45 || events.events[1].Messages != 4 {
 		t.Fatalf("events = %#v, want exists events", events.events)
 	}
 }

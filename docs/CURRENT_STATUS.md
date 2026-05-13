@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP batch ensure UID ordering hardening)
+Last updated: 2026-05-14 (IMAP restored EXISTS event hardening)
+
+## IMAP restored EXISTS event hardening (2026-05-14, complete)
+- UID-based restored-message EXISTS events now carry `Messages=SequenceNumber`, matching APPEND/COPY summary events and letting selected IMAP sessions jump to the exact mailbox count instead of incrementing blindly.
+- Service regression coverage now verifies single-message, bulk-message, and bulk-thread restore events publish the expected EXISTS counts.
 
 ## IMAP batch ensure UID ordering hardening (2026-05-14, complete)
 - `EnsureIMAPMessageUIDsForMessages` now orders active targets by mailbox, internal date, and message ID before assigning missing UIDs, instead of using caller request order.

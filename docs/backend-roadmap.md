@@ -4825,6 +4825,11 @@ Target outcome:
          message ID before invoking the single-message assignment path. This
          keeps restored/exists event preparation aligned with operational
          backfill and LIST lazy assignment timelines.
+ 1554. Restored-message IMAP EXISTS events now carry exact mailbox message
+         counts from the ensured UID sequence number. UID-based restore events
+         therefore match APPEND/COPY summary events by publishing
+         `Messages=SequenceNumber`, allowing selected sessions to jump to the
+         correct EXISTS count instead of blindly incrementing local state.
 
 ## Deferred until backend contracts stabilize
 
