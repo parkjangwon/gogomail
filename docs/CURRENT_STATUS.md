@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox state cascade cleanup)
+Last updated: 2026-05-14 (IMAP deleted-folder subscription noselect)
+
+## IMAP deleted-folder subscription noselect (2026-05-14, complete)
+- Postgres coverage now verifies a subscribed user folder deleted through `DeleteFolder` remains listed by subscription name as a non-existing/noselect mailbox.
+- The regression also verifies the retained subscription name can be used to unsubscribe after the folder has been deleted.
 
 ## IMAP mailbox state cascade cleanup (2026-05-14, complete)
 - Postgres coverage now verifies deleting an empty user folder removes its `imap_mailbox_state` row through the folder cascade.

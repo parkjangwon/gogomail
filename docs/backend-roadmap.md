@@ -6105,3 +6105,7 @@ Target outcome:
 1708. IMAP mailbox state cascade cleanup is now covered:
      deleting an empty user folder removes its `imap_mailbox_state` row and
      `GetIMAPMailbox` no longer exposes the deleted mailbox after cleanup.
+1709. IMAP deleted-folder subscription behavior is now covered:
+     a subscribed user folder deleted through `DeleteFolder` remains visible as
+     a retained non-existing subscription name, and the retained name can still
+     be used to unsubscribe.
