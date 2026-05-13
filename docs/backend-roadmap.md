@@ -5036,6 +5036,9 @@ Target outcome:
  1613. POP3 duplicate delete marking is now covered: repeated `MarkDeleted`
          calls for the same message create one pending delete ID and one bulk
          delete entry at commit time.
+ 1614. POP3 deleted-message UIDL visibility is now covered at the wire layer:
+         after `DELE`, single-message UIDL fails and multi-line UIDL omits the
+         deleted message while retaining non-deleted messages.
 
 ## Deferred until backend contracts stabilize
 
