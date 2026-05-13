@@ -5171,6 +5171,9 @@ Target outcome:
  1660. POP3 CAPA after DELE is now covered: capability lookup preserves pending
          delete state, so LIST fails for the deleted message and STAT excludes
          it afterward.
+ 1661. POP3 unknown-command handling after DELE is now covered: command errors
+         preserve pending delete state, so LIST fails for the deleted message
+         and STAT excludes it afterward.
 
 ## Deferred until backend contracts stabilize
 
