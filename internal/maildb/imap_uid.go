@@ -277,6 +277,15 @@ LIMIT $4`
 	sort.Slice(messages, func(i, j int) bool {
 		return messages[i].UID < messages[j].UID
 	})
+	if len(messages) > 0 {
+		baseSequence, err := imapSequenceBaseForAfterUID(ctx, r.db, userID, mailboxID, afterUID)
+		if err != nil {
+			return nil, err
+		}
+		if err := assignIMAPListSequenceNumbers(messages, baseSequence); err != nil {
+			return nil, err
+		}
+	}
 	return messages, nil
 }
 
@@ -2255,6 +2264,41 @@ WHERE i.user_id = $1::uuid
 		return 0, fmt.Errorf("imap sequence number unavailable for uid %d", uid)
 	}
 	return uint32(count), nil
+}
+
+func imapSequenceBaseForAfterUID(ctx context.Context, querier imapSequenceQuerier, userID string, mailboxID string, afterUID imapgw.UID) (uint32, error) {
+	if afterUID == 0 {
+		return 0, nil
+	}
+	const query = `
+SELECT COUNT(*)
+FROM imap_message_uid i
+JOIN messages m ON m.id = i.message_id
+WHERE i.user_id = $1::uuid
+  AND i.mailbox_id = $2::uuid
+  AND i.uid <= $3
+  AND m.user_id = $1::uuid
+  AND m.folder_id = $2::uuid
+  AND m.status = 'active'`
+
+	var count int64
+	if err := querier.QueryRowContext(ctx, query, userID, mailboxID, int64(afterUID)).Scan(&count); err != nil {
+		return 0, fmt.Errorf("get imap sequence base: %w", err)
+	}
+	if count < 0 || count > math.MaxUint32 {
+		return 0, fmt.Errorf("imap sequence base unavailable after uid %d", afterUID)
+	}
+	return uint32(count), nil
+}
+
+func assignIMAPListSequenceNumbers(messages []imapgw.MessageSummary, base uint32) error {
+	for i := range messages {
+		if base > math.MaxUint32-uint32(i)-1 {
+			return fmt.Errorf("imap sequence number overflow")
+		}
+		messages[i].SequenceNumber = base + uint32(i) + 1
+	}
+	return nil
 }
 
 func imapEnvelopeAddress(name string, address string) []imapgw.Address {
