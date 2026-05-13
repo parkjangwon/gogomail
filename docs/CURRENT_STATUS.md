@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit close retry)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit CAPA)
+
+## POP3 QUIT after failed commit CAPA (2026-05-14, complete)
+- POP3 server coverage now verifies failed delete commit rollback leaves the session in transaction state for `CAPA`.
+- The regression verifies authorization-only capabilities stay hidden and `STAT` reports the restored maildrop count after failed `QUIT`.
 
 ## POP3 QUIT after failed commit close retry (2026-05-14, complete)
 - POP3 server coverage now verifies a no-delete `QUIT` after failed commit rollback returns `+OK` without another `CommitDeletes` call.
