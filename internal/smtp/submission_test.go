@@ -190,6 +190,43 @@ func TestSubmissionAuthHookFailureRecordsRejectedMetric(t *testing.T) {
 	}
 }
 
+func TestSubmissionInvalidCredentialsDoNotEmitAuthHook(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	metrics := &recordingMetrics{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Metrics:       metrics,
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("\x00jangwon@example.com\x00wrong")); !errors.Is(err, gosmtp.ErrAuthFailed) {
+		t.Fatalf("AUTH PLAIN error = %v, want ErrAuthFailed", err)
+	}
+	if len(stages) != 0 {
+		t.Fatalf("hook stages after invalid credentials = %v, want none", stages)
+	}
+	if !metrics.has(StageAuthenticated, MetricRejected) {
+		t.Fatalf("metrics = %+v, want rejected auth metric after invalid credentials", metrics.events)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 

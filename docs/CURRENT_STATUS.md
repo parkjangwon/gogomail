@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission auth hook failure metrics)
+Last updated: 2026-05-14 (SMTP submission invalid credential event isolation)
+
+## SMTP submission invalid credential event isolation (2026-05-14, complete)
+- SMTP submission coverage now verifies invalid AUTH credentials fail without emitting authenticated hook events.
+- The regression also verifies invalid credentials still record a rejected `StageAuthenticated` metric.
 
 ## SMTP submission auth hook failure metrics (2026-05-14, complete)
 - SMTP submission coverage now verifies auth hook failures emit a rejected `StageAuthenticated` metric.
