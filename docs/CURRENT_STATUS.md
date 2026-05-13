@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound auth reset)
+Last updated: 2026-05-14 (IMAP message UID row-lock audit)
+
+## IMAP message UID row-lock audit (2026-05-14, complete)
+- IMAP UID allocation was revalidated to lock mailbox state, folder, and target `messages` row before assigning a single-message UID.
+- Existing Postgres coverage verifies a locked target message row makes `EnsureIMAPMessageUID` wait without inserting a stale UID, then assigns UID/MODSEQ 1/1 after unlock.
 
 ## SMTP inbound auth reset (2026-05-14, complete)
 - SMTP receiver coverage now verifies `Logout` clears accumulated domain policy and DSN state along with authentication state.
