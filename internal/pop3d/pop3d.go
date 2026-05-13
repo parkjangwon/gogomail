@@ -140,11 +140,12 @@ func (s *Server) handleConn(conn net.Conn) {
 	conn.SetDeadline(time.Now().Add(idle))
 
 	sess := &session{
-		server: s,
-		conn:   conn,
-		state:  stateAuthorization,
-		reader: bufio.NewReader(conn),
-		writer: bufio.NewWriter(conn),
+		server:    s,
+		conn:      conn,
+		state:     stateAuthorization,
+		reader:    bufio.NewReader(conn),
+		writer:    bufio.NewWriter(conn),
+		tlsActive: isTLSConn(conn),
 	}
 	defer func() {
 		sess.releaseMaildropLock()
@@ -167,6 +168,11 @@ func (s *Server) handleConn(conn net.Conn) {
 		conn.SetDeadline(time.Now().Add(idle))
 		sess.handleCommand(line)
 	}
+}
+
+func isTLSConn(conn net.Conn) bool {
+	_, ok := conn.(*tls.Conn)
+	return ok
 }
 
 func (sess *session) writeLine(line string) {

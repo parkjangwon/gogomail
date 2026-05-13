@@ -1411,8 +1411,11 @@ accept loop. `GOGOMAIL_POP3_MAX_CONNECTIONS` and YAML
 `pop3_max_connections` feed the runtime `MaxConnections` setting; excess
 connections receive `-ERR too many connections` and closed sessions release
 their slots for later clients.
-TLS support via `STLS` command and implicit POP3S (port 995) are supported
-through a configurable `tls.Config`.
+TLS support via `STLS` command and optional implicit POP3S are supported
+through a configurable `tls.Config`. `GOGOMAIL_POP3S_ADDR` / YAML
+`pop3s_addr` enables the implicit TLS listener, which shares the same POP3
+server instance, maildrop locks, and connection limit as the cleartext POP3
+listener. Implicit TLS sessions do not advertise `STLS`.
 
 Push notification adapters (`internal/pushnotify`) provide a `PushSink`
 interface with FCM, APNs, and Web Push (RFC 8030) implementations. The

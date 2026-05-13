@@ -189,6 +189,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.POP3MaxConnections != 0 {
 		t.Fatalf("POP3MaxConnections = %d, want 0 for unlimited default", cfg.POP3MaxConnections)
 	}
+	if cfg.POP3SAddr != "" {
+		t.Fatalf("POP3SAddr = %q, want empty default", cfg.POP3SAddr)
+	}
 	if cfg.IMAPNotifyConsumerGroup != "gogomail.imap-gateway" {
 		t.Fatalf("IMAPNotifyConsumerGroup = %q, want gogomail.imap-gateway", cfg.IMAPNotifyConsumerGroup)
 	}
@@ -528,6 +531,7 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	t.Setenv("GOGOMAIL_SMTP_ADDR", ":10025")
 	t.Setenv("GOGOMAIL_SUBMISSION_ADDR", ":10587")
 	t.Setenv("GOGOMAIL_POP3_MAX_CONNECTIONS", "96")
+	t.Setenv("GOGOMAIL_POP3S_ADDR", ":1995")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_CONNECTIONS", "128")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_RECIPIENTS", "25")
 	t.Setenv("GOGOMAIL_SUBMISSION_MAX_MESSAGE_BYTES", "1048576")
@@ -693,6 +697,9 @@ func TestLoadReadsEnvironmentOverrides(t *testing.T) {
 	}
 	if cfg.POP3MaxConnections != 96 {
 		t.Fatalf("POP3MaxConnections = %d, want 96", cfg.POP3MaxConnections)
+	}
+	if cfg.POP3SAddr != ":1995" {
+		t.Fatalf("POP3SAddr = %q, want :1995", cfg.POP3SAddr)
 	}
 	if cfg.SubmissionMaxConnections != 128 {
 		t.Fatalf("SubmissionMaxConnections = %d, want 128", cfg.SubmissionMaxConnections)
