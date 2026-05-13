@@ -1999,6 +1999,30 @@ func TestPOP3CommitDeletesErrorRestoresWireVisibility(t *testing.T) {
 	}
 }
 
+func TestPOP3CommitDeletesErrorPreservesTransactionCapabilities(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+
+	assertPOP3AuthenticatedState(t, tp, "after failed QUIT", "1")
+}
+
 func TestPOP3QuitAfterFailedCommitSkipsRetryAfterRollback(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{

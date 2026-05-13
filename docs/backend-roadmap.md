@@ -5213,6 +5213,9 @@ Target outcome:
  1675. POP3 QUIT no-delete close after failed delete commit is now covered:
          after rollback, a later QUIT without another DELE returns `+OK`,
          skips CommitDeletes, and closes the TCP connection.
+ 1676. POP3 CAPA after failed delete commit is now covered: failed QUIT keeps
+         the session in transaction state, keeps auth-only capabilities hidden,
+         and exposes the restored maildrop count through STAT.
 
 ## Deferred until backend contracts stabilize
 
