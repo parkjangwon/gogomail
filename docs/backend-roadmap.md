@@ -5000,6 +5000,9 @@ Target outcome:
  1601. POP3 multi-page cursor progression is now covered for large INBOX loads:
          a 450-message fixture performs exactly three page calls, with page 2
          and page 3 cursors based on the previous page's last message ID.
+ 1602. POP3 empty-INBOX pagination is now covered: authentication succeeds with
+         a zero-message mailbox and performs exactly one zero-cursor page
+         lookup.
 
 ## Deferred until backend contracts stabilize
 

@@ -257,6 +257,31 @@ func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterAuthenticateEmptyInbox(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if got := mb.MessageCount(); got != 0 {
+		t.Fatalf("message count = %d, want 0", got)
+	}
+	if repo.pageCalls != 1 {
+		t.Fatalf("page calls = %d, want 1", repo.pageCalls)
+	}
+	if len(repo.pageCursors) != 1 || repo.pageCursors[0] != (maildb.MessageListCursor{}) {
+		t.Fatalf("page cursors = %#v, want one zero cursor", repo.pageCursors)
+	}
+}
+
 func TestPOP3StoreAdapterFindsInboxFolderCaseInsensitively(t *testing.T) {
 	repo := &pop3TestRepository{
 		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "INBOX"}},
