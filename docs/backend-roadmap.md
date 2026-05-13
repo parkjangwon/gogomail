@@ -5235,6 +5235,9 @@ Target outcome:
  1682. POP3 UIDL after failed delete commit is now covered: failed QUIT
          rollback exposes the restored message UIDL, keeps the delete mark
          clear, and preserves the later no-delete QUIT fast path.
+ 1683. POP3 LIST after failed delete commit is now covered: failed QUIT
+         rollback exposes the restored message size, keeps the delete mark
+         clear, and preserves the later no-delete QUIT fast path.
 
 ## Deferred until backend contracts stabilize
 
