@@ -4955,6 +4955,9 @@ Target outcome:
          identities at the adapter boundary: CR/LF-bearing user IDs fail before
          normalization, folder lookup, inbox page lookup, or maildrop lock key
          generation.
+ 1587. POP3 authenticated user ID validation is now centralized in a
+         mailservice adapter helper, with direct coverage for trimming, empty
+         identity rejection, and CR/LF rejection before mailbox construction.
 
 ## Deferred until backend contracts stabilize
 

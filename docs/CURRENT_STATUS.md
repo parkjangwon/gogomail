@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth control-character identity rejection)
+Last updated: 2026-05-14 (POP3 auth identity validation consolidation)
+
+## POP3 auth identity validation consolidation (2026-05-14, complete)
+- POP3 authenticated user ID normalization is now centralized in a helper that trims spaces and rejects empty or CR/LF-bearing identities.
+- Helper-level coverage fixes the normalization contract directly in addition to the POP3 Authenticate boundary tests.
 
 ## POP3 auth control-character identity rejection (2026-05-14, complete)
 - POP3 adapter authentication now rejects authenticated user IDs containing CR/LF before identity normalization or service lookup.
