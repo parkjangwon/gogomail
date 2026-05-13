@@ -5189,6 +5189,9 @@ Target outcome:
  1666. POP3 DELE invalid-command sequence coverage has been audited across
          NOOP, CAPA, empty command, unknown command, AUTH, USER/PASS, and STLS
          paths without adding duplicate tests.
+ 1667. POP3 DELE invalid-command sequence tests now share a pending-delete
+         visibility helper for LIST and STAT assertions across no-op, parser
+         error, unknown command, reauthentication, and STLS denial paths.
 
 ## Deferred until backend contracts stabilize
 

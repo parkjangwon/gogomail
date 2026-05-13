@@ -213,6 +213,15 @@ func assertPOP3AuthenticatedState(t *testing.T, tp *textproto.Conn, context stri
 	}
 }
 
+func assertPOP3PendingDeleteVisible(t *testing.T, tp *textproto.Conn, context string) {
+	t.Helper()
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "1 ") {
+		t.Fatalf("expected %s to preserve pending delete, got: %s", context, line)
+	}
+}
+
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -1361,11 +1370,7 @@ func TestPOP3NoopPreservesPendingDelete(t *testing.T) {
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "DELE 1")
 	pop3Cmd(t, tp, "+OK", "NOOP")
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line := pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected NOOP to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "NOOP")
 }
 
 func TestPOP3CapaPreservesPendingDelete(t *testing.T) {
@@ -1381,11 +1386,7 @@ func TestPOP3CapaPreservesPendingDelete(t *testing.T) {
 	if !capa["UIDL"] || !capa["TOP"] {
 		t.Fatalf("expected transaction CAPA after delete, got: %#v", capa)
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line := pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected CAPA to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "CAPA")
 }
 
 func TestPOP3UnknownCommandPreservesPendingDelete(t *testing.T) {
@@ -1401,11 +1402,7 @@ func TestPOP3UnknownCommandPreservesPendingDelete(t *testing.T) {
 	if !strings.Contains(line, "unknown command") {
 		t.Fatalf("expected unknown command response, got: %s", line)
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line = pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected unknown command to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "unknown command")
 }
 
 func TestPOP3EmptyCommandPreservesPendingDelete(t *testing.T) {
@@ -1421,11 +1418,7 @@ func TestPOP3EmptyCommandPreservesPendingDelete(t *testing.T) {
 	if !strings.Contains(line, "syntax error") {
 		t.Fatalf("expected syntax error response, got: %s", line)
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line = pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected empty command to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "empty command")
 }
 
 func TestPOP3TransactionAuthDenialPreservesPendingDelete(t *testing.T) {
@@ -1443,11 +1436,7 @@ func TestPOP3TransactionAuthDenialPreservesPendingDelete(t *testing.T) {
 			t.Fatalf("expected unknown command for %s, got: %s", cmd, line)
 		}
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line := pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected AUTH denial to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "AUTH denial")
 }
 
 func TestPOP3TransactionUserPassDenialPreservesPendingDelete(t *testing.T) {
@@ -1465,11 +1454,7 @@ func TestPOP3TransactionUserPassDenialPreservesPendingDelete(t *testing.T) {
 			t.Fatalf("expected unknown command for %s, got: %s", cmd, line)
 		}
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line := pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected USER/PASS denial to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "USER/PASS denial")
 }
 
 func TestPOP3STLSDenialPreservesPendingDelete(t *testing.T) {
@@ -1488,11 +1473,7 @@ func TestPOP3STLSDenialPreservesPendingDelete(t *testing.T) {
 	if !strings.Contains(line, "STLS not available in transaction state") {
 		t.Fatalf("expected transaction-state STLS denial, got: %s", line)
 	}
-	pop3Cmd(t, tp, "-ERR", "LIST 1")
-	line = pop3Cmd(t, tp, "+OK", "STAT")
-	if !strings.Contains(line, "1 ") {
-		t.Fatalf("expected STLS denial to preserve pending delete, got: %s", line)
-	}
+	assertPOP3PendingDeleteVisible(t, tp, "STLS denial")
 }
 
 func TestPOP3Quit(t *testing.T) {
