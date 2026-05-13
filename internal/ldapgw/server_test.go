@@ -1096,6 +1096,56 @@ func TestLDAPServerOpenLDAPAttributeSelectionCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPNoAttributesCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(mail=alice@example.com)",
+		"1.1",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch no-attributes selection failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	if !strings.Contains(output, "dn: uid=alice,ou=users,dc=example,dc=com") {
+		t.Fatalf("ldapsearch output missing entry DN:\n%s", output)
+	}
+	for _, unexpected := range []string{"mail: alice@example.com", "cn: Alice", "uid: alice", "objectClass:"} {
+		if strings.Contains(output, unexpected) {
+			t.Fatalf("ldapsearch output included attribute despite 1.1 request %q:\n%s", unexpected, output)
+		}
+	}
+}
+
 func TestLDAPServerOpenLDAPStartTLSCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
@@ -1454,6 +1504,25 @@ func TestFilterPrincipalEntriesByLDAPScope(t *testing.T) {
 	subtree := filterPrincipalEntriesByScope(principals, "dc=example,dc=com", scopeWholeSubtree)
 	if len(subtree) != 3 {
 		t.Fatalf("subtree scope = %+v, want all entries", subtree)
+	}
+}
+
+func TestSelectLDAPAttributesHonorsSpecialSelectors(t *testing.T) {
+	attrs := map[string][]string{
+		"cn":                   {"Alice"},
+		"mail":                 {"alice@example.com"},
+		"supportedLDAPVersion": {"3"},
+	}
+	if got := selectLDAPAttributes(attrs, []string{"1.1"}, false); len(got) != 0 {
+		t.Fatalf("1.1 selected attrs = %#v, want none", got)
+	}
+	got := selectLDAPAttributes(attrs, []string{"+"}, false)
+	if len(got) != 1 || got["supportedLDAPVersion"][0] != "3" {
+		t.Fatalf("+ selected attrs = %#v, want only operational attrs", got)
+	}
+	got = selectLDAPAttributes(attrs, []string{"*", "+"}, false)
+	if len(got) != len(attrs) || got["cn"][0] != "Alice" || got["supportedLDAPVersion"][0] != "3" {
+		t.Fatalf("*,+ selected attrs = %#v, want user and operational attrs", got)
 	}
 }
 
