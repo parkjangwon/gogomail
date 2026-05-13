@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT without deletes skips commit)
+Last updated: 2026-05-14 (POP3 QUIT no-delete close)
+
+## POP3 QUIT no-delete close (2026-05-14, complete)
+- POP3 server coverage now verifies no-delete `QUIT` closes the TCP connection after `+OK`.
+- The regression verifies the close path still skips `CommitDeletes` when no message is marked deleted.
 
 ## POP3 QUIT without deletes skips commit (2026-05-14, complete)
 - POP3 transaction `QUIT` now calls `CommitDeletes` only when at least one message is marked deleted.

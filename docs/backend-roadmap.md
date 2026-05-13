@@ -5199,6 +5199,9 @@ Target outcome:
          mark.
  1670. POP3 no-delete QUIT now skips the delete commit hook: CommitDeletes is
          only called when the transaction has at least one pending delete.
+ 1671. POP3 no-delete QUIT close behavior is now covered: the commit-skip path
+         still returns `+OK`, skips CommitDeletes, and closes the TCP
+         connection.
 
 ## Deferred until backend contracts stabilize
 
