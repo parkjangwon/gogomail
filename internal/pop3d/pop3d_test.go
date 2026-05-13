@@ -2077,6 +2077,34 @@ func TestPOP3QuitWithoutDeletesSkipsCommit(t *testing.T) {
 	}
 }
 
+func TestPOP3QuitWithoutDeletesClosesConnection(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("should not commit without deletes"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3ConnWithDeadline(t, listener.Addr().String(), 2*time.Second)
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 0 {
+		t.Fatalf("CommitDeletes calls = %d, want 0", mb.commitCalls)
+	}
+	if line, err := tp.ReadLine(); err == nil {
+		t.Fatalf("expected connection close after no-delete QUIT, got line: %s", line)
+	}
+}
+
 func TestPOP3QuitSuccessClosesConnection(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{
