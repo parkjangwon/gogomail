@@ -1432,6 +1432,40 @@ locked_state AS (
     AND user_id = $1::uuid
   FOR UPDATE
 ),
+locked_unassigned AS (
+  SELECT
+    m.id,
+    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $1::uuid
+    AND m.folder_id = $2::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+  FOR UPDATE OF m
+),
+unassigned_existing AS (
+  SELECT
+    id,
+    row_number() OVER (ORDER BY internal_date, id) AS rn
+  FROM locked_unassigned
+),
+backfilled_existing AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    unassigned_existing.id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + unassigned_existing.rn - 1,
+    locked_state.highest_modseq + unassigned_existing.rn
+  FROM unassigned_existing
+  CROSS JOIN locked_state
+  ON CONFLICT (message_id) DO NOTHING
+  RETURNING 1
+),
 source AS (
   SELECT
     gen_random_uuid() AS new_id,
@@ -1577,8 +1611,8 @@ inserted_uids AS (
     source.new_id,
     locked_state.mailbox_id,
     locked_state.user_id,
-    locked_state.uidnext + source.rn - 1,
-    locked_state.highest_modseq + source.rn
+    locked_state.uidnext + (SELECT COUNT(*) FROM backfilled_existing) + source.rn - 1,
+    locked_state.highest_modseq + (SELECT COUNT(*) FROM backfilled_existing) + source.rn
   FROM source
   CROSS JOIN locked_state
   RETURNING message_id, mailbox_id, user_id, uid, modseq
@@ -1600,9 +1634,9 @@ deleted_uids AS (
 ),
 updated_state AS (
   UPDATE imap_mailbox_state
-  SET uidnext = uidnext + (SELECT COUNT(*) FROM source),
-      highest_modseq = highest_modseq + (SELECT COUNT(*) FROM source),
-      updated_at = CASE WHEN EXISTS (SELECT 1 FROM source) THEN now() ELSE updated_at END
+  SET uidnext = uidnext + (SELECT COUNT(*) FROM backfilled_existing) + (SELECT COUNT(*) FROM source),
+      highest_modseq = highest_modseq + (SELECT COUNT(*) FROM backfilled_existing) + (SELECT COUNT(*) FROM source),
+      updated_at = CASE WHEN EXISTS (SELECT 1 FROM backfilled_existing) OR EXISTS (SELECT 1 FROM source) THEN now() ELSE updated_at END
   WHERE mailbox_id = $2::uuid
     AND user_id = $1::uuid
   RETURNING highest_modseq

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP move lazy UID destination ordering hardening)
+Last updated: 2026-05-14 (IMAP same-mailbox move lazy UID ordering hardening)
+
+## IMAP same-mailbox move lazy UID ordering hardening (2026-05-14, complete)
+- PostgreSQL-backed same-mailbox IMAP MOVE now backfills existing active unassigned messages inside the locked mailbox-state CTE before creating the moved replacement message UID.
+- Regression coverage verifies STATUS prediction, destination UID/sequence after source EXPUNGE, original UID removal, LIST ordering, and final UIDNEXT/HIGHESTMODSEQ remain monotonic with same-mailbox legacy unassigned messages.
 
 ## IMAP move lazy UID destination ordering hardening (2026-05-14, complete)
 - PostgreSQL-backed cross-mailbox IMAP MOVE now backfills existing active destination messages without `imap_message_uid` rows before assigning moved-message destination UIDs.

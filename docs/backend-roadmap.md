@@ -4785,6 +4785,12 @@ Target outcome:
          source removal, STATUS prediction, and later LIST/FETCH ordering now
          remain on the same monotonic destination UID timeline under legacy or
          API-created unassigned destination messages.
+ 1547. PostgreSQL-backed same-mailbox IMAP MOVE now applies the lazy UID
+         ordering guard inside its single-mailbox CTE: existing active
+         unassigned messages are backfilled before the replacement moved
+         message receives a fresh UID. After the original source UID is
+         expunged, destination sequence numbers, STATUS prediction, LIST/FETCH
+         order, and final UIDNEXT/HIGHESTMODSEQ remain monotonic.
 
 ## Deferred until backend contracts stabilize
 

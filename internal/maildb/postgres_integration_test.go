@@ -1288,6 +1288,90 @@ WHERE user_id = $1::uuid
 	}
 }
 
+func TestPostgresIMAPSameMailboxMoveBackfillsLegacyUIDsBeforeMove(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var sourceID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-order-source@example.com>',
+  'same move order source', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/same-move-order-source.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&sourceID); err != nil {
+		t.Fatalf("insert same-mailbox move source message: %v", err)
+	}
+	sourceUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, sourceID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-legacy-first@example.com>',
+   'same move legacy first', 'sender@example.net', '2026-05-04T00:02:00Z'::timestamptz,
+   100, 'mail/same-move-legacy-first.eml'),
+  ($1::uuid, $2::uuid, $3::uuid, $4::uuid, '<same-move-legacy-second@example.com>',
+   'same move legacy second', 'sender@example.net', '2026-05-04T00:03:00Z'::timestamptz,
+   100, 'mail/same-move-legacy-second.eml')`, seed.companyID, seed.domainID, seed.userID, seed.inboxID); err != nil {
+		t.Fatalf("insert same-mailbox legacy messages: %v", err)
+	}
+
+	before, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox before same-mailbox move returned error: %v", err)
+	}
+	if before.UIDNext != 4 || before.HighestModSeq != 3 {
+		t.Fatalf("predicted same-mailbox state = uidnext %d highestmodseq %d, want 4/3", before.UIDNext, before.HighestModSeq)
+	}
+
+	moved, err := repo.MoveIMAPMessages(ctx, seed.userID, seed.inboxID, seed.inboxID, []imapgw.UID{sourceUID.UID})
+	if err != nil {
+		t.Fatalf("MoveIMAPMessages same mailbox returned error: %v", err)
+	}
+	if len(moved) != 1 {
+		t.Fatalf("same-mailbox moved summaries = %#v, want 1", moved)
+	}
+	if moved[0].Destination.UID != 4 || moved[0].Destination.SequenceNumber != 3 {
+		t.Fatalf("same-mailbox moved destination uid/seq = %d/%d, want 4/3", moved[0].Destination.UID, moved[0].Destination.SequenceNumber)
+	}
+	if _, err := repo.GetIMAPMessage(ctx, seed.userID, seed.inboxID, sourceUID.UID); err == nil {
+		t.Fatal("GetIMAPMessage found original same-mailbox moved UID")
+	}
+
+	messages, err := repo.ListIMAPMessages(ctx, seed.userID, seed.inboxID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListIMAPMessages returned error: %v", err)
+	}
+	if len(messages) != 3 {
+		t.Fatalf("listed same-mailbox messages = %d, want 3", len(messages))
+	}
+	wantSubjects := []string{"same move legacy first", "same move legacy second", "same move order source"}
+	wantUIDs := []imapgw.UID{2, 3, 4}
+	for i, msg := range messages {
+		wantSeq := uint32(i + 1)
+		if msg.UID != wantUIDs[i] || msg.SequenceNumber != wantSeq || msg.Envelope.Subject != wantSubjects[i] {
+			t.Fatalf("same-mailbox[%d] = uid %d seq %d subject %q, want %d/%d/%q", i, msg.UID, msg.SequenceNumber, msg.Envelope.Subject, wantUIDs[i], wantSeq, wantSubjects[i])
+		}
+	}
+	after, err := repo.GetIMAPMailbox(ctx, seed.userID, seed.inboxID)
+	if err != nil {
+		t.Fatalf("GetIMAPMailbox after same-mailbox move returned error: %v", err)
+	}
+	if after.UIDNext != 5 || after.HighestModSeq != 4 {
+		t.Fatalf("same-mailbox state after move = uidnext %d highestmodseq %d, want 5/4", after.UIDNext, after.HighestModSeq)
+	}
+}
+
 func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {
 	t.Parallel()
 
