@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE invalid command sequence helper cleanup)
+Last updated: 2026-05-14 (POP3 DELE RSET clears pending delete)
+
+## POP3 DELE RSET clears pending delete (2026-05-14, complete)
+- POP3 tests now share a pending-delete-cleared assertion for `LIST 1` and `STAT` recovery checks.
+- The `RSET` visibility regression now uses the shared assertion to prove pending delete state is cleared.
 
 ## POP3 DELE invalid command sequence helper cleanup (2026-05-14, complete)
 - POP3 tests now share a pending-delete visibility assertion for `LIST 1` and `STAT` checks.

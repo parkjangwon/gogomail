@@ -222,6 +222,18 @@ func assertPOP3PendingDeleteVisible(t *testing.T, tp *textproto.Conn, context st
 	}
 }
 
+func assertPOP3PendingDeleteCleared(t *testing.T, tp *textproto.Conn, context string) {
+	t.Helper()
+	line := pop3Cmd(t, tp, "+OK", "LIST 1")
+	if !strings.Contains(line, "1 42") {
+		t.Fatalf("expected %s to restore LIST 1, got: %s", context, line)
+	}
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected %s to clear pending delete, got: %s", context, line)
+	}
+}
+
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -1192,9 +1204,7 @@ func TestPOP3RsetRestoresWireVisibility(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "DELE 1")
 	pop3Cmd(t, tp, "+OK", "RSET")
 
-	if line := pop3Cmd(t, tp, "+OK", "LIST 1"); !strings.Contains(line, "1 42") {
-		t.Fatalf("expected LIST 1 after RSET to restore message size, got: %s", line)
-	}
+	assertPOP3PendingDeleteCleared(t, tp, "RSET")
 	if line := pop3Cmd(t, tp, "+OK", "UIDL 1"); !strings.Contains(line, "msg001") {
 		t.Fatalf("expected UIDL 1 after RSET to restore message UIDL, got: %s", line)
 	}
