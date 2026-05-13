@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-263: CalDAV calendar-query candidate optimization audit
+## TASK-264: CalDAV free-busy recurrence performance audit
 
 ### 배경
 
-CalDAV `calendar-query`는 시간 범위가 있는 경우 컴포넌트별 candidate walker로
-직접 들어가야 한다. 핸들러가 broad/component list 조회를 먼저 수행하면 실제
-결과는 candidate walker를 쓰더라도 DB 사전 조회가 추가되어 대형 캘린더에서
-불필요한 비용이 발생한다.
+CalDAV `free-busy-query`는 VEVENT recurrence와 저장된 VFREEBUSY 기간만 busy
+결과에 사용한다. VTODO/VJOURNAL 같은 비 busy 컴포넌트가 많을 때 broad list
+한도에 먼저 걸리면 실제 busy 후보가 적어도 truncation 오류가 발생하거나
+불필요한 ICS를 읽을 수 있다.
 
 ### 구현 대상
 
@@ -19,12 +19,12 @@ CalDAV `calendar-query`는 시간 범위가 있는 경우 컴포넌트별 candid
 
 ### 완료 조건
 
-- [x] 시간 범위 `calendar-query`를 list prefetch 전에 candidate walker 경로로 분기한다.
-- [x] component list 및 broad list가 호출되지 않는 회귀 테스트를 추가한다.
+- [x] `free-busy-query` 대상 조회를 VEVENT/VFREEBUSY component list로 제한한다.
+- [x] 비 busy 컴포넌트가 한도 계산에 포함되지 않는 회귀 테스트를 추가한다.
 - [x] `go test ./internal/caldavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-264: CalDAV free-busy recurrence performance audit
+TASK-265: CalDAV sync-collection payload projection audit

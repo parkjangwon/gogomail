@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV calendar-query candidate optimization hardening)
+Last updated: 2026-05-14 (CalDAV free-busy candidate optimization hardening)
+
+## CalDAV free-busy candidate optimization hardening (2026-05-14, complete)
+- `free-busy-query` now limits candidate object loading to VEVENT and VFREEBUSY components when the store supports component-scoped listing.
+- Non-busy components such as VTODO no longer consume the free-busy report limit or force irrelevant ICS reads on the optimized repository path.
 
 ## CalDAV calendar-query candidate optimization hardening (2026-05-14, complete)
 - Time-range `calendar-query` handling now dispatches directly to the CalDAV component candidate walker before any broad or component-limited list prefetch.

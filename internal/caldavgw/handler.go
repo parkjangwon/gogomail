@@ -2654,7 +2654,7 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 	if limit <= 0 {
 		limit = MaxWebDAVReportLimit
 	}
-	objects, err := h.listCalendarObjectsBounded(ctx, userID, resource.CalendarID, limit+1, true)
+	objects, err := h.listFreeBusyObjectsBounded(ctx, userID, resource.CalendarID, limit+1, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2670,6 +2670,32 @@ func (h *Handler) freeBusyCalendar(ctx context.Context, userID string, resource 
 		periods = append(periods, objectPeriods...)
 	}
 	return BuildFreeBusyCalendar(userID, resource.CalendarID, timeRange, periods)
+}
+
+func (h *Handler) listFreeBusyObjectsBounded(ctx context.Context, userID string, calendarID string, limit int, includeICS bool) ([]CalendarObject, error) {
+	if componentLimiter, ok := h.Store.(CalendarObjectComponentStore); ok {
+		objects := make([]CalendarObject, 0, limit)
+		for _, component := range []string{ComponentVEVENT, ComponentVFREEBUSY} {
+			if len(objects) >= limit {
+				break
+			}
+			more, err := componentLimiter.ListCalendarObjectsByComponentLimit(
+				ctx,
+				userID,
+				calendarID,
+				CalendarStatusActive,
+				component,
+				limit-len(objects),
+				includeICS,
+			)
+			if err != nil {
+				return nil, err
+			}
+			objects = append(objects, more...)
+		}
+		return objects, nil
+	}
+	return h.listCalendarObjectsBounded(ctx, userID, calendarID, limit, includeICS)
 }
 
 func (h *Handler) syncCollectionReport(ctx context.Context, userID string, resource ResourcePath, report ReportRequest, currentUserPrivileges []XMLName) ([]MultiStatusResponse, string, error) {
