@@ -41,6 +41,43 @@ func TestSubmissionRejectsRepeatedAuth(t *testing.T) {
 	}
 }
 
+func TestSubmissionRejectsMustChangePasswordUser(t *testing.T) {
+	t.Parallel()
+
+	metrics := &recordingMetrics{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{
+			username:           "jangwon@example.com",
+			password:           "pass",
+			mustChangePassword: true,
+		},
+		Recorder: &submissionRecorder{},
+		Metrics:  metrics,
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); !errors.Is(err, gosmtp.ErrAuthFailed) {
+		t.Fatalf("AUTH PLAIN error = %v, want ErrAuthFailed", err)
+	}
+	if submission.user.UserID != "" {
+		t.Fatalf("submission user = %#v, want unauthenticated after must-change-password rejection", submission.user)
+	}
+	if !metrics.has(StageAuthenticated, MetricRejected) {
+		t.Fatalf("metrics = %+v, want rejected auth event", metrics.events)
+	}
+	if err := submission.Mail("jangwon@example.com", nil); !errors.Is(err, gosmtp.ErrAuthRequired) {
+		t.Fatalf("Mail after rejected auth error = %v, want ErrAuthRequired", err)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 
@@ -678,6 +715,7 @@ type submissionAuthenticator struct {
 	username            string
 	password            string
 	authorizedAddresses []string
+	mustChangePassword  bool
 }
 
 func (a submissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) (SubmissionUser, error) {
@@ -691,6 +729,7 @@ func (a submissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, 
 		Address:             "jangwon@example.com",
 		DisplayName:         "Jang Won",
 		AuthorizedAddresses: a.authorizedAddresses,
+		MustChangePassword:  a.mustChangePassword,
 	}, nil
 }
 

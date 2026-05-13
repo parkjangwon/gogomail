@@ -156,6 +156,10 @@ func (s *submissionSession) Auth(mech string) (sasl.Server, error) {
 			authErr = gosmtp.ErrAuthFailed
 			return gosmtp.ErrAuthFailed
 		}
+		if user.MustChangePassword {
+			authErr = gosmtp.ErrAuthFailed
+			return gosmtp.ErrAuthFailed
+		}
 		s.user = user
 		if err := s.emit(context.Background(), Event{
 			Stage:          StageAuthenticated,
