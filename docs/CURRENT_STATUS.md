@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH LOGIN password cancellation capability)
+Last updated: 2026-05-14 (POP3 AUTH PLAIN invalid base64 capability)
+
+## POP3 AUTH PLAIN invalid base64 capability (2026-05-14, complete)
+- POP3 server coverage now verifies invalid base64 in `AUTH PLAIN` returns `-ERR invalid base64`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the parse error.
 
 ## POP3 AUTH LOGIN password cancellation capability (2026-05-14, complete)
 - POP3 server coverage now verifies `AUTH LOGIN` password cancellation keeps authorization capabilities advertised.

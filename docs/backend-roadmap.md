@@ -5077,6 +5077,9 @@ Target outcome:
  1627. POP3 AUTH LOGIN password cancellation now verifies authorization-state
          capability preservation: after password-step `*`, CAPA still advertises
          USER and SASL before normal login continues.
+ 1628. POP3 AUTH PLAIN invalid-base64 handling now verifies authorization-state
+         capability preservation: parse errors leave CAPA and normal login
+         usable afterward.
 
 ## Deferred until backend contracts stabilize
 
