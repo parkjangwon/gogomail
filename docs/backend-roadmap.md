@@ -6140,3 +6140,7 @@ Target outcome:
       `AuthenticatePlain` returns the DB `must_change_password` flag alongside
       user/domain IDs so CalDAV/CardDAV resolvers can reject password-change-
       required users.
+1718. SMTP submission now enforces must-change-password policy:
+      `AUTH PLAIN` rejects authenticated users flagged `MustChangePassword`,
+      leaves the session unauthenticated, records a rejected auth metric, and
+      continues to require AUTH before `MAIL FROM`.

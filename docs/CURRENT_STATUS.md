@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (DAV auth must-change-password repository policy)
+Last updated: 2026-05-14 (SMTP submission must-change-password policy)
+
+## SMTP submission must-change-password policy (2026-05-14, complete)
+- SMTP submission `AUTH PLAIN` now rejects authenticated users flagged `MustChangePassword` instead of marking the session authenticated.
+- Coverage verifies the rejected session remains unauthenticated, records a rejected auth metric, and still requires AUTH before `MAIL FROM`.
 
 ## DAV auth must-change-password repository policy (2026-05-14, complete)
 - Postgres coverage now verifies `AuthenticatePlain`, the credential path used by CalDAV/CardDAV Basic auth, returns `MustChangePassword=true` from the users table.
