@@ -1450,6 +1450,28 @@ func TestPOP3TransactionAuthDenialPreservesPendingDelete(t *testing.T) {
 	}
 }
 
+func TestPOP3TransactionUserPassDenialPreservesPendingDelete(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	for _, cmd := range []string{"USER alice", "PASS secret"} {
+		line := pop3Cmd(t, tp, "-ERR", "%s", cmd)
+		if !strings.Contains(line, "unknown command") {
+			t.Fatalf("expected unknown command for %s, got: %s", cmd, line)
+		}
+	}
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "1 ") {
+		t.Fatalf("expected USER/PASS denial to preserve pending delete, got: %s", line)
+	}
+}
+
 func TestPOP3Quit(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
