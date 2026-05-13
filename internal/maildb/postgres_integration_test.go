@@ -971,6 +971,96 @@ WHERE user_id = $1::uuid
 	}
 }
 
+func TestPostgresEnsureIMAPMessageUIDRejectsUIDExhaustion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<ensure-overflow@example.com>',
+  'ensure overflow', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/ensure-overflow.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert ensure overflow message: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMailboxState(ctx, seed.userID, seed.inboxID); err != nil {
+		t.Fatalf("EnsureIMAPMailboxState returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE imap_mailbox_state
+SET uidnext = 4294967295,
+    highest_modseq = 4294967294
+WHERE mailbox_id = $1::uuid
+  AND user_id = $2::uuid`, seed.inboxID, seed.userID); err != nil {
+		t.Fatalf("prime ensure uid state: %v", err)
+	}
+
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); err == nil || !strings.Contains(err.Error(), "imap uid space exhausted") {
+		t.Fatalf("EnsureIMAPMessageUID overflow error = %v, want imap uid space exhausted", err)
+	}
+	assertMailboxAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, 0)
+}
+
+func TestPostgresEnsureIMAPMessageUIDWaitsForMessageRowLock(t *testing.T) {
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	var messageID string
+	if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, '<ensure-lock@example.com>',
+  'ensure lock', 'sender@example.net', '2026-05-04T00:00:00Z'::timestamptz,
+  100, 'mail/ensure-lock.eml'
+) RETURNING id::text`, seed.companyID, seed.domainID, seed.userID, seed.inboxID).Scan(&messageID); err != nil {
+		t.Fatalf("insert ensure lock message: %v", err)
+	}
+
+	lockTx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin message lock transaction: %v", err)
+	}
+	defer lockTx.Rollback()
+	var lockedID string
+	if err := lockTx.QueryRowContext(ctx, `
+SELECT id::text
+FROM messages
+WHERE id = $1::uuid
+FOR UPDATE`, messageID).Scan(&lockedID); err != nil {
+		t.Fatalf("lock message row: %v", err)
+	}
+
+	blockedCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+	if _, err := repo.EnsureIMAPMessageUID(blockedCtx, seed.userID, seed.inboxID, messageID); err == nil || !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+		t.Fatalf("EnsureIMAPMessageUID while message row locked error = %v, want context deadline exceeded", err)
+	}
+	assertMailboxAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, 0)
+
+	if err := lockTx.Rollback(); err != nil {
+		t.Fatalf("rollback message lock transaction: %v", err)
+	}
+	uid, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID after unlock returned error: %v", err)
+	}
+	if uid.UID != 1 || uid.ModSeq != 1 {
+		t.Fatalf("uid after unlock = %#v, want UID/MODSEQ 1/1", uid)
+	}
+}
+
 func TestPostgresIMAPMailboxSubscriptionsPersistNames(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP lazy UID lock ordering hardening)
+Last updated: 2026-05-14 (IMAP ensure-message UID hardening)
+
+## IMAP ensure-message UID hardening (2026-05-14, complete)
+- `EnsureIMAPMessageUID` now preflights single-message lazy UID assignment under the same mailbox UID state then folder-row lock order used by live allocation and operational backfill paths.
+- The assignment CTE now locks the target message row before inserting a UID, preserving existing UID lookups while rejecting exhausted UIDNEXT with a stable error and no partial UID rows.
 
 ## IMAP lazy UID lock ordering hardening (2026-05-14, complete)
 - The operational `BackfillIMAPMailboxUIDs` path now locks the mailbox folder row after the mailbox UID state row and before selecting unassigned message rows.
