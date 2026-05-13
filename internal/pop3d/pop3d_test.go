@@ -2035,6 +2035,46 @@ func TestPOP3QuitAfterFailedCommitSkipsRetryAfterRollback(t *testing.T) {
 	}
 }
 
+func TestPOP3QuitAfterFailedCommitAllowsRedeletedRetry(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls after failed QUIT = %d, want 1", mb.commitCalls)
+	}
+	if mb.Deleted(0) {
+		t.Fatal("expected failed QUIT to roll back delete mark before retry")
+	}
+
+	mb.commitErr = nil
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 2 {
+		t.Fatalf("CommitDeletes calls after re-delete retry = %d, want 2", mb.commitCalls)
+	}
+	if !mb.Deleted(0) {
+		t.Fatal("expected successful re-delete retry to preserve committed delete mark")
+	}
+}
+
 // TestPOP3CommitDeletesSuccess verifies that a successful CommitDeletes on QUIT
 // returns +OK to the client.
 func TestPOP3CommitDeletesSuccess(t *testing.T) {
