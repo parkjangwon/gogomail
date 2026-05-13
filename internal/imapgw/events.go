@@ -13,12 +13,18 @@ type MailboxEventBroker struct {
 	dropped     uint64
 	bufferDepth int
 	subscribers map[uint64]mailboxEventSubscriber
+	droppedBy   map[mailboxEventDropKey]uint64
 }
 
 type mailboxEventSubscriber struct {
 	userID    UserID
 	mailboxID MailboxID
 	events    chan MailboxEvent
+}
+
+type mailboxEventDropKey struct {
+	userID    UserID
+	mailboxID MailboxID
 }
 
 func NewMailboxEventBroker(bufferDepth int) *MailboxEventBroker {
@@ -28,6 +34,7 @@ func NewMailboxEventBroker(bufferDepth int) *MailboxEventBroker {
 	return &MailboxEventBroker{
 		bufferDepth: bufferDepth,
 		subscribers: make(map[uint64]mailboxEventSubscriber),
+		droppedBy:   make(map[mailboxEventDropKey]uint64),
 	}
 }
 
@@ -108,6 +115,7 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 			case sub.events <- event:
 			default:
 				b.dropped++
+				b.droppedBy[mailboxEventDropKey{userID: sub.userID, mailboxID: sub.mailboxID}]++
 			}
 		}
 	}
@@ -119,6 +127,14 @@ func (b *MailboxEventBroker) DroppedEvents() uint64 {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.dropped
+}
+
+func (b *MailboxEventBroker) DroppedEventsFor(userID UserID, mailboxID MailboxID) uint64 {
+	userID = UserID(strings.TrimSpace(string(userID)))
+	mailboxID = MailboxID(strings.TrimSpace(string(mailboxID)))
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.droppedBy[mailboxEventDropKey{userID: userID, mailboxID: mailboxID}]
 }
 
 func normalizeMailboxEventType(eventType MailboxEventType) (MailboxEventType, error) {

@@ -4860,6 +4860,10 @@ Target outcome:
          the broker and exposed through a safe aggregate accessor. Non-blocking
          fanout remains intact, but event-loss pressure is visible to tests
          and future operational diagnostics.
+ 1562. IMAP mailbox event broker slow-subscriber drops are also tracked per
+         normalized user/mailbox identity. Diagnostics can now distinguish
+         which selected mailbox is losing events instead of relying solely on
+         an aggregate broker-wide counter.
 
 ## Deferred until backend contracts stabilize
 

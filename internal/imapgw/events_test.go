@@ -135,6 +135,12 @@ func TestMailboxEventBrokerPublishDoesNotBlockOnSlowSubscriber(t *testing.T) {
 	if got := broker.DroppedEvents(); got != 1 {
 		t.Fatalf("DroppedEvents = %d, want 1", got)
 	}
+	if got := broker.DroppedEventsFor(" user-1 ", " inbox "); got != 1 {
+		t.Fatalf("DroppedEventsFor = %d, want 1", got)
+	}
+	if got := broker.DroppedEventsFor("user-1", "archive"); got != 0 {
+		t.Fatalf("DroppedEventsFor archive = %d, want 0", got)
+	}
 }
 
 func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) {
