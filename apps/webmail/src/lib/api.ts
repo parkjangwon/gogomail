@@ -38,6 +38,31 @@ export interface MessageDetail {
   has_attachment: boolean;
 }
 
+type ComposeAddressLike = {
+  address?: string;
+  email?: string;
+  name?: string;
+};
+
+type BackendComposeAddress = {
+  email: string;
+  name?: string;
+};
+
+function normalizeComposeAddress(address: ComposeAddressLike): BackendComposeAddress {
+  return {
+    email: address.email ?? address.address ?? '',
+    ...(address.name ? { name: address.name } : {}),
+  };
+}
+
+function normalizeComposeAddresses(addresses?: ComposeAddressLike[]): BackendComposeAddress[] | undefined {
+  if (!addresses) return undefined;
+  return addresses
+    .map((address) => normalizeComposeAddress(address))
+    .filter((address) => address.email.trim() !== '');
+}
+
 export interface AuthTokenResponse {
   expires_at: string;
   must_change_password: boolean;
@@ -285,12 +310,23 @@ export interface DraftData {
   scheduled_at?: string;
 }
 
+function normalizeSendRequestPayload<T extends { to: ComposeAddressLike[]; cc?: ComposeAddressLike[]; bcc?: ComposeAddressLike[] }>(
+  payload: T
+): Omit<T, 'to' | 'cc' | 'bcc'> & { to: BackendComposeAddress[]; cc?: BackendComposeAddress[]; bcc?: BackendComposeAddress[] } {
+  return {
+    ...payload,
+    to: normalizeComposeAddresses(payload.to) ?? [],
+    ...(payload.cc ? { cc: normalizeComposeAddresses(payload.cc) } : {}),
+    ...(payload.bcc ? { bcc: normalizeComposeAddresses(payload.bcc) } : {}),
+  };
+}
+
 export function saveDraft(data: DraftData): Promise<{ draft: { id: string } }> {
-  return apiPost<{ draft: { id: string } }>('drafts', data);
+  return apiPost<{ draft: { id: string } }>('drafts', normalizeSendRequestPayload(data));
 }
 
 export function updateDraft(draftId: string, data: DraftData): Promise<{ draft: { id: string } }> {
-  return apiPatch<{ draft: { id: string } }>(`drafts/${draftId}`, data);
+  return apiPatch<{ draft: { id: string } }>(`drafts/${draftId}`, normalizeSendRequestPayload(data));
 }
 
 export function deleteDraft(draftId: string): Promise<void> {
@@ -438,7 +474,7 @@ export async function restoreMailbox(folderId: string, file: File): Promise<{ im
 }
 
 export function sendMessage(data: SendMessageRequest): Promise<SendMessageEnvelope> {
-  return apiPost<SendMessageEnvelope>('messages/send', data);
+  return apiPost<SendMessageEnvelope>('messages/send', normalizeSendRequestPayload(data));
 }
 
 export interface ContactSuggestion {
