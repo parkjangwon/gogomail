@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event server ignore coverage)
+Last updated: 2026-05-14 (IMAP mailbox event unknown-type coverage)
+
+## IMAP mailbox event unknown-type coverage (2026-05-14, complete)
+- IMAP NOOP drain coverage now includes a selected-mailbox event with an unknown type and verifies it produces no wire response.
+- IMAP IDLE live-event coverage now includes the same unknown-type guard before the selected mailbox EXISTS update.
 
 ## IMAP mailbox event server ignore coverage (2026-05-14, complete)
 - IMAP NOOP event-drain coverage now feeds other-user and other-mailbox events before selected mailbox events and verifies only the selected mailbox responses are written.
