@@ -1895,10 +1895,12 @@ func TestPOP3RetrTopHideDeletedMessages(t *testing.T) {
 // commitMailbox wraps mockMailbox and adds a CommitDeletes method.
 type commitMailbox struct {
 	*mockMailbox
-	commitErr error
+	commitErr   error
+	commitCalls int
 }
 
 func (c *commitMailbox) CommitDeletes() error {
+	c.commitCalls++
 	return c.commitErr
 }
 
@@ -2019,6 +2021,35 @@ func TestPOP3CommitDeletesSuccess(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "PASS secret")
 	pop3Cmd(t, tp, "+OK", "DELE 1")
 	pop3Cmd(t, tp, "+OK", "QUIT")
+}
+
+func TestPOP3QuitSuccessCommitsPendingDelete(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: nil,
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls = %d, want 1", mb.commitCalls)
+	}
+	if !mb.Deleted(0) {
+		t.Fatal("expected successful QUIT to preserve committed delete mark")
+	}
 }
 
 func TestPOP3QuitSuccessClosesConnection(t *testing.T) {
