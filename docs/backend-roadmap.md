@@ -5015,6 +5015,9 @@ Target outcome:
  1606. POP3 invalid UIDL index handling is now covered: negative and
          out-of-range `MessageUIDL` lookups return an empty string instead of
          exposing arbitrary or stale message identifiers.
+ 1607. POP3 invalid content index handling is now covered: invalid
+         `MessageContent` lookups return an empty string, while
+         `MessageContentWithError` returns explicit errors for the same indexes.
 
 ## Deferred until backend contracts stabilize
 
