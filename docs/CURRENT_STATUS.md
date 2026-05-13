@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound domain policy HELO reset)
+Last updated: 2026-05-14 (SMTP inbound domain policy QUIT isolation)
+
+## SMTP inbound domain policy QUIT isolation (2026-05-14, complete)
+- SMTP protocol coverage now verifies mixed-domain recipient policy state does not leak across TCP connections after `QUIT`.
+- The regression verifies a new d1-only connection is not blocked by the previous connection's d2 size limit and records only the accepted d1 recipient.
 
 ## SMTP inbound domain policy HELO reset (2026-05-14, complete)
 - SMTP protocol coverage now verifies `HELO` clears accumulated mixed-domain recipient policy state.
