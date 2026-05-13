@@ -1600,6 +1600,42 @@ func TestHandlerReportFreeBusyQueryRejectsTruncatingLimit(t *testing.T) {
 	}
 }
 
+func TestHandlerReportFreeBusyQueryIgnoresNonBusyComponentsForLimit(t *testing.T) {
+	t.Parallel()
+
+	store := &queryCandidateCalendarDiscoveryStore{fakeDiscoveryStore: *newFakeDiscoveryStore()}
+	todoICS := []byte("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//gogomail//CalDAV Test//EN\r\nBEGIN:VTODO\r\nUID:todo-1@example.com\r\nDTSTAMP:20260506T000000Z\r\nDTSTART:20260506T010000Z\r\nDUE:20260506T020000Z\r\nSUMMARY:Todo\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	todo := store.objects[0]
+	todo.ID = "object-todo"
+	todo.ObjectName = "todo-1.ics"
+	todo.UID = "todo-1@example.com"
+	todo.Component = ComponentVTODO
+	todo.ETag = `"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"`
+	todo.ICS = todoICS
+	todo.Size = int64(len(todoICS))
+	store.objects = append([]CalendarObject{todo}, store.objects...)
+
+	handler := NewHandler(store, fixedUser("user-1"))
+	req := httptest.NewRequest(MethodReport, "/caldav/calendars/user-1/work/", strings.NewReader(`<C:free-busy-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
+  <D:limit><D:nresults>1</D:nresults></D:limit>
+  <C:time-range start="20260506T000000Z" end="20260507T000000Z"/>
+</C:free-busy-query>`))
+	req.Header.Set("Depth", "1")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if store.componentListCount == 0 || store.limitedListCount != 0 || store.listCount != 0 {
+		t.Fatalf("componentListCount = %d, limitedListCount = %d, listCount = %d; want component-only free-busy lookup", store.componentListCount, store.limitedListCount, store.listCount)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "FREEBUSY;FBTYPE=BUSY:20260506T010000Z/20260506T020000Z") {
+		t.Fatalf("free-busy response missing VEVENT period:\n%s", body)
+	}
+}
+
 func TestHandlerReportFreeBusyQueryRejectsObjectTarget(t *testing.T) {
 	t.Parallel()
 
@@ -4871,6 +4907,7 @@ type queryCandidateCalendarDiscoveryStore struct {
 	fakeDiscoveryStore
 	candidateCount     int
 	componentListCount int
+	limitedListCount   int
 	listCount          int
 	components         []string
 }
@@ -4902,6 +4939,11 @@ func (s *noSyncCalendarDiscoveryStore) LookupCalendarObject(ctx context.Context,
 func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
 	s.listCount++
 	return s.fakeDiscoveryStore.ListCalendarObjects(ctx, userID, calendarID)
+}
+
+func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjectsLimit(ctx context.Context, userID string, calendarID string, limit int) ([]CalendarObject, error) {
+	s.limitedListCount++
+	return s.fakeDiscoveryStore.ListCalendarObjectsLimit(ctx, userID, calendarID, limit)
 }
 
 func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjectsByComponentLimit(_ context.Context, userID string, calendarID string, _ string, component string, limit int, includeICS bool) ([]CalendarObject, error) {

@@ -5380,6 +5380,8 @@ Target outcome:
 4. CardDAV ctag/sync-token support for contacts delta sync.
 5. CalDAV time-range `calendar-query` uses component candidate walking directly,
    avoiding broad or component-list prefetch on large calendars.
+6. CalDAV `free-busy-query` limits optimized object loading to VEVENT and
+   VFREEBUSY candidates so VTODO/VJOURNAL rows do not consume busy limits.
 
 ---
 
