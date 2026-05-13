@@ -4930,6 +4930,9 @@ Target outcome:
          guard end to end: an empty selected mailbox receives no EXPUNGE wire
          response for an injected EXPUNGE event, and DONE still completes
          normally afterward.
+ 1580. IMAP NOOP drain coverage now verifies the same empty-selected EXPUNGE
+         guard end to end: an empty selected mailbox drains a queued EXPUNGE
+         event without emitting EXPUNGE, and NOOP still completes normally.
 
 ## Deferred until backend contracts stabilize
 

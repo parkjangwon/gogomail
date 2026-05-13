@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event empty-selected IDLE coverage)
+Last updated: 2026-05-14 (IMAP mailbox event empty-selected NOOP coverage)
+
+## IMAP mailbox event empty-selected NOOP coverage (2026-05-14, complete)
+- IMAP NOOP integration coverage now selects an empty mailbox, queues an EXPUNGE event, and verifies NOOP drains it without emitting EXPUNGE.
+- The test verifies NOOP still completes normally after the ignored empty-selected EXPUNGE event.
 
 ## IMAP mailbox event empty-selected IDLE coverage (2026-05-14, complete)
 - IMAP IDLE integration coverage now selects an empty mailbox, injects an EXPUNGE event, and verifies no EXPUNGE wire response is emitted.
