@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 PASS without USER capability)
+Last updated: 2026-05-14 (POP3 USER replacement before PASS)
+
+## POP3 USER replacement before PASS (2026-05-14, complete)
+- POP3 server coverage now verifies a second `USER` command before `PASS` replaces the pending username.
+- The regression verifies authentication succeeds with the replacement username and reaches transaction state.
 
 ## POP3 PASS without USER capability (2026-05-14, complete)
 - POP3 server coverage now verifies `PASS` without a prior `USER` returns `-ERR authentication failed`.
