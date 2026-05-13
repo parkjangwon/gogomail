@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-304: IMAP mailbox event expunge clamp audit
+## TASK-305: IMAP mailbox event expunge empty-selected audit
 
 ### 배경
 
-IMAP EXPUNGE 이벤트의 sequence number가 현재 selected message count보다 크면
-클라이언트에 존재하지 않는 sequence를 보낼 수 없다. 서버는 이 값을 현재 selected
-count로 clamp한 뒤 EXPUNGE response를 보내고, saved SEARCH state도 clamp된 sequence
-기준으로 갱신해야 한다. 이 방어 경로를 직접 테스트로 고정한다.
+IMAP EXPUNGE 이벤트는 selected mailbox에 메시지가 있을 때만 유효하다. 기존 서버
+경로는 `selectedMessages=0`인 상태에서 `SequenceNumber>0` 이벤트가 들어오면
+decrement는 하지 않지만 `* 1 EXPUNGE` 같은 유효하지 않은 response를 보낼 수
+있었다. 비어 있는 selected mailbox에서는 EXPUNGE 이벤트를 조용히 무시해야 한다.
 
 ### 구현 대상
 
@@ -18,13 +18,13 @@ count로 clamp한 뒤 EXPUNGE response를 보내고, saved SEARCH state도 clamp
 
 ### 완료 조건
 
-- [x] selected count보다 큰 EXPUNGE sequence가 selected count로 clamp된 wire response를 만드는지 검증한다.
-- [x] clamped EXPUNGE 이벤트가 `selectedMessages`를 1 감소시키는지 검증한다.
-- [x] saved SEARCH state가 clamp된 sequence 기준으로 갱신되는지 검증한다.
+- [x] `selectedMessages=0`이면 EXPUNGE 이벤트가 wire response를 만들지 않는다.
+- [x] `selectedMessages=0`이면 EXPUNGE 이벤트가 selected count를 변경하지 않는다.
+- [x] out-of-range clamp 경로는 selected count가 0보다 클 때만 적용된다.
 - [x] `go test ./internal/imapgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-305: IMAP mailbox event expunge empty-selected audit
+TASK-306: IMAP mailbox event expunge empty-selected IDLE audit
