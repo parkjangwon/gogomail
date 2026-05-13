@@ -1,14 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-298: IMAP mailbox event unknown-type server audit
+## TASK-299: IMAP mailbox event stale EXISTS audit
 
 ### 배경
 
-IMAP mailbox event broker는 unknown event type을 거부하지만, 테스트 backend나
-다른 구현체가 server subscription channel에 직접 unknown type을 보낼 수 있다.
-서버의 `writeMailboxEvent`는 unknown type을 무시하도록 되어 있으므로, NOOP drain과
-IDLE live 경로에서 selected mailbox unknown 이벤트가 wire response나 selected
-message count에 영향을 주지 않는지 회귀 테스트로 고정한다.
+IMAP EXISTS 이벤트는 selected mailbox의 메시지 수를 증가시키는 방향으로만
+클라이언트에 알려야 한다. 서버는 `Messages` 값이 현재 selected count 이하이면
+stale 이벤트로 보고 무시한다. 이 동작이 wire response와 internal selected count를
+바꾸지 않는지 직접 테스트로 고정한다.
 
 ### 구현 대상
 
@@ -19,13 +18,13 @@ message count에 영향을 주지 않는지 회귀 테스트로 고정한다.
 
 ### 완료 조건
 
-- [x] NOOP drain 경로가 selected mailbox unknown event type을 wire response에 출력하지 않는지 검증한다.
-- [x] IDLE live 경로가 selected mailbox unknown event type을 wire response에 출력하지 않는지 검증한다.
-- [x] unknown event 뒤의 정상 EXISTS 이벤트만 selected message count로 반영되는지 검증한다.
+- [x] 현재 selected count보다 작은 EXISTS count가 wire response를 만들지 않는지 검증한다.
+- [x] 현재 selected count와 같은 EXISTS count가 wire response를 만들지 않는지 검증한다.
+- [x] stale EXISTS 이벤트가 `selectedMessages`를 변경하지 않는지 검증한다.
 - [x] `go test ./internal/imapgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-299: IMAP mailbox event stale EXISTS audit
+TASK-300: IMAP mailbox event fresh EXISTS audit
