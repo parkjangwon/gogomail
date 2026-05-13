@@ -5314,6 +5314,10 @@ Progress:
    same user receive `-ERR`, and locks are released on QUIT or connection
    close. The mailservice adapter provides the canonical DB user ID as the lock
    key.
+6. POP3 `MaxConnections` is now wired from `GOGOMAIL_POP3_MAX_CONNECTIONS` and
+   YAML `pop3_max_connections` into the server accept loop. Connections over
+   the configured limit receive `-ERR too many connections`, and slots are
+   released when sessions close.
 
 ---
 

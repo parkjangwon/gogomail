@@ -265,6 +265,86 @@ func TestPOP3ReleasesMaildropLockOnConnectionClose(t *testing.T) {
 	}
 }
 
+func TestPOP3RejectsConnectionsOverLimit(t *testing.T) {
+	store := &mockStore{
+		mailbox: &mockMailbox{
+			messages: []mockMessage{{uidl: "msg001", size: 42, content: "Hello\r\n"}},
+			deleted:  make(map[int]bool),
+		},
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+	server := &Server{
+		Store:          store,
+		Greeting:       "test",
+		IdleTimeout:    5 * time.Second,
+		MaxConnections: 1,
+	}
+	go func() { _ = server.Serve(listener) }()
+
+	first := pop3Conn(t, listener.Addr().String())
+	defer first.Close()
+
+	secondConn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial second: %v", err)
+	}
+	second := textproto.NewConn(secondConn)
+	line, err := second.ReadLine()
+	if err != nil {
+		t.Fatalf("read connection-limit rejection: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR") {
+		t.Fatalf("expected -ERR connection-limit rejection, got %s", line)
+	}
+	second.Close()
+}
+
+func TestPOP3ConnectionLimitSlotReleasedOnClose(t *testing.T) {
+	store := &mockStore{
+		mailbox: &mockMailbox{
+			messages: []mockMessage{{uidl: "msg001", size: 42, content: "Hello\r\n"}},
+			deleted:  make(map[int]bool),
+		},
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+	server := &Server{
+		Store:          store,
+		Greeting:       "test",
+		IdleTimeout:    5 * time.Second,
+		MaxConnections: 1,
+	}
+	go func() { _ = server.Serve(listener) }()
+
+	first := pop3Conn(t, listener.Addr().String())
+	first.Close()
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		tp := textproto.NewConn(conn)
+		line, err := tp.ReadLine()
+		tp.Close()
+		if err == nil && strings.HasPrefix(line, "+OK") {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("connection slot was not released; last line=%q err=%v", line, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestPOP3List(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

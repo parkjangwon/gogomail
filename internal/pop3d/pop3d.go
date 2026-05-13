@@ -39,13 +39,14 @@ type Store interface {
 
 // Server is a POP3 server.
 type Server struct {
-	Store       Store
-	TLSConfig   *tls.Config
-	Greeting    string
-	IdleTimeout time.Duration
-	mu          sync.Mutex
-	listeners   []net.Listener
-	maildrops   map[string]struct{}
+	Store          Store
+	TLSConfig      *tls.Config
+	Greeting       string
+	IdleTimeout    time.Duration
+	MaxConnections int
+	mu             sync.Mutex
+	listeners      []net.Listener
+	maildrops      map[string]struct{}
 }
 
 // Serve accepts connections on the listener.
@@ -54,6 +55,10 @@ func (s *Server) Serve(ln net.Listener) error {
 	s.listeners = append(s.listeners, ln)
 	s.mu.Unlock()
 
+	var slots chan struct{}
+	if s.MaxConnections > 0 {
+		slots = make(chan struct{}, s.MaxConnections)
+	}
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -62,8 +67,40 @@ func (s *Server) Serve(ln net.Listener) error {
 			}
 			return err
 		}
-		go s.handleConn(conn)
+		if !acquireConnectionSlot(slots) {
+			rejectConnectionLimit(conn)
+			continue
+		}
+		go func() {
+			defer releaseConnectionSlot(slots)
+			s.handleConn(conn)
+		}()
 	}
+}
+
+func acquireConnectionSlot(slots chan struct{}) bool {
+	if slots == nil {
+		return true
+	}
+	select {
+	case slots <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func releaseConnectionSlot(slots chan struct{}) {
+	if slots == nil {
+		return
+	}
+	<-slots
+}
+
+func rejectConnectionLimit(conn net.Conn) {
+	_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_, _ = conn.Write([]byte("-ERR too many connections\r\n"))
+	_ = conn.Close()
 }
 
 // Close closes all active listeners.
