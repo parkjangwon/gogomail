@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction CAPA stability)
+Last updated: 2026-05-14 (POP3 authorization CAPA stability)
+
+## POP3 authorization CAPA stability (2026-05-14, complete)
+- POP3 server coverage now verifies repeated authorization-state `CAPA` calls keep core auth capabilities stable.
+- The regression verifies normal authentication and `STAT` still work afterward.
 
 ## POP3 transaction CAPA stability (2026-05-14, complete)
 - POP3 server coverage now verifies repeated transaction-state `CAPA` calls keep core capabilities stable.
