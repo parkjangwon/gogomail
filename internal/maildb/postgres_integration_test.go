@@ -158,6 +158,35 @@ WHERE m.id = $1`, sentID).Scan(&hasAttachment, &queuedTopic, &queuedEvent, &queu
 	}
 }
 
+func TestPostgresAuthenticatePlainRejectsSuspendedCompany(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	if _, err := db.ExecContext(ctx, `
+UPDATE users
+SET password_hash = 'plain:dev-password'
+WHERE id = $1::uuid`, seed.userID); err != nil {
+		t.Fatalf("set password hash: %v", err)
+	}
+	if _, err := repo.AuthenticatePlain(ctx, "", "alice@example.com", "dev-password"); err != nil {
+		t.Fatalf("AuthenticatePlain active company returned error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+UPDATE companies
+SET status = 'suspended'
+WHERE id = $1::uuid`, seed.companyID); err != nil {
+		t.Fatalf("suspend company: %v", err)
+	}
+
+	if _, err := repo.AuthenticatePlain(ctx, "", "alice@example.com", "dev-password"); err == nil {
+		t.Fatal("AuthenticatePlain succeeded for suspended company")
+	}
+}
+
 func TestPostgresCanceledDraftAttachmentCannotBeRebound(t *testing.T) {
 	t.Parallel()
 

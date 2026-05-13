@@ -39,8 +39,10 @@ SELECT
   COALESCE(u.password_hash, '')
 FROM users u
 JOIN domains d ON d.id = u.domain_id
+JOIN companies c ON c.id = d.company_id
 JOIN user_addresses ua ON ua.user_id = u.id
 WHERE u.status = 'active'
+  AND c.status = 'active'
   AND d.status = 'active'
   AND u.auth_source = 'local'
   AND (
