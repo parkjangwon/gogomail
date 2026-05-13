@@ -233,6 +233,29 @@ func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterFindsInboxFolderCaseInsensitively(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "INBOX"}},
+		messages: []maildb.MessageSummary{{ID: "msg-001", Size: 42}},
+		details:  map[string]maildb.MessageDetail{"msg-001": {ID: "msg-001", StoragePath: "path/msg-001"}},
+	}
+	store := &pop3TestStore{bodies: map[string]string{"path/msg-001": "From: a@example.com\r\n\r\nHello\r\n"}}
+	svc := New(repo, store)
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if got := mb.MessageCount(); got != 1 {
+		t.Fatalf("message count = %d, want 1", got)
+	}
+	if len(repo.pageUsers) != 1 || repo.pageUsers[0] != "user-1" {
+		t.Fatalf("page users = %#v, want [user-1]", repo.pageUsers)
+	}
+}
+
 func TestPOP3StoreAdapterAuthenticateFail(t *testing.T) {
 	adapter, repo, _ := newPOP3TestSetup()
 	auth := adapter.authenticator.(*pop3TestAuth)
