@@ -5202,6 +5202,8 @@ Target outcome:
  1671. POP3 no-delete QUIT close behavior is now covered: the commit-skip path
          still returns `+OK`, skips CommitDeletes, and closes the TCP
          connection.
+ 1672. POP3 QUIT after RSET now skips the delete commit hook: RSET clears the
+         delete mark, QUIT returns `+OK`, and CommitDeletes is not called.
 
 ## Deferred until backend contracts stabilize
 
