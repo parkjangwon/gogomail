@@ -496,6 +496,27 @@ func TestPOP3TransactionEmptyCommandKeepsSessionUsable(t *testing.T) {
 	}
 }
 
+func TestPOP3TransactionRejectsUserAndPass(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	for _, cmd := range []string{"USER alice", "PASS secret"} {
+		line := pop3Cmd(t, tp, "-ERR", "%s", cmd)
+		if !strings.Contains(line, "unknown command") {
+			t.Fatalf("expected unknown command for %s, got: %s", cmd, line)
+		}
+	}
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	line := pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected transaction session to remain usable, got: %s", line)
+	}
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
