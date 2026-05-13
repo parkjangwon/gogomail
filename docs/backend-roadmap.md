@@ -6109,3 +6109,7 @@ Target outcome:
      a subscribed user folder deleted through `DeleteFolder` remains visible as
      a retained non-existing subscription name, and the retained name can still
      be used to unsubscribe.
+1710. IMAP subscription name normalization now trims mailbox name/id inputs:
+      spaced names like `" INBOX "` resolve to the existing Inbox rather than a
+      missing retained subscription, and the same trim rule applies to
+      unsubscribe and canonical subscription keys.

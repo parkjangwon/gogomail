@@ -2,7 +2,7 @@ package maildb
 
 import "testing"
 
-func TestCanonicalIMAPSubscriptionNamePreservesMailboxIdentity(t *testing.T) {
+func TestCanonicalIMAPSubscriptionNameNormalizesMailboxIdentity(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -11,7 +11,7 @@ func TestCanonicalIMAPSubscriptionNamePreservesMailboxIdentity(t *testing.T) {
 		want  string
 	}{
 		{name: "case insensitive", value: "INBOX", want: "inbox"},
-		{name: "leading and trailing space identity", value: " INBOX ", want: " inbox "},
+		{name: "leading and trailing space", value: " INBOX ", want: "inbox"},
 		{name: "leading delimiter", value: "/Archive", want: "/archive"},
 		{name: "trailing delimiter", value: "Archive/", want: "archive/"},
 		{name: "internal spacing", value: "Project  2026", want: "project  2026"},

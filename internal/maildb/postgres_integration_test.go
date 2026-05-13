@@ -1669,6 +1669,40 @@ func TestPostgresIMAPMailboxSubscriptionPersistsAfterDeleteFolder(t *testing.T) 
 	}
 }
 
+func TestPostgresIMAPMailboxSubscriptionTrimsNames(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	subscription, err := repo.SubscribeIMAPMailbox(ctx, seed.userID, " INBOX ")
+	if err != nil {
+		t.Fatalf("SubscribeIMAPMailbox returned error: %v", err)
+	}
+	if !subscription.Exists || subscription.Name != "Inbox" || subscription.Mailbox.ID != imapgw.MailboxID(seed.inboxID) {
+		t.Fatalf("trimmed inbox subscription = %#v, want existing Inbox", subscription)
+	}
+	listed, err := repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes returned error: %v", err)
+	}
+	if len(listed) != 1 || !listed[0].Exists || listed[0].Name != "Inbox" {
+		t.Fatalf("listed trimmed subscription = %#v, want existing Inbox without spaces", listed)
+	}
+	if err := repo.UnsubscribeIMAPMailbox(ctx, seed.userID, " INBOX "); err != nil {
+		t.Fatalf("UnsubscribeIMAPMailbox returned error: %v", err)
+	}
+	listed, err = repo.ListSubscribedIMAPMailboxes(ctx, seed.userID)
+	if err != nil {
+		t.Fatalf("ListSubscribedIMAPMailboxes after unsubscribe returned error: %v", err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("subscriptions after trimmed unsubscribe = %#v, want empty", listed)
+	}
+}
+
 func TestPostgresIMAPMoveMessagesMovesActiveUIDs(t *testing.T) {
 	t.Parallel()
 
