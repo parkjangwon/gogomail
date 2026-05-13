@@ -546,12 +546,13 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 	}
 
 	settings := &DomainSettings{}
+	var updatedBy sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT domain_id, tls_policy, quota_per_user, ip_whitelist_enabled, ip_whitelist,
 		        require_2fa, session_timeout_minutes, password_min_length,
 		        password_require_uppercase, password_require_numbers, password_require_special_chars,
 		        password_expiry_days, user_registration_mode, password_reset_token_ttl_minutes,
-		        updated_at, COALESCE(updated_by::text, '')
+		        updated_at, updated_by
 		 FROM domain_settings WHERE domain_id = $1`,
 		domainID,
 	).Scan(&settings.DomainID, &settings.TLSPolicy, &settings.QuotaPerUser, &settings.IPWhitelistEnabled,
@@ -559,12 +560,15 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 		&settings.PasswordMinLength, &settings.PasswordRequireUppercase, &settings.PasswordRequireNumbers,
 		&settings.PasswordRequireSpecialChars, &settings.PasswordExpiryDays, &settings.UserRegistrationMode,
 		&settings.PasswordResetTokenTTLMinutes,
-		&settings.UpdatedAt, &settings.UpdatedBy)
+		&settings.UpdatedAt, &updatedBy)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("domain settings not found")
 	}
 	if err != nil {
 		return nil, err
+	}
+	if updatedBy.Valid {
+		settings.UpdatedBy = updatedBy.String
 	}
 	return settings, nil
 }
