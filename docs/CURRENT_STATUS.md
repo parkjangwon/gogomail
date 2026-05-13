@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 message size adapter coverage)
+Last updated: 2026-05-14 (POP3 invalid message index size)
+
+## POP3 invalid message index size (2026-05-14, complete)
+- POP3 mailbox coverage now verifies `MessageSize` returns zero for negative and out-of-range indexes.
+- This keeps invalid POP3 sequence handling from leaking panics or nonsensical sizes through LIST/STAT paths.
 
 ## POP3 message size adapter coverage (2026-05-14, complete)
 - POP3 adapter coverage now verifies normalized summary sizes are reflected through mailbox `MessageSize`.
