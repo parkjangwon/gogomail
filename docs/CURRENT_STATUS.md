@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 password passthrough preservation)
+Last updated: 2026-05-14 (POP3 invalid credential short-circuit)
+
+## POP3 invalid credential short-circuit (2026-05-14, complete)
+- POP3 adapter coverage now verifies invalid usernames and CR/LF-bearing passwords fail before authenticator calls.
+- The same coverage verifies invalid credential attempts do not reach mail service folder lookup.
 
 ## POP3 password passthrough preservation (2026-05-14, complete)
 - POP3 adapter coverage now verifies passwords containing surrounding spaces are passed to the authenticator unchanged.
