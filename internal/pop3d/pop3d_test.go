@@ -426,6 +426,22 @@ func TestPOP3PassSyntaxErrorKeepsAuthCapabilities(t *testing.T) {
 	assertPOP3AuthenticatedState(t, tp, "PASS after syntax error", "2")
 }
 
+func TestPOP3AuthorizationUnknownCommandKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	line := pop3Cmd(t, tp, "-ERR", "BOGUS")
+	if !strings.Contains(line, "unknown command") {
+		t.Fatalf("expected unknown command response, got: %s", line)
+	}
+	assertPOP3AuthCapabilities(t, tp, "authorization unknown command")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

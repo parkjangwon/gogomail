@@ -5137,6 +5137,9 @@ Target outcome:
  1647. POP3 PASS syntax-error handling now verifies authorization-state
          capability preservation: malformed PASS commands leave CAPA intact and
          a later valid PASS still enters transaction state.
+ 1648. POP3 authorization-state unknown-command handling now verifies session
+         recovery: unknown commands leave CAPA and normal login usable
+         afterward.
 
 ## Deferred until backend contracts stabilize
 
