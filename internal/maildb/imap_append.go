@@ -166,6 +166,9 @@ ON CONFLICT (mailbox_id) DO NOTHING`
 	if _, err := tx.ExecContext(ctx, ensureState, req.Target.MailboxID, req.Target.UserID); err != nil {
 		return imapgw.AppendMessageResult{}, fmt.Errorf("ensure imap append mailbox state: %w", err)
 	}
+	if err := ensureIMAPUIDAllocationCapacity(ctx, tx, req.Target.UserID, req.Target.MailboxID, 1); err != nil {
+		return imapgw.AppendMessageResult{}, err
+	}
 
 	const insert = `
 WITH locked_state AS (

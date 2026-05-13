@@ -4795,6 +4795,12 @@ Target outcome:
          actual source rows, so all-missing UID no-op commands do not assign
          legacy unassigned message UIDs or advance stored UIDNEXT/HIGHESTMODSEQ
          merely as a side effect of checking destination mailbox state.
+ 1549. IMAP lazy UID allocation now preflights UID capacity for APPEND, COPY,
+         same-mailbox MOVE, and cross-mailbox MOVE destination backfill by
+         combining existing unassigned-message backlog with requested new UID
+         allocations before inserts. Near the 32-bit IMAP UID limit, these
+         paths now fail with a stable exhaustion error before leaving partial
+         UID rows or relying on database check-constraint failures.
 
 ## Deferred until backend contracts stabilize
 

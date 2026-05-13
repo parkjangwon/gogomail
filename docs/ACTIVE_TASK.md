@@ -1,18 +1,18 @@
 # ACTIVE_TASK
 
-## TASK-275: IMAP lazy UID no-op mutation audit
+## TASK-276: IMAP lazy UID backfill exhaustion audit
 
 ### 배경
 
-COPY와 same-mailbox MOVE의 lazy UID backfill은 실제 source 메시지가 있을
-때만 실행되어야 한다. 요청 UID가 모두 없는 no-op 명령인데 목적지 또는
-같은 mailbox의 기존 미할당 메시지를 backfill 하면, 클라이언트가 요청한
-변경은 없는데 UIDNEXT/HIGHESTMODSEQ 저장 상태만 바뀌는 부작용이 생긴다.
-UID timeline 정합성 보강은 유지하되 no-op 명령은 저장소 mutation을 만들지
-않도록 CTE 의존성을 명확히 해야 한다.
+lazy UID backfill과 APPEND/COPY/MOVE의 새 UID 배정은 같은 mailbox UID
+공간을 소비한다. `uidnext`가 32-bit IMAP UID 한계에 가까울 때 backfill
+개수와 새 메시지 개수를 합산하지 않으면, 중간 insert 뒤 state check
+constraint나 DB 오류에 기대게 된다. 트랜잭션 안에서 UID state를 잠근 뒤
+필요한 UID 수를 미리 계산해 명확한 exhaustion 오류로 실패해야 한다.
 
 ### 구현 대상
 
+- `internal/maildb/imap_append.go`
 - `internal/maildb/imap_uid.go`
 - `internal/maildb/postgres_integration_test.go`
 - `docs/ACTIVE_TASK.md`
@@ -21,13 +21,13 @@ UID timeline 정합성 보강은 유지하되 no-op 명령은 저장소 mutation
 
 ### 완료 조건
 
-- [x] COPY destination lazy backfill은 실제 복사 source가 있을 때만 실행된다.
-- [x] same-mailbox MOVE lazy backfill은 실제 이동 source가 있을 때만 실행된다.
-- [x] PostgreSQL 회귀 테스트가 no-op COPY/MOVE에서 UID row와 mailbox stored state가 바뀌지 않음을 검증한다.
+- [x] APPEND/COPY/same-mailbox MOVE가 lazy backfill backlog와 신규 UID 수를 합산해 capacity를 사전 검증한다.
+- [x] cross-mailbox MOVE destination backfill helper도 UIDNEXT 저장 가능 범위를 기준으로 overflow를 차단한다.
+- [x] PostgreSQL 회귀 테스트가 APPEND/COPY overflow에서 `imap uid space exhausted`로 실패하고 UID row를 남기지 않음을 검증한다.
 - [x] `go test ./internal/maildb` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-276: IMAP lazy UID backfill exhaustion audit
+TASK-277: IMAP lazy UID capacity race audit
