@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound EHLO DSN reset)
+Last updated: 2026-05-14 (SMTP inbound HELO DSN reset)
+
+## SMTP inbound HELO DSN reset (2026-05-14, complete)
+- SMTP protocol coverage now verifies `HELO` clears accumulated domain policy and DSN state before the next transaction.
+- The regression verifies the following d1-only success is not blocked by the previous d2 size limit and does not inherit pre-HELO DSN options.
 
 ## SMTP inbound EHLO DSN reset (2026-05-14, complete)
 - SMTP protocol coverage now verifies repeated `EHLO` clears accumulated domain policy and DSN state before the next transaction.

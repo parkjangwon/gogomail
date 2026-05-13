@@ -949,6 +949,78 @@ func TestSMTPProtocolHELOResetsMixedDomainPolicy(t *testing.T) {
 	}
 }
 
+func TestSMTPProtocolHELOResetsDSNAndMixedDomainPolicy(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+		SupportDSN:         true,
+	})
+	addr, shutdown := startProtocolTestServer(t, receiver, ServerOptions{Domain: "mx.example.com", EnableDSN: true})
+	defer shutdown()
+
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	defer conn.Close()
+	text := textproto.NewConn(conn)
+	defer text.Close()
+	if _, _, err := text.ReadResponse(220); err != nil {
+		t.Fatalf("greeting returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "EHLO client.example.net"); err != nil {
+		t.Fatalf("EHLO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.org> RET=HDRS ENVID=helo-env"); err != nil {
+		t.Fatalf("MAIL returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<one@example.com> NOTIFY=FAILURE ORCPT=rfc822;one@example.com"); err != nil {
+		t.Fatalf("first RCPT returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<two@example.net> NOTIFY=DELAY ORCPT=rfc822;two@example.net"); err != nil {
+		t.Fatalf("second RCPT returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "HELO client.example.net"); err != nil {
+		t.Fatalf("HELO returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "MAIL FROM:<sender@example.org>"); err != nil {
+		t.Fatalf("second MAIL returned error: %v", err)
+	}
+	if err := rawProtocolCommand(text, 250, "RCPT TO:<one@example.com>"); err != nil {
+		t.Fatalf("third RCPT returned error: %v", err)
+	}
+	writeProtocolData(t, text, "Message-ID: <helo-dsn-reset@example.org>\r\nSubject: larger than d2\r\n\r\nbody\r\n")
+	if err := rawProtocolCommand(text, 221, "QUIT"); err != nil {
+		t.Fatalf("QUIT returned error: %v", err)
+	}
+
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "" || got.EnvelopeID != "" {
+		t.Fatalf("recorded DSN envelope = %+v, want no pre-HELO DSN leak", got)
+	}
+	if len(got.Recipients) != 1 || len(got.Recipients[0].Notify) != 0 || got.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("recorded DSN recipients = %+v, want accepted address without pre-HELO options", got.Recipients)
+	}
+}
+
 func TestSMTPProtocolQUITIsolatesMixedDomainPolicy(t *testing.T) {
 	t.Parallel()
 
