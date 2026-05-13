@@ -5322,6 +5322,9 @@ Progress:
    `USER` and `SASL PLAIN LOGIN`; TRANSACTION state omits auth-only
    capabilities while preserving common capabilities and stable
    `IMPLEMENTATION gogomail` / `LOGIN-DELAY 0` metadata.
+8. POP3 `AUTH PLAIN` and `AUTH LOGIN` now reject mechanism-specific extra
+   arguments with `-ERR syntax error` before SASL decoding or continuation
+   prompts, keeping the connection in AUTHORIZATION state for a clean retry.
 
 ---
 

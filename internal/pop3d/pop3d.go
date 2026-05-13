@@ -260,6 +260,10 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		mechanism := strings.ToUpper(args[0])
 		switch mechanism {
 		case "PLAIN":
+			if len(args) > 2 {
+				sess.writeERR("syntax error")
+				return
+			}
 			var encoded string
 			if len(args) >= 2 {
 				encoded = args[1]
@@ -285,6 +289,10 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 			user, pass := parts[1], parts[2]
 			sess.authenticate(user, pass)
 		case "LOGIN":
+			if len(args) != 1 {
+				sess.writeERR("syntax error")
+				return
+			}
 			sess.writeLine("+ " + base64.StdEncoding.EncodeToString([]byte("Username:")))
 			userLine, err := sess.reader.ReadString('\n')
 			if err != nil {

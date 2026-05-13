@@ -3,6 +3,7 @@ package pop3d
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -224,6 +225,31 @@ func TestPOP3AuthFail(t *testing.T) {
 
 	pop3Cmd(t, tp, "+OK", "USER bob")
 	pop3Cmd(t, tp, "-ERR", "PASS wrong")
+}
+
+func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	initial := base64.StdEncoding.EncodeToString([]byte("\x00alice\x00secret"))
+	pop3Cmd(t, tp, "-ERR", "AUTH PLAIN %s ignored", initial)
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
+func TestPOP3AuthLoginRejectsExtraArguments(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "-ERR", "AUTH LOGIN ignored")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
 func TestPOP3RejectsConcurrentMaildropAccess(t *testing.T) {
