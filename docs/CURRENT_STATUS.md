@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 missing inbox short-circuit)
+Last updated: 2026-05-14 (POP3 folder listing error short-circuit)
+
+## POP3 folder listing error short-circuit (2026-05-14, complete)
+- POP3 adapter coverage now verifies folder listing errors are returned as `list folders` failures.
+- The regression asserts failed folder listing never advances into message page lookup.
 
 ## POP3 missing inbox short-circuit (2026-05-14, complete)
 - POP3 adapter coverage now verifies accounts without an INBOX fail after folder listing but before message page lookup.
