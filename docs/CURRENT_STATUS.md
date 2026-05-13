@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP existing subscription case-insensitive unsubscribe)
+Last updated: 2026-05-14 (IMAP duplicate-casing subscription update)
+
+## IMAP duplicate-casing subscription update (2026-05-14, complete)
+- Postgres coverage now verifies repeated SUBSCRIBE for a retained missing mailbox with different casing updates the existing canonical subscription row instead of creating duplicates.
+- The regression verifies the retained display name follows the latest subscription command while `ListSubscribedIMAPMailboxes` returns one entry.
 
 ## IMAP existing subscription case-insensitive unsubscribe (2026-05-14, complete)
 - Postgres coverage now verifies an existing `INBOX` subscription can be removed with differently cased `inbox`.

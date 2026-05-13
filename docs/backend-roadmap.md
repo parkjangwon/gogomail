@@ -6121,3 +6121,7 @@ Target outcome:
       unsubscribe: an `INBOX` subscription can be removed with `inbox`, and the
       existing mailbox LSUB entry disappears from subscription listings
       afterward.
+1713. IMAP duplicate-casing retained subscriptions are now covered:
+      repeated SUBSCRIBE for a retained missing mailbox with different casing
+      updates the same canonical subscription row and returns one retained LSUB
+      entry using the latest display name.
