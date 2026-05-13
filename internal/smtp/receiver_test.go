@@ -931,6 +931,74 @@ func TestSessionResetsMixedDomainPolicyAfterFailedData(t *testing.T) {
 	}
 }
 
+func TestSessionResetsDSNAndDomainPolicyAfterFailedData(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+		SupportDSN:         true,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", &gosmtp.MailOptions{
+		Return:     gosmtp.DSNReturnHeaders,
+		EnvelopeID: "failed-env",
+	}); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;one@example.com",
+	}); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", &gosmtp.RcptOptions{
+		Notify:            []gosmtp.DSNNotify{gosmtp.DSNNotifyFailure},
+		OriginalRecipient: "rfc822;two@example.net",
+	}); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <dsn-policy-failed@example.org>\r\nSubject: too large for d2\r\n\r\nbody"
+	requireSMTPStatus(t, session.Data(strings.NewReader(raw)), 552, gosmtp.EnhancedCode{5, 3, 4})
+
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("third Rcpt returned error: %v", err)
+	}
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("d1-only Data after failed DATA returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	got := recorder.messages[0].DSN
+	if got.Return != "" || got.EnvelopeID != "" {
+		t.Fatalf("recorded DSN envelope = %+v, want no failed transaction DSN leak", got)
+	}
+	if len(got.Recipients) != 1 || len(got.Recipients[0].Notify) != 0 || got.Recipients[0].OriginalRecipient != "" {
+		t.Fatalf("recorded DSN recipients = %+v, want accepted address without failed transaction options", got.Recipients)
+	}
+}
+
 func TestSessionResetsMixedDomainPolicyAfterRSET(t *testing.T) {
 	t.Parallel()
 
