@@ -4964,6 +4964,9 @@ Target outcome:
  1589. POP3 username normalization is now covered at the authenticator boundary:
          whitespace-wrapped usernames are trimmed before `AuthenticatePlain`
          receives them, and the test authenticator records the exact value used.
+ 1590. POP3 password preservation is now covered at the authenticator boundary:
+         surrounding spaces remain part of the password and are passed to
+         `AuthenticatePlain` unchanged while CR/LF remains rejected separately.
 
 ## Deferred until backend contracts stabilize
 

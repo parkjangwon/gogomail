@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 username normalization passthrough)
+Last updated: 2026-05-14 (POP3 password passthrough preservation)
+
+## POP3 password passthrough preservation (2026-05-14, complete)
+- POP3 adapter coverage now verifies passwords containing surrounding spaces are passed to the authenticator unchanged.
+- This keeps username normalization separate from password validation so significant password whitespace is not lost.
 
 ## POP3 username normalization passthrough (2026-05-14, complete)
 - POP3 adapter coverage now verifies whitespace-wrapped usernames are trimmed before calling the authenticator.
