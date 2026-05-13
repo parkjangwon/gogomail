@@ -600,6 +600,41 @@ func TestPOP3AuthLoginAuthenticates(t *testing.T) {
 	}
 }
 
+func TestPOP3AuthLoginWrongPasswordKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("alice"))); err != nil {
+		t.Fatalf("send auth login username: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login password continuation: %v", err)
+	}
+	if !strings.HasPrefix(line, "+") {
+		t.Fatalf("expected password continuation, got: %s", line)
+	}
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("wrong"))); err != nil {
+		t.Fatalf("send auth login password: %v", err)
+	}
+	line, err = tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login failure: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR authentication failed") {
+		t.Fatalf("expected auth login failure, got: %s", line)
+	}
+	tp.EndResponse(id)
+
+	assertPOP3AuthCapabilities(t, tp, "AUTH LOGIN wrong password")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthLoginInvalidPasswordBase64KeepsAuthCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
