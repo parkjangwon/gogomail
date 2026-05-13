@@ -91,6 +91,35 @@ func TestSubmissionRepeatedAuthHasNoSideEffects(t *testing.T) {
 	}
 }
 
+func TestSubmissionRepeatedAuthPreservesEnvelopeTransaction(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	submission := newAuthenticatedSubmissionSession(t, recorder, storage.NewLocalStore(t.TempDir()))
+	if err := submission.Mail("jangwon@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if _, err := submission.Auth(sasl.Plain); err == nil {
+		t.Fatal("second AUTH was accepted")
+	}
+	if submission.from != "jangwon@example.com" {
+		t.Fatalf("envelope sender after repeated AUTH = %q, want preserved", submission.from)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt after repeated AUTH returned error: %v", err)
+	}
+	raw := "Message-ID: <repeated-auth-transaction@example.com>\r\nFrom: Jang Won <jangwon@example.com>\r\nTo: Outside <outside@example.net>\r\nSubject: repeated auth\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data after repeated AUTH returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages after repeated AUTH = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].EnvelopeFrom != "jangwon@example.com" || len(recorder.messages[0].Recipients) != 1 || recorder.messages[0].Recipients[0] != "outside@example.net" {
+		t.Fatalf("recorded envelope after repeated AUTH = from %q recipients %v", recorder.messages[0].EnvelopeFrom, recorder.messages[0].Recipients)
+	}
+}
+
 func TestSubmissionRejectsUnsupportedAuthMechanismWithoutSideEffects(t *testing.T) {
 	t.Parallel()
 

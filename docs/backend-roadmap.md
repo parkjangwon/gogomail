@@ -6169,3 +6169,7 @@ Target outcome:
       repeated AUTH after successful authentication does not replace or clear
       the existing user, does not add hooks or metrics, and leaves `MAIL FROM`
       available for the original authenticated user.
+1726. SMTP submission repeated AUTH transaction state is now covered:
+      repeated AUTH after `MAIL FROM` is rejected without clearing the active
+      envelope sender, and the transaction can continue through `RCPT` and
+      `DATA`.
