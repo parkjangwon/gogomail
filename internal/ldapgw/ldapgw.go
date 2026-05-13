@@ -500,12 +500,7 @@ func encodeSearchResultEntry(messageID int, dn string, attrs map[string][]string
 	entryContent.Write(encodeLength(len(attrSeq.Bytes())))
 	entryContent.Write(attrSeq.Bytes())
 
-	entryEncoded := make([]byte, 0, 2+len(entryContent.Bytes()))
-	entryEncoded = append(entryEncoded, 0x30)
-	entryEncoded = append(entryEncoded, encodeLength(len(entryContent.Bytes()))...)
-	entryEncoded = append(entryEncoded, entryContent.Bytes()...)
-
-	return encodeLDAPResponse(messageID, opSearchResultEntry, entryEncoded), nil
+	return encodeLDAPResponse(messageID, opSearchResultEntry, entryContent.Bytes()), nil
 }
 
 // encodeSearchResultDone encodes a SearchResultDone response.

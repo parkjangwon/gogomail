@@ -5734,6 +5734,7 @@ Current implementation notes:
 - LDAP `objectClass` filters and base DNs narrow repository searches to the matching principal kinds, including organization-chart searches under `ou=organizations`.
 - LDAP search scope filtering now applies base-object, one-level, and subtree semantics against generated entry DNs.
 - Simple bind accepts common client identity formats, including raw username/email and generated entry DN forms such as `uid=<user-id>,ou=users,...`.
+- SearchResultEntry responses are encoded as RFC 4511 application payloads and covered by an OpenLDAP `ldapsearch` smoke test when the client is available.
 - Cross-naming-context requests can return SearchResultReference values from `GOGOMAIL_LDAP_REFERRAL_URLS` for multi-domain deployments.
 - LDAPMessage controls are parsed separately from protocolOp bytes; supported critical controls (`ManageDsaIT`, Simple Paged Results) are accepted, Simple Paged Results returns continuation cookies, and unsupported critical controls return `unavailableCriticalExtension`.
 - Bind/search/extended/read-only outcomes now expose a metrics boundary and can be logged through `GOGOMAIL_METRICS_BACKEND=slog`.
