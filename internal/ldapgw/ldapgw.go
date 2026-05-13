@@ -76,6 +76,7 @@ const (
 	filterLessOrEqual    = 6
 	filterPresent        = 7
 	filterApproxMatch    = 8
+	filterExtensible     = 9
 )
 
 type bindRequest struct {
