@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH PLAIN challenge invalid format capability)
+Last updated: 2026-05-14 (POP3 AUTH PLAIN successful challenge authentication)
+
+## POP3 AUTH PLAIN successful challenge authentication (2026-05-14, complete)
+- POP3 server coverage now verifies challenge-style `AUTH PLAIN` accepts valid continuation credentials.
+- The regression verifies transaction CAPA drops auth-only capabilities and `STAT` works after authentication.
 
 ## POP3 AUTH PLAIN challenge invalid format capability (2026-05-14, complete)
 - POP3 server coverage now verifies malformed decoded `AUTH PLAIN` continuation credentials return `-ERR invalid credentials format`.
