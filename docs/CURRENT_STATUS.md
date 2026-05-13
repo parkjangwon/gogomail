@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker canceled publish validation)
+Last updated: 2026-05-14 (IMAP event broker canceled subscription validation)
+
+## IMAP event broker canceled subscription validation (2026-05-14, complete)
+- The mailbox event broker now exposes a safe `SubscriberCount` diagnostic accessor.
+- Regression coverage verifies subscribing with an already canceled context returns no channel/cancel function and leaves the broker subscriber set empty.
 
 ## IMAP event broker canceled publish validation (2026-05-14, complete)
 - Broker regression coverage now verifies a canceled publish context does not fan out a mailbox event.

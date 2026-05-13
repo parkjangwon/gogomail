@@ -137,6 +137,12 @@ func (b *MailboxEventBroker) DroppedEventsFor(userID UserID, mailboxID MailboxID
 	return b.droppedBy[mailboxEventDropKey{userID: userID, mailboxID: mailboxID}]
 }
 
+func (b *MailboxEventBroker) SubscriberCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.subscribers)
+}
+
 func normalizeMailboxEventType(eventType MailboxEventType) (MailboxEventType, error) {
 	eventType = MailboxEventType(strings.TrimSpace(string(eventType)))
 	switch eventType {
