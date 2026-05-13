@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT success connection close)
+Last updated: 2026-05-14 (POP3 AUTH QUIT connection close)
+
+## POP3 AUTH QUIT connection close (2026-05-14, complete)
+- POP3 server coverage now verifies authorization-state `QUIT` returns `+OK`.
+- The regression verifies the TCP connection closes after pre-login `QUIT` instead of remaining readable.
 
 ## POP3 QUIT success connection close (2026-05-14, complete)
 - POP3 server coverage now verifies successful delete commit `QUIT` returns `+OK`.

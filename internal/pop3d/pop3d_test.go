@@ -802,6 +802,35 @@ func TestPOP3Quit(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "QUIT")
 }
 
+func TestPOP3AuthStateQuitClosesConnection(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set deadline: %v", err)
+	}
+	tp := textproto.NewConn(conn)
+	defer tp.Close()
+
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("greeting: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("unexpected greeting: %s", line)
+	}
+
+	pop3Cmd(t, tp, "+OK", "QUIT")
+	if line, err := tp.ReadLine(); err == nil {
+		t.Fatalf("expected connection close after auth-state QUIT, got line: %s", line)
+	}
+}
+
 func TestPOP3Capa(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
