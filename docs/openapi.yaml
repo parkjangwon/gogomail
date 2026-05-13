@@ -15087,10 +15087,17 @@ components:
         address:
           type: string
           format: email
+        password:
+          type: string
+          format: password
+          maxLength: 4096
+          description: Optional temporary plain password accepted by the admin handler; the server hashes it before persistence and marks the user for password change.
         password_hash:
           type: string
           maxLength: 4096
           description: "Optional pre-hashed local password for SMTP Submission authentication. Supported formats are pbkdf2-sha256, sha256, and explicit plain: development fixtures."
+        must_change_password:
+          type: boolean
         quota_limit:
           type: integer
           format: int64

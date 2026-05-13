@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo, ReactNode } from 'react';
-import { MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, TrackingEvent, listAttachments, downloadAttachment, getMessageDeliveryStatus, getMessageTracking, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
+import { MessageAddress, MessageDetail, MessageSummary, Folder, Attachment, MessageDeliveryStatus, TrackingEvent, listAttachments, downloadAttachment, getMessageDeliveryStatus, getMessageTracking, saveAttachmentToDrive, listCalendars, createCalendarEvent, sendMessage, uploadAttachment } from '@/lib/api';
 import { OrgPickerModal, parseToPickerItems, pickerItemsToString } from './OrgPickerModal';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -49,6 +49,10 @@ function parseAddrs(raw: string): { address: string; name?: string }[] {
   }
   parts.push(raw.slice(start));
   return parts.map((p) => parseAddr(p.trim())).filter((a) => a.address);
+}
+
+function emailOf(addr: MessageAddress): string {
+  return addr.email || addr.address || '';
 }
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -913,10 +917,16 @@ export function ReadingPane({
   }
 
   const toList = (message.to_addrs ?? [])
-    .map((t) => (t.name ? `${t.name} <${t.address}>` : t.address))
+    .map((t) => {
+      const email = emailOf(t);
+      return t.name ? `${t.name} <${email}>` : email;
+    })
     .join(', ');
   const ccList = (message.cc_addrs ?? [])
-    .map((t) => (t.name ? `${t.name} <${t.address}>` : t.address))
+    .map((t) => {
+      const email = emailOf(t);
+      return t.name ? `${t.name} <${email}>` : email;
+    })
     .join(', ');
 
   return (
@@ -1003,7 +1013,7 @@ export function ReadingPane({
             const to = intent === 'reply'
               ? message.from_addr
               : intent === 'reply_all'
-              ? [message.from_addr, ...(message.to_addrs ?? []).map((t) => t.address), ...(message.cc_addrs ?? []).map((t) => t.address)].filter((a, i, arr) => arr.indexOf(a) === i).join(', ')
+              ? [message.from_addr, ...(message.to_addrs ?? []).map(emailOf), ...(message.cc_addrs ?? []).map(emailOf)].filter((a, i, arr) => a && arr.indexOf(a) === i).join(', ')
               : '';
             const subject = intent === 'forward'
               ? (message.subject?.startsWith('Fwd:') ? message.subject : `Fwd: ${message.subject ?? ''}`)
@@ -1225,16 +1235,16 @@ export function ReadingPane({
               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                 받는 사람:{' '}
                 {(message.to_addrs ?? []).map((t, i) => (
-                  <span key={t.address}>
+                  <span key={emailOf(t)}>
                     {i > 0 && ', '}
                     <span
                       title="클릭하면 주소 복사"
-                      onClick={() => copyEmail(t.address)}
+                      onClick={() => copyEmail(emailOf(t))}
                       style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-tertiary)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
                     >
-                      {copiedEmail === t.address ? '복사됨 ✓' : (t.name ? `${t.name} <${t.address}>` : t.address)}
+                      {copiedEmail === emailOf(t) ? '복사됨 ✓' : (t.name ? `${t.name} <${emailOf(t)}>` : emailOf(t))}
                     </span>
                   </span>
                 ))}
@@ -1244,16 +1254,16 @@ export function ReadingPane({
               <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                 참조:{' '}
                 {(message.cc_addrs ?? []).map((t, i) => (
-                  <span key={t.address}>
+                  <span key={emailOf(t)}>
                     {i > 0 && ', '}
                     <span
                       title="클릭하면 주소 복사"
-                      onClick={() => copyEmail(t.address)}
+                      onClick={() => copyEmail(emailOf(t))}
                       style={{ cursor: 'pointer', borderRadius: '3px', padding: '0 2px' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'var(--color-bg-tertiary)'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = 'transparent'; }}
                     >
-                      {copiedEmail === t.address ? '복사됨 ✓' : (t.name ? `${t.name} <${t.address}>` : t.address)}
+                      {copiedEmail === emailOf(t) ? '복사됨 ✓' : (t.name ? `${t.name} <${emailOf(t)}>` : emailOf(t))}
                     </span>
                   </span>
                 ))}

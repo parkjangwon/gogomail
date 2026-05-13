@@ -3,21 +3,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 
-export interface Permission {
-  resource: string;
-  action: string;
-  scope: string;
-  conditions?: Record<string, any>;
-}
-
 export interface Role {
   id: string;
-  company_id: string;
   name: string;
-  description: string;
-  is_builtin: boolean;
-  permissions: Permission[];
+  description?: string;
+  permissions_count: number;
+  assigned_users: number;
   created_at: string;
+}
+
+interface RoleListEnvelope {
+  roles: Role[];
+}
+
+interface RoleEnvelope {
+  role: Role;
+}
+
+export interface CreateRoleInput {
+  name: string;
+  description?: string;
 }
 
 export function useRoles(companyId: string | undefined) {
@@ -25,8 +30,10 @@ export function useRoles(companyId: string | undefined) {
     queryKey: ['roles', companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const res = await api.get(`/companies/${companyId}/roles`) as any;
-      return (res.data?.roles || []) as Role[];
+      const res = await api.get<RoleListEnvelope>('/roles', {
+        params: { limit: 200 },
+      });
+      return res.roles;
     },
     enabled: !!companyId,
   });
@@ -37,8 +44,10 @@ export function useGetRole(companyId: string | undefined, roleId: string | undef
     queryKey: ['role', companyId, roleId],
     queryFn: async () => {
       if (!companyId || !roleId) return null;
-      const res = await api.get(`/companies/${companyId}/roles/${roleId}`) as any;
-      return res.data as Role;
+      const res = await api.get<RoleListEnvelope>('/roles', {
+        params: { limit: 200 },
+      });
+      return res.roles.find((role) => role.id === roleId) ?? null;
     },
     enabled: !!companyId && !!roleId,
   });
@@ -47,15 +56,12 @@ export function useGetRole(companyId: string | undefined, roleId: string | undef
 export function useCreateRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      data,
-    }: {
+    mutationFn: async ({ data }: {
       companyId: string;
-      data: Omit<Role, 'id' | 'created_at'>;
+      data: CreateRoleInput;
     }) => {
-      const res = await api.post(`/companies/${companyId}/roles`, data) as any;
-      return res.data as Role;
+      const res = await api.post<RoleEnvelope>('/roles', data);
+      return res.role;
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['roles', companyId] });
@@ -66,17 +72,12 @@ export function useCreateRole() {
 export function useUpdateRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      roleId,
-      data,
-    }: {
+    mutationFn: async (_variables: {
       companyId: string;
       roleId: string;
       data: Partial<Role>;
     }) => {
-      const res = await api.put(`/companies/${companyId}/roles/${roleId}`, data) as any;
-      return res.data as Role;
+      throw new Error('Role update is not supported by the current Admin API contract');
     },
     onSuccess: (_, { companyId, roleId }) => {
       queryClient.invalidateQueries({ queryKey: ['roles', companyId] });
@@ -88,15 +89,11 @@ export function useUpdateRole() {
 export function useDeleteRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      roleId,
-    }: {
+    mutationFn: async (_variables: {
       companyId: string;
       roleId: string;
     }) => {
-      const res = await api.delete(`/companies/${companyId}/roles/${roleId}`) as any;
-      return res.data;
+      throw new Error('Role delete is not supported by the current Admin API contract');
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['roles', companyId] });

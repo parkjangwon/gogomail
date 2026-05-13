@@ -129,12 +129,13 @@ including health and service-info envelopes, also return
   requests also reject repeated `X-Admin-Token` headers and requests that send
   both `X-Admin-Token` and `Authorization`, avoiding ambiguous credential
   precedence at the routing boundary.
-- Admin user creation accepts an optional pre-hashed `password_hash`, and
-  `PATCH /admin/v1/users/{id}/password-hash` rotates an existing user's hash
-  for local SMTP Submission authentication. Supported formats are the existing
-  `pbkdf2-sha256`, legacy/dev `sha256:`, and explicit `plain:` development
-  fixture formats; unsupported, CR/LF-bearing, or oversized hash strings are
-  rejected before storage. User list/detail/create responses expose
+- Admin user creation accepts either an optional temporary plain `password`
+  (hashed by the admin handler before persistence) or a pre-hashed
+  `password_hash`, and `PATCH /admin/v1/users/{id}/password-hash` rotates an
+  existing user's hash for local SMTP Submission authentication. Supported hash
+  formats are the existing `pbkdf2-sha256`, legacy/dev `sha256:`, and explicit
+  `plain:` development fixture formats; unsupported, CR/LF-bearing, or oversized
+  hash strings are rejected before storage. User list/detail/create responses expose
   `password_configured` for operator visibility without returning stored
   password hashes. `GET /admin/v1/users` accepts optional `status` and
   `password_configured=true|false` query filters for account and

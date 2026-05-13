@@ -4,6 +4,7 @@ import type { SendMessageResult } from './api';
 const baseResult = {
   id: 'msg-local-1',
   message_id: '<msg-local-1@gogomail.test>',
+  farm: 'general',
   send_status: 'queued',
   delivery_status: 'pending',
   bounce_status: 'none',
