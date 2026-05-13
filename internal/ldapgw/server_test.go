@@ -242,6 +242,19 @@ func buildSubstringFilter(attr string, parts ...string) []byte {
 	return append(filterData, filterContent...)
 }
 
+func buildExtensibleFilter(attr, value string) []byte {
+	var filterContent []byte
+	filterContent = append(filterContent, 0x82)
+	filterContent = append(filterContent, encodeLength(len(attr))...)
+	filterContent = append(filterContent, []byte(attr)...)
+	filterContent = append(filterContent, 0x83)
+	filterContent = append(filterContent, encodeLength(len(value))...)
+	filterContent = append(filterContent, []byte(value)...)
+	filterData := []byte{tagContextSpecific | 0x20 | filterExtensible}
+	filterData = append(filterData, encodeLength(len(filterContent))...)
+	return append(filterData, filterContent...)
+}
+
 func buildOrFilter(children ...[]byte) []byte {
 	var content []byte
 	for _, child := range children {
@@ -1822,6 +1835,28 @@ func TestParseLDAPFilterSupportsClientOrSubstringSearch(t *testing.T) {
 	}
 	if got != "(cn=ali)" {
 		t.Fatalf("parseLDAPFilter = %q, want first searchable substring candidate", got)
+	}
+}
+
+func TestParseLDAPFilterSupportsExtensibleMatch(t *testing.T) {
+	filter := buildOrFilter(
+		buildExtensibleFilter("objectClass", "organizationalUnit"),
+		buildExtensibleFilter("ou", "Research"),
+	)
+	got, err := parseLDAPFilter(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilter returned error: %v", err)
+	}
+	if got != "(ou=Research)" {
+		t.Fatalf("parseLDAPFilter = %q, want extensible type/value candidate", got)
+	}
+
+	kinds, err := parseLDAPFilterPrincipalKinds(filter)
+	if err != nil {
+		t.Fatalf("parseLDAPFilterPrincipalKinds returned error: %v", err)
+	}
+	if len(kinds) != 1 || kinds[0] != "organization" {
+		t.Fatalf("kinds = %#v, want organization", kinds)
 	}
 }
 

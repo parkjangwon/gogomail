@@ -1404,6 +1404,16 @@ func collectLDAPFilterPrincipalKinds(data []byte, seen map[string]struct{}) erro
 				seen[kind] = struct{}{}
 			}
 		}
+	case filterExtensible:
+		attr, value, ok, err := decodeExtensibleMatch(content)
+		if err != nil {
+			return err
+		}
+		if ok && strings.EqualFold(strings.TrimSpace(attr), "objectClass") {
+			for _, kind := range principalKindsForObjectClass(value) {
+				seen[kind] = struct{}{}
+			}
+		}
 	case filterPresent, filterSubstrings, filterGreaterOrEqual, filterLessOrEqual:
 		return nil
 	default:
@@ -1484,6 +1494,8 @@ func parseLDAPFilterCandidate(data []byte) (attr string, value string, ok bool, 
 		return attr, strings.Join(parts, "*"), len(parts) > 0, nil
 	case filterPresent:
 		return string(content), "*", true, nil
+	case filterExtensible:
+		return decodeExtensibleMatch(content)
 	default:
 		return "", "", false, fmt.Errorf("unsupported filter type: %d", filterType)
 	}
@@ -1532,6 +1544,32 @@ func decodeSubstringParts(data []byte) ([]string, error) {
 	return parts, nil
 }
 
+func decodeExtensibleMatch(content []byte) (attr string, value string, ok bool, err error) {
+	for len(content) > 0 {
+		tag := content[0]
+		length, rest, err := decodeLength(content[1:])
+		if err != nil {
+			return "", "", false, err
+		}
+		if len(rest) < length {
+			return "", "", false, fmt.Errorf("extensibleMatch value truncated")
+		}
+		val := string(rest[:length])
+		switch tag {
+		case 0x82: // type [2] AttributeDescription
+			attr = val
+		case 0x83: // matchValue [3] AssertionValue
+			value = val
+		case 0x81, 0x84: // matchingRule [1], dnAttributes [4]
+			// Accepted for interoperability; repository search is driven by type/value.
+		default:
+			return "", "", false, fmt.Errorf("unsupported extensibleMatch choice tag 0x%02x", tag)
+		}
+		content = rest[length:]
+	}
+	return attr, value, strings.TrimSpace(attr) != "" && strings.TrimSpace(value) != "", nil
+}
+
 func isDirectorySearchAttribute(attr string) bool {
 	switch strings.ToLower(strings.TrimSpace(attr)) {
 	case "cn", "mail", "uid", "displayname", "givenname", "sn", "ou", "description":
@@ -1556,7 +1594,7 @@ func validateFilter(data []byte) error {
 	case filterAnd, filterOr, filterNot,
 		filterEqualityMatch, filterSubstrings,
 		filterGreaterOrEqual, filterLessOrEqual,
-		filterPresent, filterApproxMatch:
+		filterPresent, filterApproxMatch, filterExtensible:
 		// valid
 	default:
 		return fmt.Errorf("unsupported filter type %d", filterType)
