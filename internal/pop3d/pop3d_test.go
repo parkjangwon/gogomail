@@ -404,6 +404,37 @@ func TestPOP3AuthPlainChallengeInvalidFormatKeepsAuthCapabilities(t *testing.T) 
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3AuthPlainChallengeAuthenticates(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH PLAIN")
+	credential := base64.StdEncoding.EncodeToString([]byte("\x00alice\x00secret"))
+	if err := tp.PrintfLine("%s", credential); err != nil {
+		t.Fatalf("send auth plain response: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth plain success: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("expected auth plain success, got: %s", line)
+	}
+	tp.EndResponse(id)
+
+	capa := pop3Capa(t, tp)
+	if capa["USER"] || capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("transaction CAPA advertised auth capabilities after AUTH PLAIN challenge: %#v", capa)
+	}
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected authenticated STAT after AUTH PLAIN challenge, got: %s", line)
+	}
+}
+
 func TestPOP3AuthPlainInvalidFormatKeepsAuthCapabilities(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

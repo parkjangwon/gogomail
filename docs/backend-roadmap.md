@@ -5098,6 +5098,9 @@ Target outcome:
  1634. POP3 AUTH PLAIN challenge invalid-format handling now verifies
          authorization-state capability preservation: malformed continuation
          credentials leave CAPA and normal login usable afterward.
+ 1635. POP3 AUTH PLAIN challenge success is now covered: valid continuation
+         credentials authenticate, auth-only CAPA entries disappear, and STAT
+         works in transaction state.
 
 ## Deferred until backend contracts stabilize
 
