@@ -1472,6 +1472,29 @@ func TestPOP3TransactionUserPassDenialPreservesPendingDelete(t *testing.T) {
 	}
 }
 
+func TestPOP3STLSDenialPreservesPendingDelete(t *testing.T) {
+	_, listener := newTestServerWithMessagesAndTLS(t, []mockMessage{
+		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+		{uidl: "msg002", size: 38, content: "From: b@example.com\r\n\r\nWorld\r\n"},
+	}, testPOP3TLSConfig(t))
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	line := pop3Cmd(t, tp, "-ERR", "STLS")
+	if !strings.Contains(line, "STLS not available in transaction state") {
+		t.Fatalf("expected transaction-state STLS denial, got: %s", line)
+	}
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "1 ") {
+		t.Fatalf("expected STLS denial to preserve pending delete, got: %s", line)
+	}
+}
+
 func TestPOP3Quit(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
