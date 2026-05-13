@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 PASS syntax preserves auth capability)
+Last updated: 2026-05-14 (POP3 authorization unknown command recovery)
+
+## POP3 authorization unknown command recovery (2026-05-14, complete)
+- POP3 server coverage now verifies unknown authorization-state commands return `-ERR unknown command`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the unknown command.
 
 ## POP3 PASS syntax preserves auth capability (2026-05-14, complete)
 - POP3 server coverage now verifies malformed `PASS` commands return `-ERR syntax error`.
