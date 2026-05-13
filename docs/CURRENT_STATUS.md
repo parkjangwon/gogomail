@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker validation side-effect coverage)
+Last updated: 2026-05-14 (IMAP event broker diagnostics concurrency coverage)
+
+## IMAP event broker diagnostics concurrency coverage (2026-05-14, complete)
+- Broker regression coverage now exercises aggregate/per-mailbox drop diagnostics and subscriber-count diagnostics while publish, subscribe, and cancel operations run concurrently.
+- The test verifies subscriber accounting still converges to zero after concurrent diagnostic activity.
 
 ## IMAP event broker validation side-effect coverage (2026-05-14, complete)
 - Broker regression coverage now verifies invalid publish attempts do not fan out events or modify aggregate/per-mailbox drop counters.

@@ -4882,6 +4882,11 @@ Target outcome:
          side-effect safety: invalid publish attempts do not fan out events or
          update drop counters, and invalid subscribe attempts do not change
          subscriber accounting.
+ 1568. IMAP mailbox event broker diagnostics are now covered under concurrent
+         publish, subscribe, and cancel activity. Aggregate/per-mailbox drop
+         counters and subscriber-count reads are exercised while state is
+         changing, with final subscriber accounting verified to converge to
+         zero.
 
 ## Deferred until backend contracts stabilize
 

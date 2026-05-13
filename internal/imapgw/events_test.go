@@ -338,3 +338,46 @@ func TestMailboxEventBrokerValidationFailuresDoNotMutateState(t *testing.T) {
 	default:
 	}
 }
+
+func TestMailboxEventBrokerDiagnosticsAreConcurrentSafe(t *testing.T) {
+	t.Parallel()
+
+	broker := NewMailboxEventBroker(0)
+	_, cancel, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancel()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			_ = broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1})
+		}()
+		go func() {
+			defer wg.Done()
+			_ = broker.DroppedEvents()
+			_ = broker.DroppedEventsFor(" user-1 ", " inbox ")
+			_ = broker.SubscriberCount()
+		}()
+		go func() {
+			defer wg.Done()
+			events, nestedCancel, err := broker.Subscribe(context.Background(), "user-2", "archive")
+			if err != nil {
+				return
+			}
+			nestedCancel()
+			select {
+			case <-events:
+			default:
+			}
+		}()
+	}
+	wg.Wait()
+	cancel()
+	if got := broker.SubscriberCount(); got != 0 {
+		t.Fatalf("SubscriberCount = %d, want 0 after concurrent diagnostics test", got)
+	}
+}
