@@ -5006,6 +5006,9 @@ Target outcome:
  1603. POP3 message size conversion is now hardened at the adapter boundary:
          maildb `int64` sizes are normalized before POP3 `int` exposure, with
          negative sizes clamped to zero and oversized values clamped to max int.
+ 1604. POP3 message size normalization is now covered through the mailbox
+         creation path: summary sizes of negative, zero, and positive values
+         produce stable `MessageSize` outputs after Authenticate.
 
 ## Deferred until backend contracts stabilize
 
