@@ -234,11 +234,21 @@ func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 }
 
 func TestPOP3StoreAdapterAuthenticateFail(t *testing.T) {
-	adapter, _, _ := newPOP3TestSetup()
+	adapter, repo, _ := newPOP3TestSetup()
+	auth := adapter.authenticator.(*pop3TestAuth)
 
 	_, err := adapter.Authenticate("alice", "wrong")
 	if err == nil {
 		t.Fatal("expected authentication error for wrong password")
+	}
+	if auth.calls != 1 {
+		t.Fatalf("auth calls = %d, want 1", auth.calls)
+	}
+	if len(repo.folderUsers) != 0 {
+		t.Fatalf("folder users = %#v, want no service lookup", repo.folderUsers)
+	}
+	if len(repo.pageUsers) != 0 {
+		t.Fatalf("page users = %#v, want no service lookup", repo.pageUsers)
 	}
 }
 
