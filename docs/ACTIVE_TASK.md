@@ -1,33 +1,33 @@
 # ACTIVE_TASK
 
-## TASK-270: POP3 delete commit idempotency audit
+## TASK-271: IMAP append lazy UID ordering audit
 
 ### 배경
 
-POP3 UPDATE phase는 `QUIT`에서 표시된 삭제를 실제 저장소에 커밋한다.
-일반 경로의 `DELE`는 중복 표시를 막지만, 커밋 경계가 pending ID 목록을
-그대로 bulk delete에 넘기면 내부 재시도/상태 오염 시 같은 메시지 ID가
-중복 삭제 요청으로 전달될 수 있다. 저장소 삭제는 멱등적이어야 하지만,
-프로토콜 어댑터도 UPDATE 요청을 정규화해 감사/이벤트/저장소 작업량을
-안정적으로 유지해야 한다.
+IMAP mailbox 상태 조회는 기존 active 메시지 중 아직 `imap_message_uid`
+행이 없는 메시지를 `UIDNEXT`/`HIGHESTMODSEQ` 예측에 포함한다. 하지만
+APPEND 저장 트랜잭션이 기존 미할당 메시지를 먼저 UID backfill 하지 않으면
+새 APPEND 메시지가 예측보다 낮은 UID를 받을 수 있다. APPENDUID,
+STATUS UIDNEXT, 이후 FETCH/LIST 순서가 같은 mailbox UID timeline을
+보도록 저장 경계를 정리해야 한다.
 
 ### 구현 대상
 
-- `internal/mailservice/pop3_adapter.go`
-- `internal/mailservice/pop3_adapter_test.go`
+- `internal/maildb/imap_append.go`
+- `internal/maildb/postgres_integration_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] POP3 pending delete ID를 커밋 직전에 trim/empty-skip/de-duplicate 한다.
-- [x] 중복/공백 pending ID가 bulk delete 요청으로 전파되지 않는 회귀 테스트를 추가한다.
-- [x] 성공한 커밋 뒤 pending delete 목록이 비워지는 동작을 유지한다.
-- [x] `go test ./internal/mailservice` 통과.
+- [x] APPEND 트랜잭션이 기존 active 미할당 메시지 UID를 먼저 backfill 한다.
+- [x] 새 APPEND 메시지는 backfill된 기존 메시지 다음 UID와 sequence number를 받는다.
+- [x] PostgreSQL 회귀 테스트가 STATUS 예측, APPENDUID, LIST 순서, 최종 UIDNEXT/HIGHESTMODSEQ를 검증한다.
+- [x] `go test ./internal/maildb` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-271: IMAP append lazy UID ordering audit
+TASK-272: IMAP copy lazy UID destination ordering audit

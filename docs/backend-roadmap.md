@@ -4765,6 +4765,13 @@ Target outcome:
          successful commits still clear pending state, keeping QUIT-triggered
          deletion work idempotent and audit/storage side effects stable even if
          adapter-local pending state is retried or internally duplicated.
+ 1544. PostgreSQL-backed IMAP APPEND now backfills existing active mailbox
+         messages that lack `imap_message_uid` rows inside the same locked
+         mailbox-state transaction before assigning the appended message UID.
+         This keeps STATUS `UIDNEXT`/`HIGHESTMODSEQ` prediction, APPENDUID,
+         sequence numbers, and later LIST/FETCH ordering on one monotonic UID
+         timeline when legacy or API-created messages are first observed by
+         IMAP.
 
 ## Deferred until backend contracts stabilize
 

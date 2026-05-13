@@ -186,6 +186,40 @@ WITH locked_state AS (
     AND s.user_id = $3::uuid
   FOR UPDATE
 ),
+locked_unassigned AS (
+  SELECT
+    m.id,
+    COALESCE(m.received_at, m.sent_at, m.draft_updated_at, m.created_at) AS internal_date
+  FROM messages m
+  LEFT JOIN imap_message_uid i
+    ON i.message_id = m.id
+   AND i.user_id = m.user_id
+   AND i.mailbox_id = m.folder_id
+  WHERE m.user_id = $3::uuid
+    AND m.folder_id = $4::uuid
+    AND m.status = 'active'
+    AND i.message_id IS NULL
+  FOR UPDATE OF m
+),
+unassigned_existing AS (
+  SELECT
+    id,
+    row_number() OVER (ORDER BY internal_date, id) AS rn
+  FROM locked_unassigned
+),
+backfilled_existing AS (
+  INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
+  SELECT
+    unassigned_existing.id,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + unassigned_existing.rn - 1,
+    locked_state.highest_modseq + unassigned_existing.rn
+  FROM unassigned_existing
+  CROSS JOIN locked_state
+  ON CONFLICT (message_id) DO NOTHING
+  RETURNING 1
+),
 inserted_message AS (
   INSERT INTO messages (
     tenant_id,
@@ -237,14 +271,19 @@ inserted_message AS (
 ),
 inserted_uid AS (
   INSERT INTO imap_message_uid (message_id, mailbox_id, user_id, uid, modseq)
-  SELECT inserted_message.id::uuid, locked_state.mailbox_id, locked_state.user_id, locked_state.uidnext, locked_state.highest_modseq + 1
+  SELECT
+    inserted_message.id::uuid,
+    locked_state.mailbox_id,
+    locked_state.user_id,
+    locked_state.uidnext + (SELECT COUNT(*) FROM backfilled_existing),
+    locked_state.highest_modseq + (SELECT COUNT(*) FROM backfilled_existing) + 1
   FROM inserted_message, locked_state
   RETURNING uid, modseq
 ),
 bumped_state AS (
   UPDATE imap_mailbox_state
-  SET uidnext = uidnext + 1,
-      highest_modseq = highest_modseq + 1,
+  SET uidnext = uidnext + (SELECT COUNT(*) FROM backfilled_existing) + 1,
+      highest_modseq = highest_modseq + (SELECT COUNT(*) FROM backfilled_existing) + 1,
       updated_at = now()
   WHERE mailbox_id = $4::uuid
     AND user_id = $3::uuid
