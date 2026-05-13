@@ -5210,6 +5210,9 @@ Target outcome:
  1674. POP3 QUIT re-delete retry after failed delete commit is now covered:
          after rollback, a fresh DELE in the same session causes the next QUIT
          to invoke CommitDeletes again and preserve the committed delete mark.
+ 1675. POP3 QUIT no-delete close after failed delete commit is now covered:
+         after rollback, a later QUIT without another DELE returns `+OK`,
+         skips CommitDeletes, and closes the TCP connection.
 
 ## Deferred until backend contracts stabilize
 
