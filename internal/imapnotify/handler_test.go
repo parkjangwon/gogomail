@@ -52,7 +52,7 @@ func TestMailStoredHandlerPublishesExistsAfterUIDAssignment(t *testing.T) {
 		t.Fatalf("events = %+v, want one EXISTS event", events.events)
 	}
 	event := events.events[0]
-	if event.Type != imapgw.MailboxEventExists || event.UserID != "user-1" || event.MailboxID != "inbox-1" || event.UID != 1 {
+	if event.Type != imapgw.MailboxEventExists || event.UserID != "user-1" || event.MailboxID != "inbox-1" || event.UID != 1 || event.Messages != 1 {
 		t.Fatalf("event = %+v", event)
 	}
 }
@@ -217,10 +217,11 @@ func (f *fakeUIDEnsurer) EnsureIMAPMessageUID(_ context.Context, userID string, 
 		return maildb.IMAPMessageUID{}, f.err
 	}
 	return maildb.IMAPMessageUID{
-		MessageID: imapgw.MessageID(messageID),
-		MailboxID: imapgw.MailboxID(mailboxID),
-		UID:       imapgw.UID(1),
-		ModSeq:    1,
+		MessageID:      imapgw.MessageID(messageID),
+		MailboxID:      imapgw.MailboxID(mailboxID),
+		UID:            imapgw.UID(1),
+		SequenceNumber: 1,
+		ModSeq:         1,
 	}, nil
 }
 

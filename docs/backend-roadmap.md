@@ -4839,6 +4839,10 @@ Target outcome:
          helpers therefore avoid publishing malformed mailbox events if a
          repository result is incomplete or a legacy row cannot identify its
          mailbox.
+ 1557. The `mail.stored` IMAP notification path now publishes EXISTS events
+         with `Messages=SequenceNumber` after UID assurance. New inbound
+         delivery notifications therefore use the same exact mailbox-count
+         update semantics as APPEND/COPY and restored-message events.
 
 ## Deferred until backend contracts stabilize
 

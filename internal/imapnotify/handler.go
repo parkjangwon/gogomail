@@ -32,9 +32,9 @@ type DeltaSyncNotifier interface {
 }
 
 type MailStoredHandler struct {
-	uidEnsurer  UIDEnsurer
-	events      MailboxEventPublisher
-	deltaSync   DeltaSyncNotifier
+	uidEnsurer UIDEnsurer
+	events     MailboxEventPublisher
+	deltaSync  DeltaSyncNotifier
 }
 
 func NewMailStoredHandler(uidEnsurer UIDEnsurer) *MailStoredHandler {
@@ -72,6 +72,7 @@ func (h *MailStoredHandler) HandleEvent(ctx context.Context, msg eventstream.Mes
 			UserID:    imapgw.UserID(event.UserID),
 			MailboxID: uid.MailboxID,
 			UID:       uid.UID,
+			Messages:  uid.SequenceNumber,
 		}); err != nil {
 			return fmt.Errorf("publish imap exists for stored message %q: %w", event.MessageID, err)
 		}
