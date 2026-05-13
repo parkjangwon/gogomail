@@ -4967,6 +4967,9 @@ Target outcome:
  1590. POP3 password preservation is now covered at the authenticator boundary:
          surrounding spaces remain part of the password and are passed to
          `AuthenticatePlain` unchanged while CR/LF remains rejected separately.
+ 1591. POP3 invalid credential short-circuiting is now covered at the adapter
+         boundary: empty usernames, CR/LF-bearing usernames, and CR/LF-bearing
+         passwords fail before authenticator calls or mail service lookups.
 
 ## Deferred until backend contracts stabilize
 

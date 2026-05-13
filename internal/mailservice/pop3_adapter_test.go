@@ -301,6 +301,41 @@ func TestValidatePOP3Password(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterRejectsInvalidCredentialsBeforeAuthenticator(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		password string
+	}{
+		{name: "empty username", username: " \t ", password: "secret"},
+		{name: "username crlf", username: "ali\r\nce", password: "secret"},
+		{name: "password crlf", username: "alice", password: "sec\r\nret"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &pop3TestRepository{
+				folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+				messages: []maildb.MessageSummary{},
+				details:  map[string]maildb.MessageDetail{},
+			}
+			svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+			auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+			adapter := NewPOP3StoreAdapter(auth, svc)
+
+			if _, err := adapter.Authenticate(tt.username, tt.password); err == nil {
+				t.Fatal("expected invalid credentials to be rejected")
+			}
+			if auth.calls != 0 {
+				t.Fatalf("auth calls = %d, want 0", auth.calls)
+			}
+			if len(repo.folderUsers) != 0 {
+				t.Fatalf("folder users = %#v, want no service lookup", repo.folderUsers)
+			}
+		})
+	}
+}
+
 func TestPOP3StoreAdapterAuthenticateNilAuth(t *testing.T) {
 	repo := &pop3TestRepository{
 		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
