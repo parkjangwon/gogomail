@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP message UID row-lock audit)
+Last updated: 2026-05-14 (IMAP message UID move/delete stale-row)
+
+## IMAP message UID move/delete stale-row (2026-05-14, complete)
+- IMAP/Postgres coverage now verifies regular `MoveMessage` removes old mailbox `imap_message_uid` rows and rejects stale old-mailbox UID reallocation.
+- The regression verifies moved messages get a fresh destination UID, and deleted messages remove their UID rows and reject reallocation.
 
 ## IMAP message UID row-lock audit (2026-05-14, complete)
 - IMAP UID allocation was revalidated to lock mailbox state, folder, and target `messages` row before assigning a single-message UID.
