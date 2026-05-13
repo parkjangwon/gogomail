@@ -5140,6 +5140,8 @@ Target outcome:
  1648. POP3 authorization-state unknown-command handling now verifies session
          recovery: unknown commands leave CAPA and normal login usable
          afterward.
+ 1649. POP3 transaction-state unknown-command handling now verifies session
+         recovery: unknown commands leave NOOP and STAT usable afterward.
 
 ## Deferred until backend contracts stabilize
 
