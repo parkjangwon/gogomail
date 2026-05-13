@@ -5119,6 +5119,9 @@ Target outcome:
  1641. POP3 auth success regressions now share an authenticated-state assertion
          helper for transaction CAPA and STAT checks across AUTH PLAIN and AUTH
          LOGIN success paths.
+ 1642. POP3 USER/PASS authentication success is now covered for capability
+         transition: auth-only CAPA entries disappear and STAT works in
+         transaction state.
 
 ## Deferred until backend contracts stabilize
 

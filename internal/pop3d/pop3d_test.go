@@ -325,6 +325,17 @@ func TestPOP3AuthAndStat(t *testing.T) {
 	}
 }
 
+func TestPOP3UserPassAuthenticationUpdatesCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	assertPOP3AuthenticatedState(t, tp, "USER/PASS", "2")
+}
+
 func TestPOP3AuthFail(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
