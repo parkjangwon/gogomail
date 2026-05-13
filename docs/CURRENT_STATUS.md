@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 authorization NOOP stability)
+Last updated: 2026-05-14 (POP3 transaction NOOP stability)
+
+## POP3 transaction NOOP stability (2026-05-14, complete)
+- POP3 server coverage now verifies repeated transaction-state `NOOP` returns `+OK`.
+- The regression verifies `LIST 1` and `STAT` still expose the same maildrop state afterward.
 
 ## POP3 authorization NOOP stability (2026-05-14, complete)
 - POP3 server coverage now verifies repeated authorization-state `NOOP` returns `+OK`.

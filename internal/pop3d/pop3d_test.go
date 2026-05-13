@@ -1331,6 +1331,26 @@ func TestPOP3Noop(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "NOOP")
 }
 
+func TestPOP3TransactionNoopKeepsMailboxStable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	pop3Cmd(t, tp, "+OK", "NOOP")
+	line := pop3Cmd(t, tp, "+OK", "LIST 1")
+	if !strings.Contains(line, "1 42") {
+		t.Fatalf("expected LIST 1 after NOOP, got: %s", line)
+	}
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected STAT after NOOP, got: %s", line)
+	}
+}
+
 func TestPOP3Quit(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
