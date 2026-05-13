@@ -5174,6 +5174,9 @@ Target outcome:
  1661. POP3 unknown-command handling after DELE is now covered: command errors
          preserve pending delete state, so LIST fails for the deleted message
          and STAT excludes it afterward.
+ 1662. POP3 empty-command handling after DELE is now covered: parser errors
+         preserve pending delete state, so LIST fails for the deleted message
+         and STAT excludes it afterward.
 
 ## Deferred until backend contracts stabilize
 

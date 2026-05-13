@@ -1408,6 +1408,26 @@ func TestPOP3UnknownCommandPreservesPendingDelete(t *testing.T) {
 	}
 }
 
+func TestPOP3EmptyCommandPreservesPendingDelete(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	line := pop3Cmd(t, tp, "-ERR", "")
+	if !strings.Contains(line, "syntax error") {
+		t.Fatalf("expected syntax error response, got: %s", line)
+	}
+	pop3Cmd(t, tp, "-ERR", "LIST 1")
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "1 ") {
+		t.Fatalf("expected empty command to preserve pending delete, got: %s", line)
+	}
+}
+
 func TestPOP3Quit(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
