@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound domain policy RSET reset)
+Last updated: 2026-05-14 (SMTP inbound domain policy MAIL reset)
+
+## SMTP inbound domain policy MAIL reset (2026-05-14, complete)
+- SMTP receiver coverage now verifies a new `MAIL` clears accumulated mixed-domain recipient policy state.
+- The regression verifies a following d1-only transaction is not blocked by the previous d2 size limit and records only the accepted d1 recipient.
 
 ## SMTP inbound domain policy RSET reset (2026-05-14, complete)
 - SMTP receiver coverage now verifies explicit session reset clears accumulated mixed-domain recipient policy state.
