@@ -22,8 +22,9 @@ func (r *quotaFullRecorder) Record(_ context.Context, _ ReceivedMessage) error {
 func TestSessionReturns452WhenRecorderReportsMailboxFull(t *testing.T) {
 	t.Parallel()
 
+	store := storage.NewLocalStore(t.TempDir())
 	receiver := NewReceiver(ReceiverOptions{
-		Store: storage.NewLocalStore(t.TempDir()),
+		Store: store,
 		Resolver: StaticResolver{
 			"user@example.com": {CompanyID: "c", DomainID: "d", UserID: "u", Address: "user@example.com"},
 		},
@@ -55,5 +56,8 @@ func TestSessionReturns452WhenRecorderReportsMailboxFull(t *testing.T) {
 	}
 	if smtpErr.Code != 452 {
 		t.Fatalf("SMTP error code = %d, want 452", smtpErr.Code)
+	}
+	if _, err := store.Get(context.Background(), "mailstore/c/d/u/maildir/2026/05/quota-test-id.eml"); err == nil {
+		t.Fatal("stored object remained after mailbox full recorder failure")
 	}
 }

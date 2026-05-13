@@ -502,6 +502,7 @@ func (s *session) Data(r io.Reader) (err error) {
 			ReceivedAt:     receivedAt,
 			Size:           size,
 		}); err != nil {
+			s.deleteStoredMessage(path)
 			return err
 		}
 		if err := s.receiver.recorder.Record(context.Background(), ReceivedMessage{
@@ -514,6 +515,7 @@ func (s *session) Data(r io.Reader) (err error) {
 			ReceivedAt:     receivedAt,
 			Size:           size,
 		}); err != nil {
+			s.deleteStoredMessage(path)
 			if errors.Is(err, mail.ErrMailboxFull) {
 				return smtpMailboxFull(recipient.Address)
 			}
@@ -535,6 +537,13 @@ func (s *session) Data(r io.Reader) (err error) {
 		}
 	}
 	return nil
+}
+
+func (s *session) deleteStoredMessage(path string) {
+	if strings.TrimSpace(path) == "" || s.receiver.store == nil {
+		return
+	}
+	_ = s.receiver.store.Delete(context.Background(), path)
 }
 
 func (s *session) verifyAuthentication(ctx context.Context, parsed message.ParsedMessage, size int64) (AuthenticationResults, error) {

@@ -3619,6 +3619,9 @@ owner/resource target without scanning unrelated audit history.
   multi-recipient transaction, aggregates the strictest enforced recipient and
   message-size limits, and returns a temporary SMTP policy error instead of
   failing open when policy lookup fails.
+- SMTP receive now deletes a just-written `.eml` object when the stored hook,
+  recorder, or mailbox-quota path fails before the message is committed to the
+  database, preventing orphaned raw-message objects after failed DATA.
 - Hierarchical quota ledger enforced at mail storage write/delete boundaries:
   company, domain, and user usage counters are updated atomically in the same
   PostgreSQL transaction. User quota source is tracked as `default|custom`, and
