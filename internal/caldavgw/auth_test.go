@@ -156,6 +156,22 @@ func TestBasicAuthResolverRejectsInvalidAuthenticatedUserID(t *testing.T) {
 	}
 }
 
+func TestBasicAuthResolverRejectsPasswordChangeRequiredUser(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCalDAVAuthenticator{
+		username:           "user@example.com",
+		password:           "secret",
+		userID:             "user-1",
+		mustChangePassword: true,
+	}, true)
+	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "password change is required") {
+		t.Fatalf("Resolve error = %v, want password change required", err)
+	}
+}
+
 func newBasicAuthRequest(username string, password string, tls bool) *http.Request {
 	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
 	if tls {
@@ -172,16 +188,17 @@ func newNoAuthTLSRequest() *http.Request {
 }
 
 type fakeCalDAVAuthenticator struct {
-	username string
-	password string
-	userID   string
+	username           string
+	password           string
+	userID             string
+	mustChangePassword bool
 }
 
 func (a fakeCalDAVAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) (smtpd.SubmissionUser, error) {
 	if username != a.username || password != a.password {
 		return smtpd.SubmissionUser{}, errFakeNotFound
 	}
-	return smtpd.SubmissionUser{UserID: a.userID}, nil
+	return smtpd.SubmissionUser{UserID: a.userID, MustChangePassword: a.mustChangePassword}, nil
 }
 
 func tlsStateForTest() *tls.ConnectionState {

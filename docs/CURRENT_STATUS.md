@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (Protocol company suspension auth hardening)
+Last updated: 2026-05-14 (DAV password-change auth hardening)
+
+## DAV password-change auth hardening (2026-05-14, complete)
+- CalDAV and CardDAV Basic Auth resolvers now reject authenticated submission users marked `must_change_password`, matching SMTP submission, IMAP, and POP3 policy.
+- DAV regression tests now cover password-change-required users so temporary-password accounts cannot bypass the web password rotation step through calendar or contacts clients.
 
 ## Protocol company suspension auth hardening (2026-05-14, complete)
 - Submission authentication now joins the owning company and requires `companies.status = 'active'`, so suspended tenants cannot continue authenticating through shared protocol credentials.
