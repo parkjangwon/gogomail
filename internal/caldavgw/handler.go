@@ -2490,10 +2490,10 @@ func (h *Handler) calendarQueryResponses(ctx context.Context, userID string, res
 	if component == unsupportedCalendarQueryComponent {
 		return []MultiStatusResponse{}, nil
 	}
-	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(ctx, userID, resource.CalendarID, limit+1, component, includeCalendarData)
 	if report.TimeRange != nil {
 		return h.calendarQueryTimeRangeResponses(ctx, userID, resource, report, currentUserPrivileges, objectPrincipalPath, component, tz, includeCalendarData)
 	}
+	objects, componentFilteredInStore, err := h.listCalendarObjectsForQuery(ctx, userID, resource.CalendarID, limit+1, component, includeCalendarData)
 	if err != nil {
 		return nil, err
 	}

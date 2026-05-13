@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV sync-token retention hardening)
+Last updated: 2026-05-14 (CalDAV calendar-query candidate optimization hardening)
+
+## CalDAV calendar-query candidate optimization hardening (2026-05-14, complete)
+- Time-range `calendar-query` handling now dispatches directly to the CalDAV component candidate walker before any broad or component-limited list prefetch.
+- Handler regression coverage now verifies large-calendar query optimization does not perform an extra object list query before evaluating time ranges.
 
 ## CalDAV sync-token retention hardening (2026-05-14, complete)
 - CalDAV sync change pruning now explicitly excludes the current `caldav_calendars.sync_token` from both dry-run candidate counts and delete candidates.

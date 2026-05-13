@@ -5378,6 +5378,8 @@ Target outcome:
 2. IMAP IDLE fans out real-time mailbox events to connected clients.
 3. CalDAV sync-token retention lets offline clients catch up without full re-sync.
 4. CardDAV ctag/sync-token support for contacts delta sync.
+5. CalDAV time-range `calendar-query` uses component candidate walking directly,
+   avoiding broad or component-list prefetch on large calendars.
 
 ---
 
