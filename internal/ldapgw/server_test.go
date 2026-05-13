@@ -686,6 +686,35 @@ func TestLDAPServerUnbindClosesConnection(t *testing.T) {
 	}
 }
 
+func TestLDAPServerAbandonRequestHasNoResponse(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	abandonReq := buildLDAPPacket(30, opAbandonRequest, encodeInt(5))
+	if err := sendPDU(conn, abandonReq); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 1)
+	conn.SetReadDeadline(time.Now().Add(150 * time.Millisecond))
+	if _, err := conn.Read(buf); err == nil {
+		t.Fatal("AbandonRequest produced a response, want no response")
+	}
+}
+
 func TestLDAPServerSearchRequest(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
