@@ -877,6 +877,60 @@ func TestSessionAppliesStrictestMixedDomainMessageSizeLimit(t *testing.T) {
 	}
 }
 
+func TestSessionResetsMixedDomainPolicyAfterFailedData(t *testing.T) {
+	t.Parallel()
+
+	lookup := &mapDomainPolicyLookup{
+		policies: map[string]InboundDomainPolicy{
+			"d1": {InboundMode: "enforce", MaxMessageBytes: 1024},
+			"d2": {InboundMode: "enforce", MaxMessageBytes: 32},
+		},
+	}
+	recorder := &recordingRecorder{}
+	receiver := NewReceiver(ReceiverOptions{
+		Store: storage.NewLocalStore(t.TempDir()),
+		Resolver: StaticResolver{
+			"one@example.com": {CompanyID: "c", DomainID: "d1", UserID: "u1", Address: "one@example.com"},
+			"two@example.net": {CompanyID: "c", DomainID: "d2", UserID: "u2", Address: "two@example.net"},
+		},
+		Policy:             ReceivePolicy{MaxRecipientsPerMessage: 100, MaxMessageBytes: 1024},
+		DomainPolicyLookup: lookup,
+		Recorder:           recorder,
+	})
+
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("first Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("first Rcpt returned error: %v", err)
+	}
+	if err := session.Rcpt("two@example.net", nil); err != nil {
+		t.Fatalf("second Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <mixed-too-large@example.org>\r\nSubject: too large for d2\r\n\r\nbody"
+	requireSMTPStatus(t, session.Data(strings.NewReader(raw)), 552, gosmtp.EnhancedCode{5, 3, 4})
+
+	if err := session.Mail("sender@example.org", nil); err != nil {
+		t.Fatalf("second Mail returned error: %v", err)
+	}
+	if err := session.Rcpt("one@example.com", nil); err != nil {
+		t.Fatalf("third Rcpt returned error: %v", err)
+	}
+	if err := session.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("d1-only Data after failed mixed-domain DATA returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].Mailbox.Address != "one@example.com" {
+		t.Fatalf("recorded mailbox = %q, want d1-only recipient", recorder.messages[0].Mailbox.Address)
+	}
+}
+
 func TestSessionRejectsRcptWhenDomainPolicyLookupFails(t *testing.T) {
 	t.Parallel()
 
