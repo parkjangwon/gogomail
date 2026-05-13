@@ -4639,10 +4639,6 @@ func (s *Server) handleClose(writer *bufio.Writer, tag string, state *imapConnSt
 }
 
 func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imapConnState, uids []UID, destMailboxID MailboxID, completionCommand string) (bool, error) {
-	if len(uids) == 0 {
-		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
-		return false, err
-	}
 	destMailbox, err := s.options.Backend.GetMailbox(context.Background(), state.session.UserID, destMailboxID)
 	if err != nil {
 		if errors.Is(err, ErrMailboxNotFound) {
@@ -4651,6 +4647,10 @@ func (s *Server) writeCopyResponse(writer *bufio.Writer, tag string, state *imap
 		}
 		_, writeErr := writer.WriteString(tag + " NO " + completionCommand + " failed\r\n")
 		return false, writeErr
+	}
+	if len(uids) == 0 {
+		_, err := writer.WriteString(tag + " OK " + completionCommand + " completed\r\n")
+		return false, err
 	}
 	results, err := s.options.Backend.CopyMessages(context.Background(), CopyMessagesRequest{
 		UserID:          state.session.UserID,
