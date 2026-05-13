@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -206,7 +207,7 @@ export default function MessageTracePage() {
         </Container>
 
         {searched && (
-          <Table
+          <DataTable
             columnDefinitions={[
               {
                 header: t('pages.message_trace.from_to'),

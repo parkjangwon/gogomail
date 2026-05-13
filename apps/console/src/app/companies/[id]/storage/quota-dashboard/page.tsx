@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -12,7 +14,6 @@ import {
   Flashbar,
   FlashbarProps,
   ColumnLayout,
-  Table,
   ProgressBar,
   StatusIndicator,
 } from '@cloudscape-design/components';
@@ -163,7 +164,7 @@ export default function QuotaDashboardPage() {
             </Header>
           }
         >
-          <Table
+          <DataTable
             items={topConsumers}
             empty={
               <Box textAlign="center" color="inherit" padding="m">

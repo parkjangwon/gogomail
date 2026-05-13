@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -11,7 +13,6 @@ import {
   Flashbar,
   FlashbarProps,
   Tabs,
-  Table,
   Badge,
   StatusIndicator,
   Modal,
@@ -193,7 +194,7 @@ export default function ChangeHistoryPage() {
                   }
                 >
                   {loadingLogs ? <Spinner /> : (
-                    <Table
+                    <DataTable
                       items={logs}
                       columnDefinitions={[
                         { id: 'time', header: t('pages.change_history_page.time'), cell: (i) => new Date(i.created_at).toLocaleString(), width: 160 },
@@ -229,7 +230,7 @@ export default function ChangeHistoryPage() {
                   }
                 >
                   {loadingApprovals ? <Spinner /> : (
-                    <Table
+                    <DataTable
                       items={approvals}
                       columnDefinitions={[
                         { id: 'title', header: t('pages.change_history_page.change_request'), cell: (i) => i.title },

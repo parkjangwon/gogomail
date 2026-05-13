@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -108,7 +109,7 @@ export default function AdminUsersPage() {
       }
     >
       <SpaceBetween size="l">
-        <Table
+        <DataTable
           columnDefinitions={[
             { header: t('pages.admin_users_page.username'), cell: (u: AdminUser) => u.username, width: '20%' },
             { header: t('pages.admin_users_page.email'), cell: (u: AdminUser) => u.email, width: '30%' },

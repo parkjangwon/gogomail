@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   SpaceBetween,
   Box,
   Spinner,
@@ -122,7 +123,7 @@ export default function MailFlowLogsPage() {
       }
     >
       <SpaceBetween size="l">
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.flow_logs_page.from'),

@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -8,7 +10,6 @@ import {
   Spinner,
   SpaceBetween,
   Badge,
-  Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/app/i18n-provider';
@@ -85,7 +86,7 @@ export default function CompliancePage() {
           </Box>
         </Container>
 
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.compliance_page.framework'),

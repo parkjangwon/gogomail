@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   SpaceBetween,
   Box,
   Spinner,
@@ -85,7 +86,7 @@ export default function PushNotificationsPage() {
       }
     >
       <SpaceBetween size="l">
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.push_page.user_email'),

@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -108,7 +109,7 @@ export default function RolesPage() {
       }
     >
       <SpaceBetween size="l">
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.roles_page.name'),

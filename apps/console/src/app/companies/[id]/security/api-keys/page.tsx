@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -257,7 +258,7 @@ export default function APIKeysPage() {
         )}
 
         {selectedDomainId && !keysLoading && (
-          <Table
+          <DataTable
             columnDefinitions={[
               {
                 header: t('pages.api_keys_page.name'),

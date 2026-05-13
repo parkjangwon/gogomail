@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   SpaceBetween,
   Box,
   Spinner,
@@ -80,7 +81,7 @@ export default function APIUsagePage() {
           <Box>{t('pages.api_usage_analytics.daily_desc')}</Box>
         </Container>
 
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.api_usage_analytics.principal'),

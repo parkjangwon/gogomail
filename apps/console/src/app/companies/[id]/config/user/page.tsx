@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   SpaceBetween,
   Box,
   Spinner,
@@ -154,7 +155,7 @@ export default function UserConfigPage() {
         )}
 
         {selectedUserId && !configLoading && (
-          <Table
+          <DataTable
             columnDefinitions={[
               {
                 header: t('pages.config_user_page.key'),

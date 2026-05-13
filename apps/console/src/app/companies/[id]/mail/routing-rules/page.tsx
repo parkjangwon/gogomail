@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -14,7 +16,6 @@ import {
   Spinner,
   Flashbar,
   FlashbarProps,
-  Table,
   Modal,
   StatusIndicator,
   Alert,
@@ -185,7 +186,7 @@ export default function RoutingRulesPage() {
         {notifications.length > 0 && <Flashbar items={notifications} />}
 
         <Container>
-          <Table
+          <DataTable
             items={[...rules].sort((a, b) => a.priority - b.priority)}
             empty={
               <Box textAlign="center" color="inherit" padding="xl">

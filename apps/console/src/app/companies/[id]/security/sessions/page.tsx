@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -11,7 +13,6 @@ import {
   FormField,
   Input,
   Container,
-  Table,
 } from '@cloudscape-design/components';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
@@ -184,7 +185,7 @@ export default function SessionManagementPage() {
           </SpaceBetween>
         </Container>
 
-        <Table
+        <DataTable
           header={<Header variant="h2">{t('pages.session_page.sessions_header')}</Header>}
           loading={loadingSessions}
           items={sessions}

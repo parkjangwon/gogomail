@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -163,7 +164,7 @@ export default function MFAManagementPage() {
         </ColumnLayout>
 
         {/* User Table */}
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.mfa.username'),

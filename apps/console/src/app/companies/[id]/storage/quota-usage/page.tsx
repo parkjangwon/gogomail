@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   SpaceBetween,
   Box,
   Spinner,
@@ -75,7 +76,7 @@ export default function QuotaUsagePage() {
       }
     >
       <SpaceBetween size="l">
-        <Table
+        <DataTable
           columnDefinitions={[
             {
               header: t('pages.quota_usage_page.tenant'),

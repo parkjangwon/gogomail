@@ -1,4 +1,6 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
@@ -13,7 +15,6 @@ import {
   Button,
   ProgressBar,
   KeyValuePairs,
-  Table,
   StatusIndicator,
   Alert,
   FormField,
@@ -494,7 +495,7 @@ export default function DomainDetailPage() {
               id: 'users',
               label: `${t('pages.domain_detail.users_tab')} (${users.length})`,
               content: (
-                <Table
+                <DataTable
                   columnDefinitions={[
                     { header: t('pages.domain_detail.username'), cell: (u: User) => u.username, width: '30%' },
                     { header: t('pages.domain_detail.display_name'), cell: (u: User) => u.display_name, width: '25%' },
@@ -530,7 +531,7 @@ export default function DomainDetailPage() {
               label: `${t('pages.domain_detail.settings_tab')} (${settings.length})`,
               content: (
                 <SpaceBetween size="l">
-                  <Table
+                  <DataTable
                     columnDefinitions={[
                       { header: t('pages.domain_detail.setting_key'), cell: (s: DomainSetting) => <Box fontWeight="bold">{s.Key}</Box>, width: '35%' },
                       { header: t('pages.domain_detail.setting_value'), cell: (s: DomainSetting) => typeof s.Value === 'object' ? JSON.stringify(s.Value) : String(s.Value ?? ''), width: '45%' },

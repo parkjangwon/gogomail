@@ -1,9 +1,10 @@
 'use client';
+import { DataTable } from '@/components/DataTable';
+
 
 import {
   ContentLayout,
   Header,
-  Table,
   Button,
   SpaceBetween,
   Box,
@@ -245,7 +246,7 @@ export default function DomainsPage() {
       <SpaceBetween size="m">
         {flash.length > 0 && <Flashbar items={flash} />}
 
-        <Table
+        <DataTable
           selectionType="multi"
           selectedItems={selected}
           onSelectionChange={({ detail }) => setSelected(detail.selectedItems)}
