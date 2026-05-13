@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event empty-selected NOOP coverage)
+Last updated: 2026-05-14 (IMAP empty-selected EXPUNGE race verification)
+
+## IMAP empty-selected EXPUNGE race verification (2026-05-14, complete)
+- `go test -race -count=1 ./internal/imapgw` passes after the empty-selected EXPUNGE fix and IDLE/NOOP integration coverage.
+- This keeps the IMAP mailbox event live/drain paths under an explicit race-detector gate after the latest event-state changes.
 
 ## IMAP mailbox event empty-selected NOOP coverage (2026-05-14, complete)
 - IMAP NOOP integration coverage now selects an empty mailbox, queues an EXPUNGE event, and verifies NOOP drains it without emitting EXPUNGE.
