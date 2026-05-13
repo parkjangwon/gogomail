@@ -537,6 +537,16 @@ func encodeExtendedResponse(messageID int, resultCode int, matchedDN, errorMessa
 	return encodeLDAPResponse(messageID, opExtendedResponse, encodeLDAPResult(resultCode, matchedDN, errorMessage))
 }
 
+func encodeExtendedResponseWithValue(messageID int, resultCode int, matchedDN, errorMessage string, value string) []byte {
+	content := encodeLDAPResult(resultCode, matchedDN, errorMessage)
+	if value != "" {
+		content = append(content, 0x8b)
+		content = append(content, encodeLength(len(value))...)
+		content = append(content, []byte(value)...)
+	}
+	return encodeLDAPResponse(messageID, opExtendedResponse, content)
+}
+
 func encodeLDAPResult(resultCode int, matchedDN, errorMessage string) []byte {
 	var resultContent bytes.Buffer
 	resultContent.Write(encodeEnumerated(resultCode))

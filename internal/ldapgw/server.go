@@ -132,6 +132,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	readOffset := 0
 	tlsActive := false
 	authenticated := false
+	authzID := ""
 
 	for {
 		// Check context before blocking on read.
@@ -230,9 +231,12 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				tlsActive = true
 				continue
 			}
-			resp, resultCode, entries, authOK := s.handleOperation(ctx, msgID, opTag, opData, controls, authenticated)
+			resp, resultCode, entries, authOK := s.handleOperation(ctx, msgID, opTag, opData, controls, authenticated, authzID)
 			if authOK {
 				authenticated = true
+				if req, err := decodeBindRequestData(opData); err == nil {
+					authzID = "dn:" + req.name
+				}
 			}
 			if len(resp) > 0 {
 				if _, err := conn.Write(resp); err != nil {
@@ -299,7 +303,7 @@ func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error)
 	return pduLen, 1 + 1 + numLenBytes, nil
 }
 
-func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control, authenticated bool) ([]byte, int, int, bool) {
+func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control, authenticated bool, authzID string) ([]byte, int, int, bool) {
 	switch opTag {
 	case opBindRequest:
 		resp, result := s.handleBindRequest(ctx, msgID, opData)
@@ -321,11 +325,30 @@ func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, 
 	case opUnbindRequest:
 		return nil, resultSuccess, 0, false
 	case opExtendedRequest:
-		result := resultUnwillingToPerform
-		return encodeExtendedResponse(msgID, result, "", "extended operation not supported"), result, 0, false
+		resp, result := s.handleExtendedRequest(msgID, opData, authenticated, authzID)
+		return resp, result, 0, false
 	default:
 		result := resultUnwillingToPerform
 		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported()), result, 0, false
+	}
+}
+
+func (s *LDAPServer) handleExtendedRequest(msgID int, opData []byte, authenticated bool, authzID string) ([]byte, int) {
+	name, err := decodeExtendedRequestName(opData)
+	if err != nil {
+		result := resultProtocolError
+		return encodeExtendedResponse(msgID, result, "", "malformed extended request"), result
+	}
+	switch name {
+	case whoAmIOID:
+		if !authenticated {
+			result := resultInsufficientAccessRights
+			return encodeExtendedResponse(msgID, result, "", "bind required"), result
+		}
+		return encodeExtendedResponseWithValue(msgID, resultSuccess, "", "", authzID), resultSuccess
+	default:
+		result := resultUnwillingToPerform
+		return encodeExtendedResponse(msgID, result, "", "extended operation not supported"), result
 	}
 }
 
@@ -1184,10 +1207,11 @@ func rootDSEAttributes(namingContexts []string, startTLSEnabled bool) map[string
 		"subschemaSubentry":    {"cn=Subschema"},
 		"supportedLDAPVersion": {"3"},
 		"supportedControl":     {controlManageDsaIT, controlPagedResults},
+		"supportedExtension":   {whoAmIOID},
 		"vendorName":           {"gogomail"},
 	}
 	if startTLSEnabled {
-		attrs["supportedExtension"] = []string{startTLSOID}
+		attrs["supportedExtension"] = append(attrs["supportedExtension"], startTLSOID)
 	}
 	return attrs
 }
@@ -1279,6 +1303,7 @@ func containsLDAPAttribute(attrs []string, want string) bool {
 }
 
 const startTLSOID = "1.3.6.1.4.1.1466.20037"
+const whoAmIOID = "1.3.6.1.4.1.4203.1.11.3"
 
 func isStartTLSRequest(data []byte) bool {
 	name, err := decodeExtendedRequestName(data)
