@@ -5003,6 +5003,9 @@ Target outcome:
  1602. POP3 empty-INBOX pagination is now covered: authentication succeeds with
          a zero-message mailbox and performs exactly one zero-cursor page
          lookup.
+ 1603. POP3 message size conversion is now hardened at the adapter boundary:
+         maildb `int64` sizes are normalized before POP3 `int` exposure, with
+         negative sizes clamped to zero and oversized values clamped to max int.
 
 ## Deferred until backend contracts stabilize
 

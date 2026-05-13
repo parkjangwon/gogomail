@@ -776,6 +776,30 @@ func TestNormalizePOP3AuthenticatedUserID(t *testing.T) {
 	}
 }
 
+func TestNormalizePOP3MessageSize(t *testing.T) {
+	tests := []struct {
+		name string
+		size int64
+		want int
+	}{
+		{name: "negative", size: -1, want: 0},
+		{name: "zero", size: 0, want: 0},
+		{name: "positive", size: 42, want: 42},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizePOP3MessageSize(tt.size); got != tt.want {
+				t.Fatalf("normalize size = %d, want %d", got, tt.want)
+			}
+		})
+	}
+
+	if got := normalizePOP3MessageSizeForInt(101, 100); got != 100 {
+		t.Fatalf("normalize oversized size = %d, want 100", got)
+	}
+}
+
 func TestPOP3MailboxMessageSize(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

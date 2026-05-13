@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 empty inbox pagination)
+Last updated: 2026-05-14 (POP3 message size conversion)
+
+## POP3 message size conversion (2026-05-14, complete)
+- POP3 adapter now normalizes maildb `int64` message sizes before exposing POP3 `int` sizes.
+- Coverage verifies negative values clamp to zero and values above platform `int` capacity clamp to max int.
 
 ## POP3 empty inbox pagination (2026-05-14, complete)
 - POP3 adapter coverage now verifies empty INBOX authentication succeeds with a zero-message mailbox.
