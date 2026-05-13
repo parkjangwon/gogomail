@@ -4985,6 +4985,9 @@ Target outcome:
  1596. POP3 missing-INBOX handling is now covered as a message-listing
          short-circuit: folder lookup can run, but no message page lookup occurs
          when no INBOX system folder is present.
+ 1597. POP3 folder listing failure handling is now covered as a message-listing
+         short-circuit: folder errors propagate as `list folders` failures and
+         prevent message page lookup.
 
 ## Deferred until backend contracts stabilize
 
