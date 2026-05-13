@@ -1810,6 +1810,9 @@ func textMatchCanSeedAddressBookQuery(match CardDAVTextMatch) bool {
 		if r > 0x7f {
 			return false
 		}
+		if r == '%' || r == '_' || r == '\\' {
+			return false
+		}
 	}
 	return true
 }
