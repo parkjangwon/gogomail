@@ -1,6 +1,13 @@
 # gogomail current status
 
-Last updated: 2026-05-13 (Admin console i18n hardening)
+Last updated: 2026-05-13 (Admin console navigation hardening)
+
+## Admin console navigation hardening (2026-05-13, complete)
+- Admin console side navigation now derives company-scoped links from the current `/companies/{id}` route before falling back to company context, preventing transient context loading from producing stale `/companies/default/...` menu links during SPA transitions.
+- The company context now synchronizes its selected company ID when the route-level company ID changes, keeping the top navigation, sidebar, and company switcher aligned after client-side navigation.
+- Sidebar navigation still uses Next.js client routing first, but now falls back to a browser navigation if the route does not change shortly after a menu click, so Cloudscape/Next timing issues cannot silently swallow a menu selection.
+- The root layout opts into Next.js smooth-scroll route transition behavior to remove the development warning observed during browser verification.
+- Verification covered admin console TypeScript type-checking and an OpenChrome smoke pass across dashboard → users → queue stats without refresh or console errors.
 
 ## Admin console i18n hardening (2026-05-13, complete)
 - Admin console pages were scanned for hard-coded English UI strings and the visible labels, descriptions, table headers, buttons, flash messages, modal text, placeholders, status labels, and dashboard/health counters were moved behind the console `useI18n()` message catalog.

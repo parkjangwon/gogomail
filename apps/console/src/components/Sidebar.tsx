@@ -4,16 +4,33 @@ import { SideNavigation, SideNavigationProps } from '@cloudscape-design/componen
 import { useRouter, usePathname } from 'next/navigation';
 import { useI18n } from '@/app/i18n-provider';
 import { useCompany } from '@/contexts/CompanyContext';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useI18n();
   const { currentCompany } = useCompany();
-  const cid = currentCompany?.id ?? 'default';
+  const routeCompanyId = pathname?.match(/^\/companies\/([^/]+)/)?.[1];
+  const cid = routeCompanyId ?? currentCompany?.id ?? 'default';
 
   const p = (path: string) => `/companies/${cid}${path}`;
+
+  const navigate = useCallback((href: string) => {
+    const target = new URL(href, window.location.origin);
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const next = `${target.pathname}${target.search}${target.hash}`;
+    if (current === next) return;
+
+    router.push(next);
+
+    window.setTimeout(() => {
+      const latest = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (latest === current) {
+        window.location.assign(next);
+      }
+    }, 900);
+  }, [router]);
 
   const activeSectionKey = useMemo(() => {
     if (!pathname) return 'none';
@@ -146,7 +163,7 @@ export function Sidebar() {
       onFollow={(e) => {
         if (e.detail.external) return;
         e.preventDefault();
-        router.push(e.detail.href);
+        navigate(e.detail.href);
       }}
     />
   );

@@ -40,6 +40,10 @@ export function CompanyProvider({
   const [currentCompanyId, setCurrentCompanyId] = useState(initialCompanyId);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    setCurrentCompanyId(initialCompanyId);
+  }, [initialCompanyId]);
+
   const fetchCompanies = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/companies?limit=200', { credentials: 'include' });
