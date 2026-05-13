@@ -632,6 +632,35 @@ func TestPOP3DeleAndRset(t *testing.T) {
 	}
 }
 
+func TestPOP3RsetRestoresWireVisibility(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "RSET")
+
+	if line := pop3Cmd(t, tp, "+OK", "LIST 1"); !strings.Contains(line, "1 42") {
+		t.Fatalf("expected LIST 1 after RSET to restore message size, got: %s", line)
+	}
+	if line := pop3Cmd(t, tp, "+OK", "UIDL 1"); !strings.Contains(line, "msg001") {
+		t.Fatalf("expected UIDL 1 after RSET to restore message UIDL, got: %s", line)
+	}
+
+	pop3Cmd(t, tp, "+OK", "RETR 1")
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read RETR body after RSET: %v", err)
+	}
+	if !strings.Contains(string(data), "Hello") {
+		t.Fatalf("expected RETR 1 body after RSET, got %q", string(data))
+	}
+}
+
 func TestPOP3Uidl(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

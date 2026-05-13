@@ -5045,6 +5045,9 @@ Target outcome:
  1616. POP3 deleted-message body visibility is now covered at the wire layer:
          after `DELE`, both `RETR` and `TOP` fail for the deleted message before
          content is exposed.
+ 1617. POP3 RSET restoration is now covered beyond STAT: after `DELE` then
+         `RSET`, LIST, UIDL, and RETR all expose the message again at the wire
+         layer.
 
 ## Deferred until backend contracts stabilize
 
