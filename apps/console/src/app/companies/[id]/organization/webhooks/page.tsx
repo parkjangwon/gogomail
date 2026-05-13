@@ -55,7 +55,7 @@ export default function WebhooksPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: '', url: '', secret: '', events: [] as string[], enabled: true });
+  const [form, setForm] = useState({ name: '', url: '', events: [] as string[], enabled: true });
 
   const load = useCallback(async () => {
     if (!cid) return;
@@ -84,7 +84,7 @@ export default function WebhooksPage() {
       if (!res.ok) throw new Error(await res.text());
       setFlash([{ type: 'success', content: 'Webhook created', dismissible: true, onDismiss: () => setFlash([]) }]);
       setShowModal(false);
-      setForm({ name: '', url: '', secret: '', events: [], enabled: true });
+      setForm({ name: '', url: '', events: [], enabled: true });
       load();
     } catch (e: unknown) {
       setFlash([{ type: 'error', content: String(e), dismissible: true, onDismiss: () => setFlash([]) }]);
@@ -96,7 +96,8 @@ export default function WebhooksPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this webhook?')) return;
     try {
-      await fetch(`/admin/v1/companies/${cid}/webhooks/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/admin/v1/companies/${cid}/webhooks/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
       setFlash([{ type: 'success', content: 'Webhook deleted', dismissible: true, onDismiss: () => setFlash([]) }]);
       load();
     } catch {
@@ -111,7 +112,7 @@ export default function WebhooksPage() {
       const data = await res.json();
       setFlash([{
         type: data.success ? 'success' : 'error',
-        content: data.success ? `Test delivered (HTTP ${data.status_code})` : `Test failed (HTTP ${data.status_code})`,
+        content: data.message ?? (data.success ? 'Test delivered' : 'Test failed'),
         dismissible: true,
         onDismiss: () => setFlash([]),
       }]);
@@ -178,9 +179,6 @@ export default function WebhooksPage() {
             </FormField>
             <FormField label={t('pages.webhooks_page.field_url')} constraintText={t('pages.webhooks_page.field_url_hint')}>
               <Input value={form.url} placeholder="https://example.com/webhook" onChange={({ detail }) => setForm(f => ({ ...f, url: detail.value }))} />
-            </FormField>
-            <FormField label={t('pages.webhooks_page.field_secret')} constraintText={t('pages.webhooks_page.field_secret_hint')}>
-              <Input value={form.secret} type="password" onChange={({ detail }) => setForm(f => ({ ...f, secret: detail.value }))} />
             </FormField>
             <FormField label={t('pages.webhooks_page.field_events')} constraintText={t('pages.webhooks_page.field_events_hint')}>
               <Multiselect
