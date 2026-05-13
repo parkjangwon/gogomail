@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP message UID move/delete stale-row)
+Last updated: 2026-05-14 (IMAP bulk move/delete stale-row)
+
+## IMAP bulk move/delete stale-row (2026-05-14, complete)
+- IMAP/Postgres coverage now verifies `BulkMoveMessages` removes source mailbox `imap_message_uid` rows for every moved message and rejects stale old-mailbox UID reallocation.
+- The regression verifies moved messages can receive fresh destination UIDs, and `BulkDeleteMessages` removes every deleted message UID row before rejecting later reallocation.
 
 ## IMAP message UID move/delete stale-row (2026-05-14, complete)
 - IMAP/Postgres coverage now verifies regular `MoveMessage` removes old mailbox `imap_message_uid` rows and rejects stale old-mailbox UID reallocation.

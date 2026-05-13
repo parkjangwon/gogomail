@@ -1138,6 +1138,87 @@ INSERT INTO messages (
 	}
 }
 
+func TestPostgresBulkMoveMessagesRemovesOldIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	firstID, secondID := insertTwoPostgresIMAPUIDMessages(t, db, seed, "bulk move stale")
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, firstID, 1)
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, secondID, 1)
+
+	moved, err := repo.BulkMoveMessages(ctx, BulkMessageMoveRequest{
+		UserID:     seed.userID,
+		MessageIDs: []string{firstID, secondID},
+		FolderID:   seed.sentID,
+	})
+	if err != nil {
+		t.Fatalf("BulkMoveMessages returned error: %v", err)
+	}
+	if moved != 2 {
+		t.Fatalf("BulkMoveMessages moved = %d, want 2", moved)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+		if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+			t.Fatalf("EnsureIMAPMessageUID old mailbox for %s error = %v, want ErrIMAPMessageNotActive", messageID, err)
+		}
+		freshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.sentID, messageID)
+		if err != nil {
+			t.Fatalf("EnsureIMAPMessageUID destination for %s returned error: %v", messageID, err)
+		}
+		if freshUID.MailboxID != imapgw.MailboxID(seed.sentID) {
+			t.Fatalf("destination UID mailbox for %s = %q, want sent %q", messageID, freshUID.MailboxID, seed.sentID)
+		}
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.sentID, messageID, 1)
+	}
+}
+
+func TestPostgresBulkDeleteMessagesRemovesIMAPUIDRows(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	firstID, secondID := insertTwoPostgresIMAPUIDMessages(t, db, seed, "bulk delete stale")
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID); err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, firstID, 1)
+	assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, secondID, 1)
+
+	deleted, err := repo.BulkDeleteMessages(ctx, BulkMessageDeleteRequest{
+		UserID:     seed.userID,
+		MessageIDs: []string{firstID, secondID},
+	})
+	if err != nil {
+		t.Fatalf("BulkDeleteMessages returned error: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("BulkDeleteMessages deleted = %d, want 2", deleted)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+		if _, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, messageID); !errors.Is(err, ErrIMAPMessageNotActive) {
+			t.Fatalf("EnsureIMAPMessageUID deleted message %s error = %v, want ErrIMAPMessageNotActive", messageID, err)
+		}
+	}
+}
+
 func TestPostgresEnsureIMAPMessageUIDsForMessagesAssignsMailboxOrder(t *testing.T) {
 	t.Parallel()
 
@@ -1696,6 +1777,40 @@ WHERE user_id = $1::uuid
 	if assigned != want {
 		t.Fatalf("assigned imap uids for message %s in mailbox %s = %d, want %d", messageID, mailboxID, assigned, want)
 	}
+}
+
+func insertTwoPostgresIMAPUIDMessages(t *testing.T, db *sql.DB, seed postgresSeed, prefix string) (string, string) {
+	t.Helper()
+
+	ctx := context.Background()
+	slug := strings.ReplaceAll(prefix, " ", "-")
+	insert := func(label string, receivedAt string) string {
+		t.Helper()
+
+		var messageID string
+		if err := db.QueryRowContext(ctx, `
+INSERT INTO messages (
+  tenant_id, domain_id, user_id, folder_id, rfc_message_id, subject,
+  from_addr, received_at, size, storage_path
+) VALUES (
+  $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5,
+  $6, 'sender@example.net', $7::timestamptz, 100, $8
+) RETURNING id::text`,
+			seed.companyID,
+			seed.domainID,
+			seed.userID,
+			seed.inboxID,
+			fmt.Sprintf("<%s-%s@example.com>", slug, label),
+			fmt.Sprintf("%s %s", prefix, label),
+			receivedAt,
+			fmt.Sprintf("mail/%s-%s.eml", slug, label),
+		).Scan(&messageID); err != nil {
+			t.Fatalf("insert %s message: %v", label, err)
+		}
+		return messageID
+	}
+
+	return insert("first", "2026-05-04T00:00:00Z"), insert("second", "2026-05-04T00:01:00Z")
 }
 
 func TestPostgresIMAPCopyMessagesAssignsFreshUIDsAndCopiesAttachments(t *testing.T) {
