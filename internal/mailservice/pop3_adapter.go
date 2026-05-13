@@ -104,6 +104,9 @@ func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID
 		if !page.HasMore {
 			return all, nil
 		}
+		if strings.TrimSpace(page.NextCursor) == "" {
+			return nil, fmt.Errorf("missing inbox cursor")
+		}
 		cursor, err = maildb.DecodeMessageListCursor(page.NextCursor)
 		if err != nil {
 			return nil, fmt.Errorf("decode inbox cursor: %w", err)

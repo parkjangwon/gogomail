@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 message page cursor error)
+Last updated: 2026-05-14 (POP3 missing cursor guard)
+
+## POP3 missing cursor guard (2026-05-14, complete)
+- POP3 adapter pagination now rejects `HasMore=true` pages that omit `NextCursor` with a `missing inbox cursor` error.
+- Regression coverage verifies the guard stops after the first page lookup, preventing repeated first-page reads.
 
 ## POP3 message page cursor error (2026-05-14, complete)
 - POP3 adapter coverage now verifies invalid multi-page INBOX cursors fail as `decode inbox cursor` errors.
