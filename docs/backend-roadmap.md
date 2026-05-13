@@ -4801,6 +4801,12 @@ Target outcome:
          allocations before inserts. Near the 32-bit IMAP UID limit, these
          paths now fail with a stable exhaustion error before leaving partial
          UID rows or relying on database check-constraint failures.
+ 1550. IMAP lazy UID capacity checks now lock the target folder row together
+         with the mailbox UID state row before counting unassigned messages.
+         Because message inserts reference the folder row, API/receive/recovery
+         writes are serialized with capacity preflight and destination backfill
+         target selection, reducing race windows between backlog counting and
+         UID allocation.
 
 ## Deferred until backend contracts stabilize
 

@@ -1341,6 +1341,10 @@ WHERE mailbox_id = $1::uuid
 }
 
 func backfillIMAPMailboxUIDsTx(ctx context.Context, tx *sql.Tx, userID string, mailboxID string, uidNext imapgw.UID, highestModSeq uint64) (int, error) {
+	if err := lockIMAPMailboxFolderForUIDAllocation(ctx, tx, userID, mailboxID); err != nil {
+		return 0, err
+	}
+
 	const selectMessages = `
 SELECT m.id::text
 FROM messages m
@@ -1405,6 +1409,9 @@ FOR UPDATE`
 	if err := tx.QueryRowContext(ctx, lockState, mailboxID, userID).Scan(&uidNext); err != nil {
 		return fmt.Errorf("lock imap uid allocation state: %w", err)
 	}
+	if err := lockIMAPMailboxFolderForUIDAllocation(ctx, tx, userID, mailboxID); err != nil {
+		return err
+	}
 
 	var unassigned int64
 	const countUnassigned = `
@@ -1423,6 +1430,20 @@ WHERE m.user_id = $1::uuid
 	}
 	if uint64(uidNext)+uint64(unassigned)+uint64(additional) > math.MaxUint32 {
 		return fmt.Errorf("imap uid space exhausted")
+	}
+	return nil
+}
+
+func lockIMAPMailboxFolderForUIDAllocation(ctx context.Context, tx *sql.Tx, userID string, mailboxID string) error {
+	const query = `
+SELECT id
+FROM folders
+WHERE id = $1::uuid
+  AND user_id = $2::uuid
+FOR UPDATE`
+	var id string
+	if err := tx.QueryRowContext(ctx, query, mailboxID, userID).Scan(&id); err != nil {
+		return fmt.Errorf("lock imap uid allocation folder: %w", err)
 	}
 	return nil
 }

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP lazy UID exhaustion hardening)
+Last updated: 2026-05-14 (IMAP lazy UID capacity race hardening)
+
+## IMAP lazy UID capacity race hardening (2026-05-14, complete)
+- IMAP UID capacity preflight now locks the target folder row in the same transaction as the mailbox state row, serializing API/message inserts that rely on the folder foreign key with lazy UID backlog counting.
+- Cross-mailbox MOVE destination backfill uses the same folder lock before reading unassigned destination messages, keeping capacity checks and backfill target sets aligned under concurrent mailbox writes.
 
 ## IMAP lazy UID exhaustion hardening (2026-05-14, complete)
 - IMAP APPEND, COPY, and same-mailbox MOVE now preflight UID allocation capacity inside the transaction by combining existing unassigned-message backlog with the new UID allocation count.
