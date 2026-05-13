@@ -5282,6 +5282,9 @@ Target outcome:
  1697. SMTP inbound EHLO reset is now covered for domain policy and DSN state
          at the TCP protocol layer: repeated EHLO clears accumulated limits and
          DSN metadata before the next accepted transaction.
+ 1698. SMTP inbound HELO reset is now covered for domain policy and DSN state
+         at the TCP protocol layer: HELO clears accumulated limits and DSN
+         metadata before the next accepted transaction.
 
 ## Deferred until backend contracts stabilize
 
