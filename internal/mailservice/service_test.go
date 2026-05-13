@@ -1227,6 +1227,24 @@ func TestIMAPAuthenticatorAdapterRejectsUnsafeCredentials(t *testing.T) {
 	}
 }
 
+func TestIMAPAuthenticatorAdapterRejectsMustChangePassword(t *testing.T) {
+	t.Parallel()
+
+	auth := fakeSubmissionAuthenticator{
+		user: smtpd.SubmissionUser{
+			UserID:             "user-1",
+			DomainID:           "domain-1",
+			Address:            "user@example.com",
+			MustChangePassword: true,
+		},
+	}
+	adapter := NewIMAPAuthenticatorAdapter(&auth)
+
+	if _, err := adapter.Authenticate(context.Background(), "user@example.com", "secret"); err == nil {
+		t.Fatal("Authenticate accepted user that must change password")
+	}
+}
+
 func TestIMAPBackendAdapterComposesAuthenticatorAndSessionStore(t *testing.T) {
 	t.Parallel()
 

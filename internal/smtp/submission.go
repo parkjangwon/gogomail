@@ -23,6 +23,7 @@ type SubmissionUser struct {
 	Address             string
 	DisplayName         string
 	AuthorizedAddresses []string
+	MustChangePassword  bool
 }
 
 type SubmissionAuthenticator interface {
