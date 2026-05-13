@@ -6125,3 +6125,7 @@ Target outcome:
       repeated SUBSCRIBE for a retained missing mailbox with different casing
       updates the same canonical subscription row and returns one retained LSUB
       entry using the latest display name.
+1714. CalDAV/CardDAV collection creation now has active principal policy
+      coverage: `CreateCalendar` and `CreateAddressBook` reject disabled user,
+      domain, and company state instead of creating DAV collections for inactive
+      principals.
