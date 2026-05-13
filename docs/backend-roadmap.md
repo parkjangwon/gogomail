@@ -5056,6 +5056,9 @@ Target outcome:
          readable.
  1620. POP3 authorization-state QUIT close behavior is now covered: pre-login
          `QUIT` returns `+OK` and then closes the TCP connection.
+ 1621. POP3 connection-close tests now share a deadline-enabled connection
+         helper so EOF-sensitive regressions avoid duplicated greeting and
+         timeout setup.
 
 ## Deferred until backend contracts stabilize
 

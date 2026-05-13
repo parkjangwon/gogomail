@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH QUIT connection close)
+Last updated: 2026-05-14 (POP3 connection-close test helper cleanup)
+
+## POP3 connection-close test helper cleanup (2026-05-14, complete)
+- POP3 test coverage now has a shared deadline-enabled connection helper for EOF-sensitive checks.
+- Authorization-state and transaction-state `QUIT` connection close regressions now use the shared helper.
 
 ## POP3 AUTH QUIT connection close (2026-05-14, complete)
 - POP3 server coverage now verifies authorization-state `QUIT` returns `+OK`.
