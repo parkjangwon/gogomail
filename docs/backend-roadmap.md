@@ -5244,6 +5244,10 @@ Target outcome:
  1685. POP3 multiline LIST after failed delete commit is now covered: failed
          QUIT rollback exposes all restored message sizes, keeps the delete
          mark clear, and preserves the later no-delete QUIT fast path.
+ 1686. SMTP inbound mixed-domain message size policy is now covered: receiver
+         sessions aggregate enforcing recipient-domain policies, and DATA
+         returns `552 5.3.4` when a later recipient domain has a stricter
+         message size limit.
 
 ## Deferred until backend contracts stabilize
 

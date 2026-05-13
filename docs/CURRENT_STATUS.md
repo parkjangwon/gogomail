@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit multiline LIST)
+Last updated: 2026-05-14 (SMTP inbound mixed-domain policy)
+
+## SMTP inbound mixed-domain policy (2026-05-14, complete)
+- SMTP receiver coverage now verifies mixed-domain inbound sessions aggregate enforcing recipient-domain message size policies.
+- The regression verifies a stricter second-recipient domain limit is applied at `DATA` and returns `552 5.3.4`.
 
 ## POP3 QUIT after failed commit multiline LIST (2026-05-14, complete)
 - POP3 server coverage now verifies multiline `LIST` after failed `QUIT` rollback returns all restored message sizes.
