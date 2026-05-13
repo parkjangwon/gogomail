@@ -81,6 +81,8 @@ type ContactObject struct {
 	ETag          string
 	Size          int64
 	VCard         []byte
+	PhotoData     []byte
+	PhotoMediaType string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }

@@ -17,6 +17,7 @@ const (
 	MaxContactObjectUIDBytes       = 255
 	MaxContactObjectNameBytes      = 200
 	MaxContactObjectBytes          = 5 << 20
+	MaxPhotoBytes                  = 5 << 20
 	MaxVCardContentLineBytes       = 8192
 	MaxVCardContentLines           = 4096
 )
