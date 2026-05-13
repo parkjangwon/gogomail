@@ -1300,6 +1300,112 @@ func TestPostgresBulkDeleteThreadsRemovesIMAPUIDRows(t *testing.T) {
 	}
 }
 
+func TestPostgresBulkRestoreMessagesAssignsFreshIMAPUIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	firstID, secondID := insertTwoPostgresIMAPUIDMessages(t, db, seed, "bulk restore fresh")
+	firstOldUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	secondOldUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	if deleted, err := repo.BulkDeleteMessages(ctx, BulkMessageDeleteRequest{
+		UserID:     seed.userID,
+		MessageIDs: []string{firstID, secondID},
+	}); err != nil || deleted != 2 {
+		t.Fatalf("BulkDeleteMessages deleted = %d error = %v, want 2 nil", deleted, err)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+	}
+
+	restored, err := repo.BulkRestoreMessages(ctx, BulkMessageRestoreRequest{
+		UserID:     seed.userID,
+		MessageIDs: []string{firstID, secondID},
+	})
+	if err != nil {
+		t.Fatalf("BulkRestoreMessages returned error: %v", err)
+	}
+	if restored.Updated != 2 || !sameStringSet(restored.MessageIDs, []string{firstID, secondID}) {
+		t.Fatalf("BulkRestoreMessages result = %#v, want both messages", restored)
+	}
+	firstFreshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID restored first returned error: %v", err)
+	}
+	secondFreshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID restored second returned error: %v", err)
+	}
+	if firstFreshUID.UID <= secondOldUID.UID || secondFreshUID.UID <= secondOldUID.UID {
+		t.Fatalf("restored UIDs = %d/%d, want fresh UIDs above deleted max %d", firstFreshUID.UID, secondFreshUID.UID, secondOldUID.UID)
+	}
+	if firstFreshUID.UID == firstOldUID.UID || secondFreshUID.UID == secondOldUID.UID {
+		t.Fatalf("restored UIDs reused old values: old %d/%d fresh %d/%d", firstOldUID.UID, secondOldUID.UID, firstFreshUID.UID, secondFreshUID.UID)
+	}
+}
+
+func TestPostgresBulkRestoreThreadsAssignsFreshIMAPUIDs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db := openMigratedPostgresTestDB(t)
+	seed := seedPostgresMailUser(t, db)
+	repo := NewRepository(db)
+
+	threadID, firstID, secondID := insertTwoPostgresThreadIMAPUIDMessages(t, db, seed, "bulk thread restore fresh")
+	firstOldUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID first returned error: %v", err)
+	}
+	secondOldUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID second returned error: %v", err)
+	}
+	if deleted, err := repo.BulkDeleteThreads(ctx, BulkThreadDeleteRequest{
+		UserID:    seed.userID,
+		ThreadIDs: []string{threadID},
+	}); err != nil || deleted.Updated != 2 {
+		t.Fatalf("BulkDeleteThreads result = %#v error = %v, want 2 nil", deleted, err)
+	}
+	for _, messageID := range []string{firstID, secondID} {
+		assertMessageAssignedIMAPUIDCount(t, db, seed.userID, seed.inboxID, messageID, 0)
+	}
+
+	restored, err := repo.BulkRestoreThreads(ctx, BulkThreadRestoreRequest{
+		UserID:    seed.userID,
+		ThreadIDs: []string{threadID},
+	})
+	if err != nil {
+		t.Fatalf("BulkRestoreThreads returned error: %v", err)
+	}
+	if restored.Updated != 2 || !sameStringSet(restored.MessageIDs, []string{firstID, secondID}) {
+		t.Fatalf("BulkRestoreThreads result = %#v, want both thread messages", restored)
+	}
+	firstFreshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, firstID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID restored thread first returned error: %v", err)
+	}
+	secondFreshUID, err := repo.EnsureIMAPMessageUID(ctx, seed.userID, seed.inboxID, secondID)
+	if err != nil {
+		t.Fatalf("EnsureIMAPMessageUID restored thread second returned error: %v", err)
+	}
+	if firstFreshUID.UID <= secondOldUID.UID || secondFreshUID.UID <= secondOldUID.UID {
+		t.Fatalf("restored thread UIDs = %d/%d, want fresh UIDs above deleted max %d", firstFreshUID.UID, secondFreshUID.UID, secondOldUID.UID)
+	}
+	if firstFreshUID.UID == firstOldUID.UID || secondFreshUID.UID == secondOldUID.UID {
+		t.Fatalf("restored thread UIDs reused old values: old %d/%d fresh %d/%d", firstOldUID.UID, secondOldUID.UID, firstFreshUID.UID, secondFreshUID.UID)
+	}
+}
+
 func TestPostgresEnsureIMAPMessageUIDsForMessagesAssignsMailboxOrder(t *testing.T) {
 	t.Parallel()
 
