@@ -40,15 +40,23 @@ async function handler(
     });
 
     const contentType = response.headers.get('content-type') ?? '';
+    const contentDisposition = response.headers.get('content-disposition') ?? '';
+    const responseHeaders: Record<string, string> = {
+      'content-type': contentType || 'application/json',
+    };
+    if (contentDisposition) {
+      responseHeaders['content-disposition'] = contentDisposition;
+    }
+
+    if (response.status === 204) {
+      return new Response(null, { status: 204, headers: responseHeaders });
+    }
 
     if (contentType.includes('text/csv') || contentType.includes('application/octet-stream')) {
-      const blob = await response.arrayBuffer();
-      return new Response(blob, {
+      const data = await response.arrayBuffer();
+      return new Response(data, {
         status: response.status,
-        headers: {
-          'content-type': contentType,
-          'content-disposition': response.headers.get('content-disposition') ?? '',
-        },
+        headers: responseHeaders,
       });
     }
 
@@ -58,7 +66,7 @@ async function handler(
 
     return Response.json(responseBody, {
       status: response.status,
-      headers: { 'content-type': contentType || 'application/json' },
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('Admin v1 proxy error:', error);
