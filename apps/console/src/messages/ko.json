@@ -1066,6 +1066,7 @@
       "registration_email_invite": "이메일 초대 (사용자가 링크로 직접 설정)",
       "save_error": "설정 저장에 실패했습니다",
       "minutes": "분",
+      "no_domains": "설정할 도메인이 없습니다.",
       "password_expiry_desc": "일 (0 = 만료 없음)"
     },
     "domains": {
