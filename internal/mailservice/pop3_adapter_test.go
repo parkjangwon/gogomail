@@ -162,6 +162,24 @@ func TestPOP3StoreAdapterPassesNormalizedUsernameToAuthenticator(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterPreservesPasswordForAuthenticator(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: " secret ", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", " secret "); err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if len(auth.passwords) != 1 || auth.passwords[0] != " secret " {
+		t.Fatalf("auth passwords = %#v, want preserved password", auth.passwords)
+	}
+}
+
 func TestPOP3StoreAdapterMailboxLockKeyUsesUserID(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 

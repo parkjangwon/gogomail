@@ -1,13 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-316: POP3 username normalization passthrough audit
+## TASK-317: POP3 password passthrough preservation audit
 
 ### 배경
 
-POP3 adapter는 username을 trim한 뒤 authenticator에 전달해야 한다. helper 단위
-테스트만으로는 실제 Authenticate 경로가 정규화된 username을 사용하는지 놓칠 수
-있으므로, 인증 mock이 받은 username을 기록해 adapter 경계의 passthrough 동작을
-고정한다.
+POP3 password는 CR/LF만 금지하고, 그 외 문자는 authenticator에 원문 그대로 전달해야
+한다. 비밀번호 앞뒤 공백은 실제 비밀번호의 일부일 수 있으므로 adapter가 trim하거나
+변형하면 사용자 인증 데이터와 서버 동작이 틀어진다.
 
 ### 구현 대상
 
@@ -18,13 +17,13 @@ POP3 adapter는 username을 trim한 뒤 authenticator에 전달해야 한다. he
 
 ### 완료 조건
 
-- [x] POP3 test authenticator가 전달받은 username을 기록한다.
-- [x] 공백 포함 username으로 Authenticate를 호출해 authenticator가 trim된 username만 받는지 검증한다.
-- [x] 기존 POP3 adapter 테스트가 기록 필드 추가 후에도 통과한다.
+- [x] 공백 포함 password로 Authenticate를 호출해 성공 경로를 검증한다.
+- [x] authenticator가 공백 포함 password 원문을 그대로 받는지 검증한다.
+- [x] 기존 username normalization 기록 필드와 충돌하지 않는지 검증한다.
 - [x] `go test ./internal/mailservice` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-317: POP3 password passthrough preservation audit
+TASK-318: POP3 invalid credential short-circuit audit
