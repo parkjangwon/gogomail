@@ -4979,6 +4979,9 @@ Target outcome:
  1594. POP3 INBOX folder detection is now covered as case-insensitive at the
          mailservice adapter boundary: `SystemType=INBOX` is accepted and
          message listing continues with the normalized user ID.
+ 1595. POP3 INBOX selection is now covered as first-match routing: when folder
+         lists contain non-INBOX entries and multiple INBOX candidates, message
+         page lookup uses the first matching INBOX folder ID.
 
 ## Deferred until backend contracts stabilize
 

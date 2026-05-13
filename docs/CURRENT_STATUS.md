@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 inbox folder casing)
+Last updated: 2026-05-14 (POP3 inbox folder first-match)
+
+## POP3 inbox folder first-match (2026-05-14, complete)
+- POP3 adapter coverage now verifies duplicate INBOX candidates use the first matching system folder.
+- The POP3 repository fake records page folder IDs so selected folder routing is asserted directly.
 
 ## POP3 inbox folder casing (2026-05-14, complete)
 - POP3 adapter coverage now verifies `SystemType=INBOX` is accepted as the user's INBOX.
