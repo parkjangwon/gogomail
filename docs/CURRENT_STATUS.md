@@ -1,6 +1,15 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV RFC 6350 & RFC 3744 ACL implementation complete)
+Last updated: 2026-05-14 (SMTP submission DSN parameter validation and isolation complete)
+
+## SMTP submission MAIL DSN parameter validation (2026-05-14, complete)
+- SMTP submission `MAIL FROM` with DSN parameters (RFC 3461) now has comprehensive coverage.
+- TestSubmissionMailClearsDSNOptions verifies DSN options are cleared between consecutive MAIL commands without RESET.
+- DSN Return parameter variations tested: RET=HDRS, RET=FULL properly extracted and preserved.
+- EnvelopeID parameter correctly tracked across transactions with proper isolation between MAIL commands.
+- DSN recipient options (NOTIFY, ORCPT) properly cleared when MAIL FROM executes without explicit options.
+- Multiple transaction isolation verified: DSN envelope and recipient options do not leak between transactions.
+- All 5939+ tests passing with zero regressions.
 
 ## CardDAV ACL support (RFC 3744) (2026-05-14, complete)
 - Implemented RFC 3744 Access Control List (ACL) support for CardDAV collections.
