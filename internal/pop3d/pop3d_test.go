@@ -1390,6 +1390,29 @@ func TestPOP3TransactionCapaOmitsAuthOnlyCapabilities(t *testing.T) {
 	}
 }
 
+func TestPOP3TransactionCapaIsStable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Login(t, tp)
+	first := pop3Capa(t, tp)
+	second := pop3Capa(t, tp)
+	for _, want := range []string{"IMPLEMENTATION gogomail", "LOGIN-DELAY 0", "UIDL", "TOP"} {
+		if !first[want] || !second[want] {
+			t.Fatalf("expected stable transaction CAPA %q in first=%#v second=%#v", want, first, second)
+		}
+	}
+	for _, unwanted := range []string{"USER", "SASL PLAIN LOGIN", "STLS"} {
+		if first[unwanted] || second[unwanted] {
+			t.Fatalf("transaction CAPA advertised auth-only capability %q in first=%#v second=%#v", unwanted, first, second)
+		}
+	}
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3CapaDoesNotAdvertiseSTLSWithoutTLSConfig(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

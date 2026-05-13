@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 transaction STLS denial session audit)
+Last updated: 2026-05-14 (POP3 transaction CAPA stability)
+
+## POP3 transaction CAPA stability (2026-05-14, complete)
+- POP3 server coverage now verifies repeated transaction-state `CAPA` calls keep core capabilities stable.
+- The regression verifies auth-only capabilities stay hidden and `STAT` still works afterward.
 
 ## POP3 transaction STLS denial session audit (2026-05-14, complete)
 - POP3 transaction-state `STLS` denial coverage was revalidated without adding a duplicate test.

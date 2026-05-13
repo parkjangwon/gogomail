@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-381: POP3 transaction STLS denial session audit
+## TASK-382: POP3 transaction CAPA stability audit
 
 ### 배경
 
-POP3 transaction 상태에서는 `STLS`를 허용하지 않아야 한다. 이미 wire-level 회귀가
-있으므로 중복 테스트를 추가하지 않고, 기존 커버리지가 명확한 `-ERR` 메시지와
-세션 유지 조건을 충족하는지 재검증한다.
+POP3 transaction 상태의 `CAPA`는 반복 호출해도 안정적으로 같은 capability를
+반환해야 하며, 인증 전용 capability를 다시 노출하지 않아야 한다. capability 조회가
+세션 상태를 오염시키지 않는지 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ POP3 transaction 상태에서는 `STLS`를 허용하지 않아야 한다. 이미
 
 ### 완료 조건
 
-- [x] `TestPOP3STLSDeniedInTransactionStateKeepsSessionUsable`가 transaction `STLS`의 `-ERR` 거부를 검증한다.
-- [x] 같은 회귀가 거부 이후 `NOOP` 성공을 검증한다.
-- [x] 같은 회귀가 거부 이후 `STAT` 성공을 검증한다.
+- [x] transaction 상태에서 `CAPA`를 반복 호출해 기본 capability가 유지되는지 검증한다.
+- [x] 반복 `CAPA`가 `USER`, `SASL PLAIN LOGIN`, `STLS`를 노출하지 않는지 검증한다.
+- [x] 반복 `CAPA` 이후 `STAT`이 성공해 transaction 세션이 유지되는지 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-382: POP3 transaction CAPA stability audit
+TASK-383: POP3 authorization CAPA stability audit

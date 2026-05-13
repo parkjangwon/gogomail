@@ -5155,6 +5155,9 @@ Target outcome:
  1654. POP3 transaction-state STLS denial coverage has been revalidated without
          duplicate tests: the existing regression checks the clear `-ERR`,
          `NOOP`, and `STAT` recovery behavior.
+ 1655. POP3 transaction-state CAPA stability is now covered: repeated CAPA
+         calls keep core capabilities stable, keep auth-only entries hidden, and
+         leave STAT usable afterward.
 
 ## Deferred until backend contracts stabilize
 
