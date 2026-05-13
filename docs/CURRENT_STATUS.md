@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit NOOP)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit RSET)
+
+## POP3 QUIT after failed commit RSET (2026-05-14, complete)
+- POP3 server coverage now verifies `RSET` after a failed delete commit on `QUIT` returns `+OK`.
+- The regression verifies the rolled-back message remains visible through `LIST 1` and the delete mark stays clear.
 
 ## POP3 QUIT after failed commit NOOP (2026-05-14, complete)
 - POP3 server coverage now verifies the connection remains usable for `NOOP` after a failed delete commit on `QUIT`.

@@ -5219,6 +5219,9 @@ Target outcome:
  1677. POP3 NOOP after failed delete commit is now covered: failed QUIT keeps
          the connection usable for NOOP, and STAT still reports the restored
          maildrop state afterward.
+ 1678. POP3 RSET after failed delete commit is now covered: failed QUIT
+         rollback followed by RSET keeps the message visible and leaves the
+         delete mark clear.
 
 ## Deferred until backend contracts stabilize
 
