@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission Logout domain policy reset)
+Last updated: 2026-05-14 (SMTP submission RSET DSN reset)
+
+## SMTP submission RSET DSN reset (2026-05-14, complete)
+- SMTP submission coverage now verifies explicit `Reset` clears the active envelope before the next submitted transaction.
+- The regression verifies pre-reset RFC 3461 DSN envelope and recipient options do not leak into the next submitted message.
 
 ## SMTP submission Logout domain policy reset (2026-05-14, complete)
 - SMTP submission now clears authenticated-user domain policy cache on successful `AUTH` and `Logout`.
