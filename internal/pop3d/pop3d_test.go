@@ -2105,6 +2105,36 @@ func TestPOP3QuitWithoutDeletesClosesConnection(t *testing.T) {
 	}
 }
 
+func TestPOP3QuitAfterRsetSkipsCommit(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("should not commit after reset"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "+OK", "RSET")
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 0 {
+		t.Fatalf("CommitDeletes calls = %d, want 0", mb.commitCalls)
+	}
+	if mb.Deleted(0) {
+		t.Fatal("expected RSET before QUIT to clear delete mark")
+	}
+}
+
 func TestPOP3QuitSuccessClosesConnection(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{

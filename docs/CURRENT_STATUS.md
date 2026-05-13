@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT no-delete close)
+Last updated: 2026-05-14 (POP3 QUIT after RSET skips commit)
+
+## POP3 QUIT after RSET skips commit (2026-05-14, complete)
+- POP3 server coverage now verifies `DELE` followed by `RSET` makes `QUIT` skip `CommitDeletes`.
+- The regression verifies the reset delete mark is clear before the successful quit path completes.
 
 ## POP3 QUIT no-delete close (2026-05-14, complete)
 - POP3 server coverage now verifies no-delete `QUIT` closes the TCP connection after `+OK`.
