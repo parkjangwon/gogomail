@@ -1379,6 +1379,10 @@ line beginning with `.` before the final `.\r\n` terminator.
 `CAPA` advertises `STLS` only while the session is still in AUTHORIZATION state
 and TLS has not already been negotiated; authenticated TRANSACTION sessions
 reject `STLS` while keeping the mailbox session usable.
+`CAPA` is state-aware: AUTHORIZATION responses advertise authentication
+mechanisms (`USER`, `SASL PLAIN LOGIN`) while TRANSACTION responses omit those
+auth-only capabilities. All CAPA responses include stable server metadata via
+`IMPLEMENTATION gogomail` and `LOGIN-DELAY 0`.
 The mailservice POP3 adapter now exposes raw body fetch errors to the POP3
 server, so `RETR` and `TOP` return `-ERR` instead of opening a successful
 multi-line response when message content cannot be loaded.

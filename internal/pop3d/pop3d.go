@@ -502,12 +502,16 @@ func (s *Server) acquireMaildropLock(key string) (func(), bool) {
 
 func (sess *session) writeCapabilities() {
 	sess.writeOK("Capability list follows")
+	sess.writer.WriteString("IMPLEMENTATION gogomail\r\n")
+	sess.writer.WriteString("LOGIN-DELAY 0\r\n")
 	sess.writer.WriteString("UIDL\r\n")
 	sess.writer.WriteString("TOP\r\n")
-	sess.writer.WriteString("USER\r\n")
-	sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
-	if sess.canUseSTLS() {
-		sess.writer.WriteString("STLS\r\n")
+	if sess.state == stateAuthorization {
+		sess.writer.WriteString("USER\r\n")
+		sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
+		if sess.canUseSTLS() {
+			sess.writer.WriteString("STLS\r\n")
+		}
 	}
 	sess.writer.WriteString(".\r\n")
 	sess.writer.Flush()

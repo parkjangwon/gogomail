@@ -5318,6 +5318,10 @@ Progress:
    YAML `pop3_max_connections` into the server accept loop. Connections over
    the configured limit receive `-ERR too many connections`, and slots are
    released when sessions close.
+7. POP3 `CAPA` responses are now state-aware. AUTHORIZATION state advertises
+   `USER` and `SASL PLAIN LOGIN`; TRANSACTION state omits auth-only
+   capabilities while preserving common capabilities and stable
+   `IMPLEMENTATION gogomail` / `LOGIN-DELAY 0` metadata.
 
 ---
 
