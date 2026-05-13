@@ -5092,6 +5092,9 @@ Target outcome:
  1632. POP3 auth capability regression tests now share an assertion helper for
          USER and SASL preservation, reducing duplicated CAPA checks across
          AUTH PLAIN and AUTH LOGIN error paths.
+ 1633. POP3 AUTH PLAIN challenge invalid-base64 handling now verifies
+         authorization-state capability preservation: continuation parse errors
+         leave CAPA and normal login usable afterward.
 
 ## Deferred until backend contracts stabilize
 

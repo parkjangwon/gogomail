@@ -1,12 +1,12 @@
 # ACTIVE_TASK
 
-## TASK-359: POP3 auth capability assertion helper cleanup
+## TASK-360: POP3 AUTH PLAIN challenge invalid base64 capability audit
 
 ### 배경
 
-POP3 인증 오류/취소 회귀 테스트가 authorization capability 보존을 반복적으로
-검증하면서 동일한 CAPA assertion이 여러 곳에 중복되었다. 다음 인증 경로를 더
-안전하게 추가할 수 있도록 공통 헬퍼로 정리한다.
+POP3 `AUTH PLAIN`은 초기 응답 없이 challenge 방식으로도 credential을 받을 수 있다.
+continuation 입력이 invalid base64여도 서버는 authorization 상태를 유지해야 하므로
+inline 입력과 별도로 CAPA와 일반 로그인 흐름을 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +17,13 @@ POP3 인증 오류/취소 회귀 테스트가 authorization capability 보존을
 
 ### 완료 조건
 
-- [x] CAPA에 `USER`와 `SASL PLAIN LOGIN`이 남는지 확인하는 공통 헬퍼를 추가한다.
-- [x] `AUTH PLAIN` 오류/취소 테스트가 공통 헬퍼를 사용하도록 정리한다.
-- [x] `AUTH LOGIN` 오류/취소 테스트가 공통 헬퍼를 사용하도록 정리한다.
+- [x] `AUTH PLAIN` challenge continuation의 invalid base64가 `-ERR invalid base64`를 반환하는지 검증한다.
+- [x] continuation 오류 직후 CAPA에 `USER`와 `SASL PLAIN LOGIN`이 남아 authorization 상태를 유지하는지 검증한다.
+- [x] 오류 이후 `USER/PASS`와 `STAT`이 성공해 세션이 계속 사용 가능한지 검증한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-360: POP3 AUTH PLAIN challenge invalid base64 capability audit
+TASK-361: POP3 AUTH PLAIN challenge invalid format capability audit
