@@ -6152,3 +6152,6 @@ Target outcome:
       the session user is stored only after `StageAuthenticated` hooks succeed,
       and hook failure leaves the session unauthenticated with `MAIL FROM`
       still requiring AUTH.
+1721. SMTP submission auth hook failure metrics are now covered:
+      failed `StageAuthenticated` hooks record rejected auth metrics and do not
+      produce accepted auth metrics.

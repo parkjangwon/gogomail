@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP submission auth hook failure isolation)
+Last updated: 2026-05-14 (SMTP submission auth hook failure metrics)
+
+## SMTP submission auth hook failure metrics (2026-05-14, complete)
+- SMTP submission coverage now verifies auth hook failures emit a rejected `StageAuthenticated` metric.
+- The regression also verifies the failed auth path does not emit an accepted auth metric.
 
 ## SMTP submission auth hook failure isolation (2026-05-14, complete)
 - SMTP submission now stores the authenticated session user only after `StageAuthenticated` hooks succeed.
