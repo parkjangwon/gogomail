@@ -637,21 +637,41 @@ func TestLDAPServerReadOnlyEnforcement(t *testing.T) {
 	}
 	defer conn.Close()
 
-	modifyReq := buildLDAPPacket(3, opModifyRequest, []byte{0x01})
-	if err := sendPDU(conn, modifyReq); err != nil {
-		t.Fatal(err)
+	cases := []struct {
+		name       string
+		msgID      int
+		requestOp  int
+		responseOp int
+		payload    []byte
+	}{
+		{name: "modify", msgID: 3, requestOp: opModifyRequest, responseOp: opModifyResponse, payload: []byte{0x01}},
+		{name: "add", msgID: 4, requestOp: opAddRequest, responseOp: opAddResponse, payload: []byte{0x01}},
+		{name: "delete", msgID: 5, requestOp: opDeleteRequest, responseOp: opDeleteResponse, payload: encodeOctetString("uid=alice,dc=example,dc=com")},
+		{name: "modify dn", msgID: 6, requestOp: opModDNRequest, responseOp: opModDNResponse, payload: []byte{0x01}},
 	}
 
-	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, opTag, _, err := decodeLDAPPacket(resp)
-	if err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if opTag != opModifyRequest {
-		t.Errorf("opTag = %d, want %d", opTag, opModifyRequest)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := buildLDAPPacket(tc.msgID, tc.requestOp, tc.payload)
+			if err := sendPDU(conn, req); err != nil {
+				t.Fatal(err)
+			}
+
+			resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, opTag, opData, err := decodeLDAPPacket(resp)
+			if err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if opTag != tc.responseOp {
+				t.Fatalf("opTag = %d, want %d", opTag, tc.responseOp)
+			}
+			if got := decodeEnumerated(opData); got != resultUnwillingToPerform {
+				t.Fatalf("result = %d, want %d", got, resultUnwillingToPerform)
+			}
+		})
 	}
 }
 
