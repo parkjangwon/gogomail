@@ -6161,3 +6161,7 @@ Target outcome:
 1723. SMTP submission malformed AUTH PLAIN payload isolation is now covered:
       parser-level failures leave the session unauthenticated, emit no
       authenticated hook events, and keep `MAIL FROM` behind AUTH.
+1724. SMTP submission unsupported auth mechanism handling is now covered:
+      mechanisms such as `LOGIN` return `ErrAuthUnsupported` with no SASL
+      server and without hooks, metrics, session authentication, or `MAIL FROM`
+      access.

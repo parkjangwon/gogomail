@@ -41,6 +41,49 @@ func TestSubmissionRejectsRepeatedAuth(t *testing.T) {
 	}
 }
 
+func TestSubmissionRejectsUnsupportedAuthMechanismWithoutSideEffects(t *testing.T) {
+	t.Parallel()
+
+	var stages []Stage
+	metrics := &recordingMetrics{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Metrics:       metrics,
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				stages = append(stages, event.Stage)
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth("LOGIN")
+	if !errors.Is(err, gosmtp.ErrAuthUnsupported) {
+		t.Fatalf("Auth(LOGIN) error = %v, want ErrAuthUnsupported", err)
+	}
+	if server != nil {
+		t.Fatalf("Auth(LOGIN) server = %#v, want nil", server)
+	}
+	if submission.user.UserID != "" {
+		t.Fatalf("submission user = %#v, want unauthenticated after unsupported auth mechanism", submission.user)
+	}
+	if len(stages) != 0 {
+		t.Fatalf("hook stages after unsupported auth mechanism = %v, want none", stages)
+	}
+	if len(metrics.events) != 0 {
+		t.Fatalf("metrics after unsupported auth mechanism = %+v, want none", metrics.events)
+	}
+	if err := submission.Mail("jangwon@example.com", nil); !errors.Is(err, gosmtp.ErrAuthRequired) {
+		t.Fatalf("Mail after unsupported auth mechanism error = %v, want ErrAuthRequired", err)
+	}
+}
+
 func TestSubmissionRejectsMustChangePasswordUser(t *testing.T) {
 	t.Parallel()
 
