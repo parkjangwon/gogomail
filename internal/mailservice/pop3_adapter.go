@@ -44,12 +44,9 @@ func (a POP3StoreAdapter) Authenticate(user, pass string) (pop3d.Mailbox, error)
 	if authUser.MustChangePassword {
 		return nil, fmt.Errorf("password change required")
 	}
-	if strings.ContainsAny(authUser.UserID, "\r\n") {
-		return nil, fmt.Errorf("invalid authenticated user id")
-	}
-	userID := strings.TrimSpace(authUser.UserID)
-	if userID == "" {
-		return nil, fmt.Errorf("authenticated user id is required")
+	userID, err := normalizePOP3AuthenticatedUserID(authUser.UserID)
+	if err != nil {
+		return nil, err
 	}
 
 	folders, err := a.service.ListFolders(ctx, userID)
@@ -112,6 +109,17 @@ func (a POP3StoreAdapter) listInboxMessages(ctx context.Context, userID, inboxID
 			return nil, fmt.Errorf("decode inbox cursor: %w", err)
 		}
 	}
+}
+
+func normalizePOP3AuthenticatedUserID(userID string) (string, error) {
+	if strings.ContainsAny(userID, "\r\n") {
+		return "", fmt.Errorf("invalid authenticated user id")
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return "", fmt.Errorf("authenticated user id is required")
+	}
+	return userID, nil
 }
 
 type pop3InboxMsg struct {

@@ -369,6 +369,39 @@ func TestPOP3StoreAdapterRejectsControlCharacterAuthenticatedUserID(t *testing.T
 	}
 }
 
+func TestNormalizePOP3AuthenticatedUserID(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{name: "plain", input: "user-1", want: "user-1"},
+		{name: "trim spaces", input: " user-1 ", want: "user-1"},
+		{name: "empty", input: " \t ", wantErr: true},
+		{name: "carriage return", input: "user-1\ruser-2", wantErr: true},
+		{name: "line feed", input: "user-1\nuser-2", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizePOP3AuthenticatedUserID(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("normalize returned error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("normalize = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPOP3MailboxMessageSize(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
