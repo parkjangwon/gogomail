@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV vCard line-ending hardening)
+Last updated: 2026-05-14 (CardDAV address-data UID projection hardening)
+
+## CardDAV address-data UID projection hardening (2026-05-14, complete)
+- CardDAV `address-data` partial projections now always retain the vCard `UID` line alongside `BEGIN`, `VERSION`, and `END`.
+- Response and REPORT handler tests now assert projected contacts keep their required UID while still omitting unrequested properties such as email addresses.
 
 ## CardDAV vCard line-ending hardening (2026-05-14, complete)
 - CardDAV vCard object validation now rejects LF-only and mixed newline payloads before contact objects can be stored.

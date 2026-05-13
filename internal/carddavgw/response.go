@@ -151,7 +151,7 @@ func projectVCardProperties(raw string, properties []string) (string, error) {
 			return "", err
 		}
 		switch parsed.Name {
-		case "BEGIN", "VERSION", "END":
+		case "BEGIN", "VERSION", "UID", "END":
 			out = append(out, line)
 		default:
 			if _, ok := wanted[parsed.Name]; ok {

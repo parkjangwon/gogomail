@@ -3619,6 +3619,9 @@ func TestHandlerReportAddressBookMultigetProjectsAddressData(t *testing.T) {
 	if !strings.Contains(text, "FN:Contact One") {
 		t.Fatalf("projected address-data missing requested FN:\n%s", text)
 	}
+	if !strings.Contains(text, "UID:contact-1") {
+		t.Fatalf("projected address-data missing required UID:\n%s", text)
+	}
 	if strings.Contains(text, "EMAIL;TYPE=home") {
 		t.Fatalf("projected address-data included unrequested EMAIL:\n%s", text)
 	}
