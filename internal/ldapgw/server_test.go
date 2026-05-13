@@ -1324,6 +1324,63 @@ func TestLDAPServerOpenLDAPNoAttributesCompatibility(t *testing.T) {
 	}
 }
 
+func TestLDAPServerOpenLDAPOperationalAttributesCompatibility(t *testing.T) {
+	ldapsearch, err := exec.LookPath("ldapsearch")
+	if err != nil {
+		t.Skip("ldapsearch is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapsearch,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"-b", "ou=users,dc=example,dc=com",
+		"(mail=alice@example.com)",
+		"+",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ldapsearch operational attrs failed: %v\n%s", err, out)
+	}
+	output := string(out)
+	for _, want := range []string{
+		"entryDN: uid=alice,ou=users,dc=example,dc=com",
+		"entryUUID:",
+		"createTimestamp: 19700101000000Z",
+		"modifyTimestamp: 19700101000000Z",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("ldapsearch operational attrs output missing %q:\n%s", want, output)
+		}
+	}
+	for _, unexpected := range []string{"mail: alice@example.com", "cn: Alice", "objectClass:"} {
+		if strings.Contains(output, unexpected) {
+			t.Fatalf("ldapsearch operational attrs output included user attr %q:\n%s", unexpected, output)
+		}
+	}
+}
+
 func TestLDAPServerOpenLDAPObjectClassRequiredAttributesCompatibility(t *testing.T) {
 	ldapsearch, err := exec.LookPath("ldapsearch")
 	if err != nil {
@@ -1952,12 +2009,13 @@ func TestSelectLDAPAttributesHonorsSpecialSelectors(t *testing.T) {
 		"cn":                   {"Alice"},
 		"mail":                 {"alice@example.com"},
 		"supportedLDAPVersion": {"3"},
+		"entryDN":              {"uid=alice,ou=users,dc=example,dc=com"},
 	}
 	if got := selectLDAPAttributes(attrs, []string{"1.1"}, false); len(got) != 0 {
 		t.Fatalf("1.1 selected attrs = %#v, want none", got)
 	}
 	got := selectLDAPAttributes(attrs, []string{"+"}, false)
-	if len(got) != 1 || got["supportedLDAPVersion"][0] != "3" {
+	if len(got) != 2 || got["supportedLDAPVersion"][0] != "3" || got["entryDN"][0] == "" {
 		t.Fatalf("+ selected attrs = %#v, want only operational attrs", got)
 	}
 	got = selectLDAPAttributes(attrs, []string{"*", "+"}, false)
@@ -1976,6 +2034,9 @@ func TestPrincipalLDAPAttributesSatisfyDeclaredObjectClassRequirements(t *testin
 	})
 	if userAttrs["sn"][0] != "Alice User" {
 		t.Fatalf("user sn = %#v, want display-name fallback for person MUST sn", userAttrs["sn"])
+	}
+	if userAttrs["entryDN"][0] != "uid=alice,ou=users,dc=example,dc=com" || userAttrs["entryUUID"][0] == "" {
+		t.Fatalf("user operational attrs missing: %#v", userAttrs)
 	}
 	groupAttrs := principalLDAPAttributes(PrincipalEntry{
 		DN:          "cn=team,ou=groups,dc=example,dc=com",
