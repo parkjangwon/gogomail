@@ -18,7 +18,7 @@ Last updated: 2026-05-14 (LDAP gateway StartTLS/LDAPS and discovery hardening)
 - Non-discovery directory searches now require a successful bind; Root DSE and `cn=Subschema` base-object discovery remain available before bind for standard client setup.
 - `SearchResultEntry` encoding now emits the RFC 4511 application payload directly, matching OpenLDAP client decoding expectations.
 - LDAP bind/search/extended/read-only outcomes now flow through a metrics boundary, with `GOGOMAIL_METRICS_BACKEND=slog` wiring for operational logs.
-- Coverage verifies Root DSE and subschema discovery, StartTLS upgrade followed by LDAP search, DN-style simple bind, unauthenticated search rejection, organization OU subtree browsing, objectClass-to-principal-kind filtering, LDAP search scope filtering, OpenLDAP `ldapsearch` plaintext and StartTLS interoperability, referral responses, critical-control handling, Simple Paged Results paging cookies, LDAP metrics, LDAP TLS/referral config validation, YAML/env config loading, and existing bind/search/read-only protections.
+- Coverage verifies Root DSE and subschema discovery, StartTLS upgrade followed by LDAP search, DN-style simple bind, unauthenticated search rejection, organization OU subtree browsing, objectClass-to-principal-kind filtering, LDAP search scope filtering, OpenLDAP `ldapsearch` plaintext, StartTLS, and paged-results interoperability, referral responses, critical-control handling, Simple Paged Results paging cookies, LDAP metrics, LDAP TLS/referral config validation, YAML/env config loading, and existing bind/search/read-only protections.
 
 ## SMTP submission MAIL DSN parameter validation (2026-05-14, complete)
 - SMTP submission `MAIL FROM` with DSN parameters (RFC 3461) now has comprehensive coverage.
