@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker per-mailbox drop accounting)
+Last updated: 2026-05-14 (IMAP event broker canceled publish validation)
+
+## IMAP event broker canceled publish validation (2026-05-14, complete)
+- Broker regression coverage now verifies a canceled publish context does not fan out a mailbox event.
+- The same test asserts canceled publish attempts leave both aggregate and per-mailbox slow-subscriber drop counters unchanged.
 
 ## IMAP event broker per-mailbox drop accounting (2026-05-14, complete)
 - Slow-subscriber drops are now counted both as an aggregate and by normalized user/mailbox identity.

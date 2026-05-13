@@ -201,11 +201,28 @@ func TestMailboxEventBrokerRejectsCanceledPublishContext(t *testing.T) {
 	t.Parallel()
 
 	broker := NewMailboxEventBroker(1)
+	events, cancelSubscription, err := broker.Subscribe(context.Background(), "user-1", "inbox")
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer cancelSubscription()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	if err := broker.Publish(ctx, MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1}); err == nil {
 		t.Fatal("Publish accepted canceled context")
+	}
+	select {
+	case got := <-events:
+		t.Fatalf("received event from canceled publish: %#v", got)
+	default:
+	}
+	if got := broker.DroppedEvents(); got != 0 {
+		t.Fatalf("DroppedEvents = %d, want 0 after canceled publish", got)
+	}
+	if got := broker.DroppedEventsFor("user-1", "inbox"); got != 0 {
+		t.Fatalf("DroppedEventsFor = %d, want 0 after canceled publish", got)
 	}
 }
 

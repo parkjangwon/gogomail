@@ -4864,6 +4864,9 @@ Target outcome:
          normalized user/mailbox identity. Diagnostics can now distinguish
          which selected mailbox is losing events instead of relying solely on
          an aggregate broker-wide counter.
+ 1563. IMAP mailbox event broker cancellation coverage now verifies a canceled
+         publish context exits before fanout and before aggregate or
+         per-mailbox slow-subscriber drop counters can change.
 
 ## Deferred until backend contracts stabilize
 
