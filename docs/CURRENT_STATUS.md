@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH PLAIN challenge wrong password capability)
+Last updated: 2026-05-14 (POP3 auth success test helper cleanup)
+
+## POP3 auth success test helper cleanup (2026-05-14, complete)
+- POP3 tests now share an authenticated-state assertion helper for transaction CAPA and `STAT` checks.
+- AUTH PLAIN and AUTH LOGIN success regressions now use the shared helper.
 
 ## POP3 AUTH PLAIN challenge wrong password capability (2026-05-14, complete)
 - POP3 server coverage now verifies wrong-password challenge-style `AUTH PLAIN` returns `-ERR authentication failed`.
