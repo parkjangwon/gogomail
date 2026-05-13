@@ -80,9 +80,11 @@ type pop3TestAuth struct {
 	validPass          string
 	userID             string
 	mustChangePassword bool
+	calls              int
 }
 
 func (a *pop3TestAuth) AuthenticatePlain(_ context.Context, _, username, password string) (smtpd.SubmissionUser, error) {
+	a.calls++
 	if username == a.validUser && password == a.validPass {
 		return smtpd.SubmissionUser{UserID: a.userID, Address: username, MustChangePassword: a.mustChangePassword}, nil
 	}
@@ -223,6 +225,28 @@ func TestPOP3StoreAdapterRejectsMustChangePassword(t *testing.T) {
 
 	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
 		t.Fatal("expected error for user that must change password")
+	}
+}
+
+func TestPOP3StoreAdapterRechecksAuthPolicyEachLogin(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err != nil {
+		t.Fatalf("initial Authenticate returned error: %v", err)
+	}
+	auth.mustChangePassword = true
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil {
+		t.Fatal("expected second Authenticate to use fresh must-change-password policy")
+	}
+	if auth.calls != 2 {
+		t.Fatalf("auth calls = %d, want 2", auth.calls)
 	}
 }
 
