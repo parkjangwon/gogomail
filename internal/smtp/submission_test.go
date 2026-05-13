@@ -151,6 +151,45 @@ func TestSubmissionAuthHookFailureLeavesSessionUnauthenticated(t *testing.T) {
 	}
 }
 
+func TestSubmissionAuthHookFailureRecordsRejectedMetric(t *testing.T) {
+	t.Parallel()
+
+	hookErr := errors.New("auth hook failed")
+	metrics := &recordingMetrics{}
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         storage.NewLocalStore(t.TempDir()),
+		Authenticator: submissionAuthenticator{username: "jangwon@example.com", password: "pass"},
+		Recorder:      &submissionRecorder{},
+		Metrics:       metrics,
+		Hooks: []Hook{
+			func(_ context.Context, event Event) error {
+				if event.Stage == StageAuthenticated {
+					return hookErr
+				}
+				return nil
+			},
+		},
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, _, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); !errors.Is(err, hookErr) {
+		t.Fatalf("AUTH PLAIN error = %v, want hook error", err)
+	}
+	if !metrics.has(StageAuthenticated, MetricRejected) {
+		t.Fatalf("metrics = %+v, want rejected auth metric after hook failure", metrics.events)
+	}
+	if metrics.has(StageAuthenticated, MetricAccepted) {
+		t.Fatalf("metrics = %+v, want no accepted auth metric after hook failure", metrics.events)
+	}
+}
+
 func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	t.Parallel()
 
