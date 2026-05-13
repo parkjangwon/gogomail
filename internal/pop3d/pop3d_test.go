@@ -364,6 +364,22 @@ func TestPOP3UserPassFailureKeepsAuthCapabilities(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3PassWithoutUserKeepsAuthCapabilities(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	line := pop3Cmd(t, tp, "-ERR", "PASS secret")
+	if !strings.Contains(line, "authentication failed") {
+		t.Fatalf("expected authentication failure, got: %s", line)
+	}
+	assertPOP3AuthCapabilities(t, tp, "PASS without USER")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
 func TestPOP3AuthPlainRejectsExtraArguments(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 USER PASS failure capability)
+Last updated: 2026-05-14 (POP3 PASS without USER capability)
+
+## POP3 PASS without USER capability (2026-05-14, complete)
+- POP3 server coverage now verifies `PASS` without a prior `USER` returns `-ERR authentication failed`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the command-order error.
 
 ## POP3 USER PASS failure capability (2026-05-14, complete)
 - POP3 server coverage now verifies wrong-password `USER/PASS` returns `-ERR authentication failed`.
