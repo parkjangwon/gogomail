@@ -74,14 +74,15 @@ const (
 )
 
 type session struct {
-	server   *Server
-	conn     net.Conn
-	state    int
-	mailbox  Mailbox
-	user     string
-	reader   *bufio.Reader
-	writer   *bufio.Writer
-	textConn *textproto.Conn
+	server    *Server
+	conn      net.Conn
+	state     int
+	mailbox   Mailbox
+	user      string
+	reader    *bufio.Reader
+	writer    *bufio.Writer
+	textConn  *textproto.Conn
+	tlsActive bool
 }
 
 func (s *Server) handleConn(conn net.Conn) {
@@ -189,18 +190,9 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		sess.writeOK("bye")
 		sess.conn.Close()
 	case "CAPA":
-		sess.writeOK("Capability list follows")
-		sess.writer.WriteString("UIDL\r\n")
-		sess.writer.WriteString("TOP\r\n")
-		sess.writer.WriteString("USER\r\n")
-		sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
-		if sess.server.TLSConfig != nil {
-			sess.writer.WriteString("STLS\r\n")
-		}
-		sess.writer.WriteString(".\r\n")
-		sess.writer.Flush()
+		sess.writeCapabilities()
 	case "STLS":
-		if sess.server.TLSConfig == nil {
+		if !sess.canUseSTLS() {
 			sess.writeERR("STLS not available")
 			return
 		}
@@ -215,6 +207,7 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 		sess.reader = bufio.NewReader(tlsConn)
 		sess.writer = bufio.NewWriter(tlsConn)
 		sess.textConn = textproto.NewConn(tlsConn)
+		sess.tlsActive = true
 	case "NOOP":
 		sess.writeOK("")
 	case "AUTH":
@@ -402,19 +395,29 @@ func (sess *session) handleTransaction(cmd string, args []string) {
 		sess.writeOK("bye")
 		sess.conn.Close()
 	case "CAPA":
-		sess.writeOK("Capability list follows")
-		sess.writer.WriteString("UIDL\r\n")
-		sess.writer.WriteString("TOP\r\n")
-		sess.writer.WriteString("USER\r\n")
-		sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
-		if sess.server.TLSConfig != nil {
-			sess.writer.WriteString("STLS\r\n")
-		}
-		sess.writer.WriteString(".\r\n")
-		sess.writer.Flush()
+		sess.writeCapabilities()
+	case "STLS":
+		sess.writeERR("STLS not available in transaction state")
 	default:
 		sess.writeERR("unknown command")
 	}
+}
+
+func (sess *session) writeCapabilities() {
+	sess.writeOK("Capability list follows")
+	sess.writer.WriteString("UIDL\r\n")
+	sess.writer.WriteString("TOP\r\n")
+	sess.writer.WriteString("USER\r\n")
+	sess.writer.WriteString("SASL PLAIN LOGIN\r\n")
+	if sess.canUseSTLS() {
+		sess.writer.WriteString("STLS\r\n")
+	}
+	sess.writer.WriteString(".\r\n")
+	sess.writer.Flush()
+}
+
+func (sess *session) canUseSTLS() bool {
+	return sess.state == stateAuthorization && sess.server.TLSConfig != nil && !sess.tlsActive
 }
 
 func (sess *session) msgCountAndSize() (int, int) {

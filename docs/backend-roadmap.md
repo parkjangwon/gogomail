@@ -5299,6 +5299,10 @@ Progress:
    dot-stuffing to every content line beginning with `.`, canonicalize content
    line endings to CRLF, and preserve the final `.\r\n` terminator. Regression
    tests cover body, header, and TOP body dot-starting lines.
+2. POP3 `CAPA` now advertises `STLS` only before authentication when TLS is
+   configured and has not already been negotiated. TRANSACTION-state `CAPA`
+   omits `STLS`, and TRANSACTION-state `STLS` returns `-ERR` without closing the
+   mailbox session.
 
 ---
 
