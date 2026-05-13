@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event initial legacy EXISTS coverage)
+Last updated: 2026-05-14 (IMAP mailbox event zero-sequence EXPUNGE coverage)
+
+## IMAP mailbox event zero-sequence EXPUNGE coverage (2026-05-14, complete)
+- `writeMailboxEvent` coverage now verifies EXPUNGE events with `SequenceNumber=0` produce no wire output.
+- The same test verifies zero-sequence EXPUNGE events leave `selectedMessages` and saved SEARCH sequence state unchanged.
 
 ## IMAP mailbox event initial legacy EXISTS coverage (2026-05-14, complete)
 - `writeMailboxEvent` coverage now verifies a legacy `Messages=0` EXISTS event increments an initially empty selected mailbox to `* 1 EXISTS`.

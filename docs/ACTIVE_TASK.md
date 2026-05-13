@@ -1,13 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-302: IMAP mailbox event zero-message initial EXISTS audit
+## TASK-303: IMAP mailbox event expunge zero-sequence audit
 
 ### 배경
 
-legacy EXISTS 이벤트는 `Messages=0`을 "정확한 0개"가 아니라 "새 메시지 하나가
-도착했다"는 호환 신호로 처리한다. selected mailbox count가 0인 초기 상태에서도
-이 경로는 `* 1 EXISTS`와 `selectedMessages=1`로 이어져야 한다. 초기 0개 상태의
-legacy increment 동작을 별도 테스트로 고정한다.
+IMAP EXPUNGE 이벤트는 sequence number가 없으면 클라이언트에 유효한 EXPUNGE
+response를 만들 수 없다. 서버는 `SequenceNumber=0` 이벤트를 조용히 무시해야 하며,
+selected message count나 saved SEARCH sequence state를 변경하면 안 된다. 이
+방어 경로를 직접 테스트로 고정한다.
 
 ### 구현 대상
 
@@ -18,13 +18,13 @@ legacy increment 동작을 별도 테스트로 고정한다.
 
 ### 완료 조건
 
-- [x] selected count 0에서 `Messages=0` legacy EXISTS 이벤트가 `* 1 EXISTS`를 만드는지 검증한다.
-- [x] selected count 0에서 legacy EXISTS 이벤트가 `selectedMessages=1`로 갱신하는지 검증한다.
-- [x] 초기 0개 mailbox의 legacy increment 경로가 별도 테스트로 고정된다.
+- [x] `SequenceNumber=0` EXPUNGE 이벤트가 wire response를 만들지 않는지 검증한다.
+- [x] `SequenceNumber=0` EXPUNGE 이벤트가 `selectedMessages`를 감소시키지 않는지 검증한다.
+- [x] `SequenceNumber=0` EXPUNGE 이벤트가 saved SEARCH sequence state를 변경하지 않는지 검증한다.
 - [x] `go test ./internal/imapgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-303: IMAP mailbox event expunge zero-sequence audit
+TASK-304: IMAP mailbox event expunge clamp audit
