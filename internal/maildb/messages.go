@@ -415,7 +415,6 @@ WHERE user_id = $1
     SELECT 1
     FROM messages
     WHERE messages.folder_id = folders.id
-      AND messages.status = 'active'
   )`
 
 	result, err := r.db.ExecContext(ctx, query, userID, folderID)

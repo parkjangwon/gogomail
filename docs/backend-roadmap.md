@@ -6098,3 +6098,7 @@ Target outcome:
      `RestoreMessage` restores a deleted message without reusing the expunged
      UID value; subsequent IMAP UID assignment must allocate above the deleted
      message's previous UID and keep one message-specific UID row.
+1707. Mailbox delete with deleted messages now returns a clean not-empty error:
+     `DeleteFolder` checks for any remaining message row, not only active
+     messages, before deleting a folder so soft-deleted messages cannot leak a
+     database foreign-key error after IMAP UID row cleanup.
