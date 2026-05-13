@@ -551,7 +551,7 @@ func (r *Repository) GetDomainSettings(ctx context.Context, domainID string) (*D
 		        require_2fa, session_timeout_minutes, password_min_length,
 		        password_require_uppercase, password_require_numbers, password_require_special_chars,
 		        password_expiry_days, user_registration_mode, password_reset_token_ttl_minutes,
-		        updated_at, updated_by
+		        updated_at, COALESCE(updated_by::text, '')
 		 FROM domain_settings WHERE domain_id = $1`,
 		domainID,
 	).Scan(&settings.DomainID, &settings.TLSPolicy, &settings.QuotaPerUser, &settings.IPWhitelistEnabled,

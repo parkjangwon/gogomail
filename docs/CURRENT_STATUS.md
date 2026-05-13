@@ -5,6 +5,7 @@ Last updated: 2026-05-14 (Domain settings visibility hardening)
 ## Domain settings visibility hardening (2026-05-14, complete)
 - Domain settings now load whenever the selected domain changes, including the auto-selected first domain, so the editable registration/security/password/quota form appears without requiring a second manual selection.
 - Domain settings load failures and empty-domain states are rendered outside the settings form block, preventing the page from looking blank when settings data cannot be fetched.
+- Domain settings reads now normalize nullable `updated_by` values to an empty string, preventing legacy/default settings rows from failing to load before the form can render.
 
 ## Recovery settings form hardening (2026-05-14, complete)
 - Webmail profile updates now parse structured API error envelopes before displaying them, so backup email validation errors no longer render as `[object Object]`.
