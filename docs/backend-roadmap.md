@@ -5065,6 +5065,9 @@ Target outcome:
  1623. POP3 transaction-state STLS denial is now covered: after authentication,
          `STLS` returns a clear `-ERR` and the existing transaction session
          remains usable for `NOOP` and `STAT`.
+ 1624. POP3 unavailable-STLS auth-state denial is now covered: servers without
+         TLS config reject `STLS` while keeping normal `USER/PASS` login and
+         `STAT` usable afterward.
 
 ## Deferred until backend contracts stabilize
 

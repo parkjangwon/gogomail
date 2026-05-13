@@ -889,6 +889,24 @@ func TestPOP3CapaDoesNotAdvertiseSTLSWithoutTLSConfig(t *testing.T) {
 	pop3Cmd(t, tp, "-ERR", "STLS")
 }
 
+func TestPOP3STLSUnavailableInAuthStateKeepsSessionUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	line := pop3Cmd(t, tp, "-ERR", "STLS")
+	if !strings.Contains(line, "STLS not available") {
+		t.Fatalf("expected auth-state STLS unavailable denial, got: %s", line)
+	}
+	pop3Login(t, tp)
+	line = pop3Cmd(t, tp, "+OK", "STAT")
+	if !strings.Contains(line, "2 ") {
+		t.Fatalf("expected session to remain usable after STLS denial, got: %s", line)
+	}
+}
+
 func TestPOP3CapaAdvertisesSTLSOnlyBeforeAuthentication(t *testing.T) {
 	_, listener := newTestServerWithMessagesAndTLS(t, []mockMessage{
 		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
