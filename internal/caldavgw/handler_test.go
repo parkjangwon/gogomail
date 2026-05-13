@@ -831,8 +831,8 @@ func TestHandlerReportCalendarQueryTimeRangeUsesComponentCandidates(t *testing.T
 	if rec.Code != http.StatusMultiStatus {
 		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
 	}
-	if store.candidateCount != 1 || store.listCount != 0 {
-		t.Fatalf("candidateCount = %d, listCount = %d; want component candidate path only", store.candidateCount, store.listCount)
+	if store.candidateCount != 1 || store.componentListCount != 0 || store.listCount != 0 {
+		t.Fatalf("candidateCount = %d, componentListCount = %d, listCount = %d; want component candidate path only", store.candidateCount, store.componentListCount, store.listCount)
 	}
 	if len(store.components) != 1 || store.components[0] != ComponentVEVENT {
 		t.Fatalf("components = %v, want [%s]", store.components, ComponentVEVENT)
@@ -4869,9 +4869,10 @@ type noSyncCalendarDiscoveryStore struct {
 
 type queryCandidateCalendarDiscoveryStore struct {
 	fakeDiscoveryStore
-	candidateCount int
-	listCount      int
-	components     []string
+	candidateCount     int
+	componentListCount int
+	listCount          int
+	components         []string
 }
 
 func (s *noSyncCalendarDiscoveryStore) LookupPrincipal(ctx context.Context, userID string) (Principal, error) {
@@ -4901,6 +4902,24 @@ func (s *noSyncCalendarDiscoveryStore) LookupCalendarObject(ctx context.Context,
 func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjects(ctx context.Context, userID string, calendarID string) ([]CalendarObject, error) {
 	s.listCount++
 	return s.fakeDiscoveryStore.ListCalendarObjects(ctx, userID, calendarID)
+}
+
+func (s *queryCandidateCalendarDiscoveryStore) ListCalendarObjectsByComponentLimit(_ context.Context, userID string, calendarID string, _ string, component string, limit int, includeICS bool) ([]CalendarObject, error) {
+	s.componentListCount++
+	var objects []CalendarObject
+	for _, object := range s.objects {
+		if object.UserID != userID || object.CalendarID != calendarID || !strings.EqualFold(object.Component, component) {
+			continue
+		}
+		if !includeICS {
+			object.ICS = nil
+		}
+		objects = append(objects, object)
+		if limit >= 0 && len(objects) >= limit {
+			break
+		}
+	}
+	return objects, nil
 }
 
 func (s *queryCandidateCalendarDiscoveryStore) WalkCalendarQueryCandidates(_ context.Context, userID string, calendarID string, status string, component string, yield func(CalendarObject) (bool, error)) error {
