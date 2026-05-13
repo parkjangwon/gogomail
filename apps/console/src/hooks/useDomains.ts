@@ -7,7 +7,7 @@ export interface Domain {
   id: string;
   company_id: string;
   name: string;
-  status: 'active' | 'inactive' | 'pending';
+  status: 'active' | 'suspended' | 'disabled';
   is_primary: boolean;
   created_at: string;
   dkim_configured: boolean;
