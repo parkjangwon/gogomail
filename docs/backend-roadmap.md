@@ -6173,3 +6173,7 @@ Target outcome:
       repeated AUTH after `MAIL FROM` is rejected without clearing the active
       envelope sender, and the transaction can continue through `RCPT` and
       `DATA`.
+1727. SMTP submission unsupported AUTH transaction state is now covered:
+      unsupported AUTH after `MAIL FROM` is rejected without clearing the active
+      envelope sender, and the transaction can continue through `RCPT` and
+      `DATA`.
