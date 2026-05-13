@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event unknown-type coverage)
+Last updated: 2026-05-14 (IMAP mailbox event stale EXISTS coverage)
+
+## IMAP mailbox event stale EXISTS coverage (2026-05-14, complete)
+- `writeMailboxEvent` coverage now verifies EXISTS events whose `Messages` count is below or equal to the selected count produce no wire output.
+- The same test verifies stale EXISTS events leave `selectedMessages` unchanged.
 
 ## IMAP mailbox event unknown-type coverage (2026-05-14, complete)
 - IMAP NOOP drain coverage now includes a selected-mailbox event with an unknown type and verifies it produces no wire response.

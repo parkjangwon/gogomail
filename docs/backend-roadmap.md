@@ -4899,6 +4899,10 @@ Target outcome:
          NOOP drain and IDLE live paths. A selected-mailbox event with an
          unsupported type is ignored without a wire response, and the following
          valid EXISTS event still drives the visible message count.
+ 1572. IMAP server stale EXISTS handling is now covered directly:
+         `writeMailboxEvent` ignores EXISTS counts that are below or equal to
+         the selected message count, producing no wire response and leaving
+         `selectedMessages` unchanged.
 
 ## Deferred until backend contracts stabilize
 
