@@ -292,6 +292,35 @@ func TestPOP3StoreAdapterUsesFreshAuthenticatedUserID(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterTrimsAuthenticatedUserID(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: " user-1 "}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	keyed, ok := mb.(interface{ MaildropLockKey() string })
+	if !ok {
+		t.Fatal("mailbox does not expose MaildropLockKey")
+	}
+	if got := keyed.MaildropLockKey(); got != "user-1" {
+		t.Fatalf("maildrop lock key = %q, want user-1", got)
+	}
+	if len(repo.folderUsers) != 1 || repo.folderUsers[0] != "user-1" {
+		t.Fatalf("folder users = %#v, want [user-1]", repo.folderUsers)
+	}
+	if len(repo.pageUsers) != 1 || repo.pageUsers[0] != "user-1" {
+		t.Fatalf("page users = %#v, want [user-1]", repo.pageUsers)
+	}
+}
+
 func TestPOP3MailboxMessageSize(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
