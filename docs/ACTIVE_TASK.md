@@ -1,12 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-338: POP3 commit failure preserves pending deletes audit
+## TASK-339: POP3 reset after commit failure audit
 
 ### 배경
 
-POP3 `QUIT` 시점의 delete commit이 DB bulk delete 실패를 만나면 pending delete 목록을
-지우면 안 된다. 실패 후 pending이 보존되어야 세션 종료 처리나 상위 계층이 재시도/오류
-처리를 판단할 수 있으므로, 실패 경로의 상태 보존을 테스트로 고정한다.
+POP3 delete commit 실패 후에도 클라이언트가 `RSET` 의미의 reset을 수행하면 세션 내
+삭제 표시와 pending delete 목록은 해제되어야 한다. 실패로 보존된 pending 상태가 reset
+이후에도 남아 있으면 후속 commit에서 의도치 않은 삭제가 발생할 수 있으므로 이 경로를
+테스트로 고정한다.
 
 ### 구현 대상
 
@@ -17,13 +18,13 @@ POP3 `QUIT` 시점의 delete commit이 DB bulk delete 실패를 만나면 pendin
 
 ### 완료 조건
 
-- [x] POP3 test repository에 bulk delete 오류 주입을 추가한다.
-- [x] bulk delete 실패 시 `CommitDeletes`가 오류를 반환하는지 검증한다.
-- [x] bulk delete 실패 후 pending delete 목록과 deleted 표시가 보존되는지 검증한다.
+- [x] bulk delete 실패 후 `ResetDeleted`를 호출한다.
+- [x] reset 이후 pending delete 목록과 deleted 표시가 모두 해제되는지 검증한다.
+- [x] reset 이후 `CommitDeletes`가 추가 bulk delete를 호출하지 않는지 검증한다.
 - [x] `go test ./internal/mailservice` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-339: POP3 reset after commit failure audit
+TASK-340: POP3 duplicate mark delete audit

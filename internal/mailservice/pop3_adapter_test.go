@@ -1109,6 +1109,37 @@ func TestPOP3MailboxCommitDeleteFailurePreservesPending(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxResetAfterCommitFailureClearsPending(t *testing.T) {
+	adapter, repo, _ := newPOP3TestSetup()
+	repo.bulkDeleteErr = fmt.Errorf("bulk delete failed")
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	mailbox, ok := mb.(*pop3Mailbox)
+	if !ok {
+		t.Fatal("expected pop3 mailbox adapter")
+	}
+	if err := mailbox.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	if err := mailbox.CommitDeletes(); err == nil {
+		t.Fatal("expected commit delete error")
+	}
+	mailbox.ResetDeleted()
+	if len(mailbox.pending) != 0 {
+		t.Fatalf("pending deletes after reset = %#v, want empty", mailbox.pending)
+	}
+	if mailbox.Deleted(0) {
+		t.Fatal("expected message deletion flag to clear after reset")
+	}
+	repo.bulkDeleteErr = nil
+	if err := mailbox.CommitDeletes(); err != nil {
+		t.Fatalf("commit after reset: %v", err)
+	}
+	if repo.bulkDeleteCalls != 1 {
+		t.Fatalf("bulk delete calls after reset commit = %d, want 1", repo.bulkDeleteCalls)
+	}
+}
+
 func TestPOP3MailboxResetClearsPending(t *testing.T) {
 	adapter, repo, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

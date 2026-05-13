@@ -5030,6 +5030,9 @@ Target outcome:
  1611. POP3 failed delete commits now have explicit preservation coverage:
          bulk delete errors leave pending delete IDs and deleted flags intact
          for retry/error handling.
+ 1612. POP3 reset-after-failed-commit behavior is now covered: `ResetDeleted`
+         clears preserved pending delete state, and the next commit is a no-op
+         instead of retrying an intentionally reset delete.
 
 ## Deferred until backend contracts stabilize
 
