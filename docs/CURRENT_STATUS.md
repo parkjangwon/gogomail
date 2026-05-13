@@ -1376,6 +1376,9 @@ message count, size, UIDL, content retrieval, and deletion tracking.
 `RETR` and `TOP` now send RFC 1939 multi-line content through a shared
 dot-stuffing writer that canonicalizes line endings to CRLF and escapes every
 line beginning with `.` before the final `.\r\n` terminator.
+`CAPA` advertises `STLS` only while the session is still in AUTHORIZATION state
+and TLS has not already been negotiated; authenticated TRANSACTION sessions
+reject `STLS` while keeping the mailbox session usable.
 TLS support via `STLS` command and implicit POP3S (port 995) are supported
 through a configurable `tls.Config`.
 

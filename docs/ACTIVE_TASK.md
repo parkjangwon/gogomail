@@ -1,14 +1,13 @@
 # ACTIVE_TASK
 
-## TASK-233: POP3 multiline RETR/TOP dot-stuffing audit
+## TASK-234: POP3 STLS transaction-state capability audit
 
 ### 배경
 
-POP3 `RETR`와 `TOP`은 RFC 1939 multi-line response 규칙에 따라 본문 줄이
-마침표(`.`)로 시작하면 전송 시 dot-stuffing 해야 한다. 현재 구현은 원문을
-그대로 쓰고 마지막에 `.\r\n` terminator를 붙이므로, 메시지 본문에 `.` 단독
-또는 `.` 시작 줄이 있으면 클라이언트가 응답을 조기 종료하거나 내용을 잘못
-복원할 수 있다.
+POP3 `STLS`는 RFC 2595에 따라 인증 전에 TLS 협상을 시작하기 위한 명령이다.
+현재 구현은 TLS 설정이 있으면 인증 후 TRANSACTION 상태의 `CAPA`에서도 `STLS`를
+광고하고, `STLS` 명령이 인증 후에도 허용될 수 있는 구조다. 인증 후에는 TLS
+재협상을 광고하거나 받아들이지 않도록 상태를 고정해야 한다.
 
 ### 구현 대상
 
@@ -20,13 +19,14 @@ POP3 `RETR`와 `TOP`은 RFC 1939 multi-line response 규칙에 따라 본문 줄
 
 ### 완료 조건
 
-- [x] POP3 `RETR` multi-line response가 `.` 시작 줄을 dot-stuffing한다.
-- [x] POP3 `TOP` multi-line response가 header/body 모두에서 `.` 시작 줄을 dot-stuffing한다.
-- [x] POP3 multi-line 응답은 CRLF canonical form과 `.\r\n` terminator를 유지한다.
+- [x] TLS 설정이 없으면 `CAPA`가 `STLS`를 광고하지 않고 `STLS` 명령은 `-ERR`를 반환한다.
+- [x] AUTHORIZATION 상태에서 TLS 설정이 있을 때만 `CAPA`가 `STLS`를 광고한다.
+- [x] TRANSACTION 상태 `CAPA`는 TLS 설정이 있어도 `STLS`를 광고하지 않는다.
+- [x] TRANSACTION 상태 `STLS` 명령은 `-ERR`를 반환하고 세션을 유지한다.
 - [x] `go test ./internal/pop3d` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-234: POP3 STLS transaction-state capability audit
+TASK-235: POP3 RETR fetch-error response audit

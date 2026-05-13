@@ -2,6 +2,7 @@ package pop3d
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -85,6 +86,10 @@ func newTestServer(t *testing.T) (*Server, net.Listener) {
 }
 
 func newTestServerWithMessages(t *testing.T, messages []mockMessage) (*Server, net.Listener) {
+	return newTestServerWithMessagesAndTLS(t, messages, nil)
+}
+
+func newTestServerWithMessagesAndTLS(t *testing.T, messages []mockMessage, tlsConfig *tls.Config) (*Server, net.Listener) {
 	store := &mockStore{
 		mailbox: &mockMailbox{
 			messages: messages,
@@ -99,6 +104,7 @@ func newTestServerWithMessages(t *testing.T, messages []mockMessage) (*Server, n
 
 	server := &Server{
 		Store:       store,
+		TLSConfig:   tlsConfig,
 		Greeting:    "gogomail POP3 ready",
 		IdleTimeout: 5 * time.Second,
 	}
@@ -116,6 +122,15 @@ func pop3Login(t *testing.T, tp *textproto.Conn) {
 	t.Helper()
 	pop3Cmd(t, tp, "+OK", "USER alice")
 	pop3Cmd(t, tp, "+OK", "PASS secret")
+}
+
+func pop3ReadDotLines(t *testing.T, tp *textproto.Conn) string {
+	t.Helper()
+	data, err := io.ReadAll(tp.DotReader())
+	if err != nil {
+		t.Fatalf("read dot response: %v", err)
+	}
+	return string(data)
 }
 
 func pop3Conn(t *testing.T, addr string) *textproto.Conn {
@@ -391,6 +406,46 @@ func TestPOP3Capa(t *testing.T) {
 	if !strings.Contains(capa, "UIDL") {
 		t.Fatalf("expected UIDL in CAPA, got: %s", capa)
 	}
+}
+
+func TestPOP3CapaDoesNotAdvertiseSTLSWithoutTLSConfig(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "CAPA")
+	capa := pop3ReadDotLines(t, tp)
+	if strings.Contains(capa, "STLS") {
+		t.Fatalf("CAPA advertised STLS without TLS config: %s", capa)
+	}
+	pop3Cmd(t, tp, "-ERR", "STLS")
+}
+
+func TestPOP3CapaAdvertisesSTLSOnlyBeforeAuthentication(t *testing.T) {
+	_, listener := newTestServerWithMessagesAndTLS(t, []mockMessage{
+		{uidl: "msg001", size: 42, content: "From: a@example.com\r\n\r\nHello\r\n"},
+	}, &tls.Config{MinVersion: tls.VersionTLS12})
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "CAPA")
+	capa := pop3ReadDotLines(t, tp)
+	if !strings.Contains(capa, "STLS") {
+		t.Fatalf("CAPA did not advertise STLS before auth: %s", capa)
+	}
+
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "CAPA")
+	capa = pop3ReadDotLines(t, tp)
+	if strings.Contains(capa, "STLS") {
+		t.Fatalf("transaction CAPA advertised STLS after auth: %s", capa)
+	}
+	pop3Cmd(t, tp, "-ERR", "STLS")
+	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
 func TestPOP3TransactionQuitAppliesDele(t *testing.T) {
