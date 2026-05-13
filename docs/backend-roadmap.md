@@ -5122,6 +5122,9 @@ Target outcome:
  1642. POP3 USER/PASS authentication success is now covered for capability
          transition: auth-only CAPA entries disappear and STAT works in
          transaction state.
+ 1643. POP3 USER/PASS wrong-password handling now verifies authorization-state
+         capability preservation: failed authentication leaves CAPA and normal
+         login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
