@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker type normalization)
+Last updated: 2026-05-14 (IMAP event broker slow-subscriber accounting)
+
+## IMAP event broker slow-subscriber accounting (2026-05-14, complete)
+- The mailbox event broker now counts events dropped because a matching subscriber channel was full.
+- Tests can read the aggregate `DroppedEvents` counter, and the slow-subscriber regression now verifies a non-blocking drop is observable.
 
 ## IMAP event broker type normalization (2026-05-14, complete)
 - Published mailbox event types are now trimmed and validated against the supported EXISTS, EXPUNGE, and FLAGS types before fanout.

@@ -10,6 +10,7 @@ import (
 type MailboxEventBroker struct {
 	mu          sync.Mutex
 	nextID      uint64
+	dropped     uint64
 	bufferDepth int
 	subscribers map[uint64]mailboxEventSubscriber
 }
@@ -106,11 +107,18 @@ func (b *MailboxEventBroker) Publish(ctx context.Context, event MailboxEvent) er
 			select {
 			case sub.events <- event:
 			default:
+				b.dropped++
 			}
 		}
 	}
 	b.mu.Unlock()
 	return nil
+}
+
+func (b *MailboxEventBroker) DroppedEvents() uint64 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.dropped
 }
 
 func normalizeMailboxEventType(eventType MailboxEventType) (MailboxEventType, error) {

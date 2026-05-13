@@ -4856,6 +4856,10 @@ Target outcome:
          as whitespace-wrapped or unknown event types are normalized or
          surfaced at the broker boundary instead of being silently ignored by
          selected sessions.
+ 1561. IMAP mailbox event broker slow-subscriber drops are now counted inside
+         the broker and exposed through a safe aggregate accessor. Non-blocking
+         fanout remains intact, but event-loss pressure is visible to tests
+         and future operational diagnostics.
 
 ## Deferred until backend contracts stabilize
 

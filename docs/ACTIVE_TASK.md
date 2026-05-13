@@ -1,14 +1,14 @@
 # ACTIVE_TASK
 
-## TASK-287: IMAP event broker event type normalization audit
+## TASK-288: IMAP event broker slow-subscriber metrics audit
 
 ### 배경
 
-IMAP mailbox event broker는 user/mailbox identity를 정규화하지만, event type은
-빈 값만 검사한다. `" exists "`처럼 공백이 섞인 type은 publish 검증을 통과한 뒤
-서버의 event switch에서 처리되지 않을 수 있고, 알 수 없는 type도 브로커를
-지나갈 수 있다. 브로커 입구에서 event type을 trim하고 지원되는 type만 허용해
-producer 오류가 조용히 유실되지 않게 해야 한다.
+IMAP mailbox event broker는 느린 구독자가 publisher를 막지 않도록 가득 찬
+구독자 채널에는 non-blocking으로 이벤트를 드롭한다. 이 동작은 서버 안정성에는
+필요하지만, 드롭 수를 관측할 방법이 없어 운영 중 selected session 이벤트 유실
+압력을 확인하기 어렵다. 브로커 내부에 드롭 카운터를 두어 테스트와 운영 진단에서
+slow-subscriber 압력을 확인할 수 있게 해야 한다.
 
 ### 구현 대상
 
@@ -20,13 +20,13 @@ producer 오류가 조용히 유실되지 않게 해야 한다.
 
 ### 완료 조건
 
-- [x] IMAP event broker 발행 event type이 trim된 값으로 fanout된다.
-- [x] 지원되지 않는 event type은 publish 단계에서 에러로 거부된다.
-- [x] 공백이 섞인 event type과 unsupported type 테스트를 추가한다.
+- [x] IMAP event broker가 slow subscriber로 드롭한 이벤트 수를 누적한다.
+- [x] 드롭 카운터를 읽을 수 있는 안전한 접근자를 제공한다.
+- [x] non-blocking slow subscriber 테스트가 드롭 카운터를 검증한다.
 - [x] `go test ./internal/imapgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-288: IMAP event broker slow-subscriber metrics audit
+TASK-289: IMAP event broker per-subscriber drop accounting audit
