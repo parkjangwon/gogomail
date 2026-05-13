@@ -560,8 +560,23 @@ func runPOP3Gateway(ctx context.Context, cfg config.Config, logger *slog.Logger)
 
 	logger.Info("pop3 server listening", "mode", ModePOP3, "addr", ln.Addr().String(), "tls_configured", server.TLSConfig != nil)
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() { errCh <- server.Serve(ln) }()
+
+	pop3sAddr := strings.TrimSpace(cfg.POP3SAddr)
+	if pop3sAddr != "" {
+		if server.TLSConfig == nil {
+			server.Close()
+			return errors.New("GOGOMAIL_POP3S_ADDR requires POP3 TLS certificate and key files")
+		}
+		pop3sLn, err := net.Listen("tcp", pop3sAddr)
+		if err != nil {
+			server.Close()
+			return fmt.Errorf("pop3s listen %s: %w", pop3sAddr, err)
+		}
+		logger.Info("pop3s server listening", "mode", ModePOP3, "addr", pop3sLn.Addr().String())
+		go func() { errCh <- server.Serve(tls.NewListener(pop3sLn, server.TLSConfig)) }()
+	}
 
 	select {
 	case <-ctx.Done():

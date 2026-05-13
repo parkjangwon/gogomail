@@ -511,6 +511,7 @@ func TestValidateRejectsInvalidListenerAddresses(t *testing.T) {
 		{name: "imap empty", mutate: func(cfg *Config) { cfg.IMAPAddr = "" }},
 		{name: "imap newline", mutate: func(cfg *Config) { cfg.IMAPAddr = ":1143\nbad" }},
 		{name: "imap max connections negative", mutate: func(cfg *Config) { cfg.IMAPMaxConnections = -1 }},
+		{name: "pop3s missing port", mutate: func(cfg *Config) { cfg.POP3SAddr = "localhost" }},
 		{name: "pop3 max connections negative", mutate: func(cfg *Config) { cfg.POP3MaxConnections = -1 }},
 		{name: "caldav missing port", mutate: func(cfg *Config) { cfg.CalDAVAddr = "localhost" }},
 		{name: "caldav newline", mutate: func(cfg *Config) { cfg.CalDAVAddr = ":8081\nbad" }},

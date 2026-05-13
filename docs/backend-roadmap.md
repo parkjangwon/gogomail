@@ -5330,6 +5330,10 @@ Progress:
    preserving the connection for a subsequent authentication attempt.
 10. POP3 `STLS` now clears any pre-TLS `USER` state after a successful TLS
     handshake, so clients must repeat `USER`/`PASS` on the protected channel.
+11. POP3S implicit TLS runtime wiring is now available via
+    `GOGOMAIL_POP3S_ADDR` / YAML `pop3s_addr`. The implicit TLS listener uses
+    the configured POP3 TLS certificate/key and shares the same POP3 server
+    instance, maildrop locks, and connection limit as the STLS listener.
 
 ---
 

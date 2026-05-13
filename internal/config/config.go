@@ -33,6 +33,7 @@ type Config struct {
 	WellKnownCalDAVURL                  string
 	WellKnownCardDAVURL                 string
 	POP3Addr                            string
+	POP3SAddr                           string
 	POP3TLSCertFile                     string
 	POP3TLSKeyFile                      string
 	POP3MaxConnections                  int
@@ -259,6 +260,7 @@ func Load() Config {
 		WellKnownCalDAVURL:                  envOrDefault("GOGOMAIL_WELL_KNOWN_CALDAV_URL", ""),
 		WellKnownCardDAVURL:                 envOrDefault("GOGOMAIL_WELL_KNOWN_CARDDAV_URL", ""),
 		POP3Addr:                            envOrDefault("GOGOMAIL_POP3_ADDR", ":1110"),
+		POP3SAddr:                           envOrDefault("GOGOMAIL_POP3S_ADDR", ""),
 		POP3TLSCertFile:                     envOrDefault("GOGOMAIL_POP3_TLS_CERT_FILE", ""),
 		POP3TLSKeyFile:                      envOrDefault("GOGOMAIL_POP3_TLS_KEY_FILE", ""),
 		POP3MaxConnections:                  intEnvOrDefault("GOGOMAIL_POP3_MAX_CONNECTIONS", 0),

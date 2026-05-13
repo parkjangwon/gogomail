@@ -828,6 +828,46 @@ func TestPOP3STLSResetsPreTLSUserState(t *testing.T) {
 	pop3Cmd(t, tp, "+OK", "STAT")
 }
 
+func TestPOP3ImplicitTLSDoesNotAdvertiseSTLS(t *testing.T) {
+	store := &mockStore{
+		mailbox: &mockMailbox{
+			messages: []mockMessage{{uidl: "msg001", size: 42, content: "Hello\r\n"}},
+			deleted:  make(map[int]bool),
+		},
+	}
+	tlsConfig := testPOP3TLSConfig(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer listener.Close()
+	server := &Server{
+		Store:       store,
+		TLSConfig:   tlsConfig,
+		Greeting:    "test",
+		IdleTimeout: 5 * time.Second,
+	}
+	go func() { _ = server.Serve(tls.NewListener(listener, tlsConfig)) }()
+
+	conn, err := tls.Dial("tcp", listener.Addr().String(), &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12})
+	if err != nil {
+		t.Fatalf("tls dial: %v", err)
+	}
+	tp := textproto.NewConn(conn)
+	defer tp.Close()
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("greeting: %v", err)
+	}
+	if !strings.HasPrefix(line, "+OK") {
+		t.Fatalf("unexpected greeting: %s", line)
+	}
+	capa := pop3Capa(t, tp)
+	if capa["STLS"] {
+		t.Fatalf("implicit TLS CAPA advertised STLS: %#v", capa)
+	}
+}
+
 func TestPOP3TransactionQuitAppliesDele(t *testing.T) {
 	store := &mockStore{
 		mailbox: &mockMailbox{

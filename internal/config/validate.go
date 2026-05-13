@@ -85,6 +85,9 @@ func (c Config) Validate() error {
 	if err := validateTCPAddr("GOGOMAIL_IMAP_ADDR", c.IMAPAddr, true); err != nil {
 		return err
 	}
+	if err := validateTCPAddr("GOGOMAIL_POP3S_ADDR", c.POP3SAddr, false); err != nil {
+		return err
+	}
 	if err := validateTCPAddr("GOGOMAIL_CALDAV_ADDR", c.CalDAVAddr, true); err != nil {
 		return err
 	}
