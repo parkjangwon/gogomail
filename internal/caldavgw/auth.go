@@ -90,6 +90,9 @@ func (r BasicAuthResolver) Resolve(req *http.Request) (string, error) {
 	if err != nil {
 		return "", newUnauthorizedChallengeError(fmt.Errorf("invalid caldav credentials"))
 	}
+	if user.MustChangePassword {
+		return "", newUnauthorizedChallengeError(fmt.Errorf("caldav password change is required"))
+	}
 	if strings.TrimSpace(user.UserID) == "" || strings.ContainsAny(user.UserID, "\r\n") {
 		return "", newUnauthorizedChallengeError(fmt.Errorf("authenticated caldav user id is invalid"))
 	}

@@ -1,30 +1,33 @@
 # ACTIVE_TASK
 
-## TASK-254: CardDAV company suspension policy audit
+## TASK-255: CalDAV/CardDAV password-change policy audit
 
 ### 배경
 
-CardDAV Basic Auth는 공통 submission 인증기를 재사용한다. 이 인증 경로가 사용자와
-도메인 상태만 확인하고 회사 상태를 확인하지 않으면, 회사가 중지된 뒤에도 CardDAV
-및 동일 인증 경로를 쓰는 프로토콜 인증이 열릴 수 있다. 회사 상태를 공통 인증
-쿼리에서 닫아 테넌트 정지 정책을 일관되게 적용한다.
+CalDAV/CardDAV Basic Auth는 공통 submission 인증기를 재사용하면서도
+`must_change_password` 플래그를 직접 거절하지 않는다. 임시 비밀번호로 생성된
+사용자가 웹에서 비밀번호 변경을 완료하기 전 DAV 클라이언트로 로그인하지 못하도록
+SMTP/IMAP/POP3와 동일한 정책을 적용한다.
 
 ### 구현 대상
 
-- `internal/maildb/submission.go`
-- `internal/maildb/postgres_integration_test.go`
+- `internal/caldavgw/auth.go`
+- `internal/caldavgw/auth_test.go`
+- `internal/carddavgw/auth.go`
+- `internal/carddavgw/auth_test.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] submission 인증이 회사 상태를 조인하고 `active` 회사만 허용한다.
-- [x] PostgreSQL 회귀 테스트가 중지된 회사의 인증 거절을 커버한다.
-- [x] `go test ./internal/maildb` 통과.
+- [x] CalDAV Basic Auth가 비밀번호 변경 필요 사용자를 거절한다.
+- [x] CardDAV Basic Auth가 비밀번호 변경 필요 사용자를 거절한다.
+- [x] 두 DAV 인증 회귀 테스트가 `must_change_password` 사용자를 커버한다.
+- [x] `go test ./internal/caldavgw ./internal/carddavgw` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-255: CalDAV/CardDAV password-change policy audit
+TASK-256: CardDAV vCard payload validation audit
