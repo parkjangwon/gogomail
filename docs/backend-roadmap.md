@@ -6155,3 +6155,6 @@ Target outcome:
 1721. SMTP submission auth hook failure metrics are now covered:
       failed `StageAuthenticated` hooks record rejected auth metrics and do not
       produce accepted auth metrics.
+1722. SMTP submission invalid credential event isolation is now covered:
+      invalid AUTH credentials emit no authenticated hook events while still
+      recording a rejected auth metric.
