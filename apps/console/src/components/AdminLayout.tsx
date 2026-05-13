@@ -65,7 +65,7 @@ function useIsMobile(breakpoint = 688) {
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [notifications] = useState<FlashbarProps.MessageDefinition[]>([]);
   const [alertCount, setAlertCount] = useState(0);
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   const { companies, currentCompany, switchCompany } = useCompany();
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -104,14 +104,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               type: 'button',
               iconName: 'notification',
               badge: alertCount > 0,
-              title: alertCount > 0 ? `${alertCount} active alert${alertCount > 1 ? 's' : ''}` : 'No active alerts',
+              title: alertCount > 0 ? `${alertCount} ${t(alertCount > 1 ? 'layout.active_alerts_plural' : 'layout.active_alert')}` : t('layout.no_active_alerts'),
               onClick: () => router.push(`/companies/${cid}/security/alerts`),
             },
             {
               type: 'menu-dropdown',
               text: isMobile
                 ? (currentCompany?.name?.slice(0, 8) ?? '…')
-                : (currentCompany?.name ?? 'Select Company'),
+                : (currentCompany?.name ?? t('layout.select_company')),
               description: currentCompany ? `${currentCompany.status}` : '',
               iconName: 'settings',
               items: [
@@ -122,7 +122,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 })),
                 {
                   id: 'manage',
-                  text: '+ Manage Companies',
+                  text: t('layout.manage_companies'),
                 },
               ],
               onItemClick: (e) => {
@@ -137,10 +137,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {
               type: 'menu-dropdown',
               iconName: 'user-profile',
-              text: isMobile ? '' : 'Admin',
+              text: isMobile ? '' : t('layout.admin'),
               items: [
-                { id: 'settings', text: 'Settings' },
-                { id: 'signout', text: 'Sign out' },
+                { id: 'settings', text: t('layout.settings') },
+                { id: 'signout', text: t('layout.sign_out') },
               ],
               onItemClick: (e) => {
                 if (e.detail.id === 'signout') router.push('/login');
@@ -165,7 +165,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             {currentCompany && (
               <span className="admin-toolbar-company">
                 <Box color="text-body-secondary" fontSize="body-s">
-                  Company: <strong>{currentCompany.name}</strong>
+                  {t('layout.company')}: <strong>{currentCompany.name}</strong>
                 </Box>
               </span>
             )}

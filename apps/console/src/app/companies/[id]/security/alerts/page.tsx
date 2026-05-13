@@ -32,14 +32,6 @@ interface AlertRule {
   created_at: string;
 }
 
-const ALERT_TYPE_OPTIONS: SelectProps.Option[] = [
-  { label: 'Bounce Rate', value: 'bounce_rate' },
-  { label: 'Delivery Failure', value: 'delivery_failure' },
-  { label: 'Quota Usage', value: 'quota_usage' },
-  { label: 'Spam Score', value: 'spam_score' },
-  { label: 'Queue Size', value: 'queue_size' },
-];
-
 export default function AlertRulesPage() {
   const { t } = useI18n();
   const params = useParams();
@@ -61,6 +53,14 @@ export default function AlertRulesPage() {
   });
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const alertTypeOptions: SelectProps.Option[] = [
+    { label: t('pages.alerts_page.type_bounce_rate'), value: 'bounce_rate' },
+    { label: t('pages.alerts_page.type_delivery_failure'), value: 'delivery_failure' },
+    { label: t('pages.alerts_page.type_quota_usage'), value: 'quota_usage' },
+    { label: t('pages.alerts_page.type_spam_score'), value: 'spam_score' },
+    { label: t('pages.alerts_page.type_queue_size'), value: 'queue_size' },
+  ];
 
   useEffect(() => {
     fetchAlertRules();
@@ -136,7 +136,7 @@ export default function AlertRulesPage() {
     }
   };
 
-  const selectedAlertType = ALERT_TYPE_OPTIONS.find(o => o.value === newRule.alert_type) ?? ALERT_TYPE_OPTIONS[0];
+  const selectedAlertType = alertTypeOptions.find(o => o.value === newRule.alert_type) ?? alertTypeOptions[0];
 
   const filteredRules = rules.filter(r =>
     r.name.toLowerCase().includes(filter.toLowerCase())
@@ -274,7 +274,7 @@ export default function AlertRulesPage() {
           <FormField label={t('pages.alerts_page.alert_type_label')}>
             <Select
               selectedOption={selectedAlertType}
-              options={ALERT_TYPE_OPTIONS}
+              options={alertTypeOptions}
               onChange={(e: { detail: SelectProps.ChangeDetail }) =>
                 setNewRule({ ...newRule, alert_type: e.detail.selectedOption.value ?? 'bounce_rate' })
               }

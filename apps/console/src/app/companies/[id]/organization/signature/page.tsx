@@ -76,7 +76,7 @@ export default function GlobalSignaturePage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">Global Email Signature</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('global_signature.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -87,22 +87,22 @@ export default function GlobalSignaturePage() {
       header={
         <Header
           variant="h1"
-          description={t('pages.signature_page.page_description')}
+          description={t('global_signature.page_description')}
           actions={
             <SpaceBetween direction="horizontal" size="xs">
-              <Button onClick={fetchSignature}>Discard</Button>
-              <Button variant="primary" onClick={handleSave} loading={saving}>Save</Button>
+              <Button onClick={fetchSignature}>{t('global_signature.discard')}</Button>
+              <Button variant="primary" onClick={handleSave} loading={saving}>{t('common.save')}</Button>
             </SpaceBetween>
           }
         >
-          Global Email Signature
+          {t('global_signature.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
         {error && <Alert type="error">{error}</Alert>}
-        {saveStatus === 'success' && <Alert type="success" dismissible onDismiss={() => setSaveStatus('idle')}>Signature saved successfully.</Alert>}
-        {saveStatus === 'error' && <Alert type="error" dismissible onDismiss={() => setSaveStatus('idle')}>Failed to save signature. Please try again.</Alert>}
+        {saveStatus === 'success' && <Alert type="success" dismissible onDismiss={() => setSaveStatus('idle')}>{t('global_signature.save_success')}</Alert>}
+        {saveStatus === 'error' && <Alert type="error" dismissible onDismiss={() => setSaveStatus('idle')}>{t('global_signature.save_error')}</Alert>}
 
         <Container
           header={
@@ -113,41 +113,41 @@ export default function GlobalSignaturePage() {
                   checked={config.enabled}
                   onChange={e => setConfig(c => ({ ...c, enabled: e.detail.checked }))}
                 >
-                  {config.enabled ? 'Enabled' : 'Disabled'}
+                  {config.enabled ? t('status.enabled') : t('status.disabled')}
                 </Toggle>
               }
             >
-              Signature Settings
+              {t('global_signature.settings_header')}
             </Header>
           }
         >
           {!config.enabled && (
             <Alert type="info">
-              The signature is currently disabled. Enable it to append to all outbound messages.
+              {t('global_signature.disabled_info')}
             </Alert>
           )}
         </Container>
 
-        <Container header={<Header variant="h2">Signature Content</Header>}>
+        <Container header={<Header variant="h2">{t('global_signature.content_header')}</Header>}>
           <Tabs
             tabs={[
               {
-                label: 'HTML',
+                label: t('global_signature.html_tab'),
                 id: 'html',
                 content: (
                   <SpaceBetween size="s">
                     <Box color="text-body-secondary" fontSize="body-s">
-                      HTML signature appended to rich-text (HTML) emails. Use inline styles for best compatibility.
+                      {t('global_signature.html_desc')}
                     </Box>
                     <Textarea
                       value={config.html}
                       onChange={e => setConfig(c => ({ ...c, html: e.detail.value }))}
-                      placeholder="<p>Best regards,<br/><strong>Acme Corp</strong><br/>support@acme.com</p>"
+                      placeholder={t('global_signature.html_placeholder')}
                       rows={12}
                     />
                     {config.html && (
                       <SpaceBetween size="xs">
-                        <Box fontWeight="bold" fontSize="body-s">Preview</Box>
+                        <Box fontWeight="bold" fontSize="body-s">{t('global_signature.preview')}</Box>
                         <div
                           style={{ border: '1px solid var(--color-border-divider-default)', borderRadius: 4, padding: 16, background: '#fff', color: '#000' }}
                           dangerouslySetInnerHTML={{ __html: config.html }}
@@ -158,12 +158,12 @@ export default function GlobalSignaturePage() {
                 ),
               },
               {
-                label: 'Plain Text',
+                label: t('global_signature.text_tab'),
                 id: 'text',
                 content: (
                   <SpaceBetween size="s">
                     <Box color="text-body-secondary" fontSize="body-s">
-                      Plain-text signature appended to text-only emails.
+                      {t('global_signature.text_desc')}
                     </Box>
                     <Textarea
                       value={config.text}

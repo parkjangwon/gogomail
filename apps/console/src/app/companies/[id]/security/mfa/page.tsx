@@ -185,7 +185,7 @@ export default function MFAManagementPage() {
               width: '25%',
             },
             {
-              header: 'Status',
+              header: t('users.status'),
               cell: (u: UserRow) => (
                 <Badge color={u.status === 'active' ? 'green' : 'grey'}>{u.status}</Badge>
               ),

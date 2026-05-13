@@ -4,8 +4,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GoGoMail Admin Console",
-  description: "Enterprise email administration platform",
+  title: "GoGoMail",
+  description: "GoGoMail",
   icons: {
     icon: "/favicon.ico",
   },

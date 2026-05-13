@@ -14,6 +14,7 @@ import {
 } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/app/i18n-provider';
 
 interface SCIMStatus {
   endpoint: string;
@@ -24,6 +25,7 @@ interface SCIMStatus {
 }
 
 export default function SCIMStatusPage() {
+  const { t } = useI18n();
   const params = useParams();
   const companyId = params?.id as string;
   const [data, setData] = useState<SCIMStatus | null>(null);
@@ -41,7 +43,7 @@ export default function SCIMStatusPage() {
 
   if (loading) {
     return (
-      <ContentLayout header={<Header variant="h1">SCIM Provisioning</Header>}>
+      <ContentLayout header={<Header variant="h1">{t('scim_status.title')}</Header>}>
         <Box textAlign="center" padding="xl"><Spinner /></Box>
       </ContentLayout>
     );
@@ -49,8 +51,8 @@ export default function SCIMStatusPage() {
 
   if (error || !data) {
     return (
-      <ContentLayout header={<Header variant="h1">SCIM Provisioning</Header>}>
-        <StatusIndicator type="error">{error || 'Failed to load SCIM status'}</StatusIndicator>
+      <ContentLayout header={<Header variant="h1">{t('scim_status.title')}</Header>}>
+        <StatusIndicator type="error">{error || t('scim_status.failed_load')}</StatusIndicator>
       </ContentLayout>
     );
   }
@@ -61,45 +63,45 @@ export default function SCIMStatusPage() {
   return (
     <ContentLayout
       header={
-        <Header variant="h1" description="System for Cross-domain Identity Management — provision users from your identity provider.">
-          SCIM Provisioning
+        <Header variant="h1" description={t('scim_status.description')}>
+          {t('scim_status.title')}
         </Header>
       }
     >
       <SpaceBetween size="l">
-        <Alert type="info" header="Setup Instructions">
-          Configure your identity provider (Okta, Azure AD, Google Workspace, etc.) with the SCIM endpoint URL and a bearer token generated from <strong>Security → API Keys</strong>.
+        <Alert type="info" header={t('scim_status.setup_header')}>
+          {t('scim_status.setup_desc')}
         </Alert>
 
-        <Container header={<Header variant="h2">Connection Details</Header>}>
+        <Container header={<Header variant="h2">{t('scim_status.connection_details')}</Header>}>
           <SpaceBetween size="m">
             <ColumnLayout columns={2} variant="text-grid">
               <SpaceBetween size="xxs">
-                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">Status</Box>
+                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('scim_status.status')}</Box>
                 <StatusIndicator type={data.status === 'active' ? 'success' : 'warning'}>
-                  {data.status === 'active' ? 'Active' : data.status}
+                  {data.status === 'active' ? t('scim_status.status_active') : data.status}
                 </StatusIndicator>
               </SpaceBetween>
               <SpaceBetween size="xxs">
-                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">Supported Resources</Box>
+                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('scim_status.supported_resources')}</Box>
                 <Box>{data.supported_resources?.join(', ') || '—'}</Box>
               </SpaceBetween>
               <SpaceBetween size="xxs">
-                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">Domain ID</Box>
+                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('scim_status.domain_id')}</Box>
                 <Box fontSize="body-s"><code>{data.domain_id || '—'}</code></Box>
               </SpaceBetween>
               <SpaceBetween size="xxs">
-                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">Provisioned Users</Box>
+                <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('scim_status.provisioned_users')}</Box>
                 <Box fontSize="display-l" fontWeight="bold">{data.user_count}</Box>
               </SpaceBetween>
             </ColumnLayout>
 
             <SpaceBetween size="xxs">
-              <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">SCIM Endpoint URL</Box>
+              <Box fontWeight="bold" fontSize="body-s" color="text-body-secondary">{t('scim_status.endpoint_url')}</Box>
               <CopyToClipboard
-                copyButtonText="Copy"
-                copySuccessText="Copied"
-                copyErrorText="Failed to copy"
+                copyButtonText={t('scim_status.copy')}
+                copySuccessText={t('scim_status.copy_success')}
+                copyErrorText={t('scim_status.copy_error')}
                 textToCopy={scimEndpointUrl}
                 variant="inline"
               />
@@ -108,15 +110,15 @@ export default function SCIMStatusPage() {
           </SpaceBetween>
         </Container>
 
-        <Container header={<Header variant="h2">Supported Operations</Header>}>
+        <Container header={<Header variant="h2">{t('scim_status.supported_ops')}</Header>}>
           <ColumnLayout columns={3} variant="text-grid">
             {[
-              { op: 'GET /Users', desc: 'List provisioned users' },
-              { op: 'POST /Users', desc: 'Create a new user' },
-              { op: 'GET /Users/{id}', desc: 'Retrieve user details' },
-              { op: 'PUT /Users/{id}', desc: 'Replace user attributes' },
-              { op: 'PATCH /Users/{id}', desc: 'Partial update (activate/deactivate)' },
-              { op: 'DELETE /Users/{id}', desc: 'Deprovision user' },
+              { op: 'GET /Users', desc: t('scim_status.op_get_users') },
+              { op: 'POST /Users', desc: t('scim_status.op_post_users') },
+              { op: 'GET /Users/{id}', desc: t('scim_status.op_get_user') },
+              { op: 'PUT /Users/{id}', desc: t('scim_status.op_put_user') },
+              { op: 'PATCH /Users/{id}', desc: t('scim_status.op_patch_user') },
+              { op: 'DELETE /Users/{id}', desc: t('scim_status.op_delete_user') },
             ].map(({ op, desc }) => (
               <SpaceBetween key={op} size="xxs">
                 <Box fontSize="body-s" fontWeight="bold"><code>{op}</code></Box>

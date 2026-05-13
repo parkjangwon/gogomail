@@ -49,14 +49,6 @@ interface ApprovalItem {
   comment?: string;
 }
 
-const CATEGORY_OPTIONS: SelectProps.Option[] = [
-  { label: 'All Categories', value: '' },
-  { label: 'Config', value: 'config' },
-  { label: 'Security', value: 'security' },
-  { label: 'User', value: 'user' },
-  { label: 'Domain', value: 'domain' },
-];
-
 const resultType = (r: string): 'success' | 'error' | 'pending' =>
   r === 'success' ? 'success' : r === 'error' ? 'error' : 'pending';
 
@@ -78,6 +70,16 @@ export default function ChangeHistoryPage() {
   const [createForm, setCreateForm] = useState({ title: '', description: '', category: 'config', requested_by: '' });
   const [creating, setCreating] = useState(false);
 
+  const categoryOptions: SelectProps.Option[] = [
+    { label: t('pages.change_history_page.all_categories'), value: '' },
+    { label: t('pages.change_history_page.category_config'), value: 'config' },
+    { label: t('pages.change_history_page.category_security'), value: 'security' },
+    { label: t('pages.change_history_page.category_user'), value: 'user' },
+    { label: t('pages.change_history_page.category_domain'), value: 'domain' },
+  ];
+
+  const categoryCreateOptions = categoryOptions.filter(o => o.value);
+
   const loadLogs = useCallback(async () => {
     if (!cid) return;
     setLoadingLogs(true);
@@ -88,7 +90,7 @@ export default function ChangeHistoryPage() {
       const data = await res.json();
       setLogs(data.changes ?? []);
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load change history', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('pages.change_history_page.failed_load_history'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoadingLogs(false);
     }
@@ -102,7 +104,7 @@ export default function ChangeHistoryPage() {
       const data = await res.json();
       setApprovals(data.approvals ?? []);
     } catch {
-      setFlash([{ type: 'error', content: 'Failed to load approvals', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'error', content: t('pages.change_history_page.failed_load_approvals'), dismissible: true, onDismiss: () => setFlash([]) }]);
     } finally {
       setLoadingApprovals(false);
     }
@@ -122,7 +124,14 @@ export default function ChangeHistoryPage() {
         body: JSON.stringify({ comment: reviewComment }),
       });
       if (!res.ok) throw new Error(await res.text());
-      setFlash([{ type: 'success', content: `Request ${reviewModal.action}d`, dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{
+        type: 'success',
+        content: reviewModal.action === 'approve'
+          ? t('pages.change_history_page.request_approved')
+          : t('pages.change_history_page.request_rejected'),
+        dismissible: true,
+        onDismiss: () => setFlash([]),
+      }]);
       setReviewModal(null);
       setReviewComment('');
       loadApprovals();
@@ -142,7 +151,7 @@ export default function ChangeHistoryPage() {
         body: JSON.stringify(createForm),
       });
       if (!res.ok) throw new Error(await res.text());
-      setFlash([{ type: 'success', content: 'Approval request submitted', dismissible: true, onDismiss: () => setFlash([]) }]);
+      setFlash([{ type: 'success', content: t('pages.change_history_page.approval_submitted'), dismissible: true, onDismiss: () => setFlash([]) }]);
       setShowCreateModal(false);
       setCreateForm({ title: '', description: '', category: 'config', requested_by: '' });
       loadApprovals();
@@ -161,7 +170,7 @@ export default function ChangeHistoryPage() {
         <Tabs
           tabs={[
             {
-              label: 'Change History',
+              label: t('pages.change_history_page.change_history'),
               id: 'history',
               content: (
                 <Container
@@ -171,15 +180,15 @@ export default function ChangeHistoryPage() {
                       actions={
                         <SpaceBetween size="xs" direction="horizontal">
                           <Select
-                            selectedOption={CATEGORY_OPTIONS.find(o => o.value === categoryFilter) ?? CATEGORY_OPTIONS[0]}
-                            options={CATEGORY_OPTIONS}
+                            selectedOption={categoryOptions.find(o => o.value === categoryFilter) ?? categoryOptions[0]}
+                            options={categoryOptions}
                             onChange={({ detail }) => setCategoryFilter(detail.selectedOption.value ?? '')}
                           />
-                          <Button iconName="refresh" onClick={loadLogs} loading={loadingLogs}>Refresh</Button>
+                          <Button iconName="refresh" onClick={loadLogs} loading={loadingLogs}>{t('common.refresh')}</Button>
                         </SpaceBetween>
                       }
                     >
-                      Audit Trail ({logs.length})
+                      {t('pages.change_history_page.audit_trail')} ({logs.length})
                     </Header>
                   }
                 >
@@ -187,21 +196,21 @@ export default function ChangeHistoryPage() {
                     <Table
                       items={logs}
                       columnDefinitions={[
-                        { id: 'time', header: 'Time', cell: (i) => new Date(i.created_at).toLocaleString(), width: 160 },
-                        { id: 'actor', header: 'Actor', cell: (i) => i.actor_id || '—' },
-                        { id: 'action', header: 'Action', cell: (i) => <Box variant="code">{i.action}</Box> },
-                        { id: 'category', header: 'Category', cell: (i) => <Badge color="blue">{i.category}</Badge> },
-                        { id: 'target', header: 'Target', cell: (i) => i.target_type ? `${i.target_type}:${i.target_id}` : '—' },
-                        { id: 'result', header: 'Result', cell: (i) => <StatusIndicator type={resultType(i.result)}>{i.result}</StatusIndicator> },
+                        { id: 'time', header: t('pages.change_history_page.time'), cell: (i) => new Date(i.created_at).toLocaleString(), width: 160 },
+                        { id: 'actor', header: t('pages.change_history_page.actor'), cell: (i) => i.actor_id || '—' },
+                        { id: 'action', header: t('pages.change_history_page.action'), cell: (i) => <Box variant="code">{i.action}</Box> },
+                        { id: 'category', header: t('pages.change_history_page.category'), cell: (i) => <Badge color="blue">{i.category}</Badge> },
+                        { id: 'target', header: t('pages.change_history_page.target'), cell: (i) => i.target_type ? `${i.target_type}:${i.target_id}` : '—' },
+                        { id: 'result', header: t('pages.change_history_page.result'), cell: (i) => <StatusIndicator type={resultType(i.result)}>{i.result}</StatusIndicator> },
                       ]}
-                      empty={<Box textAlign="center" color="inherit">No changes recorded</Box>}
+                      empty={<Box textAlign="center" color="inherit">{t('pages.change_history_page.no_changes')}</Box>}
                     />
                   )}
                 </Container>
               ),
             },
             {
-              label: 'Pending Approvals',
+              label: t('pages.change_history_page.pending_approvals'),
               id: 'approvals',
               content: (
                 <Container
@@ -210,12 +219,12 @@ export default function ChangeHistoryPage() {
                       variant="h2"
                       actions={
                         <SpaceBetween size="xs" direction="horizontal">
-                          <Button onClick={() => setShowCreateModal(true)}>Request Approval</Button>
-                          <Button iconName="refresh" onClick={() => loadApprovals()} loading={loadingApprovals}>Refresh</Button>
+                          <Button onClick={() => setShowCreateModal(true)}>{t('pages.change_history_page.request_approval')}</Button>
+                          <Button iconName="refresh" onClick={() => loadApprovals()} loading={loadingApprovals}>{t('common.refresh')}</Button>
                         </SpaceBetween>
                       }
                     >
-                      Pending ({approvals.length})
+                      {t('pages.change_history_page.pending')} ({approvals.length})
                     </Header>
                   }
                 >
@@ -223,21 +232,21 @@ export default function ChangeHistoryPage() {
                     <Table
                       items={approvals}
                       columnDefinitions={[
-                        { id: 'title', header: 'Change Request', cell: (i) => i.title },
-                        { id: 'category', header: 'Category', cell: (i) => <Badge color="blue">{i.category}</Badge> },
-                        { id: 'requested_by', header: 'Requested By', cell: (i) => i.requested_by || '—' },
-                        { id: 'requested_at', header: 'Submitted', cell: (i) => new Date(i.requested_at).toLocaleString() },
+                        { id: 'title', header: t('pages.change_history_page.change_request'), cell: (i) => i.title },
+                        { id: 'category', header: t('pages.change_history_page.category'), cell: (i) => <Badge color="blue">{i.category}</Badge> },
+                        { id: 'requested_by', header: t('pages.change_history_page.requested_by'), cell: (i) => i.requested_by || '—' },
+                        { id: 'requested_at', header: t('pages.change_history_page.submitted'), cell: (i) => new Date(i.requested_at).toLocaleString() },
                         {
-                          id: 'actions', header: 'Actions',
+                          id: 'actions', header: t('common.actions'),
                           cell: (i) => (
                             <SpaceBetween size="xs" direction="horizontal">
-                              <Button variant="inline-link" onClick={() => { setReviewModal({ item: i, action: 'approve' }); setReviewComment(''); }}>Approve</Button>
-                              <Button variant="inline-link" onClick={() => { setReviewModal({ item: i, action: 'reject' }); setReviewComment(''); }}>Reject</Button>
+                              <Button variant="inline-link" onClick={() => { setReviewModal({ item: i, action: 'approve' }); setReviewComment(''); }}>{t('pages.change_history_page.approve')}</Button>
+                              <Button variant="inline-link" onClick={() => { setReviewModal({ item: i, action: 'reject' }); setReviewComment(''); }}>{t('pages.change_history_page.reject')}</Button>
                             </SpaceBetween>
                           ),
                         },
                       ]}
-                      empty={<Box textAlign="center" color="inherit">No pending approvals</Box>}
+                      empty={<Box textAlign="center" color="inherit">{t('pages.change_history_page.no_pending_approvals')}</Box>}
                     />
                   )}
                 </Container>
@@ -250,17 +259,17 @@ export default function ChangeHistoryPage() {
           <Modal
             visible
             onDismiss={() => setReviewModal(null)}
-            header={`${reviewModal.action === 'approve' ? 'Approve' : 'Reject'}: ${reviewModal.item.title}`}
+            header={`${reviewModal.action === 'approve' ? t('pages.change_history_page.approve') : t('pages.change_history_page.reject')}: ${reviewModal.item.title}`}
             footer={
               <Box float="right">
                 <SpaceBetween size="xs" direction="horizontal">
-                  <Button variant="link" onClick={() => setReviewModal(null)}>Cancel</Button>
+                  <Button variant="link" onClick={() => setReviewModal(null)}>{t('common.cancel')}</Button>
                   <Button
                     variant={reviewModal.action === 'approve' ? 'primary' : 'normal'}
                     loading={submitting}
                     onClick={handleReview}
                   >
-                    {reviewModal.action === 'approve' ? 'Approve' : 'Reject'}
+                    {reviewModal.action === 'approve' ? t('pages.change_history_page.approve') : t('pages.change_history_page.reject')}
                   </Button>
                 </SpaceBetween>
               </Box>
@@ -278,12 +287,12 @@ export default function ChangeHistoryPage() {
         <Modal
           visible={showCreateModal}
           onDismiss={() => setShowCreateModal(false)}
-          header="Request Approval"
+          header={t('pages.change_history_page.request_approval')}
           footer={
             <Box float="right">
               <SpaceBetween size="xs" direction="horizontal">
-                <Button variant="link" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-                <Button variant="primary" loading={creating} onClick={handleCreate}>Submit</Button>
+                <Button variant="link" onClick={() => setShowCreateModal(false)}>{t('common.cancel')}</Button>
+                <Button variant="primary" loading={creating} onClick={handleCreate}>{t('pages.change_history_page.submit')}</Button>
               </SpaceBetween>
             </Box>
           }
@@ -295,19 +304,14 @@ export default function ChangeHistoryPage() {
             <FormField label={t('pages.change_history_page.change_description')}>
               <Textarea value={createForm.description} onChange={({ detail }) => setCreateForm(f => ({ ...f, description: detail.value }))} rows={4} />
             </FormField>
-            <FormField label="Category">
+            <FormField label={t('pages.change_history_page.category')}>
               <Select
-                selectedOption={{ label: createForm.category, value: createForm.category }}
-                options={[
-                  { label: 'config', value: 'config' },
-                  { label: 'security', value: 'security' },
-                  { label: 'domain', value: 'domain' },
-                  { label: 'user', value: 'user' },
-                ]}
+                selectedOption={categoryCreateOptions.find(o => o.value === createForm.category) ?? categoryCreateOptions[0]}
+                options={categoryCreateOptions}
                 onChange={({ detail }) => setCreateForm(f => ({ ...f, category: detail.selectedOption.value ?? 'config' }))}
               />
             </FormField>
-            <FormField label="Requested By" constraintText="Your name or email">
+            <FormField label={t('pages.change_history_page.requested_by')} constraintText={t('pages.change_history_page.requested_by_hint')}>
               <Input value={createForm.requested_by} onChange={({ detail }) => setCreateForm(f => ({ ...f, requested_by: detail.value }))} />
             </FormField>
           </SpaceBetween>

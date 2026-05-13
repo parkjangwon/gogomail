@@ -184,7 +184,7 @@ export default function RolesPage() {
             <Input
               value={newRole.description}
               onChange={(e) => setNewRole({ ...newRole, description: e.detail.value })}
-              placeholder="Role description"
+              placeholder={t('pages.roles_page.description_placeholder')}
             />
           </FormField>
         </SpaceBetween>
