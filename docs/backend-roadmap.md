@@ -5232,6 +5232,9 @@ Target outcome:
          rollback allows retrieving the restored message header and requested
          body lines, keeps the delete mark clear, and preserves the later
          no-delete QUIT fast path.
+ 1682. POP3 UIDL after failed delete commit is now covered: failed QUIT
+         rollback exposes the restored message UIDL, keeps the delete mark
+         clear, and preserves the later no-delete QUIT fast path.
 
 ## Deferred until backend contracts stabilize
 

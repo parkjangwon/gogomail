@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit TOP)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit UIDL)
+
+## POP3 QUIT after failed commit UIDL (2026-05-14, complete)
+- POP3 server coverage now verifies `UIDL 1` after failed `QUIT` rollback returns the restored message UIDL.
+- The regression verifies `UIDL` leaves the delete mark clear and a later no-delete `QUIT` skips another `CommitDeletes` call.
 
 ## POP3 QUIT after failed commit TOP (2026-05-14, complete)
 - POP3 server coverage now verifies `TOP 1 1` after failed `QUIT` rollback returns the restored message header and requested body line only.
