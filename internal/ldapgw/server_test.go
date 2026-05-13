@@ -1109,6 +1109,26 @@ func TestParseLDAPFilterPrincipalKindsFromObjectClass(t *testing.T) {
 	}
 }
 
+func TestFilterPrincipalEntriesByLDAPScope(t *testing.T) {
+	principals := []PrincipalEntry{
+		{DN: "uid=user-1,ou=users,dc=example,dc=com"},
+		{DN: "uid=user-2,ou=users,dc=example,dc=com"},
+		{DN: "ou=org-1,ou=organizations,dc=example,dc=com"},
+	}
+	base := filterPrincipalEntriesByScope(principals, "uid=user-1,ou=users,dc=example,dc=com", scopeBaseObject)
+	if len(base) != 1 || base[0].DN != "uid=user-1,ou=users,dc=example,dc=com" {
+		t.Fatalf("base scope = %+v, want only user-1", base)
+	}
+	oneLevel := filterPrincipalEntriesByScope(principals, "ou=users,dc=example,dc=com", scopeSingleLevel)
+	if len(oneLevel) != 2 {
+		t.Fatalf("one-level scope = %+v, want two direct users", oneLevel)
+	}
+	subtree := filterPrincipalEntriesByScope(principals, "dc=example,dc=com", scopeWholeSubtree)
+	if len(subtree) != 3 {
+		t.Fatalf("subtree scope = %+v, want all entries", subtree)
+	}
+}
+
 func bytesContains(haystack, needle []byte) bool {
 	for i := 0; i+len(needle) <= len(haystack); i++ {
 		if string(haystack[i:i+len(needle)]) == string(needle) {
