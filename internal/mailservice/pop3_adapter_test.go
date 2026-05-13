@@ -27,6 +27,7 @@ type pop3TestRepository struct {
 	folderUsers []string
 	pageUsers   []string
 	pageFolders []string
+	pageCursors []maildb.MessageListCursor
 }
 
 func (r *pop3TestRepository) ListFolders(_ context.Context, userID string) ([]maildb.Folder, error) {
@@ -45,6 +46,7 @@ func (r *pop3TestRepository) ListMessagesPage(_ context.Context, userID, folderI
 	r.pageCalls++
 	r.pageUsers = append(r.pageUsers, userID)
 	r.pageFolders = append(r.pageFolders, folderID)
+	r.pageCursors = append(r.pageCursors, cursor)
 	if r.pageErr != nil {
 		return nil, r.pageErr
 	}
@@ -238,8 +240,20 @@ func TestPOP3StoreAdapterAuthenticateLoadsAllInboxPages(t *testing.T) {
 	if got := mb.MessageUIDL(len(messages) - 1); got != messages[len(messages)-1].ID {
 		t.Fatalf("expected last UIDL %s, got %s", messages[len(messages)-1].ID, got)
 	}
-	if repo.pageCalls < 3 {
-		t.Fatalf("expected at least 3 page calls, got %d", repo.pageCalls)
+	if repo.pageCalls != 3 {
+		t.Fatalf("expected 3 page calls, got %d", repo.pageCalls)
+	}
+	if len(repo.pageCursors) != 3 {
+		t.Fatalf("page cursors = %#v, want 3 cursors", repo.pageCursors)
+	}
+	if repo.pageCursors[0] != (maildb.MessageListCursor{}) {
+		t.Fatalf("first page cursor = %#v, want zero cursor", repo.pageCursors[0])
+	}
+	if repo.pageCursors[1].ID != messages[199].ID {
+		t.Fatalf("second page cursor ID = %s, want %s", repo.pageCursors[1].ID, messages[199].ID)
+	}
+	if repo.pageCursors[2].ID != messages[399].ID {
+		t.Fatalf("third page cursor ID = %s, want %s", repo.pageCursors[2].ID, messages[399].ID)
 	}
 }
 

@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 missing cursor guard)
+Last updated: 2026-05-14 (POP3 page cursor pagination)
+
+## POP3 page cursor pagination (2026-05-14, complete)
+- POP3 multi-page INBOX coverage now asserts a 450-message mailbox is loaded with exactly three page calls.
+- The repository fake records cursors, and the regression verifies page 2 and page 3 start from the prior page's last message ID.
 
 ## POP3 missing cursor guard (2026-05-14, complete)
 - POP3 adapter pagination now rejects `HasMore=true` pages that omit `NextCursor` with a `missing inbox cursor` error.
