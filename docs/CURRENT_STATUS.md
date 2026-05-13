@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP mailbox event zero-sequence EXPUNGE coverage)
+Last updated: 2026-05-14 (IMAP mailbox event clamped EXPUNGE coverage)
+
+## IMAP mailbox event clamped EXPUNGE coverage (2026-05-14, complete)
+- `writeMailboxEvent` coverage now verifies EXPUNGE events whose sequence exceeds the selected message count are clamped to the selected count before emitting a wire response.
+- The same test verifies selected message count and saved SEARCH state are updated using the clamped sequence.
 
 ## IMAP mailbox event zero-sequence EXPUNGE coverage (2026-05-14, complete)
 - `writeMailboxEvent` coverage now verifies EXPUNGE events with `SequenceNumber=0` produce no wire output.

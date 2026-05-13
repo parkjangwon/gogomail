@@ -6874,6 +6874,53 @@ func TestMailboxExpungeEventIgnoresZeroSequence(t *testing.T) {
 	}
 }
 
+func TestMailboxExpungeEventClampsSequenceToSelectedMessages(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	writer := bufio.NewWriter(&out)
+	server, err := NewServer(ServerOptions{Addr: ":1143", Backend: fakeBackend{}, AllowInsecureAuth: true})
+	if err != nil {
+		t.Fatalf("NewServer returned error: %v", err)
+	}
+	state := &imapConnState{
+		session:          &Session{UserID: "user-1"},
+		selectedMailbox:  "inbox",
+		selectedMessages: 3,
+		savedSearch: []imapSearchSavedMessage{
+			{uid: 7, sequenceNumber: 1},
+			{uid: 8, sequenceNumber: 2},
+			{uid: 9, sequenceNumber: 3},
+		},
+	}
+	err = server.writeMailboxEvent(writer, state, MailboxEvent{
+		Type:           MailboxEventExpunge,
+		UserID:         "user-1",
+		MailboxID:      "inbox",
+		UID:            99,
+		SequenceNumber: 99,
+	})
+	if err != nil {
+		t.Fatalf("writeMailboxEvent returned error: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		t.Fatalf("flush event: %v", err)
+	}
+	if got, want := out.String(), "* 3 EXPUNGE\r\n"; got != want {
+		t.Fatalf("clamped expunge output = %q, want %q", got, want)
+	}
+	if state.selectedMessages != 2 {
+		t.Fatalf("selectedMessages = %d, want 2", state.selectedMessages)
+	}
+	wantSaved := []imapSearchSavedMessage{
+		{uid: 7, sequenceNumber: 1},
+		{uid: 8, sequenceNumber: 2},
+	}
+	if !reflect.DeepEqual(state.savedSearch, wantSaved) {
+		t.Fatalf("saved search = %#v, want %#v", state.savedSearch, wantSaved)
+	}
+}
+
 func TestServerStreamsExpungeEventsOverIdle(t *testing.T) {
 	t.Parallel()
 
