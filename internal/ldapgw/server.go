@@ -131,6 +131,7 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 	buf := make([]byte, 8192)
 	readOffset := 0
 	tlsActive := false
+	authenticated := false
 
 	for {
 		// Check context before blocking on read.
@@ -229,7 +230,10 @@ func (s *LDAPServer) handleConn(ctx context.Context, conn net.Conn) {
 				tlsActive = true
 				continue
 			}
-			resp, resultCode, entries := s.handleOperation(ctx, msgID, opTag, opData, controls)
+			resp, resultCode, entries, authOK := s.handleOperation(ctx, msgID, opTag, opData, controls, authenticated)
+			if authOK {
+				authenticated = true
+			}
 			if len(resp) > 0 {
 				if _, err := conn.Write(resp); err != nil {
 					return
@@ -295,22 +299,38 @@ func parsePDULengthWithError(data []byte) (pduLen int, headerLen int, err error)
 	return pduLen, 1 + 1 + numLenBytes, nil
 }
 
-func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control) ([]byte, int, int) {
+func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, opData []byte, controls []control, authenticated bool) ([]byte, int, int, bool) {
 	switch opTag {
 	case opBindRequest:
 		resp, result := s.handleBindRequest(ctx, msgID, opData)
-		return resp, result, 0
+		return resp, result, 0, result == resultSuccess
 	case opSearchRequest:
-		return s.handleSearchRequest(ctx, msgID, opData, controls)
+		if !authenticated && !isPublicDiscoverySearch(opData) {
+			result := resultInsufficientAccessRights
+			return encodeSearchResultDone(msgID, result, "", "bind required"), result, 0, false
+		}
+		resp, result, entries := s.handleSearchRequest(ctx, msgID, opData, controls)
+		return resp, result, entries, false
 	case opUnbindRequest:
-		return nil, resultSuccess, 0
+		return nil, resultSuccess, 0, false
 	case opExtendedRequest:
 		result := resultUnwillingToPerform
-		return encodeExtendedResponse(msgID, result, "", "extended operation not supported"), result, 0
+		return encodeExtendedResponse(msgID, result, "", "extended operation not supported"), result, 0, false
 	default:
 		result := resultUnwillingToPerform
-		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported()), result, 0
+		return encodeLDAPResponse(msgID, opTag, mustEncodeNotSupported()), result, 0, false
 	}
+}
+
+func isPublicDiscoverySearch(opData []byte) bool {
+	baseObject, scope, _, _, _, _, _, err := decodeSearchRequest(opData)
+	if err != nil {
+		return false
+	}
+	if baseObject == "" && scope == scopeBaseObject {
+		return true
+	}
+	return normalizeDNForCompare(baseObject) == "cn=subschema" && scope == scopeBaseObject
 }
 
 func (s *LDAPServer) handleBindRequest(ctx context.Context, msgID int, opData []byte) ([]byte, int) {

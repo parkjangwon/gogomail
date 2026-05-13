@@ -328,6 +328,26 @@ func readSearchUntilDone(t *testing.T, conn net.Conn) (int, []control) {
 	}
 }
 
+func bindTestConnection(t *testing.T, conn net.Conn, auth *fakeLDAPAuth) {
+	t.Helper()
+	auth.addUser("tester", "secret")
+	bindReq := buildLDAPPacket(90, opBindRequest, buildBindRequest(ldapV3, "tester", "secret"))
+	if err := sendPDU(conn, bindReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode bind response: %v", err)
+	}
+	if opTag != opBindResponse || decodeEnumerated(opData) != resultSuccess {
+		t.Fatalf("bind response op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opBindResponse, resultSuccess)
+	}
+}
+
 func pagedResponseCookie(t *testing.T, controls []control) string {
 	t.Helper()
 	for _, ctrl := range controls {
@@ -478,6 +498,42 @@ func TestLDAPServerBindInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestLDAPServerRejectsUnauthenticatedDirectorySearch(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	searchReq := buildLDAPPacket(26, opSearchRequest,
+		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
+	)
+	if err := sendPDU(conn, searchReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultInsufficientAccessRights {
+		t.Fatalf("unauthenticated search op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultInsufficientAccessRights)
+	}
+}
+
 func TestBindIdentityCandidatesUnescapesDNValues(t *testing.T) {
 	got := bindIdentityCandidates(`uid=alice\2eops,ou=users,dc=example,dc=com`)
 	want := []string{`uid=alice\2eops,ou=users,dc=example,dc=com`, "alice.ops"}
@@ -586,6 +642,7 @@ func TestLDAPServerSearchRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	filterData := buildEqualityFilter("mail", "alice@example.com")
 
@@ -627,6 +684,7 @@ func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T
 	defer ln.Close()
 
 	metrics := &fakeLDAPMetrics{}
+	auth := newFakeLDAPAuth()
 	dir := newFakeDirectoryQuerier()
 	dir.addPrincipal(PrincipalEntry{
 		DN:          "uid=alice,ou=users,dc=example,dc=com",
@@ -635,7 +693,7 @@ func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T
 		UID:         "alice",
 		DisplayName: "Alice User",
 	})
-	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), dir, ServerOptions{Metrics: metrics})
+	srv := NewServerWithOptions(ln, auth, dir, ServerOptions{Metrics: metrics})
 	go srv.Serve()
 	defer srv.Close()
 
@@ -644,6 +702,7 @@ func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	searchReq := buildLDAPPacketWithControls(10, opSearchRequest,
 		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("mail", "alice@example.com")),
@@ -664,7 +723,8 @@ func TestLDAPServerIgnoresSupportedCriticalControlAndRecordsMetrics(t *testing.T
 		t.Fatalf("opTag = %d, want %d", opTag, opSearchResultEntry)
 	}
 	events := metrics.snapshot()
-	if len(events) != 1 || events[0].Operation != "search" || events[0].Result != MetricAccepted || events[0].Entries != 1 {
+	last := events[len(events)-1]
+	if len(events) != 2 || last.Operation != "search" || last.Result != MetricAccepted || last.Entries != 1 {
 		t.Fatalf("metrics = %+v, want accepted search with one entry", events)
 	}
 }
@@ -732,7 +792,8 @@ func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 			DisplayName: "User " + fmt.Sprint(i),
 		})
 	}
-	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
 	go srv.Serve()
 	defer srv.Close()
 
@@ -741,6 +802,7 @@ func TestLDAPServerSimplePagedResultsControl(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	firstPageReq := buildLDAPPacketWithControls(20, opSearchRequest,
 		buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "person")),
@@ -798,7 +860,8 @@ func TestLDAPServerOrganizationalUnitSearchReturnsOrganizationEntries(t *testing
 		OU:          "Research",
 		DisplayName: "Research",
 	})
-	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
 	go srv.Serve()
 	defer srv.Close()
 
@@ -807,6 +870,7 @@ func TestLDAPServerOrganizationalUnitSearchReturnsOrganizationEntries(t *testing
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	searchReq := buildLDAPPacket(22, opSearchRequest,
 		buildSearchRequestWithAttrs("dc=example,dc=com", scopeWholeSubtree, buildEqualityFilter("objectClass", "organizationalUnit"), "objectClass", "ou", "mail"),
@@ -847,7 +911,8 @@ func TestLDAPServerOrganizationBaseDNRestrictsSubtreeSearch(t *testing.T) {
 	dir := newFakeDirectoryQuerier()
 	dir.addPrincipal(PrincipalEntry{DN: "uid=user-1,ou=users,dc=example,dc=com", Kind: "user", CN: "Alice", Mail: "alice@example.com", UID: "user-1", DisplayName: "Alice"})
 	dir.addPrincipal(PrincipalEntry{DN: "ou=org-1,ou=organizations,dc=example,dc=com", Kind: "organization", CN: "Research", UID: "org-1", OU: "Research", DisplayName: "Research"})
-	srv := NewServer(ln, newFakeLDAPAuth(), dir)
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, dir)
 	go srv.Serve()
 	defer srv.Close()
 
@@ -856,6 +921,7 @@ func TestLDAPServerOrganizationBaseDNRestrictsSubtreeSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	filter := []byte{tagContextSpecific | filterPresent}
 	filter = append(filter, encodeLength(len("objectClass"))...)
@@ -893,7 +959,8 @@ func TestLDAPServerContainerBaseObjectSearch(t *testing.T) {
 	}
 	defer ln.Close()
 
-	srv := NewServer(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier())
+	auth := newFakeLDAPAuth()
+	srv := NewServer(ln, auth, newFakeDirectoryQuerier())
 	go srv.Serve()
 	defer srv.Close()
 
@@ -902,6 +969,7 @@ func TestLDAPServerContainerBaseObjectSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	filter := []byte{tagContextSpecific | filterPresent}
 	filter = append(filter, encodeLength(len("objectClass"))...)
@@ -1082,7 +1150,8 @@ func TestLDAPServerStartTLSAllowsSearchAfterUpgrade(t *testing.T) {
 		UID:         "alice",
 		DisplayName: "Alice User",
 	})
-	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), dir, ServerOptions{TLSConfig: testLDAPTLSConfig(t)})
+	auth := newFakeLDAPAuth()
+	srv := NewServerWithOptions(ln, auth, dir, ServerOptions{TLSConfig: testLDAPTLSConfig(t)})
 	go srv.Serve()
 	defer srv.Close()
 
@@ -1112,6 +1181,7 @@ func TestLDAPServerStartTLSAllowsSearchAfterUpgrade(t *testing.T) {
 	if err := conn.Handshake(); err != nil {
 		t.Fatalf("TLS handshake: %v", err)
 	}
+	bindTestConnection(t, conn, auth)
 
 	filterData := buildEqualityFilter("mail", "alice@example.com")
 	searchReq := buildLDAPPacket(8, opSearchRequest, buildSearchRequest("dc=example,dc=com", scopeWholeSubtree, filterData))
@@ -1138,7 +1208,8 @@ func TestLDAPServerReturnsSearchReferenceForForeignNamingContext(t *testing.T) {
 	}
 	defer ln.Close()
 
-	srv := NewServerWithOptions(ln, newFakeLDAPAuth(), newFakeDirectoryQuerier(), ServerOptions{
+	auth := newFakeLDAPAuth()
+	srv := NewServerWithOptions(ln, auth, newFakeDirectoryQuerier(), ServerOptions{
 		NamingContexts: []string{"dc=example,dc=com"},
 		ReferralURLs:   []string{"ldap://directory.example.net/dc=example,dc=net"},
 	})
@@ -1150,6 +1221,7 @@ func TestLDAPServerReturnsSearchReferenceForForeignNamingContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	bindTestConnection(t, conn, auth)
 
 	searchReq := buildLDAPPacket(9, opSearchRequest, buildSearchRequest("dc=example,dc=net", scopeWholeSubtree, buildEqualityFilter("mail", "alice@example.net")))
 	if err := sendPDU(conn, searchReq); err != nil {
