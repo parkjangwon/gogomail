@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 message page error propagation)
+Last updated: 2026-05-14 (POP3 message page cursor error)
+
+## POP3 message page cursor error (2026-05-14, complete)
+- POP3 adapter coverage now verifies invalid multi-page INBOX cursors fail as `decode inbox cursor` errors.
+- The regression asserts cursor decode failures stop after the first page lookup instead of advancing with a bad cursor.
 
 ## POP3 message page error propagation (2026-05-14, complete)
 - POP3 adapter coverage now verifies INBOX message page errors fail authentication as `list inbox messages` errors.

@@ -357,6 +357,36 @@ func TestPOP3StoreAdapterMessagePageErrorPropagates(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterMessagePageCursorDecodeErrorPropagates(t *testing.T) {
+	messages := make([]maildb.MessageSummary, maildb.MessageListMaxLimit+1)
+	base := time.Date(2026, 5, 14, 12, 0, 0, 0, time.UTC)
+	for i := range messages {
+		messages[i] = maildb.MessageSummary{
+			ID:         fmt.Sprintf("msg-%03d", i+1),
+			Size:       int64(100 + i),
+			ReceivedAt: base.Add(-time.Duration(i) * time.Minute),
+		}
+	}
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "inbox"}},
+		messages: messages,
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate("alice", "secret"); err == nil || !strings.Contains(err.Error(), "decode inbox cursor") {
+		t.Fatalf("expected decode inbox cursor error, got %v", err)
+	}
+	if repo.pageCalls != 1 {
+		t.Fatalf("page calls = %d, want 1", repo.pageCalls)
+	}
+	if len(repo.pageFolders) != 1 || repo.pageFolders[0] != "folder-inbox" {
+		t.Fatalf("page folders = %#v, want [folder-inbox]", repo.pageFolders)
+	}
+}
+
 func TestPOP3StoreAdapterAuthenticateFail(t *testing.T) {
 	adapter, repo, _ := newPOP3TestSetup()
 	auth := adapter.authenticator.(*pop3TestAuth)

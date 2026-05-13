@@ -4991,6 +4991,9 @@ Target outcome:
  1598. POP3 message page failure handling is now covered at authentication
          time: INBOX page errors propagate as `list inbox messages` failures
          after a single lookup against the selected INBOX folder.
+ 1599. POP3 multi-page cursor decode failures are now covered at authentication
+         time: malformed message IDs in a paged INBOX surface as
+         `decode inbox cursor` errors and stop after the first page lookup.
 
 ## Deferred until backend contracts stabilize
 
