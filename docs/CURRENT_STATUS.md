@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 AUTH PLAIN challenge invalid base64 capability)
+Last updated: 2026-05-14 (POP3 AUTH PLAIN challenge invalid format capability)
+
+## POP3 AUTH PLAIN challenge invalid format capability (2026-05-14, complete)
+- POP3 server coverage now verifies malformed decoded `AUTH PLAIN` continuation credentials return `-ERR invalid credentials format`.
+- The regression verifies auth capabilities and normal `USER/PASS` login still work after the continuation format error.
 
 ## POP3 AUTH PLAIN challenge invalid base64 capability (2026-05-14, complete)
 - POP3 server coverage now verifies invalid base64 in `AUTH PLAIN` continuation input returns `-ERR invalid base64`.
