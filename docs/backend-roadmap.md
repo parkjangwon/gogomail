@@ -5104,6 +5104,9 @@ Target outcome:
  1636. POP3 AUTH PLAIN initial-response success is now covered: valid inline
          credentials authenticate, auth-only CAPA entries disappear, and STAT
          works in transaction state.
+ 1637. POP3 AUTH LOGIN success is now covered: valid username/password
+         challenge credentials authenticate, auth-only CAPA entries disappear,
+         and STAT works in transaction state.
 
 ## Deferred until backend contracts stabilize
 
