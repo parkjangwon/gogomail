@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 invalid message index size)
+Last updated: 2026-05-14 (POP3 invalid UIDL index)
+
+## POP3 invalid UIDL index (2026-05-14, complete)
+- POP3 mailbox coverage now verifies `MessageUIDL` returns an empty string for negative and out-of-range indexes.
+- This keeps invalid POP3 sequence handling from leaking arbitrary or stale message identifiers.
 
 ## POP3 invalid message index size (2026-05-14, complete)
 - POP3 mailbox coverage now verifies `MessageSize` returns zero for negative and out-of-range indexes.

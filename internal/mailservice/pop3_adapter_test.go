@@ -865,6 +865,18 @@ func TestPOP3MailboxMessageUIDL(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxMessageUIDLInvalidIndex(t *testing.T) {
+	adapter, _, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	if got := mb.MessageUIDL(-1); got != "" {
+		t.Fatalf("negative index UIDL = %q, want empty", got)
+	}
+	if got := mb.MessageUIDL(mb.MessageCount()); got != "" {
+		t.Fatalf("out-of-range index UIDL = %q, want empty", got)
+	}
+}
+
 func TestPOP3MailboxMessageContent(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
