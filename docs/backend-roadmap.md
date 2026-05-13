@@ -5197,6 +5197,8 @@ Target outcome:
  1669. POP3 successful QUIT delete commit is now covered: after DELE, QUIT
          invokes CommitDeletes exactly once and preserves the committed delete
          mark.
+ 1670. POP3 no-delete QUIT now skips the delete commit hook: CommitDeletes is
+         only called when the transaction has at least one pending delete.
 
 ## Deferred until backend contracts stabilize
 
