@@ -33,10 +33,17 @@ export interface APIKeyRotateResponse {
   secret: string;
 }
 
+interface APISettingsEnvelope {
+  settings: APISettings;
+}
+
 export function useAPISettings(domainId: string) {
   return useQuery({
     queryKey: ["api-settings", domainId],
-    queryFn: () => api.get<APISettings>(`/domains/${domainId}/api-settings`),
+    queryFn: async () => {
+      const res = await api.get<APISettingsEnvelope>(`/domains/${domainId}/api-settings`);
+      return res.settings;
+    },
     enabled: !!domainId,
     staleTime: 30 * 1000,
   });
@@ -52,7 +59,7 @@ export function useUpdateAPISettings() {
     }: {
       domainId: string;
       data: Omit<APISettings, "updated_at" | "updated_by">;
-    }) => api.put<APISettings>(`/domains/${domainId}/api-settings`, data),
+    }) => api.put<{ status: string; id: string }>(`/domains/${domainId}/api-settings`, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["api-settings", variables.domainId],

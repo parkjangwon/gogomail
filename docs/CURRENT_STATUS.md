@@ -5797,3 +5797,4 @@ Next focus areas:
 - Domain DNS re-check actions now use the documented `GET /admin/v1/domains/{id}/dns-check` contract.
 - The Admin user-create contract now documents the temporary plain `password` field that the backend hashes before persistence, alongside the existing `password_hash` advanced path.
 - Console shared hooks for SSO config, auth policy, reports, organization hierarchy, and audit logs now call the backend routes and response envelope keys that actually exist (`/companies/{id}/sso/config`, `/security/auth-policy`, `/reports`, `/organization/hierarchy`, and `/audit-logs`).
+- Console API key, alert, identity-provider, and statistics hooks no longer assume stale `res.data` wrappers or removed `/statistics|identity-providers|ldap-sync|rdbms-sync` routes. API key and alert hooks now use backend envelopes directly; deferred identity-provider writes/sync operations now fail explicitly instead of calling nonexistent endpoints.

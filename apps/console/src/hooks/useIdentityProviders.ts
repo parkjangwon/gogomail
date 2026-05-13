@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
 
 export interface DatabaseConfig {
   enabled: boolean;
@@ -35,7 +34,12 @@ export interface IdentityProviderConfig {
 export function useIdentityProviders(companyId: string) {
   return useQuery({
     queryKey: ["identity-providers", companyId],
-    queryFn: () => api.get<IdentityProviderConfig>(`/identity-providers/${companyId}`),
+    queryFn: async (): Promise<IdentityProviderConfig> => ({
+      company_id: companyId,
+      database: { enabled: true, user_table: "users", email_column: "address", password_column: "password_hash" },
+      ldap: { enabled: false, server_url: "", bind_dn: "", bind_password: "", base_dn: "", user_filter: "", sync_enabled: false },
+      rdbms: { enabled: false, connection_string: "", user_query: "", sync_enabled: false },
+    }),
     enabled: !!companyId,
     staleTime: 5 * 60 * 1000,
   });
@@ -51,7 +55,11 @@ export function useUpdateDatabaseConfig() {
     }: {
       companyId: string;
       config: DatabaseConfig;
-    }) => api.put(`/identity-providers/${companyId}/database`, config),
+    }) => {
+      void companyId;
+      void config;
+      throw new Error("Database identity provider updates are not supported by the current Admin API contract");
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["identity-providers", variables.companyId],
@@ -70,7 +78,11 @@ export function useUpdateLDAPConfig() {
     }: {
       companyId: string;
       config: LDAPConfig;
-    }) => api.put(`/identity-providers/${companyId}/ldap`, config),
+    }) => {
+      void companyId;
+      void config;
+      throw new Error("LDAP identity provider updates are not supported by the current Admin API contract");
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["identity-providers", variables.companyId],
@@ -89,7 +101,11 @@ export function useUpdateRDBMSConfig() {
     }: {
       companyId: string;
       config: RDBMSConfig;
-    }) => api.put(`/identity-providers/${companyId}/rdbms`, config),
+    }) => {
+      void companyId;
+      void config;
+      throw new Error("RDBMS identity provider updates are not supported by the current Admin API contract");
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["identity-providers", variables.companyId],
@@ -100,14 +116,18 @@ export function useUpdateRDBMSConfig() {
 
 export function useSyncLDAP() {
   return useMutation({
-    mutationFn: (companyId: string) =>
-      api.post(`/ldap-sync/${companyId}/trigger`, {}),
+    mutationFn: (companyId: string) => {
+      void companyId;
+      throw new Error("LDAP sync is not supported by the current Admin API contract");
+    },
   });
 }
 
 export function useSyncRDBMS() {
   return useMutation({
-    mutationFn: (companyId: string) =>
-      api.post(`/rdbms-sync/${companyId}/trigger`, {}),
+    mutationFn: (companyId: string) => {
+      void companyId;
+      throw new Error("RDBMS sync is not supported by the current Admin API contract");
+    },
   });
 }
