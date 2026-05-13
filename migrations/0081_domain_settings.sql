@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS domain_settings (
   password_require_numbers boolean NOT NULL DEFAULT true,
   password_require_special_chars boolean NOT NULL DEFAULT false,
   password_expiry_days int NOT NULL DEFAULT 0 CHECK (password_expiry_days >= 0),
+  password_reset_token_ttl_minutes int NOT NULL DEFAULT 60 CHECK (password_reset_token_ttl_minutes > 0 AND password_reset_token_ttl_minutes <= 10080),
 
   -- Audit
   updated_at timestamptz NOT NULL DEFAULT now(),

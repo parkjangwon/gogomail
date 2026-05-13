@@ -95,6 +95,7 @@ type MessageService interface {
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
+	UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
@@ -1410,13 +1411,13 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		req.DraftID = draftID
-	if !bindRequestUserID(w, r, tokenManager, &req.UserID) {
-		return
-	}
-	if !allowMailMutationRequest(w, r, opts, req.UserID, "update_draft") {
-		return
-	}
-	draft, err := service.SaveDraft(r.Context(), req)
+		if !bindRequestUserID(w, r, tokenManager, &req.UserID) {
+			return
+		}
+		if !allowMailMutationRequest(w, r, opts, req.UserID, "update_draft") {
+			return
+		}
+		draft, err := service.SaveDraft(r.Context(), req)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -1969,15 +1970,28 @@ func RegisterMailRoutesWithOptions(mux *http.ServeMux, service MessageService, t
 			return
 		}
 		var req struct {
-			DisplayName string `json:"display_name"`
+			DisplayName   *string `json:"display_name"`
+			RecoveryEmail *string `json:"recovery_email"`
 		}
 		if err := decodeJSONBody(r, &req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		if err := service.UpdateUserDisplayName(r.Context(), userID, req.DisplayName); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+		if req.DisplayName == nil && req.RecoveryEmail == nil {
+			writeError(w, http.StatusBadRequest, "at least one profile field is required")
 			return
+		}
+		if req.DisplayName != nil {
+			if err := service.UpdateUserDisplayName(r.Context(), userID, *req.DisplayName); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+		if req.RecoveryEmail != nil {
+			if err := service.UpdateOwnRecoveryEmail(r.Context(), userID, *req.RecoveryEmail); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})

@@ -122,6 +122,7 @@ type MeRepository interface {
 	GetUserProfile(ctx context.Context, userID string) (maildb.UserProfile, error)
 	ListUserAddresses(ctx context.Context, userID string) ([]maildb.UserAddress, error)
 	UpdateUserDisplayName(ctx context.Context, userID, displayName string) error
+	UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error
 	ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error
 }
 
@@ -1253,6 +1254,14 @@ func (s *Service) UpdateUserDisplayName(ctx context.Context, userID, displayName
 		return fmt.Errorf("me repository is required")
 	}
 	return repo.UpdateUserDisplayName(ctx, strings.TrimSpace(userID), displayName)
+}
+
+func (s *Service) UpdateOwnRecoveryEmail(ctx context.Context, userID, recoveryEmail string) error {
+	repo, ok := s.repository.(MeRepository)
+	if !ok {
+		return fmt.Errorf("me repository is required")
+	}
+	return repo.UpdateOwnRecoveryEmail(ctx, strings.TrimSpace(userID), recoveryEmail)
 }
 
 func (s *Service) ChangeUserPassword(ctx context.Context, userID, currentPassword, newPassword string) error {

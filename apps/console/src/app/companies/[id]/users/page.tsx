@@ -33,6 +33,7 @@ interface User {
   domain_id: string;
   username: string;
   display_name: string;
+  recovery_email?: string;
   role: string;
   status: UserStatus;
   password_configured: boolean;
@@ -88,7 +89,7 @@ export default function UsersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+  const [newUser, setNewUser] = useState({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
   const [registrationMode, setRegistrationMode] = useState<'temp_password' | 'email_invite'>('temp_password');
   const [loadingDomainSettings, setLoadingDomainSettings] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -96,7 +97,7 @@ export default function UsersPage() {
   const [inviteLink, setInviteLink] = useState('');
 
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ display_name: '', quota_gb: '0', role: 'user' });
+  const [editForm, setEditForm] = useState({ display_name: '', recovery_email: '', quota_gb: '0', role: 'user' });
   const [saving, setSaving] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -188,6 +189,7 @@ export default function UsersPage() {
         display_name: newUser.display_name.trim() || newUser.username.trim(),
         domain_id: newUser.domain_id,
         address: autoAddress,
+        recovery_email: newUser.recovery_email.trim(),
         quota_limit: parseInt(newUser.quota_gb) * 1073741824,
       };
 
@@ -233,7 +235,7 @@ export default function UsersPage() {
 
       if (registrationMode === 'temp_password') {
         setShowCreateModal(false);
-        setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+        setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
       }
       fetchUsers();
     } catch (e) {
@@ -259,6 +261,14 @@ export default function UsersPage() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: editForm.role }),
+          credentials: 'include',
+        });
+      }
+      if (editForm.recovery_email.trim() !== (editUser.recovery_email ?? '')) {
+        await fetch(`/api/admin/users/${editUser.id}/recovery-email`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recovery_email: editForm.recovery_email.trim() }),
           credentials: 'include',
         });
       }
@@ -319,6 +329,7 @@ export default function UsersPage() {
     setEditUser(user);
     setEditForm({
       display_name: user.display_name,
+      recovery_email: user.recovery_email ?? '',
       quota_gb: user.quota_limit > 0 ? String(Math.round(user.quota_limit / 1073741824)) : '0',
       role: user.role || 'user',
     });
@@ -445,7 +456,8 @@ export default function UsersPage() {
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       const matchesText = !filter || u.username.toLowerCase().includes(filter.toLowerCase())
-        || (u.display_name || '').toLowerCase().includes(filter.toLowerCase());
+        || (u.display_name || '').toLowerCase().includes(filter.toLowerCase())
+        || (u.recovery_email || '').toLowerCase().includes(filter.toLowerCase());
       const matchesStatus = !statusFilter || u.status === statusFilter;
       return matchesText && matchesStatus;
     });
@@ -559,6 +571,15 @@ export default function UsersPage() {
               width: '18%',
             },
             {
+              header: t('pages.users_page.recovery_email_label'),
+              cell: (u: User) => (
+                <Box color="text-body-secondary" fontSize="body-s">
+                  {u.recovery_email || '—'}
+                </Box>
+              ),
+              width: '18%',
+            },
+            {
               header: t('pages.users_page.role'),
               cell: (u: User) => {
                 const roleColor = u.role === 'system_admin' ? 'red' : u.role === 'company_admin' ? 'green' : 'grey';
@@ -584,7 +605,7 @@ export default function UsersPage() {
                   {formatStorage(u.quota_used ?? 0, u.quota_limit ?? 0)}
                 </Box>
               ),
-              width: '20%',
+              width: '16%',
             },
             {
               header: t('pages.users_page.created'),
@@ -593,7 +614,7 @@ export default function UsersPage() {
                   {new Date(u.created_at).toLocaleDateString()}
                 </Box>
               ),
-              width: '10%',
+              width: '8%',
             },
             {
               header: t('pages.users_page.actions'),
@@ -680,7 +701,7 @@ export default function UsersPage() {
       <Modal
         onDismiss={() => {
           setShowCreateModal(false);
-          setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+          setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
           setInviteLink('');
           setCreateError('');
         }}
@@ -691,7 +712,7 @@ export default function UsersPage() {
             <Box float="right">
               <Button onClick={() => {
                 setShowCreateModal(false);
-                setNewUser({ username: '', display_name: '', domain_id: '', password: '', quota_gb: '0' });
+                setNewUser({ username: '', display_name: '', domain_id: '', password: '', recovery_email: '', quota_gb: '0' });
                 setInviteLink('');
               }}>{t('common.close')}</Button>
             </Box>
@@ -787,6 +808,18 @@ export default function UsersPage() {
                 </FormField>
               )}
 
+              <FormField
+                label={t('pages.users_page.recovery_email_label')}
+                description={t('pages.users_page.recovery_email_description')}
+              >
+                <Input
+                  type="email"
+                  value={newUser.recovery_email}
+                  onChange={(e) => setNewUser({ ...newUser, recovery_email: e.detail.value })}
+                  placeholder={t('pages.users_page.recovery_email_placeholder')}
+                />
+              </FormField>
+
               <FormField label={t('pages.users_page.quota_label')} description={t('pages.users_page.quota_description')}>
                 <Input
                   type="number"
@@ -821,6 +854,17 @@ export default function UsersPage() {
         <SpaceBetween size="m">
           <FormField label={t('pages.users_page.display_name_label')}>
             <Box color="text-body-secondary">{editForm.display_name || '—'}</Box>
+          </FormField>
+          <FormField
+            label={t('pages.users_page.recovery_email_label')}
+            description={t('pages.users_page.recovery_email_description')}
+          >
+            <Input
+              type="email"
+              value={editForm.recovery_email}
+              onChange={(e) => setEditForm({ ...editForm, recovery_email: e.detail.value })}
+              placeholder={t('pages.users_page.recovery_email_placeholder')}
+            />
           </FormField>
           <FormField label={t('pages.users_page.quota_label')}>
             <Input

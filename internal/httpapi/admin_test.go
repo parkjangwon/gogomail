@@ -8386,6 +8386,7 @@ type fakeAdminService struct {
 	lastUserStatus                              maildb.UpdateUserStatusRequest
 	lastUserQuota                               maildb.UpdateUserQuotaRequest
 	lastUserPasswordHash                        maildb.UpdateUserPasswordHashRequest
+	lastUserRecoveryEmail                       maildb.UpdateUserRecoveryEmailRequest
 	lastQuotaCorrection                         maildb.CorrectQuotaReconciliationRequest
 	lastAttachmentCleanupBefore                 time.Time
 	lastAttachmentCleanupLimit                  int
@@ -8478,47 +8479,47 @@ type fakeAdminService struct {
 	lastMailFlowLogDailyStats                   maildb.MailFlowLogDailyStatsRequest
 	quotaAlertThresholds                        []maildb.QuotaAlertThresholdView
 	quotaAlertThreshold                         maildb.QuotaAlertThresholdView
-	quotaAlerts                                []maildb.QuotaAlertView
-	quotaAlert                                 maildb.QuotaAlertView
-	lastQuotaAlertThresholdList                maildb.QuotaAlertThresholdListRequest
-	lastQuotaAlertThresholdID                  string
-	lastCreateQuotaAlertThreshold              maildb.CreateQuotaAlertThresholdRequest
-	lastUpdateQuotaAlertThreshold              maildb.UpdateQuotaAlertThresholdRequest
-	lastDeleteQuotaAlertThresholdID           string
-	lastQuotaAlertList                        maildb.QuotaAlertListRequest
-	lastQuotaAlertID                          string
-	companyConfig                              []configstore.ConfigEntry
-	domainConfig                               []configstore.ConfigEntry
-	userConfig                                 []configstore.ConfigEntry
-	lastCompanyConfigID                        string
+	quotaAlerts                                 []maildb.QuotaAlertView
+	quotaAlert                                  maildb.QuotaAlertView
+	lastQuotaAlertThresholdList                 maildb.QuotaAlertThresholdListRequest
+	lastQuotaAlertThresholdID                   string
+	lastCreateQuotaAlertThreshold               maildb.CreateQuotaAlertThresholdRequest
+	lastUpdateQuotaAlertThreshold               maildb.UpdateQuotaAlertThresholdRequest
+	lastDeleteQuotaAlertThresholdID             string
+	lastQuotaAlertList                          maildb.QuotaAlertListRequest
+	lastQuotaAlertID                            string
+	companyConfig                               []configstore.ConfigEntry
+	domainConfig                                []configstore.ConfigEntry
+	userConfig                                  []configstore.ConfigEntry
+	lastCompanyConfigID                         string
 	lastCompanyConfigKey                        string
 	lastDomainConfigID                          string
 	lastDomainConfigKey                         string
 	lastUserConfigID                            string
 	lastUserConfigKey                           string
 	lastPropagateCompanyID                      string
-	lastPropagateScope                         configstore.PropagateScope
-	pushDevices                                []maildb.PushDevice
-	lastListDevicesUserID                      string
-	lastDeleteDeviceUserID                     string
-	lastDeleteDeviceID                         string
-	lastDeleteAllDevicesUserID                 string
-	deleteAllDevicesCount                      int
-	alertRules                                 []admin.AlertRule
-	alertChannels                              []admin.AlertChannel
-	alertEvents                                []admin.AlertEvent
-	lastCreateAlertRule                        *admin.AlertRule
-	lastGetAlertRuleID                         string
-	lastListAlertRulesCompanyID                string
-	lastUpdateAlertRule                        *admin.AlertRule
-	lastDeleteAlertRuleID                      string
-	lastCreateAlertChannel                     *admin.AlertChannel
-	lastGetAlertChannelID                      string
-	lastListAlertChannelsCompanyID             string
-	lastUpdateAlertChannel                     *admin.AlertChannel
-	lastDeleteAlertChannelID                   string
-	lastListAlertEventsFilter                  admin.AlertEventFilter
-	lastLogAlertEvent                          *admin.AlertEvent
+	lastPropagateScope                          configstore.PropagateScope
+	pushDevices                                 []maildb.PushDevice
+	lastListDevicesUserID                       string
+	lastDeleteDeviceUserID                      string
+	lastDeleteDeviceID                          string
+	lastDeleteAllDevicesUserID                  string
+	deleteAllDevicesCount                       int
+	alertRules                                  []admin.AlertRule
+	alertChannels                               []admin.AlertChannel
+	alertEvents                                 []admin.AlertEvent
+	lastCreateAlertRule                         *admin.AlertRule
+	lastGetAlertRuleID                          string
+	lastListAlertRulesCompanyID                 string
+	lastUpdateAlertRule                         *admin.AlertRule
+	lastDeleteAlertRuleID                       string
+	lastCreateAlertChannel                      *admin.AlertChannel
+	lastGetAlertChannelID                       string
+	lastListAlertChannelsCompanyID              string
+	lastUpdateAlertChannel                      *admin.AlertChannel
+	lastDeleteAlertChannelID                    string
+	lastListAlertEventsFilter                   admin.AlertEventFilter
+	lastLogAlertEvent                           *admin.AlertEvent
 }
 
 func (f *fakeAdminService) ListCompanies(_ context.Context, req maildb.CompanyListRequest) ([]maildb.CompanyView, error) {
@@ -8694,6 +8695,11 @@ func (f *fakeAdminService) UpdateUserPasswordHash(_ context.Context, req maildb.
 }
 
 func (f *fakeAdminService) UpdateUserRole(_ context.Context, req maildb.UpdateUserRoleRequest) error {
+	return nil
+}
+
+func (f *fakeAdminService) UpdateUserRecoveryEmail(_ context.Context, req maildb.UpdateUserRecoveryEmailRequest) error {
+	f.lastUserRecoveryEmail = req
 	return nil
 }
 
@@ -9495,20 +9501,20 @@ func (f *fakeAdminService) PropagateCompanyConfig(_ context.Context, companyID s
 func (f *fakeAdminService) GetDomainSettings(_ context.Context, domainID string) (*admin.DomainSettings, error) {
 	f.lastDomainID = domainID
 	return &admin.DomainSettings{
-		DomainID:              domainID,
-		TLSPolicy:             "opportunistic",
-		QuotaPerUser:          10737418240,
-		IPWhitelistEnabled:    false,
-		IPWhitelist:           []string{},
-		Require2FA:            false,
-		SessionTimeoutMinutes: 480,
-		PasswordMinLength:     8,
+		DomainID:                    domainID,
+		TLSPolicy:                   "opportunistic",
+		QuotaPerUser:                10737418240,
+		IPWhitelistEnabled:          false,
+		IPWhitelist:                 []string{},
+		Require2FA:                  false,
+		SessionTimeoutMinutes:       480,
+		PasswordMinLength:           8,
 		PasswordRequireUppercase:    true,
 		PasswordRequireNumbers:      true,
 		PasswordRequireSpecialChars: false,
-		PasswordExpiryDays:    0,
-		UpdatedAt:             time.Now(),
-		UpdatedBy:             "admin-1",
+		PasswordExpiryDays:          0,
+		UpdatedAt:                   time.Now(),
+		UpdatedBy:                   "admin-1",
 	}, nil
 }
 

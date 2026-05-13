@@ -3828,6 +3828,10 @@ func (f *fakeMessageService) UpdateUserDisplayName(_ context.Context, _, _ strin
 	return nil
 }
 
+func (f *fakeMessageService) UpdateOwnRecoveryEmail(_ context.Context, _, _ string) error {
+	return nil
+}
+
 func (f *fakeMessageService) ChangeUserPassword(_ context.Context, _, _, _ string) error {
 	return nil
 }
