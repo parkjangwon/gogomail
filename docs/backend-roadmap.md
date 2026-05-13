@@ -6094,3 +6094,7 @@ Target outcome:
      `BulkRestoreMessages` and `BulkRestoreThreads` restore deleted messages
      without reusing expunged UID values; subsequent IMAP UID assignment must
      allocate values above the previous mailbox max UID.
+1706. IMAP single-message restore fresh UID behavior is now covered:
+     `RestoreMessage` restores a deleted message without reusing the expunged
+     UID value; subsequent IMAP UID assignment must allocate above the deleted
+     message's previous UID and keep one message-specific UID row.

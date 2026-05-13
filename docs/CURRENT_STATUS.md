@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP bulk restore fresh UID)
+Last updated: 2026-05-14 (IMAP single restore fresh UID)
+
+## IMAP single restore fresh UID (2026-05-14, complete)
+- IMAP/Postgres coverage now verifies a message restored with `RestoreMessage` gets a fresh UID after delete-time UID row removal instead of reusing the expunged UID value.
+- The regression verifies the restored message receives a UID above its deleted UID and keeps exactly one message-specific UID row afterward.
 
 ## IMAP bulk restore fresh UID (2026-05-14, complete)
 - IMAP/Postgres coverage now verifies messages restored with `BulkRestoreMessages` get fresh UIDs after delete-time UID row removal instead of reusing expunged UID values.
