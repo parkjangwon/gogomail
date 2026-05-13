@@ -5021,6 +5021,9 @@ Target outcome:
  1608. POP3 deleted-message content access is now covered: after `MarkDeleted`,
          `MessageContent` returns an empty body and `MessageContentWithError`
          returns an explicit error.
+ 1609. POP3 reset behavior is now covered for content access: after
+         `ResetDeleted`, a previously deleted message can be read again through
+         `MessageContentWithError`.
 
 ## Deferred until backend contracts stabilize
 

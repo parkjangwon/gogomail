@@ -947,6 +947,29 @@ func TestPOP3MailboxMessageContentDeleted(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxResetRestoresContentAccess(t *testing.T) {
+	adapter, _, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	if err := mb.MarkDeleted(0); err != nil {
+		t.Fatalf("mark deleted: %v", err)
+	}
+	mb.ResetDeleted()
+	contentWithError, ok := mb.(interface {
+		MessageContentWithError(int) (string, error)
+	})
+	if !ok {
+		t.Fatal("mailbox does not expose MessageContentWithError")
+	}
+	content, err := contentWithError.MessageContentWithError(0)
+	if err != nil {
+		t.Fatalf("content after reset: %v", err)
+	}
+	if !strings.Contains(content, "From: a@example.com") {
+		t.Fatalf("unexpected content after reset: %q", content)
+	}
+}
+
 func TestPOP3MailboxMarkDeletedAndReset(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

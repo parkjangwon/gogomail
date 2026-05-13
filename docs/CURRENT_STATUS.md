@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 deleted content access)
+Last updated: 2026-05-14 (POP3 reset restores content access)
+
+## POP3 reset restores content access (2026-05-14, complete)
+- POP3 mailbox coverage now verifies `ResetDeleted` restores content access after a message was marked deleted.
+- The regression reads the stored message body through `MessageContentWithError` after reset.
 
 ## POP3 deleted content access (2026-05-14, complete)
 - POP3 mailbox coverage now verifies deleted messages return empty content through `MessageContent`.
