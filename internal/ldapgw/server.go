@@ -324,6 +324,8 @@ func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, 
 		return resp, result, 0, false
 	case opUnbindRequest:
 		return nil, resultSuccess, 0, false
+	case opAbandonRequest:
+		return nil, resultSuccess, 0, false
 	case opExtendedRequest:
 		resp, result := s.handleExtendedRequest(msgID, opData, authenticated, authzID)
 		return resp, result, 0, false
