@@ -5125,6 +5125,9 @@ Target outcome:
  1643. POP3 USER/PASS wrong-password handling now verifies authorization-state
          capability preservation: failed authentication leaves CAPA and normal
          login usable afterward.
+ 1644. POP3 PASS-without-USER handling now verifies authorization-state
+         capability preservation: command-order errors leave CAPA and normal
+         login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
