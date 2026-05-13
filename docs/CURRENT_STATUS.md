@@ -5796,3 +5796,4 @@ Next focus areas:
 - Company user management now scopes list loading by the company's domains and uses the proxied Admin API path for role and bulk status changes, avoiding cross-tenant user mixing in the console.
 - Domain DNS re-check actions now use the documented `GET /admin/v1/domains/{id}/dns-check` contract.
 - The Admin user-create contract now documents the temporary plain `password` field that the backend hashes before persistence, alongside the existing `password_hash` advanced path.
+- Console shared hooks for SSO config, auth policy, reports, organization hierarchy, and audit logs now call the backend routes and response envelope keys that actually exist (`/companies/{id}/sso/config`, `/security/auth-policy`, `/reports`, `/organization/hierarchy`, and `/audit-logs`).

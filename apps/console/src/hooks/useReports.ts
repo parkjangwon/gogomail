@@ -18,9 +18,13 @@ export interface ReportSchedule {
 export interface ReportTemplate {
   id: string;
   name: string;
-  description: string;
-  sections: string[];
-  created_at: string;
+  type: string;
+  generated_at: string;
+  file_size: number;
+}
+
+interface ReportsEnvelope {
+  reports: ReportTemplate[];
 }
 
 export function useReportSchedules(companyId: string | undefined) {
@@ -28,8 +32,7 @@ export function useReportSchedules(companyId: string | undefined) {
     queryKey: ['reportSchedules', companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const res = await api.get(`/companies/${companyId}/reports/schedules`) as any;
-      return (res.data?.schedules || []) as ReportSchedule[];
+      return [];
     },
     enabled: !!companyId,
   });
@@ -40,8 +43,8 @@ export function useReportTemplates(companyId: string | undefined) {
     queryKey: ['reportTemplates', companyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const res = await api.get(`/companies/${companyId}/reports/templates`) as any;
-      return (res.data?.templates || []) as ReportTemplate[];
+      const res = await api.get<ReportsEnvelope>('/reports');
+      return res.reports;
     },
     enabled: !!companyId,
   });
@@ -50,18 +53,11 @@ export function useReportTemplates(companyId: string | undefined) {
 export function useCreateReportSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      data,
-    }: {
+    mutationFn: async (_variables: {
       companyId: string;
       data: Omit<ReportSchedule, 'id' | 'created_at'>;
     }) => {
-      const res = await api.post(
-        `/companies/${companyId}/reports/schedules`,
-        data
-      ) as any;
-      return res.data as ReportSchedule;
+      throw new Error('Report schedules are not supported by the current Admin API contract');
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['reportSchedules', companyId] });
@@ -72,20 +68,12 @@ export function useCreateReportSchedule() {
 export function useUpdateReportSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      scheduleId,
-      data,
-    }: {
+    mutationFn: async (_variables: {
       companyId: string;
       scheduleId: string;
       data: Partial<ReportSchedule>;
     }) => {
-      const res = await api.put(
-        `/companies/${companyId}/reports/schedules/${scheduleId}`,
-        data
-      ) as any;
-      return res.data as ReportSchedule;
+      throw new Error('Report schedule updates are not supported by the current Admin API contract');
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['reportSchedules', companyId] });
@@ -96,17 +84,11 @@ export function useUpdateReportSchedule() {
 export function useDeleteReportSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      companyId,
-      scheduleId,
-    }: {
+    mutationFn: async (_variables: {
       companyId: string;
       scheduleId: string;
     }) => {
-      const res = await api.delete(
-        `/companies/${companyId}/reports/schedules/${scheduleId}`
-      ) as any;
-      return res.data;
+      throw new Error('Report schedule deletion is not supported by the current Admin API contract');
     },
     onSuccess: (_, { companyId }) => {
       queryClient.invalidateQueries({ queryKey: ['reportSchedules', companyId] });
