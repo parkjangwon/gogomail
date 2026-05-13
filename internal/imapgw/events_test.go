@@ -183,6 +183,7 @@ func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) 
 	defer cancelSubscription()
 
 	cancelContext()
+	cancelContext()
 	select {
 	case _, ok := <-events:
 		if ok {
@@ -194,6 +195,13 @@ func TestMailboxEventBrokerContextCancellationRemovesSubscription(t *testing.T) 
 
 	if err := broker.Publish(context.Background(), MailboxEvent{Type: MailboxEventExists, UserID: "user-1", MailboxID: "inbox", Messages: 1}); err != nil {
 		t.Fatalf("Publish after cancellation returned error: %v", err)
+	}
+	if got := broker.SubscriberCount(); got != 0 {
+		t.Fatalf("SubscriberCount = %d, want 0 after context cancellation", got)
+	}
+	cancelSubscription()
+	if got := broker.SubscriberCount(); got != 0 {
+		t.Fatalf("SubscriberCount = %d, want 0 after explicit cancel following context cancellation", got)
 	}
 }
 

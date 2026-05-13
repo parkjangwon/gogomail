@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker cancel idempotency validation)
+Last updated: 2026-05-14 (IMAP event broker context cancel idempotency validation)
+
+## IMAP event broker context cancel idempotency validation (2026-05-14, complete)
+- Broker regression coverage now verifies repeated subscription context cancellation closes the event channel and leaves subscriber accounting at zero.
+- The same coverage verifies calling the explicit cancel function after context cancellation remains idempotent and does not recreate or retain subscribers.
 
 ## IMAP event broker cancel idempotency validation (2026-05-14, complete)
 - Broker regression coverage now verifies calling a subscription cancel function repeatedly leaves subscriber accounting at zero.
