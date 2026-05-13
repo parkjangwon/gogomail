@@ -49,6 +49,53 @@ func TestSubmissionRejectsEnvelopeFromMismatch(t *testing.T) {
 	}
 }
 
+func TestSubmissionAcceptsAuthorizedEnvelopeAlias(t *testing.T) {
+	t.Parallel()
+
+	recorder := &submissionRecorder{}
+	store := storage.NewLocalStore(t.TempDir())
+	receiver := NewSubmissionReceiver(SubmissionOptions{
+		Store:         store,
+		Authenticator: submissionAuthenticator{authorizedAddresses: []string{"alias@example.com"}},
+		Recorder:      recorder,
+		IDGenerator:   func() string { return "submission-alias" },
+		Clock:         func() time.Time { return time.Date(2026, 5, 4, 10, 0, 0, 0, time.UTC) },
+	})
+	session, err := receiver.NewSession(nil)
+	if err != nil {
+		t.Fatalf("NewSession returned error: %v", err)
+	}
+	submission := session.(*submissionSession)
+	server, err := submission.Auth(sasl.Plain)
+	if err != nil {
+		t.Fatalf("Auth returned error: %v", err)
+	}
+	if _, done, err := server.Next([]byte("\x00jangwon@example.com\x00pass")); err != nil {
+		t.Fatalf("AUTH PLAIN returned error: %v", err)
+	} else if !done {
+		t.Fatal("AUTH PLAIN did not complete")
+	}
+	if err := submission.Mail("alias@example.com", nil); err != nil {
+		t.Fatalf("Mail returned error: %v", err)
+	}
+	if err := submission.Rcpt("outside@example.net", nil); err != nil {
+		t.Fatalf("Rcpt returned error: %v", err)
+	}
+	raw := "Message-ID: <submission-alias@example.com>\r\nFrom: Alias <alias@example.com>\r\nTo: outside@example.net\r\nSubject: alias\r\n\r\nbody"
+	if err := submission.Data(strings.NewReader(raw)); err != nil {
+		t.Fatalf("Data returned error: %v", err)
+	}
+	if len(recorder.messages) != 1 {
+		t.Fatalf("recorded messages = %d, want 1", len(recorder.messages))
+	}
+	if recorder.messages[0].EnvelopeFrom != "alias@example.com" {
+		t.Fatalf("EnvelopeFrom = %q, want alias@example.com", recorder.messages[0].EnvelopeFrom)
+	}
+	if _, err := store.Get(context.Background(), "mailstore/company-1/domain-1/user-1/maildir/2026/05/submission-alias.eml"); err != nil {
+		t.Fatalf("stored alias submission not found: %v", err)
+	}
+}
+
 func TestSubmissionRejectsSMTPUTF8UntilExplicitlySupported(t *testing.T) {
 	t.Parallel()
 
@@ -539,8 +586,9 @@ func newAuthenticatedSubmissionSession(t *testing.T, recorder *submissionRecorde
 }
 
 type submissionAuthenticator struct {
-	username string
-	password string
+	username            string
+	password            string
+	authorizedAddresses []string
 }
 
 func (a submissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, username string, password string) (SubmissionUser, error) {
@@ -548,11 +596,12 @@ func (a submissionAuthenticator) AuthenticatePlain(_ context.Context, _ string, 
 		return SubmissionUser{}, errAuthTestFailed
 	}
 	return SubmissionUser{
-		CompanyID:   "company-1",
-		DomainID:    "domain-1",
-		UserID:      "user-1",
-		Address:     "jangwon@example.com",
-		DisplayName: "Jang Won",
+		CompanyID:           "company-1",
+		DomainID:            "domain-1",
+		UserID:              "user-1",
+		Address:             "jangwon@example.com",
+		DisplayName:         "Jang Won",
+		AuthorizedAddresses: a.authorizedAddresses,
 	}, nil
 }
 

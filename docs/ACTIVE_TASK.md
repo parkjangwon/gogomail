@@ -1,32 +1,32 @@
 # ACTIVE_TASK
 
-## TASK-245: SMTP object storage orphan rollback audit
+## TASK-246: SMTP submission sender alias authorization audit
 
 ### 배경
 
-SMTP receive 경로는 수신자별 `.eml` 객체를 object storage에 먼저 기록한 뒤 DB
-recorder/쿼터 경로를 호출한다. recorder가 실패하거나 mailbox full을 반환하면
-DB에는 메시지가 없는데 object storage에는 원문 객체가 남을 수 있다. storage
-write 이후 commit 지점까지 실패하면 해당 객체를 best-effort로 삭제해야 한다.
+Authenticated Submission은 인증된 사용자의 기본 주소와 일치하는 `MAIL FROM`만
+허용한다. 실제 DB에는 같은 사용자의 추가 `user_addresses`가 존재할 수 있으므로,
+사용자가 소유한 별칭/추가 주소로 발신하는 정상 submission이 거절될 수 있다.
+인증 결과에 허용 발신 주소 목록을 포함하고 `MAIL FROM` 검증이 이를 사용해야 한다.
 
 ### 구현 대상
 
-- `internal/smtp/receiver.go`
-- `internal/smtp/receiver_test.go`
-- `internal/smtp/receiver_mailboxfull_extra_test.go`
+- `internal/smtp/submission.go`
+- `internal/smtp/submission_test.go`
+- `internal/maildb/submission.go`
 - `docs/ACTIVE_TASK.md`
 - `docs/CURRENT_STATUS.md`
 - `docs/backend-roadmap.md`
 
 ### 완료 조건
 
-- [x] recorder 실패 시 방금 저장한 `.eml` 객체를 삭제한다.
-- [x] mailbox full/quota 실패 시에도 방금 저장한 `.eml` 객체를 삭제한다.
-- [x] stored 이벤트 실패 시 DB 기록 전 저장 객체를 삭제한다.
-- [x] `go test ./internal/smtp` 통과.
+- [x] SubmissionUser가 인증된 사용자의 허용 발신 주소 목록을 표현한다.
+- [x] MAIL FROM이 기본 주소뿐 아니라 허용된 추가 주소도 통과한다.
+- [x] DB authenticator가 사용자의 active 주소 목록을 인증 결과에 포함한다.
+- [x] `go test ./internal/smtp ./internal/maildb` 통과.
 - [x] `go test ./...` 통과.
 - [x] 개발 문서를 최신 상태로 갱신한다.
 
 ### 다음 태스크
 
-TASK-246: SMTP submission sender alias authorization audit
+TASK-247: SMTP submitted object rollback audit

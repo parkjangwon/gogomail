@@ -67,7 +67,37 @@ LIMIT 1`
 	if !auth.VerifyPasswordHash(password, passwordHash) {
 		return smtpd.SubmissionUser{}, fmt.Errorf("invalid submission credentials")
 	}
+	addresses, err := r.submissionUserAddresses(ctx, user.UserID)
+	if err != nil {
+		return smtpd.SubmissionUser{}, err
+	}
+	user.AuthorizedAddresses = addresses
 	return user, nil
+}
+
+func (r *Repository) submissionUserAddresses(ctx context.Context, userID string) ([]string, error) {
+	const query = `
+SELECT ua.address
+FROM user_addresses ua
+WHERE ua.user_id = $1
+ORDER BY ua.is_primary DESC, lower(ua.address)`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list submission user addresses: %w", err)
+	}
+	defer rows.Close()
+	var addresses []string
+	for rows.Next() {
+		var address string
+		if err := rows.Scan(&address); err != nil {
+			return nil, fmt.Errorf("scan submission user address: %w", err)
+		}
+		addresses = append(addresses, address)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate submission user addresses: %w", err)
+	}
+	return addresses, nil
 }
 
 func (r *Repository) RecordSubmitted(ctx context.Context, msg smtpd.SubmittedMessage) (string, error) {
@@ -84,7 +114,7 @@ func (r *Repository) RecordSubmitted(ctx context.Context, msg smtpd.SubmittedMes
 		Subject:      msg.Parsed.Subject,
 		From: outbound.Address{
 			Name:  firstNonEmpty(msg.Parsed.From.Name, msg.User.DisplayName),
-			Email: msg.User.Address,
+			Email: firstNonEmpty(msg.EnvelopeFrom, msg.User.Address),
 		},
 		To:          to,
 		Cc:          cc,
