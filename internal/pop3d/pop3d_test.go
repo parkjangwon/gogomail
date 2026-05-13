@@ -194,6 +194,38 @@ func pop3Cmd(t *testing.T, tp *textproto.Conn, expected string, format string, a
 	return line
 }
 
+func pop3BeginAuth(t *testing.T, tp *textproto.Conn, command string) uint {
+	t.Helper()
+	id, err := tp.Cmd("%s", command)
+	if err != nil {
+		t.Fatalf("cmd: %v", err)
+	}
+	tp.StartResponse(id)
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth continuation: %v", err)
+	}
+	if !strings.HasPrefix(line, "+") {
+		t.Fatalf("expected auth continuation, got: %s", line)
+	}
+	return id
+}
+
+func pop3CancelAuth(t *testing.T, tp *textproto.Conn, id uint) {
+	t.Helper()
+	if err := tp.PrintfLine("*"); err != nil {
+		t.Fatalf("send auth cancellation: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth cancellation response: %v", err)
+	}
+	if !strings.HasPrefix(line, "-ERR authentication cancelled") {
+		t.Fatalf("expected authentication cancelled, got: %s", line)
+	}
+	tp.EndResponse(id)
+}
+
 func TestPOP3Greeting(t *testing.T) {
 	_, listener := newTestServer(t)
 	defer listener.Close()
@@ -248,6 +280,55 @@ func TestPOP3AuthLoginRejectsExtraArguments(t *testing.T) {
 	defer tp.Close()
 
 	pop3Cmd(t, tp, "-ERR", "AUTH LOGIN ignored")
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
+func TestPOP3AuthPlainCancellationKeepsSessionUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH PLAIN")
+	pop3CancelAuth(t, tp, id)
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
+func TestPOP3AuthLoginUsernameCancellationKeepsSessionUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
+	pop3CancelAuth(t, tp, id)
+	pop3Login(t, tp)
+	pop3Cmd(t, tp, "+OK", "STAT")
+}
+
+func TestPOP3AuthLoginPasswordCancellationKeepsSessionUsable(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	id := pop3BeginAuth(t, tp, "AUTH LOGIN")
+	if err := tp.PrintfLine("%s", base64.StdEncoding.EncodeToString([]byte("alice"))); err != nil {
+		t.Fatalf("send auth login username: %v", err)
+	}
+	line, err := tp.ReadLine()
+	if err != nil {
+		t.Fatalf("read auth login password continuation: %v", err)
+	}
+	if !strings.HasPrefix(line, "+") {
+		t.Fatalf("expected password continuation, got: %s", line)
+	}
+	pop3CancelAuth(t, tp, id)
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }

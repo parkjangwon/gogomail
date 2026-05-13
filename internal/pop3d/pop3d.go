@@ -275,6 +275,10 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 					return
 				}
 				encoded = strings.TrimRight(line, "\r\n")
+				if encoded == "*" {
+					sess.writeERR("authentication cancelled")
+					return
+				}
 			}
 			decoded, err := base64.StdEncoding.DecodeString(encoded)
 			if err != nil {
@@ -299,7 +303,12 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 				sess.conn.Close()
 				return
 			}
-			userDecoded, err := base64.StdEncoding.DecodeString(strings.TrimRight(userLine, "\r\n"))
+			userEncoded := strings.TrimRight(userLine, "\r\n")
+			if userEncoded == "*" {
+				sess.writeERR("authentication cancelled")
+				return
+			}
+			userDecoded, err := base64.StdEncoding.DecodeString(userEncoded)
 			if err != nil {
 				sess.writeERR("invalid base64")
 				return
@@ -310,7 +319,12 @@ func (sess *session) handleAuth(cmd string, args []string, raw string) {
 				sess.conn.Close()
 				return
 			}
-			passDecoded, err := base64.StdEncoding.DecodeString(strings.TrimRight(passLine, "\r\n"))
+			passEncoded := strings.TrimRight(passLine, "\r\n")
+			if passEncoded == "*" {
+				sess.writeERR("authentication cancelled")
+				return
+			}
+			passDecoded, err := base64.StdEncoding.DecodeString(passEncoded)
 			if err != nil {
 				sess.writeERR("invalid base64")
 				return

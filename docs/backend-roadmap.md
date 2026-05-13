@@ -5325,6 +5325,9 @@ Progress:
 8. POP3 `AUTH PLAIN` and `AUTH LOGIN` now reject mechanism-specific extra
    arguments with `-ERR syntax error` before SASL decoding or continuation
    prompts, keeping the connection in AUTHORIZATION state for a clean retry.
+9. POP3 SASL continuation cancellation now handles `*` for `AUTH PLAIN` and
+   both `AUTH LOGIN` prompts, returning `-ERR authentication cancelled` while
+   preserving the connection for a subsequent authentication attempt.
 
 ---
 
