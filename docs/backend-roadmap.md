@@ -5241,6 +5241,9 @@ Target outcome:
  1684. POP3 STAT after failed delete commit is now covered: failed QUIT
          rollback reports the restored message count and size, keeps the
          delete mark clear, and preserves the later no-delete QUIT fast path.
+ 1685. POP3 multiline LIST after failed delete commit is now covered: failed
+         QUIT rollback exposes all restored message sizes, keeps the delete
+         mark clear, and preserves the later no-delete QUIT fast path.
 
 ## Deferred until backend contracts stabilize
 

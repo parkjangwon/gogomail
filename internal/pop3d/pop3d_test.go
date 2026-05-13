@@ -2153,6 +2153,50 @@ func TestPOP3CommitDeletesErrorLISTKeepsDeleteMarkClear(t *testing.T) {
 	}
 }
 
+func TestPOP3CommitDeletesErrorMultilineLISTRestoresMaildrop(t *testing.T) {
+	mb := &commitMailbox{
+		mockMailbox: &mockMailbox{
+			messages: []mockMessage{
+				{uidl: "msg001", size: 42, content: "Hello\r\n"},
+				{uidl: "msg002", size: 84, content: "World\r\n"},
+			},
+			deleted: make(map[int]bool),
+		},
+		commitErr: fmt.Errorf("db write failed"),
+	}
+	_, listener := newCommitServer(t, mb)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "QUIT")
+	pop3Cmd(t, tp, "+OK", "LIST")
+	lines, err := tp.ReadDotLines()
+	if err != nil {
+		t.Fatalf("read LIST after failed QUIT: %v", err)
+	}
+	if len(lines) != 2 {
+		t.Fatalf("LIST line count after failed QUIT = %d, want 2: %v", len(lines), lines)
+	}
+	if !strings.Contains(lines[0], "1 42") || !strings.Contains(lines[1], "2 84") {
+		t.Fatalf("expected LIST after failed QUIT to restore both message sizes, got: %v", lines)
+	}
+	if mb.Deleted(0) {
+		t.Fatal("expected multiline LIST after failed QUIT to leave delete mark clear")
+	}
+
+	mb.commitErr = nil
+	pop3Cmd(t, tp, "+OK", "QUIT")
+
+	if mb.commitCalls != 1 {
+		t.Fatalf("CommitDeletes calls after multiline LIST then no-delete QUIT = %d, want 1", mb.commitCalls)
+	}
+}
+
 func TestPOP3CommitDeletesErrorSTATKeepsDeleteMarkClear(t *testing.T) {
 	mb := &commitMailbox{
 		mockMailbox: &mockMailbox{
