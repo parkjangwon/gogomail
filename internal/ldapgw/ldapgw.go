@@ -21,6 +21,7 @@ const (
 	opModDNRequest          = 0x6c // APPLICATION 12
 	opSearchResultReference = 0x73 // APPLICATION 19
 	opCompareRequest        = 0x6e // APPLICATION 14
+	opCompareResponse       = 0x6f // APPLICATION 15
 	opAbandonRequest        = 0x50 // APPLICATION 16
 	opExtendedRequest       = 0x77 // APPLICATION 23
 	opExtendedResponse      = 0x78 // APPLICATION 24
@@ -32,6 +33,8 @@ const (
 	resultSuccess                      = 0
 	resultOperationsError              = 1
 	resultProtocolError                = 2
+	resultCompareFalse                 = 5
+	resultCompareTrue                  = 6
 	resultUnavailableCriticalExtension = 12
 	resultInsufficientAccessRights     = 50
 	resultAuthMethodNotSupported       = 48
@@ -524,6 +527,10 @@ func encodeSearchResultReference(messageID int, urls []string) []byte {
 // encodeBindResponse encodes a BindResponse PDU.
 func encodeBindResponse(messageID int, resultCode int, matchedDN, errorMessage string) []byte {
 	return encodeLDAPResponse(messageID, opBindResponse, encodeLDAPResult(resultCode, matchedDN, errorMessage))
+}
+
+func encodeCompareResponse(messageID int, resultCode int, matchedDN, errorMessage string) []byte {
+	return encodeLDAPResponse(messageID, opCompareResponse, encodeLDAPResult(resultCode, matchedDN, errorMessage))
 }
 
 func encodeExtendedResponse(messageID int, resultCode int, matchedDN, errorMessage string) []byte {

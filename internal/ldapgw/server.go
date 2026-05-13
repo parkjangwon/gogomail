@@ -311,6 +311,13 @@ func (s *LDAPServer) handleOperation(ctx context.Context, msgID int, opTag int, 
 		}
 		resp, result, entries := s.handleSearchRequest(ctx, msgID, opData, controls)
 		return resp, result, entries, false
+	case opCompareRequest:
+		if !authenticated {
+			result := resultInsufficientAccessRights
+			return encodeCompareResponse(msgID, result, "", "bind required"), result, 0, false
+		}
+		resp, result := s.handleCompareRequest(ctx, msgID, opData)
+		return resp, result, 0, false
 	case opUnbindRequest:
 		return nil, resultSuccess, 0, false
 	case opExtendedRequest:
@@ -443,6 +450,89 @@ func fromHexNibble(b byte) byte {
 	default:
 		return b - 'A' + 10
 	}
+}
+
+func (s *LDAPServer) handleCompareRequest(ctx context.Context, msgID int, opData []byte) ([]byte, int) {
+	select {
+	case <-ctx.Done():
+		result := resultUnwillingToPerform
+		return encodeCompareResponse(msgID, result, "", "operation timed out"), result
+	default:
+	}
+
+	req, err := decodeCompareRequestData(opData)
+	if err != nil {
+		result := resultUnwillingToPerform
+		return encodeCompareResponse(msgID, result, "", "malformed compare request"), result
+	}
+	principals, err := s.quer.SearchPrincipals(ctx, DirectorySearchRequest{
+		BaseDN: req.entry,
+		Scope:  scopeBaseObject,
+		Attrs:  []string{req.attr},
+		Kinds:  principalKindsForBaseDN(req.entry),
+		Limit:  1,
+	})
+	if err != nil {
+		result := resultUnwillingToPerform
+		return encodeCompareResponse(msgID, result, "", err.Error()), result
+	}
+	principals = filterPrincipalEntriesByScope(principals, req.entry, scopeBaseObject)
+	if len(principals) == 0 {
+		result := resultNoSuchObject
+		return encodeCompareResponse(msgID, result, "", "compare entry not found"), result
+	}
+	attrs := principalLDAPAttributes(principals[0])
+	values, ok := lookupLDAPAttributeValues(attrs, req.attr)
+	if !ok {
+		return encodeCompareResponse(msgID, resultCompareFalse, "", ""), resultCompareFalse
+	}
+	for _, value := range values {
+		if strings.EqualFold(value, req.value) {
+			return encodeCompareResponse(msgID, resultCompareTrue, "", ""), resultCompareTrue
+		}
+	}
+	return encodeCompareResponse(msgID, resultCompareFalse, "", ""), resultCompareFalse
+}
+
+type compareRequest struct {
+	entry string
+	attr  string
+	value string
+}
+
+func decodeCompareRequestData(data []byte) (compareRequest, error) {
+	entry, rest, err := decodeOctetString(data)
+	if err != nil {
+		return compareRequest{}, fmt.Errorf("decode compare entry: %w", err)
+	}
+	if len(rest) == 0 || rest[0] != tagSequence {
+		return compareRequest{}, fmt.Errorf("compare assertion missing")
+	}
+	assertion, err := decodeContent(rest[1:])
+	if err != nil {
+		return compareRequest{}, fmt.Errorf("decode compare assertion: %w", err)
+	}
+	attr, valueRest, err := decodeOctetString(assertion)
+	if err != nil {
+		return compareRequest{}, fmt.Errorf("decode compare attribute: %w", err)
+	}
+	value, trailing, err := decodeOctetString(valueRest)
+	if err != nil {
+		return compareRequest{}, fmt.Errorf("decode compare value: %w", err)
+	}
+	if len(trailing) != 0 {
+		return compareRequest{}, fmt.Errorf("compare assertion trailing data")
+	}
+	return compareRequest{entry: entry, attr: attr, value: value}, nil
+}
+
+func lookupLDAPAttributeValues(attrs map[string][]string, attr string) ([]string, bool) {
+	for name, values := range attrs {
+		if strings.EqualFold(name, strings.TrimSpace(attr)) {
+			return values, true
+		}
+	}
+	return nil, false
 }
 
 func decodeBindRequestData(data []byte) (*bindRequest, error) {

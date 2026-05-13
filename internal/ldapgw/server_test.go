@@ -263,6 +263,15 @@ func buildPagedResultsControl(pageSize int, cookie string) control {
 	return control{Type: controlPagedResults, Value: seq}
 }
 
+func buildCompareRequest(entry, attr, value string) []byte {
+	assertion := append(encodeOctetString(attr), encodeOctetString(value)...)
+	var assertionSeq []byte
+	assertionSeq = append(assertionSeq, tagSequence)
+	assertionSeq = append(assertionSeq, encodeLength(len(assertion))...)
+	assertionSeq = append(assertionSeq, assertion...)
+	return append(encodeOctetString(entry), assertionSeq...)
+}
+
 func sendPDU(conn net.Conn, pdu []byte) error {
 	_, err := conn.Write(pdu)
 	return err
@@ -532,6 +541,67 @@ func TestLDAPServerRejectsUnauthenticatedDirectorySearch(t *testing.T) {
 	}
 	if opTag != opSearchResultDone || decodeEnumerated(opData) != resultInsufficientAccessRights {
 		t.Fatalf("unauthenticated search op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opSearchResultDone, resultInsufficientAccessRights)
+	}
+}
+
+func TestLDAPServerCompareRequest(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	bindTestConnection(t, conn, auth)
+
+	trueReq := buildLDAPPacket(27, opCompareRequest, buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", "mail", "alice@example.com"))
+	if err := sendPDU(conn, trueReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err := decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode compare response: %v", err)
+	}
+	if opTag != opCompareResponse || decodeEnumerated(opData) != resultCompareTrue {
+		t.Fatalf("compare true op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opCompareResponse, resultCompareTrue)
+	}
+
+	falseReq := buildLDAPPacket(28, opCompareRequest, buildCompareRequest("uid=alice,ou=users,dc=example,dc=com", "mail", "bob@example.com"))
+	if err := sendPDU(conn, falseReq); err != nil {
+		t.Fatal(err)
+	}
+	resp, err = readFullPDU(conn, time.Now().Add(3*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, opTag, opData, err = decodeLDAPPacket(resp)
+	if err != nil {
+		t.Fatalf("decode compare false response: %v", err)
+	}
+	if opTag != opCompareResponse || decodeEnumerated(opData) != resultCompareFalse {
+		t.Fatalf("compare false op/result = %d/%d, want %d/%d", opTag, decodeEnumerated(opData), opCompareResponse, resultCompareFalse)
 	}
 }
 
@@ -1216,6 +1286,52 @@ func TestLDAPServerOpenLDAPObjectClassRequiredAttributesCompatibility(t *testing
 	if output := string(groupOut); !strings.Contains(output, "objectClass: groupOfNames") ||
 		!strings.Contains(output, "member: cn=team,ou=groups,dc=example,dc=com") {
 		t.Fatalf("ldapsearch group output missing groupOfNames/member:\n%s", output)
+	}
+}
+
+func TestLDAPServerOpenLDAPCompareCompatibility(t *testing.T) {
+	ldapcompare, err := exec.LookPath("ldapcompare")
+	if err != nil {
+		t.Skip("ldapcompare is not installed")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	auth := newFakeLDAPAuth()
+	auth.addUser("alice", "secret")
+	dir := newFakeDirectoryQuerier()
+	dir.addPrincipal(PrincipalEntry{
+		DN:          "uid=alice,ou=users,dc=example,dc=com",
+		Kind:        "user",
+		CN:          "Alice",
+		Mail:        "alice@example.com",
+		UID:         "alice",
+		DisplayName: "Alice",
+	})
+	srv := NewServer(ln, auth, dir)
+	go srv.Serve()
+	defer srv.Close()
+
+	cmd := exec.Command(ldapcompare,
+		"-x",
+		"-H", "ldap://"+ln.Addr().String(),
+		"-D", "uid=alice,ou=users,dc=example,dc=com",
+		"-w", "secret",
+		"uid=alice,ou=users,dc=example,dc=com",
+		"mail:alice@example.com",
+	)
+	out, err := cmd.CombinedOutput()
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == resultCompareTrue {
+		err = nil
+	}
+	if err != nil {
+		t.Fatalf("ldapcompare failed: %v\n%s", err, out)
+	}
+	if output := string(out); !strings.Contains(output, "TRUE") {
+		t.Fatalf("ldapcompare output = %q, want TRUE", output)
 	}
 }
 
