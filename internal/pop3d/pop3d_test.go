@@ -1023,6 +1023,20 @@ func TestPOP3RetrInvalid(t *testing.T) {
 	pop3Cmd(t, tp, "-ERR", "RETR 99")
 }
 
+func TestPOP3RetrTopHideDeletedMessages(t *testing.T) {
+	_, listener := newTestServer(t)
+	defer listener.Close()
+
+	tp := pop3Conn(t, listener.Addr().String())
+	defer tp.Close()
+
+	pop3Cmd(t, tp, "+OK", "USER alice")
+	pop3Cmd(t, tp, "+OK", "PASS secret")
+	pop3Cmd(t, tp, "+OK", "DELE 1")
+	pop3Cmd(t, tp, "-ERR", "RETR 1")
+	pop3Cmd(t, tp, "-ERR", "TOP 1 0")
+}
+
 // commitMailbox wraps mockMailbox and adds a CommitDeletes method.
 type commitMailbox struct {
 	*mockMailbox

@@ -5042,6 +5042,9 @@ Target outcome:
  1615. POP3 deleted-message LIST visibility is now covered at the wire layer:
          after `DELE`, single-message LIST fails and multi-line LIST omits the
          deleted message while retaining non-deleted messages.
+ 1616. POP3 deleted-message body visibility is now covered at the wire layer:
+         after `DELE`, both `RETR` and `TOP` fail for the deleted message before
+         content is exposed.
 
 ## Deferred until backend contracts stabilize
 

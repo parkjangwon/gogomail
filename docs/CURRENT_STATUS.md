@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 deleted LIST visibility)
+Last updated: 2026-05-14 (POP3 deleted RETR TOP visibility)
+
+## POP3 deleted RETR TOP visibility (2026-05-14, complete)
+- POP3 server coverage now verifies `RETR 1` fails after `DELE 1`.
+- The same wire-level regression verifies `TOP 1 0` fails for a deleted message.
 
 ## POP3 deleted LIST visibility (2026-05-14, complete)
 - POP3 server coverage now verifies `LIST 1` fails after `DELE 1`.
