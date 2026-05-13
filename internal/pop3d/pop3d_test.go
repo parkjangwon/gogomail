@@ -394,6 +394,10 @@ func TestPOP3AuthLoginPasswordCancellationKeepsSessionUsable(t *testing.T) {
 		t.Fatalf("expected password continuation, got: %s", line)
 	}
 	pop3CancelAuth(t, tp, id)
+	capa := pop3Capa(t, tp)
+	if !capa["USER"] || !capa["SASL PLAIN LOGIN"] {
+		t.Fatalf("expected auth capabilities after AUTH LOGIN password cancellation, got: %#v", capa)
+	}
 	pop3Login(t, tp)
 	pop3Cmd(t, tp, "+OK", "STAT")
 }

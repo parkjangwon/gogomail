@@ -5074,6 +5074,9 @@ Target outcome:
  1626. POP3 AUTH LOGIN username cancellation now verifies authorization-state
          capability preservation: after `*`, CAPA still advertises USER and
          SASL before normal login continues.
+ 1627. POP3 AUTH LOGIN password cancellation now verifies authorization-state
+         capability preservation: after password-step `*`, CAPA still advertises
+         USER and SASL before normal login continues.
 
 ## Deferred until backend contracts stabilize
 
