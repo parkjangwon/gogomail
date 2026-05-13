@@ -478,22 +478,6 @@ export async function exportFolderZip(
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-export async function restoreMailbox(folderId: string, file: File): Promise<{ imported: number }> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('folder_id', folderId);
-  const res = await fetch('/api/mail/messages/restore', {
-    method: 'POST',
-    body: formData,
-  });
-  if (!res.ok) {
-    let msg = `Restore failed: ${res.status}`;
-    try { const e = (await res.json()) as { error?: string }; msg = e.error ?? msg; } catch { /* */ }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<{ imported: number }>;
-}
-
 export function sendMessage(data: SendMessageRequest): Promise<SendMessageEnvelope> {
   return apiPost<SendMessageEnvelope>('messages/send', normalizeSendRequestPayload(data));
 }
