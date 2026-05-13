@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (SMTP inbound DATA failure DSN reset)
+Last updated: 2026-05-14 (SMTP inbound RSET DSN reset)
+
+## SMTP inbound RSET DSN reset (2026-05-14, complete)
+- SMTP receiver coverage now verifies explicit `RSET` clears accumulated domain policy and DSN state before the next transaction.
+- The regression verifies the following d1-only success is not blocked by the previous d2 size limit and does not inherit pre-RSET DSN options.
 
 ## SMTP inbound DATA failure DSN reset (2026-05-14, complete)
 - SMTP receiver coverage now verifies a mixed-domain size failure resets accumulated domain policy and DSN state before the next transaction.
