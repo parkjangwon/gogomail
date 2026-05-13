@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 QUIT after failed commit LIST)
+Last updated: 2026-05-14 (POP3 QUIT after failed commit STAT)
+
+## POP3 QUIT after failed commit STAT (2026-05-14, complete)
+- POP3 server coverage now verifies `STAT` after failed `QUIT` rollback reports the restored message count and size.
+- The regression verifies `STAT` leaves the delete mark clear and a later no-delete `QUIT` skips another `CommitDeletes` call.
 
 ## POP3 QUIT after failed commit LIST (2026-05-14, complete)
 - POP3 server coverage now verifies `LIST 1` after failed `QUIT` rollback returns the restored message size.
