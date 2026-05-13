@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CardDAV address-data UID projection hardening)
+Last updated: 2026-05-14 (CardDAV query filter semantics hardening)
+
+## CardDAV query filter semantics hardening (2026-05-14, complete)
+- CardDAV `param-filter` negated text matches now evaluate all parameter values and reject a property when any value matches the forbidden text.
+- Regression coverage now verifies a multi-value parameter such as `TYPE=home,work` does not satisfy a negated `TYPE=home` filter.
 
 ## CardDAV address-data UID projection hardening (2026-05-14, complete)
 - CardDAV `address-data` partial projections now always retain the vCard `UID` line alongside `BEGIN`, `VERSION`, and `END`.

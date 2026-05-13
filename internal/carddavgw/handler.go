@@ -1992,6 +1992,14 @@ func vCardParamFilterApplies(params map[string][]string, filter CardDAVParamFilt
 	if !filter.HasTextMatch {
 		return true
 	}
+	if filter.TextMatch.Negate {
+		for _, value := range values {
+			if textMatchMatches(value, filter.TextMatch) {
+				return false
+			}
+		}
+		return true
+	}
 	for _, value := range values {
 		if textMatchApplies(value, filter.TextMatch) {
 			return true
@@ -2001,23 +2009,26 @@ func vCardParamFilterApplies(params map[string][]string, filter CardDAVParamFilt
 }
 
 func textMatchApplies(value string, match CardDAVTextMatch) bool {
-	needle := normalizeTextMatchValue(match.Text, match.Collation)
-	haystack := normalizeTextMatchValue(value, match.Collation)
-	var matched bool
-	switch match.MatchType {
-	case TextMatchEquals:
-		matched = haystack == needle
-	case TextMatchStartsWith:
-		matched = strings.HasPrefix(haystack, needle)
-	case TextMatchEndsWith:
-		matched = strings.HasSuffix(haystack, needle)
-	default:
-		matched = strings.Contains(haystack, needle)
-	}
+	matched := textMatchMatches(value, match)
 	if match.Negate {
 		return !matched
 	}
 	return matched
+}
+
+func textMatchMatches(value string, match CardDAVTextMatch) bool {
+	needle := normalizeTextMatchValue(match.Text, match.Collation)
+	haystack := normalizeTextMatchValue(value, match.Collation)
+	switch match.MatchType {
+	case TextMatchEquals:
+		return haystack == needle
+	case TextMatchStartsWith:
+		return strings.HasPrefix(haystack, needle)
+	case TextMatchEndsWith:
+		return strings.HasSuffix(haystack, needle)
+	default:
+		return strings.Contains(haystack, needle)
+	}
 }
 
 func normalizeTextMatchValue(value string, collation string) string {
