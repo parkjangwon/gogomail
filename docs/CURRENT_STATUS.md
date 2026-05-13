@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (IMAP event broker race verification)
+Last updated: 2026-05-14 (IMAP mailbox event server ignore coverage)
+
+## IMAP mailbox event server ignore coverage (2026-05-14, complete)
+- IMAP NOOP event-drain coverage now feeds other-user and other-mailbox events before selected mailbox events and verifies only the selected mailbox responses are written.
+- IMAP IDLE live-event coverage now performs the same irrelevant-event check before the selected mailbox EXISTS update.
 
 ## IMAP event broker race verification (2026-05-14, complete)
 - `go test -race -count=1 ./internal/imapgw` passes with the new mailbox event broker diagnostics and concurrent publish/subscribe/cancel coverage.
