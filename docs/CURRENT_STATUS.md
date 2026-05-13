@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 DELE CAPA preserves pending delete)
+Last updated: 2026-05-14 (POP3 DELE unknown command preserves pending delete)
+
+## POP3 DELE unknown command preserves pending delete (2026-05-14, complete)
+- POP3 server coverage now verifies unknown commands after `DELE 1` do not restore the deleted message.
+- The regression verifies `LIST 1` still fails and `STAT` still excludes the pending delete.
 
 ## POP3 DELE CAPA preserves pending delete (2026-05-14, complete)
 - POP3 server coverage now verifies `CAPA` after `DELE 1` does not restore the deleted message.
