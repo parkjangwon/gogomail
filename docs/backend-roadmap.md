@@ -5009,6 +5009,9 @@ Target outcome:
  1604. POP3 message size normalization is now covered through the mailbox
          creation path: summary sizes of negative, zero, and positive values
          produce stable `MessageSize` outputs after Authenticate.
+ 1605. POP3 invalid message-size index handling is now covered: negative and
+         out-of-range `MessageSize` lookups return zero instead of panicking or
+         exposing invalid sizes.
 
 ## Deferred until backend contracts stabilize
 

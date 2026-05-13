@@ -841,6 +841,18 @@ func TestPOP3StoreAdapterNormalizesMessageSizes(t *testing.T) {
 	}
 }
 
+func TestPOP3MailboxMessageSizeInvalidIndex(t *testing.T) {
+	adapter, _, _ := newPOP3TestSetup()
+	mb, _ := adapter.Authenticate("alice", "secret")
+
+	if got := mb.MessageSize(-1); got != 0 {
+		t.Fatalf("negative index size = %d, want 0", got)
+	}
+	if got := mb.MessageSize(mb.MessageCount()); got != 0 {
+		t.Fatalf("out-of-range index size = %d, want 0", got)
+	}
+}
+
 func TestPOP3MailboxMessageUIDL(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")
