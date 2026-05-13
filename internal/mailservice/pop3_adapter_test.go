@@ -812,6 +812,35 @@ func TestPOP3MailboxMessageSize(t *testing.T) {
 	}
 }
 
+func TestPOP3StoreAdapterNormalizesMessageSizes(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders: []maildb.Folder{{ID: "folder-inbox", Name: "Inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{
+			{ID: "msg-negative", Size: -5},
+			{ID: "msg-zero", Size: 0},
+			{ID: "msg-positive", Size: 42},
+		},
+		details: map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	mb, err := adapter.Authenticate("alice", "secret")
+	if err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if got := mb.MessageSize(0); got != 0 {
+		t.Fatalf("negative size normalized to %d, want 0", got)
+	}
+	if got := mb.MessageSize(1); got != 0 {
+		t.Fatalf("zero size normalized to %d, want 0", got)
+	}
+	if got := mb.MessageSize(2); got != 42 {
+		t.Fatalf("positive size normalized to %d, want 42", got)
+	}
+}
+
 func TestPOP3MailboxMessageUIDL(t *testing.T) {
 	adapter, _, _ := newPOP3TestSetup()
 	mb, _ := adapter.Authenticate("alice", "secret")

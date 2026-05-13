@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 message size conversion)
+Last updated: 2026-05-14 (POP3 message size adapter coverage)
+
+## POP3 message size adapter coverage (2026-05-14, complete)
+- POP3 adapter coverage now verifies normalized summary sizes are reflected through mailbox `MessageSize`.
+- The regression covers negative, zero, and positive summary sizes through the Authenticate path.
 
 ## POP3 message size conversion (2026-05-14, complete)
 - POP3 adapter now normalizes maildb `int64` message sizes before exposing POP3 `int` sizes.
