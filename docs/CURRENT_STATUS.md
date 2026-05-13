@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (CalDAV/CardDAV inactive principal create policy)
+Last updated: 2026-05-14 (CalDAV Basic auth parity)
+
+## CalDAV Basic auth parity (2026-05-14, complete)
+- CalDAV auth coverage now verifies unauthorized Basic auth failures expose the `WWWAuthenticate()` challenge with `Basic realm="CalDAV"`.
+- CalDAV now has parity coverage with CardDAV for trusted-proxy `X-Forwarded-Proto` normalization, including uppercase/whitespace `" HTTPS "`.
 
 ## CalDAV/CardDAV inactive principal create policy (2026-05-14, complete)
 - CalDAV Postgres coverage now verifies `CreateCalendar` rejects disabled user, domain, and company state through the active principal join.

@@ -77,6 +77,25 @@ func TestBasicAuthResolverAllowsTrustedProxyForwardedProto(t *testing.T) {
 	}
 }
 
+func TestBasicAuthResolverAllowsUppercaseForwardedProtoWithWhitespace(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCalDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	trusted, err := resolver.WithTrustedProxies([]string{"127.0.0.1/8"})
+	if err != nil {
+		t.Fatalf("WithTrustedProxies returned error: %v", err)
+	}
+	resolver = trusted
+	resolver.TrustForwardedProto = true
+	req := httptest.NewRequest("PROPFIND", "/caldav/principals/user-1/", nil)
+	req.RemoteAddr = "127.0.0.1:1234"
+	req.Header.Set("X-Forwarded-Proto", " HTTPS ")
+	req.SetBasicAuth("user@example.com", "secret")
+	if _, err := resolver.Resolve(req); err != nil {
+		t.Fatalf("Resolve returned error behind uppercase HTTPS proxy: %v", err)
+	}
+}
+
 func TestBasicAuthResolverRejectsInvalidTrustedProxies(t *testing.T) {
 	t.Parallel()
 
@@ -115,6 +134,27 @@ func TestBasicAuthResolverRejectsMalformedForwardedProto(t *testing.T) {
 	req.SetBasicAuth("user@example.com", "secret")
 	if _, err := resolver.Resolve(req); err == nil || !strings.Contains(err.Error(), "requires TLS") {
 		t.Fatalf("Resolve error = %v, want requires TLS", err)
+	}
+}
+
+func TestBasicAuthResolverReturnsUnauthorizedChallenge(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewBasicAuthResolver(fakeCalDAVAuthenticator{username: "user@example.com", password: "secret", userID: "user-1"}, false)
+	req := newNoAuthTLSRequest()
+	_, err := resolver.Resolve(req)
+	if err == nil {
+		t.Fatal("Resolve should fail when auth is missing")
+	}
+	type unauthorizedChallenge interface {
+		WWWAuthenticate() string
+	}
+	challenge, ok := err.(unauthorizedChallenge)
+	if !ok {
+		t.Fatalf("Resolve error missing challenge interface: %T", err)
+	}
+	if challenge.WWWAuthenticate() != calDAVWWWAuthenticate {
+		t.Fatalf("challenge = %q, want %q", challenge.WWWAuthenticate(), calDAVWWWAuthenticate)
 	}
 }
 
