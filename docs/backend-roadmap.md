@@ -5131,6 +5131,9 @@ Target outcome:
  1645. POP3 USER replacement before PASS is now covered: a later USER command
          replaces the pending username, and PASS authenticates against the
          replacement before entering transaction state.
+ 1646. POP3 USER syntax-error handling now verifies authorization-state
+         capability preservation: malformed USER commands leave CAPA and normal
+         login usable afterward.
 
 ## Deferred until backend contracts stabilize
 
