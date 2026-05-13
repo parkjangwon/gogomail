@@ -1,6 +1,10 @@
 # gogomail current status
 
-Last updated: 2026-05-14 (POP3 auth credential validation consolidation)
+Last updated: 2026-05-14 (POP3 username normalization passthrough)
+
+## POP3 username normalization passthrough (2026-05-14, complete)
+- POP3 adapter coverage now verifies whitespace-wrapped usernames are trimmed before calling the authenticator.
+- The POP3 test authenticator records received credentials so adapter boundary normalization can be asserted directly.
 
 ## POP3 auth credential validation consolidation (2026-05-14, complete)
 - POP3 username normalization and password validation are now centralized in small adapter helpers.

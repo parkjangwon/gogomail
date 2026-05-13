@@ -85,10 +85,14 @@ type pop3TestAuth struct {
 	userID             string
 	mustChangePassword bool
 	calls              int
+	usernames          []string
+	passwords          []string
 }
 
 func (a *pop3TestAuth) AuthenticatePlain(_ context.Context, _, username, password string) (smtpd.SubmissionUser, error) {
 	a.calls++
+	a.usernames = append(a.usernames, username)
+	a.passwords = append(a.passwords, password)
 	if username == a.validUser && password == a.validPass {
 		return smtpd.SubmissionUser{UserID: a.userID, Address: username, MustChangePassword: a.mustChangePassword}, nil
 	}
@@ -137,6 +141,24 @@ func TestPOP3StoreAdapterAuthenticate(t *testing.T) {
 	}
 	if mb.MessageCount() != 2 {
 		t.Fatalf("expected 2 messages, got %d", mb.MessageCount())
+	}
+}
+
+func TestPOP3StoreAdapterPassesNormalizedUsernameToAuthenticator(t *testing.T) {
+	repo := &pop3TestRepository{
+		folders:  []maildb.Folder{{ID: "inbox", SystemType: "inbox"}},
+		messages: []maildb.MessageSummary{},
+		details:  map[string]maildb.MessageDetail{},
+	}
+	svc := New(repo, &pop3TestStore{bodies: map[string]string{}})
+	auth := &pop3TestAuth{validUser: "alice", validPass: "secret", userID: "user-1"}
+	adapter := NewPOP3StoreAdapter(auth, svc)
+
+	if _, err := adapter.Authenticate(" alice ", "secret"); err != nil {
+		t.Fatalf("Authenticate returned error: %v", err)
+	}
+	if len(auth.usernames) != 1 || auth.usernames[0] != "alice" {
+		t.Fatalf("auth usernames = %#v, want [alice]", auth.usernames)
 	}
 }
 
