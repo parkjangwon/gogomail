@@ -5150,6 +5150,8 @@ Target outcome:
          login remain usable afterward.
  1652. POP3 transaction-state USER/PASS denial is now covered: reauthentication
          attempts are rejected while NOOP and STAT remain usable afterward.
+ 1653. POP3 transaction-state AUTH denial is now covered: SASL reauthentication
+         attempts are rejected while NOOP and STAT remain usable afterward.
 
 ## Deferred until backend contracts stabilize
 
