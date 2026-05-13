@@ -4944,6 +4944,10 @@ Target outcome:
          adapter boundary: a second login that resolves to a different user ID
          uses that fresh identity for folder loads, inbox page loads, and the
          maildrop lock key.
+ 1584. POP3 authentication identity normalization is now covered at the
+         mailservice adapter boundary: whitespace around the authenticated user
+         ID is trimmed before folder loads, inbox page loads, and maildrop lock
+         key generation.
 
 ## Deferred until backend contracts stabilize
 
